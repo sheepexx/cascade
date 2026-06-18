@@ -953,7 +953,7 @@ export function ManiaEditor(props: Props) {
     // Scroll up => advance in time. Step one beat-snap division per notch so the
     // playhead always lands exactly on a snap line.
     const { currentTime, timingPoints, view } = propsRef.current;
-    const dir: 1 | -1 = e.deltaY < 0 ? 1 : -1;
+    const dir: 1 | -1 = e.deltaY < 0 ? -1 : 1;
     props.onSeek(stepToSnap(currentTime, timingPoints, view.snapDivisor, dir));
   };
 
