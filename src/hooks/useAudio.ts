@@ -13,6 +13,7 @@ export function useAudio(src: string | null) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0); // ms
   const [duration, setDuration] = useState(0); // ms
+  const [volume, setVolumeState] = useState(1);
 
   // Create the audio element once.
   if (audioRef.current === null && typeof Audio !== "undefined") {
@@ -139,15 +140,23 @@ export function useAudio(src: string | null) {
     if (audioRef.current) audioRef.current.playbackRate = rate;
   }, []);
 
+  const setVolume = useCallback((v: number) => {
+    const clamped = Math.max(0, Math.min(1, v));
+    if (audioRef.current) audioRef.current.volume = clamped;
+    setVolumeState(clamped);
+  }, []);
+
   return {
     isPlaying,
     currentTime,
     duration,
+    volume,
     play,
     pause,
     toggle,
     seek,
     setPlaybackRate,
+    setVolume,
   };
 }
 

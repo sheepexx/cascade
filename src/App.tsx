@@ -590,7 +590,9 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const isSpace = e.code === "Space" || e.key === " ";
       const isTab = e.key === "Tab";
-      if (!isSpace && !isTab) return;
+      const isUp = e.key === "ArrowUp";
+      const isDown = e.key === "ArrowDown";
+      if (!isSpace && !isTab && !isUp && !isDown) return;
       if (modalRef.current || askBgScope) return;
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName;
@@ -603,7 +605,9 @@ export default function App() {
       if (!hasAudioRef.current) return;
       e.preventDefault();
       if (isTab) setZenMode((z) => !z);
-      else audio.toggle();
+      else if (isSpace) audio.toggle();
+      else if (isUp) audio.setVolume(audio.volume + 0.05);
+      else if (isDown) audio.setVolume(audio.volume - 0.05);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -993,6 +997,7 @@ export default function App() {
                 onDeleteNotes={deleteNotes}
                 onMoveNotes={moveNotes}
                 onSeek={audio.seek}
+                onVolumeChange={(delta) => audio.setVolume(audio.volume + delta)}
               />
             ) : (
               <EmptyState onOpenSettings={() => setModal("mapSettings")} />

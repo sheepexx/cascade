@@ -65,6 +65,7 @@ type Props = {
   onDeleteNotes: (ids: string[]) => void;
   onMoveNotes: (notes: ManiaNote[]) => void;
   onSeek: (ms: number) => void;
+  onVolumeChange: (delta: number) => void;
 };
 
 type DragState = {
@@ -950,6 +951,11 @@ export function ManiaEditor(props: Props) {
   };
 
   const onWheel = (e: React.WheelEvent) => {
+    if (e.altKey) {
+      // Alt + scroll => adjust volume by 5% per notch.
+      props.onVolumeChange(e.deltaY < 0 ? 0.05 : -0.05);
+      return;
+    }
     // Scroll up => advance in time. Step one beat-snap division per notch so the
     // playhead always lands exactly on a snap line.
     const { currentTime, timingPoints, view } = propsRef.current;

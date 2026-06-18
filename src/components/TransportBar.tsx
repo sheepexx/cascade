@@ -14,7 +14,7 @@ type Props = {
 };
 
 export function TransportBar({ audio, view, onView }: Props) {
-  const { currentTime } = audio;
+  const { currentTime, volume, setVolume } = audio;
 
   return (
     <div className="flex items-center gap-4 border-b border-ink-600 bg-ink-800/80 px-4 py-3 backdrop-blur">
@@ -35,6 +35,23 @@ export function TransportBar({ audio, view, onView }: Props) {
       </button>
 
       <div className="flex-1 flex items-center justify-end gap-4">
+        {/* Volume (↑↓ keys or Alt+scroll) */}
+        <label className="flex items-center gap-2 text-xs text-slate-400">
+          Vol
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={volume}
+            onChange={(e) => setVolume(Number(e.target.value))}
+            className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+          />
+          <span className="w-8 font-mono text-slate-300">
+            {Math.round(volume * 100)}%
+          </span>
+        </label>
+
         {/* Snap divisor */}
         <label className="flex items-center gap-2 text-xs text-slate-400">
           Snap
