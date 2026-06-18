@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * osu!lazer typeface — Torus / Torus-Alternate.
+ *
+ * These are proprietary and not redistributed with the project. Each face is
+ * resolved first from a locally installed copy, then from /fonts (drop the
+ * licensed .woff2 files there — see public/fonts/README.md). When neither is
+ * present the stack falls through to Inter, which lazer also ships and which
+ * is loaded from Google Fonts in index.html.
+ */
+@font-face {
+  font-family: "Torus";
+  src: local("Torus Regular"), local("Torus"), url("/fonts/Torus-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Torus";
+  src: local("Torus Light"), url("/fonts/Torus-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Torus";
+  src: local("Torus SemiBold"), url("/fonts/Torus-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Torus";
+  src: local("Torus Bold"), url("/fonts/Torus-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Torus-Alternate";
+  src: local("Torus Alternate Regular"), local("Torus-Alternate"),
+    url("/fonts/Torus-Alternate-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  /* Shared osu!lazer font stack; mirror in tailwind.config.js + canvas text. */
+  --font-osu: "Torus", "Torus-Alternate", "Inter", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  @apply bg-ink-900 text-slate-200 font-sans antialiased;
+}
+
+/* Slim scrollbars to match the dark UI */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #33333f;
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #44444f;
+}
