@@ -13,11 +13,15 @@ export function useAudio(src: string | null) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0); // ms
   const [duration, setDuration] = useState(0); // ms
-  const [volume, setVolumeState] = useState(1);
+  // `volume` is the *perceived* slider position (0–1). Actual audio.volume is
+  // derived via a square law so the slider feels linear to the ear.
+  const [volume, setVolumeState] = useState(0.5);
 
   // Create the audio element once.
   if (audioRef.current === null && typeof Audio !== "undefined") {
-    audioRef.current = new Audio();
+    const el = new Audio();
+    el.volume = 0.5 * 0.5; // apply square law to the initial default
+    audioRef.current = el;
   }
 
   // Wire up the source.
@@ -142,7 +146,8 @@ export function useAudio(src: string | null) {
 
   const setVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
-    if (audioRef.current) audioRef.current.volume = clamped;
+    // Square law: perceived 50% slider → 25% actual power, much more natural.
+    if (audioRef.current) audioRef.current.volume = clamped * clamped;
     setVolumeState(clamped);
   }, []);
 
