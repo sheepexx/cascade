@@ -7,17 +7,14 @@ import {
 } from "../types";
 import type { AudioController } from "../hooks/useAudio";
 import { formatTime } from "../lib/timing";
-import { Button } from "./ui/Controls";
-
 type Props = {
   audio: AudioController;
-  hasAudio: boolean;
   view: ViewState;
   onView: (v: ViewState) => void;
 };
 
-export function TransportBar({ audio, hasAudio, view, onView }: Props) {
-  const { isPlaying, currentTime, toggle } = audio;
+export function TransportBar({ audio, view, onView }: Props) {
+  const { currentTime } = audio;
 
   return (
     <div className="flex items-center gap-4 border-b border-ink-600 bg-ink-800/80 px-4 py-3 backdrop-blur">

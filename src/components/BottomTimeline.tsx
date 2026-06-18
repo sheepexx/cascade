@@ -59,7 +59,6 @@ export function BottomTimeline({
   const draggingRef = useRef(false);
   const waveformRevealStartRef = useRef(0);
   const revealedWaveformRef = useRef<Waveform | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const propsRef = useRef({
     waveform,
@@ -303,15 +302,6 @@ export function BottomTimeline({
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
   }, []);
-
-  // Handle copy timestamp to clipboard
-  const handleTimestampClick = useCallback(() => {
-    const timestamp = formatTime(currentTime);
-    navigator.clipboard.writeText(timestamp).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [currentTime]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {

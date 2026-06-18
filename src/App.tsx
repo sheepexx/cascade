@@ -970,7 +970,6 @@ export default function App() {
           >
             <TransportBar
               audio={audio}
-              hasAudio={!!audioFile}
               view={view}
               onView={setView}
             />
