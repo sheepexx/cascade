@@ -23,8 +23,10 @@ export type ImportedMap = {
   meta: SongMeta;
   difficulties: Difficulty[];
   timingPoints: TimingPoint[];
-  audio: LoadedFile | null;
-  background: LoadedFile | null;
+  /** Every distinct audio file in the set, keyed by its filename. */
+  audioFiles: Record<string, LoadedFile>;
+  /** Every distinct background image in the set, keyed by filename. */
+  backgroundFiles: Record<string, LoadedFile>;
 };
 
 /** Split the file into `[Section] -> lines` while ignoring comments/blanks. */
@@ -135,6 +137,7 @@ export function parseOsuFile(text: string): ParsedOsu {
   const difficulty: Difficulty = {
     id: uid("diff"),
     name: meta["Version"] ?? "Imported",
+    audioFilename: general["AudioFilename"] ?? undefined,
     keyCount,
     hpDrainRate: num(diff["HPDrainRate"], 7),
     overallDifficulty: num(diff["OverallDifficulty"], 7),
@@ -215,25 +218,37 @@ export async function importOsz(blob: Blob): Promise<ImportedMap> {
     throw new Error("No osu!mania (Mode 3) difficulties found in the archive.");
   }
 
-  // Shared data comes from the first difficulty.
+  // Metadata + timing come from the first difficulty.
+  // Audio is resolved per filename. Background is also resolved per difficulty.
   const first = parsed[0];
-  const audioEntry = findEntry(zip, first.audioFilename);
-  const bgEntry = findEntry(zip, first.backgroundFilename);
 
-  const audio = await toLoadedFile(
-    audioEntry,
-    mimeForAudio(first.audioFilename ?? "audio.mp3"),
-  );
-  const background = await toLoadedFile(
-    bgEntry,
-    mimeForImage(first.backgroundFilename ?? "bg.jpg"),
-  );
+  const audioFiles: Record<string, LoadedFile> = {};
+  for (const name of new Set(parsed.map((p) => p.audioFilename))) {
+    if (!name || audioFiles[name]) continue;
+    const loaded = await toLoadedFile(findEntry(zip, name), mimeForAudio(name));
+    if (loaded) audioFiles[name] = loaded;
+  }
+
+  const backgroundFiles: Record<string, LoadedFile> = {};
+  for (const name of new Set(parsed.map((p) => p.backgroundFilename))) {
+    if (!name || backgroundFiles[name]) continue;
+    const entry = findEntry(zip, name);
+    const loaded = await toLoadedFile(entry, mimeForImage(name));
+    if (loaded) backgroundFiles[name] = loaded;
+  }
+
+  const difficulties = parsed.map((p) => ({
+    ...p.difficulty,
+    backgroundFilename: p.backgroundFilename && backgroundFiles[p.backgroundFilename]
+      ? p.backgroundFilename
+      : undefined,
+  }));
 
   return {
     meta: first.meta,
-    difficulties: parsed.map((p) => p.difficulty),
+    difficulties,
     timingPoints: first.timingPoints,
-    audio,
-    background,
+    audioFiles,
+    backgroundFiles,
   };
 }

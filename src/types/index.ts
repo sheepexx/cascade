@@ -4,9 +4,9 @@
  * Times are stored as integer milliseconds, matching the osu! file format.
  * Columns are 0-indexed from the left (column 0 = leftmost lane).
  *
- * A project is a *mapset*: shared song metadata + audio + a list of
- * difficulties. Timing points live on each difficulty because imported mapsets
- * can contain per-difficulty tempo/offset edits.
+ * A project is a *mapset*: shared song metadata + a list of difficulties.
+ * Timing points and audio live on each difficulty because imported mapsets can
+ * contain per-difficulty tempo/offset edits and even different audio files.
  */
 
 /** A single mania note. A long note (hold) is one that has an `endTime`. */
@@ -49,6 +49,19 @@ export type Difficulty = {
   id: string;
   /** Difficulty name -> [Metadata] Version. */
   name: string;
+  /**
+   * General AudioFilename for this difficulty. osu! beatmap sets may use a
+   * different audio file per difficulty, so audio is tracked here (resolved to
+   * bytes via the mapset's audio registry) rather than once for the whole set.
+   * Undefined falls back to the set's single audio, if any.
+   */
+  audioFilename?: string;
+  /**
+   * Background image filename for this difficulty. osu! beatmap sets may use a
+   * different background per difficulty, stored in the mapset's bg registry.
+   * Undefined means no background for this difficulty.
+   */
+  backgroundFilename?: string;
   /** 1K .. 18K. Exported as CircleSize. */
   keyCount: number;
   /** HPDrainRate, 0..10. */
@@ -71,15 +84,21 @@ export type LoadedFile = {
   blob: Blob;
 };
 
+/** osu!mania scroll-speed range. The value behaves like osu!mania's: higher
+ *  means notes scroll faster (less time on screen). */
+export const MIN_SCROLL_SPEED = 1;
+export const MAX_SCROLL_SPEED = 40;
+
 /**
  * Visual-only editor view state.
  * NOTE: `scrollSpeed` affects rendering only and is intentionally never exported.
  */
 export type ViewState = {
-  /** Multiplies pixels-per-millisecond. Pure preview speed; not exported. */
+  /**
+   * osu!mania scroll speed, an integer in [MIN_SCROLL_SPEED, MAX_SCROLL_SPEED].
+   * Controls how fast notes scroll (preview-only); not exported.
+   */
   scrollSpeed: number;
-  /** Zoom multiplier on the timeline. */
-  zoom: number;
   snapDivisor: SnapDivisor;
 };
 
@@ -114,8 +133,7 @@ export function defaultTimingPoints(): TimingPoint[] {
 }
 
 export const DEFAULT_VIEW: ViewState = {
-  scrollSpeed: 1,
-  zoom: 1,
+  scrollSpeed: 35,
   snapDivisor: 4,
 };
 
@@ -129,6 +147,10 @@ export type BackgroundScope = "mapset" | "difficulty";
 export type AppSettings = {
   /** Multiplies waveform amplitude in the bottom timeline. 0.5 .. 3. */
   waveformSensitivity: number;
+  /** Multiplies the on-screen playfield size / zoom. 0.5 .. 2. */
+  playfieldScale: number;
+  /** Width multiplier for the default long-note body. 0.2 .. 1. */
+  longNoteBodyScale: number;
 };
 
 /**
@@ -144,6 +166,14 @@ export type ManiaColumnSkin = {
   holdHeadUrl: string | null;
   /** Hold note body (`NoteImage{col}L`), drawn stretched between caps. */
   holdBodyUrl: string | null;
+  /**
+   * For a "capped" body sprite (a very tall image with a rounded end baked into
+   * its top and a uniform fill below — e.g. osu's 40000px hold bodies), the
+   * height in `holdBodyUrl` pixels of that end cap. The renderer draws the cap
+   * at native scale at the far end and stretches only the fill below it. Null
+   * for ordinary bodies, which are stretched whole.
+   */
+  holdBodyCapPx: number | null;
   /** Hold note tail (`NoteImage{col}T`). */
   holdTailUrl: string | null;
 };
@@ -174,6 +204,8 @@ export type LoadedSkin = {
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   waveformSensitivity: 1,
+  playfieldScale: 1.5,
+  longNoteBodyScale: 0.75,
 };
 
 export const MIN_KEYS = 1;

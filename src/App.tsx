@@ -6,6 +6,7 @@ import { DifficultySidebar } from "./components/DifficultySidebar";
 import { PPCounter } from "./components/PPCounter";
 import { SettingsModal } from "./components/menus/SettingsModal";
 import { AppSettingsModal } from "./components/menus/AppSettingsModal";
+import { SkinModal } from "./components/menus/SkinModal";
 import { DifficultyModal } from "./components/menus/DifficultyModal";
 import { TimingModal } from "./components/menus/TimingModal";
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
@@ -23,6 +24,8 @@ import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_SONG_META,
   DEFAULT_VIEW,
+  MAX_SCROLL_SPEED,
+  MIN_SCROLL_SPEED,
   defaultTimingPoints,
   makeDifficulty,
   uid,
@@ -40,6 +43,7 @@ import {
 type ModalId =
   | "mapSettings"
   | "settings"
+  | "skin"
   | "timing"
   | "difficulty"
   | "tools"
@@ -63,13 +67,19 @@ export default function App() {
   const [activeId, setActiveId] = useState<string>(() => difficulties[0].id);
   const [view, setView] = useState<ViewState>(DEFAULT_VIEW);
 
-  const [audioFile, setAudioFile] = useState<LoadedFile | null>(null);
-  const [bgFile, setBgFile] = useState<LoadedFile | null>(null);
+  // Every audio file in the set, keyed by filename. A difficulty references
+  // its song by name; the active difficulty's audio is derived below.
+  const [audioFiles, setAudioFiles] = useState<Record<string, LoadedFile>>({});
+  const [bgFiles, setBgFiles] = useState<Record<string, LoadedFile>>({});
+  const [pendingBgName, setPendingBgName] = useState<string | null>(null);
   const [skin, setSkin] = useState<LoadedSkin | null>(null);
   const [skinError, setSkinError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [modal, setModal] = useState<ModalId>(null);
+  // Zen mode (toggled with Tab): slide all chrome out and show only the
+  // notefield.
+  const [zenMode, setZenMode] = useState(false);
   const [appSettings, setAppSettings] =
     useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [bgScope, setBgScope] = useState<BackgroundScope>("mapset");
@@ -80,15 +90,30 @@ export default function App() {
     null | "saving" | "saved" | "error"
   >(null);
 
+  const active =
+    difficulties.find((d) => d.id === activeId) ?? difficulties[0];
+
+  // The song for the active difficulty: its own audio, or the set's single
+  // audio when this difficulty hasn't named one (manual uploads, legacy maps).
+  const audioFile = useMemo<LoadedFile | null>(() => {
+    const named = active.audioFilename ? audioFiles[active.audioFilename] : null;
+    if (named) return named;
+    const all = Object.values(audioFiles);
+    return all.length === 1 ? all[0] : null;
+  }, [active.audioFilename, audioFiles]);
+
   const audio = useAudio(audioFile?.url ?? null);
   const waveform = useWaveform(audioFile?.blob ?? null);
 
-  const active =
-    difficulties.find((d) => d.id === activeId) ?? difficulties[0];
+  // Background for the active difficulty.
+  const activeBg = active.backgroundFilename ? bgFiles[active.backgroundFilename] ?? null : null;
+
   const activeTimingPoints =
     active.timingPoints?.length ? active.timingPoints : timingPoints;
   const activeSkin = skin?.keymodes[active.keyCount] ?? null;
-  const hasProject = !!audioFile;
+  const hasProject = Object.keys(audioFiles).length > 0;
+  // Surrounding chrome is shown only with a project loaded and outside zen mode.
+  const showChrome = hasProject && !zenMode;
 
   // ---- File handling -------------------------------------------------------
   const loadFile = (file: File): LoadedFile => ({
@@ -97,33 +122,64 @@ export default function App() {
     blob: file,
   });
 
-  const onAudioFile = useCallback((file: File) => {
-    setAudioFile((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
-      return loadFile(file);
-    });
-  }, []);
+  const onAudioFile = useCallback(
+    (file: File) => {
+      const loaded = loadFile(file);
+      setAudioFiles((prev) => {
+        const existing = prev[loaded.name];
+        if (existing) URL.revokeObjectURL(existing.url);
+        return { ...prev, [loaded.name]: loaded };
+      });
+      // Assign to the active difficulty, plus any that haven't named a song
+      // yet (so the common single-track workflow keeps "one song for all").
+      setDifficulties((prev) =>
+        prev.map((d) =>
+          d.id === activeId || !d.audioFilename
+            ? { ...d, audioFilename: loaded.name }
+            : d,
+        ),
+      );
+    },
+    [activeId],
+  );
 
   const onBackgroundFile = useCallback((file: File) => {
-    setBgFile((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
-      return loadFile(file);
+    const loaded = loadFile(file);
+    setBgFiles((prev) => {
+      if (prev[loaded.name]) URL.revokeObjectURL(prev[loaded.name].url);
+      return { ...prev, [loaded.name]: loaded };
     });
+    setPendingBgName(loaded.name);
     setAskBgScope(true);
   }, []);
 
   const onClearBackground = useCallback(() => {
-    setBgFile((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
-      return null;
+    const bgName = active.backgroundFilename;
+    if (!bgName) return;
+    setDifficulties((prev) => {
+      const updated = prev.map((d) =>
+        (bgScope === "mapset" || d.id === activeId) && d.backgroundFilename === bgName
+          ? { ...d, backgroundFilename: undefined }
+          : d,
+      );
+      // If no diff references this file anymore, revoke + remove it.
+      if (!updated.some((d) => d.backgroundFilename === bgName)) {
+        setBgFiles((prev2) => {
+          const next = { ...prev2 };
+          if (next[bgName]) URL.revokeObjectURL(next[bgName].url);
+          delete next[bgName];
+          return next;
+        });
+      }
+      return updated;
     });
-  }, []);
+  }, [active.backgroundFilename, activeId, bgScope]);
 
   // ---- Skin (.osk) ---------------------------------------------------------
-  const onSkinFile = useCallback(async (file: File) => {
+  const loadSkin = useCallback(async (blob: Blob, fileName: string) => {
     setSkinError(null);
     try {
-      const loaded = await importOsk(file, file.name);
+      const loaded = await importOsk(blob, fileName);
       setSkin((prev) => {
         if (prev) prev.objectUrls.forEach(URL.revokeObjectURL);
         return loaded;
@@ -134,6 +190,29 @@ export default function App() {
       );
     }
   }, []);
+
+  const onSkinFile = useCallback(
+    (file: File) => {
+      void loadSkin(file, file.name);
+    },
+    [loadSkin],
+  );
+
+  /** Fetch a bundled preset `.osk` by URL and apply it. */
+  const onApplyPresetSkin = useCallback(
+    async (url: string, fileName: string) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Couldn't load that preset skin.");
+        await loadSkin(await res.blob(), fileName);
+      } catch (err) {
+        setSkinError(
+          err instanceof Error ? err.message : "Couldn't load that preset skin.",
+        );
+      }
+    },
+    [loadSkin],
+  );
 
   const onClearSkin = useCallback(() => {
     setSkinError(null);
@@ -148,13 +227,13 @@ export default function App() {
     setImportError(null);
     try {
       const map = await importOsz(file);
-      setAudioFile((prev) => {
-        if (prev) URL.revokeObjectURL(prev.url);
-        return map.audio;
+      setAudioFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return map.audioFiles;
       });
-      setBgFile((prev) => {
-        if (prev) URL.revokeObjectURL(prev.url);
-        return map.background;
+      setBgFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return map.backgroundFiles;
       });
       setMeta(map.meta);
       setTimingPoints(
@@ -193,6 +272,7 @@ export default function App() {
   const addDifficulty = useCallback(() => {
     const base = difficulties.find((d) => d.id === activeId);
     const diff = makeDifficulty("New Difficulty", base?.keyCount ?? 4);
+    diff.audioFilename = base?.audioFilename;
     diff.timingPoints = (base?.timingPoints?.length
       ? base.timingPoints
       : timingPoints
@@ -406,25 +486,87 @@ export default function App() {
       applyingHistoryRef.current = true;
       setMeta(saved.meta);
       setTimingPoints(saved.timingPoints);
-      setDifficulties(saved.difficulties);
+
+      // Rebuild the audio registry. New saves store `audioFiles`; older ones a
+      // single `audio` that every difficulty then implicitly shares.
+      const restoredAudio: Record<string, LoadedFile> = {};
+      for (const a of saved.audioFiles ?? []) {
+        restoredAudio[a.name] = {
+          name: a.name,
+          url: URL.createObjectURL(a.blob),
+          blob: a.blob,
+        };
+      }
+      const legacyAudio =
+        !saved.audioFiles?.length && saved.audio ? saved.audio : null;
+      if (legacyAudio) {
+        restoredAudio[legacyAudio.name] = {
+          name: legacyAudio.name,
+          url: URL.createObjectURL(legacyAudio.blob),
+          blob: legacyAudio.blob,
+        };
+      }
+      setAudioFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return restoredAudio;
+      });
+
+      setDifficulties(
+        legacyAudio
+          ? saved.difficulties.map((d) =>
+              d.audioFilename ? d : { ...d, audioFilename: legacyAudio.name },
+            )
+          : saved.difficulties,
+      );
       setActiveId(saved.activeId);
-      setView(saved.view);
-      setAppSettings(saved.appSettings);
+      // Older saves carried a `zoom` field and a vestigial scrollSpeed that was
+      // never user-settable. Detect those and fall back to the default speed;
+      // otherwise restore the saved speed, clamped to the osu!mania range.
+      const isLegacyView = "zoom" in saved.view;
+      setView({
+        ...DEFAULT_VIEW,
+        snapDivisor: saved.view.snapDivisor,
+        scrollSpeed: isLegacyView
+          ? DEFAULT_VIEW.scrollSpeed
+          : Math.round(
+              Math.min(
+                MAX_SCROLL_SPEED,
+                Math.max(MIN_SCROLL_SPEED, saved.view.scrollSpeed),
+              ),
+            ),
+      });
+      setAppSettings({ ...DEFAULT_APP_SETTINGS, ...saved.appSettings });
       setBgScope(saved.bgScope);
-      if (saved.audio) {
-        setAudioFile({
-          name: saved.audio.name,
-          url: URL.createObjectURL(saved.audio.blob),
-          blob: saved.audio.blob,
-        });
+
+      // Restore background files registry.
+      const restoredBgFiles: Record<string, LoadedFile> = {};
+      if (saved.backgroundFiles?.length) {
+        for (const bg of saved.backgroundFiles) {
+          restoredBgFiles[bg.name] = {
+            name: bg.name,
+            url: URL.createObjectURL(bg.blob),
+            blob: bg.blob,
+          };
+        }
+      } else if (saved.background) {
+        // Legacy save: single background — assign it to all difficulties that
+        // don't already have a per-diff background set.
+        const bg = saved.background;
+        restoredBgFiles[bg.name] = {
+          name: bg.name,
+          url: URL.createObjectURL(bg.blob),
+          blob: bg.blob,
+        };
+        setDifficulties((prev) =>
+          prev.map((d) =>
+            d.backgroundFilename ? d : { ...d, backgroundFilename: bg.name },
+          ),
+        );
       }
-      if (saved.background) {
-        setBgFile({
-          name: saved.background.name,
-          url: URL.createObjectURL(saved.background.blob),
-          blob: saved.background.blob,
-        });
-      }
+      setBgFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return restoredBgFiles;
+      });
       if (saved.skin) {
         const loaded = await importOsk(
           saved.skin.blob,
@@ -438,14 +580,17 @@ export default function App() {
     };
   }, []);
 
-  // ---- Spacebar play / pause (off while typing or a modal is open) --------
+  // ---- Hotkeys: Space = play/pause, Tab = zen mode ------------------------
+  // (both off while typing or a modal is open)
   const hasAudioRef = useRef(false);
   hasAudioRef.current = !!audioFile;
   const modalRef = useRef<ModalId>(null);
   modalRef.current = modal;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code !== "Space" && e.key !== " ") return;
+      const isSpace = e.code === "Space" || e.key === " ";
+      const isTab = e.key === "Tab";
+      if (!isSpace && !isTab) return;
       if (modalRef.current || askBgScope) return;
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName;
@@ -457,7 +602,8 @@ export default function App() {
       if (typing) return;
       if (!hasAudioRef.current) return;
       e.preventDefault();
-      audio.toggle();
+      if (isTab) setZenMode((z) => !z);
+      else audio.toggle();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -505,7 +651,7 @@ export default function App() {
 
   // ---- Export --------------------------------------------------------------
   const totalNotes = difficulties.reduce((s, d) => s + d.notes.length, 0);
-  const canExport = !!audioFile && totalNotes > 0;
+  const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
 
   const handleExportOsu = useCallback(() => {
     if (!audioFile) return;
@@ -514,25 +660,25 @@ export default function App() {
       difficulty: active,
       timingPoints: activeTimingPoints,
       audioFilename: audioFile.name,
-      backgroundFilename: bgFile?.name,
+      backgroundFilename: active.backgroundFilename,
     });
-  }, [audioFile, active, activeTimingPoints, bgFile, meta]);
+  }, [audioFile, active, activeTimingPoints, meta]);
 
   const handleExportOsz = useCallback(async () => {
-    if (!audioFile) return;
+    if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
     try {
       await downloadOsz({
         meta,
         difficulties,
         timingPoints,
-        audio: audioFile,
-        background: bgFile,
+        audioFiles,
+        bgFiles,
       });
     } finally {
       setExporting(false);
     }
-  }, [audioFile, difficulties, bgFile, meta, timingPoints]);
+  }, [audioFiles, difficulties, bgFiles, meta, timingPoints]);
 
   // ---- Save progress locally (Ctrl+S) -------------------------------------
   const handleSave = useCallback(async () => {
@@ -548,12 +694,15 @@ export default function App() {
         view,
         appSettings,
         bgScope,
-        audio: audioFile
-          ? { name: audioFile.name, blob: audioFile.blob }
-          : null,
-        background: bgFile
-          ? { name: bgFile.name, blob: bgFile.blob }
-          : null,
+        audioFiles: Object.values(audioFiles).map((f) => ({
+          name: f.name,
+          blob: f.blob,
+        })),
+        backgroundFiles: Object.values(bgFiles).map((f) => ({
+          name: f.name,
+          blob: f.blob,
+        })),
+        background: null,
         skin: skin ? { name: skin.fileName, blob: skin.blob } : null,
       });
       setSaveStatus("saved");
@@ -568,8 +717,8 @@ export default function App() {
     view,
     appSettings,
     bgScope,
-    audioFile,
-    bgFile,
+    audioFiles,
+    bgFiles,
     skin,
   ]);
 
@@ -593,13 +742,13 @@ export default function App() {
     undoStackRef.current = [];
     redoStackRef.current = [];
 
-    setAudioFile((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
-      return null;
+    setAudioFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return {};
     });
-    setBgFile((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
-      return null;
+    setBgFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return {};
     });
     setSkin((prev) => {
       if (prev) prev.objectUrls.forEach(URL.revokeObjectURL);
@@ -613,6 +762,7 @@ export default function App() {
     setDifficulties([fresh]);
     setActiveId(fresh.id);
     setView(DEFAULT_VIEW);
+    setZenMode(false);
     setAppSettings(DEFAULT_APP_SETTINGS);
     setBgScope("mapset");
     setModal(null);
@@ -691,8 +841,15 @@ export default function App() {
         </div>
       )}
 
-      {/* Header + menu bar */}
-      <header className="flex items-center justify-between gap-4 border-b border-ink-600 bg-ink-800 px-5 py-2.5">
+      {/* Header + menu bar (slides up out of view in zen mode) */}
+      <header
+        className={`flex items-center justify-between gap-4 overflow-hidden border-ink-600 bg-ink-800 px-5 transition-[max-height,padding,opacity,transform] duration-300 ease-out ${
+          zenMode
+            ? "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
+            : "max-h-20 translate-y-0 border-b py-2.5 opacity-100"
+        }`}
+        aria-hidden={zenMode}
+      >
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2.5">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-accent font-bold text-white shadow-[0_0_18px_-4px] shadow-accent">
@@ -706,7 +863,7 @@ export default function App() {
           <div
             className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
               hasProject
-                ? "max-w-[28rem] translate-x-0 opacity-100"
+                ? "max-w-[36rem] translate-x-0 opacity-100"
                 : "pointer-events-none max-w-0 -translate-x-3 opacity-0"
             }`}
             aria-hidden={!hasProject}
@@ -720,6 +877,7 @@ export default function App() {
                 Difficulty
               </MenuButton>
               <MenuButton onClick={() => setModal("tools")}>Tools</MenuButton>
+              <MenuButton onClick={() => setModal("skin")}>Skin</MenuButton>
               <MenuButton onClick={() => setModal("settings")}>
                 Settings
               </MenuButton>
@@ -785,9 +943,9 @@ export default function App() {
       <div className="flex min-h-0 flex-1">
         <div
           className={`shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out ${
-            hasProject ? "w-60 opacity-100" : "w-0 opacity-0"
+            showChrome ? "w-60 opacity-100" : "w-0 opacity-0"
           }`}
-          aria-hidden={!hasProject}
+          aria-hidden={!showChrome}
         >
           <div className="h-full w-60">
             <DifficultySidebar
@@ -804,11 +962,11 @@ export default function App() {
         <main className="flex min-w-0 flex-1 flex-col">
           <div
             className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
-              hasProject
+              showChrome
                 ? "max-h-24 translate-y-0 opacity-100"
                 : "pointer-events-none max-h-0 -translate-y-4 opacity-0"
             }`}
-            aria-hidden={!hasProject}
+            aria-hidden={!showChrome}
           >
             <TransportBar
               audio={audio}
@@ -826,8 +984,10 @@ export default function App() {
                 previewTime={active.previewTime}
                 view={view}
                 currentTime={audio.currentTime}
-                backgroundUrl={bgFile?.url ?? null}
+                backgroundUrl={activeBg?.url ?? null}
                 skin={activeSkin}
+                playfieldScale={appSettings.playfieldScale}
+                longNoteBodyScale={appSettings.longNoteBodyScale}
                 onPlaceNote={placeNote}
                 onDeleteNote={deleteNote}
                 onAddNotes={addNotes}
@@ -838,18 +998,18 @@ export default function App() {
             ) : (
               <EmptyState onOpenSettings={() => setModal("mapSettings")} />
             )}
-            {audioFile && (
+            {audioFile && !zenMode && (
               <PPCounter notes={active.notes} keyCount={active.keyCount} />
             )}
           </div>
 
           <div
             className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
-              hasProject
+              showChrome
                 ? "max-h-24 translate-y-0 opacity-100"
                 : "pointer-events-none max-h-0 translate-y-4 opacity-0"
             }`}
-            aria-hidden={!hasProject}
+            aria-hidden={!showChrome}
           >
             <BottomTimeline
               waveform={waveform}
@@ -876,7 +1036,7 @@ export default function App() {
         meta={meta}
         onMeta={setMeta}
         audio={audioFile}
-        background={bgFile}
+        background={activeBg}
         bgScope={bgScope}
         onBgScope={setBgScope}
         onAudioFile={onAudioFile}
@@ -887,8 +1047,21 @@ export default function App() {
       <AppSettingsModal
         open={modal === "settings"}
         onClose={close}
+        playfieldScale={appSettings.playfieldScale}
+        onPlayfieldScale={(v) =>
+          setAppSettings((s) => ({ ...s, playfieldScale: v }))
+        }
+        longNoteBodyScale={appSettings.longNoteBodyScale}
+        onLongNoteBodyScale={(v) =>
+          setAppSettings((s) => ({ ...s, longNoteBodyScale: v }))
+        }
+      />
+      <SkinModal
+        open={modal === "skin"}
+        onClose={close}
         skin={skin}
         activeKeyCount={active.keyCount}
+        onApplyPreset={onApplyPresetSkin}
         onSkinFile={onSkinFile}
         onClearSkin={onClearSkin}
         error={skinError}
@@ -921,10 +1094,23 @@ export default function App() {
       />
       <BackgroundScopeModal
         open={askBgScope}
-        previewUrl={bgFile?.url ?? null}
-        onClose={() => setAskBgScope(false)}
+        previewUrl={pendingBgName ? bgFiles[pendingBgName]?.url ?? null : null}
+        onClose={() => {
+          setAskBgScope(false);
+          setPendingBgName(null);
+        }}
         onChoose={(scope) => {
           setBgScope(scope);
+          if (pendingBgName) {
+            setDifficulties((prev) =>
+              prev.map((d) =>
+                scope === "mapset" || d.id === activeId
+                  ? { ...d, backgroundFilename: pendingBgName }
+                  : d,
+              ),
+            );
+          }
+          setPendingBgName(null);
           setAskBgScope(false);
         }}
       />

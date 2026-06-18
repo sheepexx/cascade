@@ -1,4 +1,6 @@
 import {
+  MAX_SCROLL_SPEED,
+  MIN_SCROLL_SPEED,
   SNAP_DIVISORS,
   type SnapDivisor,
   type ViewState,
@@ -57,20 +59,22 @@ export function TransportBar({ audio, hasAudio, view, onView }: Props) {
           </select>
         </label>
 
-        {/* Zoom */}
+        {/* Scroll speed (osu!mania, 1–40) */}
         <label className="flex items-center gap-2 text-xs text-slate-400">
-          Zoom
+          Scroll speed
           <input
             type="range"
-            min={0.25}
-            max={4}
-            step={0.05}
-            value={view.zoom}
-            onChange={(e) => onView({ ...view, zoom: Number(e.target.value) })}
+            min={MIN_SCROLL_SPEED}
+            max={MAX_SCROLL_SPEED}
+            step={1}
+            value={view.scrollSpeed}
+            onChange={(e) =>
+              onView({ ...view, scrollSpeed: Number(e.target.value) })
+            }
             className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
           />
           <span className="w-9 font-mono text-slate-300">
-            {view.zoom.toFixed(2)}
+            {view.scrollSpeed}
           </span>
         </label>
       </div>

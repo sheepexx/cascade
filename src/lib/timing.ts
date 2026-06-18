@@ -105,7 +105,7 @@ export function gridLinesInRange(
     // First grid index (relative to the timing point) inside the window.
     const firstIdx = Math.ceil((visibleStart - segStart) / interval);
     const lastIdx = Math.floor((visibleEnd - segStart) / interval);
-    // Guard against pathological zoom levels producing huge loops.
+    // Guard against pathological scroll speeds producing huge loops.
     if (lastIdx - firstIdx > 20000) continue;
 
     for (let k = firstIdx; k <= lastIdx; k++) {

@@ -32,8 +32,14 @@ export type SavedProject = {
   view: ViewState;
   appSettings: AppSettings;
   bgScope: BackgroundScope;
-  audio: { name: string; blob: Blob } | null;
-  background: { name: string; blob: Blob } | null;
+  /** Every audio file in the set, keyed by filename. */
+  audioFiles?: { name: string; blob: Blob }[];
+  /** Legacy single-audio field, still read from older saves. */
+  audio?: { name: string; blob: Blob } | null;
+  /** Every background image in the set, keyed by filename. New format. */
+  backgroundFiles?: { name: string; blob: Blob }[];
+  /** Legacy single background field, still read from older saves. */
+  background?: { name: string; blob: Blob } | null;
   /** Raw `.osk` bytes of the active editor skin, re-parsed on load. */
   skin?: { name: string; blob: Blob } | null;
 };

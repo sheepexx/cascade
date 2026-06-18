@@ -1,117 +1,81 @@
-import type { LoadedSkin } from "../../types";
 import { Modal } from "../ui/Modal";
-import { Button, FileButton } from "../ui/Controls";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  skin: LoadedSkin | null;
-  /** Key count of the difficulty currently being edited. */
-  activeKeyCount: number;
-  onSkinFile: (file: File) => void;
-  onClearSkin: () => void;
-  error: string | null;
+  /** Current playfield size multiplier (0.5 .. 2). */
+  playfieldScale: number;
+  onPlayfieldScale: (value: number) => void;
+  /** Current default long-note body width multiplier (0.2 .. 1). */
+  longNoteBodyScale: number;
+  onLongNoteBodyScale: (value: number) => void;
 };
 
 /**
- * Editor preferences. Currently: upload a personal osu! skin (`.osk`) and use
- * it to render the playfield (lane colours + note sprites).
+ * Editor preferences: playfield size and the default long-note body width.
+ * Skin selection lives in its own modal ({@link SkinModal}).
  */
 export function AppSettingsModal({
   open,
   onClose,
-  skin,
-  activeKeyCount,
-  onSkinFile,
-  onClearSkin,
-  error,
+  playfieldScale,
+  onPlayfieldScale,
+  longNoteBodyScale,
+  onLongNoteBodyScale,
 }: Props) {
-  const keymodes = skin ? Object.keys(skin.keymodes).map(Number).sort((a, b) => a - b) : [];
-  const activeSupported = !!skin?.keymodes[activeKeyCount];
-
   return (
     <Modal open={open} onClose={onClose} title="Settings">
       <div className="flex flex-col gap-6">
         <section>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Skin
+            Playfield
           </h3>
-          <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
-            Upload an osu!{" "}
-            <code className="text-slate-400">.osk</code> skin to map with your
-            own look. The editor reads <code className="text-slate-400">skin.ini</code>{" "}
-            and applies each keymode's lane colours and note images to the
-            playfield. Anything the skin doesn't define falls back to the
-            default style.
-          </p>
-
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <FileButton
-                label={skin ? "Replace skin…" : "Upload .osk skin"}
-                accept=".osk,.zip,application/zip"
-                onFile={onSkinFile}
-              />
-              {skin && (
-                <Button onClick={onClearSkin} title="Remove the current skin">
-                  Remove
-                </Button>
-              )}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span>Size / zoom</span>
+              <span className="font-medium text-slate-200">
+                {Math.round(playfieldScale * 100)}%
+              </span>
             </div>
+            <input
+              type="range"
+              min={0.5}
+              max={2}
+              step={0.05}
+              value={playfieldScale}
+              onChange={(e) => onPlayfieldScale(Number(e.target.value))}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+            />
+            <p className="text-[11px] text-slate-500">
+              Scales the overall size of the editor playfield. Visual only.
+            </p>
+          </div>
+        </section>
 
-            {error && (
-              <p className="rounded-md border border-red-500/40 bg-red-950/50 px-3 py-2 text-xs text-red-200">
-                {error}
-              </p>
-            )}
-
-            {skin && (
-              <div className="rounded-lg border border-ink-600 bg-ink-700/40 p-3">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span
-                    className="truncate text-sm font-medium text-slate-100"
-                    title={skin.name}
-                  >
-                    {skin.name}
-                  </span>
-                  {skin.author && (
-                    <span className="shrink-0 text-[11px] text-slate-500">
-                      by {skin.author}
-                    </span>
-                  )}
-                </div>
-
-                {keymodes.length > 0 ? (
-                  <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] text-slate-500">Keymodes:</span>
-                    {keymodes.map((k) => (
-                      <span
-                        key={k}
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                          k === activeKeyCount
-                            ? "bg-accent text-white"
-                            : "bg-ink-600 text-slate-300"
-                        }`}
-                      >
-                        {k}K
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-[11px] text-slate-500">
-                    No mania keymodes found in this skin&apos;s{" "}
-                    <code className="text-slate-400">skin.ini</code>.
-                  </p>
-                )}
-
-                {keymodes.length > 0 && !activeSupported && (
-                  <p className="mt-2 text-[11px] text-amber-300/80">
-                    This skin has no {activeKeyCount}K layout, so the current
-                    difficulty uses the default style.
-                  </p>
-                )}
-              </div>
-            )}
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Long notes
+          </h3>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span>Body width</span>
+              <span className="font-medium text-slate-200">
+                {Math.round(longNoteBodyScale * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0.2}
+              max={1}
+              step={0.05}
+              value={longNoteBodyScale}
+              onChange={(e) => onLongNoteBodyScale(Number(e.target.value))}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+            />
+            <p className="text-[11px] text-slate-500">
+              Width of the default long-note body (the gray part), relative to
+              the lane. Only applies when no skin body sprite is used.
+            </p>
           </div>
         </section>
       </div>

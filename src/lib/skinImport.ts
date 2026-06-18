@@ -17,6 +17,11 @@ import {
  * 0-indexed). Image references are extensionless paths relative to the skin
  * root, resolved here to `.png` (or `@2x.png`) entries.
  *
+ * When a column omits an image, osu! falls back to the default-named element
+ * (`mania-note{1|2|S}{suffix}`) rather than rendering nothing — many real skins
+ * only list the hold images and rely on this for the tap note. We mirror that
+ * fallback so those skins don't render as blank/coloured bars.
+ *
  * Everything not understood is ignored; a skin that only defines colours still
  * imports fine and the editor falls back to its default note rendering for the
  * rest.
@@ -35,11 +40,20 @@ export async function importOsk(
   // Index every file entry by its lower-cased, forward-slashed path.
   const index = new Map<string, JSZip.JSZipObject>();
   let iniEntry: JSZip.JSZipObject | null = null;
+  let iniDepth = Infinity;
   zip.forEach((path, entry) => {
     if (entry.dir) return;
     const norm = path.replace(/\\/g, "/").toLowerCase();
     index.set(norm, entry);
-    if (!iniEntry && norm.split("/").pop() === "skin.ini") iniEntry = entry;
+    // osu only reads the skin.ini at the skin root; some skins ship extra
+    // copies in subfolders. Keep the shallowest one (the true root).
+    if (norm.split("/").pop() === "skin.ini") {
+      const depth = norm.split("/").length;
+      if (depth < iniDepth) {
+        iniDepth = depth;
+        iniEntry = entry;
+      }
+    }
   });
 
   const iniText = iniEntry
@@ -63,6 +77,44 @@ export async function importOsk(
     return url;
   };
 
+  /**
+   * Resolve a hold-body ref. Tall "capped" bodies (a rounded end baked into the
+   * top of an otherwise uniform, often 40000px-tall strip) can't be loaded or
+   * drawn as-is — the size blows past the browser's max image/texture dimension,
+   * and stretching the whole thing into a note squashes the cap away. So those
+   * are normalised down to a small sprite (trimmed to the cap plus a sliver of
+   * fill) and reported with the cap's pixel height. Ordinary bodies pass through.
+   */
+  const bodyCache = new Map<string, { url: string | null; capPx: number | null }>();
+  const resolveBody = async (
+    ref: string | undefined,
+  ): Promise<{ url: string | null; capPx: number | null }> => {
+    const entry = findImage(index, ref);
+    if (!entry) return { url: null, capPx: null };
+    // Many columns / keymodes share one body image; only process it once.
+    const hit = bodyCache.get(entry.name);
+    if (hit) return hit;
+
+    const blob = new Blob([await entry.async("blob")], { type: "image/png" });
+    let result: { url: string | null; capPx: number | null };
+    try {
+      const norm = await normalizeCappedBody(blob);
+      if (norm) {
+        objectUrls.push(norm.url);
+        result = norm;
+      } else {
+        result = { url: URL.createObjectURL(blob), capPx: null };
+        objectUrls.push(result.url!);
+      }
+    } catch {
+      // Decode/canvas unsupported or failed — fall back to the raw sprite.
+      result = { url: URL.createObjectURL(blob), capPx: null };
+      objectUrls.push(result.url!);
+    }
+    bodyCache.set(entry.name, result);
+    return result;
+  };
+
   const keymodes: Record<number, ManiaKeymodeSkin> = {};
   for (const block of mania) {
     const keys = Math.round(Number(block["keys"]));
@@ -71,12 +123,17 @@ export async function importOsk(
 
     const columns: ManiaColumnSkin[] = [];
     for (let c = 0; c < keys; c++) {
+      // osu! note-image lookup: the skin's explicit `NoteImage{c}[suffix]` ref
+      // when present, otherwise the default element name for this column.
+      const v = fallbackColumnIndex(c, keys);
+      const body = await resolveBody(block[`noteimage${c}l`] || `mania-note${v}L`);
       columns.push({
         colour: parseColour(block[`colour${c + 1}`]),
-        noteUrl: await resolveUrl(block[`noteimage${c}`]),
-        holdHeadUrl: await resolveUrl(block[`noteimage${c}h`]),
-        holdBodyUrl: await resolveUrl(block[`noteimage${c}l`]),
-        holdTailUrl: await resolveUrl(block[`noteimage${c}t`]),
+        noteUrl: await resolveUrl(block[`noteimage${c}`] || `mania-note${v}`),
+        holdHeadUrl: await resolveUrl(block[`noteimage${c}h`] || `mania-note${v}H`),
+        holdBodyUrl: body.url,
+        holdBodyCapPx: body.capPx,
+        holdTailUrl: await resolveUrl(block[`noteimage${c}t`] || `mania-note${v}T`),
       });
     }
     keymodes[keys] = { keys, columns };
@@ -90,6 +147,98 @@ export async function importOsk(
     keymodes,
     objectUrls,
   };
+}
+
+// ---- hold-body normalisation -----------------------------------------------
+
+/** Read `[width, height]` from a PNG blob's IHDR header, or null if not a PNG. */
+async function pngSize(blob: Blob): Promise<[number, number] | null> {
+  const head = new Uint8Array(await blob.slice(0, 24).arrayBuffer());
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (head.length < 24 || sig.some((b, i) => head[i] !== b)) return null;
+  const view = new DataView(head.buffer);
+  return [view.getUint32(16), view.getUint32(20)];
+}
+
+/**
+ * Detect a tall "capped" hold body — a sprite far taller than it is wide, with
+ * a rounded end at the top and a uniform fill below (osu skins use ~40000px-tall
+ * strips so the body never visibly tiles). Returns a normalised sprite trimmed
+ * to the cap plus a sliver of fill (small enough to load and draw safely) plus
+ * the cap's height in that sprite's pixels. Returns null for ordinary bodies.
+ */
+async function normalizeCappedBody(
+  blob: Blob,
+): Promise<{ url: string; capPx: number } | null> {
+  const size = await pngSize(blob);
+  if (!size) return null;
+  const [w, h] = size;
+  // Ordinary bodies (tileable textures, short designed bodies) are stretched
+  // whole; only treat clearly cap+fill strips specially.
+  if (w === 0 || h <= w * 2) return null;
+
+  // Decode just the top of the strip: enough to clear any transparent padding
+  // and capture the full cap, but never the whole giant image.
+  const sliceH = Math.min(h, 1024);
+  const bmp = await createImageBitmap(blob, 0, 0, w, sliceH);
+  const src = document.createElement("canvas");
+  src.width = w;
+  src.height = sliceH;
+  const sctx = src.getContext("2d", { willReadFrequently: true });
+  if (!sctx) {
+    bmp.close?.();
+    return null;
+  }
+  sctx.drawImage(bmp, 0, 0);
+  bmp.close?.();
+  const { data } = sctx.getImageData(0, 0, w, sliceH);
+
+  const opaqueWidth = (y: number): number => {
+    let left = -1;
+    let right = -1;
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 32) {
+        if (left < 0) left = x;
+        right = x;
+      }
+    }
+    return left < 0 ? 0 : right - left + 1;
+  };
+
+  // First opaque row (top of the cap) and the body's full opaque width.
+  let domeTop = -1;
+  let maxWidth = 0;
+  for (let y = 0; y < sliceH; y++) {
+    const ww = opaqueWidth(y);
+    if (ww > 0 && domeTop < 0) domeTop = y;
+    if (ww > maxWidth) maxWidth = ww;
+  }
+  if (domeTop < 0 || maxWidth === 0) return null;
+
+  // The cap ends where the sprite first reaches its full width (the straight
+  // fill below the rounded end).
+  let capEnd = domeTop;
+  for (let y = domeTop; y < sliceH; y++) {
+    if (opaqueWidth(y) >= maxWidth * 0.98) {
+      capEnd = y;
+      break;
+    }
+  }
+  const capPx = Math.max(capEnd - domeTop + 1, 1);
+
+  // Emit cap + a short run of fill, anchored at the cap's top (padding trimmed).
+  const outH = Math.min(sliceH - domeTop, capPx + 48);
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = outH;
+  const octx = out.getContext("2d");
+  if (!octx) return null;
+  octx.drawImage(src, 0, domeTop, w, outH, 0, 0, w, outH);
+  const outBlob = await new Promise<Blob | null>((resolve) =>
+    out.toBlob((b) => resolve(b), "image/png"),
+  );
+  if (!outBlob) return null;
+  return { url: URL.createObjectURL(outBlob), capPx };
 }
 
 // ---- skin.ini parsing ------------------------------------------------------
@@ -108,7 +257,7 @@ function parseSkinIni(text: string): {
   let section: "general" | "mania" | "other" = "other";
   let block: Record<string, string> | null = null;
 
-  for (const raw of text.split(/\r?\n/)) {
+  for (const raw of text.replace(/^\uFEFF/, "").split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith("//")) continue;
 
@@ -154,6 +303,19 @@ function parseColour(value: string | undefined): string | null {
 }
 
 /**
+ * osu!'s default note-image variant for a column when skin.ini doesn't list one
+ * explicitly. The centre lane of an odd keymode is the "special" column (`S`);
+ * every other column alternates `1`/`2` by its distance to the nearest stage
+ * edge. Mirrors osu!stable's `LegacyManiaColumnElement.FallbackColumnIndex`
+ * (e.g. 7K → `1 2 1 S 1 2 1`, 4K → `1 2 2 1`).
+ */
+function fallbackColumnIndex(column: number, keys: number): "1" | "2" | "S" {
+  if (keys % 2 === 1 && column === Math.floor(keys / 2)) return "S";
+  const distanceToEdge = Math.min(column, keys - 1 - column);
+  return distanceToEdge % 2 === 0 ? "1" : "2";
+}
+
+/**
  * Resolve an extensionless skin.ini image reference (e.g. `mania/note1`) to a
  * zip entry, trying the standard `.png` and `@2x.png` (HD) variants.
  */
@@ -163,7 +325,8 @@ function findImage(
 ): JSZip.JSZipObject | null {
   if (!ref) return null;
   const base = ref.replace(/\\/g, "/").trim().toLowerCase();
-  if (!base) return null;
+  // `_blank` is osu's sentinel for "intentionally no image"; empty is the same.
+  if (!base || base === "_blank") return null;
   const candidates = [`${base}.png`, `${base}@2x.png`, base];
   for (const candidate of candidates) {
     const hit = index.get(candidate);

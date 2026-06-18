@@ -21,7 +21,9 @@ import {
  *   - A fixed "playhead" line sits near the bottom of the canvas and always
  *     represents the current audio time.
  *   - Future notes are drawn above it and scroll downward as time advances.
- *   - pixels-per-ms = BASE * zoom * scrollSpeed  (scrollSpeed is preview-only).
+ *   - Scroll velocity matches osu!mania: at scroll speed S the region above
+ *     the playhead shows MANIA_MAX_TIME_RANGE / S milliseconds of notes, so
+ *     pixels-per-ms = visibleHeight * S / MANIA_MAX_TIME_RANGE.
  *
  * Interaction:
  *   - Left click in a lane: place a note (snapped to the beat grid).
@@ -30,7 +32,9 @@ import {
  *   - Mouse wheel: scrub through time.
  */
 
-const BASE_PPMS = 0.4; // pixels per ms at zoom 1 / scroll 1
+// osu!lazer mania MAX_TIME_RANGE: ms of notes visible above the hit line at
+// scroll speed 1. The visible window shrinks to ~287ms at scroll speed 40.
+const MANIA_MAX_TIME_RANGE = 11485;
 const PLAYHEAD_FROM_BOTTOM = 96;
 const NOTE_HEIGHT = 16;
 const HIT_TOLERANCE = 14; // px radius for right-click delete
@@ -51,6 +55,10 @@ type Props = {
   backgroundUrl: string | null;
   /** Skin assets for the active keymode, or null to use the default look. */
   skin: ManiaKeymodeSkin | null;
+  /** Multiplies the on-screen playfield / lane size. Default 1. */
+  playfieldScale: number;
+  /** Width multiplier for the default long-note body. Default 1. */
+  longNoteBodyScale: number;
   onPlaceNote: (note: ManiaNote) => void;
   onDeleteNote: (id: string) => void;
   onAddNotes: (notes: ManiaNote[]) => void;
@@ -108,6 +116,8 @@ type ColumnRender = {
   note: HTMLImageElement | null;
   head: HTMLImageElement | null;
   body: HTMLImageElement | null;
+  /** Cap height (in body sprite px) for a capped body; null = stretch whole. */
+  bodyCapPx: number | null;
   tail: HTMLImageElement | null;
 };
 
@@ -282,6 +292,7 @@ export function ManiaEditor(props: Props) {
       note: null,
       head: null,
       body: null,
+      bodyCapPx: c.holdBodyCapPx,
       tail: null,
     }));
     skinColsRef.current = cols;
@@ -308,8 +319,11 @@ export function ManiaEditor(props: Props) {
 
   // ---- Geometry helpers ----------------------------------------------------
   const ppms = useCallback(() => {
-    const v = propsRef.current.view;
-    return BASE_PPMS * v.zoom * v.scrollSpeed;
+    const { scrollSpeed } = propsRef.current.view;
+    // Height of the scrolling region above the playhead. osu!mania fits
+    // MANIA_MAX_TIME_RANGE / scrollSpeed ms of notes into this span.
+    const visibleHeight = Math.max(1, sizeRef.current.height - PLAYHEAD_FROM_BOTTOM);
+    return (visibleHeight * scrollSpeed) / MANIA_MAX_TIME_RANGE;
   }, []);
 
   const playheadY = useCallback(
@@ -330,10 +344,11 @@ export function ManiaEditor(props: Props) {
   const laneGeometry = useCallback(() => {
     const { width } = sizeRef.current;
     const keys = propsRef.current.keyCount;
+    const scale = propsRef.current.playfieldScale || 1;
     const laneWidth = Math.max(
       18,
       Math.min(64, Math.floor((width - 40) / keys)),
-    );
+    ) * scale;
     const playfieldWidth = laneWidth * keys;
     const originX = Math.floor((width - playfieldWidth) / 2);
     return { laneWidth, playfieldWidth, originX };
@@ -396,6 +411,19 @@ export function ManiaEditor(props: Props) {
     if (!canvas || !ctx) return;
 
     const { width, height, dpr } = sizeRef.current;
+
+    // Sync the backing store here (inside the rAF draw) instead of from the
+    // ResizeObserver. Resizing a canvas clears it, and the observer fires after
+    // this draw but before paint — doing it there would blank the playfield for
+    // the whole duration of a layout transition (e.g. toggling zen mode). Here
+    // the resize and redraw happen together, so paint always shows a fresh frame.
+    const bw = Math.floor(width * dpr);
+    const bh = Math.floor(height * dpr);
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
+    }
+
     const { notes, timingPoints, previewTime, view, keyCount } =
       propsRef.current;
     const { laneWidth, playfieldWidth, originX } = laneGeometry();
@@ -531,21 +559,53 @@ export function ManiaEditor(props: Props) {
         const yEnd = timeToY(note.endTime);
         const top = Math.min(yStart, yEnd);
         const bottom = Math.max(yStart, yEnd);
-        // hold body — skin sprite stretched between caps, or default fill.
+        // Hold body. A skin's body sprite already bakes the far-end cap into the
+        // top of its image (the rounded edge), so when one exists we let its own
+        // top form the LN's end — drawing a separate tail sprite on top would
+        // only bury that finished end. Without a skin body we fall back to the
+        // default fill plus an explicit tail cap.
         if (cr?.body) {
-          ctx.drawImage(cr.body, x + 4, top, laneWidth - 8, Math.max(bottom - top, 1));
+          const span = Math.max(bottom - top, 1);
+          const dispW = laneWidth - 8;
+          if (cr.bodyCapPx && cr.body.width > 0) {
+            // Capped body: draw the rounded end at native scale at the far end,
+            // then stretch only the uniform fill below it down to the head.
+            // Stretching the whole (very tall) sprite would squash the cap away.
+            const scale = dispW / cr.body.width;
+            const capH = Math.min(cr.bodyCapPx * scale, span);
+            ctx.drawImage(cr.body, 0, 0, cr.body.width, cr.bodyCapPx, x + 4, top, dispW, capH);
+            const fillH = span - capH;
+            if (fillH > 0) {
+              const fillSrcH = Math.max(cr.body.height - cr.bodyCapPx, 1);
+              ctx.drawImage(
+                cr.body,
+                0, cr.bodyCapPx, cr.body.width, fillSrcH,
+                x + 4, top + capH, dispW, fillH,
+              );
+            }
+          } else {
+            ctx.drawImage(cr.body, x + 4, top, dispW, span);
+          }
         } else {
-          ctx.fillStyle = "rgba(255,93,177,0.35)";
-          roundRect(ctx, x + 4, top, laneWidth - 8, bottom - top, 5);
+          const bodyW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
+          ctx.fillStyle = "rgba(154,160,173,0.35)";
+          roundRect(
+            ctx,
+            x + laneWidth / 2 - bodyW / 2,
+            top,
+            bodyW,
+            bottom - top,
+            5,
+          );
           ctx.fill();
-        }
-        // tail, then head on top (head sits at the judgement-facing end).
-        if (cr?.tail) {
-          drawSprite(ctx, cr.tail, x, yEnd, laneWidth);
-        } else {
-          ctx.fillStyle = color;
-          roundRect(ctx, x + 3, yEnd - NOTE_HEIGHT / 2, laneWidth - 6, NOTE_HEIGHT, 4);
-          ctx.fill();
+          // tail cap (head is drawn below, on top, at the judgement-facing end).
+          if (cr?.tail) {
+            drawSprite(ctx, cr.tail, x, yEnd, laneWidth);
+          } else {
+            ctx.fillStyle = "#9aa0ad";
+            roundRect(ctx, x + 3, yEnd - NOTE_HEIGHT / 2, laneWidth - 6, NOTE_HEIGHT, 4);
+            ctx.fill();
+          }
         }
         const headSprite = cr?.head ?? cr?.note ?? null;
         if (headSprite) {
@@ -582,8 +642,9 @@ export function ManiaEditor(props: Props) {
       const yEnd = timeToY(drag.currentTime);
       const top = Math.min(yStart, yEnd);
       const bottom = Math.max(yStart, yEnd);
-      ctx.fillStyle = "rgba(255,93,177,0.25)";
-      roundRect(ctx, x + 4, top, laneWidth - 8, Math.max(bottom - top, 2), 5);
+      const previewW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
+      ctx.fillStyle = "rgba(154,160,173,0.25)";
+      roundRect(ctx, x + laneWidth / 2 - previewW / 2, top, previewW, Math.max(bottom - top, 2), 5);
       ctx.fill();
     } else if (mouseRef.current.inside && !moveDragRef.current) {
       // ---- Hover ghost note ----
@@ -650,19 +711,19 @@ export function ManiaEditor(props: Props) {
   }, [draw]);
 
   // ---- Resize handling -----------------------------------------------------
+  // Only record the container size; the rAF draw syncs the canvas backing store
+  // (see draw()), which the CSS `h-full w-full` canvas is stretched to fill.
   useEffect(() => {
     const wrap = wrapRef.current;
-    const canvas = canvasRef.current;
-    if (!wrap || !canvas) return;
+    if (!wrap) return;
 
     const resize = () => {
       const rect = wrap.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      sizeRef.current = { width: rect.width, height: rect.height, dpr };
-      canvas.width = Math.floor(rect.width * dpr);
-      canvas.height = Math.floor(rect.height * dpr);
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
+      sizeRef.current = {
+        width: rect.width,
+        height: rect.height,
+        dpr: window.devicePixelRatio || 1,
+      };
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -908,10 +969,6 @@ export function ManiaEditor(props: Props) {
         onContextMenu={onContextMenu}
         onWheel={onWheel}
       />
-      <div className="pointer-events-none absolute left-3 top-3 select-none rounded-md bg-ink-800/70 px-2 py-1 text-[11px] text-slate-400">
-        Left-click: place · Drag: hold note · Shift-drag: select · Right-click:
-        delete · Wheel: scrub
-      </div>
       <div
         className={`pointer-events-none absolute right-3 top-3 select-none rounded-md border border-yellow-300/40 bg-yellow-500/15 px-3 py-1.5 text-xs font-medium text-yellow-100 shadow-lg transition-[opacity,transform] duration-150 ${
           shiftActive
