@@ -36,7 +36,6 @@ import {
 const MANIA_MAX_TIME_RANGE = 11485;
 const PLAYHEAD_FROM_BOTTOM = 96;
 const NOTE_HEIGHT = 16;
-const HIT_TOLERANCE = 14; // px radius for note hit-testing
 const SELECT_AUTOSCROLL_TOP_ZONE = 64;
 const SELECT_AUTOSCROLL_MIN_PX_PER_SEC = 280;
 const SELECT_AUTOSCROLL_MAX_PX_PER_SEC = 900;
@@ -252,6 +251,15 @@ export function ManiaEditor(props: Props) {
       ) {
         e.preventDefault();
         setReceptorsOn((on) => !on);
+        return;
+      }
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        !isTyping(e.target) &&
+        selectedNoteIdsRef.current.size
+      ) {
+        e.preventDefault();
+        deleteSelection();
         return;
       }
       if (!(e.ctrlKey || e.metaKey) || isTyping(e.target)) return;
@@ -859,17 +867,19 @@ export function ManiaEditor(props: Props) {
     const { notes, keyCount } = propsRef.current;
     const col = columnAtX(x);
     if (col < 0) return null;
+    const { laneWidth, originX } = laneGeometry();
     // Search from topmost drawn (latest) so overlapping notes resolve sanely.
     for (let i = notes.length - 1; i >= 0; i--) {
       const n = notes[i];
       if (n.column !== col || n.column >= keyCount) continue;
-      const yStart = timeToY(n.startTime);
-      if (n.endTime !== undefined) {
-        const yEnd = timeToY(n.endTime);
-        const top = Math.min(yStart, yEnd) - NOTE_HEIGHT / 2;
-        const bottom = Math.max(yStart, yEnd) + NOTE_HEIGHT / 2;
-        if (y >= top && y <= bottom) return n;
-      } else if (Math.abs(y - yStart) <= HIT_TOLERANCE) {
+      const bounds = noteBounds(n, laneWidth, originX);
+      if (
+        bounds &&
+        x >= bounds.x &&
+        x <= bounds.x + bounds.w &&
+        y >= bounds.y &&
+        y <= bounds.y + bounds.h
+      ) {
         return n;
       }
     }
@@ -1126,6 +1136,19 @@ export function ManiaEditor(props: Props) {
     moveDragRef.current = null;
   };
 
+  const onContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const { x, y } = localPoint(e);
+    const note = findNoteAt(x, y);
+    if (!note) return;
+
+    if (selectedNoteIdsRef.current.has(note.id)) {
+      deleteSelection();
+    } else {
+      propsRef.current.onDeleteNote(note.id);
+    }
+  };
+
   const onWheel = (e: React.WheelEvent) => {
     if (e.altKey) {
       // Alt + scroll => adjust volume by 5% per notch.
@@ -1140,7 +1163,11 @@ export function ManiaEditor(props: Props) {
   };
 
   return (
-    <div ref={wrapRef} className="relative h-full w-full overflow-hidden">
+    <div
+      ref={wrapRef}
+      className="relative h-full w-full overflow-hidden"
+      onContextMenu={onContextMenu}
+    >
       <canvas
         ref={canvasRef}
         className="block h-full w-full cursor-crosshair"
@@ -1177,7 +1204,7 @@ export function ManiaEditor(props: Props) {
           <span className="font-medium text-yellow-200">
             {selectionCount} selected
           </span>{" "}
-          · Ctrl+click multi · drag to move · Ctrl+A all · Ctrl+C copy · Ctrl+X cut
+          · Delete/right-click remove · Ctrl+click multi · drag to move · Ctrl+A all · Ctrl+C copy · Ctrl+X cut
         </div>
       )}
 

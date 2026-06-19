@@ -105,6 +105,12 @@ export default function App() {
   const audio = useAudio(audioFile?.url ?? null);
   const waveform = useWaveform(audioFile?.blob ?? null);
 
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => e.preventDefault();
+    window.addEventListener("contextmenu", onContextMenu);
+    return () => window.removeEventListener("contextmenu", onContextMenu);
+  }, []);
+
   // Background for the active difficulty.
   const activeBg = active.backgroundFilename ? bgFiles[active.backgroundFilename] ?? null : null;
 
