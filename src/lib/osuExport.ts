@@ -37,12 +37,21 @@ function formatHitObject(note: ManiaNote, keyCount: number): string {
   const x = columnToX(note.column, keyCount);
   const y = 192;
   const time = Math.round(note.startTime);
+  const hitSound = note.hitSound ?? 0;
+  // hitSample: normalSet:additionSet:index:volume:filename
+  const sample = [
+    note.sampleSet ?? 0,
+    note.additionSet ?? 0,
+    note.sampleIndex ?? 0,
+    note.sampleVolume ?? 0,
+    note.sampleFile ?? "",
+  ].join(":");
 
   if (note.endTime !== undefined && note.endTime > note.startTime) {
     const end = Math.round(note.endTime);
-    return `${x},${y},${time},128,0,${end}:0:0:0:0:`;
+    return `${x},${y},${time},128,${hitSound},${end}:${sample}`;
   }
-  return `${x},${y},${time},1,0,0:0:0:0:`;
+  return `${x},${y},${time},1,${hitSound},${sample}`;
 }
 
 export type BuildOsuArgs = {

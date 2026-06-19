@@ -18,7 +18,31 @@ export type ManiaNote = {
   startTime: number;
   /** End time in milliseconds. Present only for long notes (holds). */
   endTime?: number;
+  /**
+   * Hit-sound additions bitmask, matching the osu! file format:
+   *   2 = whistle, 4 = finish, 8 = clap. 0 / undefined = no additions.
+   * The normal sample of the active sample set always plays regardless.
+   */
+  hitSound?: number;
+  /** Normal-sound sample set: 0 = auto (timing point), 1 = normal, 2 = soft, 3 = drum. */
+  sampleSet?: number;
+  /** Addition (whistle/finish/clap) sample set: 0 = auto (follows the normal set). */
+  additionSet?: number;
+  /** Custom sample index. 0 = use the timing point's index. */
+  sampleIndex?: number;
+  /** Per-note volume, 1..100. 0 = use the timing point's volume. */
+  sampleVolume?: number;
+  /** Custom sample filename for the normal sound (keysounds). */
+  sampleFile?: string;
 };
+
+/** Hit-sound addition bit flags (osu! file format). */
+export const HITSOUND_WHISTLE = 2;
+export const HITSOUND_FINISH = 4;
+export const HITSOUND_CLAP = 8;
+
+/** Sample-set index (0..3) -> lowercase folder/file prefix. 0 = auto. */
+export const SAMPLE_SET_NAMES = ["auto", "normal", "soft", "drum"] as const;
 
 /** Beat-snap divisor. 4 = 1/4, 8 = 1/8, etc. */
 export type SnapDivisor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 12 | 16;
@@ -260,6 +284,15 @@ export const DEFAULT_VIEW: ViewState = {
  */
 export type BackgroundScope = "mapset" | "difficulty";
 
+/**
+ * The original osu! hit-sample sets. Played during playback preview when a note
+ * crosses the judgement line. "normal" is bright/clicky, "soft" is mellow and
+ * "drum" is percussive — matching osu!'s `normal-`, `soft-` and `drum-` samples.
+ */
+export type HitsoundSet = "normal" | "soft" | "drum";
+
+export const HITSOUND_SETS: HitsoundSet[] = ["normal", "soft", "drum"];
+
 /** Website/editor preferences (not part of the beatmap). */
 export type AppSettings = {
   /** Multiplies waveform amplitude in the bottom timeline. 0.5 .. 3. */
@@ -268,6 +301,12 @@ export type AppSettings = {
   playfieldScale: number;
   /** Width multiplier for the default long-note body. 0.2 .. 1. */
   longNoteBodyScale: number;
+  /** Whether hitsounds play while the song is playing. */
+  hitsoundsEnabled: boolean;
+  /** Which original osu! sample set is played for hitsounds. */
+  hitsoundSet: HitsoundSet;
+  /** Hitsound volume (perceived slider position, 0..1). */
+  hitsoundVolume: number;
 };
 
 /**
@@ -327,6 +366,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   waveformSensitivity: 1,
   playfieldScale: 1.5,
   longNoteBodyScale: 0.75,
+  hitsoundsEnabled: true,
+  hitsoundSet: "normal",
+  hitsoundVolume: 0.5,
 };
 
 export const MIN_KEYS = 1;

@@ -17,6 +17,7 @@ import { Button } from "./components/ui/Controls";
 import { Modal } from "./components/ui/Modal";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
+import { useHitsounds } from "./hooks/useHitsounds";
 import { fullLongNotes, fullRiceNotes } from "./lib/noteTools";
 import { downloadOsu } from "./lib/osuExport";
 import { downloadOsz } from "./lib/oszExport";
@@ -111,6 +112,9 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const [importingMap, setImportingMap] = useState(false);
+  // Hitsound applied to newly placed notes (additions bitmask + normal set).
+  const [currentHitSound, setCurrentHitSound] = useState(0);
+  const [currentSampleSet, setCurrentSampleSet] = useState(0);
   const [saveStatus, setSaveStatus] = useState<
     null | "saving" | "saved" | "error"
   >(null);
@@ -130,6 +134,16 @@ export default function App() {
 
   const audio = useAudio(audioFile?.url ?? null);
   const waveform = useWaveform(audioFile?.blob ?? null);
+
+  // Play the map's actual osu! hitsounds as notes cross the judgement line.
+  useHitsounds(
+    audio.currentTime,
+    audio.isPlaying,
+    active.notes,
+    active.timingPoints?.length ? active.timingPoints : timingPoints,
+    appSettings.hitsoundVolume,
+    appSettings.hitsoundsEnabled,
+  );
 
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
@@ -1145,6 +1159,10 @@ export default function App() {
               audio={audio}
               view={view}
               onView={setView}
+              hitsoundVolume={appSettings.hitsoundVolume}
+              onHitsoundVolume={(v) =>
+                setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
+              }
             />
           </div>
           <div className="relative min-h-0 flex-1">
@@ -1169,6 +1187,10 @@ export default function App() {
                 onView={setView}
                 onSeek={audio.seek}
                 onVolumeChange={(delta) => audio.setVolume(audio.volume + delta)}
+                currentHitSound={currentHitSound}
+                currentSampleSet={currentSampleSet}
+                onCurrentHitSound={setCurrentHitSound}
+                onCurrentSampleSet={setCurrentSampleSet}
               />
             ) : (
               <EmptyState onOpenSettings={() => setModal("mapSettings")} />
@@ -1243,6 +1265,14 @@ export default function App() {
         longNoteBodyScale={appSettings.longNoteBodyScale}
         onLongNoteBodyScale={(v) =>
           setAppSettings((s) => ({ ...s, longNoteBodyScale: v }))
+        }
+        hitsoundsEnabled={appSettings.hitsoundsEnabled}
+        onHitsoundsEnabled={(v) =>
+          setAppSettings((s) => ({ ...s, hitsoundsEnabled: v }))
+        }
+        hitsoundVolume={appSettings.hitsoundVolume}
+        onHitsoundVolume={(v) =>
+          setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
         }
       />
       <SkinModal
@@ -1487,6 +1517,14 @@ function InfoModal({
           <InfoRow keys="Kiai" text="Kiai timing sections tint notes during preview." />
         </InfoSection>
 
+        <InfoSection title="Hitsounds">
+          <InfoRow keys="H" text="Toggle hitsound mode: shows the toolbar and per-note letters." />
+          <InfoRow keys="W / F / C" text="In hitsound mode, add whistle / finish / clap to the selection." />
+          <InfoRow keys="Sample set" text="Pick Auto, Normal, Soft or Drum for selected or new notes." />
+          <InfoRow keys="W F C labels" text="Letters on a note show its applied additions." />
+          <InfoRow keys="Playback" text="The map's hitsounds always play, even outside hitsound mode." />
+        </InfoSection>
+
         <InfoSection title="Project">
           <InfoRow keys="Ctrl/Cmd + S" text="Save progress locally." />
           <InfoRow keys="Ctrl/Cmd + Z" text="Undo beatmap edits." />
@@ -1502,7 +1540,7 @@ function InfoModal({
           <InfoRow keys="Difficulty" text="Set name, key count, HP and OD for the active difficulty." />
           <InfoRow keys="Tools" text="Apply Full LN or convert holds back to rice notes." />
           <InfoRow keys="Skin" text="Apply presets, upload .osk skins or clear the current skin." />
-          <InfoRow keys="Settings" text="Adjust playfield scale and default long-note body width." />
+          <InfoRow keys="Settings" text="Adjust playfield scale, long-note body width and hitsound playback / volume." />
         </InfoSection>
 
         <InfoSection title="Difficulty list">

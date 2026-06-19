@@ -9,11 +9,18 @@ type Props = {
   /** Current default long-note body width multiplier (0.2 .. 1). */
   longNoteBodyScale: number;
   onLongNoteBodyScale: (value: number) => void;
+  /** Whether hitsounds play during playback. */
+  hitsoundsEnabled: boolean;
+  onHitsoundsEnabled: (value: boolean) => void;
+  /** Hitsound volume (perceived slider position 0..1). */
+  hitsoundVolume: number;
+  onHitsoundVolume: (value: number) => void;
 };
 
 /**
- * Editor preferences: playfield size and the default long-note body width.
- * Skin selection lives in its own modal ({@link SkinModal}).
+ * Editor preferences: playfield size, the default long-note body width and the
+ * hitsound sample set / volume. Skin selection lives in its own modal
+ * ({@link SkinModal}).
  */
 export function AppSettingsModal({
   open,
@@ -22,6 +29,10 @@ export function AppSettingsModal({
   onPlayfieldScale,
   longNoteBodyScale,
   onLongNoteBodyScale,
+  hitsoundsEnabled,
+  onHitsoundsEnabled,
+  hitsoundVolume,
+  onHitsoundVolume,
 }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Settings">
@@ -76,6 +87,55 @@ export function AppSettingsModal({
               Width of the default long-note body (the gray part), relative to
               the lane. Only applies when no skin body sprite is used.
             </p>
+          </div>
+        </section>
+
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Hitsounds
+          </h3>
+          <div className="flex flex-col gap-4">
+            <label className="flex items-center justify-between text-xs text-slate-300">
+              <span>Play hitsounds during playback</span>
+              <input
+                type="checkbox"
+                checked={hitsoundsEnabled}
+                onChange={(e) => onHitsoundsEnabled(e.target.checked)}
+                className="h-4 w-4 cursor-pointer accent-accent"
+              />
+            </label>
+
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] text-slate-500">
+                Hitsounds now follow the map: each note plays its own sample set
+                (normal / soft / drum) and additions (whistle, finish, clap).
+                Edit them with the hitsound toolbar at the bottom of the editor,
+                or the W / F / C keys.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Volume</span>
+                <span className="font-medium text-slate-200">
+                  {Math.round(hitsoundVolume * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={hitsoundVolume}
+                disabled={!hitsoundsEnabled}
+                onChange={(e) => onHitsoundVolume(Number(e.target.value))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
+              />
+              <p className="text-[11px] text-slate-500">
+                Independent of the song volume. Also adjustable from the
+                transport bar (&ldquo;Hit&rdquo;).
+              </p>
+            </div>
           </div>
         </section>
       </div>

@@ -11,9 +11,18 @@ type Props = {
   audio: AudioController;
   view: ViewState;
   onView: (v: ViewState) => void;
+  /** Hitsound volume (perceived slider position 0..1). */
+  hitsoundVolume: number;
+  onHitsoundVolume: (value: number) => void;
 };
 
-export function TransportBar({ audio, view, onView }: Props) {
+export function TransportBar({
+  audio,
+  view,
+  onView,
+  hitsoundVolume,
+  onHitsoundVolume,
+}: Props) {
   const { currentTime, volume, setVolume } = audio;
 
   return (
@@ -49,6 +58,24 @@ export function TransportBar({ audio, view, onView }: Props) {
           />
           <span className="w-8 font-mono text-slate-300">
             {Math.round(volume * 100)}%
+          </span>
+        </label>
+
+        {/* Hitsound volume */}
+        <label className="flex items-center gap-2 text-xs text-slate-400">
+          Hit
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={hitsoundVolume}
+            onChange={(e) => onHitsoundVolume(Number(e.target.value))}
+            className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+            title="Hitsound volume"
+          />
+          <span className="w-8 font-mono text-slate-300">
+            {Math.round(hitsoundVolume * 100)}%
           </span>
         </label>
 

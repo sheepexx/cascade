@@ -101,6 +101,12 @@ export function SkinModal({
                 >
                   Kiai Support
                 </span>
+                <span
+                  className="shrink-0 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300"
+                  title="Shows applied hitsounds (W/F/C letters) on notes in hitsound mode (H)"
+                >
+                  Hitsound Support
+                </span>
               </span>
               <span className="ml-2 shrink-0 text-[11px] text-slate-400">
                 {!skin ? "Active" : "Use"}

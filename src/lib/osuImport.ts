@@ -69,6 +69,33 @@ function num(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * Parse a hit object's `hitSound` flags + `hitSample` string into the optional
+ * hitsound fields stored on a {@link ManiaNote}. Only non-default values are
+ * emitted so plain notes stay free of hitsound clutter.
+ *
+ * hitSample syntax: `normalSet:additionSet:index:volume:filename`.
+ */
+function hitSampleFields(
+  hitSound: number,
+  sample: string,
+): Partial<ManiaNote> {
+  const out: Partial<ManiaNote> = {};
+  if (hitSound) out.hitSound = hitSound;
+  const parts = sample.split(":");
+  const normalSet = Math.round(Number(parts[0])) || 0;
+  const additionSet = Math.round(Number(parts[1])) || 0;
+  const index = Math.round(Number(parts[2])) || 0;
+  const volume = Math.round(Number(parts[3])) || 0;
+  const filename = (parts[4] ?? "").trim();
+  if (normalSet) out.sampleSet = normalSet;
+  if (additionSet) out.additionSet = additionSet;
+  if (index) out.sampleIndex = index;
+  if (volume) out.sampleVolume = volume;
+  if (filename) out.sampleFile = filename;
+  return out;
+}
+
 /** Parse the text of a `.osu` file into editor state. Assumes osu!mania. */
 export function parseOsuFile(text: string): ParsedOsu {
   const sections = splitSections(text);
@@ -144,17 +171,29 @@ export function parseOsuFile(text: string): ParsedOsu {
     const type = Number(p[3]);
     if (!Number.isFinite(x) || !Number.isFinite(time)) continue;
     const column = xToColumn(x, keyCount);
+    const hitSound = Math.round(Number(p[4])) || 0;
 
     if (type & 128) {
-      const endTime = Math.round(Number((p[5] ?? "").split(":")[0]));
+      // Hold: objectParams field is `endTime:hitSample`.
+      const param = p[5] ?? "";
+      const colon = param.indexOf(":");
+      const endRaw = colon === -1 ? param : param.slice(0, colon);
+      const sampleStr = colon === -1 ? "" : param.slice(colon + 1);
+      const endTime = Math.round(Number(endRaw));
       notes.push({
         id: uid("n"),
         column,
         startTime: time,
         endTime: Number.isFinite(endTime) && endTime > time ? endTime : time + 1,
+        ...hitSampleFields(hitSound, sampleStr),
       });
     } else {
-      notes.push({ id: uid("n"), column, startTime: time });
+      notes.push({
+        id: uid("n"),
+        column,
+        startTime: time,
+        ...hitSampleFields(hitSound, p[5] ?? ""),
+      });
     }
   }
   notes.sort((a, b) => a.startTime - b.startTime || a.column - b.column);

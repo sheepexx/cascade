@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SNAP_DIVISORS,
   uid,
+  HITSOUND_WHISTLE,
+  HITSOUND_FINISH,
+  HITSOUND_CLAP,
+  SAMPLE_SET_NAMES,
   type ManiaKeymodeSkin,
   type ManiaNote,
   type TimingPoint,
@@ -78,6 +82,12 @@ type Props = {
   onView: (view: ViewState) => void;
   onSeek: (ms: number) => void;
   onVolumeChange: (delta: number) => void;
+  /** Additions bitmask (2/4/8) applied to newly placed notes. */
+  currentHitSound: number;
+  /** Normal sample set (0=auto,1,2,3) applied to newly placed notes. */
+  currentSampleSet: number;
+  onCurrentHitSound: (value: number) => void;
+  onCurrentSampleSet: (value: number) => void;
 };
 
 type DragState = {
@@ -106,7 +116,12 @@ type MoveDragState = {
   /** Becomes true once the pointer has actually moved (vs. a plain click). */
   moved: boolean;
   /** Original positions of the dragged notes, captured at mousedown. */
-  origin: { id: string; column: number; startTime: number; endTime?: number }[];
+  origin: ({
+    id: string;
+    column: number;
+    startTime: number;
+    endTime?: number;
+  } & Partial<ManiaNote>)[];
 };
 
 /**
@@ -115,8 +130,69 @@ type MoveDragState = {
  */
 type Clip = {
   id: string;
-  notes: { column: number; startTime: number; endTime?: number }[];
+  notes: {
+    column: number;
+    startTime: number;
+    endTime?: number;
+    hitSound?: number;
+    sampleSet?: number;
+    additionSet?: number;
+    sampleIndex?: number;
+    sampleVolume?: number;
+    sampleFile?: string;
+  }[];
 };
+
+/** Copy the optional hitsound fields off a note (for clipboard / cloning). */
+function hitsoundOf(n: {
+  hitSound?: number;
+  sampleSet?: number;
+  additionSet?: number;
+  sampleIndex?: number;
+  sampleVolume?: number;
+  sampleFile?: string;
+}): Partial<ManiaNote> {
+  return {
+    hitSound: n.hitSound,
+    sampleSet: n.sampleSet,
+    additionSet: n.additionSet,
+    sampleIndex: n.sampleIndex,
+    sampleVolume: n.sampleVolume,
+    sampleFile: n.sampleFile,
+  };
+}
+
+/** The whistle/finish/clap additions on a note as a short label, e.g. "WF". */
+function hitsoundLabel(hitSound: number | undefined): string {
+  if (!hitSound) return "";
+  let s = "";
+  if (hitSound & HITSOUND_WHISTLE) s += "W";
+  if (hitSound & HITSOUND_FINISH) s += "F";
+  if (hitSound & HITSOUND_CLAP) s += "C";
+  return s;
+}
+
+/** Draw the hitsound letters centred in a default-skin note bar. */
+function drawHitsoundLetters(
+  ctx: CanvasRenderingContext2D,
+  hitSound: number | undefined,
+  cx: number,
+  cy: number,
+) {
+  const label = hitsoundLabel(hitSound);
+  if (!label) return;
+  ctx.save();
+  ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(0,0,0,0.6)";
+  ctx.strokeText(label, cx, cy);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(label, cx, cy);
+  ctx.restore();
+}
 
 type CanvasRect = {
   x: number;
@@ -146,6 +222,11 @@ export function ManiaEditor(props: Props) {
   const [receptorsOn, setReceptorsOn] = useState(false);
   const receptorsOnRef = useRef(false);
   receptorsOnRef.current = receptorsOn;
+  // Hitsound mode: shows the hitsound toolbar + per-note letters and enables
+  // the W/F/C editing keys. Toggled with H. Playback is unaffected by it.
+  const [hitsoundMode, setHitsoundMode] = useState(false);
+  const hitsoundModeRef = useRef(false);
+  hitsoundModeRef.current = hitsoundMode;
   const [selectionCount, setSelectionCount] = useState(0);
   const [clipboard, setClipboard] = useState<Clip | null>(null);
   const [history, setHistory] = useState<Clip[]>([]);
@@ -194,6 +275,7 @@ export function ManiaEditor(props: Props) {
           column: n.column,
           startTime: n.startTime - minTime,
           endTime: n.endTime !== undefined ? n.endTime - minTime : undefined,
+          ...hitsoundOf(n),
         }))
         .sort((a, b) => a.startTime - b.startTime || a.column - b.column),
     };
@@ -225,11 +307,44 @@ export function ManiaEditor(props: Props) {
         column: n.column,
         startTime: n.startTime + base,
         endTime: n.endTime !== undefined ? n.endTime + base : undefined,
+        ...hitsoundOf(n),
       }));
     if (!newNotes.length) return;
     propsRef.current.onAddNotes(newNotes);
     setSelection(new Set(newNotes.map((n) => n.id)));
   }, [setSelection]);
+
+  // ---- Hitsounding: apply to the selection, or set the "current" hitsound --
+  // that newly placed notes adopt. Matches the osu!mania editor: W/F/C toggle
+  // whistle/finish/clap, and the sample-set buttons pick normal/soft/drum.
+  const toggleAddition = useCallback((bit: number) => {
+    const ids = selectedNoteIdsRef.current;
+    if (ids.size) {
+      const selected = propsRef.current.notes.filter((n) => ids.has(n.id));
+      // Toggle: clear the bit if every selected note already has it, else set it.
+      const allHave = selected.every((n) => ((n.hitSound ?? 0) & bit) !== 0);
+      const updated = selected.map((n) => {
+        const cur = n.hitSound ?? 0;
+        return { ...n, hitSound: (allHave ? cur & ~bit : cur | bit) || undefined };
+      });
+      propsRef.current.onMoveNotes(updated);
+    } else {
+      propsRef.current.onCurrentHitSound((propsRef.current.currentHitSound ?? 0) ^ bit);
+    }
+  }, []);
+
+  const setSampleSet = useCallback((set: number) => {
+    propsRef.current.onCurrentSampleSet(set);
+    const ids = selectedNoteIdsRef.current;
+    if (ids.size) {
+      const selected = propsRef.current.notes.filter((n) => ids.has(n.id));
+      const updated = selected.map((n) => ({
+        ...n,
+        sampleSet: set || undefined,
+      }));
+      propsRef.current.onMoveNotes(updated);
+    }
+  }, []);
 
   // ---- Multi-selection keyboard state -------------------------------------
   useEffect(() => {
@@ -260,6 +375,44 @@ export function ManiaEditor(props: Props) {
         e.preventDefault();
         setReceptorsOn((on) => !on);
         return;
+      }
+      // H toggles hitsound mode (the toolbar + per-note letters + W/F/C keys).
+      if (
+        e.key.toLowerCase() === "h" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !isTyping(e.target)
+      ) {
+        e.preventDefault();
+        setHitsoundMode((on) => !on);
+        return;
+      }
+      // W / F / C toggle whistle / finish / clap on the selection (osu!mania).
+      // Only while hitsound mode is active so they don't clash with editing.
+      if (
+        hitsoundModeRef.current &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !isTyping(e.target)
+      ) {
+        const k = e.key.toLowerCase();
+        if (k === "w") {
+          e.preventDefault();
+          toggleAddition(HITSOUND_WHISTLE);
+          return;
+        }
+        if (k === "f") {
+          e.preventDefault();
+          toggleAddition(HITSOUND_FINISH);
+          return;
+        }
+        if (k === "c") {
+          e.preventDefault();
+          toggleAddition(HITSOUND_CLAP);
+          return;
+        }
       }
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
@@ -310,7 +463,7 @@ export function ManiaEditor(props: Props) {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [copySelection, cutSelection, paste]);
+  }, [copySelection, cutSelection, paste, toggleAddition]);
 
   // ---- Background image loading -------------------------------------------
   useEffect(() => {
@@ -639,28 +792,32 @@ export function ManiaEditor(props: Props) {
     // receptor switches to its pressed sprite while a note sits on the line.
     if (receptorsOnRef.current) {
       const { currentTime } = propsRef.current;
+      // Single pass over notes computing the max hit intensity per column,
+      // instead of scanning every note once per column (O(N) not O(cols×N)).
+      const intensities = new Array<number>(keyCount).fill(0);
+      for (const n of notes) {
+        const c = n.column;
+        if (c < 0 || c >= keyCount) continue;
+        const start = n.startTime;
+        const end = n.endTime ?? n.startTime;
+        let inten: number;
+        if (currentTime >= start && currentTime <= end) {
+          // Note is on the line (or being held): full glow.
+          inten = 1;
+        } else if (currentTime > end) {
+          // Note has passed the line: fade the glow out across the hit window.
+          const d = currentTime - end;
+          if (d > RECEPTOR_HIT_WINDOW) continue;
+          inten = 1 - d / RECEPTOR_HIT_WINDOW;
+        } else {
+          // Note hasn't reached the line yet: no glow (don't light up early).
+          continue;
+        }
+        if (inten > intensities[c]) intensities[c] = inten;
+      }
       for (let c = 0; c < keyCount; c++) {
         const cr = skinCols[c];
-        // Hit intensity in [0,1]: 1 while a note sits on the line (or a hold is
-        // being held), fading to 0 across the hit window as the note approaches
-        // or leaves, so the glow eases in and out instead of snapping on.
-        let intensity = 0;
-        for (const n of notes) {
-          if (n.column !== c) continue;
-          const start = n.startTime;
-          const end = n.endTime ?? n.startTime;
-          if (currentTime >= start && currentTime <= end) {
-            intensity = 1;
-            break;
-          }
-          const d =
-            currentTime < start
-              ? start - currentTime
-              : currentTime - end;
-          if (d >= 0 && d <= RECEPTOR_HIT_WINDOW) {
-            intensity = Math.max(intensity, 1 - d / RECEPTOR_HIT_WINDOW);
-          }
-        }
+        const intensity = intensities[c];
         const x = originX + c * laneWidth;
         const sprite = intensity > 0 ? cr?.keyDown ?? cr?.key : cr?.key;
         if (sprite) {
@@ -690,6 +847,13 @@ export function ManiaEditor(props: Props) {
       ctx.clip();
     }
     const move = moveDragRef.current;
+    // Cull notes whose whole span lies off-screen so big maps only pay for the
+    // ~screenful of notes actually visible. topTime is the time at the top of
+    // the view, bottomTime at the bottom; a generous pixel margin (converted to
+    // ms) keeps tall sprites and long-note ends from popping at the edges.
+    const cullMarginMs = 256 / ppms();
+    const cullLo = bottomTime - cullMarginMs;
+    const cullHi = topTime + cullMarginMs;
     for (const original of notes) {
       const selected = selectedNoteIdsRef.current.has(original.id);
       // While dragging the selection, draw selected notes at their offset.
@@ -706,6 +870,13 @@ export function ManiaEditor(props: Props) {
             }
           : original;
       if (note.column < 0 || note.column >= keyCount) continue;
+      {
+        const nA = note.startTime;
+        const nB = note.endTime ?? note.startTime;
+        const nMin = nA < nB ? nA : nB;
+        const nMax = nA < nB ? nB : nA;
+        if (nMax < cullLo || nMin > cullHi) continue;
+      }
       // With receptors on, a rice note vanishes the instant it reaches the line,
       // while a long note stays until its whole body has fallen past (its tail
       // reaches the line). The clip below trims whatever is still on screen at
@@ -726,26 +897,28 @@ export function ManiaEditor(props: Props) {
         noteInKiai && !skinColour
           ? "#5bc0ff"
           : skinColour ?? laneColor(note.column);
-      const bounds = noteBounds(note, laneWidth, originX);
 
-      if (selected && bounds) {
-        ctx.save();
-        ctx.fillStyle = "rgba(255,210,63,0.14)";
-        ctx.strokeStyle = "rgba(255,210,63,0.95)";
-        ctx.lineWidth = 2;
-        ctx.shadowColor = "rgba(255,210,63,0.45)";
-        ctx.shadowBlur = 8;
-        roundRect(
-          ctx,
-          bounds.x - 4,
-          bounds.y - 4,
-          bounds.w + 8,
-          bounds.h + 8,
-          Math.min(10, Math.max(4, bounds.h / 5)),
-        );
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
+      if (selected) {
+        const bounds = noteBounds(note, laneWidth, originX);
+        if (bounds) {
+          ctx.save();
+          ctx.fillStyle = "rgba(255,210,63,0.14)";
+          ctx.strokeStyle = "rgba(255,210,63,0.95)";
+          ctx.lineWidth = 2;
+          ctx.shadowColor = "rgba(255,210,63,0.45)";
+          ctx.shadowBlur = 8;
+          roundRect(
+            ctx,
+            bounds.x - 4,
+            bounds.y - 4,
+            bounds.w + 8,
+            bounds.h + 8,
+            Math.min(10, Math.max(4, bounds.h / 5)),
+          );
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       if (note.endTime !== undefined && note.endTime > note.startTime) {
@@ -824,6 +997,14 @@ export function ManiaEditor(props: Props) {
           ctx.fillStyle = color;
           roundRect(ctx, x + 3, headY - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
           ctx.fill();
+          if (hitsoundModeRef.current) {
+            drawHitsoundLetters(
+              ctx,
+              note.hitSound,
+              x + laneWidth / 2,
+              headY - NOTE_HEIGHT / 2,
+            );
+          }
         }
       } else {
         const y = timeToY(note.startTime);
@@ -833,6 +1014,14 @@ export function ManiaEditor(props: Props) {
           ctx.fillStyle = color;
           roundRect(ctx, x + 3, y - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
           ctx.fill();
+          if (hitsoundModeRef.current) {
+            drawHitsoundLetters(
+              ctx,
+              note.hitSound,
+              x + laneWidth / 2,
+              y - NOTE_HEIGHT / 2,
+            );
+          }
         }
       }
     }
@@ -1103,6 +1292,7 @@ export function ManiaEditor(props: Props) {
           column: n.column,
           startTime: n.startTime,
           endTime: n.endTime,
+          ...hitsoundOf(n),
         }));
       moveDragRef.current = {
         startX: x,
@@ -1182,6 +1372,7 @@ export function ManiaEditor(props: Props) {
       if (move.moved && (move.colDelta !== 0 || move.timeDelta !== 0)) {
         propsRef.current.onMoveNotes(
           move.origin.map((o) => ({
+            ...o,
             id: o.id,
             column: o.column + move.colDelta,
             startTime: o.startTime + move.timeDelta,
@@ -1208,16 +1399,20 @@ export function ManiaEditor(props: Props) {
     const start = Math.min(drag.startTime, drag.currentTime);
     const end = Math.max(drag.startTime, drag.currentTime);
     const id = uid("n");
+    const hs: Partial<ManiaNote> = {};
+    if (propsRef.current.currentHitSound) hs.hitSound = propsRef.current.currentHitSound;
+    if (propsRef.current.currentSampleSet) hs.sampleSet = propsRef.current.currentSampleSet;
 
     if (end - start <= 0) {
       // Plain tap
-      props.onPlaceNote({ id, column: drag.column, startTime: start });
+      props.onPlaceNote({ id, column: drag.column, startTime: start, ...hs });
     } else {
       props.onPlaceNote({
         id,
         column: drag.column,
         startTime: start,
         endTime: end,
+        ...hs,
       });
     }
   };
@@ -1274,6 +1469,25 @@ export function ManiaEditor(props: Props) {
     props.onSeek(stepToSnap(currentTime, timingPoints, view.snapDivisor, dir));
   };
 
+  // When notes are selected the toolbar reflects (and edits) those notes; with
+  // no selection it reflects the "current" hitsound applied to new notes.
+  const selectedNotes =
+    selectionCount > 0
+      ? props.notes.filter((n) => selectedNoteIdsRef.current.has(n.id))
+      : [];
+  const toolbarHasAddition = (bit: number) =>
+    selectedNotes.length > 0
+      ? selectedNotes.every((n) => ((n.hitSound ?? 0) & bit) !== 0)
+      : (props.currentHitSound & bit) !== 0;
+  const toolbarSampleSet =
+    selectedNotes.length > 0
+      ? selectedNotes.every(
+          (n) => (n.sampleSet ?? 0) === (selectedNotes[0].sampleSet ?? 0),
+        )
+        ? selectedNotes[0].sampleSet ?? 0
+        : -1 // mixed selection
+      : props.currentSampleSet;
+
   return (
     <div
       ref={wrapRef}
@@ -1309,6 +1523,13 @@ export function ManiaEditor(props: Props) {
       >
         Receptors {receptorsOn ? "on" : "off"} · press R
       </div>
+
+      {/* Hitsound mode indicator (only while active; press H to toggle) */}
+      {hitsoundMode && (
+        <div className="pointer-events-none absolute left-3 top-[3.25rem] select-none rounded-md border border-emerald-300/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-100 shadow-lg">
+          Hitsound mode · W / F / C · press H to exit
+        </div>
+      )}
 
       {/* Selection action hint */}
       {selectionCount > 0 && (
@@ -1367,7 +1588,85 @@ export function ManiaEditor(props: Props) {
           )}
         </div>
       )}
+
+      {/* Hitsound toolbar — W whistle · F finish · C clap, plus sample set. */}
+      {hitsoundMode && !props.zenMode && (
+        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/90 px-2.5 py-1.5 text-xs text-slate-200 shadow-xl backdrop-blur">
+          <span className="font-medium text-slate-300">Hitsound</span>
+          <div className="flex gap-1">
+            {SAMPLE_SET_NAMES.map((name, s) => (
+              <button
+                key={name}
+                onClick={() => setSampleSet(s)}
+                className={`rounded px-2 py-0.5 capitalize transition ${
+                  toolbarSampleSet === s
+                    ? "bg-accent text-ink-900"
+                    : "bg-ink-700 text-slate-300 hover:bg-ink-600"
+                }`}
+                title={
+                  s === 0 ? "Auto (use timing point)" : `${name} sample set`
+                }
+              >
+                {s === 0 ? "Auto" : name}
+              </button>
+            ))}
+          </div>
+          <span className="text-slate-600">·</span>
+          <div className="flex gap-1">
+            <HitsoundAddBtn
+              label="W"
+              title="Whistle (W)"
+              active={toolbarHasAddition(HITSOUND_WHISTLE)}
+              onClick={() => toggleAddition(HITSOUND_WHISTLE)}
+            />
+            <HitsoundAddBtn
+              label="F"
+              title="Finish (F)"
+              active={toolbarHasAddition(HITSOUND_FINISH)}
+              onClick={() => toggleAddition(HITSOUND_FINISH)}
+            />
+            <HitsoundAddBtn
+              label="C"
+              title="Clap (C)"
+              active={toolbarHasAddition(HITSOUND_CLAP)}
+              onClick={() => toggleAddition(HITSOUND_CLAP)}
+            />
+          </div>
+          <span className="text-[10px] text-slate-500">
+            {selectionCount > 0
+              ? `→ ${selectionCount} selected`
+              : "→ new notes"}
+          </span>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** A single whistle/finish/clap toggle button in the hitsound toolbar. */
+function HitsoundAddBtn({
+  label,
+  title,
+  active,
+  onClick,
+}: {
+  label: string;
+  title: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`w-6 rounded py-0.5 font-semibold transition ${
+        active
+          ? "bg-emerald-500/80 text-ink-900"
+          : "bg-ink-700 text-slate-300 hover:bg-ink-600"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
