@@ -7,10 +7,14 @@ import {
   type ViewState,
 } from "../types";
 import {
+  activeTimingAt,
+  beatLength,
   gridLineColor,
   gridLinesInRange,
+  greenPoints,
+  kiaiAt,
+  redPoints,
   snapTime,
-  sortedPoints,
   stepToSnap,
 } from "../lib/timing";
 
@@ -63,6 +67,8 @@ type Props = {
   playfieldScale: number;
   /** Width multiplier for the default long-note body. Default 1. */
   longNoteBodyScale: number;
+  /** Hide non-essential overlays (e.g. the KIAI label) in zen mode. */
+  zenMode: boolean;
   onPlaceNote: (note: ManiaNote) => void;
   onDeleteNote: (id: string) => void;
   onAddNotes: (notes: ManiaNote[]) => void;
@@ -492,6 +498,22 @@ export function ManiaEditor(props: Props) {
     ctx.fillStyle = "#0f0f14";
     ctx.fillRect(0, 0, width, height);
 
+    // ---- Kiai state + beat flash ----
+    // While in kiai, the background lights up on every beat of the map's BPM:
+    // the flash peaks the instant a beat lands and decays before the next one.
+    const ct = propsRef.current.currentTime;
+    const inKiai = kiaiAt(ct, timingPoints);
+    let beatFlash = 0;
+    if (inKiai) {
+      const tp = activeTimingAt(ct, timingPoints);
+      // Pulse at half the map's BPM (one flash every two beats).
+      const bl = tp ? beatLength(tp.bpm) * 2 : 0;
+      if (bl > 0) {
+        const phase = ((((ct - tp.time) % bl) + bl) % bl) / bl;
+        beatFlash = Math.pow(1 - phase, 2);
+      }
+    }
+
     // Optional dimmed background image behind the playfield
     const bg = bgImgRef.current;
     if (bg) {
@@ -502,7 +524,11 @@ export function ManiaEditor(props: Props) {
           ? Math.min(1, Math.max(0, elapsed / BACKGROUND_FADE_MS))
           : 1;
       const eased = 1 - Math.pow(1 - progress, 3);
-      ctx.globalAlpha = BACKGROUND_MAX_ALPHA * eased;
+      // Base dim alpha, very subtly boosted by the kiai beat flash.
+      ctx.globalAlpha = Math.min(
+        0.22,
+        BACKGROUND_MAX_ALPHA * eased + beatFlash * 0.05,
+      );
       drawCover(ctx, bg, 0, 0, width, height);
       ctx.globalAlpha = 1;
     }
@@ -547,16 +573,19 @@ export function ManiaEditor(props: Props) {
     for (const line of lines) {
       const y = Math.round(timeToY(line.time)) + 0.5;
       if (y < -2 || y > height + 2) continue;
-      ctx.strokeStyle = gridLineColor(line.idxInBeat, view.snapDivisor);
-      ctx.lineWidth = 1;
+      // Measure (bar) boundaries get a brighter, slightly heavier line.
+      ctx.strokeStyle = line.barline
+        ? "rgba(255,255,255,0.8)"
+        : gridLineColor(line.idxInBeat, view.snapDivisor);
+      ctx.lineWidth = line.barline ? 1.5 : 1;
       ctx.beginPath();
       ctx.moveTo(originX, y);
       ctx.lineTo(originX + playfieldWidth, y);
       ctx.stroke();
     }
 
-    // ---- Timing point / offset lines (red, span the canvas) ----
-    for (const tp of sortedPoints(timingPoints)) {
+    // ---- Red (uninherited) timing lines: BPM / offset ----
+    for (const tp of redPoints(timingPoints)) {
       const y = timeToY(tp.time);
       if (y < -20 || y > height + 20) continue;
       ctx.strokeStyle = "#ff2d6f";
@@ -570,17 +599,34 @@ export function ManiaEditor(props: Props) {
       ctx.fillText(`${tp.bpm} BPM`, 6, y - 4);
     }
 
-    // ---- Preview point (green, span the canvas) ----
+    // ---- Green (inherited) timing lines: scroll velocity (SV) ----
+    for (const tp of greenPoints(timingPoints)) {
+      const y = timeToY(tp.time);
+      if (y < -20 || y > height + 20) continue;
+      ctx.strokeStyle = "#2dd4bf";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([7, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#2dd4bf";
+      ctx.font = `11px ${CANVAS_FONT_STACK}`;
+      ctx.fillText(`${tp.sv}× SV`, 6, y + 12);
+    }
+
+    // ---- Preview point (purple, span the canvas) ----
     if (previewTime >= 0) {
       const y = timeToY(previewTime);
       if (y >= -20 && y <= height + 20) {
-        ctx.strokeStyle = "#33d17a";
+        ctx.strokeStyle = "#c084fc";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
-        ctx.fillStyle = "#33d17a";
+        ctx.fillStyle = "#c084fc";
         ctx.font = `11px ${CANVAS_FONT_STACK}`;
         ctx.fillText("Preview Point", 6, y - 4);
       }
@@ -593,24 +639,37 @@ export function ManiaEditor(props: Props) {
       const { currentTime } = propsRef.current;
       for (let c = 0; c < keyCount; c++) {
         const cr = skinCols[c];
-        const pressed = notes.some(
-          (n) =>
-            n.column === c &&
-            currentTime >= n.startTime - RECEPTOR_HIT_WINDOW &&
-            currentTime <= (n.endTime ?? n.startTime) + RECEPTOR_HIT_WINDOW,
-        );
-        const sprite = pressed ? cr?.keyDown ?? cr?.key : cr?.key;
-        const x = originX + c * laneWidth;
-        if (sprite) {
-          drawReceptor(ctx, sprite, x, phY, laneWidth);
-        } else {
-          drawDefaultReceptor(ctx, x, phY, laneWidth, height, noteColor(c), pressed);
+        // Hit intensity in [0,1]: 1 while a note sits on the line (or a hold is
+        // being held), fading to 0 across the hit window as the note approaches
+        // or leaves, so the glow eases in and out instead of snapping on.
+        let intensity = 0;
+        for (const n of notes) {
+          if (n.column !== c) continue;
+          const start = n.startTime;
+          const end = n.endTime ?? n.startTime;
+          if (currentTime >= start && currentTime <= end) {
+            intensity = 1;
+            break;
+          }
+          const d =
+            currentTime < start
+              ? start - currentTime
+              : currentTime - end;
+          if (d >= 0 && d <= RECEPTOR_HIT_WINDOW) {
+            intensity = Math.max(intensity, 1 - d / RECEPTOR_HIT_WINDOW);
+          }
         }
-        // Hit glow. Guarantees a visible reaction even when a skin has no
-        // dedicated keyDown sprite (keyDown falls back to the idle key, so the
-        // sprite alone would never change as a note lands).
-        if (pressed) {
-          drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c));
+        const x = originX + c * laneWidth;
+        const sprite = intensity > 0 ? cr?.keyDown ?? cr?.key : cr?.key;
+        if (sprite) {
+          // Skinned receptors keep their sprite + a glow on hit.
+          drawReceptor(ctx, sprite, x, phY, laneWidth);
+          if (intensity > 0) {
+            drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c), intensity);
+          }
+        } else if (intensity > 0) {
+          // Default look: nothing when idle, just a glowing fade when hit.
+          drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c), intensity);
         }
       }
     }
@@ -656,7 +715,15 @@ export function ManiaEditor(props: Props) {
       }
       const x = originX + note.column * laneWidth;
       const cr = skinCols[note.column];
-      const color = noteColor(note.column);
+      // Default look only: notes inside a kiai section turn blue — based on the
+      // note's own time, so falling notes are already blue before the playhead
+      // reaches the section. Skinned notes keep their own colour.
+      const skinColour = skinCols[note.column]?.colour ?? null;
+      const noteInKiai = kiaiAt(note.startTime, timingPoints);
+      const color =
+        noteInKiai && !skinColour
+          ? "#5bc0ff"
+          : skinColour ?? laneColor(note.column);
       const bounds = noteBounds(note, laneWidth, originX);
 
       if (selected && bounds) {
@@ -724,8 +791,12 @@ export function ManiaEditor(props: Props) {
               ctx.drawImage(cr.body, x + 4, top, dispW, span);
             }
           } else {
+            // Default hold: gray body/tail, but blue inside kiai (no skin).
+            const kiaiDefault = noteInKiai && !skinColour;
             const bodyW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
-            ctx.fillStyle = "rgba(154,160,173,0.35)";
+            ctx.fillStyle = kiaiDefault
+              ? "rgba(91,192,255,0.35)"
+              : "rgba(154,160,173,0.35)";
             roundRect(
               ctx,
               x + laneWidth / 2 - bodyW / 2,
@@ -739,7 +810,7 @@ export function ManiaEditor(props: Props) {
             if (cr?.tail) {
               drawSprite(ctx, cr.tail, x, yEnd, laneWidth);
             } else {
-              ctx.fillStyle = "#9aa0ad";
+              ctx.fillStyle = kiaiDefault ? "#5bc0ff" : "#9aa0ad";
               roundRect(ctx, x + 3, yEnd - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
               ctx.fill();
             }
@@ -821,6 +892,27 @@ export function ManiaEditor(props: Props) {
     ctx.moveTo(originX, phY);
     ctx.lineTo(originX + playfieldWidth, phY);
     ctx.stroke();
+
+    // ---- Pulsing ★ KIAI ★ label, just right of the playfield bottom ----
+    if (inKiai && !propsRef.current.zenMode) {
+      // Brightens on every beat (beatFlash) over a gentle idle blink.
+      const blink = 0.3 + 0.2 * (0.5 + 0.5 * Math.sin(performance.now() / 280));
+      const alpha = Math.min(1, blink + beatFlash * 0.6);
+      const x = originX + playfieldWidth + 10;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "#ff5db1";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      // Star scales up slightly with the beat for a little sparkle.
+      ctx.font = `${12 + beatFlash * 6}px ${CANVAS_FONT_STACK}`;
+      ctx.fillText("★", x, phY);
+      ctx.font = `bold 13px ${CANVAS_FONT_STACK}`;
+      ctx.fillText("KIAI", x + 16, phY);
+      ctx.font = `${12 + beatFlash * 6}px ${CANVAS_FONT_STACK}`;
+      ctx.fillText("★", x + 52, phY);
+      ctx.restore();
+    }
 
     ctx.restore();
   }, [columnAtX, laneGeometry, noteBounds, playheadY, timeToY, yToTime]);
@@ -1471,33 +1563,6 @@ function drawReceptor(
 }
 
 /**
- * Fallback receptor used when the active skin (or no skin) provides no key
- * sprite for a column: a simple lane-coloured key from the judgement line down
- * to the stage floor, brightened while a note rests on the line.
- */
-function drawDefaultReceptor(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  lineY: number,
-  laneWidth: number,
-  canvasHeight: number,
-  color: string,
-  pressed: boolean,
-) {
-  const h = canvasHeight - lineY;
-  if (h <= 0) return;
-  ctx.save();
-  ctx.globalAlpha = pressed ? 0.55 : 0.22;
-  ctx.fillStyle = color;
-  ctx.fillRect(x + 1, lineY, laneWidth - 2, h);
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = pressed ? color : "rgba(255,255,255,0.35)";
-  ctx.lineWidth = pressed ? 2.5 : 1.5;
-  ctx.strokeRect(x + 1.5, lineY + 0.5, laneWidth - 3, h - 1);
-  ctx.restore();
-}
-
-/**
  * Additive lane-coloured glow over the receptor, brightest at the judgement
  * line and fading toward the stage floor. Drawn whenever a note is on the line
  * so the receptor always reads as "hit", regardless of the active skin.
@@ -1509,12 +1574,13 @@ function drawReceptorGlow(
   laneWidth: number,
   canvasHeight: number,
   color: string,
+  intensity = 1,
 ) {
   const h = canvasHeight - lineY;
-  if (h <= 0) return;
+  if (h <= 0 || intensity <= 0) return;
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  ctx.globalAlpha = 0.5;
+  ctx.globalAlpha = 0.55 * intensity;
   const grad = ctx.createLinearGradient(0, lineY, 0, lineY + h);
   grad.addColorStop(0, color);
   grad.addColorStop(1, "transparent");

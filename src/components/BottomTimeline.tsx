@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
+import { kiaiRanges } from "../lib/timing";
 
 /**
  * Song-wide navigation strip at the bottom of the editor.
@@ -167,13 +168,19 @@ export function BottomTimeline({
       let peak = 1;
       for (const c of counts) if (c > peak) peak = c;
 
+      // Dots inside a kiai section are drawn pink instead of yellow.
+      const kiais = kiaiRanges(timingPoints, duration);
+      const inKiai = (t: number) =>
+        kiais.some((k) => t >= k.start && t < k.end);
+
       const bw = width / DENSITY_BUCKETS;
       const dotR = 1.6;
       const gap = Math.max(2.4, DOT_BAND_H / MAX_DOTS);
-      ctx.fillStyle = "#ffd23f";
       for (let i = 0; i < DENSITY_BUCKETS; i++) {
         const c = counts[i];
         if (c === 0) continue;
+        const bucketTime = ((i + 0.5) / DENSITY_BUCKETS) * duration;
+        ctx.fillStyle = inKiai(bucketTime) ? "#ff5db1" : "#ffd23f";
         const dots = Math.max(1, Math.round((c / peak) * MAX_DOTS));
         const cx = i * bw + bw / 2;
         for (let d = 0; d < dots; d++) {
@@ -186,26 +193,30 @@ export function BottomTimeline({
       }
     }
 
-    // ---- Timing point markers (red ticks) ----
+    // ---- Timing point markers: red (uninherited) + green (inherited SV) ----
     if (duration > 0) {
-      ctx.fillStyle = "#ff2d6f";
       for (const tp of timingPoints) {
         if (tp.time < 0 || tp.time > duration) continue;
         const tx = (tp.time / duration) * width;
-        ctx.fillRect(tx, WAVE_TOP, 1.5, WAVE_H);
-        // little flag at the top
-        ctx.beginPath();
-        ctx.moveTo(tx, WAVE_TOP);
-        ctx.lineTo(tx + 5, WAVE_TOP);
-        ctx.lineTo(tx, WAVE_TOP + 5);
-        ctx.fill();
+        if (tp.uninherited) {
+          ctx.fillStyle = "#ff2d6f";
+          ctx.fillRect(tx, WAVE_TOP, 1.5, WAVE_H);
+          ctx.beginPath();
+          ctx.moveTo(tx, WAVE_TOP);
+          ctx.lineTo(tx + 5, WAVE_TOP);
+          ctx.lineTo(tx, WAVE_TOP + 5);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = "#2dd4bf";
+          ctx.fillRect(tx, WAVE_TOP + WAVE_H * 0.4, 1.2, WAVE_H * 0.6);
+        }
       }
     }
 
-    // ---- Preview point marker (green tick) ----
+    // ---- Preview point marker (purple tick) ----
     if (duration > 0 && previewTime >= 0 && previewTime <= duration) {
       const px = (previewTime / duration) * width;
-      ctx.fillStyle = "#33d17a";
+      ctx.fillStyle = "#c084fc";
       ctx.fillRect(px, WAVE_TOP, 2, WAVE_H);
       ctx.beginPath();
       ctx.moveTo(px, WAVE_TOP);

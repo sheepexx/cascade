@@ -90,9 +90,17 @@ export function SkinModal({
                   : "border-ink-600 bg-ink-700/40 text-slate-200 hover:bg-ink-600/60"
               }`}
             >
-              <span className="truncate">
-                Normal{" "}
-                <span className="text-slate-500">— default look</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate">
+                  Normal{" "}
+                  <span className="text-slate-500">— default look</span>
+                </span>
+                <span
+                  className="shrink-0 rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-medium text-sky-300"
+                  title="Notes light up blue on the beat during kiai sections"
+                >
+                  Kiai Support
+                </span>
               </span>
               <span className="ml-2 shrink-0 text-[11px] text-slate-400">
                 {!skin ? "Active" : "Use"}

@@ -16,6 +16,13 @@ export function useAudio(src: string | null) {
   // `volume` is the *perceived* slider position (0–1). Actual audio.volume is
   // derived via a square law so the slider feels linear to the ear.
   const [volume, setVolumeState] = useState(0.5);
+  // Playback speed (1 = full speed). Slowing it down also lowers the pitch, the
+  // way the osu! editor's 25/50/75% playback does.
+  const [playbackRate, setPlaybackRateState] = useState(1);
+  // Mirror of the chosen rate so the source-load effect can re-apply it: loading
+  // a new media resource resets the element's playbackRate to defaultPlaybackRate
+  // (1), so without this, switching difficulties silently snaps back to 100%.
+  const playbackRateRef = useRef(1);
 
   // Create the audio element once.
   if (audioRef.current === null && typeof Audio !== "undefined") {
@@ -31,6 +38,8 @@ export function useAudio(src: string | null) {
     if (src) {
       audio.src = src;
       audio.load();
+      // Re-apply the chosen speed/pitch: load() reset playbackRate to default.
+      applyRate(audio, playbackRateRef.current);
     } else {
       audio.removeAttribute("src");
     }
@@ -141,7 +150,10 @@ export function useAudio(src: string | null) {
   );
 
   const setPlaybackRate = useCallback((rate: number) => {
-    if (audioRef.current) audioRef.current.playbackRate = rate;
+    const clamped = Math.max(0.1, Math.min(4, rate));
+    playbackRateRef.current = clamped;
+    applyRate(audioRef.current, clamped);
+    setPlaybackRateState(clamped);
   }, []);
 
   const setVolume = useCallback((v: number) => {
@@ -156,6 +168,7 @@ export function useAudio(src: string | null) {
     currentTime,
     duration,
     volume,
+    playbackRate,
     play,
     pause,
     toggle,
@@ -166,3 +179,21 @@ export function useAudio(src: string | null) {
 }
 
 export type AudioController = ReturnType<typeof useAudio>;
+
+/**
+ * Apply a playback rate to an audio element. Sets `defaultPlaybackRate` too so
+ * the value survives a media reload (the resource-selection algorithm resets
+ * `playbackRate` to `defaultPlaybackRate`), and disables pitch preservation so
+ * the pitch drops with the tempo, matching the osu! editor.
+ */
+function applyRate(audio: HTMLAudioElement | null, rate: number) {
+  if (!audio) return;
+  audio.defaultPlaybackRate = rate;
+  audio.playbackRate = rate;
+  audio.preservesPitch = false;
+  // Vendor-prefixed fallbacks for older engines.
+  // @ts-expect-error non-standard
+  audio.mozPreservesPitch = false;
+  // @ts-expect-error non-standard
+  audio.webkitPreservesPitch = false;
+}

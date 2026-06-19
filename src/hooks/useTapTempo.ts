@@ -1,16 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 
 /**
- * "Tap to the beat" tempo detection.
+ * "Click to the beat" tempo + offset detection.
  *
- * Each tap records a timestamp (in milliseconds). BPM is the average of the
- * intervals between consecutive taps. When the timestamps come from the audio
- * playback clock, the first tap also gives a sensible Offset, so the detected
- * timing lines up with the song.
- *
- * Pass `getTime` returning the current reference time in ms (e.g. the audio
- * playback position). It falls back to nothing special — any monotonic clock
- * works for BPM alone.
+ * Each tap records a timestamp (in milliseconds) from the audio playback clock.
+ * Rather than just averaging gaps, the taps are fit to a straight line
+ * `t_i ≈ offset + i · interval` by least squares: the slope gives the BPM and
+ * the intercept gives the **offset** — the time of the very first beat — even
+ * when the user started tapping partway through the song. The more continuous
+ * beats are clicked, the more the regression stabilises both values.
  */
 export function useTapTempo(getTime: () => number) {
   const [taps, setTaps] = useState<number[]>([]);
@@ -24,7 +22,7 @@ export function useTapTempo(getTime: () => number) {
       }
       // Keep a rolling window so the estimate tracks the current section.
       const next = [...prev, now];
-      return next.slice(-16);
+      return next.slice(-32);
     });
   }, [getTime]);
 
@@ -32,15 +30,29 @@ export function useTapTempo(getTime: () => number) {
 
   const { bpm, offset, count } = useMemo(() => {
     if (taps.length < 2) {
-      return { bpm: null as number | null, offset: taps[0] ?? null, count: taps.length };
+      return {
+        bpm: null as number | null,
+        offset: taps[0] ?? null,
+        count: taps.length,
+      };
     }
-    let total = 0;
-    for (let i = 1; i < taps.length; i++) total += taps[i] - taps[i - 1];
-    const avg = total / (taps.length - 1);
-    const raw = avg > 0 ? 60000 / avg : null;
-    // Round to 2 decimals — clean enough for a single timing point.
+    // Least-squares fit of t_i = a + b·i, with i = 0..n-1 the beat index.
+    const n = taps.length;
+    const sumI = (n * (n - 1)) / 2;
+    const sumII = ((n - 1) * n * (2 * n - 1)) / 6;
+    let sumT = 0;
+    let sumIT = 0;
+    for (let i = 0; i < n; i++) {
+      sumT += taps[i];
+      sumIT += i * taps[i];
+    }
+    const denom = n * sumII - sumI * sumI;
+    const slope = denom !== 0 ? (n * sumIT - sumI * sumT) / denom : 0;
+    const intercept = (sumT - slope * sumI) / n;
+
+    const raw = slope > 0 ? 60000 / slope : null;
     const rounded = raw ? Math.round(raw * 100) / 100 : null;
-    return { bpm: rounded, offset: taps[0], count: taps.length };
+    return { bpm: rounded, offset: Math.round(intercept), count: n };
   }, [taps]);
 
   return { tap, reset, bpm, offset, count };

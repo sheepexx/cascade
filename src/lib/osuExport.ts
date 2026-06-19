@@ -5,6 +5,7 @@ import type {
   SongMeta,
   TimingPoint,
 } from "../types";
+import { makeRedPoint, svToBeatLength } from "../types";
 import { sortedPoints } from "./timing";
 
 /**
@@ -61,14 +62,30 @@ export function buildOsuFile({
   backgroundFilename,
 }: BuildOsuArgs): string {
   const points = sortedPoints(
-    timingPoints.length ? timingPoints : [{ id: "x", time: 0, bpm: 120 }],
+    timingPoints.length ? timingPoints : [makeRedPoint(0, 120)],
   );
   const offset = Math.round(points[0].time);
 
-  // time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited(1),effects(0)
+  // time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited,effects
+  // Red points carry beatLength = 60000/bpm and uninherited = 1; green points
+  // carry the inherited (negative) beatLength = -100/sv and uninherited = 0.
+  // Scroll speed / SV here is the *map* SV (green points), which is real
+  // gameplay data — the editor-only preview scroll speed is never written.
   const timingLines = points.map((p) => {
-    const beatLengthMs = 60000 / p.bpm;
-    return `${Math.round(p.time)},${beatLengthMs},4,1,0,100,1,0`;
+    const beatLengthMs = p.uninherited
+      ? 60000 / p.bpm
+      : svToBeatLength(p.sv);
+    const effects = (p.kiai ? 1 : 0) | (p.omitFirstBarline ? 8 : 0);
+    return [
+      Math.round(p.time),
+      beatLengthMs,
+      Math.max(1, Math.round(p.meter || 4)),
+      p.sampleSet,
+      p.sampleIndex,
+      Math.round(p.volume),
+      p.uninherited ? 1 : 0,
+      effects,
+    ].join(",");
   });
 
   const events = [

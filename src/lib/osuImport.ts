@@ -6,7 +6,14 @@ import type {
   SongMeta,
   TimingPoint,
 } from "../types";
-import { MAX_KEYS, MIN_KEYS, uid } from "../types";
+import {
+  MAX_KEYS,
+  MIN_KEYS,
+  beatLengthToSv,
+  makeGreenPoint,
+  makeRedPoint,
+  uid,
+} from "../types";
 import { xToColumn } from "./osuExport";
 
 /** Result of parsing a single `.osu` file (without its referenced media). */
@@ -80,22 +87,40 @@ export function parseOsuFile(text: string): ParsedOsu {
     creator: meta["Creator"] ?? "Mapper",
   };
 
-  // ---- Timing points: every uninherited point ----
+  // ---- Timing points: every red (uninherited) and green (inherited) point ----
+  // Format: time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited,effects
   const timingPoints: TimingPoint[] = [];
   for (const line of sections["TimingPoints"] ?? []) {
     const p = line.split(",");
+    if (p.length < 2) continue;
+    const time = Math.round(Number(p[0]));
     const beatLength = Number(p[1]);
+    if (!Number.isFinite(time) || !Number.isFinite(beatLength)) continue;
+    // Default to uninherited when the field is missing (older single-BPM maps).
     const uninherited = p[6] === undefined ? 1 : Number(p[6]);
+    const meter = p[2] !== undefined ? Math.round(Number(p[2])) || 4 : 4;
+    const sampleSet = p[3] !== undefined ? Math.round(Number(p[3])) || 0 : 1;
+    const sampleIndex = p[4] !== undefined ? Math.round(Number(p[4])) || 0 : 0;
+    const volume = p[5] !== undefined ? Math.round(Number(p[5])) : 100;
+    const effects = p[7] !== undefined ? Math.round(Number(p[7])) || 0 : 0;
+    const kiai = (effects & 1) !== 0;
+    const omitFirstBarline = (effects & 8) !== 0;
+    const extra = { meter, sampleSet, sampleIndex, volume, kiai, omitFirstBarline };
+
     if (uninherited === 1 && beatLength > 0) {
-      timingPoints.push({
-        id: uid("tp"),
-        time: Math.round(Number(p[0])),
-        bpm: Math.round((60000 / beatLength) * 1000) / 1000,
-      });
+      timingPoints.push(
+        makeRedPoint(
+          time,
+          Math.round((60000 / beatLength) * 1000) / 1000,
+          extra,
+        ),
+      );
+    } else if (uninherited === 0 || beatLength < 0) {
+      timingPoints.push(makeGreenPoint(time, beatLengthToSv(beatLength), extra));
     }
   }
   if (timingPoints.length === 0) {
-    timingPoints.push({ id: uid("tp"), time: 0, bpm: 120 });
+    timingPoints.push(makeRedPoint(0, 120));
   }
   timingPoints.sort((a, b) => a.time - b.time);
 

@@ -11,6 +11,8 @@ import { DifficultyModal } from "./components/menus/DifficultyModal";
 import { TimingModal } from "./components/menus/TimingModal";
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
 import { ToolsModal } from "./components/menus/ToolsModal";
+import { ExportValidationModal } from "./components/menus/ExportValidationModal";
+import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
@@ -19,7 +21,17 @@ import { downloadOsu } from "./lib/osuExport";
 import { downloadOsz } from "./lib/oszExport";
 import { importOsz } from "./lib/osuImport";
 import { importOsk } from "./lib/skinImport";
-import { loadProject, saveProject, clearProject } from "./lib/persistence";
+import {
+  loadProject,
+  saveProject,
+  clearProject,
+  savePreferences,
+  loadPreferences,
+  saveSkinBlob,
+  loadSkinBlob,
+  saveVolume,
+  loadVolume,
+} from "./lib/persistence";
 import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_SONG_META,
@@ -28,6 +40,7 @@ import {
   MIN_SCROLL_SPEED,
   defaultTimingPoints,
   makeDifficulty,
+  normalizeTimingPoints,
   uid,
   type AppSettings,
   type BackgroundScope,
@@ -80,8 +93,12 @@ export default function App() {
   // Zen mode (toggled with Tab): slide all chrome out and show only the
   // notefield.
   const [zenMode, setZenMode] = useState(false);
-  const [appSettings, setAppSettings] =
-    useState<AppSettings>(DEFAULT_APP_SETTINGS);
+  // Site-level preferences load from localStorage immediately (synchronous) so
+  // they apply on first paint and are independent of any loaded map.
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
+    ...DEFAULT_APP_SETTINGS,
+    ...(loadPreferences() ?? {}),
+  }));
   const [bgScope, setBgScope] = useState<BackgroundScope>("mapset");
   const [askBgScope, setAskBgScope] = useState(false);
   const [lnTicks, setLnTicks] = useState(1);
@@ -243,11 +260,14 @@ export default function App() {
       });
       setMeta(map.meta);
       setTimingPoints(
-        map.timingPoints.length ? map.timingPoints : defaultTimingPoints(),
+        map.timingPoints.length
+          ? normalizeTimingPoints(map.timingPoints)
+          : defaultTimingPoints(),
       );
-      const diffs = map.difficulties.length
+      const diffs = (map.difficulties.length
         ? map.difficulties
-        : [makeDifficulty()];
+        : [makeDifficulty()]
+      ).map((d) => ({ ...d, timingPoints: normalizeTimingPoints(d.timingPoints) }));
       setDifficulties(diffs);
       setActiveId(diffs[0].id);
     } catch (err) {
@@ -491,7 +511,7 @@ export default function App() {
       // Don't record the restore as an undoable edit.
       applyingHistoryRef.current = true;
       setMeta(saved.meta);
-      setTimingPoints(saved.timingPoints);
+      setTimingPoints(normalizeTimingPoints(saved.timingPoints));
 
       // Rebuild the audio registry. New saves store `audioFiles`; older ones a
       // single `audio` that every difficulty then implicitly shares.
@@ -518,11 +538,15 @@ export default function App() {
       });
 
       setDifficulties(
-        legacyAudio
+        (legacyAudio
           ? saved.difficulties.map((d) =>
               d.audioFilename ? d : { ...d, audioFilename: legacyAudio.name },
             )
-          : saved.difficulties,
+          : saved.difficulties
+        ).map((d) => ({
+          ...d,
+          timingPoints: normalizeTimingPoints(d.timingPoints),
+        })),
       );
       setActiveId(saved.activeId);
       // Older saves carried a `zoom` field and a vestigial scrollSpeed that was
@@ -541,7 +565,8 @@ export default function App() {
               ),
             ),
       });
-      setAppSettings({ ...DEFAULT_APP_SETTINGS, ...saved.appSettings });
+      // App settings + skin are restored separately (site-level prefs), not
+      // from the per-map project record.
       setBgScope(saved.bgScope);
 
       // Restore background files registry.
@@ -573,18 +598,53 @@ export default function App() {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
         return restoredBgFiles;
       });
-      if (saved.skin) {
-        const loaded = await importOsk(
-          saved.skin.blob,
-          saved.skin.name,
-        ).catch(() => null);
-        if (!cancelled && loaded) setSkin(loaded);
-      }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // ---- Persist site preferences (general settings) on change --------------
+  useEffect(() => {
+    const id = window.setTimeout(() => savePreferences(appSettings), 200);
+    return () => window.clearTimeout(id);
+  }, [appSettings]);
+
+  // ---- Restore + persist the editor skin independently of any map ---------
+  const skinLoadedRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const rec = await loadSkinBlob().catch(() => null);
+      if (!cancelled && rec) {
+        const loaded = await importOsk(rec.blob, rec.name).catch(() => null);
+        if (!cancelled && loaded) setSkin(loaded);
+      }
+      if (!cancelled) skinLoadedRef.current = true;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Save whenever the skin changes — but not before the initial load resolves,
+  // so the freshly-loaded skin isn't clobbered by an empty save on mount.
+  useEffect(() => {
+    if (!skinLoadedRef.current) return;
+    void saveSkinBlob(skin ? { name: skin.fileName, blob: skin.blob } : null);
+  }, [skin]);
+
+  // ---- Restore + persist the playback volume (site-level) -----------------
+  useEffect(() => {
+    const v = loadVolume();
+    if (v !== null) audio.setVolume(v);
+    // Run once on mount; setVolume is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    const id = window.setTimeout(() => saveVolume(audio.volume), 200);
+    return () => window.clearTimeout(id);
+  }, [audio.volume]);
 
   // ---- Hotkeys: Space = play/pause, Tab = zen mode ------------------------
   // (both off while typing or a modal is open)
@@ -663,7 +723,15 @@ export default function App() {
   const totalNotes = difficulties.reduce((s, d) => s + d.notes.length, 0);
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
 
-  const handleExportOsu = useCallback(() => {
+  // Pre-export validation. When there's anything worth flagging, the check
+  // modal opens and holds the actual export until the user proceeds.
+  const [exportCheck, setExportCheck] = useState<{
+    result: ValidationResult;
+    target: string;
+    run: () => void;
+  } | null>(null);
+
+  const doExportOsu = useCallback(() => {
     if (!audioFile) return;
     downloadOsu({
       meta,
@@ -674,7 +742,7 @@ export default function App() {
     });
   }, [audioFile, active, activeTimingPoints, meta]);
 
-  const handleExportOsz = useCallback(async () => {
+  const doExportOsz = useCallback(async () => {
     if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
     try {
@@ -689,6 +757,48 @@ export default function App() {
       setExporting(false);
     }
   }, [audioFiles, difficulties, bgFiles, meta, timingPoints]);
+
+  /** Validate first; only export straight away when there's nothing to flag. */
+  const requestExport = useCallback(
+    (target: string, run: () => void) => {
+      const result = validateProject({ meta, difficulties, audioFiles, bgFiles });
+      if (result.errors.length > 0 || result.warnings.length > 0) {
+        setExportCheck({ result, target, run });
+      } else {
+        run();
+      }
+    },
+    [meta, difficulties, audioFiles, bgFiles],
+  );
+
+  const handleExportOsu = useCallback(
+    () => requestExport(".osu", doExportOsu),
+    [requestExport, doExportOsu],
+  );
+  const handleExportOsz = useCallback(
+    () => requestExport(".osz", () => void doExportOsz()),
+    [requestExport, doExportOsz],
+  );
+
+  /** Strip duplicate notes (same column & time) flagged by validation. */
+  const removeDuplicates = useCallback(() => {
+    if (!exportCheck) return;
+    const dupMap = exportCheck.result.duplicateNoteIds;
+    const nextDiffs = difficulties.map((d) => {
+      const ids = new Set(dupMap[d.id] ?? []);
+      return ids.size
+        ? { ...d, notes: d.notes.filter((n) => !ids.has(n.id)) }
+        : d;
+    });
+    setDifficulties(nextDiffs);
+    const result = validateProject({
+      meta,
+      difficulties: nextDiffs,
+      audioFiles,
+      bgFiles,
+    });
+    setExportCheck((check) => (check ? { ...check, result } : check));
+  }, [exportCheck, difficulties, meta, audioFiles, bgFiles]);
 
   // ---- Save progress locally (Ctrl+S) -------------------------------------
   const handleSave = useCallback(async () => {
@@ -760,11 +870,8 @@ export default function App() {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
       return {};
     });
-    setSkin((prev) => {
-      if (prev) prev.objectUrls.forEach(URL.revokeObjectURL);
-      return null;
-    });
-    setSkinError(null);
+    // Skin and general settings are site-level prefs — they persist across a
+    // new map rather than being reset here.
 
     const fresh = makeDifficulty("Normal", 4);
     setMeta(DEFAULT_SONG_META);
@@ -773,7 +880,6 @@ export default function App() {
     setActiveId(fresh.id);
     setView(DEFAULT_VIEW);
     setZenMode(false);
-    setAppSettings(DEFAULT_APP_SETTINGS);
     setBgScope("mapset");
     setModal(null);
     setImportError(null);
@@ -997,6 +1103,7 @@ export default function App() {
                 skin={activeSkin}
                 playfieldScale={appSettings.playfieldScale}
                 longNoteBodyScale={appSettings.longNoteBodyScale}
+                zenMode={zenMode}
                 onPlaceNote={placeNote}
                 onDeleteNote={deleteNote}
                 onAddNotes={addNotes}
@@ -1123,6 +1230,19 @@ export default function App() {
           setPendingBgName(null);
           setAskBgScope(false);
         }}
+      />
+
+      <ExportValidationModal
+        open={exportCheck !== null}
+        result={exportCheck?.result ?? null}
+        target={exportCheck?.target ?? ""}
+        onClose={() => setExportCheck(null)}
+        onProceed={() => {
+          const run = exportCheck?.run;
+          setExportCheck(null);
+          run?.();
+        }}
+        onRemoveDuplicates={removeDuplicates}
       />
 
       {/* Save status toast */}

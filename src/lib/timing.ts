@@ -1,4 +1,4 @@
-import type { SnapDivisor, TimingPoint } from "../types";
+import { type SnapDivisor, type TimingPoint } from "../types";
 
 /** Length of one beat in milliseconds. */
 export function beatLength(bpm: number): number {
@@ -10,18 +10,97 @@ export function sortedPoints(points: TimingPoint[]): TimingPoint[] {
   return [...points].sort((a, b) => a.time - b.time);
 }
 
-/** The timing point in effect at a given time (the last one at/just before). */
+/** Only the red (uninherited) points, sorted by time — these drive the grid. */
+export function redPoints(points: TimingPoint[]): TimingPoint[] {
+  return sortedPoints(points.filter((p) => p.uninherited));
+}
+
+/** Only the green (inherited) points, sorted by time. */
+export function greenPoints(points: TimingPoint[]): TimingPoint[] {
+  return sortedPoints(points.filter((p) => !p.uninherited));
+}
+
+/**
+ * The red timing point in effect at a given time (the last one at/just before).
+ * Falls back to the earliest red point when `time` precedes them all so callers
+ * always get a tempo to work with.
+ */
 export function activeTimingAt(
   time: number,
   points: TimingPoint[],
 ): TimingPoint {
-  const sorted = sortedPoints(points);
-  let active = sorted[0];
-  for (const p of sorted) {
+  const reds = redPoints(points);
+  let active = reds[0];
+  for (const p of reds) {
     if (p.time <= time) active = p;
     else break;
   }
   return active;
+}
+
+/** BPM in effect at a time. */
+export function bpmAt(time: number, points: TimingPoint[]): number {
+  return activeTimingAt(time, points)?.bpm ?? 120;
+}
+
+/**
+ * Effective scroll velocity (SV) at a time. A green point sets SV until the next
+ * point; a red point resets SV to 1.0 (osu! semantics). Returns the multiplier
+ * from whichever point — red or green — most recently took effect.
+ */
+export function effectiveSvAt(time: number, points: TimingPoint[]): number {
+  const sorted = sortedPoints(points);
+  let sv = 1;
+  for (const p of sorted) {
+    if (p.time > time) break;
+    sv = p.uninherited ? 1 : p.sv;
+  }
+  return sv;
+}
+
+/** Hit-sound volume (0..100) in effect at a time. */
+export function volumeAt(time: number, points: TimingPoint[]): number {
+  const sorted = sortedPoints(points);
+  let vol = 100;
+  for (const p of sorted) {
+    if (p.time > time) break;
+    vol = p.volume;
+  }
+  return vol;
+}
+
+/** Whether kiai time is active at a given time. */
+export function kiaiAt(time: number, points: TimingPoint[]): boolean {
+  const sorted = sortedPoints(points);
+  let kiai = false;
+  for (const p of sorted) {
+    if (p.time > time) break;
+    kiai = p.kiai;
+  }
+  return kiai;
+}
+
+/**
+ * Kiai sections as [start, end] ms ranges. Kiai turns on at a point with
+ * `kiai: true` and off at the next point that has `kiai: false`.
+ */
+export function kiaiRanges(
+  points: TimingPoint[],
+  songEnd: number,
+): { start: number; end: number }[] {
+  const sorted = sortedPoints(points);
+  const ranges: { start: number; end: number }[] = [];
+  let openStart: number | null = null;
+  for (const p of sorted) {
+    if (p.kiai && openStart === null) {
+      openStart = p.time;
+    } else if (!p.kiai && openStart !== null) {
+      ranges.push({ start: openStart, end: p.time });
+      openStart = null;
+    }
+  }
+  if (openStart !== null) ranges.push({ start: openStart, end: songEnd });
+  return ranges;
 }
 
 /** Length of one snap cell (a sub-beat) for the timing active at `time`. */
@@ -73,11 +152,13 @@ export type GridLine = {
   time: number;
   /** Index of this line within its beat (0 = on the beat). */
   idxInBeat: number;
+  /** True when this line falls on a measure (bar) boundary. */
+  barline: boolean;
 };
 
 /**
  * Generate every snap line within [fromTime, toTime], correctly switching
- * tempo at each timing point. Used to draw the editor grid.
+ * tempo at each red timing point. Used to draw the editor grid.
  */
 export function gridLinesInRange(
   fromTime: number,
@@ -87,12 +168,14 @@ export function gridLinesInRange(
 ): GridLine[] {
   const lines: GridLine[] = [];
   if (toTime <= fromTime) return lines;
-  const sorted = sortedPoints(points);
+  const reds = redPoints(points);
+  if (reds.length === 0) return lines;
 
-  for (let i = 0; i < sorted.length; i++) {
-    const tp = sorted[i];
+  for (let i = 0; i < reds.length; i++) {
+    const tp = reds[i];
     const segStart = tp.time;
-    const segEnd = i + 1 < sorted.length ? sorted[i + 1].time : Infinity;
+    const segEnd = i + 1 < reds.length ? reds[i + 1].time : Infinity;
+    const meter = Math.max(1, Math.round(tp.meter || 4));
 
     const interval = beatLength(tp.bpm) / divisor;
     if (interval <= 0) continue;
@@ -111,7 +194,13 @@ export function gridLinesInRange(
     for (let k = firstIdx; k <= lastIdx; k++) {
       const time = segStart + k * interval;
       const idxInBeat = ((k % divisor) + divisor) % divisor;
-      lines.push({ time, idxInBeat });
+      // A barline falls on whole beats that are a multiple of the meter.
+      const beatIdx = k / divisor;
+      const barline =
+        idxInBeat === 0 &&
+        Math.abs(beatIdx - Math.round(beatIdx)) < 1e-6 &&
+        ((Math.round(beatIdx) % meter) + meter) % meter === 0;
+      lines.push({ time, idxInBeat, barline });
     }
   }
   return lines;

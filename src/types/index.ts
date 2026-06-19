@@ -26,16 +26,131 @@ export type SnapDivisor = 2 | 3 | 4 | 6 | 8 | 12 | 16;
 export const SNAP_DIVISORS: SnapDivisor[] = [2, 3, 4, 6, 8, 12, 16];
 
 /**
- * One uninherited timing point: from `time` onward the song runs at `bpm`.
- * The first point's `time` doubles as the map offset.
+ * A single osu! timing point. Mirrors the file format line:
+ *   time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited,effects
+ *
+ * Two flavours share this shape:
+ *  - **Red** (`uninherited: true`): defines BPM, meter, the beat grid and — for
+ *    the first one — the map offset. `bpm` is authoritative; `sv` is ignored.
+ *  - **Green** (`uninherited: false`): an inherited point that defines scroll
+ *    velocity (SV), volume, sample set and kiai from its time onward. `sv` is
+ *    authoritative; `bpm`/`meter` are ignored (the active red point supplies the
+ *    tempo).
  */
 export type TimingPoint = {
   id: string;
-  /** Start time of this tempo section, in milliseconds. */
+  /** Start time of this section, in milliseconds. */
   time: number;
-  /** Beats per minute from this point onward. */
+  /** true = red (uninherited), false = green (inherited). */
+  uninherited: boolean;
+  /** Beats per minute. Authoritative for red points. */
   bpm: number;
+  /** Scroll-velocity multiplier (1.0 = unchanged). Authoritative for green. */
+  sv: number;
+  /** Time-signature numerator (beats per bar). Red points. */
+  meter: number;
+  /** Hit-sample set: 0 = auto, 1 = normal, 2 = soft, 3 = drum. */
+  sampleSet: number;
+  /** Custom sample index (0 = default). */
+  sampleIndex: number;
+  /** Hit-sound volume, 0..100. */
+  volume: number;
+  /** Kiai time active from this point onward (effects bit 1). */
+  kiai: boolean;
+  /** Omit the first barline (effects bit 3). */
+  omitFirstBarline: boolean;
 };
+
+/** osu! SV bounds, matching the editor's allowed inherited multipliers. */
+export const MIN_SV = 0.01;
+export const MAX_SV = 10;
+
+/** SV multiplier -> inherited beatLength (the value stored in the .osu file). */
+export function svToBeatLength(sv: number): number {
+  return -100 / clampSv(sv);
+}
+
+/** Inherited beatLength (negative) -> SV multiplier. */
+export function beatLengthToSv(beatLength: number): number {
+  if (!(beatLength < 0)) return 1;
+  return clampSv(-100 / beatLength);
+}
+
+export function clampSv(sv: number): number {
+  if (!Number.isFinite(sv)) return 1;
+  return Math.max(MIN_SV, Math.min(MAX_SV, sv));
+}
+
+/** Default field values shared by both flavours of timing point. */
+const TIMING_DEFAULTS = {
+  bpm: 120,
+  sv: 1,
+  meter: 4,
+  sampleSet: 1,
+  sampleIndex: 0,
+  volume: 100,
+  kiai: false,
+  omitFirstBarline: false,
+};
+
+/** A new red (uninherited) timing point. */
+export function makeRedPoint(
+  time: number,
+  bpm = 120,
+  extra: Partial<TimingPoint> = {},
+): TimingPoint {
+  return {
+    ...TIMING_DEFAULTS,
+    id: uid("tp"),
+    time: Math.round(time),
+    uninherited: true,
+    bpm,
+    ...extra,
+  };
+}
+
+/** A new green (inherited) timing point. */
+export function makeGreenPoint(
+  time: number,
+  sv = 1,
+  extra: Partial<TimingPoint> = {},
+): TimingPoint {
+  return {
+    ...TIMING_DEFAULTS,
+    id: uid("tp"),
+    time: Math.round(time),
+    uninherited: false,
+    sv: clampSv(sv),
+    ...extra,
+  };
+}
+
+/**
+ * Fill in any missing fields on a (possibly legacy `{id,time,bpm}`) timing
+ * point so older saves and partial objects become full TimingPoints.
+ */
+export function normalizeTimingPoint(p: Partial<TimingPoint>): TimingPoint {
+  return {
+    ...TIMING_DEFAULTS,
+    id: p.id ?? uid("tp"),
+    time: Math.round(p.time ?? 0),
+    // Anything without an explicit `uninherited` flag is a legacy red point.
+    uninherited: p.uninherited ?? true,
+    bpm: p.bpm ?? TIMING_DEFAULTS.bpm,
+    sv: clampSv(p.sv ?? TIMING_DEFAULTS.sv),
+    meter: p.meter ?? TIMING_DEFAULTS.meter,
+    sampleSet: p.sampleSet ?? TIMING_DEFAULTS.sampleSet,
+    sampleIndex: p.sampleIndex ?? TIMING_DEFAULTS.sampleIndex,
+    volume: p.volume ?? TIMING_DEFAULTS.volume,
+    kiai: p.kiai ?? TIMING_DEFAULTS.kiai,
+    omitFirstBarline: p.omitFirstBarline ?? TIMING_DEFAULTS.omitFirstBarline,
+  };
+}
+
+/** Normalize a whole list (used when loading saves / imports). */
+export function normalizeTimingPoints(points: Partial<TimingPoint>[]): TimingPoint[] {
+  return points.map(normalizeTimingPoint);
+}
 
 /** Song-level metadata, shared by every difficulty in the set. */
 export type SongMeta = {
@@ -129,7 +244,7 @@ export function makeDifficulty(name = "Normal", keyCount = 4): Difficulty {
 }
 
 export function defaultTimingPoints(): TimingPoint[] {
-  return [{ id: uid("tp"), time: 0, bpm: 120 }];
+  return [makeRedPoint(0, 120)];
 }
 
 export const DEFAULT_VIEW: ViewState = {
