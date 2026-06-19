@@ -15,6 +15,21 @@
     ]
   },
   {
+    "id": "2529323-sydosys-as-ls-ham-apollyon",
+    "title": "Apollyon",
+    "artist": "Sydosys as \"[LS]Ham\"",
+    "creator": "Concepte",
+    "osz": "maps/2529323-sydosys-as-ls-ham-apollyon.osz",
+    "banner": "maps/2529323-sydosys-as-ls-ham-apollyon-banner.jpg",
+    "difficulties": [
+      {
+        "name": ":: Final // Abyssion  ::",
+        "keyCount": 4,
+        "stars": 11.14
+      }
+    ]
+  },
+  {
     "id": "2367508-twc-sound-team-strike-back-squad-buzz-cutz-no-video",
     "title": "BUZZ CUTZ",
     "artist": "TWC Sound Team \"Strike Back Squad\"",
