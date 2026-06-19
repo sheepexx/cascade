@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ManiaNote } from "../types";
-import { computeStarRating, starColor } from "../lib/starRating";
+import { computeStarRating } from "../lib/starRating";
 import { maniaMaxPP } from "../lib/performance";
 
 type Props = {
@@ -16,23 +16,18 @@ type Props = {
  * editor, just above the song timeline. See {@link maniaMaxPP}.
  */
 export function PPCounter({ notes, keyCount }: Props) {
-  const { star, pp } = useMemo(() => {
+  const pp = useMemo(() => {
     const star = computeStarRating(notes, keyCount);
-    return { star, pp: maniaMaxPP(star, notes) };
+    return maniaMaxPP(star, notes);
   }, [notes, keyCount]);
-
-  const color = starColor(star);
 
   return (
     <div className="pointer-events-none absolute bottom-3 right-3 select-none rounded-md border border-ink-600 bg-ink-900/80 px-3 py-1.5 text-right shadow-lg backdrop-blur-sm">
       <div className="flex items-baseline gap-1.5">
-        <span
-          className="text-base font-bold leading-none tabular-nums"
-          style={{ color }}
-        >
+        <span className="text-base font-bold leading-none tabular-nums text-slate-100">
           {Math.round(pp)}
         </span>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">
           pp
         </span>
       </div>

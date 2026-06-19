@@ -176,6 +176,10 @@ export type ManiaColumnSkin = {
   holdBodyCapPx: number | null;
   /** Hold note tail (`NoteImage{col}T`). */
   holdTailUrl: string | null;
+  /** Receptor in its idle/unpressed state (`KeyImage{col}`). */
+  keyUrl: string | null;
+  /** Receptor in its pressed/down state (`KeyImage{col}D`). */
+  keyDownUrl: string | null;
 };
 
 /** The skin assets for a single keymode (e.g. 4K, 7K). */

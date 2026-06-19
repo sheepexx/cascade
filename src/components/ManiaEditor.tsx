@@ -28,7 +28,6 @@ import {
  * Interaction:
  *   - Left click in a lane: place a note (snapped to the beat grid).
  *   - Left click + drag vertically: place a long note (hold).
- *   - Right click on a note: delete it.
  *   - Mouse wheel: scrub through time.
  */
 
@@ -37,7 +36,13 @@ import {
 const MANIA_MAX_TIME_RANGE = 11485;
 const PLAYHEAD_FROM_BOTTOM = 96;
 const NOTE_HEIGHT = 16;
-const HIT_TOLERANCE = 14; // px radius for right-click delete
+const HIT_TOLERANCE = 14; // px radius for note hit-testing
+const SELECT_AUTOSCROLL_TOP_ZONE = 64;
+const SELECT_AUTOSCROLL_MIN_PX_PER_SEC = 280;
+const SELECT_AUTOSCROLL_MAX_PX_PER_SEC = 900;
+// How close (ms) the playhead must be to a note for that column's receptor to
+// light up to its pressed sprite, so notes visibly "hit" as they reach the line.
+const RECEPTOR_HIT_WINDOW = 90;
 const BACKGROUND_MAX_ALPHA = 0.12;
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
@@ -77,8 +82,10 @@ type DragState = {
 type SelectionDragState = {
   startX: number;
   startY: number;
+  startTime: number;
   currentX: number;
   currentY: number;
+  currentTime: number;
 };
 
 /** In-progress drag of the current selection to a new column / time. */
@@ -120,10 +127,18 @@ type ColumnRender = {
   /** Cap height (in body sprite px) for a capped body; null = stretch whole. */
   bodyCapPx: number | null;
   tail: HTMLImageElement | null;
+  /** Receptor sprite (idle) drawn at the judgement line. */
+  key: HTMLImageElement | null;
+  /** Receptor sprite shown while the column is being hit. */
+  keyDown: HTMLImageElement | null;
 };
 
 export function ManiaEditor(props: Props) {
   const [shiftActive, setShiftActive] = useState(false);
+  // Receptors (the osu!mania "keys" at the judgement line). Toggled with R.
+  const [receptorsOn, setReceptorsOn] = useState(false);
+  const receptorsOnRef = useRef(false);
+  receptorsOnRef.current = receptorsOn;
   const [selectionCount, setSelectionCount] = useState(0);
   const [clipboard, setClipboard] = useState<Clip | null>(null);
   const [history, setHistory] = useState<Clip[]>([]);
@@ -151,6 +166,7 @@ export function ManiaEditor(props: Props) {
   const dragRef = useRef<DragState | null>(null);
   const selectionDragRef = useRef<SelectionDragState | null>(null);
   const moveDragRef = useRef<MoveDragState | null>(null);
+  const selectionAutoscrollTimeRef = useRef<number | null>(null);
 
   // ---- Selection mutation (keeps the draw-loop ref and UI count in sync) ---
   const setSelection = useCallback((ids: Set<string>) => {
@@ -226,10 +242,25 @@ export function ManiaEditor(props: Props) {
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Shift") setShift(true);
+      // R toggles the receptors at the judgement line (osu!mania "keys").
+      if (
+        e.key.toLowerCase() === "r" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !isTyping(e.target)
+      ) {
+        e.preventDefault();
+        setReceptorsOn((on) => !on);
+        return;
+      }
       if (!(e.ctrlKey || e.metaKey) || isTyping(e.target)) return;
       const key = e.key.toLowerCase();
       if (key === "c") {
         if (copySelection()) e.preventDefault();
+      } else if (key === "a") {
+        e.preventDefault();
+        setSelection(new Set(propsRef.current.notes.map((n) => n.id)));
       } else if (key === "x") {
         if (selectedNoteIdsRef.current.size) {
           e.preventDefault();
@@ -246,11 +277,13 @@ export function ManiaEditor(props: Props) {
       if (e.key === "Shift") {
         setShift(false);
         selectionDragRef.current = null;
+        selectionAutoscrollTimeRef.current = null;
       }
     };
     const onBlur = () => {
       setShift(false);
       selectionDragRef.current = null;
+      selectionAutoscrollTimeRef.current = null;
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -295,6 +328,8 @@ export function ManiaEditor(props: Props) {
       body: null,
       bodyCapPx: c.holdBodyCapPx,
       tail: null,
+      key: null,
+      keyDown: null,
     }));
     skinColsRef.current = cols;
 
@@ -312,6 +347,8 @@ export function ManiaEditor(props: Props) {
       load(c.holdHeadUrl, (img) => (cols[i].head = img));
       load(c.holdBodyUrl, (img) => (cols[i].body = img));
       load(c.holdTailUrl, (img) => (cols[i].tail = img));
+      load(c.keyUrl, (img) => (cols[i].key = img));
+      load(c.keyDownUrl, (img) => (cols[i].keyDown = img));
     });
     return () => {
       cancelled = true;
@@ -381,25 +418,34 @@ export function ManiaEditor(props: Props) {
       const { keyCount } = propsRef.current;
       if (note.column < 0 || note.column >= keyCount) return null;
       const x = originX + note.column * laneWidth;
+      const cr = skinColsRef.current[note.column];
+      const spriteHeight = (img: HTMLImageElement | null | undefined) =>
+        img && img.width > 0
+          ? (laneWidth - 6) * (img.height / img.width)
+          : NOTE_HEIGHT;
+
       if (note.endTime !== undefined && note.endTime > note.startTime) {
         const yStart = timeToY(note.startTime);
         const yEnd = timeToY(note.endTime);
-        const top = Math.min(yStart, yEnd) - NOTE_HEIGHT / 2;
-        const bottom = Math.max(yStart, yEnd) + NOTE_HEIGHT / 2;
+        const headH = spriteHeight(cr?.head ?? cr?.note);
+        const tailH = spriteHeight(cr?.tail);
+        const top = Math.min(yStart - headH, yEnd - tailH, yEnd);
+        const bottom = Math.max(yStart, yEnd);
         return {
           x: x + 3,
           y: top,
           w: laneWidth - 6,
-          h: Math.max(NOTE_HEIGHT, bottom - top),
+          h: Math.max(headH, bottom - top),
         };
       }
 
       const y = timeToY(note.startTime);
+      const h = spriteHeight(cr?.note);
       return {
         x: x + 3,
-        y: y - NOTE_HEIGHT / 2,
+        y: y - h,
         w: laneWidth - 6,
-        h: NOTE_HEIGHT,
+        h,
       };
     },
     [timeToY],
@@ -532,7 +578,48 @@ export function ManiaEditor(props: Props) {
       }
     }
 
+    // ---- Receptors (osu!mania "keys") ----
+    // Drawn under the notes so taps/holds visibly fall into them. A column's
+    // receptor switches to its pressed sprite while a note sits on the line.
+    if (receptorsOnRef.current) {
+      const { currentTime } = propsRef.current;
+      for (let c = 0; c < keyCount; c++) {
+        const cr = skinCols[c];
+        const pressed = notes.some(
+          (n) =>
+            n.column === c &&
+            currentTime >= n.startTime - RECEPTOR_HIT_WINDOW &&
+            currentTime <= (n.endTime ?? n.startTime) + RECEPTOR_HIT_WINDOW,
+        );
+        const sprite = pressed ? cr?.keyDown ?? cr?.key : cr?.key;
+        const x = originX + c * laneWidth;
+        if (sprite) {
+          drawReceptor(ctx, sprite, x, phY, laneWidth);
+        } else {
+          drawDefaultReceptor(ctx, x, phY, laneWidth, height, noteColor(c), pressed);
+        }
+        // Hit glow. Guarantees a visible reaction even when a skin has no
+        // dedicated keyDown sprite (keyDown falls back to the idle key, so the
+        // sprite alone would never change as a note lands).
+        if (pressed) {
+          drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c));
+        }
+      }
+    }
+
     // ---- Notes ----
+    // With receptors on, clip to the area above the judgement line so notes
+    // visibly land on the receptors and vanish at the line (like gameplay)
+    // instead of sliding past them into the receptor body; hold bodies get
+    // trimmed at the line too. With receptors off, draw the full playfield so
+    // past notes stay visible for editing.
+    const clipNotes = receptorsOnRef.current;
+    if (clipNotes) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(originX, 0, playfieldWidth, phY);
+      ctx.clip();
+    }
     const move = moveDragRef.current;
     for (const original of notes) {
       const selected = selectedNoteIdsRef.current.has(original.id);
@@ -550,70 +637,111 @@ export function ManiaEditor(props: Props) {
             }
           : original;
       if (note.column < 0 || note.column >= keyCount) continue;
+      // With receptors on, a rice note vanishes the instant it reaches the line,
+      // while a long note stays until its whole body has fallen past (its tail
+      // reaches the line). The clip below trims whatever is still on screen at
+      // the line; this just stops drawing notes that are fully done.
+      if (clipNotes) {
+        const isLN = note.endTime !== undefined && note.endTime > note.startTime;
+        const goneAt = isLN ? note.endTime! : note.startTime;
+        if (propsRef.current.currentTime > goneAt) continue;
+      }
       const x = originX + note.column * laneWidth;
       const cr = skinCols[note.column];
       const color = noteColor(note.column);
       const bounds = noteBounds(note, laneWidth, originX);
 
+      if (selected && bounds) {
+        ctx.save();
+        ctx.fillStyle = "rgba(255,210,63,0.14)";
+        ctx.strokeStyle = "rgba(255,210,63,0.95)";
+        ctx.lineWidth = 2;
+        ctx.shadowColor = "rgba(255,210,63,0.45)";
+        ctx.shadowBlur = 8;
+        roundRect(
+          ctx,
+          bounds.x - 4,
+          bounds.y - 4,
+          bounds.w + 8,
+          bounds.h + 8,
+          Math.min(10, Math.max(4, bounds.h / 5)),
+        );
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
       if (note.endTime !== undefined && note.endTime > note.startTime) {
         const yStart = timeToY(note.startTime);
         const yEnd = timeToY(note.endTime);
-        const top = Math.min(yStart, yEnd);
-        const bottom = Math.max(yStart, yEnd);
-        // Hold body. A skin's body sprite already bakes the far-end cap into the
-        // top of its image (the rounded edge), so when one exists we let its own
-        // top form the LN's end — drawing a separate tail sprite on top would
-        // only bury that finished end. Without a skin body we fall back to the
-        // default fill plus an explicit tail cap.
-        if (cr?.body) {
-          const span = Math.max(bottom - top, 1);
-          const dispW = laneWidth - 8;
-          if (cr.bodyCapPx && cr.body.width > 0) {
-            // Capped body: draw the rounded end at native scale at the far end,
-            // then stretch only the uniform fill below it down to the head.
-            // Stretching the whole (very tall) sprite would squash the cap away.
-            const scale = dispW / cr.body.width;
-            const capH = Math.min(cr.bodyCapPx * scale, span);
-            ctx.drawImage(cr.body, 0, 0, cr.body.width, cr.bodyCapPx, x + 4, top, dispW, capH);
-            const fillH = span - capH;
-            if (fillH > 0) {
-              const fillSrcH = Math.max(cr.body.height - cr.bodyCapPx, 1);
-              ctx.drawImage(
-                cr.body,
-                0, cr.bodyCapPx, cr.body.width, fillSrcH,
-                x + 4, top + capH, dispW, fillH,
-              );
+        // While receptors are on, pin a held LN's head to the judgement line so
+        // its circle stays put (like gameplay) until the body has fully fallen
+        // through, instead of sliding past the line and being clipped away.
+        const headY = clipNotes ? Math.min(yStart, phY) : yStart;
+        const headSprite = cr?.head ?? cr?.note ?? null;
+        const headH =
+          headSprite && headSprite.width > 0
+            ? (laneWidth - 6) * (headSprite.height / headSprite.width)
+            : NOTE_HEIGHT;
+        // Hold body. Runs from the tail end down to the head's centre so the
+        // (round) head sprite covers the join instead of the body's corners
+        // poking out beneath it. A skin's body sprite already bakes the far-end
+        // cap into the top of its image (the rounded edge), so when one exists
+        // we let its own top form the LN's end — drawing a separate tail sprite
+        // on top would only bury that finished end. Without a skin body we fall
+        // back to the default fill plus an explicit tail cap.
+        const top = Math.min(yEnd, headY);
+        const bottom = headY - headH / 2;
+        if (bottom > top) {
+          if (cr?.body) {
+            const span = Math.max(bottom - top, 1);
+            const dispW = laneWidth - 8;
+            if (cr.bodyCapPx && cr.body.width > 0) {
+              // Capped body: draw the rounded end at native scale at the far end,
+              // then stretch only the uniform fill below it down to the head.
+              // Stretching the whole (very tall) sprite would squash the cap away.
+              const scale = dispW / cr.body.width;
+              const capH = Math.min(cr.bodyCapPx * scale, span);
+              ctx.drawImage(cr.body, 0, 0, cr.body.width, cr.bodyCapPx, x + 4, top, dispW, capH);
+              const fillH = span - capH;
+              if (fillH > 0) {
+                const fillSrcH = Math.max(cr.body.height - cr.bodyCapPx, 1);
+                ctx.drawImage(
+                  cr.body,
+                  0, cr.bodyCapPx, cr.body.width, fillSrcH,
+                  x + 4, top + capH, dispW, fillH,
+                );
+              }
+            } else {
+              ctx.drawImage(cr.body, x + 4, top, dispW, span);
             }
           } else {
-            ctx.drawImage(cr.body, x + 4, top, dispW, span);
-          }
-        } else {
-          const bodyW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
-          ctx.fillStyle = "rgba(154,160,173,0.35)";
-          roundRect(
-            ctx,
-            x + laneWidth / 2 - bodyW / 2,
-            top,
-            bodyW,
-            bottom - top,
-            5,
-          );
-          ctx.fill();
-          // tail cap (head is drawn below, on top, at the judgement-facing end).
-          if (cr?.tail) {
-            drawSprite(ctx, cr.tail, x, yEnd, laneWidth);
-          } else {
-            ctx.fillStyle = "#9aa0ad";
-            roundRect(ctx, x + 3, yEnd - NOTE_HEIGHT / 2, laneWidth - 6, NOTE_HEIGHT, 4);
+            const bodyW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
+            ctx.fillStyle = "rgba(154,160,173,0.35)";
+            roundRect(
+              ctx,
+              x + laneWidth / 2 - bodyW / 2,
+              top,
+              bodyW,
+              bottom - top,
+              5,
+            );
             ctx.fill();
+            // tail cap (head is drawn below, on top, at the judgement-facing end).
+            if (cr?.tail) {
+              drawSprite(ctx, cr.tail, x, yEnd, laneWidth);
+            } else {
+              ctx.fillStyle = "#9aa0ad";
+              roundRect(ctx, x + 3, yEnd - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
+              ctx.fill();
+            }
           }
         }
-        const headSprite = cr?.head ?? cr?.note ?? null;
         if (headSprite) {
-          drawSprite(ctx, headSprite, x, yStart, laneWidth);
+          drawSprite(ctx, headSprite, x, headY, laneWidth);
         } else {
           ctx.fillStyle = color;
-          roundRect(ctx, x + 3, yStart - NOTE_HEIGHT / 2, laneWidth - 6, NOTE_HEIGHT, 4);
+          roundRect(ctx, x + 3, headY - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
           ctx.fill();
         }
       } else {
@@ -622,18 +750,12 @@ export function ManiaEditor(props: Props) {
           drawSprite(ctx, cr.note, x, y, laneWidth);
         } else {
           ctx.fillStyle = color;
-          roundRect(ctx, x + 3, y - NOTE_HEIGHT / 2, laneWidth - 6, NOTE_HEIGHT, 4);
+          roundRect(ctx, x + 3, y - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
           ctx.fill();
         }
       }
-
-      if (selected && bounds) {
-        ctx.strokeStyle = "#ffd23f";
-        ctx.lineWidth = 2;
-        roundRect(ctx, bounds.x - 2, bounds.y - 2, bounds.w + 4, bounds.h + 4, 6);
-        ctx.stroke();
-      }
     }
+    if (clipNotes) ctx.restore();
 
     // ---- Active long-note drag preview ----
     const drag = dragRef.current;
@@ -664,7 +786,7 @@ export function ManiaEditor(props: Props) {
           drawSprite(ctx, ghost, x, y, laneWidth);
         } else {
           ctx.fillStyle = noteColor(col);
-          roundRect(ctx, x + 3, y - NOTE_HEIGHT / 2, laneWidth - 6, NOTE_HEIGHT, 4);
+          roundRect(ctx, x + 3, y - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
           ctx.fill();
         }
         ctx.globalAlpha = 1;
@@ -674,12 +796,7 @@ export function ManiaEditor(props: Props) {
     // ---- Multi-selection drag rectangle ----
     const selection = selectionDragRef.current;
     if (selection) {
-      const rect = normalizeRect(
-        selection.startX,
-        selection.startY,
-        selection.currentX,
-        selection.currentY,
-      );
+      const rect = selectionScreenRect(selection);
       ctx.fillStyle = "rgba(255,210,63,0.12)";
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
       ctx.strokeStyle = "#ffd23f";
@@ -772,6 +889,74 @@ export function ManiaEditor(props: Props) {
     setSelection(next);
   };
 
+  function selectionScreenRect(selection: SelectionDragState): CanvasRect {
+    return normalizeRect(
+      selection.startX,
+      timeToY(selection.startTime),
+      selection.currentX,
+      timeToY(selection.currentTime),
+    );
+  }
+
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+
+    const tick = (now: number) => {
+      const selection = selectionDragRef.current;
+      if (!selection) {
+        selectionAutoscrollTimeRef.current = null;
+        last = now;
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+
+      const { height } = sizeRef.current;
+      const phY = playheadY();
+      const y = selection.currentY;
+      let dir: 1 | -1 | 0 = 0;
+      let intensity = 0;
+
+      if (y < SELECT_AUTOSCROLL_TOP_ZONE) {
+        dir = 1;
+        intensity = Math.min(
+          1,
+          (SELECT_AUTOSCROLL_TOP_ZONE - y) / SELECT_AUTOSCROLL_TOP_ZONE,
+        );
+      } else if (y > phY) {
+        dir = -1;
+        intensity = Math.min(1, (y - phY) / Math.max(1, height - phY));
+      }
+
+      if (dir !== 0 && intensity > 0) {
+        const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+        const pxPerSec =
+          SELECT_AUTOSCROLL_MIN_PX_PER_SEC +
+          (SELECT_AUTOSCROLL_MAX_PX_PER_SEC -
+            SELECT_AUTOSCROLL_MIN_PX_PER_SEC) *
+            intensity;
+        const baseTime =
+          selectionAutoscrollTimeRef.current ??
+          propsRef.current.currentTime;
+        const nextTime = Math.max(
+          0,
+          baseTime + dir * (pxPerSec / ppms()) * dt,
+        );
+        selectionAutoscrollTimeRef.current = nextTime;
+        selection.currentTime = nextTime + (phY - y) / ppms();
+        propsRef.current.onSeek(nextTime);
+      } else {
+        selectionAutoscrollTimeRef.current = null;
+      }
+
+      last = now;
+      raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playheadY, ppms]);
+
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // left only
     const { x, y } = localPoint(e);
@@ -781,8 +966,10 @@ export function ManiaEditor(props: Props) {
       selectionDragRef.current = {
         startX: x,
         startY: y,
+        startTime: yToTime(y),
         currentX: x,
         currentY: y,
+        currentTime: yToTime(y),
       };
       setSelection(new Set());
       return;
@@ -791,6 +978,15 @@ export function ManiaEditor(props: Props) {
     // Grabbing a note starts a drag-to-move of the whole selection.
     const hit = findNoteAt(x, y);
     if (hit) {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const ids = new Set(selectedNoteIdsRef.current);
+        if (ids.has(hit.id)) ids.delete(hit.id);
+        else ids.add(hit.id);
+        setSelection(ids);
+        return;
+      }
+
       let ids = selectedNoteIdsRef.current;
       if (!ids.has(hit.id)) {
         ids = new Set([hit.id]);
@@ -831,6 +1027,8 @@ export function ManiaEditor(props: Props) {
     if (selection) {
       selection.currentX = x;
       selection.currentY = y;
+      selection.currentTime = yToTime(y);
+      selectionAutoscrollTimeRef.current = null;
       return;
     }
 
@@ -894,14 +1092,8 @@ export function ManiaEditor(props: Props) {
     const selection = selectionDragRef.current;
     if (selection) {
       selectionDragRef.current = null;
-      selectNotesInRect(
-        normalizeRect(
-          selection.startX,
-          selection.startY,
-          selection.currentX,
-          selection.currentY,
-        ),
-      );
+      selectionAutoscrollTimeRef.current = null;
+      selectNotesInRect(selectionScreenRect(selection));
       return;
     }
 
@@ -930,24 +1122,8 @@ export function ManiaEditor(props: Props) {
     mouseRef.current.inside = false;
     dragRef.current = null;
     selectionDragRef.current = null;
+    selectionAutoscrollTimeRef.current = null;
     moveDragRef.current = null;
-  };
-
-  const onContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const { x, y } = localPoint(e);
-    const note = findNoteAt(x, y);
-    if (note) {
-      // Right-click a selected note → delete the whole selection.
-      if (selectedNoteIdsRef.current.has(note.id)) {
-        deleteSelection();
-      } else {
-        props.onDeleteNote(note.id);
-      }
-      return;
-    }
-    // Right-click empty space → deselect.
-    if (selectedNoteIdsRef.current.size) setSelection(new Set());
   };
 
   const onWheel = (e: React.WheelEvent) => {
@@ -972,7 +1148,6 @@ export function ManiaEditor(props: Props) {
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
         onMouseLeave={onMouseLeave}
-        onContextMenu={onContextMenu}
         onWheel={onWheel}
       />
       <div
@@ -985,13 +1160,24 @@ export function ManiaEditor(props: Props) {
         Multi selection active
       </div>
 
+      {/* Receptor toggle indicator (press R) */}
+      <div
+        className={`pointer-events-none absolute left-3 top-3 select-none rounded-md border px-3 py-1.5 text-xs font-medium shadow-lg transition-[opacity,transform] duration-150 ${
+          receptorsOn
+            ? "translate-y-0 border-emerald-300/40 bg-emerald-500/15 text-emerald-100 opacity-100"
+            : "-translate-y-2 opacity-0"
+        }`}
+      >
+        Receptors on · press R
+      </div>
+
       {/* Selection action hint */}
       {selectionCount > 0 && (
         <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 select-none rounded-md border border-yellow-300/30 bg-ink-800/80 px-3 py-1.5 text-[11px] text-slate-200 shadow-lg">
           <span className="font-medium text-yellow-200">
             {selectionCount} selected
           </span>{" "}
-          · drag to move · Ctrl+C copy · Ctrl+X cut · right-click delete
+          · Ctrl+click multi · drag to move · Ctrl+A all · Ctrl+C copy · Ctrl+X cut
         </div>
       )}
 
@@ -1185,12 +1371,129 @@ function drawSprite(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   x: number,
-  centerY: number,
+  bottomY: number,
   laneWidth: number,
 ) {
   const w = laneWidth - 6;
   const h = img.width > 0 ? img.height * (w / img.width) : NOTE_HEIGHT;
-  ctx.drawImage(img, x + 3, centerY - h / 2, w, h);
+  // Anchor the note's bottom edge on its snap line so it sits on the line
+  // rather than straddling it.
+  ctx.drawImage(img, x + 3, bottomY - h, w, h);
+}
+
+/**
+ * Lowest non-transparent row (in image pixels) of a sprite, cached per image so
+ * the pixel scan runs only once. Used to ignore transparent padding below a
+ * receptor's artwork so its visible bottom — not the image's bottom — can be
+ * placed on the judgement line. Returns img.height if the bounds can't be read
+ * (e.g. a tainted canvas).
+ */
+const opaqueBottomCache = new WeakMap<HTMLImageElement, number>();
+function opaqueBottom(img: HTMLImageElement): number {
+  const cached = opaqueBottomCache.get(img);
+  if (cached !== undefined) return cached;
+  let bottom = img.height;
+  try {
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const cx = c.getContext("2d");
+    if (cx) {
+      cx.drawImage(img, 0, 0);
+      const { data } = cx.getImageData(0, 0, img.width, img.height);
+      for (let y = img.height - 1; y >= 0; y--) {
+        let opaque = false;
+        for (let x = 0; x < img.width; x++) {
+          if (data[(y * img.width + x) * 4 + 3] > 8) {
+            opaque = true;
+            break;
+          }
+        }
+        if (opaque) {
+          bottom = y + 1;
+          break;
+        }
+      }
+    }
+  } catch {
+    bottom = img.height;
+  }
+  opaqueBottomCache.set(img, bottom);
+  return bottom;
+}
+
+/**
+ * Draw a receptor (the osu!mania "key") for one column. The sprite's visible
+ * bottom edge (ignoring transparent padding) rests on the judgement line, scaled
+ * to lane width with aspect preserved, so a falling note — also bottom-anchored
+ * on the line — lands directly on the receptor.
+ */
+function drawReceptor(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  lineY: number,
+  laneWidth: number,
+) {
+  if (img.width <= 0 || img.height <= 0) return;
+  const s = laneWidth / img.width;
+  // Offset upward so the artwork's opaque bottom — not the padded image bottom —
+  // lands exactly on the line.
+  const dy = lineY - opaqueBottom(img) * s;
+  ctx.drawImage(img, x, dy, laneWidth, img.height * s);
+}
+
+/**
+ * Fallback receptor used when the active skin (or no skin) provides no key
+ * sprite for a column: a simple lane-coloured key from the judgement line down
+ * to the stage floor, brightened while a note rests on the line.
+ */
+function drawDefaultReceptor(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  lineY: number,
+  laneWidth: number,
+  canvasHeight: number,
+  color: string,
+  pressed: boolean,
+) {
+  const h = canvasHeight - lineY;
+  if (h <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = pressed ? 0.55 : 0.22;
+  ctx.fillStyle = color;
+  ctx.fillRect(x + 1, lineY, laneWidth - 2, h);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = pressed ? color : "rgba(255,255,255,0.35)";
+  ctx.lineWidth = pressed ? 2.5 : 1.5;
+  ctx.strokeRect(x + 1.5, lineY + 0.5, laneWidth - 3, h - 1);
+  ctx.restore();
+}
+
+/**
+ * Additive lane-coloured glow over the receptor, brightest at the judgement
+ * line and fading toward the stage floor. Drawn whenever a note is on the line
+ * so the receptor always reads as "hit", regardless of the active skin.
+ */
+function drawReceptorGlow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  lineY: number,
+  laneWidth: number,
+  canvasHeight: number,
+  color: string,
+) {
+  const h = canvasHeight - lineY;
+  if (h <= 0) return;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.5;
+  const grad = ctx.createLinearGradient(0, lineY, 0, lineY + h);
+  grad.addColorStop(0, color);
+  grad.addColorStop(1, "transparent");
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, lineY, laneWidth, h);
+  ctx.restore();
 }
 
 function drawCover(

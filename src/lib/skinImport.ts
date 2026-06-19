@@ -12,9 +12,10 @@ import {
  *
  * An `.osk` is a plain zip archive containing a `skin.ini` plus image assets.
  * For the editor we only care about the `[Mania]` sections: each one targets a
- * keymode (`Keys: N`) and lists per-column colours (`ColourN`, 1-indexed) and
+ * keymode (`Keys: N`) and lists per-column colours (`ColourN`, 1-indexed),
  * note sprites (`NoteImage{col}` / `…H` head / `…L` body / `…T` tail,
- * 0-indexed). Image references are extensionless paths relative to the skin
+ * 0-indexed) and receptor sprites (`KeyImage{col}` idle / `KeyImage{col}D`
+ * pressed). Image references are extensionless paths relative to the skin
  * root, resolved here to `.png` (or `@2x.png`) entries.
  *
  * When a column omits an image, osu! falls back to the default-named element
@@ -134,6 +135,10 @@ export async function importOsk(
         holdBodyUrl: body.url,
         holdBodyCapPx: body.capPx,
         holdTailUrl: await resolveUrl(block[`noteimage${c}t`] || `mania-note${v}T`),
+        // Receptors: the skin's explicit `KeyImage{c}[D]` ref, else osu!'s
+        // default-named element for this column (`mania-key{1|2|S}[D]`).
+        keyUrl: await resolveUrl(block[`keyimage${c}`] || `mania-key${v}`),
+        keyDownUrl: await resolveUrl(block[`keyimage${c}d`] || `mania-key${v}D`),
       });
     }
     keymodes[keys] = { keys, columns };

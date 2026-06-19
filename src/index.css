@@ -61,6 +61,20 @@ body {
   @apply bg-ink-900 text-slate-200 font-sans antialiased;
 }
 
+#root,
+#root * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#root input,
+#root textarea,
+#root [contenteditable="true"],
+#root [contenteditable="true"] * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Slim scrollbars to match the dark UI */
 *::-webkit-scrollbar {
   width: 10px;
