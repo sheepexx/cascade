@@ -138,7 +138,11 @@ export function parseOsuFile(text: string): ParsedOsu {
       timingPoints.push(
         makeRedPoint(
           time,
-          Math.round((60000 / beatLength) * 1000) / 1000,
+          // Keep full precision: bpm = 60000 / beatLength without rounding, so
+          // the original beat length is recovered exactly (within float epsilon)
+          // by beatLength(bpm) = 60000 / bpm. Rounding bpm here would make the
+          // beat grid drift progressively over long maps.
+          60000 / beatLength,
           extra,
         ),
       );
