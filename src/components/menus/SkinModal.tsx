@@ -8,7 +8,9 @@ import { Button, FileButton } from "../ui/Controls";
  * Vite resolves each one to a served URL at build time, so dropping a new
  * `.osk` in that folder makes it appear here automatically.
  */
-const PRESET_MODULES = import.meta.glob("/skin/*.osk", {
+// Relative (not root-absolute "/skin/*.osk") so Vite's dev server resolves the
+// path correctly on Windows; rollup handles both forms at build time.
+const PRESET_MODULES = import.meta.glob("../../../skin/*.osk", {
   eager: true,
   query: "?url",
   import: "default",
