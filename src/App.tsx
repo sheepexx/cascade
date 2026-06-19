@@ -139,8 +139,17 @@ export default function App() {
     return all.length === 1 ? all[0] : null;
   }, [active.audioFilename, audioFiles]);
 
-  const audio = useAudio(audioFile?.url ?? null);
   const waveform = useWaveform(audioFile?.blob ?? null);
+  // The decoded waveform yields a sample-accurate duration AND the PCM buffer.
+  // Feed both to the audio clock: the duration keeps the seek clamp / timeline
+  // scale correct, and the buffer lets the song play through the Web Audio API
+  // so it shares the hitsounds' near-zero latency (an HTMLAudioElement's output
+  // lag otherwise makes the song drift seconds behind the falling notes).
+  const audio = useAudio(
+    audioFile?.url ?? null,
+    waveform ? waveform.duration * 1000 : null,
+    waveform?.buffer ?? null,
+  );
 
   // Play the map's actual osu! hitsounds as notes cross the judgement line.
   useHitsounds(

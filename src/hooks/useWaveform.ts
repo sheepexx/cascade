@@ -5,6 +5,12 @@ export type Waveform = {
   peaks: Float32Array;
   /** Decoded duration in seconds. */
   duration: number;
+  /**
+   * The fully decoded PCM. Reused for sample-accurate, low-latency playback via
+   * the Web Audio API, so the song shares the same clock as the hitsounds (an
+   * HTMLAudioElement's output latency makes the song lag the notes otherwise).
+   */
+  buffer: AudioBuffer;
 };
 
 /**
@@ -63,7 +69,11 @@ export function useWaveform(
           }
         }
 
-        setWaveform({ peaks, duration: audioBuffer.duration });
+        setWaveform({
+          peaks,
+          duration: audioBuffer.duration,
+          buffer: audioBuffer,
+        });
       })
       .catch(() => {
         if (!cancelled) setWaveform(null);
