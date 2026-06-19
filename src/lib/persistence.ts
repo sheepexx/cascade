@@ -1,10 +1,17 @@
+import {
+  DEFAULT_VIEW,
+  MAX_SCROLL_SPEED,
+  MIN_SCROLL_SPEED,
+  SNAP_DIVISORS,
+  type SnapDivisor,
+  type ViewState,
+} from "../types";
 import type {
   AppSettings,
   BackgroundScope,
   Difficulty,
   SongMeta,
   TimingPoint,
-  ViewState,
 } from "../types";
 
 /**
@@ -27,6 +34,8 @@ const VERSION = 1;
 const PREFS_KEY = "mania-editor:prefs";
 /** localStorage key for the playback volume (perceived slider position 0..1). */
 const VOLUME_KEY = "mania-editor:volume";
+/** localStorage key for editor view controls such as snap and scroll speed. */
+const VIEW_KEY = "mania-editor:view";
 
 /** Everything needed to bring the editor back exactly as the user left it. */
 export type SavedProject = {
@@ -128,6 +137,49 @@ export function loadPreferences(): Partial<AppSettings> | null {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     return raw ? (JSON.parse(raw) as Partial<AppSettings>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist editor view controls to localStorage. */
+export function saveViewPreferences(view: ViewState): void {
+  try {
+    localStorage.setItem(
+      VIEW_KEY,
+      JSON.stringify({
+        snapDivisor: view.snapDivisor,
+        scrollSpeed: view.scrollSpeed,
+      }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Load saved editor view controls, clamped to currently supported values. */
+export function loadViewPreferences(): ViewState | null {
+  try {
+    const raw = localStorage.getItem(VIEW_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ViewState>;
+    const snapDivisor = SNAP_DIVISORS.includes(
+      parsed.snapDivisor as SnapDivisor,
+    )
+      ? (parsed.snapDivisor as SnapDivisor)
+      : DEFAULT_VIEW.snapDivisor;
+    const scrollSpeed = Number(parsed.scrollSpeed);
+    return {
+      snapDivisor,
+      scrollSpeed: Number.isFinite(scrollSpeed)
+        ? Math.round(
+            Math.min(
+              MAX_SCROLL_SPEED,
+              Math.max(MIN_SCROLL_SPEED, scrollSpeed),
+            ),
+          )
+        : DEFAULT_VIEW.scrollSpeed,
+    };
   } catch {
     return null;
   }

@@ -14,6 +14,7 @@ import { ToolsModal } from "./components/menus/ToolsModal";
 import { ExportValidationModal } from "./components/menus/ExportValidationModal";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
+import { Modal } from "./components/ui/Modal";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { fullLongNotes, fullRiceNotes } from "./lib/noteTools";
@@ -31,6 +32,8 @@ import {
   loadSkinBlob,
   saveVolume,
   loadVolume,
+  saveViewPreferences,
+  loadViewPreferences,
 } from "./lib/persistence";
 import {
   DEFAULT_APP_SETTINGS,
@@ -60,6 +63,7 @@ type ModalId =
   | "timing"
   | "difficulty"
   | "tools"
+  | "info"
   | null;
 
 /** Snapshot of the undoable beatmap document. */
@@ -78,7 +82,9 @@ export default function App() {
     makeDifficulty("Normal", 4),
   ]);
   const [activeId, setActiveId] = useState<string>(() => difficulties[0].id);
-  const [view, setView] = useState<ViewState>(DEFAULT_VIEW);
+  const [view, setView] = useState<ViewState>(
+    () => loadViewPreferences() ?? DEFAULT_VIEW,
+  );
 
   // Every audio file in the set, keyed by filename. A difficulty references
   // its song by name; the active difficulty's audio is derived below.
@@ -103,9 +109,12 @@ export default function App() {
   const [askBgScope, setAskBgScope] = useState(false);
   const [lnTicks, setLnTicks] = useState(1);
   const [importError, setImportError] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<File | null>(null);
+  const [importingMap, setImportingMap] = useState(false);
   const [saveStatus, setSaveStatus] = useState<
     null | "saving" | "saved" | "error"
   >(null);
+  const importStartedRef = useRef(false);
 
   const active =
     difficulties.find((d) => d.id === activeId) ?? difficulties[0];
@@ -124,8 +133,15 @@ export default function App() {
 
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) e.preventDefault();
+    };
     window.addEventListener("contextmenu", onContextMenu);
-    return () => window.removeEventListener("contextmenu", onContextMenu);
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      window.removeEventListener("contextmenu", onContextMenu);
+      window.removeEventListener("wheel", onWheel);
+    };
   }, []);
 
   // Background for the active difficulty.
@@ -247,7 +263,9 @@ export default function App() {
 
   // ---- Import .osz ---------------------------------------------------------
   const importMapFile = useCallback(async (file: File) => {
+    importStartedRef.current = true;
     setImportError(null);
+    setImportingMap(true);
     try {
       const map = await importOsz(file);
       setAudioFiles((prev) => {
@@ -270,12 +288,27 @@ export default function App() {
       ).map((d) => ({ ...d, timingPoints: normalizeTimingPoints(d.timingPoints) }));
       setDifficulties(diffs);
       setActiveId(diffs[0].id);
+      setPendingImport(null);
+      void clearProject().catch(() => {});
     } catch (err) {
       setImportError(
         err instanceof Error ? err.message : "Failed to import .osz file.",
       );
+    } finally {
+      setImportingMap(false);
     }
   }, []);
+
+  const requestImportMap = useCallback(
+    (file: File) => {
+      if (hasProject) {
+        setPendingImport(file);
+      } else {
+        void importMapFile(file);
+      }
+    },
+    [hasProject, importMapFile],
+  );
 
   // ---- Difficulty management ----------------------------------------------
   const patchDifficulty = useCallback(
@@ -507,7 +540,7 @@ export default function App() {
     let cancelled = false;
     void (async () => {
       const saved = await loadProject().catch(() => null);
-      if (cancelled || !saved) return;
+      if (cancelled || importStartedRef.current || !saved) return;
       // Don't record the restore as an undoable edit.
       applyingHistoryRef.current = true;
       setMeta(saved.meta);
@@ -553,7 +586,7 @@ export default function App() {
       // never user-settable. Detect those and fall back to the default speed;
       // otherwise restore the saved speed, clamped to the osu!mania range.
       const isLegacyView = "zoom" in saved.view;
-      setView({
+      setView(loadViewPreferences() ?? {
         ...DEFAULT_VIEW,
         snapDivisor: saved.view.snapDivisor,
         scrollSpeed: isLegacyView
@@ -609,6 +642,12 @@ export default function App() {
     const id = window.setTimeout(() => savePreferences(appSettings), 200);
     return () => window.clearTimeout(id);
   }, [appSettings]);
+
+  // ---- Persist editor view controls (snap + scroll speed) on change -------
+  useEffect(() => {
+    const id = window.setTimeout(() => saveViewPreferences(view), 200);
+    return () => window.clearTimeout(id);
+  }, [view]);
 
   // ---- Restore + persist the editor skin independently of any map ---------
   const skinLoadedRef = useRef(false);
@@ -708,7 +747,7 @@ export default function App() {
       }
       const osz = files.find(isOszFile);
       if (osz) {
-        void importMapFile(osz);
+        requestImportMap(osz);
         return;
       }
       const audioF = files.find(isAudioFile);
@@ -716,7 +755,7 @@ export default function App() {
       const image = files.find(isImageFile);
       if (image) onBackgroundFile(image);
     },
-    [onAudioFile, onBackgroundFile, importMapFile, onSkinFile],
+    [onAudioFile, onBackgroundFile, onSkinFile, requestImportMap],
   );
 
   // ---- Export --------------------------------------------------------------
@@ -779,6 +818,25 @@ export default function App() {
     () => requestExport(".osz", () => void doExportOsz()),
     [requestExport, doExportOsz],
   );
+
+  const confirmImportWithoutExport = useCallback(() => {
+    if (!pendingImport) return;
+    void importMapFile(pendingImport);
+  }, [pendingImport, importMapFile]);
+
+  const confirmExportAndImport = useCallback(async () => {
+    if (!pendingImport) return;
+    try {
+      await doExportOsz();
+      await importMapFile(pendingImport);
+    } catch {
+      setImportError("Failed to export current project. Import canceled.");
+    }
+  }, [pendingImport, doExportOsz, importMapFile]);
+
+  const cancelPendingImport = useCallback(() => {
+    setPendingImport(null);
+  }, []);
 
   /** Strip duplicate notes (same column & time) flagged by validation. */
   const removeDuplicates = useCallback(() => {
@@ -878,7 +936,6 @@ export default function App() {
     setTimingPoints(defaultTimingPoints());
     setDifficulties([fresh]);
     setActiveId(fresh.id);
-    setView(DEFAULT_VIEW);
     setZenMode(false);
     setBgScope("mapset");
     setModal(null);
@@ -1109,6 +1166,7 @@ export default function App() {
                 onAddNotes={addNotes}
                 onDeleteNotes={deleteNotes}
                 onMoveNotes={moveNotes}
+                onView={setView}
                 onSeek={audio.seek}
                 onVolumeChange={(delta) => audio.setVolume(audio.volume + delta)}
               />
@@ -1116,8 +1174,22 @@ export default function App() {
               <EmptyState onOpenSettings={() => setModal("mapSettings")} />
             )}
             {audioFile && !zenMode && (
-              <PPCounter notes={active.notes} keyCount={active.keyCount} />
+              <PPCounter
+                notes={active.notes}
+                keyCount={active.keyCount}
+                playbackRate={audio.playbackRate}
+                onPlaybackRateChange={audio.setPlaybackRate}
+              />
             )}
+            <button
+              type="button"
+              onClick={() => setModal("info")}
+              className="absolute bottom-3 left-3 z-30 grid h-9 w-9 place-items-center rounded-full border border-ink-500/70 bg-ink-900/85 font-serif text-lg font-semibold text-slate-100 shadow-lg backdrop-blur transition hover:border-slate-500 hover:bg-ink-700"
+              aria-label="Open shortcuts and functions"
+              title="Shortcuts and functions"
+            >
+              i
+            </button>
           </div>
 
           <div
@@ -1159,7 +1231,7 @@ export default function App() {
         onAudioFile={onAudioFile}
         onBackgroundFile={onBackgroundFile}
         onClearBackground={onClearBackground}
-        onImportOsz={importMapFile}
+        onImportOsz={requestImportMap}
       />
       <AppSettingsModal
         open={modal === "settings"}
@@ -1232,6 +1304,46 @@ export default function App() {
         }}
       />
 
+      <Modal
+        open={pendingImport !== null}
+        onClose={cancelPendingImport}
+        title="Import new map?"
+        footer={
+          <>
+            <Button onClick={cancelPendingImport} disabled={importingMap || exporting}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmImportWithoutExport}
+              disabled={importingMap || exporting}
+            >
+              Don't save and import new
+            </Button>
+            <Button
+              variant="accent"
+              onClick={() => void confirmExportAndImport()}
+              disabled={importingMap || exporting || !hasProject}
+            >
+              Export current project and import new
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-slate-300">
+          <p>
+            You are about to replace the current project with{" "}
+            <span className="font-medium text-slate-100">
+              {pendingImport?.name}
+            </span>
+            .
+          </p>
+          <p className="text-xs text-slate-500">
+            Export current project downloads an .osz first. Don't save imports
+            the new map and clears the old local save. Cancel stops the import.
+          </p>
+        </div>
+      </Modal>
+
       <ExportValidationModal
         open={exportCheck !== null}
         result={exportCheck?.result ?? null}
@@ -1244,6 +1356,8 @@ export default function App() {
         }}
         onRemoveDuplicates={removeDuplicates}
       />
+
+      <InfoModal open={modal === "info"} onClose={close} />
 
       {/* Save status toast */}
       {(saveStatus === "saved" || saveStatus === "error") && (
@@ -1313,6 +1427,120 @@ function IconButton({
     >
       {children}
     </button>
+  );
+}
+
+function InfoModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Shortcuts and functions"
+      width="max-w-3xl"
+    >
+      <div className="grid gap-5 text-sm text-slate-300 md:grid-cols-2">
+        <InfoSection title="Playback">
+          <InfoRow keys="Space" text="Play or pause the song." />
+          <InfoRow keys="Tab" text="Toggle zen mode and hide editor chrome." />
+          <InfoRow keys="Arrow Up / Down" text="Raise or lower volume by 5%." />
+          <InfoRow keys="Alt + wheel" text="Change volume over the notefield." />
+          <InfoRow keys="Speed buttons" text="Set playback rate to 25%, 50%, 75% or 100%." />
+        </InfoSection>
+
+        <InfoSection title="Editing">
+          <InfoRow keys="Left click" text="Place a snapped note in an empty lane." />
+          <InfoRow keys="Left drag" text="Create a long note from the drag range." />
+          <InfoRow keys="Click note" text="Select a placed note." />
+          <InfoRow keys="Ctrl/Cmd + click" text="Toggle notes in the selection." />
+          <InfoRow keys="Drag selected" text="Move selected notes by lane and snap time." />
+          <InfoRow keys="Right click note" text="Delete that note, or the selected notes." />
+        </InfoSection>
+
+        <InfoSection title="Selection">
+          <InfoRow keys="Shift + drag" text="Box select notes. Near edges, the notefield autoscrolls." />
+          <InfoRow keys="Ctrl/Cmd + A" text="Select all notes in the active difficulty." />
+          <InfoRow keys="Ctrl/Cmd + C" text="Copy selected notes." />
+          <InfoRow keys="Ctrl/Cmd + X" text="Cut selected notes." />
+          <InfoRow keys="Ctrl/Cmd + V" text="Paste copied notes at the snapped playhead time." />
+          <InfoRow keys="Delete / Backspace" text="Delete selected notes." />
+        </InfoSection>
+
+        <InfoSection title="Navigation">
+          <InfoRow keys="Wheel" text="Scrub the playhead by one snap step in the notefield." />
+          <InfoRow keys="Ctrl/Cmd + wheel" text="Change snap divisor without zooming the page." />
+          <InfoRow keys="Bottom timeline click/drag" text="Seek through the song." />
+          <InfoRow keys="Timeline wheel" text="Adjust waveform sensitivity." />
+          <InfoRow keys="Timestamp" text="Click the time display to copy the current timestamp." />
+        </InfoSection>
+
+        <InfoSection title="Grid and display">
+          <InfoRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/16." />
+          <InfoRow keys="Scroll speed" text="Change visual note scroll speed. This is not exported." />
+          <InfoRow keys="R" text="Toggle receptors on or off." />
+          <InfoRow keys="PP counter" text="Shows max SS no-mod pp for the active difficulty." />
+          <InfoRow keys="Kiai" text="Kiai timing sections tint notes during preview." />
+        </InfoSection>
+
+        <InfoSection title="Project">
+          <InfoRow keys="Ctrl/Cmd + S" text="Save progress locally." />
+          <InfoRow keys="Ctrl/Cmd + Z" text="Undo beatmap edits." />
+          <InfoRow keys="Ctrl/Cmd + Shift + Z" text="Redo beatmap edits." />
+          <InfoRow keys="Ctrl/Cmd + Y" text="Redo on Windows-style shortcuts." />
+          <InfoRow keys="New" text="Clear the current map and local project." />
+          <InfoRow keys="Export" text="Export the active .osu or package the mapset as .osz." />
+        </InfoSection>
+
+        <InfoSection title="Menus">
+          <InfoRow keys="Map Settings" text="Import .osz, set audio, background and metadata." />
+          <InfoRow keys="Timing" text="Edit red BPM points, green SV points, kiai, volume and tap BPM." />
+          <InfoRow keys="Difficulty" text="Set name, key count, HP and OD for the active difficulty." />
+          <InfoRow keys="Tools" text="Apply Full LN or convert holds back to rice notes." />
+          <InfoRow keys="Skin" text="Apply presets, upload .osk skins or clear the current skin." />
+          <InfoRow keys="Settings" text="Adjust playfield scale and default long-note body width." />
+        </InfoSection>
+
+        <InfoSection title="Difficulty list">
+          <InfoRow keys="Click difficulty" text="Switch the active difficulty." />
+          <InfoRow keys="+" text="Add a new difficulty." />
+          <InfoRow keys="Duplicate" text="Copy a difficulty with its notes and timing." />
+          <InfoRow keys="Delete" text="Remove a difficulty when more than one exists." />
+        </InfoSection>
+      </div>
+    </Modal>
+  );
+}
+
+function InfoSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border border-ink-600 bg-ink-700/35 p-3">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {title}
+      </h3>
+      <div className="flex flex-col gap-1.5">{children}</div>
+    </section>
+  );
+}
+
+function InfoRow({ keys, text }: { keys: string; text: string }) {
+  return (
+    <div className="grid grid-cols-[8.5rem,1fr] gap-3 text-xs leading-5">
+      <div className="font-mono text-[11px] font-semibold text-slate-100">
+        {keys}
+      </div>
+      <div className="text-slate-400">{text}</div>
+    </div>
   );
 }
 

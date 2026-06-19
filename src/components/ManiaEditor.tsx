@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  SNAP_DIVISORS,
   uid,
   type ManiaKeymodeSkin,
   type ManiaNote,
@@ -74,6 +75,7 @@ type Props = {
   onAddNotes: (notes: ManiaNote[]) => void;
   onDeleteNotes: (ids: string[]) => void;
   onMoveNotes: (notes: ManiaNote[]) => void;
+  onView: (view: ViewState) => void;
   onSeek: (ms: number) => void;
   onVolumeChange: (delta: number) => void;
 };
@@ -1242,6 +1244,24 @@ export function ManiaEditor(props: Props) {
   };
 
   const onWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const { view } = propsRef.current;
+      const currentIndex = SNAP_DIVISORS.indexOf(view.snapDivisor);
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const nextIndex = Math.min(
+        SNAP_DIVISORS.length - 1,
+        Math.max(0, currentIndex + dir),
+      );
+      if (nextIndex !== currentIndex) {
+        propsRef.current.onView({
+          ...view,
+          snapDivisor: SNAP_DIVISORS[nextIndex],
+        });
+      }
+      return;
+    }
+
     if (e.altKey) {
       // Alt + scroll => adjust volume by 5% per notch.
       props.onVolumeChange(e.deltaY < 0 ? 0.05 : -0.05);
@@ -1283,11 +1303,11 @@ export function ManiaEditor(props: Props) {
       <div
         className={`pointer-events-none absolute left-3 top-3 select-none rounded-md border px-3 py-1.5 text-xs font-medium shadow-lg transition-[opacity,transform] duration-150 ${
           receptorsOn
-            ? "translate-y-0 border-emerald-300/40 bg-emerald-500/15 text-emerald-100 opacity-100"
-            : "-translate-y-2 opacity-0"
+            ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
+            : "border-slate-400/25 bg-ink-800/70 text-slate-200"
         }`}
       >
-        Receptors on · press R
+        Receptors {receptorsOn ? "on" : "off"} · press R
       </div>
 
       {/* Selection action hint */}

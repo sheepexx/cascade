@@ -21,9 +21,11 @@ export type ManiaNote = {
 };
 
 /** Beat-snap divisor. 4 = 1/4, 8 = 1/8, etc. */
-export type SnapDivisor = 2 | 3 | 4 | 6 | 8 | 12 | 16;
+export type SnapDivisor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 12 | 16;
 
-export const SNAP_DIVISORS: SnapDivisor[] = [2, 3, 4, 6, 8, 12, 16];
+export const SNAP_DIVISORS: SnapDivisor[] = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16,
+];
 
 /**
  * A single osu! timing point. Mirrors the file format line:
@@ -201,8 +203,8 @@ export type LoadedFile = {
 
 /** osu!mania scroll-speed range. The value behaves like osu!mania's: higher
  *  means notes scroll faster (less time on screen). */
-export const MIN_SCROLL_SPEED = 1;
-export const MAX_SCROLL_SPEED = 40;
+export const MIN_SCROLL_SPEED = 10;
+export const MAX_SCROLL_SPEED = 45;
 
 /**
  * Visual-only editor view state.

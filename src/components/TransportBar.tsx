@@ -13,32 +13,12 @@ type Props = {
   onView: (v: ViewState) => void;
 };
 
-const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
-
 export function TransportBar({ audio, view, onView }: Props) {
-  const { currentTime, volume, setVolume, playbackRate, setPlaybackRate } = audio;
+  const { currentTime, volume, setVolume } = audio;
 
   return (
     <div className="flex items-center gap-4 border-b border-ink-600 bg-ink-800/80 px-4 py-3 backdrop-blur">
-      {/* Playback speed (song slows down too) */}
-      <div className="flex flex-1 items-center gap-1.5">
-        <span className="text-xs text-slate-400">Speed</span>
-        <div className="flex overflow-hidden rounded-md border border-ink-500/60">
-          {PLAYBACK_RATES.map((rate) => (
-            <button
-              key={rate}
-              onClick={() => setPlaybackRate(rate)}
-              className={`px-2 py-1 text-xs font-medium transition ${
-                Math.abs(playbackRate - rate) < 0.001
-                  ? "bg-accent text-white"
-                  : "bg-ink-700 text-slate-300 hover:bg-ink-600"
-              }`}
-            >
-              {Math.round(rate * 100)}%
-            </button>
-          ))}
-        </div>
-      </div>
+      <div className="flex-1" />
 
       {/* Timestamp display */}
       <button
