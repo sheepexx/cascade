@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../../lib/auth";
 import { Button } from "../ui/Controls";
 
@@ -22,16 +23,43 @@ export function AccountControl({
   const { user, isAdmin, loading, login, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // Fixed-position coordinates for the portaled menu, anchored to the chip.
+  const [pos, setPos] = useState<{ top: number; right: number }>({
+    top: 0,
+    right: 0,
+  });
+
+  // Position the menu just under the chip, right-aligned to it.
+  useLayoutEffect(() => {
+    if (!open || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    setPos({
+      top: rect.bottom + 4,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const t = e.target as Node;
+      if (
+        ref.current?.contains(t) ||
+        menuRef.current?.contains(t)
+      )
+        return;
+      setOpen(false);
     };
+    const onScrollOrResize = () => setOpen(false);
     window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
+    window.addEventListener("resize", onScrollOrResize);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("resize", onScrollOrResize);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+    };
   }, [open]);
 
   if (loading) {
@@ -80,19 +108,25 @@ export function AccountControl({
         <span className="text-[10px] text-slate-400">▾</span>
       </button>
 
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-xl border border-ink-500/60 bg-ink-800 py-1 shadow-2xl">
-          <MenuItem onClick={() => choose(onOpenMyMaps)}>My Maps</MenuItem>
-          <MenuItem onClick={() => choose(onOpenPresets)}>Presets</MenuItem>
-          {isAdmin && (
-            <MenuItem onClick={() => choose(onOpenAdmin)}>Admin</MenuItem>
-          )}
-          <div className="my-1 h-px bg-ink-600" />
-          <MenuItem onClick={() => choose(() => void logout())} danger>
-            Log out
-          </MenuItem>
-        </div>
-      )}
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{ position: "fixed", top: pos.top, right: pos.right }}
+            className="z-[100] w-44 overflow-hidden rounded-xl border border-ink-500/60 bg-ink-800 py-1 shadow-2xl"
+          >
+            <MenuItem onClick={() => choose(onOpenMyMaps)}>My Maps</MenuItem>
+            <MenuItem onClick={() => choose(onOpenPresets)}>Presets</MenuItem>
+            {isAdmin && (
+              <MenuItem onClick={() => choose(onOpenAdmin)}>Admin</MenuItem>
+            )}
+            <div className="my-1 h-px bg-ink-600" />
+            <MenuItem onClick={() => choose(() => void logout())} danger>
+              Log out
+            </MenuItem>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
