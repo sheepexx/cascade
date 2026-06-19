@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   clampSv,
   makeGreenPoint,
@@ -35,14 +35,62 @@ export function TimingModal({
 }: Props) {
   const getTime = useCallback(() => audio.currentTime, [audio]);
   const { tap, reset, bpm, offset, count } = useTapTempo(getTime);
-  const [metronomeOn, setMetronomeOn] = useState(false);
+  const [metronomeOn, setMetronomeOn] = useState(true);
+  // Which beat of the bar is currently sounding (0 = downbeat), plus the meter
+  // in force, bumped every tick so the indicator boxes light up one-by-one in
+  // sync with the click.
+  const [beat, setBeat] = useState<{ index: number; meter: number; n: number } | null>(
+    null,
+  );
 
   // Metronome preview clicks the beat while the song plays (only while open).
-  useMetronome(audio.currentTime, audio.isPlaying, timingPoints, open && metronomeOn);
+  useMetronome(
+    audio.currentTime,
+    audio.isPlaying,
+    timingPoints,
+    open && metronomeOn,
+    ({ beat: b, meter }) => {
+      const index = ((b % meter) + meter) % meter;
+      setBeat((prev) => ({ index, meter, n: (prev?.n ?? 0) + 1 }));
+    },
+  );
+
+  // Clear the lit box when playback stops or the metronome is off.
+  useEffect(() => {
+    if (!audio.isPlaying || !metronomeOn) setBeat(null);
+  }, [audio.isPlaying, metronomeOn]);
+
+  // Space toggles playback while the Timing modal is open (the global Space
+  // hotkey is suppressed whenever a modal is open). Ignore it while typing.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== "Space" && e.key !== " ") return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        t?.isContentEditable
+      )
+        return;
+      e.preventDefault();
+      audio.toggle();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, audio]);
 
   const points = sortedPoints(timingPoints);
   const reds = points.filter((p) => p.uninherited);
   const firstRed = reds[0] ?? null;
+  // Box count follows the meter the metronome is actually clicking; fall back to
+  // the first red point's meter when stopped.
+  const meter = Math.max(
+    1,
+    Math.round(beat?.meter ?? firstRed?.meter ?? 4),
+  );
 
   const update = (id: string, patch: Partial<TimingPoint>) =>
     onTimingPoints(
@@ -115,7 +163,7 @@ export function TimingModal({
     <Modal open={open} onClose={onClose} title="Timing" width="max-w-2xl">
       <div className="flex flex-col gap-6">
         {/* Playback speed + metronome */}
-        <section className="flex flex-wrap items-center gap-4 rounded-xl border border-ink-600 bg-ink-700/40 p-3">
+        <section className="flex flex-nowrap items-center gap-4 rounded-xl border border-ink-600 bg-ink-700/40 p-3">
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">Playback</span>
             <div className="flex overflow-hidden rounded-md border border-ink-500/60">
@@ -141,8 +189,42 @@ export function TimingModal({
               onChange={(e) => setMetronomeOn(e.target.checked)}
               className="accent-accent"
             />
-            Metronome preview
+            Metronome
           </label>
+
+          {/* Beat indicator: one box per beat in the bar, lit in sync with the
+              click. Downbeat flashes white, the off-beats flash orange. */}
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: meter }).map((_, i) => {
+              const active = beat?.index === i;
+              const downbeat = i === 0;
+              const color = downbeat ? "#ffffff" : "#ff9d4d";
+              return (
+                <span
+                  key={i}
+                  className="h-5 w-5 rounded-md border transition-all duration-150 ease-out"
+                  style={{
+                    backgroundColor: active ? color : "transparent",
+                    borderColor: active ? color : "#33333f",
+                    opacity: active ? 1 : 0.35,
+                    transform: active ? "scale(1.1)" : "scale(1)",
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => audio.toggle()}
+            className="ml-auto inline-flex min-w-[7.5rem] items-center justify-center rounded-md border border-ink-500/60 bg-ink-700 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-ink-600"
+            title="Space"
+          >
+            <span className="inline-flex w-12 justify-end">
+              {audio.isPlaying ? "❚❚ Pause" : "▶ Play"}
+            </span>
+            <span className="ml-1.5 text-[10px] text-slate-500">Space</span>
+          </button>
         </section>
 
         {/* Offset workflow */}
@@ -152,7 +234,7 @@ export function TimingModal({
               Offset (first red point)
             </h3>
             <span className="font-mono text-xs text-slate-300">
-              {firstRed ? `${firstRed.time} ms · ${formatTime(firstRed.time)}` : "—"}
+              {firstRed ? `${firstRed.time} ms · ${formatTime(firstRed.time)}` : "-"}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +299,7 @@ export function TimingModal({
           </h3>
           <p className="mb-4 text-xs text-slate-400">
             Play the song and click on every beat. The BPM and the offset (where
-            beat 1 lands) are fit from your taps — the more continuous beats you
+            beat 1 lands) are fit from your taps - the more continuous beats you
             click, the more accurate both become.
           </p>
 
@@ -225,14 +307,14 @@ export function TimingModal({
             <button
               type="button"
               onClick={tap}
-              className="grid h-24 w-24 shrink-0 select-none place-items-center rounded-full bg-accent text-sm font-semibold text-white shadow-[0_0_30px_-8px] shadow-accent transition active:scale-95 active:bg-accent-soft"
+              className="grid h-24 w-24 shrink-0 select-none place-items-center rounded-full bg-accent text-sm font-semibold text-white transition active:scale-95 active:bg-accent-soft"
             >
               TAP
             </button>
 
             <div className="flex-1">
               <div className="font-mono text-3xl text-slate-100">
-                {bpm !== null ? bpm.toFixed(2) : "—"}
+                {bpm !== null ? bpm.toFixed(2) : "-"}
                 <span className="ml-1 text-sm text-slate-500">BPM</span>
               </div>
               <div className="mt-1 text-xs text-slate-500">

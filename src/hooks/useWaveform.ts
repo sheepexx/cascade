@@ -40,7 +40,7 @@ export function useWaveform(
         const blockSize = Math.max(1, Math.floor(channel.length / buckets));
         const peaks = new Float32Array(buckets);
 
-        // RMS (average energy) per bucket — far less twitchy than peak/max,
+        // RMS (average energy) per bucket - far less twitchy than peak/max,
         // since a single loud transient no longer spikes the whole bar.
         for (let i = 0; i < buckets; i++) {
           const start = i * blockSize;

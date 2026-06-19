@@ -64,7 +64,7 @@ export function DifficultyModal({
           </div>
         </Field>
 
-        <Field label={`HP Drain Rate — ${difficulty.hpDrainRate.toFixed(1)}`}>
+        <Field label={`HP Drain Rate - ${difficulty.hpDrainRate.toFixed(1)}`}>
           <input
             type="range"
             min={0}
@@ -77,7 +77,7 @@ export function DifficultyModal({
         </Field>
 
         <Field
-          label={`Overall Difficulty — ${difficulty.overallDifficulty.toFixed(
+          label={`Overall Difficulty - ${difficulty.overallDifficulty.toFixed(
             1,
           )}`}
         >

@@ -1,0 +1,177 @@
+[
+  {
+    "id": "2321798-kou-a-o-e-area-of-effect",
+    "title": "A.O.E::area_of_effect",
+    "artist": "Kou!",
+    "creator": "_Stan",
+    "osz": "maps/2321798-kou-a-o-e-area-of-effect.osz",
+    "banner": "maps/2321798-kou-a-o-e-area-of-effect-banner.jpg",
+    "difficulties": [
+      {
+        "name": "F.I.N::finale_in_nightmare",
+        "keyCount": 7,
+        "stars": 10.55
+      }
+    ]
+  },
+  {
+    "id": "2367508-twc-sound-team-strike-back-squad-buzz-cutz-no-video",
+    "title": "BUZZ CUTZ",
+    "artist": "TWC Sound Team \"Strike Back Squad\"",
+    "creator": "Blocko",
+    "osz": "maps/2367508-twc-sound-team-strike-back-squad-buzz-cutz-no-video.osz",
+    "banner": "maps/2367508-twc-sound-team-strike-back-squad-buzz-cutz-no-video-banner.jpg",
+    "difficulties": [
+      {
+        "name": "Inspire",
+        "keyCount": 7,
+        "stars": 1.35
+      },
+      {
+        "name": "Imagine",
+        "keyCount": 7,
+        "stars": 2.33
+      },
+      {
+        "name": "Visualize",
+        "keyCount": 7,
+        "stars": 3.47
+      },
+      {
+        "name": "Compose",
+        "keyCount": 7,
+        "stars": 4.78
+      },
+      {
+        "name": "Enhance",
+        "keyCount": 7,
+        "stars": 6.69
+      },
+      {
+        "name": "Master",
+        "keyCount": 7,
+        "stars": 8.52
+      },
+      {
+        "name": "Duo Concerto",
+        "keyCount": 7,
+        "stars": 10.55
+      },
+      {
+        "name": "Magnum Opus",
+        "keyCount": 7,
+        "stars": 11.75
+      }
+    ]
+  },
+  {
+    "id": "400078-kurokotei-galaxy-collapse",
+    "title": "Galaxy Collapse",
+    "artist": "Kurokotei",
+    "creator": "Mat",
+    "osz": "maps/400078-kurokotei-galaxy-collapse.osz",
+    "banner": "maps/400078-kurokotei-galaxy-collapse-banner.jpg",
+    "difficulties": [
+      {
+        "name": "Cataclysmic Hypernova",
+        "keyCount": 4,
+        "stars": 6.55
+      }
+    ]
+  },
+  {
+    "id": "1887426-aoi-king-atlantis",
+    "title": "King Atlantis",
+    "artist": "Aoi",
+    "creator": "_Kobii",
+    "osz": "maps/1887426-aoi-king-atlantis.osz",
+    "banner": "maps/1887426-aoi-king-atlantis-banner.jpg",
+    "difficulties": [
+      {
+        "name": "Abyssal Overlord",
+        "keyCount": 7,
+        "stars": 10.74
+      }
+    ]
+  },
+  {
+    "id": "2046363-ludicin-onus-regulus",
+    "title": "Onus Regulus",
+    "artist": "Ludicin",
+    "creator": "uL-",
+    "osz": "maps/2046363-ludicin-onus-regulus.osz",
+    "banner": "maps/2046363-ludicin-onus-regulus-banner.jpg",
+    "difficulties": [
+      {
+        "name": "Judgmental Obliteration | 4K Extra",
+        "keyCount": 4,
+        "stars": 5.83
+      },
+      {
+        "name": "Conqueror Of The Universe | 4K Extreme",
+        "keyCount": 4,
+        "stars": 6.76
+      },
+      {
+        "name": "Unyielding Courage | Blocko's 7K Ultra",
+        "keyCount": 7,
+        "stars": 9.04
+      },
+      {
+        "name": "Fated Battle | Blocko's 7K Ultimate",
+        "keyCount": 7,
+        "stars": 10.27
+      }
+    ]
+  },
+  {
+    "id": "2373117-remo-prototype-cv-hanamori-yumiri-sendan-life-katagiri-bootleg",
+    "title": "Sendan Life (katagiri Bootleg)",
+    "artist": "Remo Prototype (CV: Hanamori Yumiri)",
+    "creator": "tyrcs",
+    "osz": "maps/2373117-remo-prototype-cv-hanamori-yumiri-sendan-life-katagiri-bootleg.osz",
+    "banner": "maps/2373117-remo-prototype-cv-hanamori-yumiri-sendan-life-katagiri-bootleg-banner.jpg",
+    "difficulties": [
+      {
+        "name": "Another",
+        "keyCount": 7,
+        "stars": 5.49
+      },
+      {
+        "name": "Extra",
+        "keyCount": 7,
+        "stars": 6.37
+      },
+      {
+        "name": "Extreme",
+        "keyCount": 7,
+        "stars": 7.32
+      },
+      {
+        "name": "Ultra",
+        "keyCount": 7,
+        "stars": 8.28
+      },
+      {
+        "name": "Ruin",
+        "keyCount": 7,
+        "stars": 10.35
+      }
+    ]
+  },
+  {
+    "id": "2513401-laur-sev-26",
+    "title": "SEV-26",
+    "artist": "Laur",
+    "creator": "Yutori Natsu",
+    "osz": "maps/2513401-laur-sev-26.osz",
+    "banner": "maps/2513401-laur-sev-26-banner.png",
+    "difficulties": [
+      {
+        "name": "Deranged Desire // feat. Auros",
+        "keyCount": 4,
+        "stars": 8.84
+      }
+    ]
+  }
+]

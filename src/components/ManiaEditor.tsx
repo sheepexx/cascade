@@ -54,7 +54,7 @@ const RECEPTOR_HIT_WINDOW = 90;
 const BACKGROUND_MAX_ALPHA = 0.12;
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
-// osu!lazer font stack for canvas text — mirrors --font-osu / tailwind `sans`.
+// osu!lazer font stack for canvas text - mirrors --font-osu / tailwind `sans`.
 const CANVAS_FONT_STACK =
   '"Torus", "Torus-Alternate", "Inter", ui-sans-serif, system-ui, sans-serif';
 
@@ -219,8 +219,8 @@ type ColumnRender = {
 export function ManiaEditor(props: Props) {
   const [shiftActive, setShiftActive] = useState(false);
   // Receptors (the osu!mania "keys" at the judgement line). Toggled with R.
-  const [receptorsOn, setReceptorsOn] = useState(false);
-  const receptorsOnRef = useRef(false);
+  const [receptorsOn, setReceptorsOn] = useState(true);
+  const receptorsOnRef = useRef(true);
   receptorsOnRef.current = receptorsOn;
   // Hitsound mode: shows the hitsound toolbar + per-note letters and enables
   // the W/F/C editing keys. Toggled with H. Playback is unaffected by it.
@@ -630,7 +630,7 @@ export function ManiaEditor(props: Props) {
 
     // Sync the backing store here (inside the rAF draw) instead of from the
     // ResizeObserver. Resizing a canvas clears it, and the observer fires after
-    // this draw but before paint — doing it there would blank the playfield for
+    // this draw but before paint - doing it there would blank the playfield for
     // the whole duration of a layout transition (e.g. toggling zen mode). Here
     // the resize and redraw happen together, so paint always shows a fresh frame.
     const bw = Math.floor(width * dpr);
@@ -888,7 +888,7 @@ export function ManiaEditor(props: Props) {
       }
       const x = originX + note.column * laneWidth;
       const cr = skinCols[note.column];
-      // Default look only: notes inside a kiai section turn blue — based on the
+      // Default look only: notes inside a kiai section turn blue - based on the
       // note's own time, so falling notes are already blue before the playhead
       // reaches the section. Skinned notes keep their own colour.
       const skinColour = skinCols[note.column]?.colour ?? null;
@@ -937,7 +937,7 @@ export function ManiaEditor(props: Props) {
         // (round) head sprite covers the join instead of the body's corners
         // poking out beneath it. A skin's body sprite already bakes the far-end
         // cap into the top of its image (the rounded edge), so when one exists
-        // we let its own top form the LN's end — drawing a separate tail sprite
+        // we let its own top form the LN's end - drawing a separate tail sprite
         // on top would only bury that finished end. Without a skin body we fall
         // back to the default fill plus an explicit tail cap.
         const top = Math.min(yEnd, headY);
@@ -1077,7 +1077,7 @@ export function ManiaEditor(props: Props) {
     }
 
     // ---- Playhead (judgement line) ----
-    ctx.strokeStyle = "#ff5db1";
+    ctx.strokeStyle = "#e86868";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(originX, phY);
@@ -1092,7 +1092,7 @@ export function ManiaEditor(props: Props) {
       const x = originX + playfieldWidth + 10;
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = "#ff5db1";
+      ctx.fillStyle = "#e86868";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       // Star scales up slightly with the beat for a little sparkle.
@@ -1589,7 +1589,7 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {/* Hitsound toolbar — W whistle · F finish · C clap, plus sample set. */}
+      {/* Hitsound toolbar - W whistle · F finish · C clap, plus sample set. */}
       {hitsoundMode && !props.zenMode && (
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/90 px-2.5 py-1.5 text-xs text-slate-200 shadow-xl backdrop-blur">
           <span className="font-medium text-slate-300">Hitsound</span>
@@ -1712,7 +1712,7 @@ function ClipPreview({
               width={cellW - 1}
               height={Math.max(2, bottom - top)}
               rx={1}
-              fill="#ff5db1"
+              fill="#e86868"
               opacity={0.85}
             />
           );
@@ -1822,7 +1822,7 @@ function drawSprite(
 /**
  * Lowest non-transparent row (in image pixels) of a sprite, cached per image so
  * the pixel scan runs only once. Used to ignore transparent padding below a
- * receptor's artwork so its visible bottom — not the image's bottom — can be
+ * receptor's artwork so its visible bottom - not the image's bottom - can be
  * placed on the judgement line. Returns img.height if the bounds can't be read
  * (e.g. a tainted canvas).
  */
@@ -1863,8 +1863,8 @@ function opaqueBottom(img: HTMLImageElement): number {
 /**
  * Draw a receptor (the osu!mania "key") for one column. The sprite's visible
  * bottom edge (ignoring transparent padding) rests on the judgement line, scaled
- * to lane width with aspect preserved, so a falling note — also bottom-anchored
- * on the line — lands directly on the receptor.
+ * to lane width with aspect preserved, so a falling note - also bottom-anchored
+ * on the line - lands directly on the receptor.
  */
 function drawReceptor(
   ctx: CanvasRenderingContext2D,
@@ -1875,7 +1875,7 @@ function drawReceptor(
 ) {
   if (img.width <= 0 || img.height <= 0) return;
   const s = laneWidth / img.width;
-  // Offset upward so the artwork's opaque bottom — not the padded image bottom —
+  // Offset upward so the artwork's opaque bottom - not the padded image bottom -
   // lands exactly on the line.
   const dy = lineY - opaqueBottom(img) * s;
   ctx.drawImage(img, x, dy, laneWidth, img.height * s);

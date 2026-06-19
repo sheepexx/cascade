@@ -79,7 +79,7 @@ export function buildOsuFile({
   // Red points carry beatLength = 60000/bpm and uninherited = 1; green points
   // carry the inherited (negative) beatLength = -100/sv and uninherited = 0.
   // Scroll speed / SV here is the *map* SV (green points), which is real
-  // gameplay data — the editor-only preview scroll speed is never written.
+  // gameplay data - the editor-only preview scroll speed is never written.
   const timingLines = points.map((p) => {
     const beatLengthMs = p.uninherited
       ? 60000 / p.bpm

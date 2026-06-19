@@ -12,6 +12,11 @@ import { TimingModal } from "./components/menus/TimingModal";
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
 import { ToolsModal } from "./components/menus/ToolsModal";
 import { ExportValidationModal } from "./components/menus/ExportValidationModal";
+import {
+  WelcomeModal,
+  SampleMapsModal,
+  type SampleMap,
+} from "./components/menus/StartModal";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { Modal } from "./components/ui/Modal";
@@ -58,6 +63,8 @@ import {
 } from "./types";
 
 type ModalId =
+  | "welcome"
+  | "sampleMaps"
   | "mapSettings"
   | "settings"
   | "skin"
@@ -322,6 +329,26 @@ export default function App() {
       }
     },
     [hasProject, importMapFile],
+  );
+
+  // ---- Bundled "try these maps" -------------------------------------------
+  const loadSampleMap = useCallback(
+    async (map: SampleMap) => {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}${map.osz}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const name = map.osz.split("/").pop() ?? `${map.id}.osz`;
+        const file = new File([blob], name, { type: "application/octet-stream" });
+        setModal(null);
+        await importMapFile(file);
+      } catch (err) {
+        setImportError(
+          err instanceof Error ? err.message : "Failed to load the map.",
+        );
+      }
+    },
+    [importMapFile],
   );
 
   // ---- Difficulty management ----------------------------------------------
@@ -627,7 +654,7 @@ export default function App() {
           };
         }
       } else if (saved.background) {
-        // Legacy save: single background — assign it to all difficulties that
+        // Legacy save: single background - assign it to all difficulties that
         // don't already have a per-diff background set.
         const bg = saved.background;
         restoredBgFiles[bg.name] = {
@@ -680,7 +707,7 @@ export default function App() {
     };
   }, []);
 
-  // Save whenever the skin changes — but not before the initial load resolves,
+  // Save whenever the skin changes - but not before the initial load resolves,
   // so the freshly-loaded skin isn't clobbered by an empty save on mount.
   useEffect(() => {
     if (!skinLoadedRef.current) return;
@@ -942,7 +969,7 @@ export default function App() {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
       return {};
     });
-    // Skin and general settings are site-level prefs — they persist across a
+    // Skin and general settings are site-level prefs - they persist across a
     // new map rather than being reset here.
 
     const fresh = makeDifficulty("Normal", 4);
@@ -1039,9 +1066,11 @@ export default function App() {
       >
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-accent font-bold text-white shadow-[0_0_18px_-4px] shadow-accent">
-              M
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="o!m editor"
+              className="h-8 w-8 rounded-lg object-cover"
+            />
             <h1 className="text-sm font-semibold text-slate-100">
               mania editor
             </h1>
@@ -1142,6 +1171,7 @@ export default function App() {
               onAdd={addDifficulty}
               onDuplicate={duplicateDifficulty}
               onDelete={deleteDifficulty}
+              onRename={(id, name) => patchDifficulty(id, { name })}
             />
           </div>
         </div>
@@ -1193,7 +1223,7 @@ export default function App() {
                 onCurrentSampleSet={setCurrentSampleSet}
               />
             ) : (
-              <EmptyState onOpenSettings={() => setModal("mapSettings")} />
+              <EmptyState onEnter={() => setModal("welcome")} />
             )}
             {audioFile && !zenMode && (
               <PPCounter
@@ -1241,6 +1271,18 @@ export default function App() {
       </div>
 
       {/* ---- Modals ---- */}
+      <WelcomeModal
+        open={modal === "welcome"}
+        onClose={close}
+        onNewMap={close}
+        onTryMaps={() => setModal("sampleMaps")}
+      />
+      <SampleMapsModal
+        open={modal === "sampleMaps"}
+        onClose={close}
+        onBack={() => setModal("welcome")}
+        onSelect={loadSampleMap}
+      />
       <SettingsModal
         open={modal === "mapSettings"}
         onClose={close}
@@ -1582,13 +1624,15 @@ function InfoRow({ keys, text }: { keys: string; text: string }) {
   );
 }
 
-function EmptyState({ onOpenSettings }: { onOpenSettings: () => void }) {
+function EmptyState({ onEnter }: { onEnter: () => void }) {
   return (
     <div className="grid h-full place-items-center text-center">
       <div className="max-w-sm">
-        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-ink-700 text-2xl">
-          🎵
-        </div>
+        <img
+          src={`${import.meta.env.BASE_URL}logo.png`}
+          alt="o!m editor"
+          className="mx-auto mb-4 h-24 w-24 rounded-2xl object-cover"
+        />
         <h2 className="mb-1 text-lg font-semibold text-slate-200">
           Drop audio anywhere to start mapping
         </h2>
@@ -1603,8 +1647,8 @@ function EmptyState({ onOpenSettings }: { onOpenSettings: () => void }) {
           </kbd>{" "}
           to play / pause.
         </p>
-        <Button variant="accent" onClick={onOpenSettings}>
-          Open Map Settings
+        <Button variant="accent" onClick={onEnter}>
+          Enter
         </Button>
       </div>
     </div>

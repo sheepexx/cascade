@@ -20,8 +20,8 @@ function sampleUrl(setPrefix: string, sound: string): string {
  *
  * For every note crossing the judgement line (note heads and long-note tails),
  * it resolves the effective sample set, additions, and volume from the note's
- * own hit-sample data falling back to the active timing point — exactly like
- * osu!mania — and plays the matching bundled samples (normal/soft/drum ×
+ * own hit-sample data falling back to the active timing point - exactly like
+ * osu!mania - and plays the matching bundled samples (normal/soft/drum ×
  * normal/whistle/finish/clap).
  *
  * Detection runs in song-time, so it stays accurate at reduced playback speeds.
@@ -101,7 +101,7 @@ export function useHitsounds(
           .then((buf) => ctx.decodeAudioData(buf))
           .then((decoded) => buffersRef.current.set(key, decoded))
           .catch(() => {
-            /* missing / unsupported — that sample stays silent */
+            /* missing / unsupported - that sample stays silent */
           })
           .finally(() => loadingRef.current.delete(key));
       }

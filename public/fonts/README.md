@@ -1,4 +1,4 @@
-# Fonts — osu!lazer typeface (Torus)
+# Fonts - osu!lazer typeface (Torus)
 
 The editor's UI font is **Torus** (with **Torus-Alternate**), the typeface used by
 osu!lazer. Torus is a **proprietary font** and is *not* bundled with this project,
@@ -27,4 +27,4 @@ public/fonts/
 (`.woff2` is recommended; convert from `.otf`/`.ttf` if needed and update the
 `format()` hints in `src/index.css` accordingly.)
 
-Without these files everything works fine — you just see Inter instead of Torus.
+Without these files everything works fine - you just see Inter instead of Torus.

@@ -45,7 +45,7 @@ export function totalHitObjects(notes: ManiaNote[]): number {
 }
 
 /**
- * Maximum pp the map awards — a perfect (SS), no-mod play.
+ * Maximum pp the map awards - a perfect (SS), no-mod play.
  * Mirrors lazer with accuracy fixed at 1.0.
  */
 export function maniaMaxPP(starRating: number, notes: ManiaNote[]): number {

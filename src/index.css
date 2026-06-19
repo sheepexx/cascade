@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 /*
- * osu!lazer typeface — Torus / Torus-Alternate.
+ * osu!lazer typeface - Torus / Torus-Alternate.
  *
  * These are proprietary and not redistributed with the project. Each face is
  * resolved first from a locally installed copy, then from /fonts (drop the
- * licensed .woff2 files there — see public/fonts/README.md). When neither is
+ * licensed .woff2 files there - see public/fonts/README.md). When neither is
  * present the stack falls through to Inter, which lazer also ships and which
  * is loaded from Google Fonts in index.html.
  */
@@ -90,3 +90,64 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: #44444f;
 }
+
+/* ---- Modal enter/exit animations ---------------------------------------- */
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes modal-panel-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+.modal-backdrop-in {
+  animation: modal-backdrop-in 180ms ease-out;
+}
+.modal-backdrop-out {
+  animation: modal-backdrop-out 150ms ease-in forwards;
+}
+.modal-panel-in {
+  animation: modal-panel-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-panel-out {
+  animation: modal-panel-out 150ms ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop-in,
+  .modal-backdrop-out,
+  .modal-panel-in,
+  .modal-panel-out {
+    animation-duration: 1ms;
+  }
+}
+

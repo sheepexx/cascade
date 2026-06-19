@@ -16,8 +16,8 @@ type Props = {
  * Live performance-points readout for the active difficulty, paired with the
  * playback-speed selector.
  *
- * The pp pill shows the maximum pp the map awards — i.e. a perfect (SS),
- * no-mod play — recomputed from the current notes. The speed selector slows
+ * The pp pill shows the maximum pp the map awards - i.e. a perfect (SS),
+ * no-mod play - recomputed from the current notes. The speed selector slows
  * (or restores) the song playback rate. Floats in the bottom-right corner of
  * the editor, just above the song timeline. See {@link maniaMaxPP}.
  */

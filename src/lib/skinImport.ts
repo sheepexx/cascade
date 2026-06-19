@@ -19,7 +19,7 @@ import {
  * root, resolved here to `.png` (or `@2x.png`) entries.
  *
  * When a column omits an image, osu! falls back to the default-named element
- * (`mania-note{1|2|S}{suffix}`) rather than rendering nothing — many real skins
+ * (`mania-note{1|2|S}{suffix}`) rather than rendering nothing - many real skins
  * only list the hold images and rely on this for the tap note. We mirror that
  * fallback so those skins don't render as blank/coloured bars.
  *
@@ -81,7 +81,7 @@ export async function importOsk(
   /**
    * Resolve a hold-body ref. Tall "capped" bodies (a rounded end baked into the
    * top of an otherwise uniform, often 40000px-tall strip) can't be loaded or
-   * drawn as-is — the size blows past the browser's max image/texture dimension,
+   * drawn as-is - the size blows past the browser's max image/texture dimension,
    * and stretching the whole thing into a note squashes the cap away. So those
    * are normalised down to a small sprite (trimmed to the cap plus a sliver of
    * fill) and reported with the cap's pixel height. Ordinary bodies pass through.
@@ -108,7 +108,7 @@ export async function importOsk(
         objectUrls.push(result.url!);
       }
     } catch {
-      // Decode/canvas unsupported or failed — fall back to the raw sprite.
+      // Decode/canvas unsupported or failed - fall back to the raw sprite.
       result = { url: URL.createObjectURL(blob), capPx: null };
       objectUrls.push(result.url!);
     }
@@ -166,7 +166,7 @@ async function pngSize(blob: Blob): Promise<[number, number] | null> {
 }
 
 /**
- * Detect a tall "capped" hold body — a sprite far taller than it is wide, with
+ * Detect a tall "capped" hold body - a sprite far taller than it is wide, with
  * a rounded end at the top and a uniform fill below (osu skins use ~40000px-tall
  * strips so the body never visibly tiles). Returns a normalised sprite trimmed
  * to the cap plus a sliver of fill (small enough to load and draw safely) plus

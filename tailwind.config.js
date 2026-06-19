@@ -13,9 +13,9 @@ export default {
           500: "#33333f",
         },
         accent: {
-          DEFAULT: "#ff5db1",
-          soft: "#ff8fcf",
-          deep: "#c8307f",
+          DEFAULT: "#e86868",
+          soft: "#f48a8a",
+          deep: "#c14d4d",
         },
         lane: {
           white: "#e9e9f0",

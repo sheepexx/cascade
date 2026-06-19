@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import type { Difficulty } from "../types";
 import { computeStarRating, starColor, starTier } from "../lib/starRating";
 
@@ -9,6 +9,7 @@ type Props = {
   onAdd: () => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, name: string) => void;
 };
 
 export function DifficultySidebar({
@@ -18,6 +19,7 @@ export function DifficultySidebar({
   onAdd,
   onDuplicate,
   onDelete,
+  onRename,
 }: Props) {
   // Compute star ratings once and sort easiest → hardest.
   const sorted = useMemo(
@@ -59,6 +61,7 @@ export function DifficultySidebar({
               onSelect={() => onSelect(d.id)}
               onDuplicate={() => onDuplicate(d.id)}
               onDelete={() => onDelete(d.id)}
+              onRename={(name) => onRename(d.id, name)}
             />
           ))}
         </div>
@@ -75,6 +78,7 @@ function DiffRow({
   onSelect,
   onDuplicate,
   onDelete,
+  onRename,
 }: {
   difficulty: Difficulty;
   star: number;
@@ -83,8 +87,36 @@ function DiffRow({
   onSelect: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onRename: (name: string) => void;
 }) {
   const color = starColor(star);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(difficulty.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus + select the text when entering edit mode (Windows Explorer style).
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  const startEditing = () => {
+    setDraft(difficulty.name);
+    setEditing(true);
+  };
+
+  const commit = () => {
+    const name = draft.trim();
+    if (name && name !== difficulty.name) onRename(name);
+    setEditing(false);
+  };
+
+  const cancel = () => {
+    setDraft(difficulty.name);
+    setEditing(false);
+  };
 
   return (
     <div
@@ -101,9 +133,34 @@ function DiffRow({
           className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/30"
           style={{ backgroundColor: color }}
         />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100">
-          {difficulty.name || "Unnamed"}
-        </span>
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") commit();
+              else if (e.key === "Escape") cancel();
+            }}
+            className="min-w-0 flex-1 rounded border border-accent/70 bg-ink-800 px-1 py-0.5 text-sm font-medium text-slate-100 outline-none"
+          />
+        ) : (
+          <span
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              startEditing();
+            }}
+            title="Double-click to rename"
+            className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100"
+          >
+            {difficulty.name || "Unnamed"}
+          </span>
+        )}
         <span className="text-[10px] text-slate-500">{difficulty.keyCount}K</span>
       </div>
 

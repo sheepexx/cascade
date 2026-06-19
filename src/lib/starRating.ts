@@ -16,17 +16,17 @@ import type { ManiaNote } from "../types";
  * amount. Verified against a real ranked map to within a plausible margin.
  *
  * Sources (current master):
- *   ManiaDifficultyCalculator.cs   — StarRating = Strain.DifficultyValue() * 0.018
+ *   ManiaDifficultyCalculator.cs   - StarRating = Strain.DifficultyValue() * 0.018
  *   Difficulty/Skills/Strain.cs
- *   Difficulty/Evaluators/IndividualStrainEvaluator.cs  — 2.0 * holdFactor
- *   Difficulty/Evaluators/OverallStrainEvaluator.cs     — (1 + holdAddition) * holdFactor
- *   Difficulty/Preprocessing/ManiaDifficultyHitObject.cs — ColumnStrainTime
+ *   Difficulty/Evaluators/IndividualStrainEvaluator.cs  - 2.0 * holdFactor
+ *   Difficulty/Evaluators/OverallStrainEvaluator.cs     - (1 + holdAddition) * holdFactor
+ *   Difficulty/Preprocessing/ManiaDifficultyHitObject.cs - ColumnStrainTime
  */
 
 const SECTION_MS = 400;
 const INDIVIDUAL_DECAY_BASE = 0.125;
 const OVERALL_DECAY_BASE = 0.3;
-const RELEASE_THRESHOLD = 30; // ms — OverallStrainEvaluator
+const RELEASE_THRESHOLD = 30; // ms - OverallStrainEvaluator
 const LOGISTIC_MULTIPLIER = 0.27; // OverallStrainEvaluator hold-addition curve
 const DECAY_WEIGHT = 0.9;
 const DIFFICULTY_MULTIPLIER = 0.018;

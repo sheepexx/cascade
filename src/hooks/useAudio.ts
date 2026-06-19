@@ -15,7 +15,7 @@ export function useAudio(src: string | null) {
   const [duration, setDuration] = useState(0); // ms
   // `volume` is the *perceived* slider position (0–1). Actual audio.volume is
   // derived via a square law so the slider feels linear to the ear.
-  const [volume, setVolumeState] = useState(0.5);
+  const [volume, setVolumeState] = useState(0.2);
   // Playback speed (1 = full speed). Slowing it down also lowers the pitch, the
   // way the osu! editor's 25/50/75% playback does.
   const [playbackRate, setPlaybackRateState] = useState(1);

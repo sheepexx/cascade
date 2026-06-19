@@ -16,13 +16,14 @@ export function useMetronome(
   isPlaying: boolean,
   timingPoints: TimingPoint[],
   enabled: boolean,
+  onBeat?: (info: { beat: number; meter: number; accent: boolean }) => void,
 ) {
   const ctxRef = useRef<AudioContext | null>(null);
   const lastBeatRef = useRef<number | null>(null);
 
   // Keep the latest values on refs so the rAF loop reads fresh data.
-  const stateRef = useRef({ currentTime, isPlaying, timingPoints, enabled });
-  stateRef.current = { currentTime, isPlaying, timingPoints, enabled };
+  const stateRef = useRef({ currentTime, isPlaying, timingPoints, enabled, onBeat });
+  stateRef.current = { currentTime, isPlaying, timingPoints, enabled, onBeat };
 
   useEffect(() => {
     if (!enabled) {
@@ -75,6 +76,7 @@ export function useMetronome(
         const meter = Math.max(1, Math.round(tp.meter || 4));
         const accent = ((beat % meter) + meter) % meter === 0;
         click(accent);
+        s.onBeat?.({ beat, meter, accent });
       }
       lastBeatRef.current = beat;
     };

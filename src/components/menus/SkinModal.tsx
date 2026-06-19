@@ -93,7 +93,7 @@ export function SkinModal({
               <span className="flex min-w-0 items-center gap-2">
                 <span className="truncate">
                   Normal{" "}
-                  <span className="text-slate-500">— default look</span>
+                  <span className="text-slate-500">- default look</span>
                 </span>
                 <span
                   className="shrink-0 rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-medium text-sky-300"

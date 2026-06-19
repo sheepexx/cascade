@@ -2,7 +2,7 @@
 
 A browser-based **osu!mania** beatmap editor. Upload a song, set your timing,
 place notes on a vertical timeline, and export a ready-to-play `.osu` or `.osz`.
-Everything runs locally in the browser — there is no backend.
+Everything runs locally in the browser - there is no backend.
 
 Built with **React + TypeScript + Vite + TailwindCSS**, a **Canvas** editor, and
 **JSZip** for packaging.
@@ -33,7 +33,7 @@ npm run preview  # preview the production build
 2. **Fill in metadata** (title, artist, creator, difficulty name) and the
    **difficulty** values (key count `1K–18K`, HP drain, overall difficulty).
    Optionally upload a **background image**.
-3. **Set BPM and Offset** under *Timing* — this drives the snap grid.
+3. **Set BPM and Offset** under *Timing* - this drives the snap grid.
 4. **Map**:
    - **Left-click** a lane to place a note (snapped to the grid).
    - **Click + drag** vertically to create a **long note** (hold).
@@ -50,7 +50,7 @@ npm run preview  # preview the production build
 
 The *Scroll* slider only changes how fast notes move on screen while editing.
 osu!mania players choose their own scroll speed during play, so this value is
-**never written** to the exported file — by design.
+**never written** to the exported file - by design.
 
 ---
 

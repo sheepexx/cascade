@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type Props = {
   open: boolean;
@@ -10,6 +10,9 @@ type Props = {
   width?: string;
 };
 
+/** How long the exit animation runs; keep in sync with .modal-*-out in index.css. */
+const EXIT_MS = 150;
+
 /** Centered modal dialog with backdrop, Esc-to-close and a scrollable body. */
 export function Modal({
   open,
@@ -19,6 +22,25 @@ export function Modal({
   footer,
   width = "max-w-md",
 }: Props) {
+  // Keep the modal mounted while it animates out so the exit transition plays.
+  const [mounted, setMounted] = useState(open);
+  const [closing, setClosing] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      setClosing(false);
+      return;
+    }
+    if (!mounted) return;
+    setClosing(true);
+    const id = window.setTimeout(() => {
+      setMounted(false);
+      setClosing(false);
+    }, EXIT_MS);
+    return () => window.clearTimeout(id);
+  }, [open, mounted]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -31,17 +53,21 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm ${
+        closing ? "modal-backdrop-out" : "modal-backdrop-in"
+      }`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className={`flex max-h-[85vh] w-full ${width} flex-col overflow-hidden rounded-2xl border border-ink-500/60 bg-ink-800 shadow-2xl`}
+        className={`flex max-h-[85vh] w-full ${width} flex-col overflow-hidden rounded-2xl border border-ink-500/60 bg-ink-800 shadow-2xl ${
+          closing ? "modal-panel-out" : "modal-panel-in"
+        }`}
       >
         <header className="flex items-center justify-between border-b border-ink-600 px-5 py-3.5">
           <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
@@ -63,3 +89,4 @@ export function Modal({
     </div>
   );
 }
+

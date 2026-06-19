@@ -17,8 +17,8 @@ import type {
 /**
  * Local project persistence via IndexedDB.
  *
- * The whole working project — metadata, timing, every difficulty, the view
- * state, *and* the raw audio / background bytes — is stored as a single record.
+ * The whole working project - metadata, timing, every difficulty, the view
+ * state, *and* the raw audio / background bytes - is stored as a single record.
  * IndexedDB is used instead of localStorage because audio files are Blobs that
  * are both too large for localStorage's ~5 MB budget and not JSON-serializable.
  */
@@ -128,7 +128,7 @@ export function savePreferences(prefs: AppSettings): void {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
   } catch {
-    /* storage full / unavailable — settings just won't persist */
+    /* storage full / unavailable - settings just won't persist */
   }
 }
 

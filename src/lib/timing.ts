@@ -10,7 +10,7 @@ export function sortedPoints(points: TimingPoint[]): TimingPoint[] {
   return [...points].sort((a, b) => a.time - b.time);
 }
 
-/** Only the red (uninherited) points, sorted by time — these drive the grid. */
+/** Only the red (uninherited) points, sorted by time - these drive the grid. */
 export function redPoints(points: TimingPoint[]): TimingPoint[] {
   return sortedPoints(points.filter((p) => p.uninherited));
 }
@@ -46,7 +46,7 @@ export function bpmAt(time: number, points: TimingPoint[]): number {
 /**
  * Effective scroll velocity (SV) at a time. A green point sets SV until the next
  * point; a red point resets SV to 1.0 (osu! semantics). Returns the multiplier
- * from whichever point — red or green — most recently took effect.
+ * from whichever point - red or green - most recently took effect.
  */
 export function effectiveSvAt(time: number, points: TimingPoint[]): number {
   const sorted = sortedPoints(points);

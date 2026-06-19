@@ -180,7 +180,7 @@ export function BottomTimeline({
         const c = counts[i];
         if (c === 0) continue;
         const bucketTime = ((i + 0.5) / DENSITY_BUCKETS) * duration;
-        ctx.fillStyle = inKiai(bucketTime) ? "#ff5db1" : "#ffd23f";
+        ctx.fillStyle = inKiai(bucketTime) ? "#e86868" : "#ffd23f";
         const dots = Math.max(1, Math.round((c / peak) * MAX_DOTS));
         const cx = i * bw + bw / 2;
         for (let d = 0; d < dots; d++) {
@@ -232,7 +232,7 @@ export function BottomTimeline({
       ctx.fillRect(0, WAVE_TOP, px, WAVE_H);
 
       // Playhead
-      ctx.strokeStyle = "#ff5db1";
+      ctx.strokeStyle = "#e86868";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(px, 0);
@@ -337,7 +337,7 @@ export function BottomTimeline({
         className="block h-full w-full cursor-pointer"
         onMouseDown={onMouseDown}
       />
-      {/* Sensitivity hint — appears on hover */}
+      {/* Sensitivity hint - appears on hover */}
       <div className="pointer-events-none absolute right-2 top-1.5 select-none rounded bg-ink-900/70 px-2 py-0.5 text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
         waveform {sensitivity.toFixed(1)}× · scroll to adjust
       </div>

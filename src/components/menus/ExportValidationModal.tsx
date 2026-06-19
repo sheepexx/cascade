@@ -5,7 +5,7 @@ import { Button } from "../ui/Controls";
 type Props = {
   open: boolean;
   result: ValidationResult | null;
-  /** What the user was exporting, e.g. ".osz" — used in the footer label. */
+  /** What the user was exporting, e.g. ".osz" - used in the footer label. */
   target: string;
   onClose: () => void;
   /** Proceed with the export (only enabled when there are no errors). */
@@ -54,7 +54,7 @@ export function ExportValidationModal({
       <div className="flex flex-col gap-5">
         {errors.length === 0 && warnings.length === 0 && (
           <p className="text-sm text-emerald-300">
-            Everything looks good — ready to export.
+            Everything looks good - ready to export.
           </p>
         )}
 

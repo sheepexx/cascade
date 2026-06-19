@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from "react";
  * Each tap records a timestamp (in milliseconds) from the audio playback clock.
  * Rather than just averaging gaps, the taps are fit to a straight line
  * `t_i ≈ offset + i · interval` by least squares: the slope gives the BPM and
- * the intercept gives the **offset** — the time of the very first beat — even
+ * the intercept gives the **offset** - the time of the very first beat - even
  * when the user started tapping partway through the song. The more continuous
  * beats are clicked, the more the regression stabilises both values.
  */

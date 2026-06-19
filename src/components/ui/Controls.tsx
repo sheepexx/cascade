@@ -56,7 +56,7 @@ export function Button({
     ghost:
       "bg-transparent hover:bg-ink-600 text-slate-300 border border-transparent",
     accent:
-      "bg-accent hover:bg-accent-soft text-white border border-accent-deep/40 shadow-[0_0_20px_-6px] shadow-accent",
+      "bg-accent hover:bg-accent-soft text-white border border-accent-deep/40",
   };
   return (
     <button

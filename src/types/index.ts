@@ -56,8 +56,8 @@ export const SNAP_DIVISORS: SnapDivisor[] = [
  *   time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited,effects
  *
  * Two flavours share this shape:
- *  - **Red** (`uninherited: true`): defines BPM, meter, the beat grid and — for
- *    the first one — the map offset. `bpm` is authoritative; `sv` is ignored.
+ *  - **Red** (`uninherited: true`): defines BPM, meter, the beat grid and - for
+ *    the first one - the map offset. `bpm` is authoritative; `sv` is ignored.
  *  - **Green** (`uninherited: false`): an inherited point that defines scroll
  *    velocity (SV), volume, sample set and kiai from its time onward. `sv` is
  *    authoritative; `bpm`/`meter` are ignored (the active red point supplies the
@@ -287,7 +287,7 @@ export type BackgroundScope = "mapset" | "difficulty";
 /**
  * The original osu! hit-sample sets. Played during playback preview when a note
  * crosses the judgement line. "normal" is bright/clicky, "soft" is mellow and
- * "drum" is percussive — matching osu!'s `normal-`, `soft-` and `drum-` samples.
+ * "drum" is percussive - matching osu!'s `normal-`, `soft-` and `drum-` samples.
  */
 export type HitsoundSet = "normal" | "soft" | "drum";
 
@@ -324,7 +324,7 @@ export type ManiaColumnSkin = {
   holdBodyUrl: string | null;
   /**
    * For a "capped" body sprite (a very tall image with a rounded end baked into
-   * its top and a uniform fill below — e.g. osu's 40000px hold bodies), the
+   * its top and a uniform fill below - e.g. osu's 40000px hold bodies), the
    * height in `holdBodyUrl` pixels of that end cap. The renderer draws the cap
    * at native scale at the far end and stretches only the fill below it. Null
    * for ordinary bodies, which are stretched whole.
@@ -368,7 +368,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   longNoteBodyScale: 0.75,
   hitsoundsEnabled: true,
   hitsoundSet: "normal",
-  hitsoundVolume: 0.5,
+  hitsoundVolume: 0.18,
 };
 
 export const MIN_KEYS = 1;
