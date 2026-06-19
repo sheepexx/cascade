@@ -9,8 +9,19 @@ import { createClient } from "@supabase/supabase-js";
  * (RLS) and Realtime. When signed out the hook falls back to the anon key.
  */
 
-const URL = import.meta.env.VITE_SUPABASE_URL;
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Fall back to harmless placeholders if the env vars are missing (e.g. a build
+// made before they were configured). This keeps the editor from white-screening
+// on createClient(); account/cloud calls simply fail and are caught.
+const URL = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
+const ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY || "placeholder-anon-key";
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  console.warn(
+    "[supabase] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing at build " +
+      "time — account & cloud features are disabled. Set them in the Vercel " +
+      "project env and redeploy.",
+  );
+}
 
 let currentToken: string | null = null;
 
