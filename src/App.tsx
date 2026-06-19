@@ -17,9 +17,21 @@ import {
   SampleMapsModal,
   type SampleMap,
 } from "./components/menus/StartModal";
+import { MyMapsModal } from "./components/menus/MyMapsModal";
+import { PresetBrowserModal } from "./components/menus/PresetBrowserModal";
+import { PublishPresetModal } from "./components/menus/PublishPresetModal";
+import {
+  saveProjectCloud,
+  loadProjectCloud,
+} from "./lib/cloud";
+import { patternToNotes, type PatternNote } from "./lib/patterns";
+import { snapTime } from "./lib/timing";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { Modal } from "./components/ui/Modal";
+import { AccountControl } from "./components/auth/LoginButton";
+import { AdminPanel } from "./components/admin/AdminPanel";
+import { useAuth } from "./lib/auth";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
@@ -72,6 +84,10 @@ type ModalId =
   | "difficulty"
   | "tools"
   | "info"
+  | "myMaps"
+  | "presets"
+  | "publishPreset"
+  | "admin"
   | null;
 
 /** Snapshot of the undoable beatmap document. */
@@ -82,6 +98,7 @@ type DocSnapshot = {
 };
 
 export default function App() {
+  const { user: authUser } = useAuth();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
   const [timingPoints, setTimingPoints] = useState<TimingPoint[]>(
     defaultTimingPoints,
@@ -104,6 +121,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [modal, setModal] = useState<ModalId>(null);
+  const [projectStarted, setProjectStarted] = useState(false);
   // Zen mode (toggled with Tab): slide all chrome out and show only the
   // notefield.
   const [zenMode, setZenMode] = useState(false);
@@ -125,6 +143,18 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<
     null | "saving" | "saved" | "error"
   >(null);
+  // Cloud (account) project: the id of the row this session is bound to (null =
+  // not yet saved to the cloud), plus a separate save indicator and error.
+  const [cloudProjectId, setCloudProjectId] = useState<string | null>(null);
+  const [cloudSaveStatus, setCloudSaveStatus] = useState<
+    null | "saving" | "saved" | "error"
+  >(null);
+  const [cloudError, setCloudError] = useState<string | null>(null);
+  // Pattern pending publication as a preset (from the editor's clipboard panel).
+  const [publishPattern, setPublishPattern] = useState<PatternNote[] | null>(
+    null,
+  );
+  const [publishKeyCount, setPublishKeyCount] = useState(4);
   const importStartedRef = useRef(false);
 
   const active =
@@ -180,8 +210,35 @@ export default function App() {
   const activeTimingPoints =
     active.timingPoints?.length ? active.timingPoints : timingPoints;
   const activeSkin = skin?.keymodes[active.keyCount] ?? null;
-  const hasProject = Object.keys(audioFiles).length > 0;
-  // Surrounding chrome is shown only with a project loaded and outside zen mode.
+  const totalNotes = difficulties.reduce((s, d) => s + d.notes.length, 0);
+  const hasProject = projectStarted;
+  const firstDifficulty = difficulties[0];
+  const firstDifficultyTiming = firstDifficulty?.timingPoints[0];
+  const hasDefaultDifficulty =
+    difficulties.length === 1 &&
+    firstDifficulty?.name === "Normal" &&
+    firstDifficulty?.keyCount === 4 &&
+    firstDifficulty?.hpDrainRate === 7 &&
+    firstDifficulty?.overallDifficulty === 7 &&
+    firstDifficulty?.previewTime === -1 &&
+    firstDifficulty?.notes.length === 0 &&
+    !firstDifficulty?.audioFilename &&
+    !firstDifficulty?.backgroundFilename &&
+    firstDifficulty?.timingPoints.length === 1 &&
+    firstDifficultyTiming?.time === 0 &&
+    firstDifficultyTiming?.uninherited === true &&
+    firstDifficultyTiming?.bpm === 120;
+  const hasProjectContent =
+    Object.keys(audioFiles).length > 0 ||
+    Object.keys(bgFiles).length > 0 ||
+    totalNotes > 0 ||
+    meta.title !== DEFAULT_SONG_META.title ||
+    meta.artist !== DEFAULT_SONG_META.artist ||
+    meta.creator !== DEFAULT_SONG_META.creator ||
+    timingPoints.length !== 1 ||
+    timingPoints[0]?.bpm !== 120 ||
+    !hasDefaultDifficulty;
+  // Surrounding chrome is shown only with a project open and outside zen mode.
   const showChrome = hasProject && !zenMode;
 
   // ---- File handling -------------------------------------------------------
@@ -194,6 +251,7 @@ export default function App() {
   const onAudioFile = useCallback(
     (file: File) => {
       const loaded = loadFile(file);
+      setProjectStarted(true);
       setAudioFiles((prev) => {
         const existing = prev[loaded.name];
         if (existing) URL.revokeObjectURL(existing.url);
@@ -214,6 +272,7 @@ export default function App() {
 
   const onBackgroundFile = useCallback((file: File) => {
     const loaded = loadFile(file);
+    setProjectStarted(true);
     setBgFiles((prev) => {
       if (prev[loaded.name]) URL.revokeObjectURL(prev[loaded.name].url);
       return { ...prev, [loaded.name]: loaded };
@@ -298,6 +357,7 @@ export default function App() {
     setImportingMap(true);
     try {
       const map = await importOsz(file);
+      setProjectStarted(true);
       setAudioFiles((prev) => {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
         return map.audioFiles;
@@ -331,13 +391,13 @@ export default function App() {
 
   const requestImportMap = useCallback(
     (file: File) => {
-      if (hasProject) {
+      if (hasProjectContent) {
         setPendingImport(file);
       } else {
         void importMapFile(file);
       }
     },
-    [hasProject, importMapFile],
+    [hasProjectContent, importMapFile],
   );
 
   // ---- Bundled "try these maps" -------------------------------------------
@@ -593,6 +653,7 @@ export default function App() {
       if (cancelled || importStartedRef.current || !saved) return;
       // Don't record the restore as an undoable edit.
       applyingHistoryRef.current = true;
+      setProjectStarted(true);
       setMeta(saved.meta);
       setTimingPoints(normalizeTimingPoints(saved.timingPoints));
 
@@ -757,7 +818,7 @@ export default function App() {
         tag === "SELECT" ||
         t?.isContentEditable;
       if (typing) return;
-      if (!hasAudioRef.current) return;
+      if (!hasAudioRef.current && !isTab) return;
       e.preventDefault();
       if (isTab) setZenMode((z) => !z);
       else if (isSpace) audio.toggle();
@@ -809,7 +870,6 @@ export default function App() {
   );
 
   // ---- Export --------------------------------------------------------------
-  const totalNotes = difficulties.reduce((s, d) => s + d.notes.length, 0);
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
 
   // Pre-export validation. When there's anything worth flagging, the check
@@ -957,13 +1017,147 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [saveStatus]);
 
+  // ---- Save / load project to the user's account (cloud) ------------------
+  const handleCloudSave = useCallback(async () => {
+    if (!authUser) return;
+    setCloudSaveStatus("saving");
+    setCloudError(null);
+    try {
+      const id = await saveProjectCloud({
+        ownerId: authUser.id,
+        projectId: cloudProjectId,
+        data: { meta, timingPoints, difficulties, activeId, view, bgScope },
+        audioFiles: Object.values(audioFiles).map((f) => ({
+          name: f.name,
+          blob: f.blob,
+        })),
+        bgFiles: Object.values(bgFiles).map((f) => ({
+          name: f.name,
+          blob: f.blob,
+        })),
+      });
+      setCloudProjectId(id);
+      setCloudSaveStatus("saved");
+    } catch (err) {
+      setCloudError(
+        err instanceof Error ? err.message : "Couldn't save to your account.",
+      );
+      setCloudSaveStatus("error");
+    }
+  }, [
+    authUser,
+    cloudProjectId,
+    meta,
+    timingPoints,
+    difficulties,
+    activeId,
+    view,
+    bgScope,
+    audioFiles,
+    bgFiles,
+  ]);
+
+  useEffect(() => {
+    if (cloudSaveStatus !== "saved" && cloudSaveStatus !== "error") return;
+    const id = window.setTimeout(() => setCloudSaveStatus(null), 2000);
+    return () => window.clearTimeout(id);
+  }, [cloudSaveStatus]);
+
+  const loadCloudProject = useCallback(async (id: string) => {
+    setCloudError(null);
+    try {
+      const proj = await loadProjectCloud(id);
+      // Treat like a fresh import: don't record as undoable, drop old history.
+      importStartedRef.current = true;
+      applyingHistoryRef.current = true;
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+
+      const audioReg: Record<string, LoadedFile> = {};
+      for (const a of proj.audio) {
+        audioReg[a.name] = {
+          name: a.name,
+          url: URL.createObjectURL(a.blob),
+          blob: a.blob,
+        };
+      }
+      setAudioFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return audioReg;
+      });
+
+      const bgReg: Record<string, LoadedFile> = {};
+      for (const b of proj.bg) {
+        bgReg[b.name] = {
+          name: b.name,
+          url: URL.createObjectURL(b.blob),
+          blob: b.blob,
+        };
+      }
+      setBgFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return bgReg;
+      });
+
+      const d = proj.data;
+      setMeta(d.meta);
+      setTimingPoints(normalizeTimingPoints(d.timingPoints));
+      const diffs = (d.difficulties?.length
+        ? d.difficulties
+        : [makeDifficulty()]
+      ).map((x) => ({
+        ...x,
+        timingPoints: normalizeTimingPoints(x.timingPoints),
+      }));
+      setDifficulties(diffs);
+      setActiveId(
+        diffs.some((x) => x.id === d.activeId) ? d.activeId : diffs[0].id,
+      );
+      if (d.view) setView({ ...DEFAULT_VIEW, ...d.view });
+      setBgScope(d.bgScope ?? "mapset");
+      setProjectStarted(true);
+      setCloudProjectId(proj.id);
+      setModal(null);
+    } catch (err) {
+      setCloudError(
+        err instanceof Error ? err.message : "Couldn't load that map.",
+      );
+    }
+  }, []);
+
+  // ---- Pattern presets -----------------------------------------------------
+  const handlePublishPattern = useCallback(
+    (pattern: PatternNote[], keyCount: number) => {
+      setPublishPattern(pattern);
+      setPublishKeyCount(keyCount);
+      setModal("publishPreset");
+    },
+    [],
+  );
+
+  const insertPreset = useCallback(
+    (pattern: PatternNote[]) => {
+      const base = snapTime(
+        audio.currentTime,
+        activeTimingPoints,
+        view.snapDivisor,
+      );
+      const notes = patternToNotes(pattern, base, active.keyCount);
+      if (notes.length) addNotes(notes);
+      setModal(null);
+    },
+    [audio.currentTime, activeTimingPoints, view.snapDivisor, active.keyCount, addNotes],
+  );
+
   // ---- New project (reset everything) -------------------------------------
-  const handleNew = useCallback(() => {
-    const confirmed = window.confirm(
-      "Start a new map? This removes the current audio, background, notes and " +
-        "timing, and clears the locally saved project.",
-    );
-    if (!confirmed) return;
+  const handleNew = useCallback((confirm = true) => {
+    if (confirm) {
+      const confirmed = window.confirm(
+        "Start a new map? This removes the current audio, background, notes and " +
+          "timing, and clears the locally saved project.",
+      );
+      if (!confirmed) return;
+    }
 
     // Reset is not an undoable edit, and the old history must not survive it.
     applyingHistoryRef.current = true;
@@ -982,6 +1176,7 @@ export default function App() {
     // new map rather than being reset here.
 
     const fresh = makeDifficulty("Normal", 4);
+    setProjectStarted(true);
     setMeta(DEFAULT_SONG_META);
     setTimingPoints(defaultTimingPoints());
     setDifficulties([fresh]);
@@ -1102,6 +1297,9 @@ export default function App() {
                 Difficulty
               </MenuButton>
               <MenuButton onClick={() => setModal("tools")}>Tools</MenuButton>
+              <MenuButton onClick={() => setModal("presets")}>
+                Presets
+              </MenuButton>
               <MenuButton onClick={() => setModal("skin")}>Skin</MenuButton>
               <MenuButton onClick={() => setModal("settings")}>
                 Settings
@@ -1125,42 +1323,61 @@ export default function App() {
           </div>
         </div>
 
-        <div
-          className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
-            hasProject
-              ? "max-w-[36rem] translate-x-0 opacity-100"
-              : "pointer-events-none max-w-0 translate-x-3 opacity-0"
-          }`}
-          aria-hidden={!hasProject}
-        >
-          <div className="flex items-center gap-2 whitespace-nowrap">
-          <span className="mr-2 text-xs text-slate-500">
-            {active.keyCount}K · {active.notes.length} notes ({holds} holds)
-          </span>
-          <Button
-            onClick={handleNew}
-            title="New map (clears everything)"
+        <div className="flex items-center gap-3">
+          <div
+            className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
+              hasProject
+                ? "max-w-[44rem] translate-x-0 opacity-100"
+                : "pointer-events-none max-w-0 translate-x-3 opacity-0"
+            }`}
+            aria-hidden={!hasProject}
           >
-            New
-          </Button>
-          <Button
-            onClick={() => void handleSave()}
-            disabled={saveStatus === "saving"}
-            title="Save progress locally (Ctrl+S)"
-          >
-            {saveStatus === "saving" ? "Saving…" : "Save"}
-          </Button>
-          <Button onClick={handleExportOsu} disabled={!canExport}>
-            Export .osu
-          </Button>
-          <Button
-            variant="accent"
-            onClick={handleExportOsz}
-            disabled={!canExport || exporting}
-          >
-            {exporting ? "Packaging…" : "Export .osz"}
-          </Button>
+            <div className="flex items-center gap-2 whitespace-nowrap">
+            <span className="mr-2 text-xs text-slate-500">
+              {active.keyCount}K · {active.notes.length} notes ({holds} holds)
+            </span>
+            <Button
+              onClick={() => handleNew()}
+              title="New map (clears everything)"
+            >
+              New
+            </Button>
+            <Button
+              onClick={() => void handleSave()}
+              disabled={saveStatus === "saving"}
+              title="Save progress locally (Ctrl+S)"
+            >
+              {saveStatus === "saving" ? "Saving…" : "Save"}
+            </Button>
+            <Button
+              onClick={() => void handleCloudSave()}
+              disabled={!authUser || cloudSaveStatus === "saving"}
+              title={
+                authUser
+                  ? "Save this project to your account"
+                  : "Log in to save to your account"
+              }
+            >
+              {cloudSaveStatus === "saving" ? "Saving…" : "Save to cloud"}
+            </Button>
+            <Button onClick={handleExportOsu} disabled={!canExport}>
+              Export .osu
+            </Button>
+            <Button
+              variant="accent"
+              onClick={handleExportOsz}
+              disabled={!canExport || exporting}
+            >
+              {exporting ? "Packaging…" : "Export .osz"}
+            </Button>
+            </div>
           </div>
+          <AccountControl
+            compact
+            onOpenMyMaps={() => setModal("myMaps")}
+            onOpenPresets={() => setModal("presets")}
+            onOpenAdmin={() => setModal("admin")}
+          />
         </div>
       </header>
 
@@ -1205,7 +1422,7 @@ export default function App() {
             />
           </div>
           <div className="relative min-h-0 flex-1">
-            {audioFile ? (
+            {hasProject ? (
               <ManiaEditor
                 notes={active.notes}
                 keyCount={active.keyCount}
@@ -1230,6 +1447,7 @@ export default function App() {
                 currentSampleSet={currentSampleSet}
                 onCurrentHitSound={setCurrentHitSound}
                 onCurrentSampleSet={setCurrentSampleSet}
+                onPublishPattern={authUser ? handlePublishPattern : undefined}
               />
             ) : (
               <EmptyState onEnter={() => setModal("welcome")} />
@@ -1283,7 +1501,7 @@ export default function App() {
       <WelcomeModal
         open={modal === "welcome"}
         onClose={close}
-        onNewMap={close}
+        onNewMap={() => handleNew(false)}
         onTryMaps={() => setModal("sampleMaps")}
       />
       <SampleMapsModal
@@ -1291,6 +1509,23 @@ export default function App() {
         onClose={close}
         onBack={() => setModal("welcome")}
         onSelect={loadSampleMap}
+      />
+      <MyMapsModal
+        open={modal === "myMaps"}
+        onClose={close}
+        onSelect={(id) => void loadCloudProject(id)}
+      />
+      <PresetBrowserModal
+        open={modal === "presets"}
+        onClose={close}
+        activeKeyCount={active.keyCount}
+        onInsert={insertPreset}
+      />
+      <PublishPresetModal
+        open={modal === "publishPreset"}
+        onClose={close}
+        pattern={publishPattern}
+        keyCount={publishKeyCount}
       />
       <SettingsModal
         open={modal === "mapSettings"}
@@ -1403,7 +1638,7 @@ export default function App() {
             <Button
               variant="accent"
               onClick={() => void confirmExportAndImport()}
-              disabled={importingMap || exporting || !hasProject}
+              disabled={importingMap || exporting || !canExport}
             >
               Export current project and import new
             </Button>
@@ -1440,6 +1675,8 @@ export default function App() {
 
       <InfoModal open={modal === "info"} onClose={close} />
 
+      <AdminPanel open={modal === "admin"} onClose={close} />
+
       {/* Save status toast */}
       {(saveStatus === "saved" || saveStatus === "error") && (
         <div
@@ -1452,6 +1689,34 @@ export default function App() {
           {saveStatus === "saved"
             ? "Progress saved locally"
             : "Couldn't save progress"}
+        </div>
+      )}
+
+      {/* Cloud save toast */}
+      {(cloudSaveStatus === "saved" || cloudSaveStatus === "error") && (
+        <div
+          className={`fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg ${
+            cloudSaveStatus === "saved"
+              ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
+              : "border-red-500/40 bg-red-950/90 text-red-200"
+          }`}
+        >
+          {cloudSaveStatus === "saved"
+            ? "Saved to your account"
+            : cloudError ?? "Couldn't save to your account"}
+        </div>
+      )}
+
+      {/* Cloud error toast (load / delete failures) */}
+      {cloudError && cloudSaveStatus !== "error" && (
+        <div className="fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 text-sm text-red-200 shadow-lg">
+          {cloudError}
+          <button
+            onClick={() => setCloudError(null)}
+            className="ml-3 text-red-300 hover:text-white"
+          >
+            ✕
+          </button>
         </div>
       )}
 

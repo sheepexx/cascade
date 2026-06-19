@@ -1,0 +1,22 @@
+name = "mania-editor"
+main = "src/index.ts"
+compatibility_date = "2024-11-27"
+
+# ⚠️  Env management note:
+# CLIENT_ID, FRONTEND_URL, OSU_REDIRECT_URI, SUPABASE_URL are currently set as
+# *plaintext variables in the Cloudflare dashboard*. Running `wrangler deploy`
+# does NOT preserve dashboard plaintext vars unless they are also declared in a
+# [vars] block here — so it will wipe them. Before any future `wrangler deploy`,
+# either mirror those values into a [vars] block below, or re-add them in the
+# dashboard afterwards. Encrypted *secrets* (CLIENT_SECRET, the SUPABASE_* keys,
+# COOKIE_SECRET) survive deploys.
+
+# Runtime config (see the dashboard "Variables and secrets"):
+#   CLIENT_ID                  osu! OAuth client id
+#   CLIENT_SECRET              osu! OAuth client secret
+#   FRONTEND_URL               the Vercel app origin (redirect-back + CORS)
+#   OSU_REDIRECT_URI           https://mania-editor.noahcraft01.workers.dev/auth/osu/callback
+#   SUPABASE_URL               https://<project>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY  Supabase service-role key (server only)
+#   SUPABASE_JWT_SECRET        Supabase JWT secret (HS256) used to mint user tokens
+#   COOKIE_SECRET              random string, signs the session cookie

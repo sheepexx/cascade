@@ -22,6 +22,7 @@ import {
   snapTime,
   stepToSnap,
 } from "../lib/timing";
+import type { PatternNote } from "../lib/patterns";
 
 /**
  * Canvas-based vertical mania editor.
@@ -88,6 +89,8 @@ type Props = {
   currentSampleSet: number;
   onCurrentHitSound: (value: number) => void;
   onCurrentSampleSet: (value: number) => void;
+  /** Publish the given copied pattern as a shared preset (opens a dialog). */
+  onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
 };
 
 type DragState = {
@@ -1549,12 +1552,29 @@ export function ManiaEditor(props: Props) {
             <span className="text-[10px] text-slate-500">Ctrl+V</span>
           </div>
           {clipboard ? (
-            <div className="flex items-center gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5">
-              <ClipThumb clip={clipboard} keyCount={props.keyCount} />
-              <span className="text-[10px] text-slate-400">
-                {clipboard.notes.length} note
-                {clipboard.notes.length === 1 ? "" : "s"}
-              </span>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5">
+                <ClipThumb clip={clipboard} keyCount={props.keyCount} />
+                <span className="text-[10px] text-slate-400">
+                  {clipboard.notes.length} note
+                  {clipboard.notes.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              {props.onPublishPattern && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    props.onPublishPattern?.(
+                      clipboard.notes,
+                      props.keyCount,
+                    )
+                  }
+                  className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:border-accent/60 hover:bg-ink-600"
+                  title="Publish this copied pattern as a shared preset"
+                >
+                  Save as preset…
+                </button>
+              )}
             </div>
           ) : (
             <p className="text-[11px] text-slate-500">Nothing copied yet</p>
