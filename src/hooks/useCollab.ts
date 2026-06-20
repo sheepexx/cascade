@@ -52,6 +52,10 @@ export function useCollab(opts: {
   onRemoteOp: (op: NoteOp) => void;
   onRemoteDoc: (doc: DocState) => void;
   getDoc: () => DocState;
+  /** A collaborator appeared (after we joined) — for join notifications. */
+  onPeerJoin?: (peer: Peer) => void;
+  /** A collaborator left. */
+  onPeerLeave?: (peer: Peer) => void;
 }) {
   const { projectId, enabled, me } = opts;
   const [status, setStatus] = useState<CollabStatus>("idle");
@@ -64,11 +68,20 @@ export function useCollab(opts: {
   onRemoteDocRef.current = opts.onRemoteDoc;
   const getDocRef = useRef(opts.getDoc);
   getDocRef.current = opts.getDoc;
+  const onPeerJoinRef = useRef(opts.onPeerJoin);
+  onPeerJoinRef.current = opts.onPeerJoin;
+  const onPeerLeaveRef = useRef(opts.onPeerLeave);
+  onPeerLeaveRef.current = opts.onPeerLeave;
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const presenceRef = useRef<PresenceFields>({});
   const meRef = useRef<Me | null>(me);
   meRef.current = me;
+  // After we subscribe, the first presence batch announces everyone already in
+  // the room — suppress join toasts until this passes so we don't spam them.
+  const readyAtRef = useRef(0);
+  // Per-peer debounce so a single join/leave can't fire several toasts.
+  const announcedRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (!enabled || !projectId || !me) {
@@ -113,10 +126,31 @@ export function useCollab(opts: {
       }
       setPeers(list);
     });
+    // Announce genuine joins/leaves (not the initial roster) as notifications.
+    const announce = (kind: "j" | "l", peer: Peer | undefined) => {
+      if (!peer || peer.id === meRef.current?.id) return;
+      const now = Date.now();
+      const key = `${kind}:${peer.id}`;
+      const last = announcedRef.current.get(key) ?? 0;
+      if (now - last < 2500) return;
+      announcedRef.current.set(key, now);
+      if (kind === "j") onPeerJoinRef.current?.(peer);
+      else onPeerLeaveRef.current?.(peer);
+    };
+    channel.on("presence", { event: "join" }, ({ key, newPresences }) => {
+      if (key === meRef.current?.id) return;
+      if (Date.now() < readyAtRef.current) return; // initial roster batch
+      announce("j", newPresences?.[0] as unknown as Peer | undefined);
+    });
+    channel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+      if (key === meRef.current?.id) return;
+      announce("l", leftPresences?.[0] as unknown as Peer | undefined);
+    });
 
     channel.subscribe((s) => {
       if (s === "SUBSCRIBED") {
         setStatus("connected");
+        readyAtRef.current = Date.now() + 1500;
         void channel.track({
           id: me.id,
           username: me.username,

@@ -181,10 +181,17 @@ export default function App() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   // Reference mode: id of a second difficulty shown side-by-side (read-only).
   const [referenceId, setReferenceId] = useState<string | null>(null);
-  // Top-level comments, for the bottom-timeline markers.
+  // Top-level comments, for the bottom-timeline markers (+ hover tooltips).
   const [commentMarkers, setCommentMarkers] = useState<
-    { time_ms: number; resolved: boolean }[]
+    { time_ms: number; resolved: boolean; body: string; author: string }[]
   >([]);
+  // Transient toast announcing a collaborator joining/leaving the session.
+  const [peerNotice, setPeerNotice] = useState<{
+    key: number;
+    text: string;
+    avatar: string | null;
+  } | null>(null);
+  const peerNoticeTimer = useRef<number | undefined>(undefined);
   const active =
     difficulties.find((d) => d.id === activeId) ?? difficulties[0];
 
@@ -263,6 +270,16 @@ export default function App() {
     setDifficulties(doc.difficulties);
   }, []);
 
+  // Show a transient toast when a collaborator joins/leaves.
+  const showPeerNotice = useCallback((text: string, avatar: string | null) => {
+    setPeerNotice({ key: Date.now(), text, avatar });
+    window.clearTimeout(peerNoticeTimer.current);
+    peerNoticeTimer.current = window.setTimeout(
+      () => setPeerNotice(null),
+      3500,
+    );
+  }, []);
+
   const collab = useCollab({
     projectId: cloudProjectId,
     enabled: liveEnabled,
@@ -271,6 +288,16 @@ export default function App() {
       : null,
     onRemoteOp: applyRemoteOp,
     onRemoteDoc: applyRemoteDoc,
+    onPeerJoin: useCallback(
+      (p: { username: string; avatar: string | null }) =>
+        showPeerNotice(`${p.username} joined the session`, p.avatar),
+      [showPeerNotice],
+    ),
+    onPeerLeave: useCallback(
+      (p: { username: string; avatar: string | null }) =>
+        showPeerNotice(`${p.username} left`, p.avatar),
+      [showPeerNotice],
+    ),
     getDoc: () => ({
       meta: metaRef.current,
       timingPoints: timingPointsRef.current,
@@ -1930,7 +1957,12 @@ export default function App() {
                   setCommentMarkers(
                     c
                       .filter((x) => !x.parent_id)
-                      .map((x) => ({ time_ms: x.time_ms, resolved: x.resolved })),
+                      .map((x) => ({
+                        time_ms: x.time_ms,
+                        resolved: x.resolved,
+                        body: x.body,
+                        author: x.author_username ?? "Mapper",
+                      })),
                   )
                 }
               />
@@ -2155,6 +2187,27 @@ export default function App() {
         onClose={close}
         projectId={cloudProjectId}
       />
+
+      {/* Collaborator join/leave toast */}
+      {peerNotice && (
+        <div
+          key={peerNotice.key}
+          className="fixed left-1/2 top-16 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-full border border-ink-500/60 bg-ink-800/95 py-1.5 pl-1.5 pr-4 text-sm text-slate-100 shadow-xl backdrop-blur"
+        >
+          <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-ink-700 text-[10px] font-semibold">
+            {peerNotice.avatar ? (
+              <img
+                src={peerNotice.avatar}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              "👤"
+            )}
+          </span>
+          {peerNotice.text}
+        </div>
+      )}
 
       {/* Save status toast */}
       {(saveStatus === "saved" || saveStatus === "error") && (
