@@ -2,6 +2,15 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import type { Difficulty } from "../types";
 import { computeStarRating, starColor, starTier } from "../lib/starRating";
 
+/** A collaborator's presence, enough to badge the difficulty they're editing. */
+type PeerLite = {
+  id: string;
+  username: string;
+  avatar: string | null;
+  color: string;
+  activeDiffId?: string;
+};
+
 type Props = {
   difficulties: Difficulty[];
   activeId: string;
@@ -10,6 +19,8 @@ type Props = {
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
+  /** Live collaborators; each is shown on the difficulty they're working on. */
+  peers?: PeerLite[];
 };
 
 export function DifficultySidebar({
@@ -20,6 +31,7 @@ export function DifficultySidebar({
   onDuplicate,
   onDelete,
   onRename,
+  peers,
 }: Props) {
   // Compute star ratings once and sort easiest → hardest.
   const sorted = useMemo(
@@ -58,6 +70,7 @@ export function DifficultySidebar({
               star={star}
               active={d.id === activeId}
               canDelete={difficulties.length > 1}
+              peersHere={peers?.filter((p) => p.activeDiffId === d.id) ?? []}
               onSelect={() => onSelect(d.id)}
               onDuplicate={() => onDuplicate(d.id)}
               onDelete={() => onDelete(d.id)}
@@ -75,6 +88,7 @@ function DiffRow({
   star,
   active,
   canDelete,
+  peersHere,
   onSelect,
   onDuplicate,
   onDelete,
@@ -84,6 +98,7 @@ function DiffRow({
   star: number;
   active: boolean;
   canDelete: boolean;
+  peersHere: PeerLite[];
   onSelect: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -159,6 +174,24 @@ function DiffRow({
             className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100"
           >
             {difficulty.name || "Unnamed"}
+          </span>
+        )}
+        {peersHere.length > 0 && (
+          <span className="flex items-center -space-x-1.5" title="Editing here">
+            {peersHere.slice(0, 4).map((p) => (
+              <span
+                key={p.id}
+                className="grid h-5 w-5 place-items-center overflow-hidden rounded-full border bg-ink-700 text-[8px] font-semibold text-slate-100"
+                style={{ borderColor: p.color }}
+                title={p.username}
+              >
+                {p.avatar ? (
+                  <img src={p.avatar} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  p.username.slice(0, 1).toUpperCase()
+                )}
+              </span>
+            ))}
           </span>
         )}
         <span className="text-[10px] text-slate-500">{difficulty.keyCount}K</span>

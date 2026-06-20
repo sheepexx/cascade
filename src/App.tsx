@@ -1888,6 +1888,7 @@ export default function App() {
               onDuplicate={duplicateDifficulty}
               onDelete={deleteDifficulty}
               onRename={(id, name) => patchDifficulty(id, { name })}
+              peers={liveEnabled ? collab.peers : undefined}
             />
           </div>
         </div>
