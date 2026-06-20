@@ -20,11 +20,18 @@ import {
 import { MyMapsModal } from "./components/menus/MyMapsModal";
 import { PresetBrowserModal } from "./components/menus/PresetBrowserModal";
 import { PublishPresetModal } from "./components/menus/PublishPresetModal";
+import { ShareModal } from "./components/menus/ShareModal";
+import { CommentsSidebar } from "./components/CommentsSidebar";
+import type { Comment } from "./lib/comments";
 import {
   saveProjectCloud,
   loadProjectCloud,
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
+import { supabase } from "./lib/supabase";
+import { useCollab } from "./hooks/useCollab";
+import { applyNoteOp, invertNoteOp, type NoteOp, type DocState } from "./lib/ops";
+import { myAccess, type AccessRole } from "./lib/collab";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { Modal } from "./components/ui/Modal";
@@ -87,6 +94,7 @@ type ModalId =
   | "presets"
   | "publishPreset"
   | "admin"
+  | "share"
   | null;
 
 /** Snapshot of the undoable beatmap document. */
@@ -145,6 +153,8 @@ export default function App() {
   // Cloud (account) project: the id of the row this session is bound to (null =
   // not yet saved to the cloud), plus a separate save indicator and error.
   const [cloudProjectId, setCloudProjectId] = useState<string | null>(null);
+  // Owner of the currently-bound cloud project (for the owner-only Share UI).
+  const [cloudOwnerId, setCloudOwnerId] = useState<string | null>(null);
   const [cloudSaveStatus, setCloudSaveStatus] = useState<
     null | "saving" | "saved" | "error"
   >(null);
@@ -162,8 +172,141 @@ export default function App() {
   } | null>(null);
   const importStartedRef = useRef(false);
 
+  // ---- Co-op (realtime) state --------------------------------------------
+  // The signed-in user's role on the open cloud project ('owner'|'editor'|
+  // 'viewer'|null). Drives edit permission while in a shared session.
+  const [myRole, setMyRole] = useState<AccessRole>(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  // Top-level comments, for the bottom-timeline markers.
+  const [commentMarkers, setCommentMarkers] = useState<
+    { time_ms: number; resolved: boolean }[]
+  >([]);
   const active =
     difficulties.find((d) => d.id === activeId) ?? difficulties[0];
+
+  // Latest-value refs so collab callbacks/getDoc read fresh state without
+  // re-subscribing the channel.
+  const difficultiesRef = useRef(difficulties);
+  difficultiesRef.current = difficulties;
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
+  const timingPointsRef = useRef(timingPoints);
+  timingPointsRef.current = timingPoints;
+  const authUserRef = useRef(authUser);
+  authUserRef.current = authUser;
+
+  // A live session is active whenever a cloud project is open and we're signed
+  // in (even solo — it enables the join handoff when someone arrives).
+  const liveEnabled = !!cloudProjectId && !!authUser;
+  // Whether the current user may edit (local maps + owner/editor; viewers not).
+  const canEdit = !cloudProjectId || myRole === "owner" || myRole === "editor";
+  const sessionActiveRef = useRef(false);
+  sessionActiveRef.current = liveEnabled;
+  const canEditRef = useRef(true);
+  canEditRef.current = canEdit;
+
+  // Op-based personal undo/redo (used only while a session is active); plain
+  // single-user editing keeps the snapshot history further below.
+  const applyingRemoteRef = useRef(false);
+  const opUndoRef = useRef<NoteOp[]>([]);
+  const opRedoRef = useRef<NoteOp[]>([]);
+  const pendingDocSyncRef = useRef(false);
+  const collabRef = useRef<ReturnType<typeof useCollab> | null>(null);
+  // Playhead position to restore once audio is ready (reload-resume).
+  const pendingSeekRef = useRef<number | null>(null);
+
+  // Live role updates: if the owner changes our role or removes us mid-session,
+  // re-resolve access so the UI relocks (or unlocks) without a reload.
+  useEffect(() => {
+    if (!cloudProjectId || !authUser) return;
+    if (cloudOwnerId === authUser.id) {
+      setMyRole("owner");
+      return;
+    }
+    const ch = supabase
+      .channel(`collab:${cloudProjectId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "project_collaborators",
+          filter: `project_id=eq.${cloudProjectId}`,
+        },
+        () => {
+          myAccess(cloudProjectId, authUser.id)
+            .then(setMyRole)
+            .catch(() => {});
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [cloudProjectId, cloudOwnerId, authUser]);
+
+  // Apply edits arriving from collaborators (never re-broadcast / re-record).
+  const applyRemoteOp = useCallback((op: NoteOp) => {
+    applyingRemoteRef.current = true;
+    setDifficulties((prev) => applyNoteOp(prev, op));
+  }, []);
+  const applyRemoteDoc = useCallback((doc: DocState) => {
+    applyingRemoteRef.current = true;
+    setMeta(doc.meta);
+    setTimingPoints(doc.timingPoints);
+    setDifficulties(doc.difficulties);
+  }, []);
+
+  const collab = useCollab({
+    projectId: cloudProjectId,
+    enabled: liveEnabled,
+    me: authUser
+      ? { id: authUser.id, username: authUser.username, avatar: authUser.avatar_url }
+      : null,
+    onRemoteOp: applyRemoteOp,
+    onRemoteDoc: applyRemoteDoc,
+    getDoc: () => ({
+      meta: metaRef.current,
+      timingPoints: timingPointsRef.current,
+      difficulties: difficultiesRef.current,
+    }),
+  });
+  collabRef.current = collab;
+
+  // Apply + record a note op locally, and broadcast it during a live session.
+  const commitNoteOp = useCallback((op: NoteOp) => {
+    if (!canEditRef.current) return;
+    setDifficulties((prev) => applyNoteOp(prev, op));
+    if (sessionActiveRef.current) {
+      opUndoRef.current.push(op);
+      if (opUndoRef.current.length > 300) opUndoRef.current.shift();
+      opRedoRef.current = [];
+      collabRef.current?.sendOp(op);
+    }
+  }, []);
+
+  // Mark a structural change (meta/diff/timing) so the doc-sync effect
+  // broadcasts the whole document to collaborators after it applies.
+  const markStructural = useCallback(() => {
+    if (sessionActiveRef.current) pendingDocSyncRef.current = true;
+  }, []);
+
+  // Metadata edits from the map-settings panel (structural → doc-sync).
+  const updateMeta = useCallback(
+    (m: SongMeta) => {
+      if (!canEditRef.current) return;
+      markStructural();
+      setMeta(m);
+    },
+    [markStructural],
+  );
+
+  // Presence: tell collaborators which difficulty this user is on.
+  useEffect(() => {
+    if (liveEnabled) collabRef.current?.updatePresence({ activeDiffId: activeId });
+  }, [activeId, liveEnabled]);
 
   // The song for the active difficulty: its own audio, or the set's single
   // audio when this difficulty hasn't named one (manual uploads, legacy maps).
@@ -195,6 +338,46 @@ export default function App() {
     appSettings.hitsoundVolume,
     appSettings.hitsoundsEnabled,
   );
+
+  // Presence: broadcast this user's playhead to collaborators (throttled).
+  const currentTimeRef = useRef(0);
+  currentTimeRef.current = audio.currentTime;
+  useEffect(() => {
+    if (!liveEnabled) return;
+    const id = window.setInterval(() => {
+      collabRef.current?.updatePresence({
+        playheadMs: Math.round(currentTimeRef.current),
+      });
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [liveEnabled]);
+
+  // Reload-resume: persist {activeId, playhead} per cloud project (debounced)…
+  useEffect(() => {
+    if (!cloudProjectId) return;
+    const id = window.setTimeout(() => {
+      try {
+        localStorage.setItem(
+          `mania:pos:${cloudProjectId}`,
+          JSON.stringify({
+            activeId,
+            playheadMs: Math.round(currentTimeRef.current),
+          }),
+        );
+      } catch {
+        /* ignore */
+      }
+    }, 600);
+    return () => window.clearTimeout(id);
+  }, [cloudProjectId, activeId, audio.currentTime]);
+
+  // …and apply a pending restored playhead once the audio duration is known.
+  useEffect(() => {
+    if (pendingSeekRef.current != null && audio.duration > 0) {
+      audio.seek(Math.min(pendingSeekRef.current, audio.duration));
+      pendingSeekRef.current = null;
+    }
+  }, [audio.duration, audio]);
 
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
@@ -362,6 +545,10 @@ export default function App() {
     setImportingMap(true);
     try {
       const map = await importOsz(file);
+      // Importing a new map leaves any cloud/collab session.
+      setCloudProjectId(null);
+      setCloudOwnerId(null);
+      setMyRole(null);
       setProjectStarted(true);
       setAudioFiles((prev) => {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
@@ -426,8 +613,12 @@ export default function App() {
   );
 
   // ---- Difficulty management ----------------------------------------------
+  // Difficulty / metadata / timing edits are infrequent; in a live session they
+  // sync via a whole-document broadcast (markStructural → doc-sync effect).
   const patchDifficulty = useCallback(
     (id: string, patch: Partial<Difficulty>) => {
+      if (!canEditRef.current) return;
+      markStructural();
       setDifficulties((prev) =>
         prev.map((d) => {
           if (d.id !== id) return d;
@@ -440,10 +631,11 @@ export default function App() {
         }),
       );
     },
-    [],
+    [markStructural],
   );
 
   const addDifficulty = useCallback(() => {
+    if (!canEditRef.current) return;
     const base = difficulties.find((d) => d.id === activeId);
     const diff = makeDifficulty("New Difficulty", base?.keyCount ?? 4);
     diff.audioFilename = base?.audioFilename;
@@ -451,27 +643,35 @@ export default function App() {
       ? base.timingPoints
       : timingPoints
     ).map((p) => ({ ...p, id: uid("tp") }));
+    markStructural();
     setDifficulties((prev) => [...prev, diff]);
     setActiveId(diff.id);
-  }, [difficulties, activeId, timingPoints]);
+  }, [difficulties, activeId, timingPoints, markStructural]);
 
-  const duplicateDifficulty = useCallback((id: string) => {
-    setDifficulties((prev) => {
-      const src = prev.find((d) => d.id === id);
-      if (!src) return prev;
-      const copy: Difficulty = {
-        ...src,
-        id: uid("diff"),
-        name: `${src.name} (copy)`,
-        timingPoints: src.timingPoints.map((p) => ({ ...p, id: uid("tp") })),
-        notes: src.notes.map((n) => ({ ...n, id: uid("n") })),
-      };
-      return [...prev, copy];
-    });
-  }, []);
+  const duplicateDifficulty = useCallback(
+    (id: string) => {
+      if (!canEditRef.current) return;
+      markStructural();
+      setDifficulties((prev) => {
+        const src = prev.find((d) => d.id === id);
+        if (!src) return prev;
+        const copy: Difficulty = {
+          ...src,
+          id: uid("diff"),
+          name: `${src.name} (copy)`,
+          timingPoints: src.timingPoints.map((p) => ({ ...p, id: uid("tp") })),
+          notes: src.notes.map((n) => ({ ...n, id: uid("n") })),
+        };
+        return [...prev, copy];
+      });
+    },
+    [markStructural],
+  );
 
   const deleteDifficulty = useCallback(
     (id: string) => {
+      if (!canEditRef.current) return;
+      markStructural();
       setDifficulties((prev) => {
         if (prev.length <= 1) return prev;
         const next = prev.filter((d) => d.id !== id);
@@ -479,116 +679,110 @@ export default function App() {
         return next;
       });
     },
-    [activeId],
+    [activeId, markStructural],
   );
 
   // ---- Note editing (on the active difficulty) ----------------------------
+  // All note edits flow through commitNoteOp as granular, invertible ops so they
+  // sync to collaborators and power personal undo. Reads use refs for freshness.
   const placeNote = useCallback(
     (note: ManiaNote) => {
-      setDifficulties((prev) => {
-        const target = prev.find((d) => d.id === activeId);
-        if (!target) return prev;
-        const dup = target.notes.some(
-          (n) =>
-            n.column === note.column &&
-            n.startTime === note.startTime &&
-            n.endTime === undefined &&
-            note.endTime === undefined,
-        );
-        // Return prev unchanged so React bails out (no phantom undo entry).
-        if (dup) return prev;
-        return prev.map((d) =>
-          d.id === activeId ? { ...d, notes: [...d.notes, note] } : d,
-        );
-      });
+      const did = activeIdRef.current;
+      const target = difficultiesRef.current.find((d) => d.id === did);
+      if (!target) return;
+      const dup = target.notes.some(
+        (n) =>
+          n.column === note.column &&
+          n.startTime === note.startTime &&
+          n.endTime === undefined &&
+          note.endTime === undefined,
+      );
+      if (dup) return;
+      commitNoteOp({ t: "note.add", diffId: did, notes: [note] });
     },
-    [activeId],
+    [commitNoteOp],
   );
 
   const deleteNote = useCallback(
     (noteId: string) => {
-      setDifficulties((prev) =>
-        prev.map((d) =>
-          d.id === activeId
-            ? { ...d, notes: d.notes.filter((n) => n.id !== noteId) }
-            : d,
-        ),
-      );
+      const did = activeIdRef.current;
+      const target = difficultiesRef.current.find((d) => d.id === did);
+      const note = target?.notes.find((n) => n.id === noteId);
+      if (!note) return;
+      commitNoteOp({ t: "note.remove", diffId: did, notes: [note] });
     },
-    [activeId],
+    [commitNoteOp],
   );
 
   /** Append several notes at once (used by paste). */
   const addNotes = useCallback(
     (notes: ManiaNote[]) => {
       if (!notes.length) return;
-      setDifficulties((prev) =>
-        prev.map((d) =>
-          d.id === activeId ? { ...d, notes: [...d.notes, ...notes] } : d,
-        ),
-      );
+      commitNoteOp({ t: "note.add", diffId: activeIdRef.current, notes });
     },
-    [activeId],
+    [commitNoteOp],
   );
 
   /** Delete several notes at once (used by multi-select delete / cut). */
   const deleteNotes = useCallback(
     (ids: string[]) => {
       if (!ids.length) return;
+      const did = activeIdRef.current;
+      const target = difficultiesRef.current.find((d) => d.id === did);
       const set = new Set(ids);
-      setDifficulties((prev) =>
-        prev.map((d) =>
-          d.id === activeId
-            ? { ...d, notes: d.notes.filter((n) => !set.has(n.id)) }
-            : d,
-        ),
-      );
+      const removed = target ? target.notes.filter((n) => set.has(n.id)) : [];
+      if (!removed.length) return;
+      commitNoteOp({ t: "note.remove", diffId: did, notes: removed });
     },
-    [activeId],
+    [commitNoteOp],
   );
 
   /** Full LN: convert every note in the active difficulty to a long note. */
   const applyFullLong = useCallback(
     (ticks: number) => {
-      setDifficulties((prev) =>
-        prev.map((d) => {
-          if (d.id !== activeId) return d;
-          const points = d.timingPoints?.length
-            ? d.timingPoints
-            : timingPoints;
-          return {
-            ...d,
-            notes: fullLongNotes(d.notes, points, view.snapDivisor, ticks),
-          };
-        }),
-      );
+      const did = activeIdRef.current;
+      const target = difficultiesRef.current.find((d) => d.id === did);
+      if (!target) return;
+      const points = target.timingPoints?.length
+        ? target.timingPoints
+        : timingPointsRef.current;
+      const after = fullLongNotes(target.notes, points, view.snapDivisor, ticks);
+      commitNoteOp({
+        t: "note.update",
+        diffId: did,
+        before: target.notes,
+        after,
+      });
     },
-    [activeId, timingPoints, view.snapDivisor],
+    [commitNoteOp, view.snapDivisor],
   );
 
   /** Full RC: convert every long note in the active difficulty to a rice note. */
   const applyFullRice = useCallback(() => {
-    setDifficulties((prev) =>
-      prev.map((d) =>
-        d.id === activeId ? { ...d, notes: fullRiceNotes(d.notes) } : d,
-      ),
-    );
-  }, [activeId]);
+    const did = activeIdRef.current;
+    const target = difficultiesRef.current.find((d) => d.id === did);
+    if (!target) return;
+    commitNoteOp({
+      t: "note.update",
+      diffId: did,
+      before: target.notes,
+      after: fullRiceNotes(target.notes),
+    });
+  }, [commitNoteOp]);
 
   /** Replace several notes in place by id (used by drag-to-move). */
   const moveNotes = useCallback(
     (updated: ManiaNote[]) => {
       if (!updated.length) return;
-      const map = new Map(updated.map((n) => [n.id, n]));
-      setDifficulties((prev) =>
-        prev.map((d) =>
-          d.id === activeId
-            ? { ...d, notes: d.notes.map((n) => map.get(n.id) ?? n) }
-            : d,
-        ),
-      );
+      const did = activeIdRef.current;
+      const target = difficultiesRef.current.find((d) => d.id === did);
+      if (!target) return;
+      const byId = new Map(updated.map((n) => [n.id, n]));
+      const before = target.notes.filter((n) => byId.has(n.id));
+      if (!before.length) return;
+      commitNoteOp({ t: "note.update", diffId: did, before, after: updated });
     },
-    [activeId],
+    [commitNoteOp],
   );
 
   // ---- Undo / redo --------------------------------------------------------
@@ -606,7 +800,9 @@ export default function App() {
   const [, bumpHistory] = useState(0);
 
   // Record every real document change. Updates triggered by undo/redo set the
-  // applying flag so they aren't recorded as fresh edits.
+  // applying flag so they aren't recorded as fresh edits. During a live session
+  // the op stacks handle undo instead, so we only track `present` (no recording)
+  // — including for remote edits, which must never enter the snapshot history.
   useEffect(() => {
     if (presentRef.current === null) {
       presentRef.current = snapshot; // initial mount, nothing to record
@@ -617,12 +813,25 @@ export default function App() {
       presentRef.current = snapshot;
       return;
     }
+    if (sessionActiveRef.current || applyingRemoteRef.current) {
+      applyingRemoteRef.current = false;
+      presentRef.current = snapshot;
+      return;
+    }
     undoStackRef.current.push(presentRef.current);
     if (undoStackRef.current.length > 200) undoStackRef.current.shift();
     redoStackRef.current = [];
     presentRef.current = snapshot;
     bumpHistory((v) => v + 1);
   }, [snapshot]);
+
+  // Broadcast the whole document after a local structural change (meta / diff /
+  // timing). Note ops are broadcast granularly, so they don't set the flag.
+  useEffect(() => {
+    if (!sessionActiveRef.current || !pendingDocSyncRef.current) return;
+    pendingDocSyncRef.current = false;
+    collabRef.current?.sendDoc({ meta, timingPoints, difficulties });
+  }, [meta, timingPoints, difficulties]);
 
   const applySnapshot = useCallback((s: DocSnapshot) => {
     applyingHistoryRef.current = true;
@@ -632,6 +841,18 @@ export default function App() {
   }, []);
 
   const undo = useCallback(() => {
+    // Live session: undo only the user's own note ops, and broadcast the inverse
+    // so collaborators stay in sync.
+    if (sessionActiveRef.current) {
+      const op = opUndoRef.current.pop();
+      if (!op) return;
+      const inv = invertNoteOp(op);
+      setDifficulties((prev) => applyNoteOp(prev, inv));
+      opRedoRef.current.push(op);
+      collabRef.current?.sendOp(inv);
+      bumpHistory((v) => v + 1);
+      return;
+    }
     const prev = undoStackRef.current.pop();
     if (!prev) return;
     if (presentRef.current) redoStackRef.current.push(presentRef.current);
@@ -640,6 +861,15 @@ export default function App() {
   }, [applySnapshot]);
 
   const redo = useCallback(() => {
+    if (sessionActiveRef.current) {
+      const op = opRedoRef.current.pop();
+      if (!op) return;
+      setDifficulties((prev) => applyNoteOp(prev, op));
+      opUndoRef.current.push(op);
+      collabRef.current?.sendOp(op);
+      bumpHistory((v) => v + 1);
+      return;
+    }
     const next = redoStackRef.current.pop();
     if (!next) return;
     if (presentRef.current) undoStackRef.current.push(presentRef.current);
@@ -647,8 +877,12 @@ export default function App() {
     bumpHistory((v) => v + 1);
   }, [applySnapshot]);
 
-  const canUndo = undoStackRef.current.length > 0;
-  const canRedo = redoStackRef.current.length > 0;
+  const canUndo = liveEnabled
+    ? opUndoRef.current.length > 0
+    : undoStackRef.current.length > 0;
+  const canRedo = liveEnabled
+    ? opRedoRef.current.length > 0
+    : redoStackRef.current.length > 0;
 
   // ---- Restore the last locally-saved project on first load ---------------
   useEffect(() => {
@@ -1042,6 +1276,8 @@ export default function App() {
         })),
       });
       setCloudProjectId(id);
+      setCloudOwnerId(authUser.id);
+      setMyRole("owner");
       setCloudSaveStatus("saved");
     } catch (err) {
       setCloudError(
@@ -1122,6 +1358,36 @@ export default function App() {
       setBgScope(d.bgScope ?? "mapset");
       setProjectStarted(true);
       setCloudProjectId(proj.id);
+      setCloudOwnerId(proj.owner);
+      // Fresh collab session: reset personal op history and resolve our role.
+      opUndoRef.current = [];
+      opRedoRef.current = [];
+      const me = authUserRef.current;
+      if (me) {
+        if (proj.owner === me.id) setMyRole("owner");
+        else
+          myAccess(proj.id, me.id)
+            .then(setMyRole)
+            .catch(() => setMyRole(null));
+      }
+      // Reload-resume: return to the difficulty + playhead we left last time.
+      try {
+        const raw = localStorage.getItem(`mania:pos:${proj.id}`);
+        if (raw) {
+          const pos = JSON.parse(raw) as {
+            activeId?: string;
+            playheadMs?: number;
+          };
+          if (pos.activeId && diffs.some((d) => d.id === pos.activeId)) {
+            setActiveId(pos.activeId);
+          }
+          if (typeof pos.playheadMs === "number") {
+            pendingSeekRef.current = pos.playheadMs;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
       setModal(null);
     } catch (err) {
       setCloudError(
@@ -1182,6 +1448,10 @@ export default function App() {
     setModal(null);
     setImportError(null);
     setSaveStatus(null);
+    // A brand-new map is no longer tied to any cloud project / collab session.
+    setCloudProjectId(null);
+    setCloudOwnerId(null);
+    setMyRole(null);
 
     void clearProject().catch(() => {});
   }, []);
@@ -1332,6 +1602,11 @@ export default function App() {
             <span className="mr-2 text-xs text-slate-500">
               {active.keyCount}K · {active.notes.length} notes ({holds} holds)
             </span>
+            {cloudProjectId && myRole === "viewer" && (
+              <span className="mr-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+                View only
+              </span>
+            )}
             <Button
               onClick={() => handleNew()}
               title="New map (clears everything)"
@@ -1347,15 +1622,33 @@ export default function App() {
             </Button>
             <Button
               onClick={() => void handleCloudSave()}
-              disabled={!authUser || cloudSaveStatus === "saving"}
+              disabled={!authUser || !canEdit || cloudSaveStatus === "saving"}
               title={
                 authUser
-                  ? "Save this project to your account"
+                  ? canEdit
+                    ? "Save this project to your account"
+                    : "You have view-only access to this map"
                   : "Log in to save to your account"
               }
             >
               {cloudSaveStatus === "saving" ? "Saving…" : "Save to cloud"}
             </Button>
+            {cloudProjectId && authUser && cloudOwnerId === authUser.id && (
+              <Button
+                onClick={() => setModal("share")}
+                title="Invite collaborators to this map"
+              >
+                Share
+              </Button>
+            )}
+            {cloudProjectId && authUser && (
+              <Button
+                onClick={() => setCommentsOpen((v) => !v)}
+                title="Timestamped comments"
+              >
+                Comments
+              </Button>
+            )}
             <Button onClick={handleExportOsu} disabled={!canExport}>
               Export .osu
             </Button>
@@ -1368,6 +1661,31 @@ export default function App() {
             </Button>
             </div>
           </div>
+          {liveEnabled && collab.peers.length > 0 && (
+            <div
+              className="flex items-center -space-x-1.5"
+              title="Editing now"
+            >
+              {collab.peers.slice(0, 5).map((p) => (
+                <span
+                  key={p.id}
+                  className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border-2 bg-ink-700 text-[10px] font-semibold text-slate-100"
+                  style={{ borderColor: p.color }}
+                  title={p.username}
+                >
+                  {p.avatar ? (
+                    <img
+                      src={p.avatar}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    p.username.slice(0, 1).toUpperCase()
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
           <AccountControl
             compact
             onOpenMyMaps={() => setModal("myMaps")}
@@ -1445,6 +1763,7 @@ export default function App() {
                 onCurrentSampleSet={setCurrentSampleSet}
                 onPublishPattern={authUser ? handlePublishPattern : undefined}
                 pendingClip={presetToCopy}
+                readOnly={!canEdit}
               />
             ) : (
               <EmptyState onEnter={() => setModal("welcome")} />
@@ -1466,6 +1785,29 @@ export default function App() {
             >
               i
             </button>
+            {cloudProjectId && authUser && (
+              <CommentsSidebar
+                open={commentsOpen}
+                onClose={() => setCommentsOpen(false)}
+                projectId={cloudProjectId}
+                me={{
+                  id: authUser.id,
+                  username: authUser.username,
+                  osu_id: authUser.osu_id,
+                }}
+                currentTimeMs={audio.currentTime}
+                activeDiffId={active.id}
+                onSeek={audio.seek}
+                canModerate={myRole === "owner" || myRole === "editor"}
+                onCommentsChange={(c: Comment[]) =>
+                  setCommentMarkers(
+                    c
+                      .filter((x) => !x.parent_id)
+                      .map((x) => ({ time_ms: x.time_ms, resolved: x.resolved })),
+                  )
+                }
+              />
+            )}
           </div>
 
           <div
@@ -1489,6 +1831,8 @@ export default function App() {
                 setAppSettings((s) => ({ ...s, waveformSensitivity: v }))
               }
               revealWaveform={hasProject}
+              peers={collab.peers}
+              comments={commentMarkers}
             />
           </div>
         </main>
@@ -1528,7 +1872,7 @@ export default function App() {
         open={modal === "mapSettings"}
         onClose={close}
         meta={meta}
-        onMeta={setMeta}
+        onMeta={updateMeta}
         audio={audioFile}
         background={activeBg}
         bgScope={bgScope}
@@ -1673,6 +2017,12 @@ export default function App() {
       <InfoModal open={modal === "info"} onClose={close} />
 
       <AdminPanel open={modal === "admin"} onClose={close} />
+
+      <ShareModal
+        open={modal === "share"}
+        onClose={close}
+        projectId={cloudProjectId}
+      />
 
       {/* Save status toast */}
       {(saveStatus === "saved" || saveStatus === "error") && (

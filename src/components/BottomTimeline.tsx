@@ -35,6 +35,10 @@ type Props = {
   sensitivity: number;
   onSensitivity: (value: number) => void;
   revealWaveform: boolean;
+  /** Collaborators' current positions, drawn as colored lines. */
+  peers?: { color: string; playheadMs?: number; username: string }[];
+  /** Comment anchors, drawn as markers above the waveform. */
+  comments?: { time_ms: number; resolved: boolean }[];
 };
 
 const SENS_MIN = 0.5;
@@ -52,6 +56,8 @@ export function BottomTimeline({
   sensitivity,
   onSensitivity,
   revealWaveform,
+  peers,
+  comments,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -70,6 +76,8 @@ export function BottomTimeline({
     sensitivity,
     onSensitivity,
     revealWaveform,
+    peers,
+    comments,
   });
   propsRef.current = {
     waveform,
@@ -81,6 +89,8 @@ export function BottomTimeline({
     sensitivity,
     onSensitivity,
     revealWaveform,
+    peers,
+    comments,
   };
 
   useEffect(() => {
@@ -109,6 +119,8 @@ export function BottomTimeline({
       currentTime,
       sensitivity,
       revealWaveform,
+      peers,
+      comments,
     } = propsRef.current;
 
     ctx.save();
@@ -238,6 +250,42 @@ export function BottomTimeline({
       ctx.moveTo(px, 0);
       ctx.lineTo(px, HEIGHT);
       ctx.stroke();
+    }
+
+    // ---- Comment markers (speech-bubble ticks above the waveform) ----
+    if (duration > 0 && comments?.length) {
+      for (const c of comments) {
+        if (c.time_ms < 0 || c.time_ms > duration) continue;
+        const cx = (c.time_ms / duration) * width;
+        ctx.fillStyle = c.resolved ? "rgba(148,163,184,0.5)" : "#fbbf24";
+        ctx.beginPath();
+        ctx.arc(cx, 6, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ---- Collaborator position lines ----
+    if (duration > 0 && peers?.length) {
+      ctx.font = "10px sans-serif";
+      for (const p of peers) {
+        if (p.playheadMs === undefined) continue;
+        const cx = (p.playheadMs / duration) * width;
+        ctx.strokeStyle = p.color;
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cx, WAVE_TOP - 2);
+        ctx.lineTo(cx, HEIGHT);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = p.color;
+        const label = p.username.slice(0, 12);
+        const w = ctx.measureText(label).width + 6;
+        const lx = Math.min(width - w, Math.max(0, cx + 2));
+        ctx.fillRect(lx, HEIGHT - 13, w, 12);
+        ctx.fillStyle = "#0b0b10";
+        ctx.fillText(label, lx + 3, HEIGHT - 4);
+      }
     }
 
     ctx.restore();

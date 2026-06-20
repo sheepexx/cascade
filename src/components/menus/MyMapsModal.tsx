@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
+import { useAuth } from "../../lib/auth";
 import {
   listProjectsCloud,
   deleteProjectCloud,
@@ -20,6 +21,7 @@ export function MyMapsModal({
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
+  const { user } = useAuth();
   const [maps, setMaps] = useState<CloudProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -74,8 +76,15 @@ export function MyMapsModal({
               className="flex items-center gap-3 rounded-xl border border-ink-500/60 bg-ink-700/40 p-3"
             >
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-slate-100">
-                  {m.title || "Untitled"}
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold text-slate-100">
+                    {m.title || "Untitled"}
+                  </span>
+                  {user && m.owner !== user.id && (
+                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                      Shared
+                    </span>
+                  )}
                 </div>
                 <div className="truncate text-xs text-slate-400">
                   {m.artist}
@@ -92,13 +101,15 @@ export function MyMapsModal({
               >
                 Open
               </Button>
-              <Button
-                onClick={() => void handleDelete(m.id)}
-                disabled={busyId !== null}
-                title="Delete this saved map"
-              >
-                {busyId === m.id ? "…" : "Delete"}
-              </Button>
+              {user && m.owner === user.id && (
+                <Button
+                  onClick={() => void handleDelete(m.id)}
+                  disabled={busyId !== null}
+                  title="Delete this saved map"
+                >
+                  {busyId === m.id ? "…" : "Delete"}
+                </Button>
+              )}
             </li>
           ))}
         </ul>
