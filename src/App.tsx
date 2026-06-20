@@ -1741,6 +1741,35 @@ export default function App() {
               />
             </div>
           </div>
+          {liveEnabled && (
+            <span
+              className="flex items-center gap-1.5 rounded-full border border-ink-600 bg-ink-700/50 px-2 py-1 text-[11px] font-medium"
+              title={
+                collab.status === "connected"
+                  ? "Live — edits sync in realtime"
+                  : collab.status === "connecting"
+                    ? "Connecting to the live session…"
+                    : "Live sync offline — check Realtime is enabled"
+              }
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  collab.status === "connected"
+                    ? "bg-emerald-400"
+                    : collab.status === "connecting"
+                      ? "animate-pulse bg-amber-400"
+                      : "bg-rose-500"
+                }`}
+              />
+              <span className="text-slate-300">
+                {collab.status === "connected"
+                  ? "Live"
+                  : collab.status === "connecting"
+                    ? "Connecting…"
+                    : "Offline"}
+              </span>
+            </span>
+          )}
           {liveEnabled && collab.peers.length > 0 && (
             <div
               className="flex items-center -space-x-1.5"

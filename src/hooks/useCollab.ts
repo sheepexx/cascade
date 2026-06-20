@@ -147,7 +147,7 @@ export function useCollab(opts: {
       announce("l", leftPresences?.[0] as unknown as Peer | undefined);
     });
 
-    channel.subscribe((s) => {
+    channel.subscribe((s, err) => {
       if (s === "SUBSCRIBED") {
         setStatus("connected");
         readyAtRef.current = Date.now() + 1500;
@@ -162,6 +162,12 @@ export function useCollab(opts: {
         channel.send({ type: "broadcast", event: "sync.request", payload: {} });
       } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
         setStatus("error");
+        // Surfaces realtime authorization failures (e.g. missing
+        // realtime.messages RLS policy for the private project channel).
+        console.error(
+          `[collab] channel ${s} for project:${projectId}`,
+          err ?? "(no error detail — likely Realtime RLS/auth rejection)",
+        );
       }
     });
 
