@@ -29,7 +29,7 @@ import {
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
-import { supabase } from "./lib/supabase";
+import { supabase, getSupabaseToken } from "./lib/supabase";
 import { useCollab } from "./hooks/useCollab";
 import { applyNoteOp, invertNoteOp, type NoteOp, type DocState } from "./lib/ops";
 import { myAccess, type AccessRole } from "./lib/collab";
@@ -106,8 +106,22 @@ type DocSnapshot = {
   difficulties: Difficulty[];
 };
 
+/** Decode a JWT's payload (claims) without verifying — for client diagnostics. */
+function decodeJwtClaims(
+  token: string,
+): { sub?: string; role?: string; exp?: number } | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
-  const { user: authUser } = useAuth();
+  const { user: authUser, refresh: refreshAuth } = useAuth();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
   const [timingPoints, setTimingPoints] = useState<TimingPoint[]>(
     defaultTimingPoints,
@@ -1330,6 +1344,27 @@ export default function App() {
     if (!authUser) return;
     setCloudSaveStatus("saving");
     setCloudError(null);
+
+    // Refresh the minted Supabase token first, so an expired/rotated token
+    // doesn't get rejected as anonymous → spurious "violates RLS" on write.
+    try {
+      await refreshAuth();
+    } catch {
+      /* validated below */
+    }
+    const token = getSupabaseToken();
+    const claims = token ? decodeJwtClaims(token) : null;
+    const expired = !!claims?.exp && Date.now() >= claims.exp * 1000;
+    if (!token || !claims || expired) {
+      setCloudError(
+        `Your osu! session isn't active (token ${
+          expired ? "expired" : "missing"
+        }). Log out and back in, then save again.`,
+      );
+      setCloudSaveStatus("error");
+      return;
+    }
+
     try {
       const id = await saveProjectCloud({
         ownerId: authUser.id,
@@ -1349,13 +1384,45 @@ export default function App() {
       setMyRole("owner");
       setCloudSaveStatus("saved");
     } catch (err) {
-      setCloudError(
-        err instanceof Error ? err.message : "Couldn't save to your account.",
-      );
+      const msg =
+        err instanceof Error ? err.message : "Couldn't save to your account.";
+      // Translate an RLS rejection into the actual cause, using the token we
+      // already decoded, so it's actionable instead of cryptic.
+      if (/row-level security|violates|not authorized|permission/i.test(msg)) {
+        if (claims.sub !== authUser.id) {
+          setCloudError(
+            "Save rejected: your session token identifies a different account " +
+              "than your profile. Log out and back in.",
+          );
+        } else if (claims.role !== "authenticated") {
+          setCloudError(
+            `Save rejected: token role is "${claims.role}", expected ` +
+              `"authenticated". The Worker is minting tokens incorrectly.`,
+          );
+        } else {
+          setCloudError(
+            "Save rejected by the database. Your token looks valid but Supabase " +
+              "isn't accepting it — the Worker's SUPABASE_JWT_SECRET must match " +
+              "this project's JWT secret (and the legacy JWT secret must stay enabled).",
+          );
+          console.error(
+            "[cloud] RLS rejection with a valid-looking token.",
+            "front-end project:",
+            import.meta.env.VITE_SUPABASE_URL,
+            "| token sub:",
+            claims.sub,
+            "| role:",
+            claims.role,
+          );
+        }
+      } else {
+        setCloudError(msg);
+      }
       setCloudSaveStatus("error");
     }
   }, [
     authUser,
+    refreshAuth,
     cloudProjectId,
     meta,
     timingPoints,
@@ -2485,6 +2552,9 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
         <Button variant="accent" onClick={onEnter}>
           Enter
         </Button>
+        <p className="mt-6 text-[11px] font-medium tracking-wide text-slate-600">
+          mania editor · v{__APP_VERSION__}
+        </p>
       </div>
     </div>
   );
