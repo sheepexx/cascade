@@ -94,18 +94,22 @@ export function useCollab(opts: {
     const channel = supabase.channel(`project:${projectId}`, {
       config: {
         private: true,
-        broadcast: { self: false },
+        // ack so send() resolves with the server's accept/reject status — lets
+        // us log whether broadcasts are actually being relayed.
+        broadcast: { self: false, ack: true },
         presence: { key: me.id },
       },
     });
     channelRef.current = channel;
 
-    channel.on("broadcast", { event: "op" }, ({ payload }) =>
-      onRemoteOpRef.current(payload as NoteOp),
-    );
-    channel.on("broadcast", { event: "doc" }, ({ payload }) =>
-      onRemoteDocRef.current(payload as DocState),
-    );
+    channel.on("broadcast", { event: "op" }, ({ payload }) => {
+      console.info("[collab] recv op", (payload as NoteOp)?.t);
+      onRemoteOpRef.current(payload as NoteOp);
+    });
+    channel.on("broadcast", { event: "doc" }, ({ payload }) => {
+      console.info("[collab] recv doc");
+      onRemoteDocRef.current(payload as DocState);
+    });
     channel.on("broadcast", { event: "sync.request" }, () => {
       channel.send({
         type: "broadcast",
@@ -124,6 +128,11 @@ export function useCollab(opts: {
         const m = metas[0];
         if (m) list.push(m);
       }
+      console.info(
+        "[collab] presence sync — peers:",
+        list.length,
+        list.map((p) => p.username),
+      );
       setPeers(list);
     });
     // Announce genuine joins/leaves (not the initial roster) as notifications.
@@ -151,15 +160,27 @@ export function useCollab(opts: {
       if (s === "SUBSCRIBED") {
         setStatus("connected");
         readyAtRef.current = Date.now() + 1500;
-        void channel.track({
-          id: me.id,
-          username: me.username,
-          avatar: me.avatar,
-          color,
-          ...presenceRef.current,
-        });
+        console.info(
+          "[collab] SUBSCRIBED to project:" + projectId,
+          "| supabase:",
+          import.meta.env.VITE_SUPABASE_URL,
+        );
+        // track() result is the key write-auth signal: "ok" means presence
+        // writes are accepted; "error" means the realtime.messages INSERT
+        // policy is rejecting them (so nothing this user does will sync).
+        void channel
+          .track({
+            id: me.id,
+            username: me.username,
+            avatar: me.avatar,
+            color,
+            ...presenceRef.current,
+          })
+          .then((r) => console.info("[collab] track (presence write) ->", r));
         // Ask any present peer for the freshest document.
-        channel.send({ type: "broadcast", event: "sync.request", payload: {} });
+        void Promise.resolve(
+          channel.send({ type: "broadcast", event: "sync.request", payload: {} }),
+        ).then((r) => console.info("[collab] initial send ->", r));
       } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
         setStatus("error");
         // Surfaces realtime authorization failures (e.g. missing
@@ -183,7 +204,14 @@ export function useCollab(opts: {
   }, [projectId, enabled, me?.id]);
 
   const sendOp = (op: NoteOp) => {
-    channelRef.current?.send({ type: "broadcast", event: "op", payload: op });
+    const ch = channelRef.current;
+    if (!ch) {
+      console.warn("[collab] sendOp with no channel");
+      return;
+    }
+    void Promise.resolve(
+      ch.send({ type: "broadcast", event: "op", payload: op }),
+    ).then((r) => console.info("[collab] sendOp", op.t, "->", r));
   };
   const sendDoc = (doc: DocState) => {
     channelRef.current?.send({ type: "broadcast", event: "doc", payload: doc });
