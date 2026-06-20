@@ -46,15 +46,15 @@ export function DifficultySidebar({
   );
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-ink-600 bg-ink-800/60">
-      <div className="flex items-center justify-between border-b border-ink-600 px-4 py-3">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-white/10 bg-ink-800/45 shadow-[10px_0_30px_rgba(0,0,0,0.12)] backdrop-blur-xl">
+      <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] px-4 py-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Difficulties
           <span className="ml-1.5 text-slate-500">{difficulties.length}</span>
         </h2>
         <button
           onClick={onAdd}
-          className="grid h-6 w-6 place-items-center rounded-md bg-ink-600 text-slate-200 transition hover:bg-ink-500"
+          className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-600/70 text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85"
           title="Add difficulty"
         >
           +
@@ -138,8 +138,8 @@ function DiffRow({
       onClick={onSelect}
       className={`group cursor-pointer rounded-lg border px-3 py-2.5 transition ${
         active
-          ? "border-accent/70 bg-ink-600"
-          : "border-transparent bg-ink-700/50 hover:bg-ink-700"
+          ? "border-accent/70 bg-ink-600/72 shadow-lg shadow-black/15"
+          : "border-transparent bg-ink-700/32 hover:border-white/10 hover:bg-ink-700/58"
       }`}
     >
       <div className="flex items-center gap-2">

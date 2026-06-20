@@ -11,7 +11,7 @@ type Props = {
 };
 
 /** How long the exit animation runs; keep in sync with .modal-*-out in index.css. */
-const EXIT_MS = 150;
+const EXIT_MS = 220;
 
 /** Centered modal dialog with backdrop, Esc-to-close and a scrollable body. */
 export function Modal({
@@ -57,7 +57,7 @@ export function Modal({
 
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm ${
+      className={`fixed inset-0 flex items-center justify-center bg-ink-900/72 p-4 backdrop-blur-md ${
         // A modal animating out must not sit above (or catch clicks meant for)
         // a modal opening over it — e.g. Get started → Try these maps.
         closing
@@ -69,15 +69,15 @@ export function Modal({
       }}
     >
       <div
-        className={`flex max-h-[85vh] w-full ${width} flex-col overflow-hidden rounded-2xl border border-ink-500/60 bg-ink-800 shadow-2xl ${
+        className={`flex max-h-[85vh] w-full ${width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] ${
           closing ? "modal-panel-out" : "modal-panel-in"
         }`}
       >
-        <header className="flex items-center justify-between border-b border-ink-600 px-5 py-3.5">
+        <header className="flex items-center justify-between border-b border-white/10 bg-ink-700 px-5 py-3.5">
           <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
           <button
             onClick={onClose}
-            className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"
+            className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
             aria-label="Close"
           >
             ✕
@@ -85,7 +85,7 @@ export function Modal({
         </header>
         <div className="flex-1 overflow-y-auto p-5">{children}</div>
         {footer && (
-          <footer className="flex justify-end gap-2 border-t border-ink-600 px-5 py-3.5">
+          <footer className="flex justify-end gap-2 border-t border-white/10 bg-ink-700 px-5 py-3.5">
             {footer}
           </footer>
         )}

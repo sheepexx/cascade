@@ -166,6 +166,11 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<
     null | "saving" | "saved" | "error"
   >(null);
+  const [exportCheck, setExportCheck] = useState<{
+    result: ValidationResult;
+    target: string;
+    run: () => void;
+  } | null>(null);
   // Cloud (account) project: the id of the row this session is bound to (null =
   // not yet saved to the cloud), plus a separate save indicator and error.
   const [cloudProjectId, setCloudProjectId] = useState<string | null>(null);
@@ -376,6 +381,12 @@ export default function App() {
     waveform ? waveform.duration * 1000 : null,
     waveform?.buffer ?? null,
   );
+  const modalAtmosphereOpen =
+    (modal !== null && modal !== "timing") ||
+    askBgScope ||
+    pendingImport !== null ||
+    exportCheck !== null;
+  const modalAtmosphereActive = modalAtmosphereOpen && audio.isPlaying;
 
   // Play the map's actual osu! hitsounds as notes cross the judgement line.
   useHitsounds(
@@ -385,6 +396,7 @@ export default function App() {
     active.timingPoints?.length ? active.timingPoints : timingPoints,
     appSettings.hitsoundVolume,
     appSettings.hitsoundsEnabled,
+    modalAtmosphereActive,
   );
 
   // Presence: broadcast this user's playhead to collaborators (throttled).
@@ -1196,11 +1208,9 @@ export default function App() {
 
   // Pre-export validation. When there's anything worth flagging, the check
   // modal opens and holds the actual export until the user proceeds.
-  const [exportCheck, setExportCheck] = useState<{
-    result: ValidationResult;
-    target: string;
-    run: () => void;
-  } | null>(null);
+  useEffect(() => {
+    audio.setAmbientDucking(modalAtmosphereActive);
+  }, [audio.setAmbientDucking, modalAtmosphereActive]);
 
   const doExportOsu = useCallback(() => {
     if (!audioFile) return;
@@ -1645,15 +1655,22 @@ export default function App() {
 
   return (
     <div
-      className="relative flex h-full flex-col"
+      className="relative h-full overflow-hidden bg-ink-900"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
+      <div
+        className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          modalAtmosphereActive
+            ? "scale-[0.992] blur-[2px] opacity-75"
+            : "scale-100 blur-0 opacity-100"
+        }`}
+      >
       {/* Drag & drop overlay */}
       {isDragging && (
-        <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-ink-900/80 backdrop-blur-sm">
-          <div className="rounded-2xl border-2 border-dashed border-accent/70 px-12 py-10 text-center">
+        <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-ink-900/76 backdrop-blur-md">
+          <div className="rounded-2xl border-2 border-dashed border-accent/70 bg-ink-800/82 px-12 py-10 text-center shadow-2xl backdrop-blur-xl">
             <div className="mb-2 text-3xl">🎵</div>
             <p className="text-lg font-semibold text-slate-100">Drop to load</p>
             <p className="text-sm text-slate-400">
@@ -1665,8 +1682,8 @@ export default function App() {
 
       {/* Map import overlay (shown while a selected/sample .osz loads) */}
       {importingMap && (
-        <div className="fixed inset-0 z-[55] grid place-items-center bg-ink-900/70 backdrop-blur-sm">
-          <div className="flex items-center gap-3 rounded-xl border border-ink-500/60 bg-ink-800 px-6 py-4 text-sm font-medium text-slate-200 shadow-2xl">
+        <div className="fixed inset-0 z-[55] grid place-items-center bg-ink-900/68 backdrop-blur-md">
+          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-ink-800/86 px-6 py-4 text-sm font-medium text-slate-200 shadow-2xl backdrop-blur-xl">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
             Loading map…
           </div>
@@ -1675,7 +1692,7 @@ export default function App() {
 
       {/* Header + menu bar (slides up out of view in zen mode) */}
       <header
-        className={`flex items-center justify-between gap-4 overflow-hidden border-ink-600 bg-ink-800 px-5 transition-[max-height,padding,opacity,transform] duration-300 ease-out ${
+        className={`flex items-center justify-between gap-4 overflow-hidden border-white/10 bg-ink-800/65 px-5 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out ${
           zenMode
             ? "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
             : "max-h-20 translate-y-0 border-b py-2.5 opacity-100"
@@ -1718,7 +1735,7 @@ export default function App() {
               <MenuButton onClick={() => setModal("settings")}>
                 Settings
               </MenuButton>
-              <span className="mx-1 h-5 w-px bg-ink-600" />
+              <span className="mx-1 h-5 w-px bg-white/10" />
               <IconButton
                 onClick={undo}
                 disabled={!canUndo}
@@ -1810,7 +1827,7 @@ export default function App() {
           </div>
           {liveEnabled && (
             <span
-              className="flex items-center gap-1.5 rounded-full border border-ink-600 bg-ink-700/50 px-2 py-1 text-[11px] font-medium"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-ink-700/42 px-2 py-1 text-[11px] font-medium shadow-sm backdrop-blur-xl"
               title={
                 collab.status === "connected"
                   ? "Live — edits sync in realtime"
@@ -1845,7 +1862,7 @@ export default function App() {
               {collab.peers.slice(0, 5).map((p) => (
                 <span
                   key={p.id}
-                  className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border-2 bg-ink-700 text-[10px] font-semibold text-slate-100"
+                  className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border-2 bg-ink-700/70 text-[10px] font-semibold text-slate-100 shadow-sm backdrop-blur"
                   style={{ borderColor: p.color }}
                   title={p.username}
                 >
@@ -1986,7 +2003,7 @@ export default function App() {
                       hideHints
                     />
                   </div>
-                  <div className="absolute left-2 top-2 z-20 rounded bg-ink-900/85 px-2 py-0.5 text-[11px] font-medium text-slate-200 shadow">
+                  <div className="absolute left-2 top-2 z-20 rounded border border-white/10 bg-ink-900/65 px-2 py-0.5 text-[11px] font-medium text-slate-200 shadow backdrop-blur-xl">
                     Reference · {referenceDiff.name} ({referenceDiff.keyCount}K)
                   </div>
                 </>
@@ -2004,14 +2021,14 @@ export default function App() {
             <button
               type="button"
               onClick={() => setModal("info")}
-              className="absolute bottom-3 left-3 z-30 grid h-9 w-9 place-items-center rounded-full border border-ink-500/70 bg-ink-900/85 font-serif text-lg font-semibold text-slate-100 shadow-lg backdrop-blur transition hover:border-slate-500 hover:bg-ink-700"
+              className="absolute bottom-3 left-3 z-30 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-ink-900/62 font-serif text-lg font-semibold text-slate-100 shadow-xl shadow-black/25 backdrop-blur-xl transition hover:border-slate-500/80 hover:bg-white/10"
               aria-label="Open shortcuts and functions"
               title="Shortcuts and functions"
             >
               i
             </button>
             {hasProject && !zenMode && eligibleRefs.length > 0 && (
-              <div className="absolute left-3 top-14 z-30 rounded-lg border border-ink-600 bg-ink-900/85 backdrop-blur">
+              <div className="absolute left-3 top-14 z-30 rounded-lg border border-white/10 bg-ink-900/62 shadow-xl shadow-black/20 backdrop-blur-xl">
                 <Menu
                   label={
                     referenceDiff ? `Ref: ${referenceDiff.name}` : "Reference"
@@ -2096,6 +2113,8 @@ export default function App() {
             />
           </div>
         </main>
+      </div>
+
       </div>
 
       {/* ---- Modals ---- */}
@@ -2289,9 +2308,9 @@ export default function App() {
       {peerNotice && (
         <div
           key={peerNotice.key}
-          className="fixed left-1/2 top-16 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-full border border-ink-500/60 bg-ink-800/95 py-1.5 pl-1.5 pr-4 text-sm text-slate-100 shadow-xl backdrop-blur"
+          className="fixed left-1/2 top-16 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-ink-800/90 py-1.5 pl-1.5 pr-4 text-sm text-slate-100 shadow-2xl backdrop-blur-2xl"
         >
-          <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-ink-700 text-[10px] font-semibold">
+          <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-ink-700/70 text-[10px] font-semibold">
             {peerNotice.avatar ? (
               <img
                 src={peerNotice.avatar}
@@ -2375,7 +2394,7 @@ function MenuButton({
   return (
     <button
       onClick={onClick}
-      className="rounded-md px-3 py-1.5 text-sm text-slate-300 transition hover:bg-ink-600 hover:text-slate-100"
+      className="rounded-md px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-slate-100"
     >
       {children}
     </button>
@@ -2398,7 +2417,7 @@ function IconButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="grid h-8 w-8 place-items-center rounded-md text-base text-slate-300 transition hover:bg-ink-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+      className="grid h-8 w-8 place-items-center rounded-md text-base text-slate-300 transition hover:bg-white/10 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
     >
       {children}
     </button>

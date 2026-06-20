@@ -22,8 +22,8 @@ export function Field({
 }
 
 const inputBase =
-  "rounded-lg bg-ink-700 border border-ink-500/60 px-3 py-2 text-sm text-slate-100 " +
-  "outline-none transition focus:border-accent/70 focus:ring-1 focus:ring-accent/40";
+  "rounded-lg bg-ink-700/65 border border-white/10 px-3 py-2 text-sm text-slate-100 " +
+  "outline-none shadow-inner shadow-black/10 backdrop-blur-sm transition focus:border-accent/70 focus:ring-1 focus:ring-accent/40";
 
 export function TextInput(
   props: React.InputHTMLAttributes<HTMLInputElement>,
@@ -52,16 +52,16 @@ export function Button({
 }) {
   const styles: Record<string, string> = {
     primary:
-      "bg-ink-600 hover:bg-ink-500 text-slate-100 border border-ink-500/60",
+      "bg-ink-600/75 hover:bg-ink-500/85 text-slate-100 border border-white/10",
     ghost:
-      "bg-transparent hover:bg-ink-600 text-slate-300 border border-transparent",
+      "bg-transparent hover:bg-white/10 text-slate-300 border border-transparent",
     accent:
-      "bg-accent hover:bg-accent-soft text-white border border-accent-deep/40",
+      "bg-accent/90 hover:bg-accent-soft/95 text-white border border-accent-deep/40",
   };
   return (
     <button
       {...props}
-      className={`rounded-lg px-3 py-2 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${styles[variant]} ${className}`}
+      className={`rounded-lg px-3 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${styles[variant]} ${className}`}
     />
   );
 }
@@ -77,7 +77,7 @@ export function FileButton({
   onFile: (file: File) => void;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-ink-500/60 bg-ink-600 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-ink-500">
+    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85">
       {label}
       <input
         type="file"

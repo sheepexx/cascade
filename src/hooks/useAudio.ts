@@ -1,4 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  DUCK_FILTER_HZ,
+  MIX_RAMP_SECONDS,
+  NORMAL_FILTER_HZ,
+  effectiveAudioPower,
+} from "../lib/audioAtmosphere";
+
+const RATE_RAMP_SECONDS = 0.34;
+
+type RateTransition = {
+  startCtxTime: number;
+  startPosition: number;
+  from: number;
+  to: number;
+  duration: number;
+};
+
+const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
+
+const easeOutCubicIntegral = (t: number): number =>
+  1.5 * t * t - t * t * t + 0.25 * t * t * t * t;
+
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+
+const playbackCurve = (from: number, to: number): Float32Array => {
+  const points = 32;
+  const curve = new Float32Array(points);
+  for (let i = 0; i < points; i++) {
+    const t = i / (points - 1);
+    curve[i] = from + (to - from) * easeOutCubic(t);
+  }
+  return curve;
+};
 
 /**
  * Playback controller exposing a high-resolution clock (updated via
@@ -30,6 +63,7 @@ export function useAudio(
   // ---- Web Audio engine state ----
   const ctxRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
+  const filterRef = useRef<BiquadFilterNode | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const bufferRef = useRef<AudioBuffer | null>(buffer ?? null);
   // Authoritative paused position (seconds). While playing, the live position
@@ -52,6 +86,10 @@ export function useAudio(
   // way the osu! editor's 25/50/75% playback does.
   const [playbackRate, setPlaybackRateState] = useState(1);
   const playbackRateRef = useRef(1);
+  const rateTransitionRef = useRef<RateTransition | null>(null);
+  const elementVolumeRafRef = useRef<number | null>(null);
+  const elementRateRafRef = useRef<number | null>(null);
+  const ambientDuckedRef = useRef(false);
   // Whether an authoritative decoded duration is in effect; while set, the
   // element's own (VBR-unreliable) duration is ignored.
   const hasKnownDurationRef = useRef(false);
@@ -62,6 +100,69 @@ export function useAudio(
     el.volume = 0.2 * 0.2; // square law on the initial default
     audioRef.current = el;
   }
+
+  const effectivePower = useCallback(
+    () => effectiveAudioPower(volumeRef.current, ambientDuckedRef.current),
+    [],
+  );
+
+  const targetFilterFrequency = useCallback(
+    () => (ambientDuckedRef.current ? DUCK_FILTER_HZ : NORMAL_FILTER_HZ),
+    [],
+  );
+
+  const rampElementVolume = useCallback((target: number, seconds: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (elementVolumeRafRef.current !== null) {
+      cancelAnimationFrame(elementVolumeRafRef.current);
+      elementVolumeRafRef.current = null;
+    }
+    const from = audio.volume;
+    const duration = Math.max(1, seconds * 1000);
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = clamp01((now - start) / duration);
+      audio.volume = from + (target - from) * easeOutCubic(t);
+      if (t < 1) {
+        elementVolumeRafRef.current = requestAnimationFrame(step);
+      } else {
+        audio.volume = target;
+        elementVolumeRafRef.current = null;
+      }
+    };
+    elementVolumeRafRef.current = requestAnimationFrame(step);
+  }, []);
+
+  const applyOutputMix = useCallback(
+    (seconds = MIX_RAMP_SECONDS) => {
+      const targetGain = effectivePower();
+      const ctx = ctxRef.current;
+      const gain = gainRef.current;
+      const filter = filterRef.current;
+      if (ctx && gain) {
+        const now = ctx.currentTime;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(gain.gain.value, now);
+        gain.gain.linearRampToValueAtTime(targetGain, now + seconds);
+      }
+      if (ctx && filter) {
+        const now = ctx.currentTime;
+        const targetHz = targetFilterFrequency();
+        filter.frequency.cancelScheduledValues(now);
+        filter.frequency.setValueAtTime(
+          Math.max(40, filter.frequency.value),
+          now,
+        );
+        filter.frequency.exponentialRampToValueAtTime(
+          targetHz,
+          now + seconds,
+        );
+      }
+      rampElementVolume(targetGain, seconds);
+    },
+    [effectivePower, rampElementVolume, targetFilterFrequency],
+  );
 
   /** Lazily create the playback AudioContext (matched to the buffer's rate). */
   const ensureCtx = useCallback((): AudioContext | null => {
@@ -76,25 +177,63 @@ export function useAudio(
       const rate = bufferRef.current?.sampleRate;
       ctx = rate ? new Ctor({ sampleRate: rate }) : new Ctor();
       const gain = ctx.createGain();
-      gain.gain.value = volumeRef.current * volumeRef.current;
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = targetFilterFrequency();
+      filter.Q.value = 0.65;
+      gain.gain.value = effectivePower();
+      filter.connect(gain);
       gain.connect(ctx.destination);
       ctxRef.current = ctx;
       gainRef.current = gain;
+      filterRef.current = filter;
     }
     if (ctx.state === "suspended") void ctx.resume();
     return ctx;
+  }, [effectivePower, targetFilterFrequency]);
+
+  const rateAtCtxTime = useCallback((ctxTime: number): number => {
+    const tr = rateTransitionRef.current;
+    if (!tr) return playbackRateRef.current;
+    if (tr.duration <= 0) return tr.to;
+    const t = clamp01((ctxTime - tr.startCtxTime) / tr.duration);
+    return tr.from + (tr.to - tr.from) * easeOutCubic(t);
+  }, []);
+
+  const positionAtCtxTime = useCallback((ctxTime: number): number => {
+    const tr = rateTransitionRef.current;
+    if (!tr) {
+      return (
+        startOffsetRef.current +
+        (ctxTime - startCtxTimeRef.current) * playbackRateRef.current
+      );
+    }
+    if (tr.duration <= 0) {
+      return tr.startPosition + (ctxTime - tr.startCtxTime) * tr.to;
+    }
+    const elapsed = Math.max(0, ctxTime - tr.startCtxTime);
+    if (elapsed <= tr.duration) {
+      const t = elapsed / tr.duration;
+      return (
+        tr.startPosition +
+        tr.from * elapsed +
+        (tr.to - tr.from) * tr.duration * easeOutCubicIntegral(t)
+      );
+    }
+    const transitioned =
+      tr.from * tr.duration +
+      (tr.to - tr.from) * tr.duration * easeOutCubicIntegral(1);
+    return tr.startPosition + transitioned + tr.to * (elapsed - tr.duration);
   }, []);
 
   /** Live playback position in seconds (works whether playing or paused). */
   const webPosition = useCallback((): number => {
     const ctx = ctxRef.current;
     if (sourceRef.current && ctx) {
-      const elapsed =
-        (ctx.currentTime - startCtxTimeRef.current) * playbackRateRef.current;
-      return startOffsetRef.current + elapsed;
+      return positionAtCtxTime(ctx.currentTime);
     }
     return positionRef.current;
-  }, []);
+  }, [positionAtCtxTime]);
 
   /** Stop the current Web Audio source, optionally saving the position. */
   const stopWeb = useCallback(
@@ -132,7 +271,7 @@ export function useAudio(
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
     source.playbackRate.value = playbackRateRef.current;
-    source.connect(gain);
+    source.connect(filterRef.current ?? gain);
     source.onended = () => {
       // Only fires here on a *natural* end (manual stops null the handler).
       sourceRef.current = null;
@@ -142,6 +281,13 @@ export function useAudio(
     };
     startOffsetRef.current = positionRef.current;
     startCtxTimeRef.current = ctx.currentTime;
+    rateTransitionRef.current = {
+      startCtxTime: ctx.currentTime,
+      startPosition: positionRef.current,
+      from: playbackRateRef.current,
+      to: playbackRateRef.current,
+      duration: 0,
+    };
     manualStopRef.current = false;
     source.start(0, positionRef.current);
     sourceRef.current = source;
@@ -293,6 +439,29 @@ export function useAudio(
     else play();
   }, [isPlaying, play, pause]);
 
+  const rampElementRate = useCallback((target: number, seconds: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (elementRateRafRef.current !== null) {
+      cancelAnimationFrame(elementRateRafRef.current);
+      elementRateRafRef.current = null;
+    }
+    const from = audio.playbackRate || 1;
+    const duration = Math.max(1, seconds * 1000);
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = clamp01((now - start) / duration);
+      applyRate(audio, from + (target - from) * easeOutCubic(t));
+      if (t < 1) {
+        elementRateRafRef.current = requestAnimationFrame(step);
+      } else {
+        applyRate(audio, target);
+        elementRateRafRef.current = null;
+      }
+    };
+    elementRateRafRef.current = requestAnimationFrame(step);
+  }, []);
+
   /** Seek to an absolute time in milliseconds. */
   const seek = useCallback(
     (ms: number) => {
@@ -327,39 +496,68 @@ export function useAudio(
 
   const setPlaybackRate = useCallback((rate: number) => {
     const clamped = Math.max(0.1, Math.min(4, rate));
-    playbackRateRef.current = clamped;
     // Re-anchor a live Web Audio source so the clock stays continuous.
     const ctx = ctxRef.current;
     const source = sourceRef.current;
     if (source && ctx) {
-      positionRef.current =
-        startOffsetRef.current +
-        (ctx.currentTime - startCtxTimeRef.current) * source.playbackRate.value;
-      startOffsetRef.current = positionRef.current;
-      startCtxTimeRef.current = ctx.currentTime;
-      source.playbackRate.value = clamped;
+      const now = ctx.currentTime;
+      const from = rateAtCtxTime(now);
+      const startPosition = positionAtCtxTime(now);
+      positionRef.current = startPosition;
+      startOffsetRef.current = startPosition;
+      startCtxTimeRef.current = now;
+      rateTransitionRef.current = {
+        startCtxTime: now,
+        startPosition,
+        from,
+        to: clamped,
+        duration: RATE_RAMP_SECONDS,
+      };
+      source.playbackRate.cancelScheduledValues(now);
+      source.playbackRate.setValueAtTime(from, now);
+      source.playbackRate.setValueCurveAtTime(
+        playbackCurve(from, clamped),
+        now,
+        RATE_RAMP_SECONDS,
+      );
+    } else {
+      rateTransitionRef.current = null;
     }
-    applyRate(audioRef.current, clamped);
+    playbackRateRef.current = clamped;
+    rampElementRate(clamped, RATE_RAMP_SECONDS);
     setPlaybackRateState(clamped);
-  }, []);
+  }, [positionAtCtxTime, rampElementRate, rateAtCtxTime]);
 
   const setVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
     volumeRef.current = clamped;
-    // Square law: perceived 50% slider -> 25% actual power, much more natural.
-    const power = clamped * clamped;
-    if (gainRef.current) gainRef.current.gain.value = power;
-    if (audioRef.current) audioRef.current.volume = power;
+    applyOutputMix(0.14);
     setVolumeState(clamped);
-  }, []);
+  }, [applyOutputMix]);
+
+  const setAmbientDucking = useCallback(
+    (ducked: boolean) => {
+      if (ambientDuckedRef.current === ducked) return;
+      ambientDuckedRef.current = ducked;
+      applyOutputMix(MIX_RAMP_SECONDS);
+    },
+    [applyOutputMix],
+  );
 
   // Tear down the AudioContext when the hook unmounts.
   useEffect(() => {
     return () => {
       stopWeb(false);
+      if (elementVolumeRafRef.current !== null) {
+        cancelAnimationFrame(elementVolumeRafRef.current);
+      }
+      if (elementRateRafRef.current !== null) {
+        cancelAnimationFrame(elementRateRafRef.current);
+      }
       void ctxRef.current?.close().catch(() => {});
       ctxRef.current = null;
       gainRef.current = null;
+      filterRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -376,6 +574,7 @@ export function useAudio(
     seek,
     setPlaybackRate,
     setVolume,
+    setAmbientDucking,
   };
 }
 

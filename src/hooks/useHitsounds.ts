@@ -1,10 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { ManiaNote, TimingPoint } from "../types";
 import {
   HITSOUND_CLAP,
   HITSOUND_FINISH,
   HITSOUND_WHISTLE,
 } from "../types";
+import {
+  DUCK_FILTER_HZ,
+  MIX_RAMP_SECONDS,
+  NORMAL_FILTER_HZ,
+  effectiveAudioPower,
+} from "../lib/audioAtmosphere";
 import { activeTimingAt } from "../lib/timing";
 
 /** Lowercase set prefixes indexed by sample-set number (1=normal,2=soft,3=drum). */
@@ -36,8 +42,11 @@ export function useHitsounds(
   /** Perceived slider position, 0..1 (square-law applied internally). */
   volume: number,
   enabled: boolean,
+  ducked: boolean,
 ) {
   const ctxRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const filterRef = useRef<BiquadFilterNode | null>(null);
   // Decoded sample buffers keyed by `${setPrefix}-${sound}` (e.g. `soft-clap`).
   const buffersRef = useRef<Map<string, AudioBuffer>>(new Map());
   // Keys currently being fetched/decoded, so we don't request them twice.
@@ -48,8 +57,77 @@ export function useHitsounds(
   const lastTimeRef = useRef<number | null>(null);
 
   // Keep the latest values on a ref so the rAF loop reads fresh data.
-  const stateRef = useRef({ currentTime, isPlaying, timingPoints, volume, enabled });
-  stateRef.current = { currentTime, isPlaying, timingPoints, volume, enabled };
+  const stateRef = useRef({
+    currentTime,
+    isPlaying,
+    timingPoints,
+    volume,
+    enabled,
+    ducked,
+  });
+  stateRef.current = {
+    currentTime,
+    isPlaying,
+    timingPoints,
+    volume,
+    enabled,
+    ducked,
+  };
+
+  const currentMixPower = useCallback((): number => {
+    const s = stateRef.current;
+    return s.enabled ? effectiveAudioPower(s.volume, s.ducked) : 0;
+  }, []);
+
+  const ensureCtx = useCallback((): AudioContext | null => {
+    let ctx = ctxRef.current;
+    if (!ctx) {
+      const Ctor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Ctor) return null;
+      ctx = new Ctor();
+      ctxRef.current = ctx;
+    }
+    if (!filterRef.current || !masterGainRef.current) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = stateRef.current.ducked
+        ? DUCK_FILTER_HZ
+        : NORMAL_FILTER_HZ;
+      filter.Q.value = 0.65;
+      const masterGain = ctx.createGain();
+      masterGain.gain.value = currentMixPower();
+      filter.connect(masterGain);
+      masterGain.connect(ctx.destination);
+      filterRef.current = filter;
+      masterGainRef.current = masterGain;
+    }
+    if (ctx.state === "suspended") void ctx.resume();
+    return ctx;
+  }, [currentMixPower]);
+
+  const applyOutputMix = useCallback(
+    (seconds = MIX_RAMP_SECONDS) => {
+      const ctx = ctxRef.current;
+      const masterGain = masterGainRef.current;
+      const filter = filterRef.current;
+      if (!ctx || !masterGain || !filter) return;
+      const now = ctx.currentTime;
+      const targetGain = currentMixPower();
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+      masterGain.gain.linearRampToValueAtTime(targetGain, now + seconds);
+      const targetHz = stateRef.current.ducked
+        ? DUCK_FILTER_HZ
+        : NORMAL_FILTER_HZ;
+      filter.frequency.cancelScheduledValues(now);
+      filter.frequency.setValueAtTime(Math.max(40, filter.frequency.value), now);
+      filter.frequency.exponentialRampToValueAtTime(targetHz, now + seconds);
+    },
+    [currentMixPower],
+  );
 
   // Rebuild the sorted hit-event index whenever the notes change.
   useEffect(() => {
@@ -63,27 +141,17 @@ export function useHitsounds(
   }, [notes]);
 
   useEffect(() => {
+    if (!enabled) lastTimeRef.current = null;
+    applyOutputMix();
+  }, [enabled, volume, ducked, applyOutputMix]);
+
+  useEffect(() => {
     if (!enabled) {
       lastTimeRef.current = null;
       return;
     }
 
     let raf = 0;
-
-    const ensureCtx = (): AudioContext | null => {
-      let ctx = ctxRef.current;
-      if (!ctx) {
-        const Ctor =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext })
-            .webkitAudioContext;
-        if (!Ctor) return null;
-        ctx = new Ctor();
-        ctxRef.current = ctx;
-      }
-      if (ctx.state === "suspended") void ctx.resume();
-      return ctx;
-    };
 
     /** Fetch + decode a sample if not already available; returns it if ready. */
     const getBuffer = (
@@ -121,7 +189,9 @@ export function useHitsounds(
       src.buffer = buffer;
       const gain = ctx.createGain();
       gain.gain.value = gainValue;
-      src.connect(gain).connect(ctx.destination);
+      src.connect(gain).connect(
+        filterRef.current ?? masterGainRef.current ?? ctx.destination,
+      );
       src.start();
     };
 
@@ -137,10 +207,10 @@ export function useHitsounds(
       const additionSet = note.additionSet || normalSet;
       const normalPrefix = SET_PREFIX[normalSet] ?? "normal";
       const additionPrefix = SET_PREFIX[additionSet] ?? "normal";
-      // Volume: per-note overrides the timing point; 0 means "inherit".
+      // Volume: per-note overrides the timing point; 0 means "inherit". The
+      // shared output chain applies the editor's overall hitsound/ducking mix.
       const volPct = note.sampleVolume || tp.volume || 100;
-      const perceived = s.volume * s.volume; // square law, matches playback vol
-      const gainValue = perceived * (volPct / 100);
+      const gainValue = volPct / 100;
       if (gainValue <= 0) return;
 
       // The normal sample always plays in osu!mania; additions layer on top.
@@ -153,7 +223,10 @@ export function useHitsounds(
 
     // Warm up the most common sample so the first hit isn't dropped.
     const warm = ensureCtx();
-    if (warm) getBuffer(warm, "normal", "normal");
+    if (warm) {
+      getBuffer(warm, "normal", "normal");
+      applyOutputMix(0.01);
+    }
 
     const loop = () => {
       raf = requestAnimationFrame(loop);
@@ -191,13 +264,15 @@ export function useHitsounds(
 
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [enabled]);
+  }, [enabled, ensureCtx, applyOutputMix]);
 
   // Release the audio context when the component using the hook unmounts.
   useEffect(() => {
     return () => {
       void ctxRef.current?.close();
       ctxRef.current = null;
+      masterGainRef.current = null;
+      filterRef.current = null;
       buffersRef.current.clear();
     };
   }, []);

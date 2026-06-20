@@ -26,7 +26,7 @@ export function TransportBar({
   const { currentTime, volume, setVolume } = audio;
 
   return (
-    <div className="flex items-center gap-4 border-b border-ink-600 bg-ink-800/80 px-4 py-3 backdrop-blur">
+    <div className="flex items-center gap-4 border-b border-white/10 bg-ink-800/55 px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl">
       <div className="flex-1" />
 
       {/* Timestamp display */}
@@ -35,7 +35,7 @@ export function TransportBar({
           const timestamp = formatTime(currentTime);
           navigator.clipboard.writeText(timestamp);
         }}
-        className="rounded bg-ink-900/70 px-2 py-1 font-mono text-xs text-slate-300 transition-colors hover:bg-ink-800 hover:text-slate-100 cursor-pointer"
+        className="cursor-pointer rounded border border-white/5 bg-ink-900/55 px-2 py-1 font-mono text-xs text-slate-300 shadow-inner shadow-black/10 backdrop-blur transition-colors hover:bg-white/10 hover:text-slate-100"
         title="Click to copy timestamp"
       >
         <span className="text-slate-100">{Math.round(currentTime)} ms</span>
@@ -90,7 +90,7 @@ export function TransportBar({
                 snapDivisor: Number(e.target.value) as SnapDivisor,
               })
             }
-            className="rounded-md border border-ink-500/60 bg-ink-700 px-2 py-1 text-slate-100 outline-none"
+            className="rounded-md border border-white/10 bg-ink-700/70 px-2 py-1 text-slate-100 outline-none backdrop-blur-sm"
           >
             {SNAP_DIVISORS.map((d) => (
               <option key={d} value={d}>

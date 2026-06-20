@@ -69,7 +69,7 @@ export function Menu({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-300 transition hover:bg-ink-600 hover:text-slate-100 ${className}`}
+        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-slate-100 ${className}`}
       >
         {label}
         <span className="text-[10px] text-slate-500">▾</span>
@@ -79,11 +79,11 @@ export function Menu({
           <div
             ref={menuRef}
             style={{ position: "fixed", top: pos.top, right: pos.right }}
-            className="z-[100] w-52 overflow-hidden rounded-xl border border-ink-500/60 bg-ink-800 py-1 shadow-2xl"
+            className="z-[100] w-52 overflow-hidden rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl"
           >
             {items.map((item, i) =>
               "separator" in item ? (
-                <div key={i} className="my-1 h-px bg-ink-600" />
+                <div key={i} className="my-1 h-px bg-white/10" />
               ) : (
                 <button
                   key={i}
@@ -93,7 +93,7 @@ export function Menu({
                     setOpen(false);
                     item.onClick();
                   }}
-                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition hover:bg-ink-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
+                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
                     item.danger ? "text-rose-300" : "text-slate-200"
                   }`}
                 >
