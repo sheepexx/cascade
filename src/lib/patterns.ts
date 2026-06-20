@@ -69,3 +69,28 @@ export function patternToNotes(
 export function patternKeySpan(pattern: PatternNote[]): number {
   return pattern.reduce((max, n) => Math.max(max, n.column + 1), 0);
 }
+
+/**
+ * Stable content hash of a pattern's note geometry (column + start/end times)
+ * for a given key count. Order-independent. Used to detect duplicate preset
+ * submissions across all users — hitsounds are intentionally ignored so two
+ * identical layouts count as the same pattern.
+ */
+export async function patternHash(
+  pattern: PatternNote[],
+  keyCount: number,
+): Promise<string> {
+  const canonical =
+    `k${keyCount}|` +
+    pattern
+      .map((n) => `${n.column},${n.startTime},${n.endTime ?? ""}`)
+      .sort()
+      .join(";");
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(canonical),
+  );
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}

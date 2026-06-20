@@ -3,7 +3,7 @@ import { Modal } from "../ui/Modal";
 import { Button, Field, TextInput } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
 import { useAuth } from "../../lib/auth";
-import { publishPreset } from "../../lib/presets";
+import { publishPreset, DuplicatePresetError } from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
 
 /**
@@ -45,6 +45,8 @@ export function PublishPresetModal({
     try {
       await publishPreset({
         authorId: user.id,
+        authorUsername: user.username,
+        authorOsuId: user.osu_id,
         name: name.trim(),
         keyCount,
         description: description.trim(),
@@ -56,7 +58,13 @@ export function PublishPresetModal({
       });
       setStatus("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to publish.");
+      setError(
+        err instanceof DuplicatePresetError
+          ? "This exact pattern already exists as a preset, so it can't be submitted again."
+          : err instanceof Error
+            ? err.message
+            : "Failed to publish.",
+      );
       setStatus("error");
     }
   };
