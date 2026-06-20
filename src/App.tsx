@@ -25,6 +25,7 @@ import { CommentsSidebar } from "./components/CommentsSidebar";
 import type { Comment } from "./lib/comments";
 import {
   saveProjectCloud,
+  saveProjectDataCloud,
   loadProjectCloud,
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
@@ -180,6 +181,8 @@ export default function App() {
     null | "saving" | "saved" | "error"
   >(null);
   const [cloudError, setCloudError] = useState<string | null>(null);
+  // Google-Docs-style live auto-save indicator (debounced chart writes).
+  const [autoSave, setAutoSave] = useState<"idle" | "saving" | "saved">("idle");
   // Pattern pending publication as a preset (from the editor's clipboard panel).
   const [publishPattern, setPublishPattern] = useState<PatternNote[] | null>(
     null,
@@ -438,6 +441,32 @@ export default function App() {
       pendingSeekRef.current = null;
     }
   }, [audio.duration, audio]);
+
+  // Google-Docs live auto-save: debounce-write the chart to the cloud on every
+  // edit so changes persist instantly (and a late joiner / reload gets the
+  // latest). Lightweight — chart only; assets go through full "Save to cloud".
+  const autoSaveTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!cloudProjectId || !canEdit) return;
+    window.clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      setAutoSave("saving");
+      saveProjectDataCloud(cloudProjectId, {
+        meta: metaRef.current,
+        timingPoints: timingPointsRef.current,
+        difficulties: difficultiesRef.current,
+        activeId: activeIdRef.current,
+        view,
+        bgScope,
+      })
+        .then(() => setAutoSave("saved"))
+        .catch(() => setAutoSave("idle"));
+    }, 1500);
+    return () => window.clearTimeout(autoSaveTimerRef.current);
+    // Fire on real content edits (notes / meta / timing). activeId/view/bgScope
+    // are persisted from the latest values but don't themselves trigger a write.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudProjectId, canEdit, difficulties, meta, timingPoints]);
 
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
@@ -1852,6 +1881,14 @@ export default function App() {
                     ? "Connecting…"
                     : "Offline"}
               </span>
+            </span>
+          )}
+          {cloudProjectId && canEdit && autoSave !== "idle" && (
+            <span
+              className="text-[11px] text-slate-500"
+              title="Changes auto-save to the cloud"
+            >
+              {autoSave === "saving" ? "Saving…" : "All changes saved"}
             </span>
           )}
           {liveEnabled && collab.peers.length > 0 && (

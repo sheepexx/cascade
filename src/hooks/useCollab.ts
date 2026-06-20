@@ -9,11 +9,11 @@ const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 /**
  * Send a broadcast over the Realtime REST endpoint (not the WebSocket).
  *
- * The browser's WS `channel.send()` intermittently can't push (the channel
- * leaves the `joined` state) and falls back to an unauthenticated REST call
- * that 422s, so note ops never reach peers. Posting here with the signed-in
- * user's token is reliable (202) and the message is still delivered to every
- * WS subscriber of the topic. Presence stays on the WebSocket.
+ * In the browser the WS `channel.send()` / `track()` intermittently can't push
+ * (the channel leaves the `joined` state) and silently fails, so note ops and
+ * presence never reach peers. Posting here with the signed-in user's token is
+ * reliable (202) and the message is still delivered to every WS subscriber of
+ * the topic — so we SEND over REST and RECEIVE over the WebSocket.
  */
 function restBroadcast(projectId: string, event: string, payload: unknown): void {
   if (!SUPABASE_URL || !projectId) return;
@@ -39,9 +39,10 @@ function restBroadcast(projectId: string, event: string, payload: unknown): void
  *  - whole-document sync (`sendDoc`) for structural changes + the join handoff,
  *  - presence (who's online + where they're working).
  *
- * On join it asks peers for the freshest in-memory document (`sync.request`);
- * a present peer answers with a `doc` broadcast, so a late joiner sees changes
- * made while they were away even if the saved snapshot is stale.
+ * Presence is implemented as periodic `presence` broadcasts (a heartbeat) plus a
+ * prune timer, rather than Supabase Presence, because Presence rides the same
+ * unreliable WS push. On join it asks peers for the freshest in-memory document
+ * (`sync.request`); a present peer answers with a `doc` broadcast.
  */
 
 export type Peer = {
@@ -65,6 +66,11 @@ type PresenceFields = {
 };
 
 type Me = { id: string; username: string; avatar: string | null };
+
+/** How often we re-announce our presence (keep-alive). */
+const HEARTBEAT_MS = 3000;
+/** Drop a peer we haven't heard from in this long (≈3 missed heartbeats). */
+const PEER_TTL_MS = 9000;
 
 /** Deterministic, readable color per user id. */
 export function colorForId(id: string): string {
@@ -105,26 +111,43 @@ export function useCollab(opts: {
   const presenceRef = useRef<PresenceFields>({});
   const meRef = useRef<Me | null>(me);
   meRef.current = me;
-  // After we subscribe, the first presence batch announces everyone already in
-  // the room — suppress join toasts until this passes so we don't spam them.
+  // id -> peer + last-seen timestamp (for prune-based leave detection).
+  const peersRef = useRef<Map<string, Peer & { lastSeen: number }>>(new Map());
+  // Suppress join toasts for peers discovered in the first moment after we join
+  // (they were already here, answering our arrival — not genuinely joining).
   const readyAtRef = useRef(0);
-  // Per-peer debounce so a single join/leave can't fire several toasts.
-  const announcedRef = useRef<Map<string, number>>(new Map());
+  // Throttle outgoing presence broadcasts (playhead updates fire often).
+  const lastPresenceSendRef = useRef(0);
 
   useEffect(() => {
     if (!enabled || !projectId || !me) {
       setStatus("idle");
       setPeers([]);
+      peersRef.current.clear();
       return;
     }
     setStatus("connecting");
-    const color = colorForId(me.id);
+    peersRef.current.clear();
+    setPeers([]);
+    const myColor = colorForId(me.id);
+
+    const publishPeers = () => setPeers([...peersRef.current.values()]);
+
+    const broadcastPresence = () => {
+      const m = meRef.current;
+      if (!m) return;
+      lastPresenceSendRef.current = Date.now();
+      restBroadcast(projectId, "presence", {
+        id: m.id,
+        username: m.username,
+        avatar: m.avatar,
+        color: myColor,
+        ...presenceRef.current,
+      });
+    };
+
     const channel = supabase.channel(`project:${projectId}`, {
-      config: {
-        private: true,
-        broadcast: { self: false },
-        presence: { key: me.id },
-      },
+      config: { private: true, broadcast: { self: false } },
     });
     channelRef.current = channel;
 
@@ -145,72 +168,38 @@ export function useCollab(opts: {
         _from: meRef.current?.id,
       });
     });
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState() as Record<
-        string,
-        Array<Peer & { presence_ref: string }>
-      >;
-      const list: Peer[] = [];
-      for (const [key, metas] of Object.entries(state)) {
-        if (key === meRef.current?.id) continue;
-        const m = metas[0];
-        if (m) list.push(m);
+    // Presence over broadcast: a peer announced itself (or its position moved).
+    channel.on("broadcast", { event: "presence" }, ({ payload }) => {
+      const p = payload as Peer;
+      if (!p?.id || p.id === meRef.current?.id) return;
+      const map = peersRef.current;
+      const isNew = !map.has(p.id);
+      map.set(p.id, { ...p, lastSeen: Date.now() });
+      publishPeers();
+      if (isNew) {
+        // Let the newcomer learn about us too.
+        broadcastPresence();
+        if (Date.now() >= readyAtRef.current) onPeerJoinRef.current?.(p);
       }
-      console.info(
-        "[collab] presence sync — peers:",
-        list.length,
-        list.map((p) => p.username),
-      );
-      setPeers(list);
     });
-    // Announce genuine joins/leaves (not the initial roster) as notifications.
-    const announce = (kind: "j" | "l", peer: Peer | undefined) => {
-      if (!peer || peer.id === meRef.current?.id) return;
-      const now = Date.now();
-      const key = `${kind}:${peer.id}`;
-      const last = announcedRef.current.get(key) ?? 0;
-      if (now - last < 2500) return;
-      announcedRef.current.set(key, now);
-      if (kind === "j") onPeerJoinRef.current?.(peer);
-      else onPeerLeaveRef.current?.(peer);
-    };
-    channel.on("presence", { event: "join" }, ({ key, newPresences }) => {
-      if (key === meRef.current?.id) return;
-      if (Date.now() < readyAtRef.current) return; // initial roster batch
-      announce("j", newPresences?.[0] as unknown as Peer | undefined);
-    });
-    channel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
-      if (key === meRef.current?.id) return;
-      announce("l", leftPresences?.[0] as unknown as Peer | undefined);
+    channel.on("broadcast", { event: "presence.leave" }, ({ payload }) => {
+      const id = (payload as { id?: string })?.id;
+      if (!id) return;
+      const peer = peersRef.current.get(id);
+      if (peer && peersRef.current.delete(id)) {
+        publishPeers();
+        onPeerLeaveRef.current?.(peer);
+      }
     });
 
     channel.subscribe((s, err) => {
       if (s === "SUBSCRIBED") {
         setStatus("connected");
         readyAtRef.current = Date.now() + 1500;
-        console.info(
-          "[collab] SUBSCRIBED to project:" + projectId,
-          "| supabase:",
-          import.meta.env.VITE_SUPABASE_URL,
-        );
-        // track() result is the key write-auth signal: "ok" means presence
-        // writes are accepted; "error" means the realtime.messages INSERT
-        // policy is rejecting them (so nothing this user does will sync).
-        void channel
-          .track({
-            id: me.id,
-            username: me.username,
-            avatar: me.avatar,
-            color,
-            ...presenceRef.current,
-          })
-          .then((r) => console.info("[collab] track (presence write) ->", r));
-        // Ask any present peer for the freshest document.
-        restBroadcast(projectId, "sync.request", { _from: me.id });
+        broadcastPresence(); // announce our arrival
+        restBroadcast(projectId, "sync.request", { _from: me.id }); // pull freshest doc
       } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
         setStatus("error");
-        // Surfaces realtime authorization failures (e.g. missing
-        // realtime.messages RLS policy for the private project channel).
         console.error(
           `[collab] channel ${s} for project:${projectId}`,
           err ?? "(no error detail — likely Realtime RLS/auth rejection)",
@@ -218,9 +207,29 @@ export function useCollab(opts: {
       }
     });
 
+    // Heartbeat: keep peers aware we're still here.
+    const heartbeat = window.setInterval(broadcastPresence, HEARTBEAT_MS);
+    // Prune: drop peers we haven't heard from (ungraceful leave / closed tab).
+    const pruner = window.setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      for (const [id, peer] of peersRef.current) {
+        if (now - peer.lastSeen > PEER_TTL_MS) {
+          peersRef.current.delete(id);
+          onPeerLeaveRef.current?.(peer);
+          changed = true;
+        }
+      }
+      if (changed) publishPeers();
+    }, HEARTBEAT_MS);
+
     return () => {
+      restBroadcast(projectId, "presence.leave", { id: me.id }); // best-effort
+      window.clearInterval(heartbeat);
+      window.clearInterval(pruner);
       channelRef.current = null;
       void supabase.removeChannel(channel);
+      peersRef.current.clear();
       setStatus("idle");
       setPeers([]);
     };
@@ -238,17 +247,24 @@ export function useCollab(opts: {
     restBroadcast(projectId, "doc", { ...doc, _from: meRef.current?.id });
   };
   const updatePresence = (fields: PresenceFields) => {
-    presenceRef.current = { ...presenceRef.current, ...fields };
-    const ch = channelRef.current;
+    const prev = presenceRef.current;
+    const diffChanged =
+      fields.activeDiffId !== undefined && fields.activeDiffId !== prev.activeDiffId;
+    presenceRef.current = { ...prev, ...fields };
     const m = meRef.current;
-    if (!ch || !m) return;
-    void ch.track({
-      id: m.id,
-      username: m.username,
-      avatar: m.avatar,
-      color: colorForId(m.id),
-      ...presenceRef.current,
-    });
+    if (!projectId || !m) return;
+    // Broadcast immediately on a difficulty switch; otherwise throttle (playhead
+    // moves fire ~2×/s) and let the heartbeat carry the latest position.
+    if (diffChanged || Date.now() - lastPresenceSendRef.current > 900) {
+      lastPresenceSendRef.current = Date.now();
+      restBroadcast(projectId, "presence", {
+        id: m.id,
+        username: m.username,
+        avatar: m.avatar,
+        color: colorForId(m.id),
+        ...presenceRef.current,
+      });
+    }
   };
 
   return { status, peers, sendOp, sendDoc, updatePresence };

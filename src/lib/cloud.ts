@@ -139,6 +139,28 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
   return id;
 }
 
+/**
+ * Lightweight live save: update only the chart row (`projects.data` + the
+ * denormalised title/artist/creator), without touching Storage assets. Used for
+ * the Google-Docs-style auto-save on every edit, so it's cheap to call often.
+ * Assets are still (re)uploaded by the full `saveProjectCloud`.
+ */
+export async function saveProjectDataCloud(
+  projectId: string,
+  data: CloudProjectData,
+): Promise<void> {
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      title: data.meta.title,
+      artist: data.meta.artist,
+      creator: data.meta.creator,
+      data,
+    })
+    .eq("id", projectId);
+  if (error) throw new Error(error.message);
+}
+
 /** List every project the user can see (owned + shared), newest first. */
 export async function listProjectsCloud(): Promise<CloudProjectSummary[]> {
   const { data, error } = await supabase
