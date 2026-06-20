@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { starColor } from "../../lib/starRating";
+import { useAuth } from "../../lib/auth";
+import {
+  listProjectsCloud,
+  type CloudProjectSummary,
+} from "../../lib/cloud";
 
 /** A single difficulty entry from the bundled maps manifest. */
 export type SampleDifficulty = {
@@ -44,14 +49,46 @@ export function WelcomeModal({
   onClose,
   onNewMap,
   onTryMaps,
+  onOpenCloudProject,
 }: {
   open: boolean;
   onClose: () => void;
   onNewMap: () => void;
   onTryMaps: () => void;
+  /** Open one of the user's cloud maps (owned or shared) by id. */
+  onOpenCloudProject: (id: string) => void;
 }) {
+  const { user, login } = useAuth();
+  const [projects, setProjects] = useState<CloudProjectSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !user) {
+      setProjects(null);
+      return;
+    }
+    let cancelled = false;
+    setError(null);
+    listProjectsCloud()
+      .then((rows) => {
+        if (!cancelled) setProjects(rows);
+      })
+      .catch((e) => {
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : "Couldn't load your maps.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user]);
+
+  const owned = user ? (projects ?? []).filter((p) => p.owner === user.id) : [];
+  const shared = user
+    ? (projects ?? []).filter((p) => p.owner !== user.id)
+    : [];
+
   return (
-    <Modal open={open} title="Get started" onClose={onClose} width="max-w-lg">
+    <Modal open={open} title="Get started" onClose={onClose} width="max-w-2xl">
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
@@ -82,7 +119,99 @@ export function WelcomeModal({
           </span>
         </button>
       </div>
+
+      {/* Signed-out prompt */}
+      {!user && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
+          <span className="text-sm text-slate-400">
+            Log in with osu! to see your saved maps and mapping invitations.
+          </span>
+          <Button variant="accent" onClick={login} className="whitespace-nowrap">
+            Log in with osu!
+          </Button>
+        </div>
+      )}
+
+      {error && <p className="mt-4 text-sm text-rose-400">{error}</p>}
+
+      {/* Invitations (maps shared with you) */}
+      {user && shared.length > 0 && (
+        <ProjectSection
+          title="Mapping invitations"
+          subtitle="Maps others shared with you"
+          projects={shared}
+          onOpen={onOpenCloudProject}
+        />
+      )}
+
+      {/* Your own cloud maps */}
+      {user && (
+        <ProjectSection
+          title="Your maps"
+          projects={owned}
+          onOpen={onOpenCloudProject}
+          emptyHint={
+            projects === null
+              ? "Loading…"
+              : "No saved maps yet — use “Save to cloud” after you start one."
+          }
+        />
+      )}
     </Modal>
+  );
+}
+
+/** A labeled list of cloud projects with Open buttons. */
+function ProjectSection({
+  title,
+  subtitle,
+  projects,
+  onOpen,
+  emptyHint,
+}: {
+  title: string;
+  subtitle?: string;
+  projects: CloudProjectSummary[];
+  onOpen: (id: string) => void;
+  emptyHint?: string;
+}) {
+  return (
+    <section className="mt-5">
+      <div className="mb-2 flex items-baseline gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          {title}
+        </h3>
+        {subtitle && (
+          <span className="text-[11px] text-slate-500">{subtitle}</span>
+        )}
+      </div>
+      {projects.length === 0 ? (
+        emptyHint && <p className="text-sm text-slate-500">{emptyHint}</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {projects.slice(0, 8).map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center gap-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-slate-100">
+                  {p.title || "Untitled"}
+                </div>
+                <div className="truncate text-[11px] text-slate-500">
+                  {p.artist}
+                  {p.creator ? ` · ${p.creator}` : ""} · saved{" "}
+                  {new Date(p.updated_at).toLocaleDateString()}
+                </div>
+              </div>
+              <Button variant="accent" onClick={() => onOpen(p.id)}>
+                Open
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -100,7 +229,6 @@ export function SampleMapsModal({
 }) {
   const [maps, setMaps] = useState<SampleMap[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || maps) return;
@@ -121,11 +249,6 @@ export function SampleMapsModal({
       cancelled = true;
     };
   }, [open, maps]);
-
-  const handleSelect = (map: SampleMap) => {
-    setLoadingId(map.id);
-    onSelect(map);
-  };
 
   return (
     <Modal
@@ -150,14 +273,12 @@ export function SampleMapsModal({
           {maps.map((map) => {
             const stars = map.difficulties.map((d) => d.stars);
             const maxStars = stars.length ? Math.max(...stars) : 0;
-            const isLoading = loadingId === map.id;
             return (
               <button
                 key={map.id}
                 type="button"
-                disabled={loadingId !== null}
-                onClick={() => handleSelect(map)}
-                className="group flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40 text-left transition hover:border-accent/70 hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => onSelect(map)}
+                className="group flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40 text-left transition hover:border-accent/70 hover:bg-ink-700"
               >
                 <div className="relative aspect-[3.5/1] w-full overflow-hidden bg-ink-600">
                   {map.banner ? (
@@ -181,11 +302,6 @@ export function SampleMapsModal({
                   >
                     ★ {maxStars.toFixed(2)}
                   </span>
-                  {isLoading && (
-                    <div className="absolute inset-0 grid place-items-center bg-black/60 text-xs font-medium text-slate-200">
-                      Loading…
-                    </div>
-                  )}
                 </div>
                 <div className="flex flex-col gap-2 p-3">
                   <div>

@@ -39,6 +39,8 @@ type Props = {
   peers?: { color: string; playheadMs?: number; username: string }[];
   /** Comment anchors, drawn as markers above the waveform. */
   comments?: { time_ms: number; resolved: boolean }[];
+  /** Click a comment marker (top band) → seek there + open the comments panel. */
+  onCommentClick?: (timeMs: number) => void;
 };
 
 const SENS_MIN = 0.5;
@@ -58,6 +60,7 @@ export function BottomTimeline({
   revealWaveform,
   peers,
   comments,
+  onCommentClick,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -252,14 +255,36 @@ export function BottomTimeline({
       ctx.stroke();
     }
 
-    // ---- Comment markers (speech-bubble ticks above the waveform) ----
+    // ---- Comment markers (clickable pins above the waveform) ----
     if (duration > 0 && comments?.length) {
       for (const c of comments) {
         if (c.time_ms < 0 || c.time_ms > duration) continue;
         const cx = (c.time_ms / duration) * width;
-        ctx.fillStyle = c.resolved ? "rgba(148,163,184,0.5)" : "#fbbf24";
+        const col = c.resolved ? "rgba(148,163,184,0.6)" : "#fbbf24";
+        // Faint stem down through the strip so the anchor time is obvious.
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = c.resolved ? 0.3 : 0.55;
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(cx, 6, 3.5, 0, Math.PI * 2);
+        ctx.moveTo(cx, 13);
+        ctx.lineTo(cx, HEIGHT);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        // Pin: rounded head + pointer.
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(cx, 7, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx - 3.5, 10);
+        ctx.lineTo(cx + 3.5, 10);
+        ctx.lineTo(cx, 14.5);
+        ctx.closePath();
+        ctx.fill();
+        // Dark dot in the head so it reads as a comment.
+        ctx.fillStyle = "#0b0b10";
+        ctx.beginPath();
+        ctx.arc(cx, 7, 1.4, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -336,6 +361,30 @@ export function BottomTimeline({
   );
 
   const onMouseDown = (e: React.MouseEvent) => {
+    // A click in the top band on a comment pin opens that comment instead of
+    // seeking (the rest of the strip still scrubs as before).
+    const canvas = canvasRef.current;
+    if (canvas && onCommentClick && duration > 0 && comments?.length) {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      if (clickY <= 16) {
+        let best: { time_ms: number } | null = null;
+        let bestDist = 8;
+        for (const c of comments) {
+          const cx = (c.time_ms / duration) * rect.width;
+          const d = Math.abs(cx - clickX);
+          if (d <= bestDist) {
+            bestDist = d;
+            best = c;
+          }
+        }
+        if (best) {
+          onCommentClick(best.time_ms);
+          return;
+        }
+      }
+    }
     draggingRef.current = true;
     seekFromEvent(e.clientX);
   };

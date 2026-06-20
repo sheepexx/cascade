@@ -28,12 +28,14 @@ import {
   loadProjectCloud,
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
+import { computeStarRating } from "./lib/starRating";
 import { supabase } from "./lib/supabase";
 import { useCollab } from "./hooks/useCollab";
 import { applyNoteOp, invertNoteOp, type NoteOp, type DocState } from "./lib/ops";
 import { myAccess, type AccessRole } from "./lib/collab";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
+import { Menu } from "./components/ui/Menu";
 import { Modal } from "./components/ui/Modal";
 import { AccountControl } from "./components/auth/LoginButton";
 import { AdminPanel } from "./components/admin/AdminPanel";
@@ -177,6 +179,8 @@ export default function App() {
   // 'viewer'|null). Drives edit permission while in a shared session.
   const [myRole, setMyRole] = useState<AccessRole>(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // Reference mode: id of a second difficulty shown side-by-side (read-only).
+  const [referenceId, setReferenceId] = useState<string | null>(null);
   // Top-level comments, for the bottom-timeline markers.
   const [commentMarkers, setCommentMarkers] = useState<
     { time_ms: number; resolved: boolean }[]
@@ -293,6 +297,9 @@ export default function App() {
     if (sessionActiveRef.current) pendingDocSyncRef.current = true;
   }, []);
 
+  // No-op handler set for the read-only reference editor.
+  const noop = useCallback(() => {}, []);
+
   // Metadata edits from the map-settings panel (structural → doc-sync).
   const updateMeta = useCallback(
     (m: SongMeta) => {
@@ -398,6 +405,38 @@ export default function App() {
   const activeTimingPoints =
     active.timingPoints?.length ? active.timingPoints : timingPoints;
   const activeSkin = skin?.keymodes[active.keyCount] ?? null;
+
+  // ---- Reference mode: view another difficulty (same audio) side by side ---
+  // Only difficulties sharing the active one's MP3 can be referenced in sync,
+  // sorted easiest → hardest by star rating (matching the difficulty sidebar).
+  // Memoized: star rating is expensive, and this must NOT run on every frame
+  // (the app re-renders each frame during playback).
+  const eligibleRefs = useMemo(() => {
+    const resolve = (d: Difficulty): string | null => {
+      if (d.audioFilename && audioFiles[d.audioFilename]) return d.audioFilename;
+      const names = Object.keys(audioFiles);
+      return names.length === 1 ? names[0] : null;
+    };
+    const act = difficulties.find((d) => d.id === activeId) ?? difficulties[0];
+    const activeAudio = act ? resolve(act) : null;
+    if (!act || !activeAudio) return [];
+    return difficulties
+      .filter((d) => d.id !== act.id && resolve(d) === activeAudio)
+      .map((d) => ({ d, star: computeStarRating(d.notes, d.keyCount) }))
+      .sort((a, b) => a.star - b.star)
+      .map((x) => x.d);
+  }, [difficulties, activeId, audioFiles]);
+  const referenceDiff =
+    referenceId && referenceId !== active.id
+      ? (eligibleRefs.find((d) => d.id === referenceId) ?? null)
+      : null;
+  const referenceTimingPoints =
+    referenceDiff && referenceDiff.timingPoints?.length
+      ? referenceDiff.timingPoints
+      : timingPoints;
+  const referenceSkin = referenceDiff
+    ? (skin?.keymodes[referenceDiff.keyCount] ?? null)
+    : null;
   const totalNotes = difficulties.reduce((s, d) => s + d.notes.length, 0);
   const hasProject = projectStarted;
   const firstDifficulty = difficulties[0];
@@ -549,6 +588,7 @@ export default function App() {
       setCloudProjectId(null);
       setCloudOwnerId(null);
       setMyRole(null);
+      setReferenceId(null);
       setProjectStarted(true);
       setAudioFiles((prev) => {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
@@ -595,13 +635,15 @@ export default function App() {
   // ---- Bundled "try these maps" -------------------------------------------
   const loadSampleMap = useCallback(
     async (map: SampleMap) => {
+      // Close the gallery immediately so it never locks up while the (possibly
+      // large) .osz downloads + imports — the editor shows its own import state.
+      setModal(null);
       try {
         const res = await fetch(`${import.meta.env.BASE_URL}${map.osz}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const name = map.osz.split("/").pop() ?? `${map.id}.osz`;
         const file = new File([blob], name, { type: "application/octet-stream" });
-        setModal(null);
         await importMapFile(file);
       } catch (err) {
         setImportError(
@@ -1357,6 +1399,7 @@ export default function App() {
       if (d.view) setView({ ...DEFAULT_VIEW, ...d.view });
       setBgScope(d.bgScope ?? "mapset");
       setProjectStarted(true);
+      setReferenceId(null);
       setCloudProjectId(proj.id);
       setCloudOwnerId(proj.owner);
       // Fresh collab session: reset personal op history and resolve our role.
@@ -1452,6 +1495,7 @@ export default function App() {
     setCloudProjectId(null);
     setCloudOwnerId(null);
     setMyRole(null);
+    setReferenceId(null);
 
     void clearProject().catch(() => {});
   }, []);
@@ -1521,6 +1565,16 @@ export default function App() {
             <p className="text-sm text-slate-400">
               audio (.mp3 / .ogg) · image background · .osz map · .osk skin
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Map import overlay (shown while a selected/sample .osz loads) */}
+      {importingMap && (
+        <div className="fixed inset-0 z-[55] grid place-items-center bg-ink-900/70 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-xl border border-ink-500/60 bg-ink-800 px-6 py-4 text-sm font-medium text-slate-200 shadow-2xl">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
+            Loading map…
           </div>
         </div>
       )}
@@ -1598,67 +1652,66 @@ export default function App() {
             }`}
             aria-hidden={!hasProject}
           >
-            <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className="mr-2 text-xs text-slate-500">
-              {active.keyCount}K · {active.notes.length} notes ({holds} holds)
-            </span>
-            {cloudProjectId && myRole === "viewer" && (
-              <span className="mr-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
-                View only
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="mr-1 hidden text-xs text-slate-500 2xl:inline">
+                {active.keyCount}K · {active.notes.length} notes ({holds} holds)
               </span>
-            )}
-            <Button
-              onClick={() => handleNew()}
-              title="New map (clears everything)"
-            >
-              New
-            </Button>
-            <Button
-              onClick={() => void handleSave()}
-              disabled={saveStatus === "saving"}
-              title="Save progress locally (Ctrl+S)"
-            >
-              {saveStatus === "saving" ? "Saving…" : "Save"}
-            </Button>
-            <Button
-              onClick={() => void handleCloudSave()}
-              disabled={!authUser || !canEdit || cloudSaveStatus === "saving"}
-              title={
-                authUser
-                  ? canEdit
-                    ? "Save this project to your account"
-                    : "You have view-only access to this map"
-                  : "Log in to save to your account"
-              }
-            >
-              {cloudSaveStatus === "saving" ? "Saving…" : "Save to cloud"}
-            </Button>
-            {cloudProjectId && authUser && cloudOwnerId === authUser.id && (
-              <Button
-                onClick={() => setModal("share")}
-                title="Invite collaborators to this map"
-              >
-                Share
-              </Button>
-            )}
-            {cloudProjectId && authUser && (
-              <Button
-                onClick={() => setCommentsOpen((v) => !v)}
-                title="Timestamped comments"
-              >
-                Comments
-              </Button>
-            )}
-            <Button onClick={handleExportOsu} disabled={!canExport}>
-              Export .osu
-            </Button>
-            <Button
-              variant="accent"
-              onClick={handleExportOsz}
-              disabled={!canExport || exporting}
-            >
-              {exporting ? "Packaging…" : "Export .osz"}
-            </Button>
+              {cloudProjectId && myRole === "viewer" && (
+                <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+                  View only
+                </span>
+              )}
+              {cloudProjectId && authUser && cloudOwnerId === authUser.id && (
+                <IconButton
+                  onClick={() => setModal("share")}
+                  title="Share — invite collaborators"
+                >
+                  👥
+                </IconButton>
+              )}
+              {cloudProjectId && authUser && (
+                <IconButton
+                  onClick={() => setCommentsOpen((v) => !v)}
+                  title="Comments"
+                >
+                  💬
+                </IconButton>
+              )}
+              <Menu
+                label="File"
+                items={[
+                  {
+                    label: "New / open…",
+                    onClick: () => setModal("welcome"),
+                  },
+                  {
+                    label: saveStatus === "saving" ? "Saving…" : "Save locally",
+                    hint: "Ctrl+S",
+                    disabled: saveStatus === "saving",
+                    onClick: () => void handleSave(),
+                  },
+                  {
+                    label:
+                      cloudSaveStatus === "saving"
+                        ? "Saving…"
+                        : "Save to cloud",
+                    disabled:
+                      !authUser || !canEdit || cloudSaveStatus === "saving",
+                    onClick: () => void handleCloudSave(),
+                  },
+                  { separator: true },
+                  {
+                    label: "Export .osu",
+                    disabled: !canExport,
+                    onClick: handleExportOsu,
+                  },
+                  {
+                    label: "Export .osz",
+                    disabled: !canExport || exporting,
+                    onClick: handleExportOsz,
+                  },
+                ]}
+              />
             </div>
           </div>
           {liveEnabled && collab.peers.length > 0 && (
@@ -1736,6 +1789,8 @@ export default function App() {
             />
           </div>
           <div className="relative min-h-0 flex-1">
+            <div className="flex h-full w-full">
+            <div className="relative min-w-0 flex-1">
             {hasProject ? (
               <ManiaEditor
                 notes={active.notes}
@@ -1768,6 +1823,52 @@ export default function App() {
             ) : (
               <EmptyState onEnter={() => setModal("welcome")} />
             )}
+            </div>
+            {/* Reference difficulty: read-only, dimmed, synced to the playhead. */}
+            <div
+              className={`relative h-full shrink-0 overflow-hidden border-l border-ink-700 transition-[width] duration-300 ease-out ${
+                referenceDiff ? "w-1/2" : "w-0"
+              }`}
+              aria-hidden={!referenceDiff}
+            >
+              {referenceDiff && (
+                <>
+                  <div className="pointer-events-none h-full w-full opacity-60">
+                    <ManiaEditor
+                      notes={referenceDiff.notes}
+                      keyCount={referenceDiff.keyCount}
+                      timingPoints={referenceTimingPoints}
+                      previewTime={referenceDiff.previewTime}
+                      view={view}
+                      currentTime={audio.currentTime}
+                      backgroundUrl={null}
+                      skin={referenceSkin}
+                      playfieldScale={appSettings.playfieldScale}
+                      longNoteBodyScale={appSettings.longNoteBodyScale}
+                      zenMode={zenMode}
+                      onPlaceNote={noop}
+                      onDeleteNote={noop}
+                      onAddNotes={noop}
+                      onDeleteNotes={noop}
+                      onMoveNotes={noop}
+                      onView={noop}
+                      onSeek={noop}
+                      onVolumeChange={noop}
+                      currentHitSound={0}
+                      currentSampleSet={0}
+                      onCurrentHitSound={noop}
+                      onCurrentSampleSet={noop}
+                      readOnly
+                      hideHints
+                    />
+                  </div>
+                  <div className="absolute left-2 top-2 z-20 rounded bg-ink-900/85 px-2 py-0.5 text-[11px] font-medium text-slate-200 shadow">
+                    Reference · {referenceDiff.name} ({referenceDiff.keyCount}K)
+                  </div>
+                </>
+              )}
+            </div>
+            </div>
             {audioFile && !zenMode && (
               <PPCounter
                 notes={active.notes}
@@ -1785,6 +1886,31 @@ export default function App() {
             >
               i
             </button>
+            {hasProject && !zenMode && eligibleRefs.length > 0 && (
+              <div className="absolute left-3 top-14 z-30 rounded-lg border border-ink-600 bg-ink-900/85 backdrop-blur">
+                <Menu
+                  label={
+                    referenceDiff ? `Ref: ${referenceDiff.name}` : "Reference"
+                  }
+                  items={[
+                    ...eligibleRefs.map((d) => ({
+                      label: `${d.name} (${d.keyCount}K)`,
+                      onClick: () => setReferenceId(d.id),
+                    })),
+                    ...(referenceDiff
+                      ? [
+                          { separator: true as const },
+                          {
+                            label: "Turn off reference",
+                            danger: true,
+                            onClick: () => setReferenceId(null),
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              </div>
+            )}
             {cloudProjectId && authUser && (
               <CommentsSidebar
                 open={commentsOpen}
@@ -1799,6 +1925,7 @@ export default function App() {
                 activeDiffId={active.id}
                 onSeek={audio.seek}
                 canModerate={myRole === "owner" || myRole === "editor"}
+                ownerId={cloudOwnerId}
                 onCommentsChange={(c: Comment[]) =>
                   setCommentMarkers(
                     c
@@ -1833,6 +1960,10 @@ export default function App() {
               revealWaveform={hasProject}
               peers={collab.peers}
               comments={commentMarkers}
+              onCommentClick={(ms) => {
+                audio.seek(ms);
+                setCommentsOpen(true);
+              }}
             />
           </div>
         </main>
@@ -1842,8 +1973,9 @@ export default function App() {
       <WelcomeModal
         open={modal === "welcome"}
         onClose={close}
-        onNewMap={() => handleNew(false)}
+        onNewMap={() => handleNew(hasProjectContent)}
         onTryMaps={() => setModal("sampleMaps")}
+        onOpenCloudProject={(id) => void loadCloudProject(id)}
       />
       <SampleMapsModal
         open={modal === "sampleMaps"}

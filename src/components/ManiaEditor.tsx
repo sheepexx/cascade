@@ -95,6 +95,8 @@ type Props = {
   pendingClip?: { id: string; pattern: PatternNote[] } | null;
   /** View-only (collaborator viewer role): block note placement / dragging. */
   readOnly?: boolean;
+  /** Hide the on-canvas hint overlays (used by the read-only reference view). */
+  hideHints?: boolean;
 };
 
 type DragState = {
@@ -1525,26 +1527,30 @@ export function ManiaEditor(props: Props) {
         onMouseLeave={onMouseLeave}
         onWheel={onWheel}
       />
-      <div
-        className={`pointer-events-none absolute right-3 top-3 select-none rounded-md border border-yellow-300/40 bg-yellow-500/15 px-3 py-1.5 text-xs font-medium text-yellow-100 shadow-lg transition-[opacity,transform] duration-150 ${
-          shiftActive
-            ? "translate-y-0 opacity-100"
-            : "-translate-y-2 opacity-0"
-        }`}
-      >
-        Multi selection active
-      </div>
+      {!props.hideHints && (
+        <div
+          className={`pointer-events-none absolute right-3 top-3 select-none rounded-md border border-yellow-300/40 bg-yellow-500/15 px-3 py-1.5 text-xs font-medium text-yellow-100 shadow-lg transition-[opacity,transform] duration-150 ${
+            shiftActive
+              ? "translate-y-0 opacity-100"
+              : "-translate-y-2 opacity-0"
+          }`}
+        >
+          Multi selection active
+        </div>
+      )}
 
       {/* Receptor toggle indicator (press R) */}
-      <div
-        className={`pointer-events-none absolute left-3 top-3 select-none rounded-md border px-3 py-1.5 text-xs font-medium shadow-lg transition-[opacity,transform] duration-150 ${
-          receptorsOn
-            ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
-            : "border-slate-400/25 bg-ink-800/70 text-slate-200"
-        }`}
-      >
-        Receptors {receptorsOn ? "on" : "off"} · press R
-      </div>
+      {!props.hideHints && (
+        <div
+          className={`pointer-events-none absolute left-3 top-3 select-none rounded-md border px-3 py-1.5 text-xs font-medium shadow-lg transition-[opacity,transform] duration-150 ${
+            receptorsOn
+              ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
+              : "border-slate-400/25 bg-ink-800/70 text-slate-200"
+          }`}
+        >
+          Receptors {receptorsOn ? "on" : "off"} · press R
+        </div>
+      )}
 
       {/* Hitsound mode indicator (only while active; press H to toggle) */}
       {hitsoundMode && (
