@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
 import { kiaiRanges } from "../lib/timing";
@@ -35,10 +35,20 @@ type Props = {
   sensitivity: number;
   onSensitivity: (value: number) => void;
   revealWaveform: boolean;
-  /** Collaborators' current positions, drawn as colored lines. */
-  peers?: { color: string; playheadMs?: number; username: string }[];
+  /** Collaborators' current positions, drawn as colored lines + avatars. */
+  peers?: {
+    color: string;
+    playheadMs?: number;
+    username: string;
+    avatar?: string | null;
+  }[];
   /** Comment anchors, drawn as markers above the waveform. */
-  comments?: { time_ms: number; resolved: boolean }[];
+  comments?: {
+    time_ms: number;
+    resolved: boolean;
+    body?: string;
+    author?: string | null;
+  }[];
   /** Click a comment marker (top band) → seek there + open the comments panel. */
   onCommentClick?: (timeMs: number) => void;
 };
@@ -68,6 +78,16 @@ export function BottomTimeline({
   const draggingRef = useRef(false);
   const waveformRevealStartRef = useRef(0);
   const revealedWaveformRef = useRef<Waveform | null>(null);
+  // Cache of decoded avatar images (osu! pfps), keyed by URL, for canvas draws.
+  const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  // Tooltip shown when hovering a comment marker (author + body).
+  const [tip, setTip] = useState<{
+    x: number;
+    author: string;
+    body: string;
+    resolved: boolean;
+  } | null>(null);
+  const tipKeyRef = useRef<number | null>(null);
 
   const propsRef = useRef({
     waveform,
@@ -289,27 +309,61 @@ export function BottomTimeline({
       }
     }
 
-    // ---- Collaborator position lines ----
+    // ---- Collaborator position lines + avatars ----
     if (duration > 0 && peers?.length) {
-      ctx.font = "10px sans-serif";
+      const cache = avatarCacheRef.current;
+      const AR = 9; // avatar radius
+      const AY = 11; // avatar center y (top band, above the waveform)
       for (const p of peers) {
         if (p.playheadMs === undefined) continue;
         const cx = (p.playheadMs / duration) * width;
+
+        // Vertical position line.
         ctx.strokeStyle = p.color;
         ctx.globalAlpha = 0.85;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(cx, WAVE_TOP - 2);
+        ctx.moveTo(cx, AY + AR);
         ctx.lineTo(cx, HEIGHT);
         ctx.stroke();
         ctx.globalAlpha = 1;
-        ctx.fillStyle = p.color;
-        const label = p.username.slice(0, 12);
-        const w = ctx.measureText(label).width + 6;
-        const lx = Math.min(width - w, Math.max(0, cx + 2));
-        ctx.fillRect(lx, HEIGHT - 13, w, 12);
-        ctx.fillStyle = "#0b0b10";
-        ctx.fillText(label, lx + 3, HEIGHT - 4);
+
+        // osu! avatar disc at the top of the line (falls back to an initial).
+        let img: HTMLImageElement | undefined;
+        if (p.avatar) {
+          img = cache.get(p.avatar);
+          if (!img) {
+            img = new Image();
+            img.decoding = "async";
+            img.src = p.avatar;
+            cache.set(p.avatar, img);
+          }
+        }
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, AY, AR, 0, Math.PI * 2);
+        ctx.closePath();
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.clip();
+          ctx.drawImage(img, cx - AR, AY - AR, AR * 2, AR * 2);
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.fill();
+          ctx.fillStyle = "#0b0b10";
+          ctx.font = "bold 10px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(p.username.slice(0, 1).toUpperCase(), cx, AY + 0.5);
+          ctx.textAlign = "left";
+          ctx.textBaseline = "alphabetic";
+        }
+        ctx.restore();
+        // Colored ring around the avatar.
+        ctx.beginPath();
+        ctx.arc(cx, AY, AR, 0, Math.PI * 2);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = p.color;
+        ctx.stroke();
       }
     }
 
@@ -389,6 +443,56 @@ export function BottomTimeline({
     seekFromEvent(e.clientX);
   };
 
+  // Hover a comment pin (top band) → show its author + text in a tooltip.
+  const onCanvasMove = (e: React.MouseEvent) => {
+    if (draggingRef.current) return;
+    const canvas = canvasRef.current;
+    const { duration, comments } = propsRef.current;
+    if (!canvas || !comments?.length || !(duration > 0)) {
+      if (tipKeyRef.current !== null) {
+        tipKeyRef.current = null;
+        setTip(null);
+      }
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    let best: { time_ms: number; cx: number } | null = null;
+    let bestDist = 8;
+    if (my <= 18) {
+      for (const c of comments) {
+        const cx = (c.time_ms / duration) * rect.width;
+        const d = Math.abs(cx - mx);
+        if (d <= bestDist) {
+          bestDist = d;
+          best = { time_ms: c.time_ms, cx };
+        }
+      }
+    }
+    if (best) {
+      if (tipKeyRef.current === best.time_ms) return; // unchanged
+      const c = comments.find((x) => x.time_ms === best!.time_ms);
+      tipKeyRef.current = best.time_ms;
+      setTip({
+        x: best.cx,
+        author: c?.author ?? "Mapper",
+        body: c?.body ?? "",
+        resolved: c?.resolved ?? false,
+      });
+    } else if (tipKeyRef.current !== null) {
+      tipKeyRef.current = null;
+      setTip(null);
+    }
+  };
+
+  const clearTip = () => {
+    if (tipKeyRef.current !== null) {
+      tipKeyRef.current = null;
+      setTip(null);
+    }
+  };
+
   // Scroll over the timeline to adjust waveform sensitivity.
   // Native listener with passive:false so we can stop the page from scrolling.
   useEffect(() => {
@@ -433,7 +537,34 @@ export function BottomTimeline({
         ref={canvasRef}
         className="block h-full w-full cursor-pointer"
         onMouseDown={onMouseDown}
+        onMouseMove={onCanvasMove}
+        onMouseLeave={clearTip}
       />
+      {/* Comment hover tooltip */}
+      {tip && (
+        <div
+          className="pointer-events-none absolute z-20 w-56 -translate-x-1/2 rounded-lg border border-ink-500/70 bg-ink-900/95 px-2.5 py-1.5 shadow-xl"
+          style={{
+            left: Math.min(
+              sizeRef.current.width - 116,
+              Math.max(116, tip.x),
+            ),
+            top: 20,
+          }}
+        >
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-200">
+            <span className="truncate">{tip.author}</span>
+            {tip.resolved && (
+              <span className="rounded bg-ink-600 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-400">
+                Resolved
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 line-clamp-4 whitespace-pre-wrap break-words text-xs text-slate-300">
+            {tip.body || "(no text)"}
+          </div>
+        </div>
+      )}
       {/* Sensitivity hint - appears on hover */}
       <div className="pointer-events-none absolute right-2 top-1.5 select-none rounded bg-ink-900/70 px-2 py-0.5 text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
         waveform {sensitivity.toFixed(1)}× · scroll to adjust
