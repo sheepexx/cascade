@@ -24,8 +24,7 @@ import {
   saveProjectCloud,
   loadProjectCloud,
 } from "./lib/cloud";
-import { patternToNotes, type PatternNote } from "./lib/patterns";
-import { snapTime } from "./lib/timing";
+import type { PatternNote } from "./lib/patterns";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { Modal } from "./components/ui/Modal";
@@ -155,6 +154,12 @@ export default function App() {
     null,
   );
   const [publishKeyCount, setPublishKeyCount] = useState(4);
+  // A preset pattern handed to the editor to load into its clipboard. The id
+  // changes each copy so the editor re-loads even for the same pattern.
+  const [presetToCopy, setPresetToCopy] = useState<{
+    id: string;
+    pattern: PatternNote[];
+  } | null>(null);
   const importStartedRef = useRef(false);
 
   const active =
@@ -1135,19 +1140,10 @@ export default function App() {
     [],
   );
 
-  const insertPreset = useCallback(
-    (pattern: PatternNote[]) => {
-      const base = snapTime(
-        audio.currentTime,
-        activeTimingPoints,
-        view.snapDivisor,
-      );
-      const notes = patternToNotes(pattern, base, active.keyCount);
-      if (notes.length) addNotes(notes);
-      setModal(null);
-    },
-    [audio.currentTime, activeTimingPoints, view.snapDivisor, active.keyCount, addNotes],
-  );
+  const copyPresetToClipboard = useCallback((pattern: PatternNote[]) => {
+    setPresetToCopy({ id: uid("clip"), pattern });
+    setModal(null);
+  }, []);
 
   // ---- New project (reset everything) -------------------------------------
   const handleNew = useCallback((confirm = true) => {
@@ -1448,6 +1444,7 @@ export default function App() {
                 onCurrentHitSound={setCurrentHitSound}
                 onCurrentSampleSet={setCurrentSampleSet}
                 onPublishPattern={authUser ? handlePublishPattern : undefined}
+                pendingClip={presetToCopy}
               />
             ) : (
               <EmptyState onEnter={() => setModal("welcome")} />
@@ -1519,7 +1516,7 @@ export default function App() {
         open={modal === "presets"}
         onClose={close}
         activeKeyCount={active.keyCount}
-        onInsert={insertPreset}
+        onCopy={copyPresetToClipboard}
       />
       <PublishPresetModal
         open={modal === "publishPreset"}

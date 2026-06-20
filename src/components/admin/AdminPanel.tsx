@@ -153,7 +153,18 @@ function PresetsTab() {
                 </div>
                 <div className="text-[11px] text-slate-500">
                   {p.key_count}K · {p.pattern.length} notes · by{" "}
-                  {p.author_profile?.username ?? "unknown"}
+                  {p.author_osu_id ? (
+                    <a
+                      href={`https://osu.ppy.sh/users/${p.author_osu_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:underline"
+                    >
+                      {p.author_username ?? "unknown"}
+                    </a>
+                  ) : (
+                    (p.author_username ?? "unknown")
+                  )}
                 </div>
                 {p.description && (
                   <p className="mt-1 text-xs text-slate-400">{p.description}</p>

@@ -91,6 +91,8 @@ type Props = {
   onCurrentSampleSet: (value: number) => void;
   /** Publish the given copied pattern as a shared preset (opens a dialog). */
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
+  /** When set (by a changing id), load this pattern into the editor clipboard. */
+  pendingClip?: { id: string; pattern: PatternNote[] } | null;
 };
 
 type DragState = {
@@ -243,6 +245,18 @@ export function ManiaEditor(props: Props) {
   const selectedNoteIdsRef = useRef<Set<string>>(new Set());
   const clipboardRef = useRef<Clip | null>(null);
   clipboardRef.current = clipboard;
+
+  // Load an externally-provided pattern (e.g. a preset chosen in the browser)
+  // into the clipboard so the user can paste it where they want with Ctrl+V.
+  const lastPendingClipRef = useRef<string | null>(null);
+  useEffect(() => {
+    const pc = props.pendingClip;
+    if (!pc || pc.id === lastPendingClipRef.current) return;
+    lastPendingClipRef.current = pc.id;
+    const clip: Clip = { id: pc.id, notes: pc.pattern };
+    setClipboard(clip);
+    setHistory((prev) => [clip, ...prev].slice(0, 8));
+  }, [props.pendingClip]);
 
   // Mutable mirror of props so the rAF draw loop always reads fresh values.
   const propsRef = useRef(props);
