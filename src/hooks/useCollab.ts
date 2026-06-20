@@ -1,7 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabase";
+import { supabase, getSupabaseToken } from "../lib/supabase";
 import type { DocState, NoteOp } from "../lib/ops";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+/**
+ * Send a broadcast over the Realtime REST endpoint (not the WebSocket).
+ *
+ * The browser's WS `channel.send()` intermittently can't push (the channel
+ * leaves the `joined` state) and falls back to an unauthenticated REST call
+ * that 422s, so note ops never reach peers. Posting here with the signed-in
+ * user's token is reliable (202) and the message is still delivered to every
+ * WS subscriber of the topic. Presence stays on the WebSocket.
+ */
+function restBroadcast(projectId: string, event: string, payload: unknown): void {
+  if (!SUPABASE_URL || !projectId) return;
+  const token = getSupabaseToken() ?? SUPABASE_ANON;
+  void fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messages: [{ topic: `project:${projectId}`, event, payload, private: true }],
+    }),
+  }).catch(() => {});
+}
 
 /**
  * Realtime co-op session for one cloud project.
@@ -94,27 +122,27 @@ export function useCollab(opts: {
     const channel = supabase.channel(`project:${projectId}`, {
       config: {
         private: true,
-        // ack so send() resolves with the server's accept/reject status — lets
-        // us log whether broadcasts are actually being relayed.
-        broadcast: { self: false, ack: true },
+        broadcast: { self: false },
         presence: { key: me.id },
       },
     });
     channelRef.current = channel;
 
     channel.on("broadcast", { event: "op" }, ({ payload }) => {
-      console.info("[collab] recv op", (payload as NoteOp)?.t);
-      onRemoteOpRef.current(payload as NoteOp);
+      const p = payload as NoteOp & { _from?: string };
+      if (p?._from && p._from === meRef.current?.id) return; // ignore own echo
+      onRemoteOpRef.current(p as NoteOp);
     });
     channel.on("broadcast", { event: "doc" }, ({ payload }) => {
-      console.info("[collab] recv doc");
-      onRemoteDocRef.current(payload as DocState);
+      const p = payload as DocState & { _from?: string };
+      if (p?._from && p._from === meRef.current?.id) return;
+      onRemoteDocRef.current(p as DocState);
     });
-    channel.on("broadcast", { event: "sync.request" }, () => {
-      channel.send({
-        type: "broadcast",
-        event: "doc",
-        payload: getDocRef.current(),
+    channel.on("broadcast", { event: "sync.request" }, ({ payload }) => {
+      if ((payload as { _from?: string })?._from === meRef.current?.id) return;
+      restBroadcast(projectId, "doc", {
+        ...getDocRef.current(),
+        _from: meRef.current?.id,
       });
     });
     channel.on("presence", { event: "sync" }, () => {
@@ -178,9 +206,7 @@ export function useCollab(opts: {
           })
           .then((r) => console.info("[collab] track (presence write) ->", r));
         // Ask any present peer for the freshest document.
-        void Promise.resolve(
-          channel.send({ type: "broadcast", event: "sync.request", payload: {} }),
-        ).then((r) => console.info("[collab] initial send ->", r));
+        restBroadcast(projectId, "sync.request", { _from: me.id });
       } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
         setStatus("error");
         // Surfaces realtime authorization failures (e.g. missing
@@ -204,17 +230,12 @@ export function useCollab(opts: {
   }, [projectId, enabled, me?.id]);
 
   const sendOp = (op: NoteOp) => {
-    const ch = channelRef.current;
-    if (!ch) {
-      console.warn("[collab] sendOp with no channel");
-      return;
-    }
-    void Promise.resolve(
-      ch.send({ type: "broadcast", event: "op", payload: op }),
-    ).then((r) => console.info("[collab] sendOp", op.t, "->", r));
+    if (!projectId) return;
+    restBroadcast(projectId, "op", { ...op, _from: meRef.current?.id });
   };
   const sendDoc = (doc: DocState) => {
-    channelRef.current?.send({ type: "broadcast", event: "doc", payload: doc });
+    if (!projectId) return;
+    restBroadcast(projectId, "doc", { ...doc, _from: meRef.current?.id });
   };
   const updatePresence = (fields: PresenceFields) => {
     presenceRef.current = { ...presenceRef.current, ...fields };
