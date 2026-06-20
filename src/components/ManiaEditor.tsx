@@ -55,6 +55,7 @@ const RECEPTOR_HIT_WINDOW = 90;
 const BACKGROUND_MAX_ALPHA = 0.12;
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
+const SCROLL_SPEED_EASE = 11;
 // osu!lazer font stack for canvas text - mirrors --font-osu / tailwind `sans`.
 const CANVAS_FONT_STACK =
   '"Torus", "Torus-Alternate", "Inter", ui-sans-serif, system-ui, sans-serif';
@@ -265,6 +266,10 @@ export function ManiaEditor(props: Props) {
   // Mutable mirror of props so the rAF draw loop always reads fresh values.
   const propsRef = useRef(props);
   propsRef.current = props;
+  const smoothScrollSpeedRef = useRef(props.view.scrollSpeed);
+  const lastMotionFrameRef = useRef(
+    typeof performance !== "undefined" ? performance.now() : 0,
+  );
 
   const sizeRef = useRef({ width: 800, height: 600, dpr: 1 });
   const mouseRef = useRef<{ x: number; y: number; inside: boolean }>({
@@ -546,8 +551,24 @@ export function ManiaEditor(props: Props) {
   }, [props.skin]);
 
   // ---- Geometry helpers ----------------------------------------------------
+  const updateSmoothMotion = useCallback(() => {
+    const now = performance.now();
+    const last = lastMotionFrameRef.current || now;
+    const dt = Math.min(0.08, Math.max(0, (now - last) / 1000));
+    lastMotionFrameRef.current = now;
+    const target = propsRef.current.view.scrollSpeed;
+    const current = smoothScrollSpeedRef.current;
+    if (!Number.isFinite(target)) return;
+    if (Math.abs(target - current) < 0.01) {
+      smoothScrollSpeedRef.current = target;
+      return;
+    }
+    const amount = 1 - Math.exp(-SCROLL_SPEED_EASE * dt);
+    smoothScrollSpeedRef.current = current + (target - current) * amount;
+  }, []);
+
   const ppms = useCallback(() => {
-    const { scrollSpeed } = propsRef.current.view;
+    const scrollSpeed = smoothScrollSpeedRef.current;
     // Height of the scrolling region above the playhead. osu!mania fits
     // MANIA_MAX_TIME_RANGE / scrollSpeed ms of notes into this span.
     const visibleHeight = Math.max(1, sizeRef.current.height - PLAYHEAD_FROM_BOTTOM);
@@ -1133,12 +1154,13 @@ export function ManiaEditor(props: Props) {
   useEffect(() => {
     let raf = 0;
     const loop = () => {
+      updateSmoothMotion();
       draw();
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [draw]);
+  }, [draw, updateSmoothMotion]);
 
   // ---- Resize handling -----------------------------------------------------
   // Only record the container size; the rAF draw syncs the canvas backing store

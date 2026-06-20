@@ -33,21 +33,21 @@ export function PPCounter({
   }, [notes, keyCount]);
 
   return (
-    <div className="absolute bottom-3 right-3 flex select-none items-center gap-2">
+    <div className="absolute bottom-3 right-3 flex select-none items-center gap-2 transition-opacity duration-300">
       {/* Playback speed (song slows down too) */}
-      <div className="flex items-center gap-1.5 rounded-md border border-ink-600 bg-ink-900/80 px-3 py-1.5 shadow-lg backdrop-blur-sm">
+      <div className="flex items-center gap-1.5 rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 shadow-xl shadow-black/25 backdrop-blur-xl">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">
           Speed
         </span>
-        <div className="flex overflow-hidden rounded-md border border-ink-500/60">
+        <div className="flex overflow-hidden rounded-md border border-white/10">
           {PLAYBACK_RATES.map((rate) => (
             <button
               key={rate}
               onClick={() => onPlaybackRateChange(rate)}
               className={`px-2 py-0.5 text-xs font-medium transition ${
                 Math.abs(playbackRate - rate) < 0.001
-                  ? "bg-accent text-white"
-                  : "bg-ink-700 text-slate-300 hover:bg-ink-600"
+                  ? "bg-accent/90 text-white shadow-inner shadow-white/10"
+                  : "bg-ink-700/70 text-slate-300 hover:bg-white/10"
               }`}
             >
               {Math.round(rate * 100)}%
@@ -57,7 +57,7 @@ export function PPCounter({
       </div>
 
       {/* Max pp readout */}
-      <div className="pointer-events-none rounded-md border border-ink-600 bg-ink-900/80 px-3 py-1.5 text-right shadow-lg backdrop-blur-sm">
+      <div className="pointer-events-none rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 text-right shadow-xl shadow-black/25 backdrop-blur-xl">
         <div className="flex items-baseline gap-1.5">
           <span className="text-base font-bold leading-none tabular-nums text-slate-100">
             {Math.round(pp)}
