@@ -32,6 +32,7 @@ export function CommentsSidebar({
   activeDiffId,
   onSeek,
   canModerate,
+  ownerId,
   onCommentsChange,
 }: {
   open: boolean;
@@ -42,6 +43,8 @@ export function CommentsSidebar({
   activeDiffId: string;
   onSeek: (ms: number) => void;
   canModerate: boolean;
+  /** Project owner's user id, to badge their comments as "Host". */
+  ownerId: string | null;
   /** Notifies the parent of the latest comments (for timeline markers). */
   onCommentsChange?: (comments: Comment[]) => void;
 }) {
@@ -169,6 +172,7 @@ export function CommentsSidebar({
               key={root.id}
               root={root}
               replies={replies}
+              ownerId={ownerId}
               onSeek={onSeek}
               onReply={(text) => post(text, root.id, root.time_ms)}
               onResolve={(v) =>
@@ -193,6 +197,7 @@ export function CommentsSidebar({
 function CommentThread({
   root,
   replies,
+  ownerId,
   onSeek,
   onReply,
   onResolve,
@@ -201,6 +206,7 @@ function CommentThread({
 }: {
   root: Comment;
   replies: Comment[];
+  ownerId: string | null;
   onSeek: (ms: number) => void;
   onReply: (text: string) => Promise<void> | void;
   onResolve: (resolved: boolean) => void;
@@ -242,10 +248,10 @@ function CommentThread({
           )}
         </div>
       </div>
-      <CommentBody c={root} />
+      <CommentBody c={root} ownerId={ownerId} />
       {replies.map((r) => (
         <div key={r.id} className="mt-1.5 border-l-2 border-ink-600 pl-2">
-          <CommentBody c={r} />
+          <CommentBody c={r} ownerId={ownerId} />
           {canModify(r) && (
             <button
               onClick={() => onDelete(r.id)}
@@ -273,10 +279,11 @@ function CommentThread({
   );
 }
 
-function CommentBody({ c }: { c: Comment }) {
+function CommentBody({ c, ownerId }: { c: Comment; ownerId: string | null }) {
+  const isHost = !!ownerId && c.author === ownerId;
   return (
     <div className="mt-1">
-      <div className="text-[11px] font-medium text-slate-300">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300">
         {c.author_osu_id ? (
           <a
             href={`https://osu.ppy.sh/users/${c.author_osu_id}`}
@@ -288,6 +295,11 @@ function CommentBody({ c }: { c: Comment }) {
           </a>
         ) : (
           (c.author_username ?? "unknown")
+        )}
+        {isHost && (
+          <span className="rounded bg-accent/20 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent">
+            Host
+          </span>
         )}
       </div>
       <div className="whitespace-pre-wrap break-words text-sm text-slate-200">

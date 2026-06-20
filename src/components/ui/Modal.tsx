@@ -57,8 +57,12 @@ export function Modal({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm ${
-        closing ? "modal-backdrop-out" : "modal-backdrop-in"
+      className={`fixed inset-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm ${
+        // A modal animating out must not sit above (or catch clicks meant for)
+        // a modal opening over it — e.g. Get started → Try these maps.
+        closing
+          ? "pointer-events-none z-40 modal-backdrop-out"
+          : "z-50 modal-backdrop-in"
       }`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
