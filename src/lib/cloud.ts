@@ -33,6 +33,7 @@ export type CloudAsset = { name: string; blob: Blob };
 /** Row shown in the "My Maps" list. */
 export type CloudProjectSummary = {
   id: string;
+  owner: string;
   title: string;
   artist: string;
   creator: string;
@@ -109,7 +110,9 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
     const ext = asset.name.includes(".")
       ? asset.name.slice(asset.name.lastIndexOf(".") + 1).toLowerCase()
       : "bin";
-    const storagePath = `${ownerId}/${sha}.${ext}`;
+    // Project-scoped path so collaborators (not just the owner) can read it;
+    // storage RLS gates these on can_view_project / can_edit_project.
+    const storagePath = `${id}/${sha}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from(MAPS_BUCKET)
       .upload(storagePath, asset.blob, {
@@ -136,11 +139,11 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
   return id;
 }
 
-/** List the signed-in user's projects, newest first. */
+/** List every project the user can see (owned + shared), newest first. */
 export async function listProjectsCloud(): Promise<CloudProjectSummary[]> {
   const { data, error } = await supabase
     .from("projects")
-    .select("id,title,artist,creator,updated_at")
+    .select("id,owner,title,artist,creator,updated_at")
     .order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as CloudProjectSummary[];
@@ -148,6 +151,7 @@ export async function listProjectsCloud(): Promise<CloudProjectSummary[]> {
 
 export type LoadedCloudProject = {
   id: string;
+  owner: string;
   data: CloudProjectData;
   audio: CloudAsset[];
   bg: CloudAsset[];
@@ -157,7 +161,7 @@ export type LoadedCloudProject = {
 export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> {
   const { data: project, error } = await supabase
     .from("projects")
-    .select("id,data")
+    .select("id,owner,data")
     .eq("id", id)
     .single();
   if (error) throw new Error(error.message);
@@ -182,6 +186,7 @@ export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> 
 
   return {
     id: project.id as string,
+    owner: project.owner as string,
     data: project.data as CloudProjectData,
     audio,
     bg,

@@ -28,6 +28,13 @@ let currentToken: string | null = null;
 /** Update the active Supabase access token (null = signed out / anon). */
 export function setSupabaseToken(token: string | null): void {
   currentToken = token;
+  // Keep Realtime authorized with the same token so private channels (used for
+  // co-op editing) accept this user; fall back to anon when signed out.
+  try {
+    supabase.realtime.setAuth(token ?? ANON_KEY);
+  } catch {
+    /* realtime not ready yet — initial auth is applied on first connect */
+  }
 }
 
 export function getSupabaseToken(): string | null {

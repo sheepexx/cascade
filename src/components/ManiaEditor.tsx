@@ -93,6 +93,8 @@ type Props = {
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
   /** When set (by a changing id), load this pattern into the editor clipboard. */
   pendingClip?: { id: string; pattern: PatternNote[] } | null;
+  /** View-only (collaborator viewer role): block note placement / dragging. */
+  readOnly?: boolean;
 };
 
 type DragState = {
@@ -1270,6 +1272,9 @@ export function ManiaEditor(props: Props) {
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // left only
     const { x, y } = localPoint(e);
+    // View-only collaborators may still box-select (to copy/comment) but cannot
+    // place, drag or otherwise modify notes.
+    if (props.readOnly && !(e.shiftKey || shiftActiveRef.current)) return;
     if (e.shiftKey || shiftActiveRef.current) {
       e.preventDefault();
       dragRef.current = null;
