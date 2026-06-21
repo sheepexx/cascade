@@ -4,8 +4,10 @@ import { Button } from "../ui/Controls";
 import { starColor } from "../../lib/starRating";
 import { useAuth } from "../../lib/auth";
 import {
-  listProjectsCloud,
-  type CloudProjectSummary,
+  listMyProjectsRich,
+  signedThumbUrls,
+  type CloudProjectRich,
+  type ProjectParticipant,
 } from "../../lib/cloud";
 import {
   listLocalProjects,
@@ -44,9 +46,13 @@ function textOn(rgb: string): string {
   return lum > 0.55 ? "#000" : "#fff";
 }
 
+/** Maximum cards rendered per section before the rest are hidden. */
+const MAX_CARDS = 9;
+
 /**
- * First-run gate. Lets the user start from a blank editor or browse the
- * bundled "try these maps" gallery.
+ * First-run gate. Lets the user start from a blank editor or browse the bundled
+ * "try these maps" gallery, and surfaces their existing work in three sections:
+ * local saves, cloud projects they own, and maps they were invited to.
  */
 export function WelcomeModal({
   open,
@@ -66,13 +72,16 @@ export function WelcomeModal({
   onOpenLocalProject: (id: string) => void;
 }) {
   const { user, login } = useAuth();
-  const [projects, setProjects] = useState<CloudProjectSummary[] | null>(null);
+  const [projects, setProjects] = useState<CloudProjectRich[] | null>(null);
   const [localProjects, setLocalProjects] = useState<
     LocalProjectSummary[] | null
   >(null);
+  const [cloudThumbs, setCloudThumbs] = useState<Record<string, string>>({});
+  const [localThumbs, setLocalThumbs] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
+  // Local projects (with background blobs for thumbnails).
   useEffect(() => {
     if (!open) {
       setLocalProjects(null);
@@ -95,16 +104,41 @@ export function WelcomeModal({
     };
   }, [open]);
 
+  // Turn local background blobs into object URLs, revoking them on change.
+  useEffect(() => {
+    if (!localProjects) return;
+    const made: Record<string, string> = {};
+    for (const p of localProjects) {
+      if (p.backgroundBlob) made[p.id] = URL.createObjectURL(p.backgroundBlob);
+    }
+    setLocalThumbs(made);
+    return () => {
+      Object.values(made).forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [localProjects]);
+
+  // Cloud projects (owned + shared), with thumbnails + participant avatars.
   useEffect(() => {
     if (!open || !user) {
       setProjects(null);
+      setCloudThumbs({});
       return;
     }
     let cancelled = false;
     setError(null);
-    listProjectsCloud()
-      .then((rows) => {
-        if (!cancelled) setProjects(rows);
+    listMyProjectsRich()
+      .then(async (rows) => {
+        if (cancelled) return;
+        setProjects(rows);
+        const paths = rows
+          .map((r) => r.bg_path)
+          .filter((p): p is string => !!p);
+        try {
+          const urls = await signedThumbUrls(paths);
+          if (!cancelled) setCloudThumbs(urls);
+        } catch {
+          /* thumbnails are best-effort; cards fall back to a placeholder */
+        }
       })
       .catch((e) => {
         if (!cancelled)
@@ -121,7 +155,7 @@ export function WelcomeModal({
     : [];
 
   return (
-    <Modal open={open} title="Get started" onClose={onClose} width="max-w-2xl">
+    <Modal open={open} title="Get started" onClose={onClose} width="max-w-3xl">
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
@@ -168,146 +202,263 @@ export function WelcomeModal({
       {error && <p className="mt-4 text-sm text-rose-400">{error}</p>}
       {localError && <p className="mt-4 text-sm text-rose-400">{localError}</p>}
 
-      <LocalProjectSection
+      {/* 1. Local projects (this device) */}
+      <Section
         title="Local projects"
-        projects={localProjects ?? []}
-        onOpen={onOpenLocalProject}
-        emptyHint={
-          localProjects === null
-            ? "Loading..."
-            : "No local saves yet. Use Ctrl+S or enable autosave after starting a map."
-        }
-      />
+        hint="saved on this device"
+        count={localProjects?.length}
+      >
+        {localProjects === null ? (
+          <SectionMessage>Loading…</SectionMessage>
+        ) : localProjects.length === 0 ? (
+          <SectionMessage>
+            No local saves yet. Use Ctrl+S or enable autosave after starting a
+            map.
+          </SectionMessage>
+        ) : (
+          <CardGrid>
+            {localProjects.slice(0, MAX_CARDS).map((p) => (
+              <ProjectCard
+                key={p.id}
+                title={p.title || "Untitled"}
+                subtitle={subtitleOf(p.artist, p.creator)}
+                note={`${p.difficultyCount} diff${
+                  p.difficultyCount === 1 ? "" : "s"
+                } · saved ${new Date(p.updatedAt).toLocaleDateString()}`}
+                thumbUrl={localThumbs[p.id]}
+                onOpen={() => onOpenLocalProject(p.id)}
+              />
+            ))}
+          </CardGrid>
+        )}
+      </Section>
 
-      {/* Invitations (maps shared with you) */}
-      {user && shared.length > 0 && (
-        <ProjectSection
-          title="Mapping invitations"
-          subtitle="Maps others shared with you"
-          projects={shared}
-          onOpen={onOpenCloudProject}
-        />
+      {/* 2. Cloud projects (owned) */}
+      {user && (
+        <Section
+          title="Cloud projects"
+          hint="saved to your account"
+          count={projects === null ? undefined : owned.length}
+        >
+          {projects === null ? (
+            <SectionMessage>Loading…</SectionMessage>
+          ) : owned.length === 0 ? (
+            <SectionMessage>
+              No saved maps yet — use “Save to cloud” after you start one.
+            </SectionMessage>
+          ) : (
+            <CardGrid>
+              {owned.slice(0, MAX_CARDS).map((p) => (
+                <ProjectCard
+                  key={p.id}
+                  title={p.title || "Untitled"}
+                  subtitle={subtitleOf(p.artist, p.creator)}
+                  note={`saved ${new Date(
+                    p.updated_at,
+                  ).toLocaleDateString()}`}
+                  thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
+                  participants={othersOf(p.participants, user.id)}
+                  onOpen={() => onOpenCloudProject(p.id)}
+                />
+              ))}
+            </CardGrid>
+          )}
+        </Section>
       )}
 
-      {/* Your own cloud maps */}
-      {user && (
-        <ProjectSection
-          title="Cloud projects"
-          projects={owned}
-          onOpen={onOpenCloudProject}
-          emptyHint={
-            projects === null
-              ? "Loading…"
-              : "No saved maps yet — use “Save to cloud” after you start one."
-          }
-        />
+      {/* 3. Mapping invitations (shared with you) */}
+      {user && shared.length > 0 && (
+        <Section
+          title="Mapping invitations"
+          hint="maps others shared with you"
+          count={shared.length}
+        >
+          <CardGrid>
+            {shared.slice(0, MAX_CARDS).map((p) => {
+              const ownerName = p.participants.find(
+                (x) => x.role === "owner",
+              )?.username;
+              return (
+                <ProjectCard
+                  key={p.id}
+                  badge="Invited"
+                  title={p.title || "Untitled"}
+                  subtitle={subtitleOf(p.artist, p.creator)}
+                  note={ownerName ? `shared by ${ownerName}` : undefined}
+                  thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
+                  participants={othersOf(p.participants, user.id)}
+                  onOpen={() => onOpenCloudProject(p.id)}
+                />
+              );
+            })}
+          </CardGrid>
+        </Section>
       )}
     </Modal>
   );
 }
 
-/** A labeled list of local projects saved in this browser. */
-function LocalProjectSection({
+/** "Artist · Creator", omitting empty parts. */
+function subtitleOf(artist: string, creator: string): string {
+  return [artist, creator].filter(Boolean).join(" · ");
+}
+
+/** Participants other than the current user (collaborators, or the map owner). */
+function othersOf(
+  participants: ProjectParticipant[],
+  selfId: string,
+): ProjectParticipant[] {
+  return participants.filter((p) => p.user_id !== selfId);
+}
+
+/** A separated, titled section with an optional count and right-aligned hint. */
+function Section({
   title,
-  projects,
-  onOpen,
-  emptyHint,
+  hint,
+  count,
+  children,
 }: {
   title: string;
-  projects: LocalProjectSummary[];
-  onOpen: (id: string) => void;
-  emptyHint: string;
+  hint?: string;
+  count?: number;
+  children: React.ReactNode;
 }) {
   return (
-    <section className="mt-5">
-      <div className="mb-2 flex items-baseline gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <section className="mt-6">
+      <div className="mb-3 flex items-baseline gap-2 border-b border-white/10 pb-1.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
           {title}
         </h3>
-        <span className="text-[11px] text-slate-500">saved on this device</span>
+        {count != null && (
+          <span className="grid min-w-[1.25rem] place-items-center rounded-full bg-ink-600 px-1.5 text-[10px] font-semibold text-slate-300">
+            {count}
+          </span>
+        )}
+        {hint && (
+          <span className="ml-auto text-[11px] text-slate-500">{hint}</span>
+        )}
       </div>
-      {projects.length === 0 ? (
-        <p className="text-sm text-slate-500">{emptyHint}</p>
-      ) : (
-        <ul className="flex flex-col gap-1.5">
-          {projects.slice(0, 8).map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center gap-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-slate-100">
-                  {p.title || "Untitled"}
-                </div>
-                <div className="truncate text-[11px] text-slate-500">
-                  {p.artist}
-                  {p.creator ? ` - ${p.creator}` : ""} - {p.difficultyCount} diff
-                  {p.difficultyCount === 1 ? "" : "s"} - saved{" "}
-                  {new Date(p.updatedAt).toLocaleDateString()}
-                </div>
-              </div>
-              <Button variant="accent" onClick={() => onOpen(p.id)}>
-                Open
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {children}
     </section>
   );
 }
 
-/** A labeled list of cloud projects with Open buttons. */
-function ProjectSection({
+function SectionMessage({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm text-slate-500">{children}</p>;
+}
+
+function CardGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+  );
+}
+
+/** A project tile: background thumbnail, title/meta, and participant avatars. */
+function ProjectCard({
   title,
   subtitle,
-  projects,
+  note,
+  thumbUrl,
+  badge,
+  participants,
   onOpen,
-  emptyHint,
 }: {
   title: string;
   subtitle?: string;
-  projects: CloudProjectSummary[];
-  onOpen: (id: string) => void;
-  emptyHint?: string;
+  note?: string;
+  thumbUrl?: string;
+  badge?: string;
+  participants?: ProjectParticipant[];
+  onOpen: () => void;
 }) {
   return (
-    <section className="mt-5">
-      <div className="mb-2 flex items-baseline gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          {title}
-        </h3>
-        {subtitle && (
-          <span className="text-[11px] text-slate-500">{subtitle}</span>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40 text-left transition hover:border-accent/70 hover:bg-ink-700"
+    >
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-600">
+        {thumbUrl ? (
+          <img
+            src={thumbUrl}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition group-hover:scale-105"
+          />
+        ) : (
+          <div className="grid h-full w-full place-items-center text-3xl text-slate-600">
+            🎵
+          </div>
+        )}
+        {badge && (
+          <span className="absolute left-2 top-2 rounded-md bg-accent/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
+            {badge}
+          </span>
+        )}
+        {participants && participants.length > 0 && (
+          <div className="absolute bottom-2 right-2">
+            <AvatarStack participants={participants} />
+          </div>
         )}
       </div>
-      {projects.length === 0 ? (
-        emptyHint && <p className="text-sm text-slate-500">{emptyHint}</p>
-      ) : (
-        <ul className="flex flex-col gap-1.5">
-          {projects.slice(0, 8).map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center gap-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-slate-100">
-                  {p.title || "Untitled"}
-                </div>
-                <div className="truncate text-[11px] text-slate-500">
-                  {p.artist}
-                  {p.creator ? ` · ${p.creator}` : ""} · saved{" "}
-                  {new Date(p.updated_at).toLocaleDateString()}
-                </div>
-              </div>
-              <Button variant="accent" onClick={() => onOpen(p.id)}>
-                Open
-              </Button>
-            </li>
-          ))}
-        </ul>
+      <div className="flex flex-col gap-0.5 p-3">
+        <div className="truncate text-sm font-semibold text-slate-100">
+          {title}
+        </div>
+        {subtitle && (
+          <div className="truncate text-xs text-slate-400">{subtitle}</div>
+        )}
+        {note && (
+          <div className="truncate text-[11px] text-slate-500">{note}</div>
+        )}
+      </div>
+    </button>
+  );
+}
+
+/** Small overlapping circle of participant avatars, with a "+N" overflow chip. */
+function AvatarStack({
+  participants,
+  max = 4,
+}: {
+  participants: ProjectParticipant[];
+  max?: number;
+}) {
+  const shown = participants.slice(0, max);
+  const extra = participants.length - shown.length;
+  return (
+    <div className="flex items-center -space-x-1.5">
+      {shown.map((p) => (
+        <Avatar key={p.user_id} participant={p} />
+      ))}
+      {extra > 0 && (
+        <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-ink-800 bg-ink-600 text-[9px] font-semibold text-slate-200 shadow">
+          +{extra}
+        </span>
       )}
-    </section>
+    </div>
+  );
+}
+
+/** One avatar circle, falling back to the username's initial. */
+function Avatar({ participant }: { participant: ProjectParticipant }) {
+  const name = participant.username ?? "?";
+  const title =
+    participant.role === "owner" ? `${name} (owner)` : name;
+  return participant.avatar_url ? (
+    <img
+      src={participant.avatar_url}
+      alt={name}
+      title={title}
+      className="h-6 w-6 rounded-full border-2 border-ink-800 object-cover shadow"
+    />
+  ) : (
+    <span
+      title={title}
+      className="grid h-6 w-6 place-items-center rounded-full border-2 border-ink-800 bg-ink-500 text-[9px] font-semibold text-slate-100 shadow"
+    >
+      {name.slice(0, 1).toUpperCase()}
+    </span>
   );
 }
 

@@ -171,6 +171,60 @@ export async function listProjectsCloud(): Promise<CloudProjectSummary[]> {
   return (data ?? []) as CloudProjectSummary[];
 }
 
+/** A project participant (owner or invited collaborator) shown in the start menu. */
+export type ProjectParticipant = {
+  user_id: string;
+  username: string | null;
+  avatar_url: string | null;
+  role: "owner" | "editor" | "viewer";
+};
+
+/** A project the user can view, enriched with a thumbnail + participant avatars. */
+export type CloudProjectRich = {
+  id: string;
+  owner: string;
+  title: string;
+  artist: string;
+  creator: string;
+  updated_at: string;
+  /** Storage path of a background to use as the card thumbnail, or null. */
+  bg_path: string | null;
+  /** Owner first, then collaborators. */
+  participants: ProjectParticipant[];
+};
+
+/**
+ * List every project the caller can view (owned + shared) with a background
+ * thumbnail path and the participants' avatars, in one round trip. Backed by the
+ * `list_my_projects` RPC (migration 0007), which is SECURITY DEFINER so it can
+ * surface collaborators' avatars that the `users` RLS would otherwise hide.
+ */
+export async function listMyProjectsRich(): Promise<CloudProjectRich[]> {
+  const { data, error } = await supabase.rpc("list_my_projects");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CloudProjectRich[];
+}
+
+/**
+ * Create short-lived signed URLs for private background thumbnails, keyed by
+ * storage path. Paths that can't be signed are simply omitted from the result.
+ */
+export async function signedThumbUrls(
+  paths: string[],
+): Promise<Record<string, string>> {
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (!unique.length) return {};
+  const { data, error } = await supabase.storage
+    .from(MAPS_BUCKET)
+    .createSignedUrls(unique, 60 * 60); // 1 hour
+  if (error) throw new Error(error.message);
+  const out: Record<string, string> = {};
+  for (const row of data ?? []) {
+    if (row.signedUrl && row.path) out[row.path] = row.signedUrl;
+  }
+  return out;
+}
+
 export type LoadedCloudProject = {
   id: string;
   owner: string;

@@ -79,7 +79,26 @@ export type LocalProjectSummary = {
   creator: string;
   updatedAt: number;
   difficultyCount: number;
+  /** A background image blob to use as the start-menu thumbnail, if any. */
+  backgroundBlob?: Blob;
 };
+
+/**
+ * Pick a background blob to use as a thumbnail: prefer the active difficulty's
+ * background, then any background in the set, then the legacy single background.
+ */
+function pickLocalBackground(project: SavedProject): Blob | undefined {
+  const files = project.backgroundFiles ?? [];
+  const active =
+    project.difficulties.find((d) => d.id === project.activeId) ??
+    project.difficulties[0];
+  const wanted = active?.backgroundFilename;
+  if (wanted) {
+    const hit = files.find((f) => f.name === wanted);
+    if (hit) return hit.blob;
+  }
+  return files[0]?.blob ?? project.background?.blob ?? undefined;
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -163,6 +182,7 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
                 creator: project.meta.creator,
                 updatedAt: project.savedAt,
                 difficultyCount: project.difficulties.length,
+                backgroundBlob: pickLocalBackground(project),
               });
             }
             pending -= 1;
