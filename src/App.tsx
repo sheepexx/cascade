@@ -2211,14 +2211,17 @@ export default function App() {
               onClick={() => setShowHomeConfirm(true)}
               className="flex items-center gap-2.5 rounded-md transition hover:opacity-80"
               title="Return to home screen"
+              // Opens the "are you sure" modal (which has its own chime); skip
+              // the general UI click so the two sounds don't overlap.
+              data-no-uisound=""
             >
               <img
-                src={`${import.meta.env.BASE_URL}logo.png`}
-                alt="o!m editor"
+                src={`${import.meta.env.BASE_URL}logo.png?v=2`}
+                alt="Cascade"
                 className="h-8 w-8 rounded-lg object-cover"
               />
               <h1 className="text-sm font-semibold text-slate-100">
-                mania editor
+                Cascade
               </h1>
             </button>
           </div>
@@ -3145,8 +3148,8 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
     <div className="grid h-full place-items-center text-center">
       <div className="max-w-sm">
         <img
-          src={`${import.meta.env.BASE_URL}logo.png`}
-          alt="o!m editor"
+          src={`${import.meta.env.BASE_URL}logo.png?v=2`}
+          alt="Cascade"
           className="mx-auto mb-4 h-24 w-24 rounded-2xl object-cover"
         />
         <h2 className="mb-1 text-lg font-semibold text-slate-200">
@@ -3167,7 +3170,7 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
           Enter
         </Button>
         <p className="mt-6 text-[11px] font-medium tracking-wide text-slate-600">
-          mania editor · v{__APP_VERSION__}
+          Cascade · v{__APP_VERSION__}
         </p>
       </div>
     </div>

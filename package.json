@@ -1,9 +1,9 @@
 {
-  "name": "mania-editor",
+  "name": "cascade",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.5",
   "type": "module",
-  "description": "A browser-based osu!mania beatmap editor",
+  "description": "Cascade — a browser-based osu!mania beatmap editor",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
