@@ -469,9 +469,9 @@ export default function App() {
   // Stable getter for the live playback clock. Lets children (e.g. the Timing
   // modal) read the current time without taking the per-frame `currentTime`
   // value as a prop — so they can be memoized and not re-render every frame.
-  const currentTimeRef = useRef(audio.currentTime);
-  currentTimeRef.current = audio.currentTime;
-  const getCurrentTime = useCallback(() => currentTimeRef.current, []);
+  const currentTimeRef = useRef(audio.getCurrentTime());
+  currentTimeRef.current = audio.getCurrentTime();
+  const getCurrentTime = audio.getCurrentTime;
   const modalAtmosphereOpen =
     (modal !== null && modal !== "timing") ||
     askBgScope ||
@@ -489,7 +489,7 @@ export default function App() {
 
   // Play the map's actual osu! hitsounds as notes cross the judgement line.
   useHitsounds(
-    audio.currentTime,
+    audio.getCurrentTime,
     audio.isPlaying,
     active.notes,
     active.timingPoints?.length ? active.timingPoints : timingPoints,
@@ -2570,8 +2570,10 @@ export default function App() {
                 keyCount={active.keyCount}
                 timingPoints={activeTimingPoints}
                 previewTime={active.previewTime}
+                bookmarks={active.bookmarks}
                 view={view}
                 currentTime={audio.currentTime}
+                getCurrentTime={getCurrentTime}
                 isPlaying={audio.isPlaying}
                 backgroundUrl={activeBg?.url ?? null}
                 dimBackground={appSettings.dimBackground}
@@ -2616,6 +2618,7 @@ export default function App() {
                       previewTime={referenceDiff.previewTime}
                       view={view}
                       currentTime={audio.currentTime}
+                      getCurrentTime={getCurrentTime}
                       isPlaying={audio.isPlaying}
                       backgroundUrl={null}
                       dimBackground={appSettings.dimBackground}
@@ -2734,6 +2737,7 @@ export default function App() {
               previewTime={active.previewTime}
               duration={audio.duration}
               currentTime={audio.currentTime}
+              getCurrentTime={getCurrentTime}
               onSeek={audio.seek}
               sensitivity={appSettings.waveformSensitivity}
               onSensitivity={(v) =>

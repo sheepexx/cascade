@@ -33,6 +33,7 @@ type Props = {
   /** Audio duration in ms (from the audio element). */
   duration: number;
   currentTime: number;
+  getCurrentTime: () => number;
   onSeek: (ms: number) => void;
   /** Waveform amplitude multiplier (adjusted by scrolling over the timeline). */
   sensitivity: number;
@@ -74,6 +75,7 @@ export function BottomTimeline({
   previewTime,
   duration,
   currentTime,
+  getCurrentTime,
   onSeek,
   sensitivity,
   onSensitivity,
@@ -129,6 +131,7 @@ export function BottomTimeline({
     previewTime,
     duration,
     currentTime,
+    getCurrentTime,
     sensitivity,
     onSensitivity,
     revealWaveform,
@@ -143,6 +146,7 @@ export function BottomTimeline({
     previewTime,
     duration,
     currentTime,
+    getCurrentTime,
     sensitivity,
     onSensitivity,
     revealWaveform,
@@ -174,7 +178,7 @@ export function BottomTimeline({
       timingPoints,
       previewTime,
       duration,
-      currentTime,
+      getCurrentTime,
       sensitivity,
       revealWaveform,
       peers,
@@ -322,6 +326,7 @@ export function BottomTimeline({
 
     // ---- Played region tint ----
     if (duration > 0) {
+      const currentTime = getCurrentTime();
       const px = (currentTime / duration) * width;
       ctx.fillStyle = "rgba(255,93,177,0.10)";
       ctx.fillRect(0, WAVE_TOP, px, WAVE_H);
