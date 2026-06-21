@@ -27,6 +27,8 @@ import {
   saveProjectCloud,
   saveProjectDataCloud,
   loadProjectCloud,
+  publishProjectAsset,
+  loadProjectAssets,
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
@@ -279,6 +281,12 @@ export default function App() {
   const opRedoRef = useRef<NoteOp[]>([]);
   const pendingDocSyncRef = useRef(false);
   const collabRef = useRef<ReturnType<typeof useCollab> | null>(null);
+  // Asset filenames already in this project's cloud Storage (seeded from the
+  // cloud load / full save), so the live-publish effect only uploads new ones.
+  const publishedAssetsRef = useRef<Set<string>>(new Set());
+  // Forces the missing-asset reconciler to re-run while an upload is still in
+  // flight on the peer that added the file (retry after a short delay).
+  const [assetSyncTick, setAssetSyncTick] = useState(0);
   // Playhead position to restore once audio is ready (reload-resume).
   const pendingSeekRef = useRef<number | null>(null);
 
@@ -500,6 +508,117 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudProjectId, canEdit, difficulties, meta, timingPoints]);
 
+  // Live-publish assets: the chart auto-save and the realtime channel only carry
+  // filename references, so the actual audio/background bytes have to reach
+  // collaborators some other way. During a session, upload any local asset that
+  // isn't in cloud Storage yet (added this session); peers fetch it on demand
+  // (the reconciler below). Content-addressed + idempotent, so a failed attempt
+  // simply retries on the next registry change.
+  useEffect(() => {
+    if (!cloudProjectId || !liveEnabled || !canEdit) return;
+    const pending: { kind: "audio" | "bg"; file: LoadedFile }[] = [];
+    for (const f of Object.values(audioFiles))
+      if (!publishedAssetsRef.current.has(`audio:${f.name}`))
+        pending.push({ kind: "audio", file: f });
+    for (const f of Object.values(bgFiles))
+      if (!publishedAssetsRef.current.has(`bg:${f.name}`))
+        pending.push({ kind: "bg", file: f });
+    if (!pending.length) return;
+
+    let cancelled = false;
+    void (async () => {
+      for (const { kind, file } of pending) {
+        if (cancelled) return;
+        try {
+          await publishProjectAsset(cloudProjectId, kind, {
+            name: file.name,
+            blob: file.blob,
+          });
+          publishedAssetsRef.current.add(`${kind}:${file.name}`);
+        } catch {
+          /* leave unmarked → retried when the registry next changes */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cloudProjectId, liveEnabled, canEdit, audioFiles, bgFiles]);
+
+  // Missing-asset reconciler: when a synced doc references an audio/background
+  // filename we don't have locally (a collaborator added it mid-session, or the
+  // owner shared before a full save), pull just that asset from cloud Storage.
+  // Each referenced filename gets a small retry budget to cover the window where
+  // the producer's upload is still in flight when its reference arrives over the
+  // channel; the budget resets per filename once it resolves or stops being
+  // referenced, so assets added later in the session get a fresh window.
+  const assetAttemptsRef = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!cloudProjectId || !liveEnabled) return;
+    // ~24s of retries: until the producer's row appears the select is empty and
+    // cheap, so this mainly has to outlast a large audio upload landing.
+    const ATTEMPT_CAP = 20;
+    const wanted = new Set<string>();
+    for (const d of difficulties) {
+      if (d.audioFilename && !audioFiles[d.audioFilename])
+        wanted.add(d.audioFilename);
+      if (d.backgroundFilename && !bgFiles[d.backgroundFilename])
+        wanted.add(d.backgroundFilename);
+    }
+    const attempts = assetAttemptsRef.current;
+    // Drop counters for filenames that resolved or are no longer referenced.
+    for (const name of [...attempts.keys()])
+      if (!wanted.has(name)) attempts.delete(name);
+
+    const todo = [...wanted].filter((n) => (attempts.get(n) ?? 0) < ATTEMPT_CAP);
+    if (!todo.length) return;
+
+    let cancelled = false;
+    let retry: number | undefined;
+    void (async () => {
+      for (const n of todo) attempts.set(n, (attempts.get(n) ?? 0) + 1);
+      let fetched: Awaited<ReturnType<typeof loadProjectAssets>> = [];
+      try {
+        fetched = await loadProjectAssets(cloudProjectId, todo);
+      } catch {
+        fetched = [];
+      }
+      if (cancelled) return;
+      if (fetched.length) {
+        const newAudio: Record<string, LoadedFile> = {};
+        const newBg: Record<string, LoadedFile> = {};
+        for (const a of fetched) {
+          const lf: LoadedFile = {
+            name: a.name,
+            url: URL.createObjectURL(a.blob),
+            blob: a.blob,
+          };
+          if (a.kind === "audio") newAudio[a.name] = lf;
+          else newBg[a.name] = lf;
+          // We just got it from Storage — don't let the publisher re-upload it.
+          publishedAssetsRef.current.add(`${a.kind}:${a.name}`);
+          attempts.delete(a.name);
+        }
+        if (Object.keys(newAudio).length)
+          setAudioFiles((prev) => ({ ...newAudio, ...prev }));
+        if (Object.keys(newBg).length)
+          setBgFiles((prev) => ({ ...newBg, ...prev }));
+      }
+      // Still-missing files under the cap are likely an upload in flight — retry.
+      const anyRetryable = todo.some(
+        (n) =>
+          !fetched.some((f) => f.name === n) &&
+          (attempts.get(n) ?? 0) < ATTEMPT_CAP,
+      );
+      if (anyRetryable && !cancelled)
+        retry = window.setTimeout(() => setAssetSyncTick((t) => t + 1), 1200);
+    })();
+    return () => {
+      cancelled = true;
+      if (retry) window.clearTimeout(retry);
+    };
+  }, [cloudProjectId, liveEnabled, difficulties, audioFiles, bgFiles, assetSyncTick]);
+
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
     const onWheel = (e: WheelEvent) => {
@@ -598,6 +717,9 @@ export default function App() {
         if (existing) URL.revokeObjectURL(existing.url);
         return { ...prev, [loaded.name]: loaded };
       });
+      // Broadcast the new filename reference to collaborators (the live-publish
+      // effect uploads the bytes; the peer's reconciler fetches them).
+      markStructural();
       // Assign to the active difficulty, plus any that haven't named a song
       // yet (so the common single-track workflow keeps "one song for all").
       setDifficulties((prev) =>
@@ -608,7 +730,7 @@ export default function App() {
         ),
       );
     },
-    [activeId],
+    [activeId, markStructural],
   );
 
   const onBackgroundFile = useCallback((file: File) => {
@@ -1564,6 +1686,12 @@ export default function App() {
           blob: f.blob,
         })),
       });
+      // A full save (re)uploaded every asset — mark them published so the
+      // live-publish effect doesn't immediately re-upload the same bytes.
+      publishedAssetsRef.current = new Set([
+        ...Object.values(audioFiles).map((f) => `audio:${f.name}`),
+        ...Object.values(bgFiles).map((f) => `bg:${f.name}`),
+      ]);
       setCloudProjectId(id);
       setCloudOwnerId(authUser.id);
       setMyRole("owner");
@@ -1634,6 +1762,13 @@ export default function App() {
       applyingHistoryRef.current = true;
       undoStackRef.current = [];
       redoStackRef.current = [];
+      // These assets came straight from Storage — they're already published, so
+      // the live-publish effect shouldn't re-upload them.
+      publishedAssetsRef.current = new Set([
+        ...proj.audio.map((a) => `audio:${a.name}`),
+        ...proj.bg.map((b) => `bg:${b.name}`),
+      ]);
+      assetAttemptsRef.current.clear();
 
       const audioReg: Record<string, LoadedFile> = {};
       for (const a of proj.audio) {
@@ -2424,6 +2559,9 @@ export default function App() {
         onChoose={(scope) => {
           setBgScope(scope);
           if (pendingBgName) {
+            // Broadcast the new background reference to collaborators (bytes go
+            // up via the live-publish effect, fetched by the peer's reconciler).
+            markStructural();
             setDifficulties((prev) =>
               prev.map((d) =>
                 scope === "mapset" || d.id === activeId
