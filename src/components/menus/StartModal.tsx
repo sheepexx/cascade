@@ -7,6 +7,10 @@ import {
   listProjectsCloud,
   type CloudProjectSummary,
 } from "../../lib/cloud";
+import {
+  listLocalProjects,
+  type LocalProjectSummary,
+} from "../../lib/persistence";
 
 /** A single difficulty entry from the bundled maps manifest. */
 export type SampleDifficulty = {
@@ -50,6 +54,7 @@ export function WelcomeModal({
   onNewMap,
   onTryMaps,
   onOpenCloudProject,
+  onOpenLocalProject,
 }: {
   open: boolean;
   onClose: () => void;
@@ -57,10 +62,38 @@ export function WelcomeModal({
   onTryMaps: () => void;
   /** Open one of the user's cloud maps (owned or shared) by id. */
   onOpenCloudProject: (id: string) => void;
+  /** Open one of the locally saved projects from this browser. */
+  onOpenLocalProject: (id: string) => void;
 }) {
   const { user, login } = useAuth();
   const [projects, setProjects] = useState<CloudProjectSummary[] | null>(null);
+  const [localProjects, setLocalProjects] = useState<
+    LocalProjectSummary[] | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setLocalProjects(null);
+      return;
+    }
+    let cancelled = false;
+    setLocalError(null);
+    listLocalProjects()
+      .then((rows) => {
+        if (!cancelled) setLocalProjects(rows);
+      })
+      .catch((e) => {
+        if (!cancelled)
+          setLocalError(
+            e instanceof Error ? e.message : "Couldn't load local projects.",
+          );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open || !user) {
@@ -133,6 +166,18 @@ export function WelcomeModal({
       )}
 
       {error && <p className="mt-4 text-sm text-rose-400">{error}</p>}
+      {localError && <p className="mt-4 text-sm text-rose-400">{localError}</p>}
+
+      <LocalProjectSection
+        title="Local projects"
+        projects={localProjects ?? []}
+        onOpen={onOpenLocalProject}
+        emptyHint={
+          localProjects === null
+            ? "Loading..."
+            : "No local saves yet. Use Ctrl+S or enable autosave after starting a map."
+        }
+      />
 
       {/* Invitations (maps shared with you) */}
       {user && shared.length > 0 && (
@@ -147,7 +192,7 @@ export function WelcomeModal({
       {/* Your own cloud maps */}
       {user && (
         <ProjectSection
-          title="Your maps"
+          title="Cloud projects"
           projects={owned}
           onOpen={onOpenCloudProject}
           emptyHint={
@@ -158,6 +203,57 @@ export function WelcomeModal({
         />
       )}
     </Modal>
+  );
+}
+
+/** A labeled list of local projects saved in this browser. */
+function LocalProjectSection({
+  title,
+  projects,
+  onOpen,
+  emptyHint,
+}: {
+  title: string;
+  projects: LocalProjectSummary[];
+  onOpen: (id: string) => void;
+  emptyHint: string;
+}) {
+  return (
+    <section className="mt-5">
+      <div className="mb-2 flex items-baseline gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          {title}
+        </h3>
+        <span className="text-[11px] text-slate-500">saved on this device</span>
+      </div>
+      {projects.length === 0 ? (
+        <p className="text-sm text-slate-500">{emptyHint}</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {projects.slice(0, 8).map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center gap-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-slate-100">
+                  {p.title || "Untitled"}
+                </div>
+                <div className="truncate text-[11px] text-slate-500">
+                  {p.artist}
+                  {p.creator ? ` - ${p.creator}` : ""} - {p.difficultyCount} diff
+                  {p.difficultyCount === 1 ? "" : "s"} - saved{" "}
+                  {new Date(p.updatedAt).toLocaleDateString()}
+                </div>
+              </div>
+              <Button variant="accent" onClick={() => onOpen(p.id)}>
+                Open
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

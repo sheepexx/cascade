@@ -307,6 +307,10 @@ export type AppSettings = {
   hitsoundSet: HitsoundSet;
   /** Hitsound volume (perceived slider position, 0..1). */
   hitsoundVolume: number;
+  /** How strongly background images are dimmed behind the playfield, 0..100. */
+  dimBackground: number;
+  /** Whether the full project is automatically saved to IndexedDB. */
+  localAutosaveEnabled: boolean;
 };
 
 /**
@@ -369,6 +373,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundsEnabled: true,
   hitsoundSet: "normal",
   hitsoundVolume: 0.18,
+  dimBackground: 100,
+  localAutosaveEnabled: true,
 };
 
 export const MIN_KEYS = 1;

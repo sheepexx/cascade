@@ -99,6 +99,11 @@ textarea {
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+#root button:focus,
+#root input[type="range"]:focus {
+  outline: none;
+}
+
 /* ---- Modal enter/exit animations ---------------------------------------- */
 @keyframes modal-backdrop-in {
   from {
