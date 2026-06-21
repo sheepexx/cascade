@@ -125,10 +125,12 @@ type MoveDragState = {
   startY: number;
   /** Lane offset applied to every selected note (clamped to the playfield). */
   colDelta: number;
-  /** Time offset (ms) applied to every selected note (snapped via anchor). */
+  /** Raw time offset (ms) applied to every selected note while dragging. */
   timeDelta: number;
   /** Becomes true once the pointer has actually moved (vs. a plain click). */
   moved: boolean;
+  /** True once the selection has moved vertically enough to edit timing. */
+  timeMoved: boolean;
   /** Original positions of the dragged notes, captured at mousedown. */
   origin: ({
     id: string;
@@ -916,15 +918,7 @@ export function ManiaEditor(props: Props) {
       // While dragging the selection, draw selected notes at their offset.
       const note =
         move && selected
-          ? {
-              ...original,
-              column: original.column + move.colDelta,
-              startTime: original.startTime + move.timeDelta,
-              endTime:
-                original.endTime !== undefined
-                  ? original.endTime + move.timeDelta
-                  : undefined,
-            }
+          ? movedNoteRaw(original, move)
           : original;
       if (note.column < 0 || note.column >= keyCount) continue;
       {
@@ -1240,6 +1234,39 @@ export function ManiaEditor(props: Props) {
     setSelection(next);
   };
 
+  const movedNoteRaw = (
+    note: ManiaNote,
+    move: Pick<MoveDragState, "colDelta" | "timeDelta">,
+  ): ManiaNote => ({
+    ...note,
+    column: note.column + move.colDelta,
+    startTime: note.startTime + move.timeDelta,
+    endTime:
+      note.endTime !== undefined ? note.endTime + move.timeDelta : undefined,
+  });
+
+  const movedNoteSnapped = (
+    note: ManiaNote,
+    move: Pick<MoveDragState, "colDelta" | "timeDelta" | "timeMoved">,
+  ): ManiaNote => {
+    const raw = movedNoteRaw(note, move);
+    if (!move.timeMoved) return raw;
+    const { timingPoints, view } = propsRef.current;
+    const startTime = snapTime(raw.startTime, timingPoints, view.snapDivisor);
+    let endTime =
+      raw.endTime !== undefined
+        ? snapTime(raw.endTime, timingPoints, view.snapDivisor)
+        : undefined;
+    if (endTime !== undefined && endTime <= startTime) {
+      endTime = stepToSnap(startTime, timingPoints, view.snapDivisor, 1);
+    }
+    return {
+      ...raw,
+      startTime,
+      endTime,
+    };
+  };
+
   function selectionScreenRect(selection: SelectionDragState): CanvasRect {
     return normalizeRect(
       selection.startX,
@@ -1361,6 +1388,7 @@ export function ManiaEditor(props: Props) {
         colDelta: 0,
         timeDelta: 0,
         moved: false,
+        timeMoved: false,
         origin,
       };
       return;
@@ -1389,18 +1417,18 @@ export function ManiaEditor(props: Props) {
 
     const move = moveDragRef.current;
     if (move) {
-      const { timingPoints, view, keyCount } = propsRef.current;
+      const { keyCount } = propsRef.current;
       const { laneWidth } = laneGeometry();
 
-      // Time: snap the anchor note's new start, derive a shared delta.
-      const anchor = move.origin[0];
+      // Time: follow the mouse smoothly while dragging; final notes snap on
+      // mouse-up if the selection moved vertically.
       const rawDelta = yToTime(y) - yToTime(move.startY);
-      const snappedAnchor = snapTime(
-        anchor.startTime + rawDelta,
-        timingPoints,
-        view.snapDivisor,
-      );
-      move.timeDelta = snappedAnchor - anchor.startTime;
+      if (move.timeMoved || Math.abs(y - move.startY) > 3) {
+        move.timeMoved = true;
+        move.timeDelta = rawDelta;
+      } else {
+        move.timeDelta = 0;
+      }
 
       // Columns: step by whole lanes, clamped so nothing leaves the playfield.
       let colDelta = Math.round((x - move.startX) / laneWidth);
@@ -1430,15 +1458,11 @@ export function ManiaEditor(props: Props) {
     const move = moveDragRef.current;
     if (move) {
       moveDragRef.current = null;
-      if (move.moved && (move.colDelta !== 0 || move.timeDelta !== 0)) {
-        const updated = move.origin.map((o) => ({
-          ...o,
-          id: o.id,
-          column: o.column + move.colDelta,
-          startTime: o.startTime + move.timeDelta,
-          endTime:
-            o.endTime !== undefined ? o.endTime + move.timeDelta : undefined,
-        }));
+      if (
+        move.moved &&
+        (move.colDelta !== 0 || move.timeDelta !== 0 || move.timeMoved)
+      ) {
+        const updated = move.origin.map((o) => movedNoteSnapped(o, move));
         const byId = new Map(updated.map((n) => [n.id, n]));
         const nextNotes = propsRef.current.notes.map((n) => byId.get(n.id) ?? n);
         if (!hasNoteCollisions(nextNotes)) {
