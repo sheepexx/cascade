@@ -6,11 +6,14 @@ import { useAuth } from "../../lib/auth";
 import {
   listMyProjectsRich,
   signedThumbUrls,
+  deleteProjectCloud,
+  setProjectArchived,
   type CloudProjectRich,
   type ProjectParticipant,
 } from "../../lib/cloud";
 import {
   listLocalProjects,
+  clearProject,
   type LocalProjectSummary,
 } from "../../lib/persistence";
 
@@ -80,11 +83,22 @@ export function WelcomeModal({
   const [localThumbs, setLocalThumbs] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  /** id of the project currently being deleted/archived (disables its buttons). */
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  /** A delete awaiting "are you sure" confirmation, or null. */
+  const [confirm, setConfirm] = useState<{
+    scope: "local" | "cloud";
+    id: string;
+    title: string;
+  } | null>(null);
 
   // Local projects (with background blobs for thumbnails).
   useEffect(() => {
     if (!open) {
       setLocalProjects(null);
+      setConfirm(null);
+      setShowArchived(false);
       return;
     }
     let cancelled = false;
@@ -153,9 +167,59 @@ export function WelcomeModal({
   const shared = user
     ? (projects ?? []).filter((p) => p.owner !== user.id)
     : [];
+  const invited = shared.filter((p) => !p.archived);
+  const archivedShared = shared.filter((p) => p.archived);
+  const confirmBusy = confirm !== null && busyId === confirm.id;
+
+  const cancelConfirm = () => {
+    if (busyId) return; // don't dismiss mid-delete
+    setConfirm(null);
+  };
+
+  const performDelete = async () => {
+    if (!confirm) return;
+    const { scope, id } = confirm;
+    setBusyId(id);
+    setError(null);
+    try {
+      if (scope === "local") {
+        await clearProject(id);
+        setLocalProjects((prev) => prev?.filter((p) => p.id !== id) ?? null);
+      } else {
+        await deleteProjectCloud(id);
+        setProjects((prev) => prev?.filter((p) => p.id !== id) ?? null);
+      }
+      setConfirm(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't delete that project.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /** Archive / un-archive an invited project for this user only. */
+  const archive = (id: string, archived: boolean) =>
+    void (async () => {
+      setBusyId(id);
+      setError(null);
+      try {
+        await setProjectArchived(id, archived);
+        setProjects(
+          (prev) =>
+            prev?.map((p) => (p.id === id ? { ...p, archived } : p)) ?? null,
+        );
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "Couldn't update that project.",
+        );
+      } finally {
+        setBusyId(null);
+      }
+    })();
 
   return (
-    <Modal open={open} title="Get started" onClose={onClose} width="max-w-3xl">
+    <>
+      <Modal open={open} title="Get started" onClose={onClose} width="max-w-3xl">
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
@@ -227,6 +291,17 @@ export function WelcomeModal({
                 } · saved ${new Date(p.updatedAt).toLocaleDateString()}`}
                 thumbUrl={localThumbs[p.id]}
                 onOpen={() => onOpenLocalProject(p.id)}
+                actions={
+                  <CardActionButton
+                    label="Delete"
+                    icon="🗑"
+                    danger
+                    busy={busyId === p.id}
+                    onClick={() =>
+                      setConfirm({ scope: "local", id: p.id, title: p.title })
+                    }
+                  />
+                }
               />
             ))}
           </CardGrid>
@@ -259,6 +334,17 @@ export function WelcomeModal({
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
                   participants={othersOf(p.participants, user.id)}
                   onOpen={() => onOpenCloudProject(p.id)}
+                  actions={
+                    <CardActionButton
+                      label="Delete"
+                      icon="🗑"
+                      danger
+                      busy={busyId === p.id}
+                      onClick={() =>
+                        setConfirm({ scope: "cloud", id: p.id, title: p.title })
+                      }
+                    />
+                  }
                 />
               ))}
             </CardGrid>
@@ -267,14 +353,14 @@ export function WelcomeModal({
       )}
 
       {/* 3. Mapping invitations (shared with you) */}
-      {user && shared.length > 0 && (
+      {user && invited.length > 0 && (
         <Section
           title="Mapping invitations"
           hint="maps others shared with you"
-          count={shared.length}
+          count={invited.length}
         >
           <CardGrid>
-            {shared.slice(0, MAX_CARDS).map((p) => {
+            {invited.slice(0, MAX_CARDS).map((p) => {
               const ownerName = p.participants.find(
                 (x) => x.role === "owner",
               )?.username;
@@ -288,13 +374,83 @@ export function WelcomeModal({
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
                   participants={othersOf(p.participants, user.id)}
                   onOpen={() => onOpenCloudProject(p.id)}
+                  actions={
+                    <CardActionButton
+                      label="Archive"
+                      icon="🗄"
+                      busy={busyId === p.id}
+                      onClick={() => archive(p.id, true)}
+                    />
+                  }
                 />
               );
             })}
           </CardGrid>
         </Section>
       )}
-    </Modal>
+
+      {/* 4. Archived invitations (collapsed by default) */}
+      {user && archivedShared.length > 0 && (
+        <section className="mt-6">
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className="mb-3 flex w-full items-baseline gap-2 border-b border-white/10 pb-1.5 text-left"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+              Archived
+            </span>
+            <span className="grid min-w-[1.25rem] place-items-center rounded-full bg-ink-600 px-1.5 text-[10px] font-semibold text-slate-300">
+              {archivedShared.length}
+            </span>
+            <span className="ml-auto text-[11px] text-slate-500">
+              {showArchived ? "Hide ▲" : "Show ▼"}
+            </span>
+          </button>
+          {showArchived && (
+            <CardGrid>
+              {archivedShared.slice(0, MAX_CARDS).map((p) => (
+                <ProjectCard
+                  key={p.id}
+                  badge="Archived"
+                  title={p.title || "Untitled"}
+                  subtitle={subtitleOf(p.artist, p.creator)}
+                  thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
+                  participants={othersOf(p.participants, user.id)}
+                  onOpen={() => onOpenCloudProject(p.id)}
+                  actions={
+                    <CardActionButton
+                      label="Unarchive"
+                      icon="↩"
+                      busy={busyId === p.id}
+                      onClick={() => archive(p.id, false)}
+                    />
+                  }
+                />
+              ))}
+            </CardGrid>
+          )}
+        </section>
+      )}
+      </Modal>
+
+      <ConfirmDialog
+        open={confirm !== null}
+        title="Delete project?"
+        message={
+          confirm
+            ? `“${confirm.title || "Untitled"}” will be permanently deleted. ` +
+              (confirm.scope === "local"
+                ? "This removes the copy saved in this browser."
+                : "This can't be undone.")
+            : ""
+        }
+        confirmLabel="Delete"
+        busy={confirmBusy}
+        onConfirm={() => void performDelete()}
+        onCancel={cancelConfirm}
+      />
+    </>
   );
 }
 
@@ -353,7 +509,8 @@ function CardGrid({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** A project tile: background thumbnail, title/meta, and participant avatars. */
+/** A project tile: background thumbnail, title/meta, participant avatars, and
+ *  optional overlaid action buttons (delete / archive). */
 function ProjectCard({
   title,
   subtitle,
@@ -361,6 +518,7 @@ function ProjectCard({
   thumbUrl,
   badge,
   participants,
+  actions,
   onOpen,
 }: {
   title: string;
@@ -369,49 +527,90 @@ function ProjectCard({
   thumbUrl?: string;
   badge?: string;
   participants?: ProjectParticipant[];
+  actions?: React.ReactNode;
   onOpen: () => void;
+}) {
+  return (
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40 transition hover:border-accent/70 hover:bg-ink-700">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex flex-col text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-600">
+          {thumbUrl ? (
+            <img
+              src={thumbUrl}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover transition group-hover:scale-105"
+            />
+          ) : (
+            <div className="grid h-full w-full place-items-center text-3xl text-slate-600">
+              🎵
+            </div>
+          )}
+          {badge && (
+            <span className="absolute left-2 top-2 rounded-md bg-accent/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
+              {badge}
+            </span>
+          )}
+          {participants && participants.length > 0 && (
+            <div className="absolute bottom-2 right-2">
+              <AvatarStack participants={participants} />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-0.5 p-3">
+          <div className="truncate text-sm font-semibold text-slate-100">
+            {title}
+          </div>
+          {subtitle && (
+            <div className="truncate text-xs text-slate-400">{subtitle}</div>
+          )}
+          {note && (
+            <div className="truncate text-[11px] text-slate-500">{note}</div>
+          )}
+        </div>
+      </button>
+      {actions && (
+        <div className="absolute right-2 top-2 z-10 flex gap-1">{actions}</div>
+      )}
+    </div>
+  );
+}
+
+/** A small icon button overlaid on a project card (delete / archive / restore). */
+function CardActionButton({
+  label,
+  icon,
+  danger,
+  busy,
+  onClick,
+}: {
+  label: string;
+  icon: string;
+  danger?: boolean;
+  busy?: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      onClick={onOpen}
-      className="group flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40 text-left transition hover:border-accent/70 hover:bg-ink-700"
+      title={label}
+      aria-label={label}
+      disabled={busy}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`grid h-7 w-7 place-items-center rounded-lg bg-ink-900/75 text-sm text-slate-200 shadow backdrop-blur transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        danger
+          ? "hover:bg-rose-600/85 hover:text-white"
+          : "hover:bg-accent/85 hover:text-white"
+      }`}
     >
-      <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-600">
-        {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover transition group-hover:scale-105"
-          />
-        ) : (
-          <div className="grid h-full w-full place-items-center text-3xl text-slate-600">
-            🎵
-          </div>
-        )}
-        {badge && (
-          <span className="absolute left-2 top-2 rounded-md bg-accent/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
-            {badge}
-          </span>
-        )}
-        {participants && participants.length > 0 && (
-          <div className="absolute bottom-2 right-2">
-            <AvatarStack participants={participants} />
-          </div>
-        )}
-      </div>
-      <div className="flex flex-col gap-0.5 p-3">
-        <div className="truncate text-sm font-semibold text-slate-100">
-          {title}
-        </div>
-        {subtitle && (
-          <div className="truncate text-xs text-slate-400">{subtitle}</div>
-        )}
-        {note && (
-          <div className="truncate text-[11px] text-slate-500">{note}</div>
-        )}
-      </div>
+      {busy ? "…" : icon}
     </button>
   );
 }
@@ -459,6 +658,71 @@ function Avatar({ participant }: { participant: ProjectParticipant }) {
     >
       {name.slice(0, 1).toUpperCase()}
     </span>
+  );
+}
+
+/**
+ * "Are you sure?" dialog for destructive actions, rendered above the start menu.
+ * It owns its Esc handling in the capture phase so dismissing the confirmation
+ * doesn't also close the start menu underneath it.
+ */
+function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  message: React.ReactNode;
+  confirmLabel: string;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopImmediatePropagation();
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/72 p-4 backdrop-blur-md"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+    >
+      <div className="flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)]">
+        <header className="border-b border-white/10 bg-ink-700 px-5 py-3.5">
+          <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
+        </header>
+        <div className="px-5 py-4 text-sm text-slate-300">{message}</div>
+        <footer className="flex justify-end gap-2 border-t border-white/10 bg-ink-700 px-5 py-3.5">
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+            Cancel
+          </Button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className="rounded-lg border border-rose-700/50 bg-rose-600/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? "…" : confirmLabel}
+          </button>
+        </footer>
+      </div>
+    </div>
   );
 }
 

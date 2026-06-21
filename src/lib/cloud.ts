@@ -191,6 +191,8 @@ export type CloudProjectRich = {
   bg_path: string | null;
   /** Owner first, then collaborators. */
   participants: ProjectParticipant[];
+  /** The caller's own archived flag (only meaningful for shared/invited maps). */
+  archived: boolean;
 };
 
 /**
@@ -344,6 +346,22 @@ export async function loadProjectAssets(
 
 export async function deleteProjectCloud(id: string): Promise<void> {
   const { error } = await supabase.from("projects").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Archive or un-archive an invited (shared) project for the current user only,
+ * hiding it from their start menu without affecting the owner or their access.
+ * Backed by the `set_project_archived` RPC (migration 0008).
+ */
+export async function setProjectArchived(
+  projectId: string,
+  archived: boolean,
+): Promise<void> {
+  const { error } = await supabase.rpc("set_project_archived", {
+    p_project: projectId,
+    p_archived: archived,
+  });
   if (error) throw new Error(error.message);
 }
 
