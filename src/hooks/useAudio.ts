@@ -17,6 +17,17 @@ type RateTransition = {
   duration: number;
 };
 
+/**
+ * Playback region + fade envelope. All fields optional; undefined means "use
+ * the full song" (start 0, end = duration, no fade).
+ */
+export type AudioRegion = {
+  startMs?: number;
+  endMs?: number;
+  fadeInMs?: number;
+  fadeOutMs?: number;
+};
+
 const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
 
 const easeOutCubicIntegral = (t: number): number =>
@@ -57,6 +68,7 @@ export function useAudio(
   src: string | null,
   knownDurationMs?: number | null,
   buffer?: AudioBuffer | null,
+  region?: AudioRegion | null,
 ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -65,6 +77,7 @@ export function useAudio(
   const ctxRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const filterRef = useRef<BiquadFilterNode | null>(null);
+  const fadeGainRef = useRef<GainNode | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const bufferRef = useRef<AudioBuffer | null>(buffer ?? null);
   // Authoritative paused position (seconds). While playing, the live position
@@ -103,6 +116,11 @@ export function useAudio(
     el.volume = 0.2 * 0.2; // square law on the initial default
     audioRef.current = el;
   }
+
+  // Mirror the playback region into a ref so the rAF loop / Web Audio callbacks
+  // read the latest values without re-subscribing.
+  const regionRef = useRef<AudioRegion | null>(region ?? null);
+  regionRef.current = region ?? null;
 
   const effectivePower = useCallback(
     () => effectiveAudioPower(volumeRef.current, ambientDuckedRef.current),
@@ -181,15 +199,22 @@ export function useAudio(
       ctx = rate ? new Ctor({ sampleRate: rate }) : new Ctor();
       const gain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
+      const fadeGain = ctx.createGain();
       filter.type = "lowpass";
       filter.frequency.value = targetFilterFrequency();
       filter.Q.value = 0.65;
       gain.gain.value = effectivePower();
+      fadeGain.gain.value = 1;
+      // Chain: source → fadeGain → filter → gain → destination. The fade gain is
+      // kept separate from `gain` (volume + atmosphere ducking) so the trim
+      // fade envelope never fights `applyOutputMix`'s ramps.
+      fadeGain.connect(filter);
       filter.connect(gain);
       gain.connect(ctx.destination);
       ctxRef.current = ctx;
       gainRef.current = gain;
       filterRef.current = filter;
+      fadeGainRef.current = fadeGain;
     }
     if (ctx.state === "suspended") void ctx.resume();
     return ctx;
@@ -257,6 +282,58 @@ export function useAudio(
     [webPosition],
   );
 
+  /**
+   * Schedule the trim fade-in / fade-out envelope on the dedicated fade gain,
+   * starting from `startPositionSec` (the song position playback begins at).
+   * No-ops gracefully when the region has no fades. Gain is 1 everywhere except
+   * inside the fade ramps; before the start bracket it is silenced so a stray
+   * play before the cut stays quiet.
+   */
+  const scheduleFadeEnvelope = useCallback(
+    (ctx: AudioContext, startPositionSec: number, durMs: number) => {
+      const fadeGain = fadeGainRef.current;
+      if (!fadeGain) return;
+      const region = regionRef.current;
+      const g = fadeGain.gain;
+      const t0 = ctx.currentTime;
+      g.cancelScheduledValues(t0);
+
+      // No region / no fades → hold unity gain and bail.
+      const fadeInMs = Math.max(0, region?.fadeInMs ?? 0);
+      const fadeOutMs = Math.max(0, region?.fadeOutMs ?? 0);
+      if (!region || (fadeInMs <= 0 && fadeOutMs <= 0)) {
+        g.setValueAtTime(1, t0);
+        return;
+      }
+
+      const startS = Math.max(0, region.startMs ?? 0) / 1000;
+      const endS = (region.endMs ?? durMs) / 1000;
+      const fiS = fadeInMs / 1000;
+      const foS = fadeOutMs / 1000;
+      const p = startPositionSec;
+      const rate = playbackRateRef.current || 1;
+
+      // Envelope value (0..1) at a given song position q (seconds).
+      const gainAt = (q: number): number => {
+        let v = 1;
+        if (fiS > 0 && q < startS + fiS) v = Math.min(v, (q - startS) / fiS);
+        if (foS > 0 && q > endS - foS) v = Math.min(v, (endS - q) / foS);
+        return Math.max(0, Math.min(1, v));
+      };
+      // Map a song position to wall-clock time on the audio context.
+      const wall = (q: number): number => t0 + Math.max(0, (q - p) / rate);
+
+      g.setValueAtTime(gainAt(p), t0);
+      const breakpoints = [startS, startS + fiS, endS - foS, endS]
+        .filter((q) => q > p)
+        .sort((a, b) => a - b);
+      for (const q of breakpoints) {
+        g.linearRampToValueAtTime(gainAt(q), wall(q));
+      }
+    },
+    [],
+  );
+
   /** Start a fresh Web Audio source from the saved position. */
   const startWeb = useCallback((): boolean => {
     const audioBuffer = bufferRef.current;
@@ -268,13 +345,20 @@ export function useAudio(
       Number.isFinite(duration) && duration > 0
         ? duration
         : audioBuffer.duration * 1000;
-    // If we're at (or past) the end, restart from the top.
-    if (positionRef.current * 1000 >= durMs - 1) positionRef.current = 0;
+    // Playback region (defaults to the whole song when no brackets are set).
+    const region = regionRef.current;
+    const regionStartMs = Math.max(0, region?.startMs ?? 0);
+    // If we're at (or past) the very end of the song, restart from the region
+    // start (so pressing play at the end loops back to the start bracket).
+    if (positionRef.current * 1000 >= durMs - 1) {
+      positionRef.current = regionStartMs / 1000;
+    }
 
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
     source.playbackRate.value = playbackRateRef.current;
-    source.connect(filterRef.current ?? gain);
+    source.connect(fadeGainRef.current ?? filterRef.current ?? gain);
+    scheduleFadeEnvelope(ctx, positionRef.current, durMs);
     source.onended = () => {
       // Only fires here on a *natural* end (manual stops null the handler).
       sourceRef.current = null;
@@ -296,7 +380,7 @@ export function useAudio(
     source.start(0, positionRef.current);
     sourceRef.current = source;
     return true;
-  }, [duration, ensureCtx]);
+  }, [duration, ensureCtx, scheduleFadeEnvelope]);
 
   // Latest startWeb, so effects can hand off to Web Audio without taking
   // startWeb as a dependency (which would re-run them when `duration` changes).
@@ -402,6 +486,24 @@ export function useAudio(
       } else if (audio) {
         next = audio.currentTime * 1000;
       }
+
+      // Stop at the region end bracket once one is set. The fade-out envelope
+      // has already eased the gain to zero by this point, so the cut is clean.
+      const endMs = regionRef.current?.endMs;
+      if (endMs != null && next >= endMs) {
+        next = endMs;
+        positionRef.current = next / 1000;
+        currentTimeRef.current = next;
+        setCurrentTime(next);
+        if (bufferRef.current) {
+          stopWeb(false);
+        } else if (audio && !audio.paused) {
+          audio.pause();
+        }
+        setIsPlaying(false);
+        return; // don't schedule another frame
+      }
+
       currentTimeRef.current = next;
       const now = performance.now();
       if (now - lastClockUiUpdateRef.current >= CLOCK_UI_INTERVAL_MS) {
@@ -417,9 +519,25 @@ export function useAudio(
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [isPlaying, webPosition]);
+  }, [isPlaying, webPosition, stopWeb]);
 
   const play = useCallback(() => {
+    // Start-at-bracket: when an explicit play begins outside the trimmed
+    // region, jump the playhead to the region start so playback honors the cut.
+    // Scrubbing/seeking stays unclamped so editing anywhere remains free.
+    const region = regionRef.current;
+    if (region) {
+      const startMs = Math.max(0, region.startMs ?? 0);
+      const endMs = region.endMs;
+      const posMs = positionRef.current * 1000;
+      if (posMs < startMs - 1 || (endMs != null && posMs >= endMs - 1)) {
+        positionRef.current = startMs / 1000;
+        currentTimeRef.current = startMs;
+        setCurrentTime(startMs);
+        const a = audioRef.current;
+        if (a) a.currentTime = startMs / 1000;
+      }
+    }
     if (bufferRef.current) {
       // Guard against the element fallback also running (e.g. it was started
       // before the buffer finished decoding): only one engine may sound.
@@ -575,6 +693,7 @@ export function useAudio(
       ctxRef.current = null;
       gainRef.current = null;
       filterRef.current = null;
+      fadeGainRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

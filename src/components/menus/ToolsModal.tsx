@@ -13,6 +13,13 @@ type Props = {
   onLnTicks: (ticks: number) => void;
   onFullLong: (ticks: number) => void;
   onFullRice: () => void;
+  /** Whether the active difficulty has trim brackets set. */
+  trimActive: boolean;
+  /** Notes that start outside the brackets (would be deleted). */
+  cropRemoveCount: number;
+  /** Holds that start inside but run past the end bracket (would be trimmed). */
+  cropClampCount: number;
+  onCropToBrackets: () => void;
 };
 
 /** Bulk note-editing tools for the active difficulty (Full LN / Full RC). */
@@ -26,7 +33,12 @@ export function ToolsModal({
   onLnTicks,
   onFullLong,
   onFullRice,
+  trimActive,
+  cropRemoveCount,
+  cropClampCount,
+  onCropToBrackets,
 }: Props) {
+  const cropTotal = cropRemoveCount + cropClampCount;
   return (
     <Modal open={open} onClose={onClose} title="Tools">
       <div className="flex flex-col gap-4">
@@ -70,6 +82,37 @@ export function ToolsModal({
           </p>
           <Button variant="accent" onClick={onFullRice} disabled={holdCount === 0}>
             Apply Full RC
+          </Button>
+        </div>
+
+        <div className="rounded-xl border border-ink-500/60 bg-ink-700/40 p-3">
+          <div className="mb-2 text-sm font-medium text-slate-200">
+            Crop to brackets
+          </div>
+          <p className="mb-3 text-[11px] text-slate-500">
+            Deletes every note that starts outside the trim brackets and trims
+            any hold running past the end bracket — the same cut the .osz export
+            bakes in.{" "}
+            {!trimActive
+              ? "Set the trim brackets on the timeline first."
+              : cropTotal === 0
+                ? "Nothing is outside the brackets."
+                : `${cropRemoveCount} note${
+                    cropRemoveCount === 1 ? "" : "s"
+                  } to delete${
+                    cropClampCount
+                      ? `, ${cropClampCount} hold${
+                          cropClampCount === 1 ? "" : "s"
+                        } to trim`
+                      : ""
+                  }.`}
+          </p>
+          <Button
+            variant="accent"
+            onClick={onCropToBrackets}
+            disabled={!trimActive || cropTotal === 0}
+          >
+            Crop to brackets
           </Button>
         </div>
       </div>

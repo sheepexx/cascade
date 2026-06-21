@@ -35,7 +35,16 @@ import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
 import { supabase, getSupabaseToken } from "./lib/supabase";
 import { useCollab } from "./hooks/useCollab";
-import { applyNoteOp, invertNoteOp, type NoteOp, type DocState } from "./lib/ops";
+import {
+  applyNoteOp,
+  applyOp,
+  applyDiffFieldOp,
+  invertNoteOp,
+  type NoteOp,
+  type DiffFieldOp,
+  type CollabOp,
+  type DocState,
+} from "./lib/ops";
 import { myAccess, type AccessRole } from "./lib/collab";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
@@ -173,6 +182,9 @@ function blurActiveControl(): void {
   if (typeof el.blur === "function") el.blur();
 }
 
+/** Min gap between trim/fade op broadcasts while dragging (≈11 sends/sec). */
+const TRIM_BROADCAST_MS = 90;
+
 export default function App() {
   const { user: authUser, refresh: refreshAuth } = useAuth();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
@@ -307,6 +319,12 @@ export default function App() {
   const applyingRemoteRef = useRef(false);
   const opUndoRef = useRef<NoteOp[]>([]);
   const opRedoRef = useRef<NoteOp[]>([]);
+  // Throttle + coalesce the trim/fade granular broadcast: a bracket/fade drag
+  // fires many times a second, so we send at most ~1 op per interval (plus a
+  // trailing send of the final value) instead of one per mouse-move frame.
+  const pendingDiffOpRef = useRef<DiffFieldOp | null>(null);
+  const lastDiffOpSendRef = useRef(0);
+  const diffOpTimerRef = useRef<number | null>(null);
   const pendingDocSyncRef = useRef(false);
   const collabRef = useRef<ReturnType<typeof useCollab> | null>(null);
   // Asset filenames already in this project's cloud Storage (seeded from the
@@ -349,9 +367,9 @@ export default function App() {
   }, [cloudProjectId, cloudOwnerId, authUser]);
 
   // Apply edits arriving from collaborators (never re-broadcast / re-record).
-  const applyRemoteOp = useCallback((op: NoteOp) => {
+  const applyRemoteOp = useCallback((op: CollabOp) => {
     applyingRemoteRef.current = true;
-    setDifficulties((prev) => applyNoteOp(prev, op));
+    setDifficulties((prev) => applyOp(prev, op));
   }, []);
   const applyRemoteDoc = useCallback((doc: DocState) => {
     applyingRemoteRef.current = true;
@@ -413,6 +431,50 @@ export default function App() {
     }
   }, []);
 
+  // Flush the coalesced trim/fade op to collaborators (trailing edge of the
+  // throttle — always carries the latest merged field values).
+  const flushDiffOp = useCallback(() => {
+    if (diffOpTimerRef.current !== null) {
+      window.clearTimeout(diffOpTimerRef.current);
+      diffOpTimerRef.current = null;
+    }
+    const op = pendingDiffOpRef.current;
+    pendingDiffOpRef.current = null;
+    if (!op) return;
+    lastDiffOpSendRef.current = Date.now();
+    collabRef.current?.sendOp(op);
+  }, []);
+
+  // Apply a trim/fade field change to the active difficulty. Applies locally
+  // right away (instant brackets + audio), and during a live session syncs it
+  // as a small, throttled granular op so a drag never floods the channel or
+  // overwrites a peer's concurrent note edits. `null` clears a field.
+  const commitDiffFields = useCallback(
+    (fields: Partial<Record<keyof DiffFieldOp["fields"], number | null>>) => {
+      if (!canEditRef.current) return;
+      const diffId = activeIdRef.current;
+      const op: DiffFieldOp = { t: "diff.fields", diffId, fields };
+      setDifficulties((prev) => applyDiffFieldOp(prev, op));
+      if (!sessionActiveRef.current) return;
+      // Coalesce into a single pending op for this difficulty.
+      const prevOp = pendingDiffOpRef.current;
+      pendingDiffOpRef.current =
+        prevOp && prevOp.diffId === diffId
+          ? { t: "diff.fields", diffId, fields: { ...prevOp.fields, ...fields } }
+          : op;
+      const elapsed = Date.now() - lastDiffOpSendRef.current;
+      if (elapsed >= TRIM_BROADCAST_MS) {
+        flushDiffOp();
+      } else if (diffOpTimerRef.current === null) {
+        diffOpTimerRef.current = window.setTimeout(
+          flushDiffOp,
+          TRIM_BROADCAST_MS - elapsed,
+        );
+      }
+    },
+    [flushDiffOp],
+  );
+
   // Mark a structural change (meta/diff/timing) so the doc-sync effect
   // broadcasts the whole document to collaborators after it applies.
   const markStructural = useCallback(() => {
@@ -465,6 +527,12 @@ export default function App() {
     audioFile?.url ?? null,
     waveform ? waveform.duration * 1000 : null,
     waveform?.buffer ?? null,
+    {
+      startMs: active.trimStartMs,
+      endMs: active.trimEndMs,
+      fadeInMs: active.fadeInMs,
+      fadeOutMs: active.fadeOutMs,
+    },
   );
   // Stable getter for the live playback clock. Lets children (e.g. the Timing
   // modal) read the current time without taking the per-frame `currentTime`
@@ -472,6 +540,9 @@ export default function App() {
   const currentTimeRef = useRef(audio.getCurrentTime());
   currentTimeRef.current = audio.getCurrentTime();
   const getCurrentTime = audio.getCurrentTime;
+  // Latest known song duration (ms) for the trim/fade clamps below.
+  const durationRef = useRef(audio.duration);
+  durationRef.current = audio.duration;
   const modalAtmosphereOpen =
     (modal !== null && modal !== "timing") ||
     askBgScope ||
@@ -1081,6 +1152,67 @@ export default function App() {
     [markStructural],
   );
 
+  // ---- Trim / fade (non-destructive playback region) --------------------
+  // These sync as granular `diff.fields` ops (throttled in commitDiffFields)
+  // rather than whole-document broadcasts, so a continuous drag stays smooth in
+  // a live session. `null` clears a field (back to the song boundary / no fade).
+  const setTrimStart = useCallback(
+    (ms: number) => {
+      const d = difficultiesRef.current.find(
+        (x) => x.id === activeIdRef.current,
+      );
+      if (!d) return;
+      const end = d.trimEndMs ?? durationRef.current;
+      const t = Math.round(Math.max(0, Math.min(ms, end - 10)));
+      commitDiffFields({ trimStartMs: t <= 0 ? null : t });
+    },
+    [commitDiffFields],
+  );
+
+  const setTrimEnd = useCallback(
+    (ms: number) => {
+      const d = difficultiesRef.current.find(
+        (x) => x.id === activeIdRef.current,
+      );
+      if (!d) return;
+      const dur = durationRef.current;
+      const start = d.trimStartMs ?? 0;
+      const t = Math.round(Math.max(start + 10, Math.min(ms, dur)));
+      commitDiffFields({ trimEndMs: t >= dur - 0.5 ? null : t });
+    },
+    [commitDiffFields],
+  );
+
+  const setFadeIn = useCallback(
+    (ms: number) => {
+      const d = difficultiesRef.current.find(
+        (x) => x.id === activeIdRef.current,
+      );
+      if (!d) return;
+      const start = d.trimStartMs ?? 0;
+      const end = d.trimEndMs ?? durationRef.current;
+      const max = Math.max(0, end - start);
+      const t = Math.round(Math.max(0, Math.min(ms, max)));
+      commitDiffFields({ fadeInMs: t <= 0 ? null : t });
+    },
+    [commitDiffFields],
+  );
+
+  const setFadeOut = useCallback(
+    (ms: number) => {
+      const d = difficultiesRef.current.find(
+        (x) => x.id === activeIdRef.current,
+      );
+      if (!d) return;
+      const start = d.trimStartMs ?? 0;
+      const end = d.trimEndMs ?? durationRef.current;
+      const max = Math.max(0, end - start);
+      const t = Math.round(Math.max(0, Math.min(ms, max)));
+      commitDiffFields({ fadeOutMs: t <= 0 ? null : t });
+    },
+    [commitDiffFields],
+  );
+
   const addDifficulty = useCallback(() => {
     if (!canEditRef.current) return;
     const base = difficulties.find((d) => d.id === activeId);
@@ -1217,6 +1349,51 @@ export default function App() {
       before: target.notes,
       after,
     });
+  }, [commitNoteOp]);
+
+  /**
+   * Crop to brackets: delete every note whose start is outside the active
+   * difficulty's trim region, and clamp any long note that starts inside but
+   * runs past the end bracket. This is the destructive counterpart to the
+   * non-destructive brackets and matches what the .osz export bakes in. It
+   * goes through commitNoteOp so it's undoable and syncs to collaborators via
+   * the granular note.remove / note.update ops.
+   */
+  const applyCropToBrackets = useCallback(() => {
+    const did = activeIdRef.current;
+    const target = difficultiesRef.current.find((d) => d.id === did);
+    if (!target) return;
+    const start = target.trimStartMs ?? 0;
+    const hasEnd = target.trimEndMs !== undefined;
+    const end = target.trimEndMs ?? Infinity;
+    if (start <= 0.5 && !hasEnd) return; // no region set
+
+    const toRemove: ManiaNote[] = [];
+    const clampBefore: ManiaNote[] = [];
+    const clampAfter: ManiaNote[] = [];
+    for (const n of target.notes) {
+      if (n.startTime < start - 0.5 || n.startTime > end + 0.5) {
+        toRemove.push(n);
+      } else if (hasEnd && n.endTime !== undefined && n.endTime > end + 0.5) {
+        clampBefore.push(n);
+        clampAfter.push(
+          end > n.startTime
+            ? { ...n, endTime: Math.round(end) }
+            : { ...n, endTime: undefined },
+        );
+      }
+    }
+    if (toRemove.length) {
+      commitNoteOp({ t: "note.remove", diffId: did, notes: toRemove });
+    }
+    if (clampAfter.length) {
+      commitNoteOp({
+        t: "note.update",
+        diffId: did,
+        before: clampBefore,
+        after: clampAfter,
+      });
+    }
   }, [commitNoteOp]);
 
   /** Replace several notes in place by id (used by drag-to-move). */
@@ -2266,6 +2443,25 @@ export default function App() {
     [active.notes],
   );
 
+  // How many notes the Crop-to-brackets tool would delete / trim, so the
+  // Tools modal can label and enable/disable the button.
+  const cropInfo = useMemo(() => {
+    const start = active.trimStartMs ?? 0;
+    const hasEnd = active.trimEndMs !== undefined;
+    const end = active.trimEndMs ?? Infinity;
+    const trimActive = start > 0.5 || hasEnd;
+    let remove = 0;
+    let clamp = 0;
+    if (trimActive) {
+      for (const n of active.notes) {
+        if (n.startTime < start - 0.5 || n.startTime > end + 0.5) remove++;
+        else if (hasEnd && n.endTime !== undefined && n.endTime > end + 0.5)
+          clamp++;
+      }
+    }
+    return { trimActive, remove, clamp };
+  }, [active.notes, active.trimStartMs, active.trimEndMs]);
+
   return (
     <div
       className="relative h-full overflow-hidden bg-ink-900"
@@ -2754,6 +2950,14 @@ export default function App() {
               onSetPreviewPoint={canEdit ? setPreviewPoint : undefined}
               onAddBookmark={canEdit ? addBookmark : undefined}
               onRemoveBookmark={canEdit ? removeBookmark : undefined}
+              trimStart={active.trimStartMs}
+              trimEnd={active.trimEndMs}
+              fadeIn={active.fadeInMs}
+              fadeOut={active.fadeOutMs}
+              onSetTrimStart={canEdit ? setTrimStart : undefined}
+              onSetTrimEnd={canEdit ? setTrimEnd : undefined}
+              onSetFadeIn={canEdit ? setFadeIn : undefined}
+              onSetFadeOut={canEdit ? setFadeOut : undefined}
             />
           </div>
         </main>
@@ -2869,6 +3073,10 @@ export default function App() {
         onLnTicks={setLnTicks}
         onFullLong={applyFullLong}
         onFullRice={applyFullRice}
+        trimActive={cropInfo.trimActive}
+        cropRemoveCount={cropInfo.remove}
+        cropClampCount={cropInfo.clamp}
+        onCropToBrackets={applyCropToBrackets}
       />
       <TimingModal
         open={modal === "timing"}
