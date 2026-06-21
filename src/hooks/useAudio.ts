@@ -7,6 +7,7 @@ import {
 } from "../lib/audioAtmosphere";
 
 const RATE_RAMP_SECONDS = 0.34;
+const CLOCK_UI_INTERVAL_MS = 50;
 
 type RateTransition = {
   startCtxTime: number;
@@ -77,6 +78,8 @@ export function useAudio(
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0); // ms
+  const currentTimeRef = useRef(0);
+  const lastClockUiUpdateRef = useRef(0);
   const [duration, setDuration] = useState(0); // ms
   // `volume` is the *perceived* slider position (0-1). Actual gain is derived
   // via a square law so the slider feels linear to the ear.
@@ -276,6 +279,7 @@ export function useAudio(
       // Only fires here on a *natural* end (manual stops null the handler).
       sourceRef.current = null;
       positionRef.current = durMs / 1000;
+      currentTimeRef.current = durMs;
       setCurrentTime(durMs);
       setIsPlaying(false);
     };
@@ -305,6 +309,7 @@ export function useAudio(
     const audio = audioRef.current;
     stopWeb(false);
     positionRef.current = 0;
+    currentTimeRef.current = 0;
     setCurrentTime(0);
     setIsPlaying(false);
     setDuration(0);
@@ -391,10 +396,17 @@ export function useAudio(
     const audio = audioRef.current;
 
     const tick = () => {
+      let next = currentTimeRef.current;
       if (bufferRef.current) {
-        setCurrentTime(webPosition() * 1000);
+        next = webPosition() * 1000;
       } else if (audio) {
-        setCurrentTime(audio.currentTime * 1000);
+        next = audio.currentTime * 1000;
+      }
+      currentTimeRef.current = next;
+      const now = performance.now();
+      if (now - lastClockUiUpdateRef.current >= CLOCK_UI_INTERVAL_MS) {
+        lastClockUiUpdateRef.current = now;
+        setCurrentTime(next);
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -431,6 +443,7 @@ export function useAudio(
       audio.pause();
     }
     setCurrentTime(positionRef.current * 1000);
+    currentTimeRef.current = positionRef.current * 1000;
     setIsPlaying(false);
   }, [stopWeb]);
 
@@ -482,12 +495,14 @@ export function useAudio(
         const wasPlaying = sourceRef.current !== null;
         stopWeb(false);
         positionRef.current = clamped / 1000;
+        currentTimeRef.current = clamped;
         setCurrentTime(clamped);
         if (wasPlaying) startWeb();
         return;
       }
       if (audio) {
         audio.currentTime = clamped / 1000;
+        currentTimeRef.current = clamped;
         setCurrentTime(clamped);
       }
     },
@@ -544,6 +559,8 @@ export function useAudio(
     [applyOutputMix],
   );
 
+  const getCurrentTime = useCallback(() => currentTimeRef.current, []);
+
   // Tear down the AudioContext when the hook unmounts.
   useEffect(() => {
     return () => {
@@ -568,6 +585,7 @@ export function useAudio(
     duration,
     volume,
     playbackRate,
+    getCurrentTime,
     play,
     pause,
     toggle,

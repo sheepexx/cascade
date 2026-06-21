@@ -68,6 +68,7 @@ type Props = {
   previewTime: number;
   view: ViewState;
   currentTime: number;
+  getCurrentTime: () => number;
   isPlaying: boolean;
   backgroundUrl: string | null;
   /** How strongly to dim the background image for note readability, 0..100. */
@@ -102,6 +103,8 @@ type Props = {
   readOnly?: boolean;
   /** Hide the on-canvas hint overlays (used by the read-only reference view). */
   hideHints?: boolean;
+  /** Editor bookmarks (ms) to draw as lines in the playfield. */
+  bookmarks?: number[];
 };
 
 type DragState = {
@@ -272,6 +275,10 @@ export function ManiaEditor(props: Props) {
   // Mutable mirror of props so the rAF draw loop always reads fresh values.
   const propsRef = useRef(props);
   propsRef.current = props;
+  const liveCurrentTime = useCallback(
+    () => propsRef.current.getCurrentTime(),
+    [],
+  );
   const smoothScrollSpeedRef = useRef(props.view.scrollSpeed);
   const lastMotionFrameRef = useRef(
     typeof performance !== "undefined" ? performance.now() : 0,
@@ -321,7 +328,7 @@ export function ManiaEditor(props: Props) {
     if (!ids.length) return;
     propsRef.current.onDeleteNotes(ids);
     setSelection(new Set());
-  }, [setSelection]);
+  }, [liveCurrentTime, setSelection]);
 
   const cutSelection = useCallback(() => {
     if (copySelection()) deleteSelection();
@@ -330,8 +337,8 @@ export function ManiaEditor(props: Props) {
   const paste = useCallback(() => {
     const clip = clipboardRef.current;
     if (!clip) return;
-    const { currentTime, timingPoints, view, keyCount, notes } =
-      propsRef.current;
+    const { timingPoints, view, keyCount, notes } = propsRef.current;
+    const currentTime = liveCurrentTime();
     const base = snapTime(currentTime, timingPoints, view.snapDivisor);
     const newNotes: ManiaNote[] = withoutNoteCollisions(
       clip.notes
@@ -589,13 +596,13 @@ export function ManiaEditor(props: Props) {
   );
 
   const timeToY = useCallback(
-    (t: number) => playheadY() - (t - propsRef.current.currentTime) * ppms(),
-    [playheadY, ppms],
+    (t: number) => playheadY() - (t - liveCurrentTime()) * ppms(),
+    [liveCurrentTime, playheadY, ppms],
   );
 
   const yToTime = useCallback(
-    (y: number) => propsRef.current.currentTime + (playheadY() - y) / ppms(),
-    [playheadY, ppms],
+    (y: number) => liveCurrentTime() + (playheadY() - y) / ppms(),
+    [liveCurrentTime, playheadY, ppms],
   );
 
   const laneGeometry = useCallback(() => {
@@ -706,7 +713,7 @@ export function ManiaEditor(props: Props) {
     // ---- Kiai state + beat flash ----
     // While in kiai, the background lights up on every beat of the map's BPM:
     // the flash peaks the instant a beat lands and decays before the next one.
-    const ct = propsRef.current.currentTime;
+    const ct = liveCurrentTime();
     const inKiai = kiaiAt(ct, timingPoints);
     let beatFlash = 0;
     if (inKiai) {
@@ -846,11 +853,30 @@ export function ManiaEditor(props: Props) {
       }
     }
 
+    // ---- Bookmarks (amber, span the canvas) ----
+    if (propsRef.current.bookmarks?.length) {
+      ctx.setLineDash([6, 3]);
+      for (const bm of propsRef.current.bookmarks) {
+        const y = timeToY(bm);
+        if (y < -20 || y > height + 20) continue;
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = `11px ${CANVAS_FONT_STACK}`;
+        ctx.fillText("Bookmark", 6, y - 4);
+      }
+      ctx.setLineDash([]);
+    }
+
     // ---- Receptors (osu!mania "keys") ----
     // Drawn under the notes so taps/holds visibly fall into them. A column's
     // receptor switches to its pressed sprite while a note sits on the line.
     if (receptorsOnRef.current) {
-      const { currentTime } = propsRef.current;
+      const currentTime = liveCurrentTime();
       // Single pass over notes computing the max hit intensity per column,
       // instead of scanning every note once per column (O(N) not O(cols×N)).
       const intensities = new Array<number>(keyCount).fill(0);
@@ -935,7 +961,7 @@ export function ManiaEditor(props: Props) {
       if (clipNotes) {
         const isLN = note.endTime !== undefined && note.endTime > note.startTime;
         const goneAt = isLN ? note.endTime! : note.startTime;
-        if (propsRef.current.currentTime > goneAt) continue;
+        if (liveCurrentTime() > goneAt) continue;
       }
       const x = originX + note.column * laneWidth;
       const cr = skinCols[note.column];
@@ -1157,7 +1183,15 @@ export function ManiaEditor(props: Props) {
     }
 
     ctx.restore();
-  }, [columnAtX, laneGeometry, noteBounds, playheadY, timeToY, yToTime]);
+  }, [
+    columnAtX,
+    laneGeometry,
+    liveCurrentTime,
+    noteBounds,
+    playheadY,
+    timeToY,
+    yToTime,
+  ]);
 
   // ---- rAF render loop -----------------------------------------------------
   useEffect(() => {
@@ -1315,7 +1349,7 @@ export function ManiaEditor(props: Props) {
             intensity;
         const baseTime =
           selectionAutoscrollTimeRef.current ??
-          propsRef.current.currentTime;
+          liveCurrentTime();
         const nextTime = Math.max(
           0,
           baseTime + dir * (pxPerSec / ppms()) * dt,
@@ -1333,7 +1367,7 @@ export function ManiaEditor(props: Props) {
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playheadY, ppms]);
+  }, [liveCurrentTime, playheadY, ppms]);
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // left only
@@ -1552,7 +1586,8 @@ export function ManiaEditor(props: Props) {
     }
     // Scroll up => advance in time. Step one beat-snap division per notch so the
     // playhead always lands exactly on a snap line.
-    const { currentTime, timingPoints, view } = propsRef.current;
+    const { timingPoints, view } = propsRef.current;
+    const currentTime = liveCurrentTime();
     const dir: 1 | -1 = e.deltaY < 0 ? -1 : 1;
     const firstStep = stepToSnap(currentTime, timingPoints, view.snapDivisor, dir);
     const target =

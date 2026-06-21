@@ -41,7 +41,7 @@ function sampleUrl(base: string): string {
  * import/export but are not played back here.
  */
 export function useHitsounds(
-  currentTime: number,
+  getCurrentTime: () => number,
   isPlaying: boolean,
   notes: ManiaNote[],
   timingPoints: TimingPoint[],
@@ -65,7 +65,6 @@ export function useHitsounds(
 
   // Keep the latest values on a ref so the rAF loop reads fresh data.
   const stateRef = useRef({
-    currentTime,
     isPlaying,
     timingPoints,
     volume,
@@ -74,7 +73,6 @@ export function useHitsounds(
     skinHitsounds,
   });
   stateRef.current = {
-    currentTime,
     isPlaying,
     timingPoints,
     volume,
@@ -278,7 +276,7 @@ export function useHitsounds(
         lastTimeRef.current = null;
         return;
       }
-      const cur = s.currentTime;
+      const cur = getCurrentTime();
       const last = lastTimeRef.current;
       lastTimeRef.current = cur;
       // First frame after starting, or a backward / large forward jump (a seek):
@@ -307,7 +305,7 @@ export function useHitsounds(
 
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [enabled, ensureCtx, applyOutputMix, skinHitsounds]);
+  }, [enabled, ensureCtx, applyOutputMix, skinHitsounds, getCurrentTime]);
 
   // Release the audio context when the component using the hook unmounts.
   useEffect(() => {
