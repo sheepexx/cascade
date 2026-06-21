@@ -10,6 +10,7 @@ import type {
   AppSettings,
   BackgroundScope,
   Difficulty,
+  HitsoundSkinSource,
   SongMeta,
   TimingPoint,
 } from "../types";
@@ -28,6 +29,8 @@ const STORE = "project";
 const KEY = "current";
 /** Key (in the same store) for the site-level editor skin blob. */
 const SKIN_KEY = "skin";
+const HITSOUND_SKIN_KEY = "skin:hitsounds";
+const SKIN_LIBRARY_KEY = "skin:library";
 const VERSION = 1;
 
 /** localStorage key for the small, JSON-serialisable site preferences. */
@@ -36,6 +39,7 @@ const PREFS_KEY = "mania-editor:prefs";
 const VOLUME_KEY = "mania-editor:volume";
 /** localStorage key for editor view controls such as snap and scroll speed. */
 const VIEW_KEY = "mania-editor:view";
+const HITSOUND_SKIN_SOURCE_KEY = "mania-editor:hitsound-skin-source";
 
 const projectKey = (id?: string | null) =>
   !id || id === KEY ? KEY : `local:${id}`;
@@ -81,6 +85,12 @@ export type LocalProjectSummary = {
   difficultyCount: number;
   /** A background image blob to use as the start-menu thumbnail, if any. */
   backgroundBlob?: Blob;
+};
+
+export type SavedSkinBlob = {
+  name: string;
+  blob: Blob;
+  savedAt?: number;
 };
 
 /**
@@ -353,5 +363,110 @@ export async function loadSkinBlob(): Promise<{
     });
   } finally {
     db.close();
+  }
+}
+
+/** Persist (or clear) the selected skin used only for hitsound playback. */
+export async function saveHitsoundSkinBlob(
+  skin: SavedSkinBlob | null,
+): Promise<void> {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      if (skin) store.put(skin, HITSOUND_SKIN_KEY);
+      else store.delete(HITSOUND_SKIN_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+/** Load the selected hitsound-only skin bytes, or null if none. */
+export async function loadHitsoundSkinBlob(): Promise<SavedSkinBlob | null> {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).get(HITSOUND_SKIN_KEY);
+      req.onsuccess = () =>
+        resolve((req.result as SavedSkinBlob | undefined) ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+/** Add or update an imported `.osk` in the reusable local skin library. */
+export async function saveSkinToLibrary(skin: {
+  name: string;
+  blob: Blob;
+}): Promise<void> {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      const req = store.get(SKIN_LIBRARY_KEY);
+      req.onsuccess = () => {
+        const existing = (req.result as SavedSkinBlob[] | undefined) ?? [];
+        const now = Date.now();
+        const next = [
+          { ...skin, savedAt: now },
+          ...existing.filter((item) => item.name !== skin.name),
+        ];
+        store.put(next, SKIN_LIBRARY_KEY);
+      };
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+/** Load all user-imported skins saved in the reusable local library. */
+export async function loadSkinLibrary(): Promise<SavedSkinBlob[]> {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).get(SKIN_LIBRARY_KEY);
+      req.onsuccess = () =>
+        resolve(
+          ((req.result as SavedSkinBlob[] | undefined) ?? []).sort(
+            (a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0),
+          ),
+        );
+      req.onerror = () => reject(req.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export function saveHitsoundSkinSource(source: HitsoundSkinSource): void {
+  try {
+    localStorage.setItem(HITSOUND_SKIN_SOURCE_KEY, source);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadHitsoundSkinSource(): HitsoundSkinSource {
+  try {
+    const raw = localStorage.getItem(HITSOUND_SKIN_SOURCE_KEY);
+    return raw === "default" || raw === "selected" || raw === "visual"
+      ? raw
+      : "visual";
+  } catch {
+    return "visual";
   }
 }

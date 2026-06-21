@@ -297,6 +297,9 @@ export type HitsoundSet = "normal" | "soft" | "drum";
 
 export const HITSOUND_SETS: HitsoundSet[] = ["normal", "soft", "drum"];
 
+/** Which skin source should provide playback hitsound samples. */
+export type HitsoundSkinSource = "visual" | "default" | "selected";
+
 /** Website/editor preferences (not part of the beatmap). */
 export type AppSettings = {
   /** Multiplies waveform amplitude in the bottom timeline. 0.5 .. 3. */

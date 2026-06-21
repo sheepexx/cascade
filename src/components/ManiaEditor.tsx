@@ -479,8 +479,6 @@ export function ManiaEditor(props: Props) {
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === "Shift") {
         setShift(false);
-        selectionDragRef.current = null;
-        selectionAutoscrollTimeRef.current = null;
       }
     };
     const onBlur = () => {

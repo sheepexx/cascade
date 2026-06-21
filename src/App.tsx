@@ -74,10 +74,17 @@ import {
   loadPreferences,
   saveSkinBlob,
   loadSkinBlob,
+  saveHitsoundSkinBlob,
+  loadHitsoundSkinBlob,
+  saveSkinToLibrary,
+  loadSkinLibrary,
+  saveHitsoundSkinSource,
+  loadHitsoundSkinSource,
   saveVolume,
   loadVolume,
   saveViewPreferences,
   loadViewPreferences,
+  type SavedSkinBlob,
   type SavedProject,
 } from "./lib/persistence";
 import {
@@ -93,6 +100,7 @@ import {
   type AppSettings,
   type BackgroundScope,
   type Difficulty,
+  type HitsoundSkinSource,
   type LoadedFile,
   type LoadedSkin,
   type ManiaNote,
@@ -185,6 +193,10 @@ export default function App() {
   const [bgFiles, setBgFiles] = useState<Record<string, LoadedFile>>({});
   const [pendingBgName, setPendingBgName] = useState<string | null>(null);
   const [skin, setSkin] = useState<LoadedSkin | null>(null);
+  const [hitsoundSkin, setHitsoundSkin] = useState<LoadedSkin | null>(null);
+  const [hitsoundSkinSource, setHitsoundSkinSource] =
+    useState<HitsoundSkinSource>(() => loadHitsoundSkinSource());
+  const [skinLibrary, setSkinLibrary] = useState<SavedSkinBlob[]>([]);
   const [skinError, setSkinError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -467,6 +479,13 @@ export default function App() {
     exportCheck !== null ||
     showHomeConfirm;
   const modalAtmosphereActive = modalAtmosphereOpen && audio.isPlaying;
+  const effectiveHitsounds = useMemo(() => {
+    if (hitsoundSkinSource === "default") return null;
+    if (hitsoundSkinSource === "selected") {
+      return hitsoundSkin?.hitsounds ?? null;
+    }
+    return skin?.hitsounds ?? null;
+  }, [hitsoundSkin, hitsoundSkinSource, skin]);
 
   // Play the map's actual osu! hitsounds as notes cross the judgement line.
   useHitsounds(
@@ -477,7 +496,7 @@ export default function App() {
     appSettings.hitsoundVolume,
     appSettings.hitsoundsEnabled,
     modalAtmosphereActive,
-    skin?.hitsounds ?? null,
+    effectiveHitsounds,
   );
 
   // Presence: broadcast this user's playhead to collaborators (throttled).
@@ -812,35 +831,76 @@ export default function App() {
   ]);
 
   // ---- Skin (.osk) ---------------------------------------------------------
-  const loadSkin = useCallback(async (blob: Blob, fileName: string) => {
-    setSkinError(null);
-    try {
-      const loaded = await importOsk(blob, fileName);
-      setSkin((prev) => {
-        if (prev) prev.objectUrls.forEach(URL.revokeObjectURL);
-        return loaded;
-      });
-    } catch (err) {
-      setSkinError(
-        err instanceof Error ? err.message : "Failed to load skin (.osk).",
-      );
-    }
+  const refreshSkinLibrary = useCallback(async () => {
+    const saved = await loadSkinLibrary().catch(() => []);
+    setSkinLibrary(saved);
   }, []);
 
+  const applyLoadedSkin = useCallback(
+    (loaded: LoadedSkin, target: "visual" | "hitsound") => {
+      if (target === "hitsound") {
+        setHitsoundSkin((prev) => {
+          if (prev && prev !== skin) prev.objectUrls.forEach(URL.revokeObjectURL);
+          return loaded;
+        });
+        setHitsoundSkinSource("selected");
+      } else {
+        setSkin((prev) => {
+          if (prev && prev !== hitsoundSkin) {
+            prev.objectUrls.forEach(URL.revokeObjectURL);
+          }
+          return loaded;
+        });
+      }
+    },
+    [hitsoundSkin, skin],
+  );
+
+  const loadSkin = useCallback(
+    async (
+      blob: Blob,
+      fileName: string,
+      target: "visual" | "hitsound",
+      saveToLibrary: boolean,
+    ) => {
+      setSkinError(null);
+      try {
+        const loaded = await importOsk(blob, fileName);
+        applyLoadedSkin(loaded, target);
+        if (saveToLibrary) {
+          await saveSkinToLibrary({ name: fileName, blob });
+          await refreshSkinLibrary();
+        }
+      } catch (err) {
+        setSkinError(
+          err instanceof Error ? err.message : "Failed to load skin (.osk).",
+        );
+      }
+    },
+    [applyLoadedSkin, refreshSkinLibrary],
+  );
+
   const onSkinFile = useCallback(
-    (file: File) => {
-      void loadSkin(file, file.name);
+    (file: File, target: "visual" | "hitsound") => {
+      void loadSkin(file, file.name, target, true);
+    },
+    [loadSkin],
+  );
+
+  const onApplyLocalSkin = useCallback(
+    (saved: SavedSkinBlob, target: "visual" | "hitsound") => {
+      void loadSkin(saved.blob, saved.name, target, false);
     },
     [loadSkin],
   );
 
   /** Fetch a bundled preset `.osk` by URL and apply it. */
   const onApplyPresetSkin = useCallback(
-    async (url: string, fileName: string) => {
+    async (url: string, fileName: string, target: "visual" | "hitsound") => {
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error("Couldn't load that preset skin.");
-        await loadSkin(await res.blob(), fileName);
+        await loadSkin(await res.blob(), fileName, target, false);
       } catch (err) {
         setSkinError(
           err instanceof Error ? err.message : "Couldn't load that preset skin.",
@@ -856,6 +916,16 @@ export default function App() {
       if (prev) prev.objectUrls.forEach(URL.revokeObjectURL);
       return null;
     });
+  }, []);
+
+  const onUseDefaultHitsounds = useCallback(() => {
+    setSkinError(null);
+    setHitsoundSkinSource("default");
+  }, []);
+
+  const onUseVisualHitsounds = useCallback(() => {
+    setSkinError(null);
+    setHitsoundSkinSource("visual");
   }, []);
 
   // ---- Import .osz ---------------------------------------------------------
@@ -1437,20 +1507,30 @@ export default function App() {
 
   // ---- Restore + persist the editor skin independently of any map ---------
   const skinLoadedRef = useRef(false);
+  const hitsoundSkinLoadedRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      await refreshSkinLibrary();
       const rec = await loadSkinBlob().catch(() => null);
       if (!cancelled && rec) {
         const loaded = await importOsk(rec.blob, rec.name).catch(() => null);
         if (!cancelled && loaded) setSkin(loaded);
       }
+      const hitsoundRec = await loadHitsoundSkinBlob().catch(() => null);
+      if (!cancelled && hitsoundRec) {
+        const loaded = await importOsk(hitsoundRec.blob, hitsoundRec.name).catch(
+          () => null,
+        );
+        if (!cancelled && loaded) setHitsoundSkin(loaded);
+      }
       if (!cancelled) skinLoadedRef.current = true;
+      if (!cancelled) hitsoundSkinLoadedRef.current = true;
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshSkinLibrary]);
 
   // Save whenever the skin changes - but not before the initial load resolves,
   // so the freshly-loaded skin isn't clobbered by an empty save on mount.
@@ -1458,6 +1538,19 @@ export default function App() {
     if (!skinLoadedRef.current) return;
     void saveSkinBlob(skin ? { name: skin.fileName, blob: skin.blob } : null);
   }, [skin]);
+
+  useEffect(() => {
+    if (!hitsoundSkinLoadedRef.current) return;
+    void saveHitsoundSkinBlob(
+      hitsoundSkin
+        ? { name: hitsoundSkin.fileName, blob: hitsoundSkin.blob }
+        : null,
+    );
+  }, [hitsoundSkin]);
+
+  useEffect(() => {
+    saveHitsoundSkinSource(hitsoundSkinSource);
+  }, [hitsoundSkinSource]);
 
   // ---- Restore + persist the playback volume (site-level) -----------------
   useEffect(() => {
@@ -1601,7 +1694,7 @@ export default function App() {
       const files = Array.from(e.dataTransfer.files);
       const osk = files.find(isOskFile);
       if (osk) {
-        void onSkinFile(osk);
+        void onSkinFile(osk, "visual");
         return;
       }
       const osz = files.find(isOszFile);
@@ -2750,10 +2843,16 @@ export default function App() {
         open={modal === "skin"}
         onClose={close}
         skin={skin}
+        hitsoundSource={hitsoundSkinSource}
+        hitsoundSkin={hitsoundSkin}
+        savedSkins={skinLibrary}
         activeKeyCount={active.keyCount}
         onApplyPreset={onApplyPresetSkin}
+        onApplySavedSkin={onApplyLocalSkin}
         onSkinFile={onSkinFile}
         onClearSkin={onClearSkin}
+        onUseDefaultHitsounds={onUseDefaultHitsounds}
+        onUseVisualHitsounds={onUseVisualHitsounds}
         error={skinError}
       />
       <ToolsModal
