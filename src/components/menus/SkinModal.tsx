@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { LoadedSkin } from "../../types";
+import type { HitsoundSkinSource, LoadedSkin } from "../../types";
+import type { SavedSkinBlob } from "../../lib/persistence";
 import { Modal } from "../ui/Modal";
 import { Button, FileButton } from "../ui/Controls";
 
@@ -33,11 +34,24 @@ type Props = {
   open: boolean;
   onClose: () => void;
   skin: LoadedSkin | null;
+  hitsoundSource: HitsoundSkinSource;
+  hitsoundSkin: LoadedSkin | null;
+  savedSkins: SavedSkinBlob[];
   /** Key count of the difficulty currently being edited. */
   activeKeyCount: number;
-  onApplyPreset: (url: string, fileName: string) => Promise<void> | void;
-  onSkinFile: (file: File) => void;
+  onApplyPreset: (
+    url: string,
+    fileName: string,
+    target: "visual" | "hitsound",
+  ) => Promise<void> | void;
+  onApplySavedSkin: (
+    skin: SavedSkinBlob,
+    target: "visual" | "hitsound",
+  ) => Promise<void> | void;
+  onSkinFile: (file: File, target: "visual" | "hitsound") => void;
   onClearSkin: () => void;
+  onUseDefaultHitsounds: () => void;
+  onUseVisualHitsounds: () => void;
   error: string | null;
 };
 
@@ -50,10 +64,16 @@ export function SkinModal({
   open,
   onClose,
   skin,
+  hitsoundSource,
+  hitsoundSkin,
+  savedSkins,
   activeKeyCount,
   onApplyPreset,
+  onApplySavedSkin,
   onSkinFile,
   onClearSkin,
+  onUseDefaultHitsounds,
+  onUseVisualHitsounds,
   error,
 }: Props) {
   const [loadingName, setLoadingName] = useState<string | null>(null);
@@ -65,10 +85,35 @@ export function SkinModal({
     : [];
   const activeSupported = !!skin?.keymodes[activeKeyCount];
 
-  const apply = async (preset: (typeof PRESET_SKINS)[number]) => {
-    setLoadingName(preset.fileName);
+  const hitCount = (s: LoadedSkin | null) => Object.keys(s?.hitsounds ?? {}).length;
+  const activeHitsoundName =
+    hitsoundSource === "default"
+      ? "Default"
+      : hitsoundSource === "visual"
+        ? skin
+          ? skin.name
+          : "Default"
+        : hitsoundSkin?.name ?? "None selected";
+
+  const apply = async (
+    preset: (typeof PRESET_SKINS)[number],
+    target: "visual" | "hitsound",
+  ) => {
+    setLoadingName(`${target}:${preset.fileName}`);
     try {
-      await onApplyPreset(preset.url, preset.fileName);
+      await onApplyPreset(preset.url, preset.fileName, target);
+    } finally {
+      setLoadingName(null);
+    }
+  };
+
+  const applySaved = async (
+    saved: SavedSkinBlob,
+    target: "visual" | "hitsound",
+  ) => {
+    setLoadingName(`${target}:${saved.name}`);
+    try {
+      await onApplySavedSkin(saved, target);
     } finally {
       setLoadingName(null);
     }
@@ -117,11 +162,11 @@ export function SkinModal({
 
             {PRESET_SKINS.map((preset) => {
               const isActive = skin?.fileName === preset.fileName;
-              const isLoading = loadingName === preset.fileName;
+              const isLoading = loadingName === `visual:${preset.fileName}`;
               return (
                 <button
                   key={preset.fileName}
-                  onClick={() => void apply(preset)}
+                  onClick={() => void apply(preset, "visual")}
                   disabled={loadingName !== null}
                   className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
                     isActive
@@ -161,7 +206,7 @@ export function SkinModal({
             <FileButton
               label={skin ? "Replace skin…" : "Upload .osk skin"}
               accept=".osk,.zip,application/zip"
-              onFile={onSkinFile}
+              onFile={(file) => onSkinFile(file, "visual")}
             />
             {skin && (
               <Button onClick={onClearSkin} title="Remove the current skin">
@@ -169,6 +214,121 @@ export function SkinModal({
               </Button>
             )}
           </div>
+        </section>
+
+        {savedSkins.length > 0 && (
+          <section>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Saved imports
+            </h3>
+            <div className="flex flex-col gap-2">
+              {savedSkins.map((saved) => {
+                const visualActive = skin?.fileName === saved.name;
+                const soundActive =
+                  hitsoundSource === "selected" &&
+                  hitsoundSkin?.fileName === saved.name;
+                return (
+                  <div
+                    key={saved.name}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2 text-sm text-slate-200"
+                  >
+                    <span className="min-w-0 truncate">{saved.name}</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <Button
+                        className="px-2 py-1 text-xs"
+                        disabled={loadingName !== null}
+                        onClick={() => void applySaved(saved, "visual")}
+                      >
+                        {loadingName === `visual:${saved.name}`
+                          ? "Loading..."
+                          : visualActive
+                            ? "Look active"
+                            : "Use look"}
+                      </Button>
+                      <Button
+                        className="px-2 py-1 text-xs"
+                        disabled={loadingName !== null}
+                        onClick={() => void applySaved(saved, "hitsound")}
+                      >
+                        {loadingName === `hitsound:${saved.name}`
+                          ? "Loading..."
+                          : soundActive
+                            ? "Sound active"
+                            : "Use sound"}
+                      </Button>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Hitsound source
+          </h3>
+          <div className="mb-3 rounded-lg border border-ink-600 bg-ink-700/40 p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-sm font-medium text-slate-100">
+                {activeHitsoundName}
+              </span>
+              <span className="shrink-0 text-[11px] text-slate-500">
+                {hitsoundSource === "default"
+                  ? "Bundled samples"
+                  : hitsoundSource === "visual"
+                    ? `${hitCount(skin)} skin samples`
+                    : `${hitCount(hitsoundSkin)} skin samples`}
+              </span>
+            </div>
+          </div>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Button
+              variant={hitsoundSource === "visual" ? "accent" : "primary"}
+              onClick={onUseVisualHitsounds}
+            >
+              Follow visual skin
+            </Button>
+            <Button
+              variant={hitsoundSource === "default" ? "accent" : "primary"}
+              onClick={onUseDefaultHitsounds}
+            >
+              Default sounds
+            </Button>
+            <FileButton
+              label="Upload sound skin"
+              accept=".osk,.zip,application/zip"
+              onFile={(file) => onSkinFile(file, "hitsound")}
+            />
+          </div>
+
+          {PRESET_SKINS.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {PRESET_SKINS.map((preset) => {
+                const isActive =
+                  hitsoundSource === "selected" &&
+                  hitsoundSkin?.fileName === preset.fileName;
+                const isLoading = loadingName === `hitsound:${preset.fileName}`;
+                return (
+                  <button
+                    key={`sound:${preset.fileName}`}
+                    onClick={() => void apply(preset, "hitsound")}
+                    disabled={loadingName !== null}
+                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      isActive
+                        ? "border-accent bg-accent/10 text-slate-100"
+                        : "border-ink-600 bg-ink-700/40 text-slate-200 hover:bg-ink-600/60"
+                    }`}
+                  >
+                    <span className="truncate">{preset.name}</span>
+                    <span className="ml-2 shrink-0 text-[11px] text-slate-400">
+                      {isLoading ? "Loading..." : isActive ? "Active" : "Use sound"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {error && (
