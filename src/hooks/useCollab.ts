@@ -131,6 +131,19 @@ export function useCollab(opts: {
     setPeers([]);
     const myColor = colorForId(me.id);
 
+    // Lifecycle for this effect run. The channel is rebuilt on transient errors
+    // (a just-invited collaborator can hit a Realtime RLS race, or the socket
+    // can blip), so a failed join self-heals instead of needing a page reload.
+    let disposed = false;
+    let channel: RealtimeChannel | null = null;
+    let reconnectTimer: number | undefined;
+    let attempt = 0;
+    // Join handoff: pull the freshest in-memory doc from a present peer. The very
+    // first request can race a peer that hasn't subscribed yet, so retry it (on a
+    // timer and whenever a peer first appears) until a doc actually arrives.
+    let gotJoinDoc = false;
+    const joinSyncTimers: number[] = [];
+
     const publishPeers = () => setPeers([...peersRef.current.values()]);
 
     const broadcastPresence = () => {
@@ -146,66 +159,109 @@ export function useCollab(opts: {
       });
     };
 
-    const channel = supabase.channel(`project:${projectId}`, {
-      config: { private: true, broadcast: { self: false } },
-    });
-    channelRef.current = channel;
+    const requestSync = () => {
+      if (disposed || gotJoinDoc) return;
+      restBroadcast(projectId, "sync.request", { _from: me.id });
+    };
+    const startJoinSync = () => {
+      gotJoinDoc = false;
+      joinSyncTimers.forEach((t) => window.clearTimeout(t));
+      joinSyncTimers.length = 0;
+      requestSync();
+      for (const delay of [1000, 2500, 5000]) {
+        joinSyncTimers.push(window.setTimeout(requestSync, delay));
+      }
+    };
 
-    channel.on("broadcast", { event: "op" }, ({ payload }) => {
-      const p = payload as NoteOp & { _from?: string };
-      if (p?._from && p._from === meRef.current?.id) return; // ignore own echo
-      onRemoteOpRef.current(p as NoteOp);
-    });
-    channel.on("broadcast", { event: "doc" }, ({ payload }) => {
-      const p = payload as DocState & { _from?: string };
-      if (p?._from && p._from === meRef.current?.id) return;
-      onRemoteDocRef.current(p as DocState);
-    });
-    channel.on("broadcast", { event: "sync.request" }, ({ payload }) => {
-      if ((payload as { _from?: string })?._from === meRef.current?.id) return;
-      restBroadcast(projectId, "doc", {
-        ...getDocRef.current(),
-        _from: meRef.current?.id,
+    const scheduleReconnect = () => {
+      if (disposed || reconnectTimer !== undefined) return;
+      const delay = Math.min(1000 * 2 ** attempt, 15000);
+      attempt += 1;
+      // Keep the optimistic "Connecting…" for the first few tries (covers the
+      // common transient race); surface a hard failure after that, but keep
+      // retrying so it still self-heals once Realtime/connectivity recovers.
+      setStatus(attempt >= 5 ? "error" : "connecting");
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = undefined;
+        connect();
+      }, delay);
+    };
+
+    const connect = () => {
+      if (disposed) return;
+      setStatus("connecting");
+      const ch = supabase.channel(`project:${projectId}`, {
+        config: { private: true, broadcast: { self: false } },
       });
-    });
-    // Presence over broadcast: a peer announced itself (or its position moved).
-    channel.on("broadcast", { event: "presence" }, ({ payload }) => {
-      const p = payload as Peer;
-      if (!p?.id || p.id === meRef.current?.id) return;
-      const map = peersRef.current;
-      const isNew = !map.has(p.id);
-      map.set(p.id, { ...p, lastSeen: Date.now() });
-      publishPeers();
-      if (isNew) {
-        // Let the newcomer learn about us too.
-        broadcastPresence();
-        if (Date.now() >= readyAtRef.current) onPeerJoinRef.current?.(p);
-      }
-    });
-    channel.on("broadcast", { event: "presence.leave" }, ({ payload }) => {
-      const id = (payload as { id?: string })?.id;
-      if (!id) return;
-      const peer = peersRef.current.get(id);
-      if (peer && peersRef.current.delete(id)) {
-        publishPeers();
-        onPeerLeaveRef.current?.(peer);
-      }
-    });
+      channel = ch;
+      channelRef.current = ch;
 
-    channel.subscribe((s, err) => {
-      if (s === "SUBSCRIBED") {
-        setStatus("connected");
-        readyAtRef.current = Date.now() + 1500;
-        broadcastPresence(); // announce our arrival
-        restBroadcast(projectId, "sync.request", { _from: me.id }); // pull freshest doc
-      } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
-        setStatus("error");
-        console.error(
-          `[collab] channel ${s} for project:${projectId}`,
-          err ?? "(no error detail — likely Realtime RLS/auth rejection)",
-        );
-      }
-    });
+      ch.on("broadcast", { event: "op" }, ({ payload }) => {
+        const p = payload as NoteOp & { _from?: string };
+        if (p?._from && p._from === meRef.current?.id) return; // ignore own echo
+        onRemoteOpRef.current(p as NoteOp);
+      });
+      ch.on("broadcast", { event: "doc" }, ({ payload }) => {
+        const p = payload as DocState & { _from?: string };
+        if (p?._from && p._from === meRef.current?.id) return;
+        gotJoinDoc = true; // handoff satisfied (or a live structural update)
+        onRemoteDocRef.current(p as DocState);
+      });
+      ch.on("broadcast", { event: "sync.request" }, ({ payload }) => {
+        if ((payload as { _from?: string })?._from === meRef.current?.id) return;
+        restBroadcast(projectId, "doc", {
+          ...getDocRef.current(),
+          _from: meRef.current?.id,
+        });
+      });
+      // Presence over broadcast: a peer announced itself (or its position moved).
+      ch.on("broadcast", { event: "presence" }, ({ payload }) => {
+        const p = payload as Peer;
+        if (!p?.id || p.id === meRef.current?.id) return;
+        const map = peersRef.current;
+        const isNew = !map.has(p.id);
+        map.set(p.id, { ...p, lastSeen: Date.now() });
+        publishPeers();
+        if (isNew) {
+          // Let the newcomer learn about us too, and (re)pull the doc — this peer
+          // may hold edits our initial sync.request raced ahead of.
+          broadcastPresence();
+          requestSync();
+          if (Date.now() >= readyAtRef.current) onPeerJoinRef.current?.(p);
+        }
+      });
+      ch.on("broadcast", { event: "presence.leave" }, ({ payload }) => {
+        const id = (payload as { id?: string })?.id;
+        if (!id) return;
+        const peer = peersRef.current.get(id);
+        if (peer && peersRef.current.delete(id)) {
+          publishPeers();
+          onPeerLeaveRef.current?.(peer);
+        }
+      });
+
+      ch.subscribe((s, err) => {
+        if (disposed || channel !== ch) return; // ignore stale-channel callbacks
+        if (s === "SUBSCRIBED") {
+          attempt = 0;
+          setStatus("connected");
+          readyAtRef.current = Date.now() + 1500;
+          broadcastPresence(); // announce our arrival
+          startJoinSync(); // pull freshest doc, with retries
+        } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") {
+          // Rebuild the channel rather than giving up (scheduleReconnect owns the
+          // status + backoff).
+          console.warn(
+            `[collab] channel ${s} for project:${projectId} — reconnecting`,
+            err ?? "",
+          );
+          void supabase.removeChannel(ch);
+          scheduleReconnect();
+        }
+      });
+    };
+
+    connect();
 
     // Heartbeat: keep peers aware we're still here.
     const heartbeat = window.setInterval(broadcastPresence, HEARTBEAT_MS);
@@ -224,11 +280,14 @@ export function useCollab(opts: {
     }, HEARTBEAT_MS);
 
     return () => {
+      disposed = true;
       restBroadcast(projectId, "presence.leave", { id: me.id }); // best-effort
       window.clearInterval(heartbeat);
       window.clearInterval(pruner);
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      joinSyncTimers.forEach((t) => window.clearTimeout(t));
       channelRef.current = null;
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
       peersRef.current.clear();
       setStatus("idle");
       setPeers([]);
