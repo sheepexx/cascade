@@ -7,6 +7,7 @@ import {
   deleteProjectCloud,
   type CloudProjectSummary,
 } from "../../lib/cloud";
+import { playUiSound } from "../../lib/uiSounds";
 
 /**
  * Browser for the signed-in user's cloud-saved projects. Lets them open one
@@ -45,6 +46,7 @@ export function MyMapsModal({
   }, [open]);
 
   const handleDelete = async (id: string) => {
+    playUiSound("areYouSure");
     if (!window.confirm("Delete this saved map? This can't be undone.")) return;
     setBusyId(id);
     try {

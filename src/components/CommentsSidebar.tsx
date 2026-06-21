@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "./ui/Controls";
+import { Button, Toggle } from "./ui/Controls";
 import {
   listComments,
   addComment,
@@ -118,14 +118,15 @@ export function CommentsSidebar({
       <header className="flex items-center justify-between border-b border-ink-600 px-4 py-3">
         <h2 className="text-sm font-semibold text-slate-100">Comments</h2>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 text-[11px] text-slate-400">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+            <Toggle
+              size="sm"
               checked={hideResolved}
-              onChange={(e) => setHideResolved(e.target.checked)}
+              onChange={setHideResolved}
+              aria-label="Hide resolved comments"
             />
             Hide resolved
-          </label>
+          </div>
           <button
             onClick={onClose}
             className="grid h-6 w-6 place-items-center rounded text-slate-400 hover:bg-ink-600 hover:text-slate-200"

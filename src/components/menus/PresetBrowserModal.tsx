@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "../ui/Modal";
-import { Button, TextInput } from "../ui/Controls";
+import { Button, TextInput, Toggle } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
 import { listPresets, type Preset } from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
@@ -73,14 +73,15 @@ export function PresetBrowserModal({
       onClose={onClose}
       width="max-w-3xl"
       footer={
-        <label className="mr-auto flex items-center gap-2 text-xs text-slate-400">
-          <input
-            type="checkbox"
+        <div className="mr-auto flex items-center gap-2 text-xs text-slate-400">
+          <Toggle
+            size="sm"
             checked={allKeys}
-            onChange={(e) => setAllKeys(e.target.checked)}
+            onChange={setAllKeys}
+            aria-label="Show all key counts"
           />
           Show all key counts
-        </label>
+        </div>
       }
     >
       <div className="mb-3">

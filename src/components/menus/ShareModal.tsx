@@ -9,6 +9,7 @@ import {
   type Collaborator,
   type CollabRole,
 } from "../../lib/collab";
+import { playUiSound } from "../../lib/uiSounds";
 
 /**
  * Owner-only sharing panel: invite osu! users by username, grant Editor/Viewer,
@@ -77,6 +78,7 @@ export function ShareModal({
   const remove = (c: Collaborator) =>
     void (async () => {
       if (!projectId) return;
+      playUiSound("areYouSure");
       if (!window.confirm(`Remove ${c.username ?? "this user"}?`)) return;
       try {
         await removeCollaborator(projectId, c.user_id);

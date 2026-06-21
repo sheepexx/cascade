@@ -66,6 +66,48 @@ export function Button({
   );
 }
 
+/** An on/off toggle switch. Drop-in replacement for an enable/disable checkbox. */
+export function Toggle({
+  checked,
+  onChange,
+  disabled,
+  size = "md",
+  id,
+  "aria-label": ariaLabel,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  disabled?: boolean;
+  size?: "sm" | "md";
+  id?: string;
+  "aria-label"?: string;
+}) {
+  const dims =
+    size === "sm"
+      ? { track: "h-4 w-7", knob: "h-3 w-3", on: "translate-x-3.5", off: "translate-x-0.5" }
+      : { track: "h-5 w-9", knob: "h-4 w-4", on: "translate-x-4", off: "translate-x-0.5" };
+  return (
+    <button
+      type="button"
+      role="switch"
+      id={id}
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex ${dims.track} shrink-0 cursor-pointer items-center rounded-full border border-white/10 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        checked ? "bg-accent/90" : "bg-ink-600"
+      }`}
+    >
+      <span
+        className={`inline-block ${dims.knob} transform rounded-full bg-white shadow transition-transform ${
+          checked ? dims.on : dims.off
+        }`}
+      />
+    </button>
+  );
+}
+
 /** A file picker styled as a button. */
 export function FileButton({
   label,

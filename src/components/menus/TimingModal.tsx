@@ -12,7 +12,7 @@ import { useTapTempo } from "../../hooks/useTapTempo";
 import { useMetronome } from "../../hooks/useMetronome";
 import { formatTime, sortedPoints } from "../../lib/timing";
 import { Modal } from "../ui/Modal";
-import { Button, NumberInput } from "../ui/Controls";
+import { Button, NumberInput, Toggle } from "../ui/Controls";
 
 type Props = {
   open: boolean;
@@ -183,15 +183,15 @@ export function TimingModal({
               ))}
             </div>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2 text-xs text-slate-300">
+            <Toggle
+              size="sm"
               checked={metronomeOn}
-              onChange={(e) => setMetronomeOn(e.target.checked)}
-              className="accent-accent"
+              onChange={setMetronomeOn}
+              aria-label="Metronome"
             />
             Metronome
-          </label>
+          </div>
 
           {/* Beat indicator: one box per beat in the bar, lit in sync with the
               click. Downbeat flashes white, the off-beats flash orange. */}
@@ -462,24 +462,24 @@ function PointRow({
           {formatTime(p.time)}
           {!red && <> · {Math.round(svToBeatLength(p.sv) * 100) / 100}</>}
         </span>
-        <label className="flex items-center gap-1 text-[11px] text-slate-300">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+          <Toggle
+            size="sm"
             checked={p.kiai}
-            onChange={(e) => onUpdate({ kiai: e.target.checked })}
-            className="accent-amber-400"
+            onChange={(v) => onUpdate({ kiai: v })}
+            aria-label="Kiai"
           />
           Kiai
-        </label>
-        <label className="flex items-center gap-1 text-[11px] text-slate-300">
-          <input
-            type="checkbox"
+        </div>
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+          <Toggle
+            size="sm"
             checked={p.omitFirstBarline}
-            onChange={(e) => onUpdate({ omitFirstBarline: e.target.checked })}
-            className="accent-accent"
+            onChange={(v) => onUpdate({ omitFirstBarline: v })}
+            aria-label="Omit barline"
           />
           Omit barline
-        </label>
+        </div>
 
         <div className="ml-auto flex gap-1">
           <MiniButton onClick={onMove}>Move here</MiniButton>

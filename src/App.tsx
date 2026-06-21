@@ -29,6 +29,7 @@ import {
   loadProjectCloud,
   publishProjectAsset,
   loadProjectAssets,
+  listMyProjectsRich,
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
@@ -42,6 +43,15 @@ import { Menu } from "./components/ui/Menu";
 import { Modal } from "./components/ui/Modal";
 import { AccountControl } from "./components/auth/LoginButton";
 import { AdminPanel } from "./components/admin/AdminPanel";
+import {
+  InviteNotifications,
+  type InviteNotice,
+} from "./components/InviteNotifications";
+import {
+  playUiSound,
+  setUiSoundsEnabled,
+  setUiSoundVolume,
+} from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
@@ -216,6 +226,8 @@ export default function App() {
     null | "saving" | "saved" | "error"
   >(null);
   const [cloudError, setCloudError] = useState<string | null>(null);
+  // Global "you were invited to a map" notifications (Join / Ignore).
+  const [invites, setInvites] = useState<InviteNotice[]>([]);
   // Google-Docs-style live auto-save indicator (debounced chart writes).
   const [autoSave, setAutoSave] = useState<"idle" | "saving" | "saved">("idle");
   // Pattern pending publication as a preset (from the editor's clipboard panel).
@@ -264,6 +276,8 @@ export default function App() {
   timingPointsRef.current = timingPoints;
   const authUserRef = useRef(authUser);
   authUserRef.current = authUser;
+  const cloudProjectIdRef = useRef(cloudProjectId);
+  cloudProjectIdRef.current = cloudProjectId;
 
   // A live session is active whenever a cloud project is open and we're signed
   // in (even solo — it enables the join handoff when someone arrives).
@@ -361,6 +375,11 @@ export default function App() {
         showPeerNotice(`${p.username} left`, p.avatar),
       [showPeerNotice],
     ),
+    onNotice: useCallback(
+      (n: { text: string; avatar: string | null }) =>
+        showPeerNotice(n.text, n.avatar),
+      [showPeerNotice],
+    ),
     getDoc: () => ({
       meta: metaRef.current,
       timingPoints: timingPointsRef.current,
@@ -385,6 +404,15 @@ export default function App() {
   // broadcasts the whole document to collaborators after it applies.
   const markStructural = useCallback(() => {
     if (sessionActiveRef.current) pendingDocSyncRef.current = true;
+  }, []);
+
+  // Tell collaborators (via a transient toast on their side) that this user
+  // swapped a shared asset — the bytes sync separately, so without this the
+  // audio/background just changes under them with no explanation.
+  const announceAssetChange = useCallback((action: string) => {
+    if (!sessionActiveRef.current) return;
+    const name = authUserRef.current?.username ?? "A collaborator";
+    collabRef.current?.sendNotice(`${name} ${action}`);
   }, []);
 
   // No-op handler set for the read-only reference editor.
@@ -722,6 +750,7 @@ export default function App() {
       // Broadcast the new filename reference to collaborators (the live-publish
       // effect uploads the bytes; the peer's reconciler fetches them).
       markStructural();
+      announceAssetChange("changed the audio");
       // Assign to the active difficulty, plus any that haven't named a song
       // yet (so the common single-track workflow keeps "one song for all").
       setDifficulties((prev) =>
@@ -732,7 +761,7 @@ export default function App() {
         ),
       );
     },
-    [activeId, markStructural],
+    [activeId, markStructural, announceAssetChange],
   );
 
   const onBackgroundFile = useCallback((file: File) => {
@@ -749,6 +778,8 @@ export default function App() {
   const onClearBackground = useCallback(() => {
     const bgName = active.backgroundFilename;
     if (!bgName) return;
+    markStructural();
+    announceAssetChange("removed the background");
     setDifficulties((prev) => {
       const updated = prev.map((d) =>
         (bgScope === "mapset" || d.id === activeId) && d.backgroundFilename === bgName
@@ -766,7 +797,13 @@ export default function App() {
       }
       return updated;
     });
-  }, [active.backgroundFilename, activeId, bgScope]);
+  }, [
+    active.backgroundFilename,
+    activeId,
+    bgScope,
+    markStructural,
+    announceAssetChange,
+  ]);
 
   // ---- Skin (.osk) ---------------------------------------------------------
   const loadSkin = useCallback(async (blob: Blob, fileName: string) => {
@@ -1348,6 +1385,35 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [appSettings]);
 
+  // Keep the UI-sound module in sync with the preferences.
+  useEffect(() => {
+    setUiSoundsEnabled(appSettings.uiSoundsEnabled);
+  }, [appSettings.uiSoundsEnabled]);
+  useEffect(() => {
+    setUiSoundVolume(appSettings.uiSoundVolume);
+  }, [appSettings.uiSoundVolume]);
+
+  // Global "ui click" sound for any interactive control. Capture phase so it
+  // fires even when a handler stops propagation; limited to genuine controls so
+  // it doesn't trigger on playfield / timeline interactions.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null;
+      const hit = el?.closest(
+        'button, [role="button"], a[href], select, summary',
+      );
+      if (hit && !hit.closest("[data-no-uisound]")) playUiSound("click");
+    };
+    window.addEventListener("click", onClick, true);
+    return () => window.removeEventListener("click", onClick, true);
+  }, []);
+
+  // "Are you sure?" chime whenever an app-level confirmation window appears.
+  useEffect(() => {
+    if (exportCheck || pendingImport || showHomeConfirm)
+      playUiSound("areYouSure");
+  }, [exportCheck, pendingImport, showHomeConfirm]);
+
   // ---- Persist editor view controls (snap + scroll speed) on change -------
   useEffect(() => {
     const id = window.setTimeout(() => saveViewPreferences(view), 200);
@@ -1554,6 +1620,7 @@ export default function App() {
       audioFilename: audioFile.name,
       backgroundFilename: active.backgroundFilename,
     });
+    playUiSound("mapExportDone");
   }, [audioFile, active, activeTimingPoints, meta]);
 
   const doExportOsz = useCallback(async () => {
@@ -1567,6 +1634,7 @@ export default function App() {
         audioFiles,
         bgFiles,
       });
+      playUiSound("mapExportDone");
     } finally {
       setExporting(false);
     }
@@ -1753,6 +1821,7 @@ export default function App() {
       setCloudOwnerId(authUser.id);
       setMyRole("owner");
       setCloudSaveStatus("saved");
+      playUiSound("saveToCloudDone");
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Couldn't save to your account.";
@@ -1909,6 +1978,74 @@ export default function App() {
         err instanceof Error ? err.message : "Couldn't load that map.",
       );
     }
+  }, []);
+
+  // ---- Global mapping-invitation notifications ----------------------------
+  // Look up the invited project's title + inviter and raise a notification.
+  const addInviteNotice = useCallback(async (projectId: string) => {
+    // Ignore an invite to the map we're already in, or a duplicate.
+    if (projectId === cloudProjectIdRef.current) return;
+    try {
+      const rows = await listMyProjectsRich();
+      const proj = rows.find((r) => r.id === projectId);
+      if (!proj) return;
+      const owner = proj.participants.find((x) => x.role === "owner");
+      setInvites((prev) =>
+        prev.some((n) => n.projectId === projectId)
+          ? prev
+          : [
+              ...prev,
+              {
+                projectId,
+                title: proj.title || "Untitled",
+                who: owner?.username ?? null,
+                avatar: owner?.avatar_url ?? null,
+              },
+            ],
+      );
+      playUiSound("invite");
+    } catch {
+      /* couldn't resolve the invite — skip the notification */
+    }
+  }, []);
+
+  // Subscribe to new collaborator rows for this user, anywhere on the site, so
+  // an invite pops up live. RLS lets a user see their own collaborator rows.
+  useEffect(() => {
+    if (!authUser) {
+      setInvites([]);
+      return;
+    }
+    const ch = supabase
+      .channel(`invites:${authUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "project_collaborators",
+          filter: `user_id=eq.${authUser.id}`,
+        },
+        (payload) => {
+          const pid = (payload.new as { project_id?: string })?.project_id;
+          if (pid) void addInviteNotice(pid);
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [authUser, addInviteNotice]);
+
+  const joinInvite = useCallback(
+    (n: InviteNotice) => {
+      setInvites((prev) => prev.filter((x) => x.projectId !== n.projectId));
+      void loadCloudProject(n.projectId);
+    },
+    [loadCloudProject],
+  );
+  const ignoreInvite = useCallback((n: InviteNotice) => {
+    setInvites((prev) => prev.filter((x) => x.projectId !== n.projectId));
   }, []);
 
   // ---- Pattern presets -----------------------------------------------------
@@ -2580,6 +2717,14 @@ export default function App() {
         onLocalAutosaveEnabled={(v) =>
           setAppSettings((s) => ({ ...s, localAutosaveEnabled: v }))
         }
+        uiSoundsEnabled={appSettings.uiSoundsEnabled}
+        onUiSoundsEnabled={(v) =>
+          setAppSettings((s) => ({ ...s, uiSoundsEnabled: v }))
+        }
+        uiSoundVolume={appSettings.uiSoundVolume}
+        onUiSoundVolume={(v) =>
+          setAppSettings((s) => ({ ...s, uiSoundVolume: v }))
+        }
       />
       <SkinModal
         open={modal === "skin"}
@@ -2630,6 +2775,7 @@ export default function App() {
             // Broadcast the new background reference to collaborators (bytes go
             // up via the live-publish effect, fetched by the peer's reconciler).
             markStructural();
+            announceAssetChange("changed the background");
             setDifficulties((prev) =>
               prev.map((d) =>
                 scope === "mapset" || d.id === activeId
@@ -2710,7 +2856,7 @@ export default function App() {
       {peerNotice && (
         <div
           key={peerNotice.key}
-          className="fixed left-1/2 top-16 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-ink-800/90 py-1.5 pl-1.5 pr-4 text-sm text-slate-100 shadow-2xl backdrop-blur-2xl"
+          className="toast-in fixed left-1/2 top-16 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-ink-800/90 py-1.5 pl-1.5 pr-4 text-sm text-slate-100 shadow-2xl backdrop-blur-2xl"
         >
           <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-ink-700/70 text-[10px] font-semibold">
             {peerNotice.avatar ? (
@@ -2730,7 +2876,7 @@ export default function App() {
       {/* Save status toast */}
       {(saveStatus === "saved" || saveStatus === "error") && (
         <div
-          className={`fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg ${
+          className={`toast-in fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg ${
             saveStatus === "saved"
               ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
               : "border-red-500/40 bg-red-950/90 text-red-200"
@@ -2742,10 +2888,20 @@ export default function App() {
         </div>
       )}
 
+      {/* Cloud saving / export progress toast (with spinner) */}
+      {(cloudSaveStatus === "saving" || exporting) && (
+        <div className="toast-in fixed bottom-28 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-lg border border-white/10 bg-ink-800/95 px-4 py-2 text-sm text-slate-200 shadow-lg backdrop-blur-xl">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
+          {cloudSaveStatus === "saving"
+            ? "Saving to your account…"
+            : "Exporting map…"}
+        </div>
+      )}
+
       {/* Cloud save toast */}
       {(cloudSaveStatus === "saved" || cloudSaveStatus === "error") && (
         <div
-          className={`fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg ${
+          className={`toast-in fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg ${
             cloudSaveStatus === "saved"
               ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
               : "border-red-500/40 bg-red-950/90 text-red-200"
@@ -2759,7 +2915,7 @@ export default function App() {
 
       {/* Cloud error toast (load / delete failures) */}
       {cloudError && cloudSaveStatus !== "error" && (
-        <div className="fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 text-sm text-red-200 shadow-lg">
+        <div className="toast-in fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 text-sm text-red-200 shadow-lg">
           {cloudError}
           <button
             onClick={() => setCloudError(null)}
@@ -2772,7 +2928,7 @@ export default function App() {
 
       {/* Import error toast */}
       {importError && (
-        <div className="fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 text-sm text-red-200 shadow-lg">
+        <div className="toast-in fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 text-sm text-red-200 shadow-lg">
           {importError}
           <button
             onClick={() => setImportError(null)}
@@ -2782,6 +2938,13 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {/* Global mapping-invitation notifications (anywhere on the site) */}
+      <InviteNotifications
+        notices={invites}
+        onJoin={joinInvite}
+        onIgnore={ignoreInvite}
+      />
 
       {/* Home screen confirmation */}
       <Modal
