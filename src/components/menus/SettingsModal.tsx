@@ -141,9 +141,16 @@ export function SettingsModal({
               onChange={(e) => set("creator", e.target.value)}
             />
           </Field>
+          <Field label="Tags">
+            <TextInput
+              value={meta.tags ?? ""}
+              onChange={(e) => set("tags", e.target.value)}
+              placeholder="space-separated, e.g. stream jumpstream tech"
+            />
+          </Field>
           <p className="text-[11px] text-slate-500">
-            Difficulty name &amp; key count are set per difficulty in the
-            Difficulty menu.
+            Tags help players find your map in searches. Difficulty name &amp;
+            key count are set per difficulty in the Difficulty menu.
           </p>
         </section>
       </div>

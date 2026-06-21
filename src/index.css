@@ -173,11 +173,28 @@ textarea {
   animation: modal-panel-out 220ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
+/* ---- Timeline peer avatar hover popover -------------------------------- */
+@keyframes pfp-pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+.pfp-pop-in {
+  animation: pfp-pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-backdrop-in,
   .modal-backdrop-out,
   .modal-panel-in,
-  .modal-panel-out {
+  .modal-panel-out,
+  .pfp-pop-in {
     animation-duration: 1ms;
   }
 }

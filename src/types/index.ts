@@ -183,6 +183,8 @@ export type SongMeta = {
   title: string;
   artist: string;
   creator: string;
+  /** Space-separated search tags (osu! `Tags`). Optional / may be empty. */
+  tags?: string;
 };
 
 /** A single difficulty within the set. */
@@ -211,6 +213,8 @@ export type Difficulty = {
   overallDifficulty: number;
   /** General PreviewTime in milliseconds. -1 means unset. */
   previewTime: number;
+  /** Editor bookmarks, in milliseconds, ascending (osu! `[Editor] Bookmarks`). */
+  bookmarks?: number[];
   timingPoints: TimingPoint[];
   notes: ManiaNote[];
 };

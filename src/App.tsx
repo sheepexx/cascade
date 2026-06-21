@@ -915,6 +915,53 @@ export default function App() {
     [markStructural],
   );
 
+  // ---- Timeline annotations (preview point / offset / bookmarks) ----------
+  // Set the active difficulty's audio preview point to a song time (ms).
+  const setPreviewPoint = useCallback(
+    (ms: number) => {
+      patchDifficulty(activeIdRef.current, { previewTime: Math.round(ms) });
+    },
+    [patchDifficulty],
+  );
+
+  // Add a bookmark at a song time (deduped within 5ms), kept ascending.
+  const addBookmark = useCallback(
+    (ms: number) => {
+      if (!canEditRef.current) return;
+      const t = Math.round(ms);
+      if (!(t >= 0)) return;
+      markStructural();
+      setDifficulties((prev) =>
+        prev.map((d) => {
+          if (d.id !== activeIdRef.current) return d;
+          const existing = d.bookmarks ?? [];
+          if (existing.some((b) => Math.abs(b - t) <= 5)) return d;
+          return { ...d, bookmarks: [...existing, t].sort((a, b) => a - b) };
+        }),
+      );
+    },
+    [markStructural],
+  );
+
+  // Remove a specific bookmark (the exact value picked from the timeline).
+  const removeBookmark = useCallback(
+    (ms: number) => {
+      if (!canEditRef.current) return;
+      markStructural();
+      setDifficulties((prev) =>
+        prev.map((d) => {
+          if (d.id !== activeIdRef.current) return d;
+          const existing = d.bookmarks ?? [];
+          const next = existing.filter((b) => b !== ms);
+          return next.length === existing.length
+            ? d
+            : { ...d, bookmarks: next.length ? next : undefined };
+        }),
+      );
+    },
+    [markStructural],
+  );
+
   const addDifficulty = useCallback(() => {
     if (!canEditRef.current) return;
     const base = difficulties.find((d) => d.id === activeId);
@@ -1369,6 +1416,8 @@ export default function App() {
       const isF3 = e.key === "F3";
       const isF4 = e.key === "F4";
       const isSlow = isSlowKey(e);
+      const isBookmark =
+        e.key.toLowerCase() === "b" && !e.ctrlKey && !e.metaKey && !e.altKey;
       if (
         !isSpace &&
         !isTab &&
@@ -1376,7 +1425,8 @@ export default function App() {
         !isDown &&
         !isF3 &&
         !isF4 &&
-        !isSlow
+        !isSlow &&
+        !isBookmark
       )
         return;
       if (shouldIgnoreHotkey(e)) return;
@@ -1384,7 +1434,9 @@ export default function App() {
       e.preventDefault();
       blurActiveControl();
       if (isTab) setZenMode((z) => !z);
-      else if (isSpace) audio.toggle();
+      else if (isBookmark) {
+        if (!e.repeat) addBookmark(Math.round(currentTimeRef.current));
+      } else if (isSpace) audio.toggle();
       else if (isSlow) {
         if (slowHeldRef.current || e.repeat) return;
         slowHeldRef.current = true;
@@ -1421,7 +1473,7 @@ export default function App() {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [audio, askBgScope]);
+  }, [audio, askBgScope, addBookmark]);
 
   useEffect(() => {
     const onBareAlt = (e: KeyboardEvent) => {
@@ -2444,6 +2496,10 @@ export default function App() {
                 audio.seek(ms);
                 setCommentsOpen(true);
               }}
+              bookmarks={active.bookmarks}
+              onSetPreviewPoint={canEdit ? setPreviewPoint : undefined}
+              onAddBookmark={canEdit ? addBookmark : undefined}
+              onRemoveBookmark={canEdit ? removeBookmark : undefined}
             />
           </div>
         </main>

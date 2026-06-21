@@ -102,6 +102,7 @@ export function parseOsuFile(text: string): ParsedOsu {
   const general = keyValues(sections["General"] ?? []);
   const meta = keyValues(sections["Metadata"] ?? []);
   const diff = keyValues(sections["Difficulty"] ?? []);
+  const editor = keyValues(sections["Editor"] ?? []);
 
   const keyCount = Math.max(
     MIN_KEYS,
@@ -112,7 +113,15 @@ export function parseOsuFile(text: string): ParsedOsu {
     title: meta["Title"] ?? meta["TitleUnicode"] ?? "Untitled",
     artist: meta["Artist"] ?? meta["ArtistUnicode"] ?? "Unknown Artist",
     creator: meta["Creator"] ?? "Mapper",
+    tags: meta["Tags"] ?? "",
   };
+
+  // [Editor] Bookmarks: comma-separated millisecond list.
+  const bookmarks = (editor["Bookmarks"] ?? "")
+    .split(",")
+    .map((s) => Math.round(Number(s.trim())))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b);
 
   // ---- Timing points: every red (uninherited) and green (inherited) point ----
   // Format: time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited,effects
@@ -210,6 +219,7 @@ export function parseOsuFile(text: string): ParsedOsu {
     hpDrainRate: num(diff["HPDrainRate"], 7),
     overallDifficulty: num(diff["OverallDifficulty"], 7),
     previewTime: Math.round(num(general["PreviewTime"], -1)),
+    bookmarks: bookmarks.length ? bookmarks : undefined,
     timingPoints,
     notes,
   };
