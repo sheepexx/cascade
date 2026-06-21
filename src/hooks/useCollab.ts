@@ -90,6 +90,8 @@ export function useCollab(opts: {
   onPeerJoin?: (peer: Peer) => void;
   /** A collaborator left. */
   onPeerLeave?: (peer: Peer) => void;
+  /** A collaborator announced something (e.g. changed the audio/background). */
+  onNotice?: (notice: { text: string; avatar: string | null }) => void;
 }) {
   const { projectId, enabled, me } = opts;
   const [status, setStatus] = useState<CollabStatus>("idle");
@@ -106,6 +108,8 @@ export function useCollab(opts: {
   onPeerJoinRef.current = opts.onPeerJoin;
   const onPeerLeaveRef = useRef(opts.onPeerLeave);
   onPeerLeaveRef.current = opts.onPeerLeave;
+  const onNoticeRef = useRef(opts.onNotice);
+  onNoticeRef.current = opts.onNotice;
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const presenceRef = useRef<PresenceFields>({});
@@ -239,6 +243,16 @@ export function useCollab(opts: {
           onPeerLeaveRef.current?.(peer);
         }
       });
+      // A peer announced an action (e.g. changed the audio/background).
+      ch.on("broadcast", { event: "notice" }, ({ payload }) => {
+        const p = payload as {
+          text?: string;
+          avatar?: string | null;
+          _from?: string;
+        };
+        if (!p?.text || p._from === meRef.current?.id) return;
+        onNoticeRef.current?.({ text: p.text, avatar: p.avatar ?? null });
+      });
 
       ch.subscribe((s, err) => {
         if (disposed || channel !== ch) return; // ignore stale-channel callbacks
@@ -305,6 +319,12 @@ export function useCollab(opts: {
     if (!projectId) return;
     restBroadcast(projectId, "doc", { ...doc, _from: meRef.current?.id });
   };
+  /** Announce an action to peers (shown as a transient toast on their side). */
+  const sendNotice = (text: string) => {
+    const m = meRef.current;
+    if (!projectId || !m) return;
+    restBroadcast(projectId, "notice", { text, avatar: m.avatar, _from: m.id });
+  };
   const updatePresence = (fields: PresenceFields) => {
     const prev = presenceRef.current;
     const diffChanged =
@@ -326,5 +346,5 @@ export function useCollab(opts: {
     }
   };
 
-  return { status, peers, sendOp, sendDoc, updatePresence };
+  return { status, peers, sendOp, sendDoc, updatePresence, sendNotice };
 }

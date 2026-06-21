@@ -189,12 +189,59 @@ textarea {
   transform-origin: bottom center;
 }
 
+/* ---- Toast / notification animations ----------------------------------- */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+/* Centered toasts already use -translate-x-1/2; this keeps that X offset while
+   sliding up + fading in. */
+.toast-in {
+  animation: toast-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes notif-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+@keyframes notif-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+}
+.notif-in {
+  animation: notif-in 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.notif-out {
+  animation: notif-out 200ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-backdrop-in,
   .modal-backdrop-out,
   .modal-panel-in,
   .modal-panel-out,
-  .pfp-pop-in {
+  .pfp-pop-in,
+  .toast-in,
+  .notif-in,
+  .notif-out {
     animation-duration: 1ms;
   }
 }

@@ -315,6 +315,10 @@ export type AppSettings = {
   dimBackground: number;
   /** Whether the full project is automatically saved to IndexedDB. */
   localAutosaveEnabled: boolean;
+  /** Whether UI sound effects (clicks, chimes, invites) play. */
+  uiSoundsEnabled: boolean;
+  /** UI sound effects volume, 0..1 (1 = 100%). */
+  uiSoundVolume: number;
 };
 
 /**
@@ -379,6 +383,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundVolume: 0.18,
   dimBackground: 82,
   localAutosaveEnabled: true,
+  uiSoundsEnabled: true,
+  uiSoundVolume: 1,
 };
 
 export const MIN_KEYS = 1;

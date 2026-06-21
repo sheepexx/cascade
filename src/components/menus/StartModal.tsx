@@ -16,6 +16,7 @@ import {
   clearProject,
   type LocalProjectSummary,
 } from "../../lib/persistence";
+import { playUiSound } from "../../lib/uiSounds";
 
 /** A single difficulty entry from the bundled maps manifest. */
 export type SampleDifficulty = {
@@ -683,6 +684,12 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  // Chime once when the dialog opens. Keyed on `open` only, so re-renders while
+  // it's open (e.g. the Delete button flipping a busy flag) don't replay it.
+  useEffect(() => {
+    if (open) playUiSound("areYouSure");
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

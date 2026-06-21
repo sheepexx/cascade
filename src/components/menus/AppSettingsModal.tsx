@@ -1,4 +1,5 @@
 import { Modal } from "../ui/Modal";
+import { Toggle } from "../ui/Controls";
 
 type Props = {
   open: boolean;
@@ -21,6 +22,12 @@ type Props = {
   /** Whether the whole local project autosaves to IndexedDB. */
   localAutosaveEnabled: boolean;
   onLocalAutosaveEnabled: (value: boolean) => void;
+  /** Whether UI sound effects play. */
+  uiSoundsEnabled: boolean;
+  onUiSoundsEnabled: (value: boolean) => void;
+  /** UI sound effects volume, 0..1. */
+  uiSoundVolume: number;
+  onUiSoundVolume: (value: number) => void;
 };
 
 /**
@@ -43,6 +50,10 @@ export function AppSettingsModal({
   onDimBackground,
   localAutosaveEnabled,
   onLocalAutosaveEnabled,
+  uiSoundsEnabled,
+  onUiSoundsEnabled,
+  uiSoundVolume,
+  onUiSoundVolume,
 }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Settings">
@@ -93,18 +104,53 @@ export function AppSettingsModal({
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
             Local save
           </h3>
-          <label className="flex items-center justify-between text-xs text-slate-300">
+          <div className="flex items-center justify-between text-xs text-slate-300">
             <span>Autosave local project</span>
-            <input
-              type="checkbox"
+            <Toggle
               checked={localAutosaveEnabled}
-              onChange={(e) => onLocalAutosaveEnabled(e.target.checked)}
-              className="h-4 w-4 cursor-pointer accent-accent"
+              onChange={onLocalAutosaveEnabled}
+              aria-label="Autosave local project"
             />
-          </label>
+          </div>
           <p className="mt-2 text-[11px] text-slate-500">
             Saves the full project on this device, including audio,
             difficulties and background files. Ctrl+S still saves locally.
+          </p>
+        </section>
+
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Interface
+          </h3>
+          <div className="flex items-center justify-between text-xs text-slate-300">
+            <span>UI sound effects</span>
+            <Toggle
+              checked={uiSoundsEnabled}
+              onChange={onUiSoundsEnabled}
+              aria-label="UI sound effects"
+            />
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span>Volume</span>
+              <span className="font-medium text-slate-200">
+                {Math.round(uiSoundVolume * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={uiSoundVolume}
+              disabled={!uiSoundsEnabled}
+              onChange={(e) => onUiSoundVolume(Number(e.target.value))}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">
+            Clicks, confirmations, and chimes for invites, cloud saves and map
+            exports.
           </p>
         </section>
 
@@ -140,15 +186,14 @@ export function AppSettingsModal({
             Hitsounds
           </h3>
           <div className="flex flex-col gap-4">
-            <label className="flex items-center justify-between text-xs text-slate-300">
+            <div className="flex items-center justify-between text-xs text-slate-300">
               <span>Play hitsounds during playback</span>
-              <input
-                type="checkbox"
+              <Toggle
                 checked={hitsoundsEnabled}
-                onChange={(e) => onHitsoundsEnabled(e.target.checked)}
-                className="h-4 w-4 cursor-pointer accent-accent"
+                onChange={onHitsoundsEnabled}
+                aria-label="Play hitsounds during playback"
               />
-            </label>
+            </div>
 
             <div className="flex flex-col gap-2">
               <p className="text-[11px] text-slate-500">
