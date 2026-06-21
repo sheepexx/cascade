@@ -134,6 +134,9 @@ export function buildOsuFile({
     "WidescreenStoryboard: 0",
     "",
     "[Editor]",
+    ...(difficulty.bookmarks?.length
+      ? [`Bookmarks: ${difficulty.bookmarks.map((b) => Math.round(b)).join(",")}`]
+      : []),
     "DistanceSpacing: 1",
     "BeatDivisor: 4",
     "GridSize: 8",
@@ -147,7 +150,7 @@ export function buildOsuFile({
     `Creator:${meta.creator}`,
     `Version:${difficulty.name}`,
     "Source:",
-    "Tags:",
+    `Tags:${meta.tags ?? ""}`,
     "BeatmapID:0",
     "BeatmapSetID:-1",
     "",

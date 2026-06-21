@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
 import { kiaiRanges } from "../lib/timing";
@@ -13,6 +14,8 @@ import { kiaiRanges } from "../lib/timing";
  */
 
 const HEIGHT = 96;
+const AVATAR_R = 9; // collaborator avatar radius (in the top band)
+const AVATAR_Y = 11; // collaborator avatar center y
 const WAVE_TOP = 34; // waveform band starts here
 const WAVE_H = HEIGHT - WAVE_TOP - 6;
 const DOT_BAND_H = WAVE_TOP - 6; // density dots live above the waveform
@@ -51,6 +54,13 @@ type Props = {
   }[];
   /** Click a comment marker (top band) → seek there + open the comments panel. */
   onCommentClick?: (timeMs: number) => void;
+  /** Editor bookmarks (ms) for the active difficulty, drawn as indigo flags. */
+  bookmarks?: number[];
+  /** Right-click menu actions (omitted for viewers → no menu). The ms is the
+   *  song time under the cursor. */
+  onSetPreviewPoint?: (ms: number) => void;
+  onAddBookmark?: (ms: number) => void;
+  onRemoveBookmark?: (ms: number) => void;
 };
 
 const SENS_MIN = 0.5;
@@ -71,6 +81,10 @@ export function BottomTimeline({
   peers,
   comments,
   onCommentClick,
+  bookmarks,
+  onSetPreviewPoint,
+  onAddBookmark,
+  onRemoveBookmark,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -88,6 +102,25 @@ export function BottomTimeline({
     resolved: boolean;
   } | null>(null);
   const tipKeyRef = useRef<number | null>(null);
+  // Popover shown when hovering a collaborator's avatar (enlarged pfp + name).
+  // Positioned in viewport coords (fixed) so it escapes the timeline's
+  // overflow-hidden / max-height wrapper instead of being clipped.
+  const [peerTip, setPeerTip] = useState<{
+    screenX: number;
+    anchorTop: number;
+    username: string;
+    avatar: string | null;
+    color: string;
+  } | null>(null);
+  const peerTipKeyRef = useRef<string | null>(null);
+
+  // Right-click context menu (set preview point / offset / bookmark at a time).
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    ms: number;
+    bookmark: number | null;
+  } | null>(null);
 
   const propsRef = useRef({
     waveform,
@@ -101,6 +134,7 @@ export function BottomTimeline({
     revealWaveform,
     peers,
     comments,
+    bookmarks,
   });
   propsRef.current = {
     waveform,
@@ -114,6 +148,7 @@ export function BottomTimeline({
     revealWaveform,
     peers,
     comments,
+    bookmarks,
   };
 
   useEffect(() => {
@@ -144,6 +179,7 @@ export function BottomTimeline({
       revealWaveform,
       peers,
       comments,
+      bookmarks,
     } = propsRef.current;
 
     ctx.save();
@@ -248,6 +284,30 @@ export function BottomTimeline({
       }
     }
 
+    // ---- Bookmarks (indigo flags over the waveform) ----
+    if (duration > 0 && bookmarks?.length) {
+      for (const b of bookmarks) {
+        if (b < 0 || b > duration) continue;
+        const bx = (b / duration) * width;
+        ctx.strokeStyle = "#818cf8";
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx, WAVE_TOP);
+        ctx.lineTo(bx, HEIGHT);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        // Small downward flag at the top of the waveform band.
+        ctx.fillStyle = "#818cf8";
+        ctx.beginPath();
+        ctx.moveTo(bx - 4, WAVE_TOP);
+        ctx.lineTo(bx + 4, WAVE_TOP);
+        ctx.lineTo(bx, WAVE_TOP + 5);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
     // ---- Preview point marker (purple tick) ----
     if (duration > 0 && previewTime >= 0 && previewTime <= duration) {
       const px = (previewTime / duration) * width;
@@ -312,8 +372,8 @@ export function BottomTimeline({
     // ---- Collaborator position lines + avatars ----
     if (duration > 0 && peers?.length) {
       const cache = avatarCacheRef.current;
-      const AR = 9; // avatar radius
-      const AY = 11; // avatar center y (top band, above the waveform)
+      const AR = AVATAR_R; // avatar radius
+      const AY = AVATAR_Y; // avatar center y (top band, above the waveform)
       for (const p of peers) {
         if (p.playheadMs === undefined) continue;
         const cx = (p.playheadMs / duration) * width;
@@ -415,6 +475,7 @@ export function BottomTimeline({
   );
 
   const onMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return; // left-click only (right-click → context menu)
     // A click in the top band on a comment pin opens that comment instead of
     // seeking (the rest of the strip still scrubs as before).
     const canvas = canvasRef.current;
@@ -443,24 +504,106 @@ export function BottomTimeline({
     seekFromEvent(e.clientX);
   };
 
-  // Hover a comment pin (top band) → show its author + text in a tooltip.
+  const hasMenuActions = !!onSetPreviewPoint || !!onAddBookmark;
+
+  // Right-click → context menu at the cursor for the song time under it.
+  const onCanvasContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!hasMenuActions) return; // viewers: no actions, no menu
+    const canvas = canvasRef.current;
+    const { duration, bookmarks } = propsRef.current;
+    if (!canvas || !(duration > 0)) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const ms = Math.max(0, Math.min(1, mx / rect.width)) * duration;
+    // If they right-clicked on/near a bookmark, offer to remove that one.
+    let bookmark: number | null = null;
+    let bestDist = 6;
+    for (const b of bookmarks ?? []) {
+      const bx = (b / duration) * rect.width;
+      const d = Math.abs(bx - mx);
+      if (d <= bestDist) {
+        bestDist = d;
+        bookmark = b;
+      }
+    }
+    setMenu({ x: e.clientX, y: e.clientY, ms, bookmark });
+  };
+
+  // Close the context menu on Escape.
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menu]);
+
+  const clearCommentTip = () => {
+    if (tipKeyRef.current !== null) {
+      tipKeyRef.current = null;
+      setTip(null);
+    }
+  };
+  const clearPeerTip = () => {
+    if (peerTipKeyRef.current !== null) {
+      peerTipKeyRef.current = null;
+      setPeerTip(null);
+    }
+  };
+
+  // Hover the top band → enlarge a collaborator's avatar, or show a comment pin's
+  // author + text. A peer avatar takes precedence over a comment pin underneath.
   const onCanvasMove = (e: React.MouseEvent) => {
     if (draggingRef.current) return;
     const canvas = canvasRef.current;
-    const { duration, comments } = propsRef.current;
-    if (!canvas || !comments?.length || !(duration > 0)) {
-      if (tipKeyRef.current !== null) {
-        tipKeyRef.current = null;
-        setTip(null);
-      }
+    const { duration, comments, peers } = propsRef.current;
+    if (!canvas || !(duration > 0)) {
+      clearPeerTip();
+      clearCommentTip();
       return;
     }
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
+
+    // Collaborator avatars (top band).
+    if (peers?.length) {
+      let hit: { username: string; avatar: string | null; color: string; cx: number } | null = null;
+      let bestDist = (AVATAR_R + 3) ** 2;
+      for (const p of peers) {
+        if (p.playheadMs === undefined) continue;
+        const cx = (p.playheadMs / duration) * rect.width;
+        const dx = cx - mx;
+        const dy = AVATAR_Y - my;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= bestDist) {
+          bestDist = d2;
+          hit = { username: p.username, avatar: p.avatar ?? null, color: p.color, cx };
+        }
+      }
+      if (hit) {
+        clearCommentTip();
+        if (peerTipKeyRef.current !== hit.username) {
+          peerTipKeyRef.current = hit.username;
+          setPeerTip({
+            screenX: rect.left + hit.cx,
+            anchorTop: rect.top + (AVATAR_Y - AVATAR_R),
+            username: hit.username,
+            avatar: hit.avatar,
+            color: hit.color,
+          });
+        }
+        return;
+      }
+    }
+    clearPeerTip();
+
+    // Comment pins (top band).
     let best: { time_ms: number; cx: number } | null = null;
     let bestDist = 8;
-    if (my <= 18) {
+    if (comments?.length && my <= 18) {
       for (const c of comments) {
         const cx = (c.time_ms / duration) * rect.width;
         const d = Math.abs(cx - mx);
@@ -472,7 +615,7 @@ export function BottomTimeline({
     }
     if (best) {
       if (tipKeyRef.current === best.time_ms) return; // unchanged
-      const c = comments.find((x) => x.time_ms === best!.time_ms);
+      const c = comments!.find((x) => x.time_ms === best!.time_ms);
       tipKeyRef.current = best.time_ms;
       setTip({
         x: best.cx,
@@ -480,17 +623,14 @@ export function BottomTimeline({
         body: c?.body ?? "",
         resolved: c?.resolved ?? false,
       });
-    } else if (tipKeyRef.current !== null) {
-      tipKeyRef.current = null;
-      setTip(null);
+    } else {
+      clearCommentTip();
     }
   };
 
   const clearTip = () => {
-    if (tipKeyRef.current !== null) {
-      tipKeyRef.current = null;
-      setTip(null);
-    }
+    clearCommentTip();
+    clearPeerTip();
   };
 
   // Scroll over the timeline to adjust waveform sensitivity.
@@ -539,6 +679,7 @@ export function BottomTimeline({
         onMouseDown={onMouseDown}
         onMouseMove={onCanvasMove}
         onMouseLeave={clearTip}
+        onContextMenu={onCanvasContextMenu}
       />
       {/* Comment hover tooltip */}
       {tip && (
@@ -565,10 +706,135 @@ export function BottomTimeline({
           </div>
         </div>
       )}
+      {/* Collaborator avatar hover popover (enlarged pfp + username). Portaled to
+          <body> so `fixed` is viewport-relative — the timeline's translate-y
+          ancestor would otherwise clip it via the overflow-hidden wrapper. */}
+      {peerTip &&
+        createPortal(
+        <div
+          className="pointer-events-none fixed z-50"
+          style={{ left: peerTip.screenX, top: peerTip.anchorTop }}
+        >
+          <div
+            key={peerTip.username}
+            className="pfp-pop-in absolute bottom-full left-0 mb-1.5 flex -translate-x-1/2 flex-col items-center gap-1.5 rounded-xl border border-ink-500/70 bg-ink-900/95 px-3 py-2.5 shadow-2xl"
+          >
+            <span
+              className="grid h-14 w-14 place-items-center overflow-hidden rounded-full border-2 bg-ink-700/70 text-lg font-semibold text-slate-100 shadow-md"
+              style={{ borderColor: peerTip.color }}
+            >
+              {peerTip.avatar ? (
+                <img
+                  src={peerTip.avatar}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                peerTip.username.slice(0, 1).toUpperCase()
+              )}
+            </span>
+            <span className="max-w-[8.5rem] truncate text-xs font-semibold text-slate-100">
+              {peerTip.username}
+            </span>
+          </div>
+        </div>,
+          document.body,
+        )}
+
       {/* Sensitivity hint - appears on hover */}
       <div className="pointer-events-none absolute right-2 top-1.5 select-none rounded bg-ink-900/70 px-2 py-0.5 text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
         waveform {sensitivity.toFixed(1)}× · scroll to adjust
       </div>
+
+      {/* Right-click context menu. Portaled to <body> so `fixed` positioning is
+          relative to the viewport — an ancestor `transform` (the timeline's
+          translate-y) would otherwise make it a containing block and the
+          overflow-hidden wrapper would clip the menu out of view. */}
+      {menu &&
+        createPortal(
+        <div
+          className="fixed inset-0 z-50"
+          onMouseDown={() => setMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenu(null);
+          }}
+        >
+          <div
+            className="absolute min-w-[12rem] overflow-hidden rounded-lg border border-ink-500/70 bg-ink-900/95 py-1 text-sm text-slate-200 shadow-2xl backdrop-blur"
+            style={{
+              left: Math.min(menu.x, window.innerWidth - 208),
+              top: Math.min(menu.y, window.innerHeight - 132),
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+              {formatTimestamp(menu.ms)}
+            </div>
+            {onSetPreviewPoint && (
+              <MenuItem
+                onClick={() => {
+                  onSetPreviewPoint(menu.ms);
+                  setMenu(null);
+                }}
+              >
+                <span className="text-purple-300">◆</span> Set preview point
+              </MenuItem>
+            )}
+            {menu.bookmark !== null
+              ? onRemoveBookmark && (
+                  <MenuItem
+                    onClick={() => {
+                      onRemoveBookmark(menu.bookmark!);
+                      setMenu(null);
+                    }}
+                  >
+                    <span className="text-indigo-300">⚑</span> Remove bookmark
+                  </MenuItem>
+                )
+              : onAddBookmark && (
+                  <MenuItem
+                    onClick={() => {
+                      onAddBookmark(menu.ms);
+                      setMenu(null);
+                    }}
+                  >
+                    <span className="text-indigo-300">⚑</span> New bookmark
+                  </MenuItem>
+                )}
+          </div>
+        </div>,
+          document.body,
+        )}
     </div>
   );
+}
+
+function MenuItem({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-accent hover:text-white"
+    >
+      {children}
+    </button>
+  );
+}
+
+/** mm:ss.mmm for the context-menu header. */
+function formatTimestamp(ms: number): string {
+  const total = Math.max(0, Math.round(ms));
+  const m = Math.floor(total / 60000);
+  const s = Math.floor((total % 60000) / 1000);
+  const millis = total % 1000;
+  return `${m}:${s.toString().padStart(2, "0")}.${millis
+    .toString()
+    .padStart(3, "0")}`;
 }
