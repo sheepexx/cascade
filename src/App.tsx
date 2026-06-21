@@ -453,6 +453,12 @@ export default function App() {
     waveform ? waveform.duration * 1000 : null,
     waveform?.buffer ?? null,
   );
+  // Stable getter for the live playback clock. Lets children (e.g. the Timing
+  // modal) read the current time without taking the per-frame `currentTime`
+  // value as a prop — so they can be memoized and not re-render every frame.
+  const currentTimeRef = useRef(audio.currentTime);
+  currentTimeRef.current = audio.currentTime;
+  const getCurrentTime = useCallback(() => currentTimeRef.current, []);
   const modalAtmosphereOpen =
     (modal !== null && modal !== "timing") ||
     askBgScope ||
@@ -473,8 +479,6 @@ export default function App() {
   );
 
   // Presence: broadcast this user's playhead to collaborators (throttled).
-  const currentTimeRef = useRef(0);
-  currentTimeRef.current = audio.currentTime;
   useEffect(() => {
     if (!liveEnabled) return;
     const id = window.setInterval(() => {
@@ -950,6 +954,12 @@ export default function App() {
       );
     },
     [markStructural],
+  );
+
+  // Stable handler for the Timing modal's edits (keeps the modal memoizable).
+  const applyTimingPoints = useCallback(
+    (points: TimingPoint[]) => patchDifficulty(activeIdRef.current, { timingPoints: points }),
+    [patchDifficulty],
   );
 
   // ---- Timeline annotations (preview point / offset / bookmarks) ----------
@@ -2754,10 +2764,12 @@ export default function App() {
         open={modal === "timing"}
         onClose={close}
         timingPoints={activeTimingPoints}
-        onTimingPoints={(points) =>
-          patchDifficulty(active.id, { timingPoints: points })
-        }
-        audio={audio}
+        onTimingPoints={applyTimingPoints}
+        isPlaying={audio.isPlaying}
+        playbackRate={audio.playbackRate}
+        getCurrentTime={getCurrentTime}
+        onToggle={audio.toggle}
+        onSetPlaybackRate={audio.setPlaybackRate}
       />
       <DifficultyModal
         open={modal === "difficulty"}
