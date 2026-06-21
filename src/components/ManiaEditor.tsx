@@ -68,6 +68,7 @@ type Props = {
   previewTime: number;
   view: ViewState;
   currentTime: number;
+  isPlaying: boolean;
   backgroundUrl: string | null;
   /** How strongly to dim the background image for note readability, 0..100. */
   dimBackground: number;
@@ -1531,7 +1532,12 @@ export function ManiaEditor(props: Props) {
     // playhead always lands exactly on a snap line.
     const { currentTime, timingPoints, view } = propsRef.current;
     const dir: 1 | -1 = e.deltaY < 0 ? -1 : 1;
-    props.onSeek(stepToSnap(currentTime, timingPoints, view.snapDivisor, dir));
+    const firstStep = stepToSnap(currentTime, timingPoints, view.snapDivisor, dir);
+    const target =
+      dir < 0 && propsRef.current.isPlaying
+        ? stepToSnap(firstStep, timingPoints, view.snapDivisor, dir)
+        : firstStep;
+    props.onSeek(target);
   };
 
   // When notes are selected the toolbar reflects (and edits) those notes; with

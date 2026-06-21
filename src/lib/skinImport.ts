@@ -64,6 +64,13 @@ export async function importOsk(
 
   const objectUrls: string[] = [];
   const urlCache = new Map<string, string>();
+  const hitsounds: Record<string, Blob> = {};
+
+  for (const [path, entry] of index) {
+    const sampleKey = hitsoundKey(path);
+    if (!sampleKey || hitsounds[sampleKey]) continue;
+    hitsounds[sampleKey] = await entry.async("blob");
+  }
 
   /** Turn an extensionless skin.ini image ref into an object URL (cached). */
   const resolveUrl = async (ref: string | undefined): Promise<string | null> => {
@@ -150,6 +157,7 @@ export async function importOsk(
     fileName,
     blob: file,
     keymodes,
+    hitsounds,
     objectUrls,
   };
 }
@@ -338,6 +346,14 @@ function findImage(
     if (hit) return hit;
   }
   return null;
+}
+
+function hitsoundKey(path: string): string | null {
+  const file = path.split("/").pop() ?? "";
+  const match = file.match(
+    /^(normal|soft|drum)-hit(normal|whistle|finish|clap)\d*\.(wav|mp3|ogg)$/i,
+  );
+  return match ? file.replace(/\.[^.]+$/, "").toLowerCase() : null;
 }
 
 function stripExt(name: string): string {

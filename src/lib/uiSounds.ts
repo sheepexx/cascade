@@ -63,6 +63,13 @@ function template(name: UiSound): HTMLAudioElement | null {
   return el;
 }
 
+/** Ask the browser to fetch every UI sound before the first interaction. */
+export function preloadUiSounds(): void {
+  for (const name of Object.keys(FILES) as UiSound[]) {
+    template(name)?.load();
+  }
+}
+
 /** Play a UI sound once (no-op when disabled or playback is blocked). */
 export function playUiSound(name: UiSound): void {
   if (!enabled) return;
