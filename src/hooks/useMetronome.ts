@@ -12,7 +12,7 @@ import { activeTimingAt, beatLength, redPoints } from "../lib/timing";
  * reduced playback speeds.
  */
 export function useMetronome(
-  currentTime: number,
+  getCurrentTime: () => number,
   isPlaying: boolean,
   timingPoints: TimingPoint[],
   enabled: boolean,
@@ -21,9 +21,11 @@ export function useMetronome(
   const ctxRef = useRef<AudioContext | null>(null);
   const lastBeatRef = useRef<number | null>(null);
 
-  // Keep the latest values on refs so the rAF loop reads fresh data.
-  const stateRef = useRef({ currentTime, isPlaying, timingPoints, enabled, onBeat });
-  stateRef.current = { currentTime, isPlaying, timingPoints, enabled, onBeat };
+  // Keep the latest values on refs so the rAF loop reads fresh data. The clock
+  // is pulled through a getter, so the component using this hook doesn't have to
+  // re-render every frame just to feed it the current time.
+  const stateRef = useRef({ getCurrentTime, isPlaying, timingPoints, enabled, onBeat });
+  stateRef.current = { getCurrentTime, isPlaying, timingPoints, enabled, onBeat };
 
   useEffect(() => {
     if (!enabled) {
@@ -64,10 +66,11 @@ export function useMetronome(
       }
       const reds = redPoints(s.timingPoints);
       if (!reds.length) return;
-      const tp = activeTimingAt(s.currentTime, s.timingPoints);
+      const now = s.getCurrentTime();
+      const tp = activeTimingAt(now, s.timingPoints);
       const bl = beatLength(tp.bpm);
       if (!(bl > 0)) return;
-      const beat = Math.floor((s.currentTime - tp.time) / bl);
+      const beat = Math.floor((now - tp.time) / bl);
       if (lastBeatRef.current === null) {
         lastBeatRef.current = beat;
         return;

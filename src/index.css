@@ -233,6 +233,21 @@ textarea {
   animation: notif-out 200ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
+/* ---- Tap-tempo pad ring (one-shot on each tap) ------------------------- */
+@keyframes tap-ring {
+  from {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+.tap-ring {
+  animation: tap-ring 400ms ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-backdrop-in,
   .modal-backdrop-out,
@@ -241,7 +256,8 @@ textarea {
   .pfp-pop-in,
   .toast-in,
   .notif-in,
-  .notif-out {
+  .notif-out,
+  .tap-ring {
     animation-duration: 1ms;
   }
 }
