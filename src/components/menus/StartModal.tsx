@@ -601,6 +601,9 @@ function CardActionButton({
       title={label}
       aria-label={label}
       disabled={busy}
+      // Suppress the global UI click sound: delete opens its own "are you sure"
+      // chime, and archive/unarchive are self-evident from the card moving.
+      data-no-uisound=""
       onClick={(e) => {
         e.stopPropagation();
         onClick();

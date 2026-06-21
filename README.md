@@ -1,4 +1,4 @@
-# mania-editor
+# Cascade
 
 A browser-based **osu!mania** beatmap editor. Upload a song, set your timing,
 place notes on a vertical timeline, and export a ready-to-play `.osu` or `.osz`.
