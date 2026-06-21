@@ -25,6 +25,53 @@ const MAIN_REVEAL_MS = 300;
 const WAVEFORM_REVEAL_DELAY_MS = MAIN_REVEAL_MS;
 const WAVEFORM_REVEAL_MS = 700;
 
+/** Geometry of the trim brackets + fade envelope, in canvas (CSS) pixels. */
+type TrimGeom = {
+  /** Start / end bracket x. */
+  sx: number;
+  ex: number;
+  /** Top of the fade-in / fade-out ramp (also the fade dot x). */
+  fadeInX: number;
+  fadeOutX: number;
+  /** Envelope y at gain 1 (top) and gain 0 (bottom). */
+  envTop: number;
+  envBot: number;
+};
+
+function trimGeometry(
+  duration: number,
+  width: number,
+  trimStart: number | undefined,
+  trimEnd: number | undefined,
+  fadeIn: number | undefined,
+  fadeOut: number | undefined,
+): TrimGeom | null {
+  if (!(duration > 0) || !Number.isFinite(duration)) return null;
+  const startMs = Math.max(0, Math.min(trimStart ?? 0, duration));
+  const endMs = Math.max(startMs, Math.min(trimEnd ?? duration, duration));
+  const sx = (startMs / duration) * width;
+  const ex = (endMs / duration) * width;
+  const regionW = Math.max(0, ex - sx);
+  const fiPx = Math.min(regionW, ((fadeIn ?? 0) / duration) * width);
+  const foPx = Math.min(regionW, ((fadeOut ?? 0) / duration) * width);
+  let midL = sx + fiPx;
+  let midR = ex - foPx;
+  // If the two ramps would cross, meet them at the midpoint (a single peak).
+  if (midL > midR) {
+    const m = (midL + midR) / 2;
+    midL = m;
+    midR = m;
+  }
+  return {
+    sx,
+    ex,
+    fadeInX: midL,
+    fadeOutX: midR,
+    envTop: WAVE_TOP + 3,
+    envBot: WAVE_TOP + WAVE_H,
+  };
+}
+
 type Props = {
   waveform: Waveform | null;
   notes: ManiaNote[];
@@ -62,6 +109,18 @@ type Props = {
   onSetPreviewPoint?: (ms: number) => void;
   onAddBookmark?: (ms: number) => void;
   onRemoveBookmark?: (ms: number) => void;
+  /** Playback-region trim brackets (ms). Undefined ends default to the song
+   *  boundaries (start 0, end = duration). */
+  trimStart?: number;
+  trimEnd?: number;
+  /** Fade-in / fade-out lengths (ms) drawn as ramps inside the region. */
+  fadeIn?: number;
+  fadeOut?: number;
+  /** Drag handlers for the brackets / fade dots (omitted for viewers). */
+  onSetTrimStart?: (ms: number) => void;
+  onSetTrimEnd?: (ms: number) => void;
+  onSetFadeIn?: (ms: number) => void;
+  onSetFadeOut?: (ms: number) => void;
 };
 
 const SENS_MIN = 0.5;
@@ -87,11 +146,28 @@ export function BottomTimeline({
   onSetPreviewPoint,
   onAddBookmark,
   onRemoveBookmark,
+  trimStart,
+  trimEnd,
+  fadeIn,
+  fadeOut,
+  onSetTrimStart,
+  onSetTrimEnd,
+  onSetFadeIn,
+  onSetFadeOut,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const sizeRef = useRef({ width: 800, dpr: 1 });
   const draggingRef = useRef(false);
+  // Which trim handle is currently grabbed (null = none). Drives the
+  // window-level mousemove so a drag keeps tracking outside the canvas.
+  const trimDragRef = useRef<
+    "start" | "end" | "fadeIn" | "fadeOut" | null
+  >(null);
+  // Hover state for the trim handles, so they can highlight on approach.
+  const trimHoverRef = useRef<
+    "start" | "end" | "fadeIn" | "fadeOut" | null
+  >(null);
   const waveformRevealStartRef = useRef(0);
   const revealedWaveformRef = useRef<Waveform | null>(null);
   // Cache of decoded avatar images (osu! pfps), keyed by URL, for canvas draws.
@@ -138,6 +214,10 @@ export function BottomTimeline({
     peers,
     comments,
     bookmarks,
+    trimStart,
+    trimEnd,
+    fadeIn,
+    fadeOut,
   });
   propsRef.current = {
     waveform,
@@ -153,6 +233,25 @@ export function BottomTimeline({
     peers,
     comments,
     bookmarks,
+    trimStart,
+    trimEnd,
+    fadeIn,
+    fadeOut,
+  };
+
+  // Latest trim drag handlers, read by the window-level drag listener without
+  // re-subscribing it every render.
+  const trimHandlersRef = useRef({
+    onSetTrimStart,
+    onSetTrimEnd,
+    onSetFadeIn,
+    onSetFadeOut,
+  });
+  trimHandlersRef.current = {
+    onSetTrimStart,
+    onSetTrimEnd,
+    onSetFadeIn,
+    onSetFadeOut,
   };
 
   useEffect(() => {
@@ -184,6 +283,10 @@ export function BottomTimeline({
       peers,
       comments,
       bookmarks,
+      trimStart,
+      trimEnd,
+      fadeIn,
+      fadeOut,
     } = propsRef.current;
 
     ctx.save();
@@ -340,6 +443,77 @@ export function BottomTimeline({
       ctx.stroke();
     }
 
+    // ---- Trim region: red brackets + draggable fade envelope ----
+    const trim = trimGeometry(
+      duration,
+      width,
+      trimStart,
+      trimEnd,
+      fadeIn,
+      fadeOut,
+    );
+    if (trim) {
+      const { sx, ex, fadeInX, fadeOutX, envTop, envBot } = trim;
+
+      // Dim the cut-away regions outside the brackets so the kept region pops.
+      ctx.fillStyle = "rgba(8,9,14,0.58)";
+      if (sx > 0.5) ctx.fillRect(0, WAVE_TOP, sx, WAVE_H);
+      if (ex < width - 0.5) ctx.fillRect(ex, WAVE_TOP, width - ex, WAVE_H);
+
+      // Volume envelope: gain ramps 0 → 1 over the fade-in, holds, then 1 → 0
+      // over the fade-out. Filled translucent, with a crisp top edge.
+      ctx.beginPath();
+      ctx.moveTo(sx, envBot);
+      ctx.lineTo(fadeInX, envTop);
+      ctx.lineTo(fadeOutX, envTop);
+      ctx.lineTo(ex, envBot);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(255,77,77,0.13)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(sx, envBot);
+      ctx.lineTo(fadeInX, envTop);
+      ctx.lineTo(fadeOutX, envTop);
+      ctx.lineTo(ex, envBot);
+      ctx.strokeStyle = "rgba(255,128,128,0.9)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      const hover = trimHoverRef.current;
+      const drag = trimDragRef.current;
+
+      // Brackets — bold red verticals with a grab tab pointing into the region.
+      const drawBracket = (x: number, side: "start" | "end") => {
+        const active = hover === side || drag === side;
+        ctx.fillStyle = active ? "#ff7a7a" : "#ff4d4d";
+        ctx.fillRect(x - 1.25, WAVE_TOP - 2, 2.5, WAVE_H + 4);
+        const tabY = WAVE_TOP + WAVE_H / 2;
+        const dir = side === "start" ? 1 : -1;
+        ctx.beginPath();
+        ctx.moveTo(x, tabY - 7);
+        ctx.lineTo(x + dir * 8, tabY);
+        ctx.lineTo(x, tabY + 7);
+        ctx.closePath();
+        ctx.fill();
+      };
+      drawBracket(sx, "start");
+      drawBracket(ex, "end");
+
+      // Fade dots — draggable circles at the top of each ramp.
+      const drawDot = (x: number, side: "fadeIn" | "fadeOut") => {
+        const active = hover === side || drag === side;
+        ctx.beginPath();
+        ctx.arc(x, envTop, active ? 5.5 : 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = "#ff4d4d";
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+      };
+      drawDot(fadeInX, "fadeIn");
+      drawDot(fadeOutX, "fadeOut");
+    }
+
     // ---- Comment markers (clickable pins above the waveform) ----
     if (duration > 0 && comments?.length) {
       for (const c of comments) {
@@ -479,8 +653,72 @@ export function BottomTimeline({
     [onSeek],
   );
 
+  // Hit-test the trim handles. Fade dots win over brackets (they sit on top),
+  // and brackets only register within the waveform band.
+  const hitTrimHandle = useCallback(
+    (clientX: number, clientY: number): typeof trimDragRef.current => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const { duration, trimStart, trimEnd, fadeIn, fadeOut } =
+        propsRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+      if (my < WAVE_TOP - 5 || my > WAVE_TOP + WAVE_H + 4) return null;
+      const t = trimGeometry(
+        duration,
+        rect.width,
+        trimStart,
+        trimEnd,
+        fadeIn,
+        fadeOut,
+      );
+      if (!t) return null;
+      const dotR = 8;
+      const dIn = Math.hypot(mx - t.fadeInX, my - t.envTop);
+      const dOut = Math.hypot(mx - t.fadeOutX, my - t.envTop);
+      if (dIn <= dotR && dIn <= dOut) return "fadeIn";
+      if (dOut <= dotR) return "fadeOut";
+      if (Math.abs(mx - t.sx) <= 6) return "start";
+      if (Math.abs(mx - t.ex) <= 6) return "end";
+      return null;
+    },
+    [],
+  );
+
+  // Apply a drag of the grabbed trim handle to the song time under the cursor.
+  const applyTrimDrag = useCallback(
+    (handle: NonNullable<typeof trimDragRef.current>, clientX: number) => {
+      const canvas = canvasRef.current;
+      const { duration, trimStart, trimEnd } = propsRef.current;
+      if (!canvas || !(duration > 0)) return;
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const ms = ratio * duration;
+      const h = trimHandlersRef.current;
+      if (handle === "start") h.onSetTrimStart?.(ms);
+      else if (handle === "end") h.onSetTrimEnd?.(ms);
+      else if (handle === "fadeIn") h.onSetFadeIn?.(Math.max(0, ms - (trimStart ?? 0)));
+      else if (handle === "fadeOut")
+        h.onSetFadeOut?.(Math.max(0, (trimEnd ?? duration) - ms));
+    },
+    [],
+  );
+
+  const hasTrimHandlers =
+    !!onSetTrimStart || !!onSetTrimEnd || !!onSetFadeIn || !!onSetFadeOut;
+
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // left-click only (right-click → context menu)
+    // Trim brackets / fade dots take priority over seeking when grabbed.
+    if (hasTrimHandlers) {
+      const handle = hitTrimHandle(e.clientX, e.clientY);
+      if (handle) {
+        trimDragRef.current = handle;
+        trimHoverRef.current = handle;
+        return;
+      }
+    }
     // A click in the top band on a comment pin opens that comment instead of
     // seeking (the rest of the strip still scrubs as before).
     const canvas = canvasRef.current;
@@ -561,7 +799,7 @@ export function BottomTimeline({
   // Hover the top band → enlarge a collaborator's avatar, or show a comment pin's
   // author + text. A peer avatar takes precedence over a comment pin underneath.
   const onCanvasMove = (e: React.MouseEvent) => {
-    if (draggingRef.current) return;
+    if (draggingRef.current || trimDragRef.current) return;
     const canvas = canvasRef.current;
     const { duration, comments, peers } = propsRef.current;
     if (!canvas || !(duration > 0)) {
@@ -572,6 +810,20 @@ export function BottomTimeline({
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
+
+    // Trim handles: highlight on hover and switch the cursor to signal a drag.
+    if (hasTrimHandlers) {
+      const handle = hitTrimHandle(e.clientX, e.clientY);
+      if (trimHoverRef.current !== handle) trimHoverRef.current = handle;
+      if (handle) {
+        canvas.style.cursor =
+          handle === "start" || handle === "end" ? "ew-resize" : "grab";
+        clearPeerTip();
+        clearCommentTip();
+        return;
+      }
+      canvas.style.cursor = "";
+    }
 
     // Collaborator avatars (top band).
     if (peers?.length) {
@@ -636,6 +888,13 @@ export function BottomTimeline({
   const clearTip = () => {
     clearCommentTip();
     clearPeerTip();
+    // Drop any trim-handle highlight when the cursor leaves the strip (unless a
+    // drag is in progress, which the window listener owns).
+    if (!trimDragRef.current && trimHoverRef.current !== null) {
+      trimHoverRef.current = null;
+      const canvas = canvasRef.current;
+      if (canvas) canvas.style.cursor = "";
+    }
   };
 
   // Scroll over the timeline to adjust waveform sensitivity.
@@ -661,16 +920,26 @@ export function BottomTimeline({
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      if (trimDragRef.current) {
+        applyTrimDrag(trimDragRef.current, e.clientX);
+        return;
+      }
       if (draggingRef.current) seekFromEvent(e.clientX);
     };
-    const onUp = () => (draggingRef.current = false);
+    const onUp = () => {
+      draggingRef.current = false;
+      if (trimDragRef.current) {
+        trimDragRef.current = null;
+        trimHoverRef.current = null;
+      }
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [seekFromEvent]);
+  }, [seekFromEvent, applyTrimDrag]);
 
   return (
     <div

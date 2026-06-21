@@ -11,6 +11,15 @@ import {
   setFilename,
   triggerDownload,
 } from "./osuExport";
+import {
+  cutAudioName,
+  cutDifficulty,
+  decodeAudioBlob,
+  effectiveRegion,
+  renderTrimmedWav,
+  shiftTimingPoints,
+  type BakedRegion,
+} from "./audioTrim";
 
 export type BuildOszArgs = {
   meta: SongMeta;
@@ -55,25 +64,91 @@ export async function buildOsz({
   const fallbackAudio = allAudio.length === 1 ? allAudio[0] : null;
   const bundled = new Set<string>();
 
-  for (const difficulty of difficulties) {
-    const audio =
-      (difficulty.audioFilename && audioFiles[difficulty.audioFilename]) ||
-      fallbackAudio;
-    if (audio && !bundled.has(audio.name)) {
-      zip.file(audio.name, audio.blob);
-      bundled.add(audio.name);
-    }
+  // Trim support. The brackets are non-destructive in the editor; here they
+  // get baked in. We lazily create a single AudioContext (only when something
+  // is actually trimmed), cache decoded buffers and encoded cut files so
+  // difficulties sharing the same source + region reuse the work.
+  const ctxHolder: { ctx: AudioContext | null } = { ctx: null };
+  const decoded = new Map<string, Promise<AudioBuffer | null>>();
+  const cutNameByKey = new Map<string, string>();
 
-    const osu = buildOsuFile({
-      meta,
-      difficulty,
-      timingPoints: difficulty.timingPoints.length
+  const ensureCtx = (): AudioContext | null => {
+    if (ctxHolder.ctx) return ctxHolder.ctx;
+    const AC =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AC) return null;
+    ctxHolder.ctx = new AC();
+    return ctxHolder.ctx;
+  };
+
+  const getDecoded = (audio: LoadedFile): Promise<AudioBuffer | null> => {
+    let pr = decoded.get(audio.name);
+    if (!pr) {
+      const ctx = ensureCtx();
+      pr = ctx ? decodeAudioBlob(audio.blob, ctx) : Promise.resolve(null);
+      decoded.set(audio.name, pr);
+    }
+    return pr;
+  };
+
+  try {
+    for (const difficulty of difficulties) {
+      const audio =
+        (difficulty.audioFilename && audioFiles[difficulty.audioFilename]) ||
+        fallbackAudio;
+
+      const resolvedTiming = difficulty.timingPoints.length
         ? difficulty.timingPoints
-        : timingPoints,
-      audioFilename: audio?.name ?? difficulty.audioFilename ?? "audio.mp3",
-      backgroundFilename: difficulty.backgroundFilename,
-    });
-    zip.file(osuFilename(meta, difficulty), osu);
+        : timingPoints;
+
+      let audioName = audio?.name ?? difficulty.audioFilename ?? "audio.mp3";
+      let exportDiff = difficulty;
+      let exportTiming = resolvedTiming;
+
+      // Only bother decoding when this difficulty actually trims the audio.
+      const wantsTrim =
+        (difficulty.trimStartMs ?? 0) > 0.5 ||
+        difficulty.trimEndMs !== undefined;
+
+      if (audio && wantsTrim) {
+        const buffer = await getDecoded(audio);
+        const region: BakedRegion | null = buffer
+          ? effectiveRegion(difficulty, buffer.duration * 1000)
+          : null;
+        if (buffer && region) {
+          const key = `${audio.name}|${region.startMs}|${region.endMs}|${region.fadeInMs}|${region.fadeOutMs}`;
+          let cutName = cutNameByKey.get(key);
+          if (!cutName) {
+            cutName = cutAudioName(audio.name, bundled);
+            zip.file(cutName, renderTrimmedWav(buffer, region));
+            bundled.add(cutName);
+            cutNameByKey.set(key, cutName);
+          }
+          audioName = cutName;
+          exportDiff = cutDifficulty(difficulty, region.startMs, region.endMs);
+          exportTiming = shiftTimingPoints(resolvedTiming, region.startMs);
+        }
+      }
+
+      // Bundle the verbatim audio only when this difficulty isn't using a cut.
+      if (audio && audioName === audio.name && !bundled.has(audio.name)) {
+        zip.file(audio.name, audio.blob);
+        bundled.add(audio.name);
+      }
+
+      const osu = buildOsuFile({
+        meta,
+        difficulty: exportDiff,
+        timingPoints: exportTiming.length ? exportTiming : timingPoints,
+        audioFilename: audioName,
+        backgroundFilename: difficulty.backgroundFilename,
+      });
+      zip.file(osuFilename(meta, difficulty), osu);
+    }
+  } finally {
+    ctxHolder.ctx?.close().catch(() => {});
   }
 
   return zip.generateAsync({

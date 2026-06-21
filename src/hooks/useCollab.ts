@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase, getSupabaseToken } from "../lib/supabase";
-import type { DocState, NoteOp } from "../lib/ops";
+import type { CollabOp, DocState } from "../lib/ops";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -83,7 +83,7 @@ export function useCollab(opts: {
   projectId: string | null;
   enabled: boolean;
   me: Me | null;
-  onRemoteOp: (op: NoteOp) => void;
+  onRemoteOp: (op: CollabOp) => void;
   onRemoteDoc: (doc: DocState) => void;
   getDoc: () => DocState;
   /** A collaborator appeared (after we joined) — for join notifications. */
@@ -201,9 +201,9 @@ export function useCollab(opts: {
       channelRef.current = ch;
 
       ch.on("broadcast", { event: "op" }, ({ payload }) => {
-        const p = payload as NoteOp & { _from?: string };
+        const p = payload as CollabOp & { _from?: string };
         if (p?._from && p._from === meRef.current?.id) return; // ignore own echo
-        onRemoteOpRef.current(p as NoteOp);
+        onRemoteOpRef.current(p as CollabOp);
       });
       ch.on("broadcast", { event: "doc" }, ({ payload }) => {
         const p = payload as DocState & { _from?: string };
@@ -311,7 +311,7 @@ export function useCollab(opts: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, enabled, me?.id]);
 
-  const sendOp = (op: NoteOp) => {
+  const sendOp = (op: CollabOp) => {
     if (!projectId) return;
     restBroadcast(projectId, "op", { ...op, _from: meRef.current?.id });
   };

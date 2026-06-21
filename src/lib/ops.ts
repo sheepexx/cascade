@@ -23,6 +23,60 @@ export type NoteOp =
   | { t: "note.remove"; diffId: string; notes: ManiaNote[] }
   | { t: "note.update"; diffId: string; before: ManiaNote[]; after: ManiaNote[] };
 
+/** The trim/fade fields that sync as a granular per-difficulty op. */
+export type DiffField = "trimStartMs" | "trimEndMs" | "fadeInMs" | "fadeOutMs";
+const DIFF_FIELDS: readonly DiffField[] = [
+  "trimStartMs",
+  "trimEndMs",
+  "fadeInMs",
+  "fadeOutMs",
+];
+
+/**
+ * A granular update to a difficulty's playback-region fields (trim brackets +
+ * fades). These are dragged continuously, so — like note edits — they sync as a
+ * small op (just the changed fields) instead of a whole-document broadcast, so
+ * a drag can't flood the channel or clobber a peer's concurrent note edits.
+ * `null` clears the field (drops back to the song boundary / no fade); JSON
+ * keeps `null` where it would drop `undefined`.
+ */
+export type DiffFieldOp = {
+  t: "diff.fields";
+  diffId: string;
+  fields: Partial<Record<DiffField, number | null>>;
+};
+
+/** Any op broadcast over the live "op" channel. */
+export type CollabOp = NoteOp | DiffFieldOp;
+
+/** Apply a diff-field op, returning a new array. */
+export function applyDiffFieldOp(
+  difficulties: Difficulty[],
+  op: DiffFieldOp,
+): Difficulty[] {
+  return difficulties.map((d) => {
+    if (d.id !== op.diffId) return d;
+    const next: Difficulty = { ...d };
+    for (const k of DIFF_FIELDS) {
+      if (!(k in op.fields)) continue;
+      const v = op.fields[k];
+      if (v == null) delete next[k];
+      else next[k] = v;
+    }
+    return next;
+  });
+}
+
+/** Apply any collab op (note or diff-field), returning a new array. */
+export function applyOp(
+  difficulties: Difficulty[],
+  op: CollabOp,
+): Difficulty[] {
+  return op.t === "diff.fields"
+    ? applyDiffFieldOp(difficulties, op)
+    : applyNoteOp(difficulties, op);
+}
+
 /** Apply a note op to a difficulties array, returning a new array. */
 export function applyNoteOp(
   difficulties: Difficulty[],

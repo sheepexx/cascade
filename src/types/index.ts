@@ -215,6 +215,14 @@ export type Difficulty = {
   previewTime: number;
   /** Editor bookmarks, in milliseconds, ascending (osu! `[Editor] Bookmarks`). */
   bookmarks?: number[];
+  /** Playback region start (ms). Undefined = play from the song start (0). */
+  trimStartMs?: number;
+  /** Playback region end (ms). Undefined = play to the song end (duration). */
+  trimEndMs?: number;
+  /** Fade-in length (ms) applied at the region start. Undefined/0 = no fade. */
+  fadeInMs?: number;
+  /** Fade-out length (ms) applied before the region end. Undefined/0 = no fade. */
+  fadeOutMs?: number;
   timingPoints: TimingPoint[];
   notes: ManiaNote[];
 };
