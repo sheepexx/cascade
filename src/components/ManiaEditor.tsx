@@ -1116,27 +1116,27 @@ export function ManiaEditor(props: Props) {
       ctx.fillStyle = "rgba(154,160,173,0.25)";
       roundRect(ctx, x + laneWidth / 2 - previewW / 2, top, previewW, Math.max(bottom - top, 2), 5);
       ctx.fill();
-    } else if (mouseRef.current.inside && !moveDragRef.current) {
-      // ---- Hover ghost note ----
+    }
+
+    // ---- Hover ghost note (unsnapped — follows cursor exactly) ----
+    if (mouseRef.current.inside && !moveDragRef.current && !selectionDragRef.current && !shiftActiveRef.current) {
       const col = columnAtX(mouseRef.current.x);
       if (col >= 0) {
-        const t = snapTime(
-          yToTime(mouseRef.current.y),
-          timingPoints,
-          view.snapDivisor,
-        );
-        const x = originX + col * laneWidth;
+        const t = yToTime(mouseRef.current.y);
+        // Center the ghost on the cursor X so it tracks the mouse smoothly
+        // instead of jumping to the column's left edge.
+        const x = mouseRef.current.x - laneWidth / 2;
         const y = timeToY(t);
-        const ghost = skinCols[col]?.note ?? null;
-        ctx.globalAlpha = 0.45;
+        // Always use column 0's colour/sprite so the ghost doesn't change as
+        // the cursor crosses column boundaries.
+        const ghost = skinCols[0]?.note ?? null;
         if (ghost) {
           drawSprite(ctx, ghost, x, y, laneWidth);
         } else {
-          ctx.fillStyle = noteColor(col);
+          ctx.fillStyle = noteColor(0);
           roundRect(ctx, x + 3, y - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
           ctx.fill();
         }
-        ctx.globalAlpha = 1;
       }
     }
 
