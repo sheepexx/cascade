@@ -370,6 +370,8 @@ export type LoadedSkin = {
   blob: Blob;
   /** Mania skin assets keyed by key count. */
   keymodes: Record<number, ManiaKeymodeSkin>;
+  /** Skin-provided hitsound samples, keyed by extensionless lower-case filename. */
+  hitsounds: Record<string, Blob>;
   /** Every object URL created for this skin, for later revocation. */
   objectUrls: string[];
 };

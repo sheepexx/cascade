@@ -49,6 +49,7 @@ import {
 } from "./components/InviteNotifications";
 import {
   playUiSound,
+  preloadUiSounds,
   setUiSoundsEnabled,
   setUiSoundVolume,
 } from "./lib/uiSounds";
@@ -476,6 +477,7 @@ export default function App() {
     appSettings.hitsoundVolume,
     appSettings.hitsoundsEnabled,
     modalAtmosphereActive,
+    skin?.hitsounds ?? null,
   );
 
   // Presence: broadcast this user's playhead to collaborators (throttled).
@@ -1396,6 +1398,9 @@ export default function App() {
   }, [appSettings]);
 
   // Keep the UI-sound module in sync with the preferences.
+  useEffect(() => {
+    preloadUiSounds();
+  }, []);
   useEffect(() => {
     setUiSoundsEnabled(appSettings.uiSoundsEnabled);
   }, [appSettings.uiSoundsEnabled]);
@@ -2474,6 +2479,7 @@ export default function App() {
                 previewTime={active.previewTime}
                 view={view}
                 currentTime={audio.currentTime}
+                isPlaying={audio.isPlaying}
                 backgroundUrl={activeBg?.url ?? null}
                 dimBackground={appSettings.dimBackground}
                 skin={activeSkin}
@@ -2517,6 +2523,7 @@ export default function App() {
                       previewTime={referenceDiff.previewTime}
                       view={view}
                       currentTime={audio.currentTime}
+                      isPlaying={audio.isPlaying}
                       backgroundUrl={null}
                       dimBackground={appSettings.dimBackground}
                       skin={referenceSkin}
