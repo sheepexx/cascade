@@ -178,6 +178,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [modal, setModal] = useState<ModalId>(null);
+  const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const [projectStarted, setProjectStarted] = useState(false);
   // Zen mode (toggled with Tab): slide all chrome out and show only the
   // notefield.
@@ -428,7 +429,8 @@ export default function App() {
     (modal !== null && modal !== "timing") ||
     askBgScope ||
     pendingImport !== null ||
-    exportCheck !== null;
+    exportCheck !== null ||
+    showHomeConfirm;
   const modalAtmosphereActive = modalAtmosphereOpen && audio.isPlaying;
 
   // Play the map's actual osu! hitsounds as notes cross the judgement line.
@@ -1347,11 +1349,14 @@ export default function App() {
   hasAudioRef.current = !!audioFile;
   const modalRef = useRef<ModalId>(null);
   modalRef.current = modal;
+  const projectStartedRef = useRef(false);
+  projectStartedRef.current = projectStarted;
   const slowHeldRef = useRef(false);
   useEffect(() => {
     const isSlowKey = (e: KeyboardEvent) =>
       e.key.toLowerCase() === "s" && !e.ctrlKey && !e.metaKey && !e.altKey;
     const shouldIgnoreHotkey = (e: KeyboardEvent) => {
+      if (!projectStartedRef.current) return true;
       if (modalRef.current || askBgScope) return true;
       if (!isTypingTarget(e.target)) return false;
       return (e.target as HTMLInputElement).type !== "range";
@@ -2012,14 +2017,21 @@ export default function App() {
       >
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2.5">
-            <img
-              src={`${import.meta.env.BASE_URL}logo.png`}
-              alt="o!m editor"
-              className="h-8 w-8 rounded-lg object-cover"
-            />
-            <h1 className="text-sm font-semibold text-slate-100">
-              mania editor
-            </h1>
+            <button
+              type="button"
+              onClick={() => setShowHomeConfirm(true)}
+              className="flex items-center gap-2.5 rounded-md transition hover:opacity-80"
+              title="Return to home screen"
+            >
+              <img
+                src={`${import.meta.env.BASE_URL}logo.png`}
+                alt="o!m editor"
+                className="h-8 w-8 rounded-lg object-cover"
+              />
+              <h1 className="text-sm font-semibold text-slate-100">
+                mania editor
+              </h1>
+            </button>
           </div>
 
           <div
@@ -2332,7 +2344,7 @@ export default function App() {
               )}
             </div>
             </div>
-            {audioFile && !zenMode && (
+            {audioFile && hasProject && !zenMode && (
               <PPCounter
                 notes={active.notes}
                 keyCount={active.keyCount}
@@ -2714,6 +2726,33 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {/* Home screen confirmation */}
+      <Modal
+        open={showHomeConfirm}
+        onClose={() => setShowHomeConfirm(false)}
+        title="Return to home screen?"
+        footer={
+          <>
+            <Button onClick={() => setShowHomeConfirm(false)}>Cancel</Button>
+            <Button
+              variant="accent"
+              onClick={() => {
+                setShowHomeConfirm(false);
+                document.body.classList.add('fade-out');
+                setTimeout(() => window.location.reload(), 120);
+              }}
+            >
+              Return to home
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-300">
+          This will open the home screen. Your current project stays in the
+          editor — you can come back to it at any time.
+        </p>
+      </Modal>
     </div>
   );
 }
