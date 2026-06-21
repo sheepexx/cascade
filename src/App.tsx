@@ -725,6 +725,7 @@ export default function App() {
       setDifficulties(diffs);
       setActiveId(diffs[0].id);
       setPendingImport(null);
+      setModal(null);
       setLocalProjectId(newLocalProjectId());
     } catch (err) {
       setImportError(
@@ -1157,12 +1158,15 @@ export default function App() {
 
   const loadLocalProject = useCallback(
     async (id: string) => {
+      // Close the modal immediately so the atmosphere effect clears right
+      // away — without this, `modal` stays non-null for the entire async
+      // IndexedDB read and leaves the audio ducked until it resolves.
+      setModal(null);
       const saved = await loadProject(id).catch(() => null);
       if (!saved) return;
       importStartedRef.current = true;
       applySavedProject(saved);
       setLocalProjectId(saved.localId ?? id);
-      setModal(null);
     },
     [applySavedProject],
   );
@@ -1413,14 +1417,18 @@ export default function App() {
 
   const confirmImportWithoutExport = useCallback(() => {
     if (!pendingImport) return;
-    void importMapFile(pendingImport);
+    const file = pendingImport;
+    setPendingImport(null);
+    void importMapFile(file);
   }, [pendingImport, importMapFile]);
 
   const confirmExportAndImport = useCallback(async () => {
     if (!pendingImport) return;
+    const file = pendingImport;
+    setPendingImport(null);
     try {
       await doExportOsz();
-      await importMapFile(pendingImport);
+      await importMapFile(file);
     } catch {
       setImportError("Failed to export current project. Import canceled.");
     }
@@ -1974,6 +1982,7 @@ export default function App() {
                       cloudSaveStatus === "saving"
                         ? "Saving…"
                         : "Save to cloud",
+                    title: !authUser ? "Log in first!" : undefined,
                     disabled:
                       !authUser || !canEdit || cloudSaveStatus === "saving",
                     onClick: () => void handleCloudSave(),

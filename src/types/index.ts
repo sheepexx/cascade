@@ -373,7 +373,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundsEnabled: true,
   hitsoundSet: "normal",
   hitsoundVolume: 0.18,
-  dimBackground: 100,
+  dimBackground: 82,
   localAutosaveEnabled: true,
 };
 

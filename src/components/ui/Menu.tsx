@@ -13,6 +13,7 @@ export type MenuItem =
       onClick: () => void;
       disabled?: boolean;
       hint?: string;
+      title?: string;
       danger?: boolean;
     }
   | { separator: true };
@@ -89,6 +90,7 @@ export function Menu({
                   key={i}
                   type="button"
                   disabled={item.disabled}
+                  title={item.title}
                   onClick={() => {
                     setOpen(false);
                     item.onClick();
