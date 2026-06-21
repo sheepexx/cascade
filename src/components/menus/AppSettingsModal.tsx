@@ -15,6 +15,12 @@ type Props = {
   /** Hitsound volume (perceived slider position 0..1). */
   hitsoundVolume: number;
   onHitsoundVolume: (value: number) => void;
+  /** Background dim strength in the editor, 0..100. */
+  dimBackground: number;
+  onDimBackground: (value: number) => void;
+  /** Whether the whole local project autosaves to IndexedDB. */
+  localAutosaveEnabled: boolean;
+  onLocalAutosaveEnabled: (value: boolean) => void;
 };
 
 /**
@@ -33,6 +39,10 @@ export function AppSettingsModal({
   onHitsoundsEnabled,
   hitsoundVolume,
   onHitsoundVolume,
+  dimBackground,
+  onDimBackground,
+  localAutosaveEnabled,
+  onLocalAutosaveEnabled,
 }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Settings">
@@ -42,6 +52,21 @@ export function AppSettingsModal({
             Playfield
           </h3>
           <div className="flex flex-col gap-2">
+            <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+              <span>Background dim</span>
+              <span className="font-medium text-slate-200">
+                {Math.round(dimBackground)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={dimBackground}
+              onChange={(e) => onDimBackground(Number(e.target.value))}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+            />
             <div className="flex items-center justify-between text-xs text-slate-400">
               <span>Size / zoom</span>
               <span className="font-medium text-slate-200">
@@ -58,9 +83,29 @@ export function AppSettingsModal({
               className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
             />
             <p className="text-[11px] text-slate-500">
-              Scales the overall size of the editor playfield. Visual only.
+              Higher dim keeps the notefield easier to read. Size / zoom is
+              visual only.
             </p>
           </div>
+        </section>
+
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Local save
+          </h3>
+          <label className="flex items-center justify-between text-xs text-slate-300">
+            <span>Autosave local project</span>
+            <input
+              type="checkbox"
+              checked={localAutosaveEnabled}
+              onChange={(e) => onLocalAutosaveEnabled(e.target.checked)}
+              className="h-4 w-4 cursor-pointer accent-accent"
+            />
+          </label>
+          <p className="mt-2 text-[11px] text-slate-500">
+            Saves the full project on this device, including audio,
+            difficulties and background files. Ctrl+S still saves locally.
+          </p>
         </section>
 
         <section>

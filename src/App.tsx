@@ -45,6 +45,11 @@ import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
 import { fullLongNotes, fullRiceNotes } from "./lib/noteTools";
+import {
+  hasNoteCollisions,
+  sameNoteGeometry,
+  withoutNoteCollisions,
+} from "./lib/noteCollision";
 import { downloadOsu } from "./lib/osuExport";
 import { downloadOsz } from "./lib/oszExport";
 import { importOsz } from "./lib/osuImport";
@@ -52,7 +57,6 @@ import { importOsk } from "./lib/skinImport";
 import {
   loadProject,
   saveProject,
-  clearProject,
   savePreferences,
   loadPreferences,
   saveSkinBlob,
@@ -61,6 +65,7 @@ import {
   loadVolume,
   saveViewPreferences,
   loadViewPreferences,
+  type SavedProject,
 } from "./lib/persistence";
 import {
   DEFAULT_APP_SETTINGS,
@@ -121,6 +126,32 @@ function decodeJwtClaims(
   }
 }
 
+function newLocalProjectId(): string {
+  const random =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return `local-${random}`;
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  const tag = el?.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    !!el?.isContentEditable
+  );
+}
+
+function blurActiveControl(): void {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || !document.getElementById("root")?.contains(el)) return;
+  if (isTypingTarget(el) && (el as HTMLInputElement).type !== "range") return;
+  if (typeof el.blur === "function") el.blur();
+}
+
 export default function App() {
   const { user: authUser, refresh: refreshAuth } = useAuth();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
@@ -167,6 +198,7 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<
     null | "saving" | "saved" | "error"
   >(null);
+  const [localProjectId, setLocalProjectId] = useState(newLocalProjectId);
   const [exportCheck, setExportCheck] = useState<{
     result: ValidationResult;
     target: string;
@@ -693,7 +725,7 @@ export default function App() {
       setDifficulties(diffs);
       setActiveId(diffs[0].id);
       setPendingImport(null);
-      void clearProject().catch(() => {});
+      setLocalProjectId(newLocalProjectId());
     } catch (err) {
       setImportError(
         err instanceof Error ? err.message : "Failed to import .osz file.",
@@ -814,15 +846,9 @@ export default function App() {
       const did = activeIdRef.current;
       const target = difficultiesRef.current.find((d) => d.id === did);
       if (!target) return;
-      const dup = target.notes.some(
-        (n) =>
-          n.column === note.column &&
-          n.startTime === note.startTime &&
-          n.endTime === undefined &&
-          note.endTime === undefined,
-      );
-      if (dup) return;
-      commitNoteOp({ t: "note.add", diffId: did, notes: [note] });
+      const accepted = withoutNoteCollisions([note], target.notes);
+      if (!accepted.length) return;
+      commitNoteOp({ t: "note.add", diffId: did, notes: accepted });
     },
     [commitNoteOp],
   );
@@ -842,7 +868,12 @@ export default function App() {
   const addNotes = useCallback(
     (notes: ManiaNote[]) => {
       if (!notes.length) return;
-      commitNoteOp({ t: "note.add", diffId: activeIdRef.current, notes });
+      const did = activeIdRef.current;
+      const target = difficultiesRef.current.find((d) => d.id === did);
+      if (!target) return;
+      const accepted = withoutNoteCollisions(notes, target.notes);
+      if (!accepted.length) return;
+      commitNoteOp({ t: "note.add", diffId: did, notes: accepted });
     },
     [commitNoteOp],
   );
@@ -871,6 +902,7 @@ export default function App() {
         ? target.timingPoints
         : timingPointsRef.current;
       const after = fullLongNotes(target.notes, points, view.snapDivisor, ticks);
+      if (hasNoteCollisions(after)) return;
       commitNoteOp({
         t: "note.update",
         diffId: did,
@@ -886,11 +918,13 @@ export default function App() {
     const did = activeIdRef.current;
     const target = difficultiesRef.current.find((d) => d.id === did);
     if (!target) return;
+    const after = fullRiceNotes(target.notes);
+    if (hasNoteCollisions(after)) return;
     commitNoteOp({
       t: "note.update",
       diffId: did,
       before: target.notes,
-      after: fullRiceNotes(target.notes),
+      after,
     });
   }, [commitNoteOp]);
 
@@ -904,6 +938,15 @@ export default function App() {
       const byId = new Map(updated.map((n) => [n.id, n]));
       const before = target.notes.filter((n) => byId.has(n.id));
       if (!before.length) return;
+      const beforeById = new Map(before.map((n) => [n.id, n]));
+      const changedGeometry = updated.some((n) => {
+        const old = beforeById.get(n.id);
+        return old ? !sameNoteGeometry(old, n) : true;
+      });
+      if (changedGeometry) {
+        const nextNotes = target.notes.map((n) => byId.get(n.id) ?? n);
+        if (hasNoteCollisions(nextNotes)) return;
+      }
       commitNoteOp({ t: "note.update", diffId: did, before, after: updated });
     },
     [commitNoteOp],
@@ -1008,108 +1051,121 @@ export default function App() {
     ? opRedoRef.current.length > 0
     : redoStackRef.current.length > 0;
 
-  // ---- Restore the last locally-saved project on first load ---------------
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const saved = await loadProject().catch(() => null);
-      if (cancelled || importStartedRef.current || !saved) return;
-      // Don't record the restore as an undoable edit.
-      applyingHistoryRef.current = true;
-      setProjectStarted(true);
-      setMeta(saved.meta);
-      setTimingPoints(normalizeTimingPoints(saved.timingPoints));
+  const applySavedProject = useCallback((saved: SavedProject) => {
+    // Don't record the restore as an undoable edit.
+    applyingHistoryRef.current = true;
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setProjectStarted(true);
+    setMeta(saved.meta);
+    setTimingPoints(normalizeTimingPoints(saved.timingPoints));
 
-      // Rebuild the audio registry. New saves store `audioFiles`; older ones a
-      // single `audio` that every difficulty then implicitly shares.
-      const restoredAudio: Record<string, LoadedFile> = {};
-      for (const a of saved.audioFiles ?? []) {
-        restoredAudio[a.name] = {
-          name: a.name,
-          url: URL.createObjectURL(a.blob),
-          blob: a.blob,
-        };
-      }
-      const legacyAudio =
-        !saved.audioFiles?.length && saved.audio ? saved.audio : null;
-      if (legacyAudio) {
-        restoredAudio[legacyAudio.name] = {
-          name: legacyAudio.name,
-          url: URL.createObjectURL(legacyAudio.blob),
-          blob: legacyAudio.blob,
-        };
-      }
-      setAudioFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return restoredAudio;
-      });
+    // Rebuild the audio registry. New saves store `audioFiles`; older ones a
+    // single `audio` that every difficulty then implicitly shares.
+    const restoredAudio: Record<string, LoadedFile> = {};
+    for (const a of saved.audioFiles ?? []) {
+      restoredAudio[a.name] = {
+        name: a.name,
+        url: URL.createObjectURL(a.blob),
+        blob: a.blob,
+      };
+    }
+    const legacyAudio =
+      !saved.audioFiles?.length && saved.audio ? saved.audio : null;
+    if (legacyAudio) {
+      restoredAudio[legacyAudio.name] = {
+        name: legacyAudio.name,
+        url: URL.createObjectURL(legacyAudio.blob),
+        blob: legacyAudio.blob,
+      };
+    }
+    setAudioFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return restoredAudio;
+    });
 
-      setDifficulties(
-        (legacyAudio
-          ? saved.difficulties.map((d) =>
-              d.audioFilename ? d : { ...d, audioFilename: legacyAudio.name },
-            )
-          : saved.difficulties
-        ).map((d) => ({
-          ...d,
-          timingPoints: normalizeTimingPoints(d.timingPoints),
-        })),
-      );
-      setActiveId(saved.activeId);
-      // Older saves carried a `zoom` field and a vestigial scrollSpeed that was
-      // never user-settable. Detect those and fall back to the default speed;
-      // otherwise restore the saved speed, clamped to the osu!mania range.
-      const isLegacyView = "zoom" in saved.view;
-      setView(loadViewPreferences() ?? {
-        ...DEFAULT_VIEW,
-        snapDivisor: saved.view.snapDivisor,
-        scrollSpeed: isLegacyView
-          ? DEFAULT_VIEW.scrollSpeed
-          : Math.round(
-              Math.min(
-                MAX_SCROLL_SPEED,
-                Math.max(MIN_SCROLL_SPEED, saved.view.scrollSpeed),
-              ),
+    const restoredDiffs = (legacyAudio
+      ? saved.difficulties.map((d) =>
+          d.audioFilename ? d : { ...d, audioFilename: legacyAudio.name },
+        )
+      : saved.difficulties
+    ).map((d) => ({
+      ...d,
+      timingPoints: normalizeTimingPoints(d.timingPoints),
+    }));
+    setDifficulties(restoredDiffs);
+    setActiveId(
+      restoredDiffs.some((d) => d.id === saved.activeId)
+        ? saved.activeId
+        : (restoredDiffs[0]?.id ?? saved.activeId),
+    );
+    // Older saves carried a `zoom` field and a vestigial scrollSpeed that was
+    // never user-settable. Detect those and fall back to the default speed;
+    // otherwise restore the saved speed, clamped to the osu!mania range.
+    const isLegacyView = "zoom" in saved.view;
+    setView(loadViewPreferences() ?? {
+      ...DEFAULT_VIEW,
+      snapDivisor: saved.view.snapDivisor,
+      scrollSpeed: isLegacyView
+        ? DEFAULT_VIEW.scrollSpeed
+        : Math.round(
+            Math.min(
+              MAX_SCROLL_SPEED,
+              Math.max(MIN_SCROLL_SPEED, saved.view.scrollSpeed),
             ),
-      });
-      // App settings + skin are restored separately (site-level prefs), not
-      // from the per-map project record.
-      setBgScope(saved.bgScope);
+          ),
+    });
+    // App settings + skin are restored separately (site-level prefs), not
+    // from the per-map project record.
+    setBgScope(saved.bgScope);
 
-      // Restore background files registry.
-      const restoredBgFiles: Record<string, LoadedFile> = {};
-      if (saved.backgroundFiles?.length) {
-        for (const bg of saved.backgroundFiles) {
-          restoredBgFiles[bg.name] = {
-            name: bg.name,
-            url: URL.createObjectURL(bg.blob),
-            blob: bg.blob,
-          };
-        }
-      } else if (saved.background) {
-        // Legacy save: single background - assign it to all difficulties that
-        // don't already have a per-diff background set.
-        const bg = saved.background;
+    // Restore background files registry.
+    const restoredBgFiles: Record<string, LoadedFile> = {};
+    if (saved.backgroundFiles?.length) {
+      for (const bg of saved.backgroundFiles) {
         restoredBgFiles[bg.name] = {
           name: bg.name,
           url: URL.createObjectURL(bg.blob),
           blob: bg.blob,
         };
-        setDifficulties((prev) =>
-          prev.map((d) =>
-            d.backgroundFilename ? d : { ...d, backgroundFilename: bg.name },
-          ),
-        );
       }
-      setBgFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return restoredBgFiles;
-      });
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } else if (saved.background) {
+      // Legacy save: single background - assign it to all difficulties that
+      // don't already have a per-diff background set.
+      const bg = saved.background;
+      restoredBgFiles[bg.name] = {
+        name: bg.name,
+        url: URL.createObjectURL(bg.blob),
+        blob: bg.blob,
+      };
+      setDifficulties((prev) =>
+        prev.map((d) =>
+          d.backgroundFilename ? d : { ...d, backgroundFilename: bg.name },
+        ),
+      );
+    }
+    setBgFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return restoredBgFiles;
+    });
+    setZenMode(false);
+    setReferenceId(null);
+    setCloudProjectId(null);
+    setCloudOwnerId(null);
+    setMyRole(null);
   }, []);
+
+  const loadLocalProject = useCallback(
+    async (id: string) => {
+      const saved = await loadProject(id).catch(() => null);
+      if (!saved) return;
+      importStartedRef.current = true;
+      applySavedProject(saved);
+      setLocalProjectId(saved.localId ?? id);
+      setModal(null);
+    },
+    [applySavedProject],
+  );
 
   // ---- Persist site preferences (general settings) on change --------------
   useEffect(() => {
@@ -1159,38 +1215,103 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [audio.volume]);
 
-  // ---- Hotkeys: Space = play/pause, Tab = zen mode ------------------------
+  // ---- Hotkeys: Space = play/pause, hold S = 25%, Tab/F3/F4 = editor view -
   // (both off while typing or a modal is open)
   const hasAudioRef = useRef(false);
   hasAudioRef.current = !!audioFile;
   const modalRef = useRef<ModalId>(null);
   modalRef.current = modal;
+  const slowHeldRef = useRef(false);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const isSlowKey = (e: KeyboardEvent) =>
+      e.key.toLowerCase() === "s" && !e.ctrlKey && !e.metaKey && !e.altKey;
+    const shouldIgnoreHotkey = (e: KeyboardEvent) => {
+      if (modalRef.current || askBgScope) return true;
+      if (!isTypingTarget(e.target)) return false;
+      return (e.target as HTMLInputElement).type !== "range";
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
       const isSpace = e.code === "Space" || e.key === " ";
       const isTab = e.key === "Tab";
       const isUp = e.key === "ArrowUp";
       const isDown = e.key === "ArrowDown";
-      if (!isSpace && !isTab && !isUp && !isDown) return;
-      if (modalRef.current || askBgScope) return;
-      const t = e.target as HTMLElement | null;
-      const tag = t?.tagName;
-      const typing =
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        t?.isContentEditable;
-      if (typing) return;
-      if (!hasAudioRef.current && !isTab) return;
+      const isF3 = e.key === "F3";
+      const isF4 = e.key === "F4";
+      const isSlow = isSlowKey(e);
+      if (
+        !isSpace &&
+        !isTab &&
+        !isUp &&
+        !isDown &&
+        !isF3 &&
+        !isF4 &&
+        !isSlow
+      )
+        return;
+      if (shouldIgnoreHotkey(e)) return;
+      if (!hasAudioRef.current && !isTab && !isF3 && !isF4) return;
       e.preventDefault();
+      blurActiveControl();
       if (isTab) setZenMode((z) => !z);
       else if (isSpace) audio.toggle();
+      else if (isSlow) {
+        if (slowHeldRef.current || e.repeat) return;
+        slowHeldRef.current = true;
+        audio.setPlaybackRate(0.25);
+      }
       else if (isUp) audio.setVolume(audio.volume + 0.05);
       else if (isDown) audio.setVolume(audio.volume - 0.05);
+      else if (isF3 || isF4) {
+        setView((v) => ({
+          ...v,
+          scrollSpeed: Math.max(
+            MIN_SCROLL_SPEED,
+            Math.min(MAX_SCROLL_SPEED, v.scrollSpeed + (isF4 ? 1 : -1)),
+          ),
+        }));
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (!isSlowKey(e) || !slowHeldRef.current) return;
+      slowHeldRef.current = false;
+      e.preventDefault();
+      audio.setPlaybackRate(1);
+    };
+    const onBlur = () => {
+      if (!slowHeldRef.current) return;
+      slowHeldRef.current = false;
+      audio.setPlaybackRate(1);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
   }, [audio, askBgScope]);
+
+  useEffect(() => {
+    const onBareAlt = (e: KeyboardEvent) => {
+      if (
+        e.key !== "Alt" ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.shiftKey ||
+        isTypingTarget(e.target)
+      )
+        return;
+      e.preventDefault();
+      blurActiveControl();
+    };
+    window.addEventListener("keydown", onBareAlt, true);
+    window.addEventListener("keyup", onBareAlt, true);
+    return () => {
+      window.removeEventListener("keydown", onBareAlt, true);
+      window.removeEventListener("keyup", onBareAlt, true);
+    };
+  }, []);
 
   // ---- Drag & drop (audio / image / .osz) ----------------------------------
   const isAudioFile = (f: File) =>
@@ -1329,36 +1450,27 @@ export default function App() {
     setExportCheck((check) => (check ? { ...check, result } : check));
   }, [exportCheck, difficulties, meta, audioFiles, bgFiles]);
 
-  // ---- Save progress locally (Ctrl+S) -------------------------------------
-  const handleSave = useCallback(async () => {
-    setSaveStatus("saving");
-    try {
-      await saveProject({
-        version: 1,
-        savedAt: Date.now(),
-        meta,
-        timingPoints,
-        difficulties,
-        activeId,
-        view,
-        appSettings,
-        bgScope,
-        audioFiles: Object.values(audioFiles).map((f) => ({
-          name: f.name,
-          blob: f.blob,
-        })),
-        backgroundFiles: Object.values(bgFiles).map((f) => ({
-          name: f.name,
-          blob: f.blob,
-        })),
-        background: null,
-        skin: skin ? { name: skin.fileName, blob: skin.blob } : null,
-      });
-      setSaveStatus("saved");
-    } catch {
-      setSaveStatus("error");
-    }
-  }, [
+  const buildSavedProject = useCallback((): SavedProject => ({
+    version: 1,
+    savedAt: Date.now(),
+    meta,
+    timingPoints,
+    difficulties,
+    activeId,
+    view,
+    appSettings,
+    bgScope,
+    audioFiles: Object.values(audioFiles).map((f) => ({
+      name: f.name,
+      blob: f.blob,
+    })),
+    backgroundFiles: Object.values(bgFiles).map((f) => ({
+      name: f.name,
+      blob: f.blob,
+    })),
+    background: null,
+    skin: skin ? { name: skin.fileName, blob: skin.blob } : null,
+  }), [
     meta,
     timingPoints,
     difficulties,
@@ -1369,6 +1481,32 @@ export default function App() {
     audioFiles,
     bgFiles,
     skin,
+  ]);
+
+  // ---- Save progress locally (Ctrl+S + optional autosave) -----------------
+  const handleSave = useCallback(async (silent = false) => {
+    if (!silent) setSaveStatus("saving");
+    try {
+      await saveProject(buildSavedProject(), localProjectId);
+      if (!silent) setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    }
+  }, [buildSavedProject, localProjectId]);
+
+  const localAutosaveTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!projectStarted || !appSettings.localAutosaveEnabled || !canEdit) return;
+    window.clearTimeout(localAutosaveTimerRef.current);
+    localAutosaveTimerRef.current = window.setTimeout(() => {
+      void handleSave(true);
+    }, 2500);
+    return () => window.clearTimeout(localAutosaveTimerRef.current);
+  }, [
+    projectStarted,
+    appSettings.localAutosaveEnabled,
+    canEdit,
+    handleSave,
   ]);
 
   // Auto-dismiss the save toast once it has settled.
@@ -1535,6 +1673,7 @@ export default function App() {
       setReferenceId(null);
       setCloudProjectId(proj.id);
       setCloudOwnerId(proj.owner);
+      setLocalProjectId(`cloud-${proj.id}`);
       // Fresh collab session: reset personal op history and resolve our role.
       opUndoRef.current = [];
       opRedoRef.current = [];
@@ -1592,7 +1731,7 @@ export default function App() {
     if (confirm) {
       const confirmed = window.confirm(
         "Start a new map? This removes the current audio, background, notes and " +
-          "timing, and clears the locally saved project.",
+          "timing from the editor.",
       );
       if (!confirmed) return;
     }
@@ -1624,13 +1763,13 @@ export default function App() {
     setModal(null);
     setImportError(null);
     setSaveStatus(null);
+    setLocalProjectId(newLocalProjectId());
     // A brand-new map is no longer tied to any cloud project / collab session.
     setCloudProjectId(null);
     setCloudOwnerId(null);
     setMyRole(null);
     setReferenceId(null);
 
-    void clearProject().catch(() => {});
   }, []);
 
   // ---- Undo / redo / save shortcuts ---------------------------------------
@@ -1978,6 +2117,7 @@ export default function App() {
                 view={view}
                 currentTime={audio.currentTime}
                 backgroundUrl={activeBg?.url ?? null}
+                dimBackground={appSettings.dimBackground}
                 skin={activeSkin}
                 playfieldScale={appSettings.playfieldScale}
                 longNoteBodyScale={appSettings.longNoteBodyScale}
@@ -2020,6 +2160,7 @@ export default function App() {
                       view={view}
                       currentTime={audio.currentTime}
                       backgroundUrl={null}
+                      dimBackground={appSettings.dimBackground}
                       skin={referenceSkin}
                       playfieldScale={appSettings.playfieldScale}
                       longNoteBodyScale={appSettings.longNoteBodyScale}
@@ -2160,6 +2301,7 @@ export default function App() {
         onClose={close}
         onNewMap={() => handleNew(hasProjectContent)}
         onTryMaps={() => setModal("sampleMaps")}
+        onOpenLocalProject={(id) => void loadLocalProject(id)}
         onOpenCloudProject={(id) => void loadCloudProject(id)}
       />
       <SampleMapsModal
@@ -2217,6 +2359,14 @@ export default function App() {
         hitsoundVolume={appSettings.hitsoundVolume}
         onHitsoundVolume={(v) =>
           setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
+        }
+        dimBackground={appSettings.dimBackground}
+        onDimBackground={(v) =>
+          setAppSettings((s) => ({ ...s, dimBackground: v }))
+        }
+        localAutosaveEnabled={appSettings.localAutosaveEnabled}
+        onLocalAutosaveEnabled={(v) =>
+          setAppSettings((s) => ({ ...s, localAutosaveEnabled: v }))
         }
       />
       <SkinModal
@@ -2478,6 +2628,7 @@ function InfoModal({
       <div className="grid gap-5 text-sm text-slate-300 md:grid-cols-2">
         <InfoSection title="Playback">
           <InfoRow keys="Space" text="Play or pause the song." />
+          <InfoRow keys="Hold S" text="Ease playback to 25%; release for 100%." />
           <InfoRow keys="Tab" text="Toggle zen mode and hide editor chrome." />
           <InfoRow keys="Arrow Up / Down" text="Raise or lower volume by 5%." />
           <InfoRow keys="Alt + wheel" text="Change volume over the notefield." />
@@ -2512,6 +2663,7 @@ function InfoModal({
 
         <InfoSection title="Grid and display">
           <InfoRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/16." />
+          <InfoRow keys="F3 / F4" text="Decrease or increase visual note scroll speed." />
           <InfoRow keys="Scroll speed" text="Change visual note scroll speed. This is not exported." />
           <InfoRow keys="R" text="Toggle receptors on or off." />
           <InfoRow keys="PP counter" text="Shows max SS no-mod pp for the active difficulty." />

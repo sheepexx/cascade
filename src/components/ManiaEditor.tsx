@@ -23,6 +23,7 @@ import {
   stepToSnap,
 } from "../lib/timing";
 import type { PatternNote } from "../lib/patterns";
+import { hasNoteCollisions, withoutNoteCollisions } from "../lib/noteCollision";
 
 /**
  * Canvas-based vertical mania editor.
@@ -52,7 +53,7 @@ const SELECT_AUTOSCROLL_MAX_PX_PER_SEC = 900;
 // How close (ms) the playhead must be to a note for that column's receptor to
 // light up to its pressed sprite, so notes visibly "hit" as they reach the line.
 const RECEPTOR_HIT_WINDOW = 90;
-const BACKGROUND_MAX_ALPHA = 0.12;
+
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
@@ -68,6 +69,8 @@ type Props = {
   view: ViewState;
   currentTime: number;
   backgroundUrl: string | null;
+  /** How strongly to dim the background image for note readability, 0..100. */
+  dimBackground: number;
   /** Skin assets for the active keymode, or null to use the default look. */
   skin: ManiaKeymodeSkin | null;
   /** Multiplies the on-screen playfield / lane size. Default 1. */
@@ -324,17 +327,21 @@ export function ManiaEditor(props: Props) {
   const paste = useCallback(() => {
     const clip = clipboardRef.current;
     if (!clip) return;
-    const { currentTime, timingPoints, view, keyCount } = propsRef.current;
+    const { currentTime, timingPoints, view, keyCount, notes } =
+      propsRef.current;
     const base = snapTime(currentTime, timingPoints, view.snapDivisor);
-    const newNotes: ManiaNote[] = clip.notes
-      .filter((n) => n.column >= 0 && n.column < keyCount)
-      .map((n) => ({
-        id: uid("n"),
-        column: n.column,
-        startTime: n.startTime + base,
-        endTime: n.endTime !== undefined ? n.endTime + base : undefined,
-        ...hitsoundOf(n),
-      }));
+    const newNotes: ManiaNote[] = withoutNoteCollisions(
+      clip.notes
+        .filter((n) => n.column >= 0 && n.column < keyCount)
+        .map((n) => ({
+          id: uid("n"),
+          column: n.column,
+          startTime: n.startTime + base,
+          endTime: n.endTime !== undefined ? n.endTime + base : undefined,
+          ...hitsoundOf(n),
+        })),
+      notes,
+    );
     if (!newNotes.length) return;
     propsRef.current.onAddNotes(newNotes);
     setSelection(new Set(newNotes.map((n) => n.id)));
@@ -721,12 +728,21 @@ export function ManiaEditor(props: Props) {
           ? Math.min(1, Math.max(0, elapsed / BACKGROUND_FADE_MS))
           : 1;
       const eased = 1 - Math.pow(1 - progress, 3);
-      // Base dim alpha, very subtly boosted by the kiai beat flash.
-      ctx.globalAlpha = Math.min(
-        0.22,
-        BACKGROUND_MAX_ALPHA * eased + beatFlash * 0.05,
+      // Draw background at full opacity, then overlay black scaled to dim %.
+      // 0% dim = no overlay (background fully visible).
+      // 100% dim = fully opaque black overlay (completely black).
+      const dimT = Math.max(
+        0,
+        Math.min(1, (propsRef.current.dimBackground ?? 100) / 100),
       );
+      ctx.globalAlpha = eased;
       drawCover(ctx, bg, 0, 0, width, height);
+      const overlayAlpha = Math.max(0, Math.min(1, dimT - beatFlash * 0.05)) * eased;
+      if (overlayAlpha > 0) {
+        ctx.globalAlpha = overlayAlpha;
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, width, height);
+      }
       ctx.globalAlpha = 1;
     }
 
@@ -1416,16 +1432,19 @@ export function ManiaEditor(props: Props) {
     if (move) {
       moveDragRef.current = null;
       if (move.moved && (move.colDelta !== 0 || move.timeDelta !== 0)) {
-        propsRef.current.onMoveNotes(
-          move.origin.map((o) => ({
-            ...o,
-            id: o.id,
-            column: o.column + move.colDelta,
-            startTime: o.startTime + move.timeDelta,
-            endTime:
-              o.endTime !== undefined ? o.endTime + move.timeDelta : undefined,
-          })),
-        );
+        const updated = move.origin.map((o) => ({
+          ...o,
+          id: o.id,
+          column: o.column + move.colDelta,
+          startTime: o.startTime + move.timeDelta,
+          endTime:
+            o.endTime !== undefined ? o.endTime + move.timeDelta : undefined,
+        }));
+        const byId = new Map(updated.map((n) => [n.id, n]));
+        const nextNotes = propsRef.current.notes.map((n) => byId.get(n.id) ?? n);
+        if (!hasNoteCollisions(nextNotes)) {
+          propsRef.current.onMoveNotes(updated);
+        }
       }
       return;
     }
@@ -1449,18 +1468,18 @@ export function ManiaEditor(props: Props) {
     if (propsRef.current.currentHitSound) hs.hitSound = propsRef.current.currentHitSound;
     if (propsRef.current.currentSampleSet) hs.sampleSet = propsRef.current.currentSampleSet;
 
-    if (end - start <= 0) {
-      // Plain tap
-      props.onPlaceNote({ id, column: drag.column, startTime: start, ...hs });
-    } else {
-      props.onPlaceNote({
-        id,
-        column: drag.column,
-        startTime: start,
-        endTime: end,
-        ...hs,
-      });
-    }
+    const note: ManiaNote =
+      end - start <= 0
+        ? { id, column: drag.column, startTime: start, ...hs }
+        : {
+            id,
+            column: drag.column,
+            startTime: start,
+            endTime: end,
+            ...hs,
+          };
+    if (!withoutNoteCollisions([note], propsRef.current.notes).length) return;
+    props.onPlaceNote(note);
   };
 
   const onMouseLeave = () => {
@@ -1489,7 +1508,7 @@ export function ManiaEditor(props: Props) {
       e.preventDefault();
       const { view } = propsRef.current;
       const currentIndex = SNAP_DIVISORS.indexOf(view.snapDivisor);
-      const dir = e.deltaY > 0 ? 1 : -1;
+      const dir = e.deltaY > 0 ? -1 : 1;
       const nextIndex = Math.min(
         SNAP_DIVISORS.length - 1,
         Math.max(0, currentIndex + dir),

@@ -37,9 +37,21 @@ const VOLUME_KEY = "mania-editor:volume";
 /** localStorage key for editor view controls such as snap and scroll speed. */
 const VIEW_KEY = "mania-editor:view";
 
+const projectKey = (id?: string | null) =>
+  !id || id === KEY ? KEY : `local:${id}`;
+
+const projectIdFromKey = (key: IDBValidKey) => {
+  if (key === KEY) return KEY;
+  return typeof key === "string" && key.startsWith("local:")
+    ? key.slice("local:".length)
+    : null;
+};
+
 /** Everything needed to bring the editor back exactly as the user left it. */
 export type SavedProject = {
   version: number;
+  /** Stable local-project id. Legacy saves may not have one. */
+  localId?: string;
   savedAt: number;
   meta: SongMeta;
   timingPoints: TimingPoint[];
@@ -60,6 +72,15 @@ export type SavedProject = {
   skin?: { name: string; blob: Blob } | null;
 };
 
+export type LocalProjectSummary = {
+  id: string;
+  title: string;
+  artist: string;
+  creator: string;
+  updatedAt: number;
+  difficultyCount: number;
+};
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, VERSION);
@@ -72,13 +93,16 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-/** Persist the current project, overwriting any previous save. */
-export async function saveProject(project: SavedProject): Promise<void> {
+/** Persist a local project, overwriting the record with the same id. */
+export async function saveProject(
+  project: SavedProject,
+  localId: string = KEY,
+): Promise<void> {
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(project, KEY);
+      tx.objectStore(STORE).put({ ...project, localId }, projectKey(localId));
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
@@ -88,13 +112,13 @@ export async function saveProject(project: SavedProject): Promise<void> {
   }
 }
 
-/** Load the last saved project, or null if nothing has been saved. */
-export async function loadProject(): Promise<SavedProject | null> {
+/** Load a saved local project, or null if nothing has been saved for that id. */
+export async function loadProject(localId: string = KEY): Promise<SavedProject | null> {
   const db = await openDb();
   try {
     return await new Promise<SavedProject | null>((resolve, reject) => {
       const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).get(KEY);
+      const req = tx.objectStore(STORE).get(projectKey(localId));
       req.onsuccess = () => {
         const value = req.result as SavedProject | undefined;
         resolve(value && value.version === VERSION ? value : null);
@@ -106,13 +130,63 @@ export async function loadProject(): Promise<SavedProject | null> {
   }
 }
 
-/** Remove the saved project. */
-export async function clearProject(): Promise<void> {
+/** List local projects newest first, including the legacy single-slot save. */
+export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
+  const db = await openDb();
+  try {
+    return await new Promise<LocalProjectSummary[]>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const store = tx.objectStore(STORE);
+      const keysReq = store.getAllKeys();
+      keysReq.onerror = () => reject(keysReq.error);
+      keysReq.onsuccess = () => {
+        const keys = keysReq.result;
+        const projectKeys = keys.filter((key) => projectIdFromKey(key));
+        if (!projectKeys.length) {
+          resolve([]);
+          return;
+        }
+
+        const rows: LocalProjectSummary[] = [];
+        let pending = projectKeys.length;
+        for (const key of projectKeys) {
+          const req = store.get(key);
+          req.onerror = () => reject(req.error);
+          req.onsuccess = () => {
+            const project = req.result as SavedProject | undefined;
+            const id = projectIdFromKey(key);
+            if (id && project?.version === VERSION) {
+              rows.push({
+                id,
+                title: project.meta.title,
+                artist: project.meta.artist,
+                creator: project.meta.creator,
+                updatedAt: project.savedAt,
+                difficultyCount: project.difficulties.length,
+              });
+            }
+            pending -= 1;
+            if (pending === 0) {
+              rows.sort((a, b) => b.updatedAt - a.updatedAt);
+              resolve(rows);
+            }
+          };
+        }
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+/** Remove a saved local project. */
+export async function clearProject(localId: string = KEY): Promise<void> {
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(KEY);
+      tx.objectStore(STORE).delete(projectKey(localId));
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -136,7 +210,22 @@ export function savePreferences(prefs: AppSettings): void {
 export function loadPreferences(): Partial<AppSettings> | null {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
-    return raw ? (JSON.parse(raw) as Partial<AppSettings>) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AppSettings> & {
+      dimBackground?: boolean | number;
+    };
+    const dimBackground =
+      typeof parsed.dimBackground === "boolean"
+        ? parsed.dimBackground
+          ? 100
+          : 0
+        : Number(parsed.dimBackground);
+    return {
+      ...parsed,
+      dimBackground: Number.isFinite(dimBackground)
+        ? Math.max(0, Math.min(100, dimBackground))
+        : undefined,
+    };
   } catch {
     return null;
   }

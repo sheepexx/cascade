@@ -69,13 +69,14 @@ export function TimingModal({
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName;
       if (
-        tag === "INPUT" ||
+        (tag === "INPUT" && (t as HTMLInputElement).type !== "range") ||
         tag === "TEXTAREA" ||
         tag === "SELECT" ||
         t?.isContentEditable
       )
         return;
       e.preventDefault();
+      if (tag !== "BODY") t?.blur();
       audio.toggle();
     };
     window.addEventListener("keydown", onKey);
