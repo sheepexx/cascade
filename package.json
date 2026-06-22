@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.1.5",
   "type": "module",
-  "description": "Cascade — a browser-based osu!mania beatmap editor",
+  "description": "Cascade - a browser-based osu!mania beatmap editor",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

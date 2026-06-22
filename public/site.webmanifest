@@ -1,0 +1,19 @@
+{
+  "name": "Cascade",
+  "short_name": "Cascade",
+  "description": "Online osu!mania editor and mania map viewer for creating, previewing, importing, and exporting osu mania beatmaps.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "icons": [
+    {
+      "src": "/logo.png?v=2",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "productivity", "utilities"]
+}
