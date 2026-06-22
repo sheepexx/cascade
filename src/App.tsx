@@ -3475,7 +3475,7 @@ function InfoRow({ keys, text }: { keys: string; text: string }) {
 
 function EmptyState({ onEnter }: { onEnter: () => void }) {
   return (
-    <div className="grid h-full place-items-center text-center">
+    <div className="relative grid h-full place-items-center text-center">
       <div className="max-w-sm">
         <img
           src={`${import.meta.env.BASE_URL}logo.png?v=2`}
@@ -3502,6 +3502,27 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
         <p className="mt-6 text-[11px] font-medium tracking-wide text-slate-600">
           Cascade · v{__APP_VERSION__}
         </p>
+      </div>
+      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-xs text-slate-500">
+        <p>
+          Made by{" "}
+          <a
+            href="https://osu.ppy.sh/u/sheepex_"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-slate-300 transition hover:text-accent"
+          >
+            sheepex_
+          </a>
+        </p>
+        <a
+          href="https://buymeacoffee.com/sheepex_"
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-slate-400 transition hover:text-accent"
+        >
+          buy me a coffee :)
+        </a>
       </div>
     </div>
   );
