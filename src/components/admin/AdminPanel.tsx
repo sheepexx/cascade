@@ -231,6 +231,7 @@ function UsersTab() {
               <th className="py-2">User</th>
               <th className="py-2">osu! id</th>
               <th className="py-2">Joined</th>
+              <th className="py-2">Last signed in</th>
               <th className="py-2">Admin</th>
             </tr>
           </thead>
@@ -239,19 +240,29 @@ function UsersTab() {
               <tr key={u.id} className="border-t border-ink-700">
                 <td className="py-2">
                   <div className="flex items-center gap-2">
-                    {u.avatar_url && (
-                      <img
-                        src={u.avatar_url}
-                        alt=""
-                        className="h-6 w-6 rounded-full object-cover"
-                      />
-                    )}
-                    <span className="text-slate-200">{u.username}</span>
+                    <a
+                      href={`https://osu.ppy.sh/users/${u.osu_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex min-w-0 items-center gap-2 text-slate-200 transition hover:text-accent"
+                    >
+                      {u.avatar_url && (
+                        <img
+                          src={u.avatar_url}
+                          alt=""
+                          className="h-6 w-6 rounded-full object-cover"
+                        />
+                      )}
+                      <span className="truncate font-medium">{u.username}</span>
+                    </a>
                   </div>
                 </td>
                 <td className="py-2 text-slate-400">{u.osu_id}</td>
                 <td className="py-2 text-slate-500">
                   {new Date(u.created_at).toLocaleDateString()}
+                </td>
+                <td className="py-2 text-slate-500">
+                  {formatLastSignedIn(u.last_signed_in_at)}
                 </td>
                 <td className="py-2">
                   <Button
@@ -273,6 +284,11 @@ function UsersTab() {
       )}
     </div>
   );
+}
+
+function formatLastSignedIn(value: string | null): string {
+  if (!value) return "Not tracked yet";
+  return new Date(value).toLocaleString();
 }
 
 // ---- Projects --------------------------------------------------------------

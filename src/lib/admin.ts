@@ -13,6 +13,7 @@ export type AdminUser = {
   avatar_url: string | null;
   is_admin: boolean;
   created_at: string;
+  last_signed_in_at: string | null;
 };
 
 export type AdminProject = {
@@ -27,7 +28,8 @@ export type AdminProject = {
 export async function listAllUsers(): Promise<AdminUser[]> {
   const { data, error } = await supabase
     .from("users")
-    .select("id,osu_id,username,avatar_url,is_admin,created_at")
+    .select("id,osu_id,username,avatar_url,is_admin,created_at,last_signed_in_at")
+    .order("last_signed_in_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminUser[];

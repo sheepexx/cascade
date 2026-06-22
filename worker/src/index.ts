@@ -31,6 +31,7 @@ type DbUser = {
   username: string;
   avatar_url: string | null;
   is_admin: boolean;
+  last_signed_in_at?: string | null;
 };
 
 const SESSION_COOKIE = "me_session";
@@ -184,6 +185,10 @@ async function upsertUser(
   env: Env,
   fields: { osu_id: number; username: string; avatar_url: string | null },
 ): Promise<DbUser> {
+  const body = {
+    ...fields,
+    last_signed_in_at: new Date().toISOString(),
+  };
   const res = await fetch(
     `${env.SUPABASE_URL}/rest/v1/users?on_conflict=osu_id`,
     {
@@ -194,7 +199,7 @@ async function upsertUser(
         "Content-Type": "application/json",
         Prefer: "resolution=merge-duplicates,return=representation",
       },
-      body: JSON.stringify(fields),
+      body: JSON.stringify(body),
     },
   );
   if (!res.ok) throw new Error(`user upsert failed: ${await res.text()}`);
@@ -205,7 +210,7 @@ async function upsertUser(
 
 async function fetchUser(env: Env, id: string): Promise<DbUser | null> {
   const res = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/users?id=eq.${id}&select=id,osu_id,username,avatar_url,is_admin`,
+    `${env.SUPABASE_URL}/rest/v1/users?id=eq.${id}&select=id,osu_id,username,avatar_url,is_admin,last_signed_in_at`,
     {
       headers: {
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
