@@ -1064,20 +1064,24 @@ export default function App() {
   // ---- Bundled "try these maps" -------------------------------------------
   const loadSampleMap = useCallback(
     async (map: SampleMap) => {
-      // Close the gallery immediately so it never locks up while the (possibly
-      // large) .osz downloads + imports — the editor shows its own import state.
+      // Close the gallery immediately and raise the loader up front so it's
+      // visible during the (possibly large) .osz download too — not just once
+      // the download finishes and importMapFile starts the import.
       setModal(null);
+      setImportingMap(true);
       try {
         const res = await fetch(`${import.meta.env.BASE_URL}${map.osz}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const name = map.osz.split("/").pop() ?? `${map.id}.osz`;
         const file = new File([blob], name, { type: "application/octet-stream" });
+        // importMapFile manages importingMap from here (and clears it when done).
         await importMapFile(file);
       } catch (err) {
         setImportError(
           err instanceof Error ? err.message : "Failed to load the map.",
         );
+        setImportingMap(false);
       }
     },
     [importMapFile],
