@@ -250,12 +250,16 @@ export function loadPreferences(): Partial<AppSettings> | null {
           ? 100
           : 0
         : Number(parsed.dimBackground);
-    return {
-      ...parsed,
-      dimBackground: Number.isFinite(dimBackground)
-        ? Math.max(0, Math.min(100, dimBackground))
-        : undefined,
-    };
+    const next = { ...parsed };
+    // Only carry a valid dim value through; otherwise drop the key entirely so
+    // the caller's default applies (an explicit `undefined` would override it
+    // when spread, surfacing as "NaN%" in the settings UI).
+    if (Number.isFinite(dimBackground)) {
+      next.dimBackground = Math.max(0, Math.min(100, dimBackground));
+    } else {
+      delete next.dimBackground;
+    }
+    return next;
   } catch {
     return null;
   }

@@ -1635,11 +1635,16 @@ export default function App() {
       // away — without this, `modal` stays non-null for the entire async
       // IndexedDB read and leaves the audio ducked until it resolves.
       setModal(null);
-      const saved = await loadProject(id).catch(() => null);
-      if (!saved) return;
-      importStartedRef.current = true;
-      applySavedProject(saved);
-      setLocalProjectId(saved.localId ?? id);
+      setImportingMap(true);
+      try {
+        const saved = await loadProject(id).catch(() => null);
+        if (!saved) return;
+        importStartedRef.current = true;
+        applySavedProject(saved);
+        setLocalProjectId(saved.localId ?? id);
+      } finally {
+        setImportingMap(false);
+      }
     },
     [applySavedProject],
   );
@@ -2174,6 +2179,7 @@ export default function App() {
 
   const loadCloudProject = useCallback(async (id: string) => {
     setCloudError(null);
+    setImportingMap(true);
     try {
       const proj = await loadProjectCloud(id);
       // Treat like a fresh import: don't record as undoable, drop old history.
@@ -2270,6 +2276,8 @@ export default function App() {
       setCloudError(
         err instanceof Error ? err.message : "Couldn't load that map.",
       );
+    } finally {
+      setImportingMap(false);
     }
   }, []);
 
@@ -2500,13 +2508,28 @@ export default function App() {
         </div>
       )}
 
-      {/* Map import overlay (shown while a selected/sample .osz loads) */}
+      {/* Full-screen map loading overlay (sample/featured .osz import, invited &
+          local/cloud maps, and saved-project opens) — fades in over the whole
+          viewport with an equalizer-style animation. */}
       {importingMap && (
-        <div className="fixed inset-0 z-[55] grid place-items-center bg-ink-900/68 backdrop-blur-md">
-          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-ink-800/86 px-6 py-4 text-sm font-medium text-slate-200 shadow-2xl backdrop-blur-xl">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
-            Loading map…
+        <div className="loader-fade-in fixed inset-0 z-[55] flex flex-col items-center justify-center gap-8 bg-ink-900/80">
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png?v=2`}
+            alt=""
+            className="loader-logo-pulse loader-content-in h-20 w-20 rounded-2xl object-cover"
+          />
+          <div className="loader-content-in flex h-12 items-end gap-1.5">
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <span
+                key={i}
+                className="loader-bar h-full w-1.5 rounded-full bg-gradient-to-t from-accent-deep to-accent-soft"
+                style={{ animationDelay: `${i * 120}ms` }}
+              />
+            ))}
           </div>
+          <p className="loader-content-in text-sm font-medium tracking-wide text-slate-300">
+            Loading map…
+          </p>
         </div>
       )}
 
