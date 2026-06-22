@@ -308,6 +308,33 @@ export const HITSOUND_SETS: HitsoundSet[] = ["normal", "soft", "drum"];
 /** Which skin source should provide playback hitsound samples. */
 export type HitsoundSkinSource = "visual" | "default" | "selected";
 
+export type PlaytestOffsetMode = "visual" | "audio";
+
+export type PlaytestSettings = {
+  /** Local-only gameplay scroll speed. Never exported. */
+  scrollSpeed: number;
+  /** Local-only playtest playfield zoom. Never exported. */
+  zoom: number;
+  /** Background dim strength during playtest, 0..100. */
+  backgroundDim: number;
+  /** Whether offset shifts visuals or input judgement timing. */
+  offsetMode: PlaytestOffsetMode;
+  /** Local playtest offset in milliseconds. Never exported. */
+  offsetMs: number;
+  showJudgements: boolean;
+  showCombo: boolean;
+  showAccuracy: boolean;
+  showHitError: boolean;
+  /** Show the osu!-style hit-error / unstable-rate (UR) bar. */
+  showErrorBar: boolean;
+  useSkinComboFont: boolean;
+  useSkinJudgements: boolean;
+  /** KeyboardEvent.code per keymode, 1K through 18K. */
+  keybinds: Record<number, string[]>;
+  /** KeyboardEvent.code that instantly restarts the run during playtest. */
+  quickRestartKey: string;
+};
+
 /** Website/editor preferences (not part of the beatmap). */
 export type AppSettings = {
   /** Multiplies waveform amplitude in the bottom timeline. 0.5 .. 3. */
@@ -324,12 +351,18 @@ export type AppSettings = {
   hitsoundVolume: number;
   /** How strongly background images are dimmed behind the playfield, 0..100. */
   dimBackground: number;
+  /** Ease scrubbing between snap lines (still snaps) instead of jumping. */
+  smoothScrolling: boolean;
+  /** Flip the playfield so notes scroll upward (upscroll) instead of down. */
+  upscroll: boolean;
   /** Whether the full project is automatically saved to IndexedDB. */
   localAutosaveEnabled: boolean;
   /** Whether UI sound effects (clicks, chimes, invites) play. */
   uiSoundsEnabled: boolean;
   /** UI sound effects volume, 0..1 (1 = 100%). */
   uiSoundVolume: number;
+  /** Playtest-only settings. Never exported to .osu/.osz. */
+  playtest: PlaytestSettings;
 };
 
 /**
@@ -367,6 +400,13 @@ export type ManiaKeymodeSkin = {
   columns: ManiaColumnSkin[];
 };
 
+export type SkinJudgementAsset = "max" | "300" | "200" | "100" | "50" | "miss";
+
+export type SkinUiAssets = {
+  comboNumbers: Partial<Record<string, string>>;
+  judgementImages: Partial<Record<SkinJudgementAsset, string>>;
+};
+
 /**
  * A parsed, in-memory osu! skin (`.osk`). The raw `blob` is kept so the skin
  * can be persisted and re-imported; `objectUrls` tracks every URL created for
@@ -383,6 +423,8 @@ export type LoadedSkin = {
   keymodes: Record<number, ManiaKeymodeSkin>;
   /** Skin-provided hitsound samples, keyed by extensionless lower-case filename. */
   hitsounds: Record<string, Blob>;
+  /** Skin combo-number and judgement image assets used by Playtest Mode. */
+  ui: SkinUiAssets;
   /** Every object URL created for this skin, for later revocation. */
   objectUrls: string[];
 };
@@ -395,9 +437,27 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundSet: "normal",
   hitsoundVolume: 0.18,
   dimBackground: 82,
+  smoothScrolling: true,
+  upscroll: false,
   localAutosaveEnabled: true,
   uiSoundsEnabled: true,
   uiSoundVolume: 1,
+  playtest: {
+    scrollSpeed: 35,
+    zoom: 1.5,
+    backgroundDim: 82,
+    offsetMode: "visual",
+    offsetMs: 0,
+    showJudgements: true,
+    showCombo: true,
+    showAccuracy: true,
+    showHitError: true,
+    showErrorBar: true,
+    useSkinComboFont: true,
+    useSkinJudgements: true,
+    keybinds: {},
+    quickRestartKey: "Backquote",
+  },
 };
 
 export const MIN_KEYS = 1;

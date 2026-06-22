@@ -305,6 +305,70 @@ textarea {
   animation: loader-logo-pulse 1700ms ease-in-out infinite;
 }
 
+/* ---- Scroll-direction switch (Settings) -------------------------------- */
+@keyframes scroll-dir-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes scroll-dir-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.scroll-dir-in-up {
+  animation: scroll-dir-in-up 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.scroll-dir-in-down {
+  animation: scroll-dir-in-down 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Playtest HUD ------------------------------------------------------- */
+@keyframes playtest-judgement-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.86);
+  }
+  16% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-16px) scale(0.98);
+  }
+}
+@keyframes playtest-hit-error {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+}
+.playtest-judgement {
+  animation: playtest-judgement-pop 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.playtest-hit-error {
+  animation: playtest-hit-error 620ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-backdrop-in,
   .modal-backdrop-out,
@@ -316,7 +380,11 @@ textarea {
   .notif-out,
   .tap-ring,
   .loader-fade-in,
-  .loader-content-in {
+  .loader-content-in,
+  .scroll-dir-in-up,
+  .scroll-dir-in-down,
+  .playtest-judgement,
+  .playtest-hit-error {
     animation-duration: 1ms;
   }
 }

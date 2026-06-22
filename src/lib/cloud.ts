@@ -161,6 +161,25 @@ export async function saveProjectDataCloud(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Load just the chart JSON for a project (no Storage asset downloads). Used by
+ * the live collab refresh: a structural change saves the chart to the cloud and
+ * pings peers, who pull the fresh chart here — the asset reconciler fetches any
+ * newly referenced audio/background bytes separately. Cheap, so safe to call on
+ * every structural ping.
+ */
+export async function loadProjectChartCloud(
+  id: string,
+): Promise<CloudProjectData> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("data")
+    .eq("id", id)
+    .single();
+  if (error) throw new Error(error.message);
+  return data.data as CloudProjectData;
+}
+
 /** List every project the user can see (owned + shared), newest first. */
 export async function listProjectsCloud(): Promise<CloudProjectSummary[]> {
   const { data, error } = await supabase
