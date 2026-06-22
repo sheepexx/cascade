@@ -20,6 +20,7 @@ import {
 import { MyMapsModal } from "./components/menus/MyMapsModal";
 import { PresetBrowserModal } from "./components/menus/PresetBrowserModal";
 import { PublishPresetModal } from "./components/menus/PublishPresetModal";
+import { FeedbackModal } from "./components/menus/FeedbackModal";
 import { ShareModal } from "./components/menus/ShareModal";
 import { CommentsSidebar } from "./components/CommentsSidebar";
 import type { Comment } from "./lib/comments";
@@ -63,6 +64,7 @@ import {
   setUiSoundVolume,
 } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
+import { logAnalyticsEvent } from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
@@ -131,6 +133,7 @@ type ModalId =
   | "myMaps"
   | "presets"
   | "publishPreset"
+  | "feedback"
   | "admin"
   | "share"
   | null;
@@ -1035,6 +1038,9 @@ export default function App() {
       setPendingImport(null);
       setModal(null);
       setLocalProjectId(newLocalProjectId());
+      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
+        () => {},
+      );
     } catch (err) {
       setImportError(
         err instanceof Error ? err.message : "Failed to import .osz file.",
@@ -1906,7 +1912,8 @@ export default function App() {
       backgroundFilename: active.backgroundFilename,
     });
     playUiSound("mapExportDone");
-  }, [audioFile, active, activeTimingPoints, meta]);
+    void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
+  }, [audioFile, active, activeTimingPoints, meta, authUser?.id]);
 
   const doExportOsz = useCallback(async () => {
     if (Object.keys(audioFiles).length === 0) return;
@@ -1920,10 +1927,11 @@ export default function App() {
         bgFiles,
       });
       playUiSound("mapExportDone");
+      void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
     } finally {
       setExporting(false);
     }
-  }, [audioFiles, difficulties, bgFiles, meta, timingPoints]);
+  }, [audioFiles, difficulties, bgFiles, meta, timingPoints, authUser?.id]);
 
   /** Validate first; only export straight away when there's nothing to flag. */
   const requestExport = useCallback(
@@ -2391,6 +2399,9 @@ export default function App() {
     setCloudOwnerId(null);
     setMyRole(null);
     setReferenceId(null);
+    void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
+      () => {},
+    );
 
   }, []);
 
@@ -2711,6 +2722,7 @@ export default function App() {
             compact
             onOpenMyMaps={() => setModal("myMaps")}
             onOpenPresets={() => setModal("presets")}
+            onOpenFeedback={() => setModal("feedback")}
             onOpenAdmin={() => setModal("admin")}
           />
         </div>
@@ -2997,6 +3009,7 @@ export default function App() {
         pattern={publishPattern}
         keyCount={publishKeyCount}
       />
+      <FeedbackModal open={modal === "feedback"} onClose={close} />
       <SettingsModal
         open={modal === "mapSettings"}
         onClose={close}

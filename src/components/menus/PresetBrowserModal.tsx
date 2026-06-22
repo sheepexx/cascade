@@ -4,6 +4,7 @@ import { Button, TextInput, Toggle } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
 import { listPresets, type Preset } from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
+import { useAuth } from "../../lib/auth";
 
 /**
  * Browse approved pattern presets and copy one to the editor clipboard (paste
@@ -26,13 +27,17 @@ export function PresetBrowserModal({
   const [error, setError] = useState<string | null>(null);
   const [allKeys, setAllKeys] = useState(false);
   const [query, setQuery] = useState("");
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setPresets(null);
     setError(null);
-    listPresets(allKeys ? undefined : { keyCount: activeKeyCount })
+    listPresets({
+      ...(allKeys ? {} : { keyCount: activeKeyCount }),
+      ownerId: user?.id ?? null,
+    })
       .then((rows) => {
         if (!cancelled) setPresets(rows);
       })
@@ -45,7 +50,7 @@ export function PresetBrowserModal({
     return () => {
       cancelled = true;
     };
-  }, [open, allKeys, activeKeyCount]);
+  }, [open, allKeys, activeKeyCount, user?.id]);
 
   // Client-side search: every space-separated term must appear somewhere in the
   // preset's name, author, tags or "<n>k" key label.
@@ -57,6 +62,7 @@ export function PresetBrowserModal({
       const haystack = [
         p.name,
         p.author_username ?? "",
+        p.is_public ? "public" : "private mine saved",
         ...p.tags,
         `${p.key_count}k`,
       ]
@@ -123,6 +129,11 @@ export function PresetBrowserModal({
                 </div>
                 <div className="text-[11px] text-slate-500">
                   {p.key_count}K · {p.pattern.length} notes
+                  {!p.is_public && (
+                    <span className="ml-1 rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold text-accent">
+                      Private
+                    </span>
+                  )}
                 </div>
                 <div className="text-[11px] text-slate-500">
                   by{" "}

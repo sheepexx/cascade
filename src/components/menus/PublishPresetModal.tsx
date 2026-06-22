@@ -3,7 +3,11 @@ import { Modal } from "../ui/Modal";
 import { Button, Field, TextInput } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
 import { useAuth } from "../../lib/auth";
-import { publishPreset, DuplicatePresetError } from "../../lib/presets";
+import {
+  publishPreset,
+  savePrivatePreset,
+  DuplicatePresetError,
+} from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
 
 /**
@@ -25,6 +29,7 @@ export function PublishPresetModal({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
+  const [visibility, setVisibility] = useState<"private" | "public">("private");
   const [status, setStatus] = useState<null | "saving" | "done" | "error">(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +38,7 @@ export function PublishPresetModal({
       setName("");
       setDescription("");
       setTags("");
+      setVisibility("private");
       setStatus(null);
       setError(null);
     }
@@ -43,7 +49,7 @@ export function PublishPresetModal({
     setStatus("saving");
     setError(null);
     try {
-      await publishPreset({
+      const input = {
         authorId: user.id,
         authorUsername: user.username,
         authorOsuId: user.osu_id,
@@ -55,15 +61,17 @@ export function PublishPresetModal({
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
-      });
+      };
+      if (visibility === "public") await publishPreset(input);
+      else await savePrivatePreset(input);
       setStatus("done");
     } catch (err) {
       setError(
         err instanceof DuplicatePresetError
-          ? "This exact pattern already exists as a preset, so it can't be submitted again."
+          ? "This exact pattern already exists as a public preset, so it can't be submitted again."
           : err instanceof Error
             ? err.message
-            : "Failed to publish.",
+            : "Failed to save.",
       );
       setStatus("error");
     }
@@ -72,7 +80,7 @@ export function PublishPresetModal({
   return (
     <Modal
       open={open}
-      title="Publish pattern as preset"
+      title="Save pattern as preset"
       onClose={onClose}
       width="max-w-md"
       footer={
@@ -88,7 +96,11 @@ export function PublishPresetModal({
               onClick={() => void submit()}
               disabled={!name.trim() || status === "saving"}
             >
-              {status === "saving" ? "Publishing…" : "Publish"}
+              {status === "saving"
+                ? "Saving..."
+                : visibility === "public"
+                  ? "Submit public preset"
+                  : "Save private preset"}
             </Button>
           </>
         )
@@ -96,8 +108,18 @@ export function PublishPresetModal({
     >
       {status === "done" ? (
         <p className="text-sm text-slate-300">
-          Submitted! Your preset is now <strong>pending review</strong>. Once an
-          admin approves it, it'll appear in the preset browser for everyone.
+          {visibility === "public" ? (
+            <>
+              Submitted. Your preset is now <strong>pending review</strong>.
+              Once an admin approves it, it will appear in the preset browser for
+              everyone.
+            </>
+          ) : (
+            <>
+              Saved. This preset is synced to your account and is only visible to
+              you.
+            </>
+          )}
         </p>
       ) : (
         <div className="flex flex-col gap-4">
@@ -114,6 +136,30 @@ export function PublishPresetModal({
             <div className="text-xs text-slate-400">
               {keyCount}K · {pattern?.length ?? 0} notes
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setVisibility("private")}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                visibility === "private"
+                  ? "border-accent/70 bg-accent/20 text-slate-100"
+                  : "border-white/10 bg-ink-700/40 text-slate-400 hover:bg-ink-700"
+              }`}
+            >
+              Private
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility("public")}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                visibility === "public"
+                  ? "border-accent/70 bg-accent/20 text-slate-100"
+                  : "border-white/10 bg-ink-700/40 text-slate-400 hover:bg-ink-700"
+              }`}
+            >
+              Public review
+            </button>
           </div>
           <Field label="Name">
             <TextInput
