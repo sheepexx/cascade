@@ -44,12 +44,16 @@ const COLUMNS =
 /** Approved presets, optionally filtered to a key count. */
 export async function listPresets(opts?: {
   keyCount?: number;
+  ownerId?: string | null;
 }): Promise<Preset[]> {
   let q = supabase
     .from("presets")
     .select(COLUMNS)
     .eq("status", "approved")
     .order("created_at", { ascending: false });
+  q = opts?.ownerId
+    ? q.or(`is_public.eq.true,author.eq.${opts.ownerId}`)
+    : q.eq("is_public", true);
   if (opts?.keyCount) q = q.eq("key_count", opts.keyCount);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
@@ -66,6 +70,34 @@ export async function publishPreset(input: {
   pattern: PatternNote[];
   tags: string[];
 }): Promise<void> {
+  await insertPreset({ ...input, isPublic: true, status: "pending" });
+}
+
+export async function savePrivatePreset(input: {
+  authorId: string;
+  authorUsername: string;
+  authorOsuId: number;
+  name: string;
+  keyCount: number;
+  description: string;
+  pattern: PatternNote[];
+  tags: string[];
+}): Promise<void> {
+  await insertPreset({ ...input, isPublic: false, status: "approved" });
+}
+
+async function insertPreset(input: {
+  authorId: string;
+  authorUsername: string;
+  authorOsuId: number;
+  name: string;
+  keyCount: number;
+  description: string;
+  pattern: PatternNote[];
+  tags: string[];
+  isPublic: boolean;
+  status: PresetStatus;
+}): Promise<void> {
   const hash = await patternHash(input.pattern, input.keyCount);
   const { error } = await supabase.from("presets").insert({
     author: input.authorId,
@@ -77,7 +109,8 @@ export async function publishPreset(input: {
     pattern: input.pattern,
     tags: input.tags,
     pattern_hash: hash,
-    status: "pending",
+    is_public: input.isPublic,
+    status: input.status,
   });
   if (error) {
     // 23505 = unique_violation on presets_pattern_hash_uniq → duplicate pattern.
@@ -100,7 +133,19 @@ export async function listPresetsByStatus(
   const { data, error } = await supabase
     .from("presets")
     .select(COLUMNS)
+    .eq("is_public", true)
     .eq("status", status)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as Preset[];
+}
+
+/** Private account presets saved by users (admin only, enforced by RLS). */
+export async function listPrivatePresets(): Promise<Preset[]> {
+  const { data, error } = await supabase
+    .from("presets")
+    .select(COLUMNS)
+    .eq("is_public", false)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as Preset[];

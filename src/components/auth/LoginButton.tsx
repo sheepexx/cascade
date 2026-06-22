@@ -11,11 +11,13 @@ import { Button } from "../ui/Controls";
 export function AccountControl({
   onOpenMyMaps,
   onOpenPresets,
+  onOpenFeedback,
   onOpenAdmin,
   compact = false,
 }: {
   onOpenMyMaps: () => void;
   onOpenPresets: () => void;
+  onOpenFeedback: () => void;
   onOpenAdmin: () => void;
   /** Render a smaller chip (used in the dense header). */
   compact?: boolean;
@@ -117,6 +119,7 @@ export function AccountControl({
           >
             <MenuItem onClick={() => choose(onOpenMyMaps)}>My Maps</MenuItem>
             <MenuItem onClick={() => choose(onOpenPresets)}>Presets</MenuItem>
+            <MenuItem onClick={() => choose(onOpenFeedback)}>Feedback</MenuItem>
             {isAdmin && (
               <MenuItem onClick={() => choose(onOpenAdmin)}>Admin</MenuItem>
             )}
