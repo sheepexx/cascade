@@ -2179,6 +2179,10 @@ export default function App() {
 
   const loadCloudProject = useCallback(async (id: string) => {
     setCloudError(null);
+    // Close any open picker (My Maps) right away and show the full-screen
+    // loader so it's visible during the whole (sometimes long) cloud download,
+    // not just after it finishes.
+    setModal(null);
     setImportingMap(true);
     try {
       const proj = await loadProjectCloud(id);
@@ -2271,7 +2275,6 @@ export default function App() {
       } catch {
         /* ignore */
       }
-      setModal(null);
     } catch (err) {
       setCloudError(
         err instanceof Error ? err.message : "Couldn't load that map.",
