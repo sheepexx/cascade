@@ -151,6 +151,38 @@ export async function importOsk(
     keymodes[keys] = { keys, columns };
   }
 
+  const resolveFirstUrl = async (...refs: string[]): Promise<string | null> => {
+    for (const ref of refs) {
+      const url = await resolveUrl(ref);
+      if (url) return url;
+    }
+    return null;
+  };
+
+  const comboNumbers: LoadedSkin["ui"]["comboNumbers"] = {};
+  for (let n = 0; n <= 9; n++) {
+    const url = await resolveFirstUrl(`combo-${n}`, `score-${n}`);
+    if (url) comboNumbers[String(n)] = url;
+  }
+
+  // osu!mania draws its own judgement sprites (`mania-hit300g` … `mania-hit0`)
+  // and only falls back to the osu!standard elements (`hit300g` …) when the
+  // skin doesn't ship the mania-specific ones. Mirror that lookup order so a
+  // skin's actual mania judgements are used in Playtest Mode.
+  const judgementImages: LoadedSkin["ui"]["judgementImages"] = {};
+  const judgementRefs: Record<keyof LoadedSkin["ui"]["judgementImages"], string[]> = {
+    max: ["mania-hit300g", "hit300g", "hit300k", "mania-hit300", "hit300"],
+    "300": ["mania-hit300", "hit300", "hit300k"],
+    "200": ["mania-hit200", "hit200", "hit200k"],
+    "100": ["mania-hit100", "hit100", "hit100k"],
+    "50": ["mania-hit50", "hit50"],
+    miss: ["mania-hit0", "hit0", "hitmiss", "miss"],
+  };
+  for (const key of Object.keys(judgementRefs) as (keyof typeof judgementRefs)[]) {
+    const url = await resolveFirstUrl(...judgementRefs[key]);
+    if (url) judgementImages[key] = url;
+  }
+
   return {
     name: general["name"]?.trim() || stripExt(fileName),
     author: general["author"]?.trim() || "",
@@ -158,6 +190,7 @@ export async function importOsk(
     blob: file,
     keymodes,
     hitsounds,
+    ui: { comboNumbers, judgementImages },
     objectUrls,
   };
 }

@@ -221,6 +221,9 @@ function DiffRow({
               e.stopPropagation();
               onDelete();
             }}
+            // Opens the "are you sure" modal (which has its own chime); skip the
+            // general UI click so the two sounds don't overlap.
+            data-no-uisound=""
             className="text-[10px] text-slate-400 hover:text-red-300"
           >
             Delete

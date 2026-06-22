@@ -23,11 +23,13 @@ import { PublishPresetModal } from "./components/menus/PublishPresetModal";
 import { FeedbackModal } from "./components/menus/FeedbackModal";
 import { ShareModal } from "./components/menus/ShareModal";
 import { CommentsSidebar } from "./components/CommentsSidebar";
+import { PlaytestOverlay } from "./components/PlaytestOverlay";
 import type { Comment } from "./lib/comments";
 import {
   saveProjectCloud,
   saveProjectDataCloud,
   loadProjectCloud,
+  loadProjectChartCloud,
   publishProjectAsset,
   loadProjectAssets,
   listMyProjectsRich,
@@ -44,7 +46,6 @@ import {
   type NoteOp,
   type DiffFieldOp,
   type CollabOp,
-  type DocState,
 } from "./lib/ops";
 import { myAccess, type AccessRole } from "./lib/collab";
 import { validateProject, type ValidationResult } from "./lib/validation";
@@ -68,6 +69,7 @@ import { logAnalyticsEvent } from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
+import { usePlaytestInput } from "./hooks/usePlaytestInput";
 import { fullLongNotes, fullRiceNotes } from "./lib/noteTools";
 import {
   hasNoteCollisions,
@@ -78,6 +80,19 @@ import { downloadOsu } from "./lib/osuExport";
 import { downloadOsz } from "./lib/oszExport";
 import { importOsz } from "./lib/osuImport";
 import { importOsk } from "./lib/skinImport";
+import {
+  emptyJudgementCounts,
+  judgeHitError,
+  maniaJudgementWindows,
+  type HitResult,
+  type PlaytestState,
+} from "./lib/playtestJudgements";
+import {
+  accuracyFromCounts,
+  addJudgement,
+  scoreFromResults,
+} from "./lib/playtestScoring";
+import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
 import {
   loadProject,
   saveProject,
@@ -115,6 +130,7 @@ import {
   type LoadedFile,
   type LoadedSkin,
   type ManiaNote,
+  type PlaytestSettings,
   type SongMeta,
   type TimingPoint,
   type ViewState,
@@ -167,6 +183,39 @@ function newLocalProjectId(): string {
   return `local-${random}`;
 }
 
+type PlaytestRuntimeState = PlaytestState & { ended: boolean; paused: boolean };
+
+function initialPlaytestState(): PlaytestRuntimeState {
+  return {
+    active: false,
+    ended: false,
+    paused: false,
+    startTime: 0,
+    score: 0,
+    combo: 0,
+    maxCombo: 0,
+    accuracy: 100,
+    unstableRate: 0,
+    judgements: emptyJudgementCounts(),
+    hitResults: [],
+  };
+}
+
+function normalizeAppSettings(
+  prefs: Partial<AppSettings> | null,
+): AppSettings {
+  const playtestPrefs = prefs?.playtest as Partial<PlaytestSettings> | undefined;
+  return {
+    ...DEFAULT_APP_SETTINGS,
+    ...(prefs ?? {}),
+    playtest: {
+      ...DEFAULT_APP_SETTINGS.playtest,
+      ...(playtestPrefs ?? {}),
+      keybinds: normalizePlaytestKeybinds(playtestPrefs?.keybinds),
+    },
+  };
+}
+
 function isTypingTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   const tag = el?.tagName;
@@ -217,6 +266,10 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [modal, setModal] = useState<ModalId>(null);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
+  // Id of a difficulty pending an "are you sure?" delete confirmation, or null.
+  const [pendingDeleteDiffId, setPendingDeleteDiffId] = useState<string | null>(
+    null,
+  );
   const [projectStarted, setProjectStarted] = useState(false);
   // Zen mode (toggled with Tab): slide all chrome out and show only the
   // notefield.
@@ -224,8 +277,7 @@ export default function App() {
   // Site-level preferences load from localStorage immediately (synchronous) so
   // they apply on first paint and are independent of any loaded map.
   const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
-    ...DEFAULT_APP_SETTINGS,
-    ...(loadPreferences() ?? {}),
+    ...normalizeAppSettings(loadPreferences()),
   }));
   const [bgScope, setBgScope] = useState<BackgroundScope>("mapset");
   const [askBgScope, setAskBgScope] = useState(false);
@@ -291,9 +343,30 @@ export default function App() {
   const peerNoticeTimer = useRef<number | undefined>(undefined);
   const active =
     difficulties.find((d) => d.id === activeId) ?? difficulties[0];
+  const [playtest, setPlaytest] = useState<PlaytestRuntimeState>(
+    initialPlaytestState,
+  );
+  const playtestRef = useRef(playtest);
+  playtestRef.current = playtest;
+  const [playtestConsumedIds, setPlaytestConsumedIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const playtestConsumedRef = useRef(playtestConsumedIds);
+  playtestConsumedRef.current = playtestConsumedIds;
+  const playtestHeadJudgedRef = useRef<Set<string>>(new Set());
+  const playtestTailJudgedRef = useRef<Set<string>>(new Set());
+  const playtestHeldLnRef = useRef<Map<string, ManiaNote>>(new Map());
+  // Running hit-error stats (non-miss hits only) for the unstable-rate bar, kept
+  // as a ref so UR is an O(1) update per hit rather than an O(n) recompute.
+  const playtestErrStatsRef = useRef({ n: 0, sum: 0, sumSq: 0 });
+  // Ids of long notes currently being held, mirrored as state so the editor can
+  // pin them to the judgement line while every other unhit note falls through.
+  const [playtestHeldLnIds, setPlaytestHeldLnIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
-  // Latest-value refs so collab callbacks/getDoc read fresh state without
-  // re-subscribing the channel.
+  // Latest-value refs so collab callbacks (refresh / sync-request) read fresh
+  // state without re-subscribing the channel.
   const difficultiesRef = useRef(difficulties);
   difficultiesRef.current = difficulties;
   const activeIdRef = useRef(activeId);
@@ -311,7 +384,9 @@ export default function App() {
   // in (even solo — it enables the join handoff when someone arrives).
   const liveEnabled = !!cloudProjectId && !!authUser;
   // Whether the current user may edit (local maps + owner/editor; viewers not).
-  const canEdit = !cloudProjectId || myRole === "owner" || myRole === "editor";
+  const canEdit =
+    !playtest.active &&
+    (!cloudProjectId || myRole === "owner" || myRole === "editor");
   const sessionActiveRef = useRef(false);
   sessionActiveRef.current = liveEnabled;
   const canEditRef = useRef(true);
@@ -374,12 +449,50 @@ export default function App() {
     applyingRemoteRef.current = true;
     setDifficulties((prev) => applyOp(prev, op));
   }, []);
-  const applyRemoteDoc = useCallback((doc: DocState) => {
-    applyingRemoteRef.current = true;
-    setMeta(doc.meta);
-    setTimingPoints(doc.timingPoints);
-    setDifficulties(doc.difficulties);
+  // A peer signalled a structural change (or answered our join handoff): the
+  // fresh chart is already in the cloud, so re-pull just the chart (no asset
+  // downloads — the reconciler fetches any newly referenced bytes). We keep our
+  // own activeId / view / playhead; only the shared document is replaced.
+  const refreshFromCloud = useCallback(() => {
+    const pid = cloudProjectIdRef.current;
+    if (!pid) return;
+    void loadProjectChartCloud(pid)
+      .then((data) => {
+        applyingRemoteRef.current = true;
+        setMeta(data.meta);
+        setTimingPoints(normalizeTimingPoints(data.timingPoints));
+        const diffs = (
+          data.difficulties?.length ? data.difficulties : [makeDifficulty()]
+        ).map((d) => ({
+          ...d,
+          timingPoints: normalizeTimingPoints(d.timingPoints),
+        }));
+        setDifficulties(diffs);
+        // Our active difficulty may have just been deleted by a peer.
+        setActiveId((cur) =>
+          diffs.some((d) => d.id === cur) ? cur : diffs[0].id,
+        );
+      })
+      .catch(() => {});
   }, []);
+
+  // A newcomer asked for the freshest chart: flush our in-memory document to the
+  // cloud, then ping them to re-pull it. Only editors/owner write (a viewer has
+  // no newer state and can't write under RLS), so an editor answers instead.
+  const handleSyncRequest = useCallback(() => {
+    const pid = cloudProjectIdRef.current;
+    if (!pid || !canEditRef.current) return;
+    void saveProjectDataCloud(pid, {
+      meta: metaRef.current,
+      timingPoints: timingPointsRef.current,
+      difficulties: difficultiesRef.current,
+      activeId: activeIdRef.current,
+      view,
+      bgScope,
+    })
+      .then(() => collabRef.current?.sendRefresh())
+      .catch(() => {});
+  }, [view, bgScope]);
 
   // Show a transient toast when a collaborator joins/leaves.
   const showPeerNotice = useCallback((text: string, avatar: string | null) => {
@@ -398,7 +511,8 @@ export default function App() {
       ? { id: authUser.id, username: authUser.username, avatar: authUser.avatar_url }
       : null,
     onRemoteOp: applyRemoteOp,
-    onRemoteDoc: applyRemoteDoc,
+    onRefresh: refreshFromCloud,
+    onSyncRequest: handleSyncRequest,
     onPeerJoin: useCallback(
       (p: { username: string; avatar: string | null }) =>
         showPeerNotice(`${p.username} joined the session`, p.avatar),
@@ -414,11 +528,6 @@ export default function App() {
         showPeerNotice(n.text, n.avatar),
       [showPeerNotice],
     ),
-    getDoc: () => ({
-      meta: metaRef.current,
-      timingPoints: timingPointsRef.current,
-      difficulties: difficultiesRef.current,
-    }),
   });
   collabRef.current = collab;
 
@@ -551,7 +660,8 @@ export default function App() {
     askBgScope ||
     pendingImport !== null ||
     exportCheck !== null ||
-    showHomeConfirm;
+    showHomeConfirm ||
+    pendingDeleteDiffId !== null;
   const modalAtmosphereActive = modalAtmosphereOpen && audio.isPlaying;
   const effectiveHitsounds = useMemo(() => {
     if (hitsoundSkinSource === "default") return null;
@@ -562,9 +672,9 @@ export default function App() {
   }, [hitsoundSkin, hitsoundSkinSource, skin]);
 
   // Play the map's actual osu! hitsounds as notes cross the judgement line.
-  useHitsounds(
+  const playtestHitsounds = useHitsounds(
     audio.getCurrentTime,
-    audio.isPlaying,
+    audio.isPlaying && !playtest.active,
     active.notes,
     active.timingPoints?.length ? active.timingPoints : timingPoints,
     appSettings.hitsoundVolume,
@@ -767,6 +877,344 @@ export default function App() {
   const activeTimingPoints =
     active.timingPoints?.length ? active.timingPoints : timingPoints;
   const activeSkin = skin?.keymodes[active.keyCount] ?? null;
+  const playtestSettings = appSettings.playtest;
+  // Judgement windows for the active difficulty's OD — drives both the hit
+  // judging and the colour zones on the unstable-rate bar.
+  const playtestWindows = useMemo(
+    () => maniaJudgementWindows(active.overallDifficulty),
+    [active.overallDifficulty],
+  );
+
+  const resetPlaytestRuntime = useCallback((startTime: number) => {
+    playtestHeadJudgedRef.current = new Set();
+    playtestTailJudgedRef.current = new Set();
+    playtestHeldLnRef.current = new Map();
+    playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
+    setPlaytestConsumedIds(new Set());
+    setPlaytestHeldLnIds(new Set());
+    setPlaytest({
+      ...initialPlaytestState(),
+      active: true,
+      startTime,
+    });
+  }, []);
+
+  const registerPlaytestResult = useCallback((result: HitResult) => {
+    // Unstable rate = 10x the standard deviation of hit errors, over actual
+    // hits (notes that were pressed within a judgement window). Notes that fell
+    // through unhit don't represent a timing error, so they're left out.
+    if (result.judgement !== "miss") {
+      const s = playtestErrStatsRef.current;
+      s.n += 1;
+      s.sum += result.hitError;
+      s.sumSq += result.hitError * result.hitError;
+    }
+    const { n, sum, sumSq } = playtestErrStatsRef.current;
+    const mean = n ? sum / n : 0;
+    const unstableRate = n ? Math.sqrt(Math.max(0, sumSq / n - mean * mean)) * 10 : 0;
+    setPlaytest((prev) => {
+      if (!prev.active) return prev;
+      const judgements = addJudgement(prev.judgements, result.judgement);
+      const hitResults = [...prev.hitResults, result];
+      const combo =
+        result.judgement === "miss" ? 0 : Math.min(prev.combo + 1, 99999);
+      const maxCombo = Math.max(prev.maxCombo, combo);
+      return {
+        ...prev,
+        combo,
+        maxCombo,
+        judgements,
+        hitResults,
+        accuracy: accuracyFromCounts(judgements),
+        score: scoreFromResults(hitResults),
+        unstableRate,
+      };
+    });
+  }, []);
+
+  const consumePlaytestNote = useCallback((id: string) => {
+    setPlaytestConsumedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const removeHeldLnId = useCallback((id: string) => {
+    setPlaytestHeldLnIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const playtestInputTime = useCallback(() => {
+    const raw = audio.getCurrentTime();
+    return playtestSettings.offsetMode === "audio"
+      ? raw + playtestSettings.offsetMs
+      : raw;
+  }, [audio, playtestSettings.offsetMode, playtestSettings.offsetMs]);
+
+  const missPlaytestPart = useCallback(
+    (
+      note: ManiaNote,
+      time: number,
+      part: HitResult["part"],
+      targetTime: number,
+    ) => {
+      registerPlaytestResult({
+        noteId: note.id,
+        column: note.column,
+        time,
+        hitError: time - targetTime,
+        judgement: "miss",
+        part,
+      });
+    },
+    [registerPlaytestResult],
+  );
+
+  const handlePlaytestPress = useCallback(
+    (column: number) => {
+      const pt = playtestRef.current;
+      if (!pt.active || pt.ended || pt.paused) return;
+      const time = playtestInputTime();
+      const windows = maniaJudgementWindows(active.overallDifficulty);
+      const candidate = active.notes
+        .filter(
+          (n) =>
+            n.column === column &&
+            !playtestConsumedRef.current.has(n.id) &&
+            !playtestHeadJudgedRef.current.has(n.id),
+        )
+        .sort(
+          (a, b) =>
+            Math.abs(a.startTime - time) - Math.abs(b.startTime - time),
+        )[0];
+      if (!candidate) return;
+
+      const hitError = time - candidate.startTime;
+      const judgement = judgeHitError(hitError, windows);
+      if (!judgement) return;
+
+      playtestHeadJudgedRef.current.add(candidate.id);
+      const part: HitResult["part"] =
+        candidate.endTime !== undefined ? "ln-head" : "rice";
+      registerPlaytestResult({
+        noteId: candidate.id,
+        column,
+        time,
+        hitError,
+        judgement,
+        part,
+      });
+      playtestHitsounds.playNote(candidate);
+
+      if (candidate.endTime !== undefined && judgement !== "miss") {
+        playtestHeldLnRef.current.set(candidate.id, candidate);
+        setPlaytestHeldLnIds((prev) => {
+          const next = new Set(prev);
+          next.add(candidate.id);
+          return next;
+        });
+      } else {
+        if (candidate.endTime !== undefined) {
+          playtestTailJudgedRef.current.add(candidate.id);
+        }
+        consumePlaytestNote(candidate.id);
+      }
+    },
+    [
+      active.notes,
+      active.overallDifficulty,
+      consumePlaytestNote,
+      playtestHitsounds,
+      playtestInputTime,
+      registerPlaytestResult,
+    ],
+  );
+
+  const handlePlaytestRelease = useCallback(
+    (column: number) => {
+      const pt = playtestRef.current;
+      if (!pt.active || pt.ended || pt.paused) return;
+      const time = playtestInputTime();
+      const held = [...playtestHeldLnRef.current.values()].find(
+        (n) => n.column === column,
+      );
+      if (!held || held.endTime === undefined) return;
+      const windows = maniaJudgementWindows(active.overallDifficulty);
+      const hitError = time - held.endTime;
+      const judgement = judgeHitError(hitError, windows) ?? "miss";
+      playtestHeldLnRef.current.delete(held.id);
+      removeHeldLnId(held.id);
+      playtestTailJudgedRef.current.add(held.id);
+      registerPlaytestResult({
+        noteId: held.id,
+        column,
+        time,
+        hitError,
+        judgement,
+        part: "ln-tail",
+      });
+      consumePlaytestNote(held.id);
+    },
+    [
+      active.overallDifficulty,
+      consumePlaytestNote,
+      removeHeldLnId,
+      playtestInputTime,
+      registerPlaytestResult,
+    ],
+  );
+
+  const exitPlaytest = useCallback(() => {
+    audio.pause();
+    setPlaytest((prev) => ({ ...prev, active: false, ended: false, paused: false }));
+    playtestHeadJudgedRef.current = new Set();
+    playtestTailJudgedRef.current = new Set();
+    playtestHeldLnRef.current = new Map();
+    playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
+    setPlaytestConsumedIds(new Set());
+    setPlaytestHeldLnIds(new Set());
+  }, [audio]);
+
+  const startPlaytest = useCallback(
+    (startTime = audio.getCurrentTime()) => {
+      if (!audioFile || !projectStarted) return;
+      const clamped = Math.max(0, Math.min(startTime, audio.duration || startTime));
+      setModal(null);
+      setCommentsOpen(false);
+      resetPlaytestRuntime(clamped);
+      audio.setPlaybackRate(1);
+      audio.seek(clamped);
+      audio.play();
+    },
+    [audio, audioFile, projectStarted, resetPlaytestRuntime],
+  );
+
+  const restartPlaytest = useCallback(() => {
+    startPlaytest(playtestRef.current.startTime || audio.getCurrentTime());
+  }, [audio, startPlaytest]);
+
+  // Pause / resume the run. The pause menu (Continue / Restart / Go to editor)
+  // shows whenever `paused` is set; resuming just lets the song keep playing.
+  const pausePlaytest = useCallback(() => {
+    setPlaytest((prev) =>
+      prev.active && !prev.ended && !prev.paused
+        ? { ...prev, paused: true }
+        : prev,
+    );
+    audio.pause();
+  }, [audio]);
+
+  const resumePlaytest = useCallback(() => {
+    setPlaytest((prev) =>
+      prev.active && !prev.ended && prev.paused
+        ? { ...prev, paused: false }
+        : prev,
+    );
+    if (playtestRef.current.active && !playtestRef.current.ended) audio.play();
+  }, [audio]);
+
+  const togglePlaytestPause = useCallback(() => {
+    const pt = playtestRef.current;
+    if (!pt.active || pt.ended) return;
+    if (pt.paused) resumePlaytest();
+    else pausePlaytest();
+  }, [pausePlaytest, resumePlaytest]);
+
+  const heldPlaytestKeys = usePlaytestInput({
+    active: playtest.active,
+    paused: playtest.paused,
+    keyCount: active.keyCount,
+    keybinds: playtestSettings.keybinds,
+    quickRestartCode: playtestSettings.quickRestartKey,
+    onPress: handlePlaytestPress,
+    onRelease: handlePlaytestRelease,
+    onPause: togglePlaytestPause,
+    onRestart: restartPlaytest,
+  });
+
+  useEffect(() => {
+    if (!playtest.active || playtest.ended || playtest.paused) return;
+    let raf = 0;
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const time = playtestInputTime();
+      const windows = maniaJudgementWindows(active.overallDifficulty);
+      for (const note of active.notes) {
+        if (playtestConsumedRef.current.has(note.id)) continue;
+        if (
+          !playtestHeadJudgedRef.current.has(note.id) &&
+          time > note.startTime + windows.miss
+        ) {
+          playtestHeadJudgedRef.current.add(note.id);
+          playtestTailJudgedRef.current.add(note.id);
+          playtestHeldLnRef.current.delete(note.id);
+          missPlaytestPart(
+            note,
+            time,
+            note.endTime === undefined ? "rice" : "ln-head",
+            note.startTime,
+          );
+          // Note left unconsumed on purpose: an unhit note keeps falling through
+          // the receptors (and fades out below the line) instead of vanishing.
+          continue;
+        }
+        if (
+          note.endTime !== undefined &&
+          playtestHeadJudgedRef.current.has(note.id) &&
+          !playtestTailJudgedRef.current.has(note.id) &&
+          time > note.endTime + windows.miss
+        ) {
+          playtestTailJudgedRef.current.add(note.id);
+          playtestHeldLnRef.current.delete(note.id);
+          removeHeldLnId(note.id);
+          missPlaytestPart(note, time, "ln-tail", note.endTime);
+          consumePlaytestNote(note.id);
+        }
+      }
+      if (
+        Number.isFinite(audio.duration) &&
+        audio.duration > 0 &&
+        audio.getCurrentTime() >= audio.duration - 10
+      ) {
+        audio.pause();
+        setPlaytest((prev) => ({ ...prev, ended: true }));
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [
+    active.notes,
+    active.overallDifficulty,
+    audio,
+    consumePlaytestNote,
+    removeHeldLnId,
+    missPlaytestPart,
+    playtest.active,
+    playtest.ended,
+    playtest.paused,
+    playtestInputTime,
+  ]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "F5") return;
+      // Always stop F5 from reloading the page (and losing unsaved work).
+      e.preventDefault();
+      // F5 toggles the playtest: leave it if a run is active (back to the
+      // editor), otherwise start one — but never launch from behind an open
+      // dialog (e.g. while rebinding the quick-restart key in Settings).
+      if (playtestRef.current.active) exitPlaytest();
+      else if (!modalRef.current) startPlaytest(audio.getCurrentTime());
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [audio, startPlaytest, exitPlaytest]);
 
   // ---- Reference mode: view another difficulty (same audio) side by side ---
   // Only difficulties sharing the active one's MP3 can be referenced in sync,
@@ -789,7 +1237,7 @@ export default function App() {
       .map((x) => x.d);
   }, [difficulties, activeId, audioFiles]);
   const referenceDiff =
-    referenceId && referenceId !== active.id
+    !playtest.active && referenceId && referenceId !== active.id
       ? (eligibleRefs.find((d) => d.id === referenceId) ?? null)
       : null;
   const referenceTimingPoints =
@@ -828,7 +1276,36 @@ export default function App() {
     timingPoints[0]?.bpm !== 120 ||
     !hasDefaultDifficulty;
   // Surrounding chrome is shown only with a project open and outside zen mode.
-  const showChrome = hasProject && !zenMode;
+  const showChrome = hasProject && !zenMode && !playtest.active;
+  const playtestVisualOffset =
+    playtest.active && playtestSettings.offsetMode === "visual"
+      ? playtestSettings.offsetMs
+      : 0;
+  const editorCurrentTime = audio.currentTime + playtestVisualOffset;
+  const getEditorCurrentTime = useCallback(
+    () => getCurrentTime() + playtestVisualOffset,
+    [getCurrentTime, playtestVisualOffset],
+  );
+  const editorNotes = useMemo(
+    () =>
+      playtest.active
+        ? active.notes.filter((note) => !playtestConsumedIds.has(note.id))
+        : active.notes,
+    [active.notes, playtest.active, playtestConsumedIds],
+  );
+  const editorView = useMemo(
+    () =>
+      playtest.active
+        ? { ...view, scrollSpeed: playtestSettings.scrollSpeed }
+        : view,
+    [playtest.active, playtestSettings.scrollSpeed, view],
+  );
+  const editorDimBackground = playtest.active
+    ? playtestSettings.backgroundDim
+    : appSettings.dimBackground;
+  const editorPlayfieldScale = playtest.active
+    ? playtestSettings.zoom
+    : appSettings.playfieldScale;
 
   // ---- File handling -------------------------------------------------------
   const loadFile = (file: File): LoadedFile => ({
@@ -1470,12 +1947,31 @@ export default function App() {
     bumpHistory((v) => v + 1);
   }, [snapshot]);
 
-  // Broadcast the whole document after a local structural change (meta / diff /
-  // timing). Note ops are broadcast granularly, so they don't set the flag.
+  // Sync a local structural change (meta / diff add-remove-rename / timing /
+  // asset reference) to collaborators. Note ops broadcast granularly, so they
+  // don't set the flag. Rather than broadcast the whole document (which can blow
+  // past Realtime's payload limit on large maps), persist the chart to the cloud
+  // now — the debounced auto-save can be ~1.5s behind — then ping peers to
+  // re-pull it. Only editors write; if we can't, the edit still rides the next
+  // auto-save for a future joiner.
   useEffect(() => {
     if (!sessionActiveRef.current || !pendingDocSyncRef.current) return;
     pendingDocSyncRef.current = false;
-    collabRef.current?.sendDoc({ meta, timingPoints, difficulties });
+    const pid = cloudProjectIdRef.current;
+    if (!pid || !canEditRef.current) return;
+    void saveProjectDataCloud(pid, {
+      meta,
+      timingPoints,
+      difficulties,
+      activeId: activeIdRef.current,
+      view,
+      bgScope,
+    })
+      .then(() => collabRef.current?.sendRefresh())
+      .catch(() => {});
+    // view / bgScope are read from the latest render; only the structural edits
+    // (meta / timing / difficulties) should re-trigger this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meta, timingPoints, difficulties]);
 
   const applySnapshot = useCallback((s: DocSnapshot) => {
@@ -1687,9 +2183,9 @@ export default function App() {
 
   // "Are you sure?" chime whenever an app-level confirmation window appears.
   useEffect(() => {
-    if (exportCheck || pendingImport || showHomeConfirm)
+    if (exportCheck || pendingImport || showHomeConfirm || pendingDeleteDiffId)
       playUiSound("areYouSure");
-  }, [exportCheck, pendingImport, showHomeConfirm]);
+  }, [exportCheck, pendingImport, showHomeConfirm, pendingDeleteDiffId]);
 
   // ---- Persist editor view controls (snap + scroll speed) on change -------
   useEffect(() => {
@@ -1769,6 +2265,7 @@ export default function App() {
     const isSlowKey = (e: KeyboardEvent) =>
       e.key.toLowerCase() === "s" && !e.ctrlKey && !e.metaKey && !e.altKey;
     const shouldIgnoreHotkey = (e: KeyboardEvent) => {
+      if (playtestRef.current.active) return true;
       if (!projectStartedRef.current) return true;
       if (modalRef.current || askBgScope) return true;
       if (!isTypingTarget(e.target)) return false;
@@ -1781,6 +2278,12 @@ export default function App() {
       const isDown = e.key === "ArrowDown";
       const isF3 = e.key === "F3";
       const isF4 = e.key === "F4";
+      const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
+      // Zoom the playfield with + / - (also = and the numpad keys).
+      const isZoomIn =
+        noMod && (e.key === "+" || e.key === "=" || e.code === "NumpadAdd");
+      const isZoomOut =
+        noMod && (e.key === "-" || e.key === "_" || e.code === "NumpadSubtract");
       const isSlow = isSlowKey(e);
       const isBookmark =
         e.key.toLowerCase() === "b" && !e.ctrlKey && !e.metaKey && !e.altKey;
@@ -1791,12 +2294,22 @@ export default function App() {
         !isDown &&
         !isF3 &&
         !isF4 &&
+        !isZoomIn &&
+        !isZoomOut &&
         !isSlow &&
         !isBookmark
       )
         return;
       if (shouldIgnoreHotkey(e)) return;
-      if (!hasAudioRef.current && !isTab && !isF3 && !isF4) return;
+      if (
+        !hasAudioRef.current &&
+        !isTab &&
+        !isF3 &&
+        !isF4 &&
+        !isZoomIn &&
+        !isZoomOut
+      )
+        return;
       e.preventDefault();
       blurActiveControl();
       if (isTab) setZenMode((z) => !z);
@@ -1817,6 +2330,16 @@ export default function App() {
             MIN_SCROLL_SPEED,
             Math.min(MAX_SCROLL_SPEED, v.scrollSpeed + (isF4 ? 1 : -1)),
           ),
+        }));
+      } else if (isZoomIn || isZoomOut) {
+        setAppSettings((s) => ({
+          ...s,
+          playfieldScale: Math.round(
+            Math.max(
+              0.5,
+              Math.min(2.5, s.playfieldScale + (isZoomIn ? 0.1 : -0.1)),
+            ) * 100,
+          ) / 100,
         }));
       }
     };
@@ -2433,6 +2956,10 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
+      if (playtestRef.current.active) {
+        e.preventDefault();
+        return;
+      }
       const key = e.key.toLowerCase();
       // Ctrl+S saves regardless of focus (and always blocks the browser dialog).
       if (key === "s") {
@@ -2773,7 +3300,7 @@ export default function App() {
               onSelect={setActiveId}
               onAdd={addDifficulty}
               onDuplicate={duplicateDifficulty}
-              onDelete={deleteDifficulty}
+              onDelete={(id) => setPendingDeleteDiffId(id)}
               onRename={(id, name) => patchDifficulty(id, { name })}
               peers={liveEnabled ? collab.peers : undefined}
             />
@@ -2804,21 +3331,23 @@ export default function App() {
             <div className="relative min-w-0 flex-1">
             {hasProject ? (
               <ManiaEditor
-                notes={active.notes}
+                notes={editorNotes}
                 keyCount={active.keyCount}
                 timingPoints={activeTimingPoints}
                 previewTime={active.previewTime}
                 bookmarks={active.bookmarks}
-                view={view}
-                currentTime={audio.currentTime}
-                getCurrentTime={getCurrentTime}
+                view={editorView}
+                currentTime={editorCurrentTime}
+                getCurrentTime={getEditorCurrentTime}
                 isPlaying={audio.isPlaying}
                 backgroundUrl={activeBg?.url ?? null}
-                dimBackground={appSettings.dimBackground}
+                dimBackground={editorDimBackground}
                 skin={activeSkin}
-                playfieldScale={appSettings.playfieldScale}
+                playfieldScale={editorPlayfieldScale}
                 longNoteBodyScale={appSettings.longNoteBodyScale}
-                zenMode={zenMode}
+                smoothScrolling={appSettings.smoothScrolling}
+                upscroll={appSettings.upscroll}
+                zenMode={zenMode || playtest.active}
                 onPlaceNote={placeNote}
                 onDeleteNote={deleteNote}
                 onAddNotes={addNotes}
@@ -2834,6 +3363,9 @@ export default function App() {
                 onPublishPattern={authUser ? handlePublishPattern : undefined}
                 pendingClip={presetToCopy}
                 readOnly={!canEdit}
+                playtestMode={playtest.active}
+                heldLnIds={playtestHeldLnIds}
+                hideHints={playtest.active}
               />
             ) : (
               <EmptyState onEnter={() => setModal("welcome")} />
@@ -2863,6 +3395,8 @@ export default function App() {
                       skin={referenceSkin}
                       playfieldScale={appSettings.playfieldScale}
                       longNoteBodyScale={appSettings.longNoteBodyScale}
+                      smoothScrolling={appSettings.smoothScrolling}
+                      upscroll={appSettings.upscroll}
                       zenMode={zenMode}
                       onPlaceNote={noop}
                       onDeleteNote={noop}
@@ -2887,7 +3421,23 @@ export default function App() {
               )}
             </div>
             </div>
-            {audioFile && hasProject && !zenMode && (
+            {hasProject && (
+              <PlaytestOverlay
+                state={playtest}
+                ended={playtest.ended}
+                paused={playtest.paused}
+                settings={playtestSettings}
+                windows={playtestWindows}
+                currentTimeMs={audio.currentTime}
+                skin={skin}
+                keyCount={active.keyCount}
+                heldCodes={heldPlaytestKeys}
+                onContinue={resumePlaytest}
+                onRetry={restartPlaytest}
+                onReturn={exitPlaytest}
+              />
+            )}
+            {audioFile && hasProject && !zenMode && !playtest.active && (
               <PPCounter
                 notes={active.notes}
                 keyCount={active.keyCount}
@@ -2895,16 +3445,18 @@ export default function App() {
                 onPlaybackRateChange={audio.setPlaybackRate}
               />
             )}
-            <button
-              type="button"
-              onClick={() => setModal("info")}
-              className="absolute bottom-3 left-3 z-30 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-ink-900/62 font-serif text-lg font-semibold text-slate-100 shadow-xl shadow-black/25 backdrop-blur-xl transition hover:border-slate-500/80 hover:bg-white/10"
-              aria-label="Open shortcuts and functions"
-              title="Shortcuts and functions"
-            >
-              i
-            </button>
-            {hasProject && !zenMode && eligibleRefs.length > 0 && (
+            {!playtest.active && (
+              <button
+                type="button"
+                onClick={() => setModal("info")}
+                className="absolute bottom-3 left-3 z-30 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-ink-900/62 font-serif text-lg font-semibold text-slate-100 shadow-xl shadow-black/25 backdrop-blur-xl transition hover:border-slate-500/80 hover:bg-white/10"
+                aria-label="Open shortcuts and functions"
+                title="Shortcuts and functions"
+              >
+                i
+              </button>
+            )}
+            {hasProject && !zenMode && !playtest.active && eligibleRefs.length > 0 && (
               <div className="absolute left-3 top-14 z-30 rounded-lg border border-white/10 bg-ink-900/62 shadow-xl shadow-black/20 backdrop-blur-xl">
                 <Menu
                   label={
@@ -3077,6 +3629,14 @@ export default function App() {
         onDimBackground={(v) =>
           setAppSettings((s) => ({ ...s, dimBackground: v }))
         }
+        smoothScrolling={appSettings.smoothScrolling}
+        onSmoothScrolling={(v) =>
+          setAppSettings((s) => ({ ...s, smoothScrolling: v }))
+        }
+        upscroll={appSettings.upscroll}
+        onUpscroll={(v) => setAppSettings((s) => ({ ...s, upscroll: v }))}
+        playtest={appSettings.playtest}
+        onPlaytest={(v) => setAppSettings((s) => ({ ...s, playtest: v }))}
         localAutosaveEnabled={appSettings.localAutosaveEnabled}
         onLocalAutosaveEnabled={(v) =>
           setAppSettings((s) => ({ ...s, localAutosaveEnabled: v }))
@@ -3346,6 +3906,35 @@ export default function App() {
         <p className="text-sm text-slate-300">
           This will open the home screen. Your current project stays in the
           editor — you can come back to it at any time.
+        </p>
+      </Modal>
+
+      {/* Delete-difficulty confirmation */}
+      <Modal
+        open={pendingDeleteDiffId !== null}
+        onClose={() => setPendingDeleteDiffId(null)}
+        title="Delete difficulty?"
+        footer={
+          <>
+            <Button onClick={() => setPendingDeleteDiffId(null)}>Cancel</Button>
+            <Button
+              variant="accent"
+              onClick={() => {
+                if (pendingDeleteDiffId) deleteDifficulty(pendingDeleteDiffId);
+                setPendingDeleteDiffId(null);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-300">
+          {(() => {
+            const d = difficulties.find((x) => x.id === pendingDeleteDiffId);
+            const name = d?.name?.trim() || "This difficulty";
+            return `“${name}” and all its notes will be removed. This can't be undone.`;
+          })()}
         </p>
       </Modal>
     </div>

@@ -157,6 +157,104 @@ export function useHitsounds(
     loadingRef.current.clear();
   }, [skinHitsounds]);
 
+  const sourceFor = useCallback(
+    (
+      base: string,
+      fallbackBase = base.replace(/\d+$/, ""),
+    ):
+      | { key: string; load: () => Promise<ArrayBuffer> }
+      | null => {
+      const skinSamples = stateRef.current.skinHitsounds;
+      const skinHit = skinSamples?.[base] ?? skinSamples?.[fallbackBase];
+      if (skinHit) {
+        const key = `skin:${skinSamples?.[base] ? base : fallbackBase}`;
+        return { key, load: () => skinHit.arrayBuffer() };
+      }
+      if (DEFAULT_SAMPLE_BASES.includes(fallbackBase)) {
+        return {
+          key: `default:${fallbackBase}`,
+          load: () => fetch(sampleUrl(fallbackBase)).then((r) => r.arrayBuffer()),
+        };
+      }
+      return null;
+    },
+    [],
+  );
+
+  const getBuffer = useCallback(
+    (ctx: AudioContext, base: string): AudioBuffer | null => {
+      const source = sourceFor(base);
+      if (!source) return null;
+      const { key } = source;
+      const existing = buffersRef.current.get(key);
+      if (existing) return existing;
+      if (!loadingRef.current.has(key)) {
+        loadingRef.current.add(key);
+        void source
+          .load()
+          .then((buf) => ctx.decodeAudioData(buf))
+          .then((decoded) => buffersRef.current.set(key, decoded))
+          .catch(() => {
+            /* missing / unsupported - that sample stays silent */
+          })
+          .finally(() => loadingRef.current.delete(key));
+      }
+      return null;
+    },
+    [sourceFor],
+  );
+
+  const playSample = useCallback(
+    (
+      ctx: AudioContext,
+      setPrefix: string,
+      sound: string,
+      sampleIndex: number,
+      gainValue: number,
+    ) => {
+      if (gainValue <= 0) return;
+      const indexSuffix = sampleIndex > 1 ? String(sampleIndex) : "";
+      const buffer = getBuffer(ctx, `${setPrefix}-hit${sound}${indexSuffix}`);
+      if (!buffer) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = gainValue;
+      src.connect(gain).connect(
+        filterRef.current ?? masterGainRef.current ?? ctx.destination,
+      );
+      src.start();
+    },
+    [getBuffer],
+  );
+
+  const playNote = useCallback(
+    (note: ManiaNote) => {
+      const ctx = ensureCtx();
+      if (!ctx) return;
+      const s = stateRef.current;
+      const tp = activeTimingAt(note.startTime, s.timingPoints);
+      const normalSet = note.sampleSet || tp.sampleSet || 1;
+      const additionSet = note.additionSet || normalSet;
+      const normalPrefix = SET_PREFIX[normalSet] ?? "normal";
+      const additionPrefix = SET_PREFIX[additionSet] ?? "normal";
+      const sampleIndex = note.sampleIndex || tp.sampleIndex || 0;
+      const volPct = note.sampleVolume || tp.volume || 100;
+      const gainValue = volPct / 100;
+      if (gainValue <= 0) return;
+
+      playSample(ctx, normalPrefix, "normal", sampleIndex, gainValue);
+      const adds = note.hitSound ?? 0;
+      if (adds & HITSOUND_WHISTLE)
+        playSample(ctx, additionPrefix, "whistle", sampleIndex, gainValue);
+      if (adds & HITSOUND_FINISH)
+        playSample(ctx, additionPrefix, "finish", sampleIndex, gainValue);
+      if (adds & HITSOUND_CLAP)
+        playSample(ctx, additionPrefix, "clap", sampleIndex, gainValue);
+    },
+    [ensureCtx, playSample],
+  );
+
   useEffect(() => {
     if (!enabled) {
       lastTimeRef.current = null;
@@ -317,4 +415,6 @@ export function useHitsounds(
       buffersRef.current.clear();
     };
   }, []);
+
+  return { playNote };
 }

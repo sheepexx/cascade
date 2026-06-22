@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase, getSupabaseToken } from "../lib/supabase";
-import type { CollabOp, DocState } from "../lib/ops";
+import type { CollabOp } from "../lib/ops";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -36,13 +36,16 @@ function restBroadcast(projectId: string, event: string, payload: unknown): void
  *
  * Joins a private `project:<id>` channel and provides:
  *  - granular note-op broadcast (`sendOp`) + receive (`onRemoteOp`),
- *  - whole-document sync (`sendDoc`) for structural changes + the join handoff,
+ *  - cloud-backed structural sync: `sendRefresh()` pings peers (`onRefresh`) to
+ *    re-pull the chart from the cloud after a structural change or the join
+ *    handoff — the whole document never goes over the wire, so it can't hit
+ *    Realtime's broadcast size limit on large maps,
  *  - presence (who's online + where they're working).
  *
  * Presence is implemented as periodic `presence` broadcasts (a heartbeat) plus a
  * prune timer, rather than Supabase Presence, because Presence rides the same
- * unreliable WS push. On join it asks peers for the freshest in-memory document
- * (`sync.request`); a present peer answers with a `doc` broadcast.
+ * unreliable WS push. On join it asks peers to flush the freshest chart to the
+ * cloud (`sync.request`); a present editor answers by saving + `sendRefresh()`.
  */
 
 export type Peer = {
@@ -84,8 +87,10 @@ export function useCollab(opts: {
   enabled: boolean;
   me: Me | null;
   onRemoteOp: (op: CollabOp) => void;
-  onRemoteDoc: (doc: DocState) => void;
-  getDoc: () => DocState;
+  /** A peer signalled a structural change — re-pull the chart from the cloud. */
+  onRefresh: () => void;
+  /** A newcomer asked for the latest — flush our chart to the cloud + ping. */
+  onSyncRequest: () => void;
   /** A collaborator appeared (after we joined) — for join notifications. */
   onPeerJoin?: (peer: Peer) => void;
   /** A collaborator left. */
@@ -100,10 +105,10 @@ export function useCollab(opts: {
   // Keep callbacks/state on refs so the channel effect runs once per project.
   const onRemoteOpRef = useRef(opts.onRemoteOp);
   onRemoteOpRef.current = opts.onRemoteOp;
-  const onRemoteDocRef = useRef(opts.onRemoteDoc);
-  onRemoteDocRef.current = opts.onRemoteDoc;
-  const getDocRef = useRef(opts.getDoc);
-  getDocRef.current = opts.getDoc;
+  const onRefreshRef = useRef(opts.onRefresh);
+  onRefreshRef.current = opts.onRefresh;
+  const onSyncRequestRef = useRef(opts.onSyncRequest);
+  onSyncRequestRef.current = opts.onSyncRequest;
   const onPeerJoinRef = useRef(opts.onPeerJoin);
   onPeerJoinRef.current = opts.onPeerJoin;
   const onPeerLeaveRef = useRef(opts.onPeerLeave);
@@ -142,9 +147,10 @@ export function useCollab(opts: {
     let channel: RealtimeChannel | null = null;
     let reconnectTimer: number | undefined;
     let attempt = 0;
-    // Join handoff: pull the freshest in-memory doc from a present peer. The very
-    // first request can race a peer that hasn't subscribed yet, so retry it (on a
-    // timer and whenever a peer first appears) until a doc actually arrives.
+    // Join handoff: ask a present peer to flush the freshest chart to the cloud
+    // and ping us back, so we re-pull it. The very first request can race a peer
+    // that hasn't subscribed yet, so retry it (on a timer and whenever a peer
+    // first appears) until a refresh ping actually arrives.
     let gotJoinDoc = false;
     const joinSyncTimers: number[] = [];
 
@@ -205,18 +211,18 @@ export function useCollab(opts: {
         if (p?._from && p._from === meRef.current?.id) return; // ignore own echo
         onRemoteOpRef.current(p as CollabOp);
       });
-      ch.on("broadcast", { event: "doc" }, ({ payload }) => {
-        const p = payload as DocState & { _from?: string };
-        if (p?._from && p._from === meRef.current?.id) return;
+      // A peer signalled a structural change (or answered our join handoff): the
+      // fresh chart is already in the cloud, so re-pull it. Carries no document.
+      ch.on("broadcast", { event: "doc.bump" }, ({ payload }) => {
+        if ((payload as { _from?: string })?._from === meRef.current?.id) return;
         gotJoinDoc = true; // handoff satisfied (or a live structural update)
-        onRemoteDocRef.current(p as DocState);
+        onRefreshRef.current();
       });
+      // A newcomer wants the latest: flush our in-memory chart to the cloud and
+      // ping back (the App's handler owns the save + sendRefresh).
       ch.on("broadcast", { event: "sync.request" }, ({ payload }) => {
         if ((payload as { _from?: string })?._from === meRef.current?.id) return;
-        restBroadcast(projectId, "doc", {
-          ...getDocRef.current(),
-          _from: meRef.current?.id,
-        });
+        onSyncRequestRef.current();
       });
       // Presence over broadcast: a peer announced itself (or its position moved).
       ch.on("broadcast", { event: "presence" }, ({ payload }) => {
@@ -315,9 +321,10 @@ export function useCollab(opts: {
     if (!projectId) return;
     restBroadcast(projectId, "op", { ...op, _from: meRef.current?.id });
   };
-  const sendDoc = (doc: DocState) => {
+  /** Ping peers to re-pull the chart from the cloud (after saving it there). */
+  const sendRefresh = () => {
     if (!projectId) return;
-    restBroadcast(projectId, "doc", { ...doc, _from: meRef.current?.id });
+    restBroadcast(projectId, "doc.bump", { _from: meRef.current?.id });
   };
   /** Announce an action to peers (shown as a transient toast on their side). */
   const sendNotice = (text: string) => {
@@ -346,5 +353,5 @@ export function useCollab(opts: {
     }
   };
 
-  return { status, peers, sendOp, sendDoc, updatePresence, sendNotice };
+  return { status, peers, sendOp, sendRefresh, updatePresence, sendNotice };
 }
