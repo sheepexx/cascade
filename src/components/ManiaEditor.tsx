@@ -130,11 +130,20 @@ type Props = {
    */
   consumedIdsRef?: { readonly current: { has(id: string): boolean } };
   /**
-   * Playtest Mode: columns whose key the player is currently holding. Drives the
-   * receptor "pressed" glow from real input instead of from notes passing the
-   * line. Ignored outside playtest.
+   * Playtest Mode: synchronous set of columns whose key the player is currently
+   * holding. Drives the receptor "pressed" glow from real input instead of from
+   * notes passing the line. Read as a ref (not state) so the glow lights the
+   * instant a key goes down, with no React-commit delay. Ignored outside
+   * playtest.
    */
-  pressedColumns?: Set<number>;
+  pressedColumnsRef?: { readonly current: { has(column: number): boolean } };
+  /**
+   * Playtest Mode: "hit position" offset in pixels. Shifts the falling notes
+   * down by this amount so they meet the player below the receptors, without
+   * moving the receptors. Visual only (judgement stays audio-timed) and never
+   * applied in the editor.
+   */
+  hitPositionOffset?: number;
   /**
    * Playtest Mode: the miss-window (ms) for the active OD. A fallen-through note
    * stays fully opaque until it's this far past its time, then fades — so notes
@@ -996,12 +1005,13 @@ export function ManiaEditor(props: Props) {
       const currentTime = liveCurrentTime();
       const intensities = new Array<number>(keyCount).fill(0);
       const pressed = propsRef.current.playtestMode
-        ? propsRef.current.pressedColumns
+        ? propsRef.current.pressedColumnsRef
         : null;
       if (pressed) {
         // Playtest: receptors light up from the player's own key presses, not
         // from notes passing the line (which made them flicker on every note).
-        for (let c = 0; c < keyCount; c++) intensities[c] = pressed.has(c) ? 1 : 0;
+        for (let c = 0; c < keyCount; c++)
+          intensities[c] = pressed.current.has(c) ? 1 : 0;
       } else {
         // Editor preview: light a receptor while a note sits on the line, fading
         // out across the hit window after it passes. Single pass over notes
@@ -1277,7 +1287,17 @@ export function ManiaEditor(props: Props) {
       else ctx.rect(originX, 0, playfieldWidth, phY);
       ctx.clip();
     }
+    // Playtest "hit position" offset: shift the falling notes down by this many
+    // pixels so they line up below the receptors, without moving the receptors
+    // themselves (drawn earlier). Visual only — judgement is audio-timed and
+    // unaffected — and it never applies in the editor.
+    const hitPosOffset = playtest ? propsRef.current.hitPositionOffset ?? 0 : 0;
+    if (hitPosOffset) {
+      ctx.save();
+      ctx.translate(0, hitPosOffset);
+    }
     for (const original of notes) paintNote(original);
+    if (hitPosOffset) ctx.restore();
     if (clipAtLine) ctx.restore();
 
     // ---- Active long-note drag preview ----

@@ -330,18 +330,46 @@ export function AppSettingsModal({
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
-                <span>Offset ms</span>
+                <div className="flex items-center justify-between">
+                  <span>Offset ms</span>
+                  <span className="font-medium text-slate-200">
+                    {playtest.offsetMs} ms
+                  </span>
+                </div>
                 <input
-                  type="number"
-                  min={-250}
-                  max={250}
+                  type="range"
+                  min={-100}
+                  max={100}
                   step={1}
                   value={playtest.offsetMs}
                   onChange={(e) =>
                     patchPlaytest({ offsetMs: Number(e.target.value) })
                   }
-                  className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-slate-400">
+                <div className="flex items-center justify-between">
+                  <span>Hit position offset</span>
+                  <span className="font-medium text-slate-200">
+                    {playtest.hitPositionOffset} px
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={-100}
+                  max={100}
+                  step={1}
+                  value={playtest.hitPositionOffset}
+                  onChange={(e) =>
+                    patchPlaytest({ hitPositionOffset: Number(e.target.value) })
+                  }
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+                />
+                <span className="text-[11px] text-slate-500">
+                  Moves the hit point below (or above) the receptors in playtest
+                  only — the receptors don't move. Visual; doesn't affect timing.
+                </span>
               </label>
             </div>
             <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
