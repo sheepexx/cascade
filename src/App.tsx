@@ -1040,9 +1040,15 @@ export default function App() {
       const droppedEarly = time < held.endTime - releaseWindows.miss;
       playtestHeldLnRef.current.delete(held.id);
       playtestTailJudgedRef.current.add(held.id);
-      consumePlaytestNote(held.id);
       if (droppedEarly) {
+        // Letting go mid-body drops the hold and breaks combo, but the note must
+        // keep falling (like a missed note — see the miss loop) rather than
+        // vanish. Leave it unconsumed so the remaining body scrolls past the
+        // receptors.
         setPlaytest((prev) => (prev.active ? { ...prev, combo: 0 } : prev));
+      } else {
+        // Released near/after the end: the hold completed cleanly, so retire it.
+        consumePlaytestNote(held.id);
       }
     },
     [active.overallDifficulty, consumePlaytestNote, playtestInputTime],
