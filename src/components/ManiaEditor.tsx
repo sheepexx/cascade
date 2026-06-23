@@ -57,10 +57,6 @@ const RECEPTOR_HIT_WINDOW = 90;
 // below the receptors while fading to nothing, so unhit notes visibly fall
 // *through* the line instead of blinking away at it.
 const NOTE_FALLTHROUGH_FADE_MS = 240;
-// Playtest Mode renders off a MessageChannel loop (not vsync-locked) capped to
-// this frame rate, so it runs well above the display refresh without pegging a
-// core at a truly unbounded rate.
-const PLAYTEST_FPS_CAP = 1000;
 
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
@@ -1405,45 +1401,22 @@ export function ManiaEditor(props: Props) {
   ]);
 
   // ---- render loop ---------------------------------------------------------
-  // The editor draws on requestAnimationFrame (synced to the display refresh).
-  // Playtest mode runs at a high frame cap (PLAYTEST_FPS_CAP): a MessageChannel
-  // re-posts immediately — the event loop services it far faster than the
-  // vsync-locked rAF (and faster than setTimeout's ~4ms clamp) — and we draw
-  // only once the frame interval has elapsed, busy-reposting in between. Motion
-  // is dt-based (see updateSmoothMotion), so it stays correct at any frame rate.
+  // requestAnimationFrame is the smoothest option in a browser: the callback is
+  // frame-paced to the compositor, so each draw lines up with a vsync present
+  // (no off-cadence judder) and it runs at the display's full refresh rate —
+  // 60, 144, 360Hz, whatever the monitor does. (A faster off-vsync loop only
+  // draws frames the compositor throws away while burning a core, which makes
+  // playback *less* smooth, not more.) Motion is dt-based (see
+  // updateSmoothMotion) so it's correct at any refresh rate.
   useEffect(() => {
     let raf = 0;
-    let stopped = false;
-    let lastDraw = performance.now();
-    const channel = new MessageChannel();
-    const frameInterval = 1000 / PLAYTEST_FPS_CAP;
-
     const loop = () => {
-      if (stopped) return;
-      if (propsRef.current.playtestMode) {
-        const now = performance.now();
-        if (now - lastDraw >= frameInterval) {
-          lastDraw = now;
-          updateSmoothMotion();
-          draw();
-        }
-        channel.port2.postMessage(0);
-        return;
-      }
       updateSmoothMotion();
       draw();
       raf = requestAnimationFrame(loop);
     };
-
-    channel.port1.onmessage = loop;
-    if (propsRef.current.playtestMode) channel.port2.postMessage(0);
-    else raf = requestAnimationFrame(loop);
-
-    return () => {
-      stopped = true;
-      cancelAnimationFrame(raf);
-      channel.port1.onmessage = null;
-    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, [draw, updateSmoothMotion]);
 
   // ---- Resize handling -----------------------------------------------------
