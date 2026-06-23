@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   SNAP_DIVISORS,
   uid,
@@ -809,6 +809,36 @@ export function ManiaEditor(props: Props) {
     [timeToY],
   );
 
+  // Notes sorted by start time (+ the longest note's duration), so the draw loop
+  // can binary-search the on-screen window instead of scanning the whole map
+  // every frame. maxDur lets us extend the lower bound so a long note that
+  // starts above the view but whose body is still on screen isn't skipped.
+  const sortedNotes = useMemo(() => {
+    const list = [...props.notes].sort((a, b) => a.startTime - b.startTime);
+    let maxDur = 0;
+    for (const n of list) {
+      if (n.endTime !== undefined) {
+        const d = n.endTime - n.startTime;
+        if (d > maxDur) maxDur = d;
+      }
+    }
+    return { list, maxDur };
+  }, [props.notes]);
+  const sortedNotesRef = useRef(sortedNotes);
+  sortedNotesRef.current = sortedNotes;
+
+  // First index in a start-time-sorted array whose startTime >= t (lower bound).
+  const firstNoteFrom = useCallback((list: ManiaNote[], t: number) => {
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid].startTime < t) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }, []);
+
   // ---- Drawing -------------------------------------------------------------
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1030,9 +1060,15 @@ export function ManiaEditor(props: Props) {
           intensities[c] = pressed.current.has(c) ? 1 : 0;
       } else {
         // Editor preview: light a receptor while a note sits on the line, fading
-        // out across the hit window after it passes. Single pass over notes
-        // (O(N) not O(cols×N)).
-        for (const n of notes) {
+        // out across the hit window after it passes. Only notes at/just past the
+        // line matter, so binary-search that window rather than scan every note:
+        // a relevant note has start <= currentTime and end >= currentTime - hit
+        // window, so its start is no earlier than currentTime - maxDur - window.
+        const { list: sorted, maxDur } = sortedNotesRef.current;
+        let i = firstNoteFrom(sorted, currentTime - maxDur - RECEPTOR_HIT_WINDOW);
+        for (; i < sorted.length; i++) {
+          const n = sorted[i];
+          if (n.startTime > currentTime) break;
           const c = n.column;
           if (c < 0 || c >= keyCount) continue;
           const start = n.startTime;
@@ -1312,7 +1348,22 @@ export function ManiaEditor(props: Props) {
       ctx.save();
       ctx.translate(0, hitPosOffset);
     }
-    for (const original of notes) paintNote(original);
+    // Iterate only the notes whose span can reach the screen. While a selection
+    // is being move-dragged, the dragged notes shift in time, so fall back to a
+    // full scan (drags are brief and never the perf-critical playback path).
+    if (move) {
+      for (const original of notes) paintNote(original);
+    } else {
+      const { list: sorted, maxDur } = sortedNotesRef.current;
+      // Extend the lower bound by maxDur so an LN starting above the window but
+      // ending inside it is still drawn; paintNote does the precise per-note cull.
+      let i = firstNoteFrom(sorted, cullLo - maxDur);
+      for (; i < sorted.length; i++) {
+        const n = sorted[i];
+        if (n.startTime > cullHi) break;
+        paintNote(n);
+      }
+    }
     if (hitPosOffset) ctx.restore();
     if (clipAtLine) ctx.restore();
 
