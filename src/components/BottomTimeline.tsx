@@ -170,6 +170,23 @@ export function BottomTimeline({
   >(null);
   const waveformRevealStartRef = useRef(0);
   const revealedWaveformRef = useRef<Waveform | null>(null);
+  // Offscreen cache of the expensive, mostly-static timeline layer (background,
+  // per-pixel waveform, per-note density, timing/bookmark/preview marks). It's
+  // re-rendered only when its inputs change; per frame we just blit it and draw
+  // the moving playhead/peers on top — so playback no longer rebuilds it 360×/s.
+  const staticLayerRef = useRef<HTMLCanvasElement | null>(null);
+  const staticSigRef = useRef<{
+    width: number;
+    dpr: number;
+    waveform: Waveform | null;
+    sensitivity: number;
+    revealWidth: number;
+    notes: unknown;
+    timingPoints: unknown;
+    duration: number;
+    bookmarks: unknown;
+    previewTime: number;
+  } | null>(null);
   // Cache of decoded avatar images (osu! pfps), keyed by URL, for canvas draws.
   const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   // Tooltip shown when hovering a comment marker (author + body).
@@ -293,138 +310,193 @@ export function BottomTimeline({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, HEIGHT);
 
-    // Background
-    ctx.fillStyle = "#16161d";
-    ctx.fillRect(0, 0, width, HEIGHT);
-
-    // ---- Waveform ----
     const midY = WAVE_TOP + WAVE_H / 2;
+
+    // Reveal animation width (the waveform wipes in once on load). Only this and
+    // the cache's other inputs decide whether the static layer must re-render.
+    let revealWidth = width;
     if (waveform) {
-      const { peaks } = waveform;
       const elapsed =
         performance.now() -
         waveformRevealStartRef.current -
         WAVEFORM_REVEAL_DELAY_MS;
-      const progress =
-        revealWaveform
-          ? waveformRevealStartRef.current > 0
-            ? Math.min(1, Math.max(0, elapsed / WAVEFORM_REVEAL_MS))
-            : 0
-          : 1;
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const revealWidth = width * eased;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, WAVE_TOP, revealWidth, WAVE_H);
-      ctx.clip();
-      ctx.fillStyle = "rgba(91,192,255,0.55)";
-      for (let x = 0; x < width; x++) {
-        const idx = Math.floor((x / width) * peaks.length);
-        const amp = Math.min(1, (peaks[idx] ?? 0) * sensitivity);
-        const h = Math.max(1, amp * (WAVE_H / 2));
-        ctx.fillRect(x, midY - h, 1, h * 2);
-      }
-      ctx.restore();
-    } else {
-      ctx.fillStyle = "#272733";
-      ctx.fillRect(0, midY - 1, width, 2);
+      const progress = revealWaveform
+        ? waveformRevealStartRef.current > 0
+          ? Math.min(1, Math.max(0, elapsed / WAVEFORM_REVEAL_MS))
+          : 0
+        : 1;
+      revealWidth = width * (1 - Math.pow(1 - progress, 3));
     }
 
-    // ---- Note density dots ----
-    if (duration > 0 && notes.length > 0) {
-      const counts = new Array<number>(DENSITY_BUCKETS).fill(0);
-      for (const n of notes) {
-        const b = Math.floor((n.startTime / duration) * DENSITY_BUCKETS);
-        if (b >= 0 && b < DENSITY_BUCKETS) counts[b]++;
-        // Long notes also contribute at their end.
-        if (n.endTime !== undefined) {
-          const be = Math.floor((n.endTime / duration) * DENSITY_BUCKETS);
-          if (be >= 0 && be < DENSITY_BUCKETS && be !== b) counts[be]++;
-        }
+    // ---- Static layer (cached) ----
+    const prev = staticSigRef.current;
+    const staticDirty =
+      !prev ||
+      prev.width !== width ||
+      prev.dpr !== dpr ||
+      prev.waveform !== waveform ||
+      prev.sensitivity !== sensitivity ||
+      prev.revealWidth !== Math.round(revealWidth) ||
+      prev.notes !== notes ||
+      prev.timingPoints !== timingPoints ||
+      prev.duration !== duration ||
+      prev.bookmarks !== bookmarks ||
+      prev.previewTime !== previewTime;
+
+    if (staticDirty) {
+      let sc = staticLayerRef.current;
+      if (!sc) {
+        sc = document.createElement("canvas");
+        staticLayerRef.current = sc;
       }
-      let peak = 1;
-      for (const c of counts) if (c > peak) peak = c;
-
-      // Dots inside a kiai section are drawn pink instead of yellow.
-      const kiais = kiaiRanges(timingPoints, duration);
-      const inKiai = (t: number) =>
-        kiais.some((k) => t >= k.start && t < k.end);
-
-      const bw = width / DENSITY_BUCKETS;
-      const dotR = 1.6;
-      const gap = Math.max(2.4, DOT_BAND_H / MAX_DOTS);
-      for (let i = 0; i < DENSITY_BUCKETS; i++) {
-        const c = counts[i];
-        if (c === 0) continue;
-        const bucketTime = ((i + 0.5) / DENSITY_BUCKETS) * duration;
-        ctx.fillStyle = inKiai(bucketTime) ? "#e86868" : "#ffd23f";
-        const dots = Math.max(1, Math.round((c / peak) * MAX_DOTS));
-        const cx = i * bw + bw / 2;
-        for (let d = 0; d < dots; d++) {
-          const cy = DOT_BAND_H - 2 - d * gap;
-          if (cy < 2) break;
-          ctx.beginPath();
-          ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
-          ctx.fill();
-        }
+      const bw = Math.max(1, Math.floor(width * dpr));
+      const bh = Math.max(1, Math.floor(HEIGHT * dpr));
+      if (sc.width !== bw || sc.height !== bh) {
+        sc.width = bw;
+        sc.height = bh;
       }
-    }
+      const sctx = sc.getContext("2d");
+      if (sctx) {
+        sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        sctx.clearRect(0, 0, width, HEIGHT);
 
-    // ---- Timing point markers: red (uninherited) + green (inherited SV) ----
-    if (duration > 0) {
-      for (const tp of timingPoints) {
-        if (tp.time < 0 || tp.time > duration) continue;
-        const tx = (tp.time / duration) * width;
-        if (tp.uninherited) {
-          ctx.fillStyle = "#ff2d6f";
-          ctx.fillRect(tx, WAVE_TOP, 1.5, WAVE_H);
-          ctx.beginPath();
-          ctx.moveTo(tx, WAVE_TOP);
-          ctx.lineTo(tx + 5, WAVE_TOP);
-          ctx.lineTo(tx, WAVE_TOP + 5);
-          ctx.fill();
+        // Background
+        sctx.fillStyle = "#16161d";
+        sctx.fillRect(0, 0, width, HEIGHT);
+
+        // ---- Waveform ----
+        if (waveform) {
+          const { peaks } = waveform;
+          sctx.save();
+          sctx.beginPath();
+          sctx.rect(0, WAVE_TOP, revealWidth, WAVE_H);
+          sctx.clip();
+          sctx.fillStyle = "rgba(91,192,255,0.55)";
+          for (let x = 0; x < width; x++) {
+            const idx = Math.floor((x / width) * peaks.length);
+            const amp = Math.min(1, (peaks[idx] ?? 0) * sensitivity);
+            const h = Math.max(1, amp * (WAVE_H / 2));
+            sctx.fillRect(x, midY - h, 1, h * 2);
+          }
+          sctx.restore();
         } else {
-          ctx.fillStyle = "#2dd4bf";
-          ctx.fillRect(tx, WAVE_TOP + WAVE_H * 0.4, 1.2, WAVE_H * 0.6);
+          sctx.fillStyle = "#272733";
+          sctx.fillRect(0, midY - 1, width, 2);
+        }
+
+        // ---- Note density dots ----
+        if (duration > 0 && notes.length > 0) {
+          const counts = new Array<number>(DENSITY_BUCKETS).fill(0);
+          for (const n of notes) {
+            const b = Math.floor((n.startTime / duration) * DENSITY_BUCKETS);
+            if (b >= 0 && b < DENSITY_BUCKETS) counts[b]++;
+            // Long notes also contribute at their end.
+            if (n.endTime !== undefined) {
+              const be = Math.floor((n.endTime / duration) * DENSITY_BUCKETS);
+              if (be >= 0 && be < DENSITY_BUCKETS && be !== b) counts[be]++;
+            }
+          }
+          let peak = 1;
+          for (const c of counts) if (c > peak) peak = c;
+
+          // Dots inside a kiai section are drawn pink instead of yellow.
+          const kiais = kiaiRanges(timingPoints, duration);
+          const inKiai = (t: number) =>
+            kiais.some((k) => t >= k.start && t < k.end);
+
+          const bw2 = width / DENSITY_BUCKETS;
+          const dotR = 1.6;
+          const gap = Math.max(2.4, DOT_BAND_H / MAX_DOTS);
+          for (let i = 0; i < DENSITY_BUCKETS; i++) {
+            const c = counts[i];
+            if (c === 0) continue;
+            const bucketTime = ((i + 0.5) / DENSITY_BUCKETS) * duration;
+            sctx.fillStyle = inKiai(bucketTime) ? "#e86868" : "#ffd23f";
+            const dots = Math.max(1, Math.round((c / peak) * MAX_DOTS));
+            const cx = i * bw2 + bw2 / 2;
+            for (let d = 0; d < dots; d++) {
+              const cy = DOT_BAND_H - 2 - d * gap;
+              if (cy < 2) break;
+              sctx.beginPath();
+              sctx.arc(cx, cy, dotR, 0, Math.PI * 2);
+              sctx.fill();
+            }
+          }
+        }
+
+        // ---- Timing point markers: red (uninherited) + green (inherited SV) ----
+        if (duration > 0) {
+          for (const tp of timingPoints) {
+            if (tp.time < 0 || tp.time > duration) continue;
+            const tx = (tp.time / duration) * width;
+            if (tp.uninherited) {
+              sctx.fillStyle = "#ff2d6f";
+              sctx.fillRect(tx, WAVE_TOP, 1.5, WAVE_H);
+              sctx.beginPath();
+              sctx.moveTo(tx, WAVE_TOP);
+              sctx.lineTo(tx + 5, WAVE_TOP);
+              sctx.lineTo(tx, WAVE_TOP + 5);
+              sctx.fill();
+            } else {
+              sctx.fillStyle = "#2dd4bf";
+              sctx.fillRect(tx, WAVE_TOP + WAVE_H * 0.4, 1.2, WAVE_H * 0.6);
+            }
+          }
+        }
+
+        // ---- Bookmarks (indigo flags over the waveform) ----
+        if (duration > 0 && bookmarks?.length) {
+          for (const b of bookmarks) {
+            if (b < 0 || b > duration) continue;
+            const bx = (b / duration) * width;
+            sctx.strokeStyle = "#818cf8";
+            sctx.globalAlpha = 0.5;
+            sctx.lineWidth = 1;
+            sctx.beginPath();
+            sctx.moveTo(bx, WAVE_TOP);
+            sctx.lineTo(bx, HEIGHT);
+            sctx.stroke();
+            sctx.globalAlpha = 1;
+            // Small downward flag at the top of the waveform band.
+            sctx.fillStyle = "#818cf8";
+            sctx.beginPath();
+            sctx.moveTo(bx - 4, WAVE_TOP);
+            sctx.lineTo(bx + 4, WAVE_TOP);
+            sctx.lineTo(bx, WAVE_TOP + 5);
+            sctx.closePath();
+            sctx.fill();
+          }
+        }
+
+        // ---- Preview point marker (purple tick) ----
+        if (duration > 0 && previewTime >= 0 && previewTime <= duration) {
+          const px = (previewTime / duration) * width;
+          sctx.fillStyle = "#c084fc";
+          sctx.fillRect(px, WAVE_TOP, 2, WAVE_H);
+          sctx.beginPath();
+          sctx.moveTo(px, WAVE_TOP);
+          sctx.lineTo(px + 7, WAVE_TOP);
+          sctx.lineTo(px, WAVE_TOP + 7);
+          sctx.fill();
         }
       }
+
+      staticSigRef.current = {
+        width,
+        dpr,
+        waveform,
+        sensitivity,
+        revealWidth: Math.round(revealWidth),
+        notes,
+        timingPoints,
+        duration,
+        bookmarks,
+        previewTime,
+      };
     }
 
-    // ---- Bookmarks (indigo flags over the waveform) ----
-    if (duration > 0 && bookmarks?.length) {
-      for (const b of bookmarks) {
-        if (b < 0 || b > duration) continue;
-        const bx = (b / duration) * width;
-        ctx.strokeStyle = "#818cf8";
-        ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(bx, WAVE_TOP);
-        ctx.lineTo(bx, HEIGHT);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        // Small downward flag at the top of the waveform band.
-        ctx.fillStyle = "#818cf8";
-        ctx.beginPath();
-        ctx.moveTo(bx - 4, WAVE_TOP);
-        ctx.lineTo(bx + 4, WAVE_TOP);
-        ctx.lineTo(bx, WAVE_TOP + 5);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
-
-    // ---- Preview point marker (purple tick) ----
-    if (duration > 0 && previewTime >= 0 && previewTime <= duration) {
-      const px = (previewTime / duration) * width;
-      ctx.fillStyle = "#c084fc";
-      ctx.fillRect(px, WAVE_TOP, 2, WAVE_H);
-      ctx.beginPath();
-      ctx.moveTo(px, WAVE_TOP);
-      ctx.lineTo(px + 7, WAVE_TOP);
-      ctx.lineTo(px, WAVE_TOP + 7);
-      ctx.fill();
+    if (staticLayerRef.current) {
+      ctx.drawImage(staticLayerRef.current, 0, 0, width, HEIGHT);
     }
 
     // ---- Played region tint ----
