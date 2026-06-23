@@ -337,6 +337,18 @@ export function ManiaEditor(props: Props) {
   );
 
   const sizeRef = useRef({ width: 800, height: 600, dpr: 1 });
+  // FPS / frame-time diagnostic HUD, shown only when the page URL has ?fps.
+  // `drawMs` is how long draw() itself takes (CPU cost); `fps` is the actual
+  // rate the rAF loop is being serviced at (i.e. what Chrome is presenting).
+  const fpsHudRef = useRef({
+    show:
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("fps"),
+    frames: 0,
+    windowStart: typeof performance !== "undefined" ? performance.now() : 0,
+    fps: 0,
+    drawMs: 0,
+  });
   const mouseRef = useRef<{ x: number; y: number; inside: boolean }>({
     x: 0,
     y: 0,
@@ -1389,6 +1401,20 @@ export function ManiaEditor(props: Props) {
       ctx.restore();
     }
 
+    // ---- FPS / frame-time HUD (?fps) ----
+    const hud = fpsHudRef.current;
+    if (hud.show) {
+      const label = `${hud.fps.toFixed(0)} fps · ${hud.drawMs.toFixed(2)} ms draw · ${notes.length} notes`;
+      ctx.font = `12px ${CANVAS_FONT_STACK}`;
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(6, 6, tw + 12, 20);
+      ctx.fillStyle = "#7CFC00";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, 12, 17);
+    }
+
     ctx.restore();
   }, [
     columnAtX,
@@ -1412,7 +1438,21 @@ export function ManiaEditor(props: Props) {
     let raf = 0;
     const loop = () => {
       updateSmoothMotion();
-      draw();
+      const hud = fpsHudRef.current;
+      if (hud.show) {
+        const t0 = performance.now();
+        draw();
+        hud.drawMs = performance.now() - t0;
+        hud.frames++;
+        // Roll up the measured fps once per second.
+        if (t0 - hud.windowStart >= 1000) {
+          hud.fps = (hud.frames * 1000) / (t0 - hud.windowStart);
+          hud.frames = 0;
+          hud.windowStart = t0;
+        }
+      } else {
+        draw();
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
