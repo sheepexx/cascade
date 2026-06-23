@@ -28,8 +28,9 @@ function sampleUrl(base: string): string {
 /**
  * Plays a map's actual osu! hitsounds during playback preview.
  *
- * For every note crossing the judgement line (note heads and long-note tails),
- * it resolves the effective sample set, additions, and volume from the note's
+ * For every note head crossing the judgement line (long-note tails are silent,
+ * as in osu!mania), it resolves the effective sample set, additions, and volume
+ * from the note's
  * own hit-sample data falling back to the active timing point - exactly like
  * osu!mania - and plays the matching bundled samples (normal/soft/drum ×
  * normal/whistle/finish/clap).
@@ -140,8 +141,9 @@ export function useHitsounds(
   useEffect(() => {
     const events: { time: number; note: ManiaNote }[] = [];
     for (const n of notes) {
+      // Only note heads play a hitsound. A long note's tail is a release, not a
+      // hit, so it stays silent — matching osu!mania.
       events.push({ time: n.startTime, note: n });
-      if (n.endTime !== undefined) events.push({ time: n.endTime, note: n });
     }
     events.sort((a, b) => a.time - b.time);
     eventsRef.current = events;
