@@ -345,6 +345,11 @@ export function useAudio(
     const ctx = ensureCtx();
     const gain = gainRef.current;
     if (!audioBuffer || !ctx || !gain) return false;
+    // Kill any source still playing first, so a second start (e.g. seek-then-
+    // play, or starting playtest while already playing) can never orphan the
+    // previous source — an orphan keeps sounding forever and a later pause,
+    // which only stops the *current* sourceRef, can't silence it.
+    stopWeb(false);
 
     const durMs =
       Number.isFinite(duration) && duration > 0
@@ -385,7 +390,7 @@ export function useAudio(
     source.start(0, positionRef.current);
     sourceRef.current = source;
     return true;
-  }, [duration, ensureCtx, scheduleFadeEnvelope]);
+  }, [duration, ensureCtx, scheduleFadeEnvelope, stopWeb]);
 
   // Latest startWeb, so effects can hand off to Web Audio without taking
   // startWeb as a dependency (which would re-run them when `duration` changes).
@@ -559,10 +564,14 @@ export function useAudio(
     // buffer is decoded, the element during the decode window) is now stopped,
     // so pause can never leave one engine playing after an engine switch.
     const audio = audioRef.current;
-    if (sourceRef.current) {
+    const webWasPlaying = sourceRef.current !== null;
+    if (webWasPlaying) {
       stopWeb(true); // saves positionRef from the live Web Audio clock
-    } else if (audio && !audio.paused) {
-      positionRef.current = audio.currentTime;
+    }
+    // Always stop the element too — never gate this on which engine we *think*
+    // was sounding. If both somehow ran, stopping only one leaves audio playing.
+    if (audio && !audio.paused) {
+      if (!webWasPlaying) positionRef.current = audio.currentTime;
       audio.pause();
     }
     setCurrentTime(positionRef.current * 1000);
