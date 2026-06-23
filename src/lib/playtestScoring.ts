@@ -5,8 +5,26 @@ import {
   type ManiaJudgement,
 } from "./playtestJudgements";
 
+/**
+ * Per-judgement *score* value. MAX (300g) is worth more than a 300 here — it
+ * matters for score, not for accuracy.
+ */
 export const JUDGEMENT_WEIGHTS: Record<ManiaJudgement, number> = {
   max: 320,
+  "300": 300,
+  "200": 200,
+  "100": 100,
+  "50": 50,
+  miss: 0,
+};
+
+/**
+ * Per-judgement *accuracy* value (osu!mania). Unlike score, MAX is lumped in
+ * with the 300: both are worth 300, so a 300 is a perfect hit and never lowers
+ * accuracy. Accuracy = (300·(MAX+300) + 200·200 + 100·100 + 50·50) / (300·total).
+ */
+export const ACCURACY_WEIGHTS: Record<ManiaJudgement, number> = {
+  max: 300,
   "300": 300,
   "200": 200,
   "100": 100,
@@ -27,10 +45,10 @@ export function accuracyFromCounts(counts: JudgementCounts): number {
     counts.miss;
   if (total === 0) return 100;
   const weighted = (Object.keys(counts) as ManiaJudgement[]).reduce(
-    (sum, j) => sum + counts[j] * JUDGEMENT_WEIGHTS[j],
+    (sum, j) => sum + counts[j] * ACCURACY_WEIGHTS[j],
     0,
   );
-  return (weighted / (total * JUDGEMENT_WEIGHTS.max)) * 100;
+  return (weighted / (total * ACCURACY_WEIGHTS.max)) * 100;
 }
 
 export function scoreFromResults(results: HitResult[]): number {

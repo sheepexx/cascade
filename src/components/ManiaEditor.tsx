@@ -114,11 +114,33 @@ type Props = {
   /** Gameplay preview: render only and block every editor interaction. */
   playtestMode?: boolean;
   /**
-   * Playtest Mode: ids of long notes the player is currently holding. Held LNs
-   * stay pinned to the judgement line; every other note that passes the line
-   * unhit falls through it. Ignored outside playtest.
+   * Playtest Mode: a live ref to the ids of long notes the player is currently
+   * holding. Held LNs stay pinned to the judgement line; every other note that
+   * passes the line unhit falls through it. A ref (read each frame by the canvas)
+   * rather than a prop so a press reflects on the very next frame — no React
+   * render delay, which would make a held LN flicker on the frame it's caught.
+   * Ignored outside playtest.
    */
-  heldLnIds?: Set<string>;
+  heldLnIdsRef?: { readonly current: { has(id: string): boolean } };
+  /**
+   * Playtest Mode: a live ref to the ids of notes already consumed (hit, or a
+   * long note whose hold has ended). Read each frame so a consumed note vanishes
+   * immediately instead of lingering a frame until React state catches up.
+   * Ignored outside playtest.
+   */
+  consumedIdsRef?: { readonly current: { has(id: string): boolean } };
+  /**
+   * Playtest Mode: columns whose key the player is currently holding. Drives the
+   * receptor "pressed" glow from real input instead of from notes passing the
+   * line. Ignored outside playtest.
+   */
+  pressedColumns?: Set<number>;
+  /**
+   * Playtest Mode: the miss-window (ms) for the active OD. A fallen-through note
+   * stays fully opaque until it's this far past its time, then fades — so notes
+   * never dim while they're still hittable. Ignored outside playtest.
+   */
+  missWindowMs?: number;
   /** Hide the on-canvas hint overlays (used by the read-only reference view). */
   hideHints?: boolean;
   /** Editor bookmarks (ms) to draw as lines in the playfield. */
@@ -1027,12 +1049,15 @@ export function ManiaEditor(props: Props) {
     // trimmed at the line too. With receptors off, draw the full playfield so
     // past notes stay visible for editing.
     const clipNotes = receptorsOnRef.current;
-    // Playtest Mode lets notes the player misses keep falling *through* the
-    // receptors (drawn below the line in a second pass) rather than vanishing at
-    // them. Held long notes are the exception — they stay pinned to the line
-    // while held — so the renderer needs to know which LNs are currently held.
+    // Playtest Mode draws notes unclipped so a note the player misses keeps
+    // falling *through* the receptors and off-screen, instead of vanishing at
+    // the line like the editor preview does. Held long notes are the exception:
+    // they pin to the line while held. The editor preview (not playtest) keeps
+    // clipping at the line.
     const playtest = !!propsRef.current.playtestMode;
-    const heldLnIds = propsRef.current.heldLnIds;
+    const heldLnIdsRef = propsRef.current.heldLnIdsRef;
+    const consumedIdsRef = propsRef.current.consumedIdsRef;
+    const missWindowMs = propsRef.current.missWindowMs ?? 0;
     const move = moveDragRef.current;
     // Cull notes whose whole span lies off-screen so big maps only pay for the
     // ~screenful of notes actually visible. topTime is the time at the top of
@@ -1042,11 +1067,14 @@ export function ManiaEditor(props: Props) {
     const cullLo = bottomTime - cullMarginMs;
     const cullHi = topTime + cullMarginMs;
 
-    // Draw a single note. Called twice in Playtest Mode: once for the normal
-    // above-line pass, and once (with `fallThrough`) for missed notes sliding
-    // below the line. `fallThrough` skips the vanish-at-line cull and the held
-    // head-pin so the note keeps its true position and falls past as one piece.
-    const paintNote = (original: ManiaNote, fallThrough: boolean) => {
+    // Draw a single note for the current frame. In Playtest Mode a held long
+    // note pins to the line, while a note the player missed keeps falling and
+    // fades out once it's past the miss window. The editor preview (not playtest)
+    // simply vanishes notes at the line when receptors are on.
+    const paintNote = (original: ManiaNote) => {
+      // A consumed note (hit, or a long note whose hold has ended) vanishes at
+      // once — checked via the live ref so it doesn't linger a frame.
+      if (playtest && consumedIdsRef?.current.has(original.id)) return;
       const selected = selectedNoteIdsRef.current.has(original.id);
       // While dragging the selection, draw selected notes at their offset.
       const note =
@@ -1062,24 +1090,28 @@ export function ManiaEditor(props: Props) {
         if (nMax < cullLo || nMin > cullHi) return;
       }
       const isLN = note.endTime !== undefined && note.endTime > note.startTime;
-      // A long note counts as "held" only in Playtest Mode while its id is in the
-      // held set; that keeps it pinned to the line until its tail arrives.
-      const held = playtest && isLN && !!heldLnIds?.has(note.id);
-      // With receptors on, a note vanishes once it can no longer be played: a
-      // held LN persists until its tail reaches the line, everything else goes
-      // the instant its head lands. In the editor (no playtest) a note stays
-      // until its whole body has passed, exactly as before. The fall-through
-      // pass skips this so missed notes keep sliding below the line.
-      if (clipNotes && !fallThrough) {
-        const goneAt = playtest
-          ? held
-            ? note.endTime!
-            : note.startTime
-          : isLN
-            ? note.endTime!
-            : note.startTime;
+      // A long note is "held" only in Playtest Mode while its id is in the live
+      // held ref; that pins it to the line until its tail arrives.
+      const held = playtest && isLN && !!heldLnIdsRef?.current.has(note.id);
+      // Editor preview (receptors on, not playtest): a note vanishes once it
+      // reaches the line — a rice at its head, a long note once its whole body
+      // has passed. Playtest never culls here; missed notes fall through and are
+      // removed only when off-screen (span cull above) or fully faded below.
+      if (clipNotes && !playtest) {
+        const goneAt = isLN ? note.endTime! : note.startTime;
         if (liveCurrentTime() > goneAt) return;
       }
+      // Playtest: a missed note (past the line, not held) stays fully opaque
+      // while it's still hittable, then fades out once past the miss window.
+      let alpha = 1;
+      if (playtest && !held) {
+        const sinceMiss = liveCurrentTime() - note.startTime - missWindowMs;
+        if (sinceMiss > 0) {
+          alpha = 1 - sinceMiss / NOTE_FALLTHROUGH_FADE_MS;
+          if (alpha <= 0) return;
+        }
+      }
+      ctx.globalAlpha = alpha;
       const x = originX + note.column * laneWidth;
       const cr = skinCols[note.column];
       // Default look only: notes inside a kiai section turn blue - based on the
@@ -1118,13 +1150,11 @@ export function ManiaEditor(props: Props) {
       if (note.endTime !== undefined && note.endTime > note.startTime) {
         const yStart = timeToY(note.startTime);
         const yEnd = timeToY(note.endTime);
-        // While receptors are on, pin a held LN's head to the judgement line so
-        // its circle stays put (like gameplay) until the body has fully fallen
-        // through, instead of sliding past the line and being clipped away. The
-        // pin clamps toward the line, which is below the head (downscroll) or
-        // above it (upscroll). In Playtest Mode only an actually-held LN pins;
-        // a missed one (or the fall-through pass) keeps its real head position.
-        const pin = clipNotes && !fallThrough && (!playtest || held);
+        // Pin the head to the judgement line so it stays put (like gameplay)
+        // until the body has fallen through. In Playtest Mode only an actually
+        // held LN pins (a missed one keeps its real head position and falls
+        // through); in the editor preview every LN pins while receptors are on.
+        const pin = playtest ? held : clipNotes;
         const headY = pin
           ? up
             ? Math.max(yStart, phY)
@@ -1232,50 +1262,23 @@ export function ManiaEditor(props: Props) {
           }
         }
       }
+      ctx.globalAlpha = 1;
     };
 
-    // Pass 1: the falling notes above the receptors (and any held LN pinned to
-    // the line). Clipped to the approach side so notes vanish at the line.
-    if (clipNotes) {
+    // Editor preview clips notes to the approach side so they vanish at the
+    // receptors. Playtest draws unclipped so a missed note falls through the
+    // line and off the bottom in one piece (held LNs are pinned to the line by
+    // paintNote, and hit notes are removed upstream so they never reach here).
+    const clipAtLine = clipNotes && !playtest;
+    if (clipAtLine) {
       ctx.save();
       ctx.beginPath();
-      // Clip to the side notes approach from: above the line (downscroll) or
-      // below it (upscroll), so notes vanish at the receptors like gameplay.
       if (up) ctx.rect(originX, phY, playfieldWidth, height - phY);
       else ctx.rect(originX, 0, playfieldWidth, phY);
       ctx.clip();
     }
-    for (const original of notes) paintNote(original, false);
-    if (clipNotes) ctx.restore();
-
-    // Pass 2 (Playtest Mode): a note the player failed to hit keeps falling
-    // *through* the receptors and fades out below the line instead of blinking
-    // away at it. Clipped to the exit side so this only adds the below-line
-    // continuation — the above-line part was already drawn (and culled) by pass
-    // 1. Notes the player did hit are removed upstream and never reach here.
-    if (playtest && clipNotes) {
-      ctx.save();
-      ctx.beginPath();
-      if (up) ctx.rect(originX, 0, playfieldWidth, phY);
-      else ctx.rect(originX, phY, playfieldWidth, height - phY);
-      ctx.clip();
-      for (const original of notes) {
-        const isLN =
-          original.endTime !== undefined && original.endTime > original.startTime;
-        // Held LNs stay pinned in pass 1; they aren't falling through yet.
-        if (isLN && heldLnIds?.has(original.id)) continue;
-        // Only notes whose head has already reached the line are falling through.
-        const past = liveCurrentTime() - original.startTime;
-        if (past <= 0) continue;
-        const alpha = 1 - past / NOTE_FALLTHROUGH_FADE_MS;
-        if (alpha <= 0) continue;
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        paintNote(original, true);
-        ctx.restore();
-      }
-      ctx.restore();
-    }
+    for (const original of notes) paintNote(original);
+    if (clipAtLine) ctx.restore();
 
     // ---- Active long-note drag preview ----
     const drag = dragRef.current;

@@ -84,6 +84,7 @@ import {
   emptyJudgementCounts,
   judgeHitError,
   maniaJudgementWindows,
+  maniaReleaseWindows,
   type HitResult,
   type PlaytestState,
 } from "./lib/playtestJudgements";
@@ -351,20 +352,16 @@ export default function App() {
   const [playtestConsumedIds, setPlaytestConsumedIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const playtestConsumedRef = useRef(playtestConsumedIds);
-  playtestConsumedRef.current = playtestConsumedIds;
+  // Synchronous source of truth for consumed (hit / completed) notes, mutated
+  // the instant a note is consumed so it disappears on the very next frame. The
+  // state above mirrors it only to trigger re-renders / the editorNotes memo.
+  const playtestConsumedRef = useRef<Set<string>>(new Set());
   const playtestHeadJudgedRef = useRef<Set<string>>(new Set());
   const playtestTailJudgedRef = useRef<Set<string>>(new Set());
   const playtestHeldLnRef = useRef<Map<string, ManiaNote>>(new Map());
   // Running hit-error stats (non-miss hits only) for the unstable-rate bar, kept
   // as a ref so UR is an O(1) update per hit rather than an O(n) recompute.
   const playtestErrStatsRef = useRef({ n: 0, sum: 0, sumSq: 0 });
-  // Ids of long notes currently being held, mirrored as state so the editor can
-  // pin them to the judgement line while every other unhit note falls through.
-  const [playtestHeldLnIds, setPlaytestHeldLnIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-
   // Latest-value refs so collab callbacks (refresh / sync-request) read fresh
   // state without re-subscribing the channel.
   const difficultiesRef = useRef(difficulties);
@@ -890,8 +887,8 @@ export default function App() {
     playtestTailJudgedRef.current = new Set();
     playtestHeldLnRef.current = new Map();
     playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
+    playtestConsumedRef.current = new Set();
     setPlaytestConsumedIds(new Set());
-    setPlaytestHeldLnIds(new Set());
     setPlaytest({
       ...initialPlaytestState(),
       active: true,
@@ -933,21 +930,9 @@ export default function App() {
   }, []);
 
   const consumePlaytestNote = useCallback((id: string) => {
-    setPlaytestConsumedIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-  }, []);
-
-  const removeHeldLnId = useCallback((id: string) => {
-    setPlaytestHeldLnIds((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+    if (playtestConsumedRef.current.has(id)) return;
+    playtestConsumedRef.current.add(id);
+    setPlaytestConsumedIds(new Set(playtestConsumedRef.current));
   }, []);
 
   const playtestInputTime = useCallback(() => {
@@ -1014,11 +999,6 @@ export default function App() {
 
       if (candidate.endTime !== undefined && judgement !== "miss") {
         playtestHeldLnRef.current.set(candidate.id, candidate);
-        setPlaytestHeldLnIds((prev) => {
-          const next = new Set(prev);
-          next.add(candidate.id);
-          return next;
-        });
       } else {
         if (candidate.endTime !== undefined) {
           playtestTailJudgedRef.current.add(candidate.id);
@@ -1045,29 +1025,20 @@ export default function App() {
         (n) => n.column === column,
       );
       if (!held || held.endTime === undefined) return;
-      const windows = maniaJudgementWindows(active.overallDifficulty);
-      const hitError = time - held.endTime;
-      const judgement = judgeHitError(hitError, windows) ?? "miss";
+      // A long note's end is a release timing, not a separate note: releasing
+      // produces no judgement and no hitsound. The note was already scored on
+      // its head. Letting go well before the end drops the hold and breaks the
+      // combo; releasing near or after the end completes it cleanly.
+      const releaseWindows = maniaReleaseWindows(active.overallDifficulty);
+      const droppedEarly = time < held.endTime - releaseWindows.miss;
       playtestHeldLnRef.current.delete(held.id);
-      removeHeldLnId(held.id);
       playtestTailJudgedRef.current.add(held.id);
-      registerPlaytestResult({
-        noteId: held.id,
-        column,
-        time,
-        hitError,
-        judgement,
-        part: "ln-tail",
-      });
       consumePlaytestNote(held.id);
+      if (droppedEarly) {
+        setPlaytest((prev) => (prev.active ? { ...prev, combo: 0 } : prev));
+      }
     },
-    [
-      active.overallDifficulty,
-      consumePlaytestNote,
-      removeHeldLnId,
-      playtestInputTime,
-      registerPlaytestResult,
-    ],
+    [active.overallDifficulty, consumePlaytestNote, playtestInputTime],
   );
 
   const exitPlaytest = useCallback(() => {
@@ -1077,8 +1048,8 @@ export default function App() {
     playtestTailJudgedRef.current = new Set();
     playtestHeldLnRef.current = new Map();
     playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
+    playtestConsumedRef.current = new Set();
     setPlaytestConsumedIds(new Set());
-    setPlaytestHeldLnIds(new Set());
   }, [audio]);
 
   const startPlaytest = useCallback(
@@ -1096,8 +1067,10 @@ export default function App() {
   );
 
   const restartPlaytest = useCallback(() => {
-    startPlaytest(playtestRef.current.startTime || audio.getCurrentTime());
-  }, [audio, startPlaytest]);
+    // Restart from where this run began. Use ?? (not ||) so a run that started
+    // at time 0 doesn't fall through to the current (paused) position.
+    startPlaytest(playtestRef.current.startTime ?? 0);
+  }, [startPlaytest]);
 
   // Pause / resume the run. The pause menu (Continue / Restart / Go to editor)
   // shows whenever `paused` is set; resuming just lets the song keep playing.
@@ -1138,13 +1111,52 @@ export default function App() {
     onRestart: restartPlaytest,
   });
 
+  // Columns the player is currently pressing, for the receptor "pressed" glow.
+  const playtestPressedColumns = useMemo(() => {
+    const keys = playtestSettings.keybinds[active.keyCount] ?? [];
+    const cols = new Set<number>();
+    keys.forEach((code, col) => {
+      if (code && heldPlaytestKeys.has(code)) cols.add(col);
+    });
+    return cols;
+  }, [heldPlaytestKeys, playtestSettings.keybinds, active.keyCount]);
+
+  // Everything the miss-detection loop reads, mirrored into a ref so the rAF
+  // effect can depend only on the run's lifecycle (active/ended/paused) and
+  // subscribe once — instead of tearing down and rescheduling every frame
+  // (which made misses register only intermittently).
+  const playtestTickRef = useRef({
+    audio,
+    active,
+    playtestInputTime,
+    missPlaytestPart,
+    consumePlaytestNote,
+  });
+  playtestTickRef.current = {
+    audio,
+    active,
+    playtestInputTime,
+    missPlaytestPart,
+    consumePlaytestNote,
+  };
+
   useEffect(() => {
     if (!playtest.active || playtest.ended || playtest.paused) return;
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
+      const {
+        audio,
+        active,
+        playtestInputTime,
+        missPlaytestPart,
+        consumePlaytestNote,
+      } = playtestTickRef.current;
       const time = playtestInputTime();
       const windows = maniaJudgementWindows(active.overallDifficulty);
+      // Tails get the wider release windows (osu!mania stable), so a held note
+      // isn't auto-missed at the end while it's still releasable.
+      const releaseWindows = maniaReleaseWindows(active.overallDifficulty);
       for (const note of active.notes) {
         if (playtestConsumedRef.current.has(note.id)) continue;
         if (
@@ -1168,12 +1180,13 @@ export default function App() {
           note.endTime !== undefined &&
           playtestHeadJudgedRef.current.has(note.id) &&
           !playtestTailJudgedRef.current.has(note.id) &&
-          time > note.endTime + windows.miss
+          time > note.endTime + releaseWindows.miss
         ) {
+          // Still holding past the end = a successful hold (the head was already
+          // scored). The tail is just a release timing, so there's no judgement
+          // or miss here — simply finish the note.
           playtestTailJudgedRef.current.add(note.id);
           playtestHeldLnRef.current.delete(note.id);
-          removeHeldLnId(note.id);
-          missPlaytestPart(note, time, "ln-tail", note.endTime);
           consumePlaytestNote(note.id);
         }
       }
@@ -1188,18 +1201,7 @@ export default function App() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [
-    active.notes,
-    active.overallDifficulty,
-    audio,
-    consumePlaytestNote,
-    removeHeldLnId,
-    missPlaytestPart,
-    playtest.active,
-    playtest.ended,
-    playtest.paused,
-    playtestInputTime,
-  ]);
+  }, [playtest.active, playtest.ended, playtest.paused]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -3364,7 +3366,10 @@ export default function App() {
                 pendingClip={presetToCopy}
                 readOnly={!canEdit}
                 playtestMode={playtest.active}
-                heldLnIds={playtestHeldLnIds}
+                heldLnIdsRef={playtestHeldLnRef}
+                consumedIdsRef={playtestConsumedRef}
+                pressedColumns={playtestPressedColumns}
+                missWindowMs={playtestWindows.miss}
                 hideHints={playtest.active}
               />
             ) : (

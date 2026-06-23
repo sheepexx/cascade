@@ -178,8 +178,17 @@ export async function importOsk(
     "50": ["mania-hit50", "hit50"],
     miss: ["mania-hit0", "hit0", "hitmiss", "miss"],
   };
+  // Judgement sprites are often animated: osu! names the frames `element-0`,
+  // `element-1`, … (some skins zero-pad, e.g. `element-00`). When a skin ships
+  // only the animation, use its first frame as the static judgement image. So
+  // for each candidate try the plain name, then frame 0 (`-0` / `-00`).
   for (const key of Object.keys(judgementRefs) as (keyof typeof judgementRefs)[]) {
-    const url = await resolveFirstUrl(...judgementRefs[key]);
+    const candidates = judgementRefs[key].flatMap((base) => [
+      base,
+      `${base}-0`,
+      `${base}-00`,
+    ]);
+    const url = await resolveFirstUrl(...candidates);
     if (url) judgementImages[key] = url;
   }
 
@@ -377,6 +386,12 @@ function findImage(
   for (const candidate of candidates) {
     const hit = index.get(candidate);
     if (hit) return hit;
+  }
+  // Fallback: some skins nest elements in a subfolder, so the exact root path
+  // misses. Match by basename (the last path segment) against the same variants.
+  const suffixes = candidates.map((c) => `/${c}`);
+  for (const [path, entry] of index) {
+    if (suffixes.some((s) => path.endsWith(s))) return entry;
   }
   return null;
 }

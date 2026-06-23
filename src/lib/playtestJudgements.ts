@@ -74,6 +74,26 @@ export function maniaJudgementWindows(od: number): JudgementWindows {
   };
 }
 
+/**
+ * osu!mania (stable) long-note *release* windows. Letting go of a hold is harder
+ * to time than a tap, so stable widens every tail window to 1.5x the normal hit
+ * window. The head is still judged on the normal {@link maniaJudgementWindows};
+ * only the release (tail) uses these.
+ */
+export const RELEASE_WINDOW_SCALE = 1.5;
+
+export function maniaReleaseWindows(od: number): JudgementWindows {
+  const w = maniaJudgementWindows(od);
+  return {
+    max: w.max * RELEASE_WINDOW_SCALE,
+    hit300: w.hit300 * RELEASE_WINDOW_SCALE,
+    hit200: w.hit200 * RELEASE_WINDOW_SCALE,
+    hit100: w.hit100 * RELEASE_WINDOW_SCALE,
+    hit50: w.hit50 * RELEASE_WINDOW_SCALE,
+    miss: w.miss * RELEASE_WINDOW_SCALE,
+  };
+}
+
 export function judgeHitError(
   hitError: number,
   windows: JudgementWindows,
