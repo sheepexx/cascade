@@ -915,24 +915,28 @@ export function ManiaEditor(props: Props) {
     const edgeTimeB = yToTime(height);
     const topTime = Math.max(edgeTimeA, edgeTimeB);
     const bottomTime = Math.min(edgeTimeA, edgeTimeB);
-    const lines = gridLinesInRange(
-      bottomTime,
-      topTime,
-      timingPoints,
-      view.snapDivisor,
-    );
-    for (const line of lines) {
-      const y = Math.round(timeToY(line.time)) + 0.5;
-      if (y < -2 || y > height + 2) continue;
-      // Measure (bar) boundaries get a brighter, slightly heavier line.
-      ctx.strokeStyle = line.barline
-        ? "rgba(255,255,255,0.8)"
-        : gridLineColor(line.idxInBeat, view.snapDivisor);
-      ctx.lineWidth = line.barline ? 1.5 : 1;
-      ctx.beginPath();
-      ctx.moveTo(originX, y);
-      ctx.lineTo(originX + playfieldWidth, y);
-      ctx.stroke();
+    // Hidden in playtest mode: the snap grid is editor chrome with no place in
+    // actual gameplay. (topTime/bottomTime are still needed below for culling.)
+    if (!propsRef.current.playtestMode) {
+      const lines = gridLinesInRange(
+        bottomTime,
+        topTime,
+        timingPoints,
+        view.snapDivisor,
+      );
+      for (const line of lines) {
+        const y = Math.round(timeToY(line.time)) + 0.5;
+        if (y < -2 || y > height + 2) continue;
+        // Measure (bar) boundaries get a brighter, slightly heavier line.
+        ctx.strokeStyle = line.barline
+          ? "rgba(255,255,255,0.8)"
+          : gridLineColor(line.idxInBeat, view.snapDivisor);
+        ctx.lineWidth = line.barline ? 1.5 : 1;
+        ctx.beginPath();
+        ctx.moveTo(originX, y);
+        ctx.lineTo(originX + playfieldWidth, y);
+        ctx.stroke();
+      }
     }
 
     // ---- Red (uninherited) timing lines: BPM / offset ----
