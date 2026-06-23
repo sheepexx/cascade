@@ -29,6 +29,10 @@ export function usePlaytestInput({
   // Source-of-truth for which keys are down, mutated synchronously in the event
   // handlers. `heldCodes` state just mirrors it for the on-screen key display.
   const heldRef = useRef<Set<string>>(new Set());
+  // Synchronous set of held *columns*, mutated in the same handlers. The canvas
+  // render loop reads this directly so receptor glow lights the instant a key
+  // goes down — with zero React-commit / one-frame delay.
+  const pressedColumnsRef = useRef<Set<number>>(new Set());
 
   const codeToColumn = useMemo(() => {
     const map = new Map<string, number>();
@@ -51,6 +55,7 @@ export function usePlaytestInput({
     if (!active) {
       if (heldRef.current.size) {
         heldRef.current = new Set();
+        pressedColumnsRef.current = new Set();
         setHeldCodes((prev) => (prev.size ? new Set() : prev));
       }
       return;
@@ -82,6 +87,7 @@ export function usePlaytestInput({
       e.stopImmediatePropagation();
       if (h.paused || e.repeat || heldRef.current.has(e.code)) return;
       heldRef.current.add(e.code);
+      pressedColumnsRef.current.add(column);
       syncHeld();
       // Called OUTSIDE any setState updater — onPress itself calls setState, and
       // doing that from inside an updater (under StrictMode) drops the update.
@@ -96,6 +102,16 @@ export function usePlaytestInput({
       e.stopImmediatePropagation();
       if (!heldRef.current.has(e.code)) return;
       heldRef.current.delete(e.code);
+      // Only clear the column glow if no other held key still maps to it
+      // (a lane can have more than one bound key).
+      let stillHeld = false;
+      for (const code of heldRef.current) {
+        if (codeToColumn.get(code) === column) {
+          stillHeld = true;
+          break;
+        }
+      }
+      if (!stillHeld) pressedColumnsRef.current.delete(column);
       syncHeld();
       if (!h.paused) h.onRelease(column);
     };
@@ -103,6 +119,7 @@ export function usePlaytestInput({
     const blur = () => {
       if (!heldRef.current.size) return;
       heldRef.current = new Set();
+      pressedColumnsRef.current = new Set();
       setHeldCodes(new Set());
     };
 
@@ -116,5 +133,5 @@ export function usePlaytestInput({
     };
   }, [active, codeToColumn, quickRestartCode]);
 
-  return heldCodes;
+  return { heldCodes, pressedColumnsRef };
 }

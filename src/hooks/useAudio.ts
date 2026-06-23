@@ -194,9 +194,14 @@ export function useAudio(
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext;
       if (!Ctor) return null;
-      // Match the buffer's sample rate so playback isn't pitch-shifted.
+      // Match the buffer's sample rate so playback isn't pitch-shifted, and ask
+      // for the smallest output buffer ("interactive") to minimise the latency
+      // between the clock and the speakers — important for tight playtest input.
       const rate = bufferRef.current?.sampleRate;
-      ctx = rate ? new Ctor({ sampleRate: rate }) : new Ctor();
+      ctx = new Ctor({
+        latencyHint: "interactive",
+        ...(rate ? { sampleRate: rate } : {}),
+      });
       const gain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
       const fadeGain = ctx.createGain();
@@ -677,7 +682,37 @@ export function useAudio(
     [applyOutputMix],
   );
 
-  const getCurrentTime = useCallback(() => currentTimeRef.current, []);
+  // Output latency (ms): how far the AudioContext clock runs *ahead* of what's
+  // actually audible. `outputLatency` covers the full path to the speakers
+  // (best); `baseLatency` (context buffering only) is the fallback.
+  const outputLatencyMs = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (!ctx) return 0;
+    const lat =
+      typeof ctx.outputLatency === "number" && ctx.outputLatency > 0
+        ? ctx.outputLatency
+        : ctx.baseLatency || 0;
+    return lat * 1000;
+  }, []);
+
+  // Live audible playback position (ms). Computed on demand rather than read
+  // from the value cached by the rAF clock tick, fixing two timing issues that
+  // made playtest input feel laggy and unstable:
+  //   1. The cached value is up to a frame stale and is always a *past* sample,
+  //      so a keypress between frames read an out-of-date position (jitter).
+  //   2. The raw context clock leads the speakers by the output latency, so
+  //      taps timed to the music registered systematically late — subtracting
+  //      the latency makes the clock reflect what the player actually hears.
+  const getCurrentTime = useCallback(() => {
+    if (bufferRef.current && sourceRef.current) {
+      return webPosition() * 1000 - outputLatencyMs() * playbackRateRef.current;
+    }
+    const audio = audioRef.current;
+    if (!bufferRef.current && audio && !audio.paused) {
+      return audio.currentTime * 1000;
+    }
+    return currentTimeRef.current;
+  }, [webPosition, outputLatencyMs]);
 
   // Tear down the AudioContext when the hook unmounts.
   useEffect(() => {

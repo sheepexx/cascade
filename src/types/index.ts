@@ -321,6 +321,12 @@ export type PlaytestSettings = {
   offsetMode: PlaytestOffsetMode;
   /** Local playtest offset in milliseconds. Never exported. */
   offsetMs: number;
+  /**
+   * "Hit position" offset in pixels: shifts the falling notes down so they meet
+   * the player below the receptors, without moving the receptors. Visual only —
+   * playtest gameplay only, never the editor. Never exported.
+   */
+  hitPositionOffset: number;
   showJudgements: boolean;
   showCombo: boolean;
   showAccuracy: boolean;
@@ -448,6 +454,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     backgroundDim: 82,
     offsetMode: "visual",
     offsetMs: 0,
+    hitPositionOffset: 0,
     showJudgements: true,
     showCombo: true,
     showAccuracy: true,

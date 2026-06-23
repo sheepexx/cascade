@@ -362,6 +362,12 @@ export default function App() {
   // Running hit-error stats (non-miss hits only) for the unstable-rate bar, kept
   // as a ref so UR is an O(1) update per hit rather than an O(n) recompute.
   const playtestErrStatsRef = useRef({ n: 0, sum: 0, sumSq: 0 });
+  // End-detection is disarmed until the audio seek for this run actually lands
+  // (currentTime reaches the run's start). Without this, re-entering at the
+  // start of the song right after exiting near the end would read the stale
+  // near-the-end currentTime for a few frames and immediately show the score
+  // screen. Armed once the playhead is observed at/after the run's start time.
+  const playtestEndArmedRef = useRef(false);
   // Latest-value refs so collab callbacks (refresh / sync-request) read fresh
   // state without re-subscribing the channel.
   const difficultiesRef = useRef(difficulties);
@@ -888,6 +894,7 @@ export default function App() {
     playtestHeldLnRef.current = new Map();
     playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
     playtestConsumedRef.current = new Set();
+    playtestEndArmedRef.current = false;
     setPlaytestConsumedIds(new Set());
     setPlaytest({
       ...initialPlaytestState(),
@@ -1099,27 +1106,21 @@ export default function App() {
     else pausePlaytest();
   }, [pausePlaytest, resumePlaytest]);
 
-  const heldPlaytestKeys = usePlaytestInput({
-    active: playtest.active,
-    paused: playtest.paused,
-    keyCount: active.keyCount,
-    keybinds: playtestSettings.keybinds,
-    quickRestartCode: playtestSettings.quickRestartKey,
-    onPress: handlePlaytestPress,
-    onRelease: handlePlaytestRelease,
-    onPause: togglePlaytestPause,
-    onRestart: restartPlaytest,
-  });
-
-  // Columns the player is currently pressing, for the receptor "pressed" glow.
-  const playtestPressedColumns = useMemo(() => {
-    const keys = playtestSettings.keybinds[active.keyCount] ?? [];
-    const cols = new Set<number>();
-    keys.forEach((code, col) => {
-      if (code && heldPlaytestKeys.has(code)) cols.add(col);
+  // `pressedColumnsRef` is a synchronous set of held lanes, read straight by the
+  // canvas render loop so receptor glow has zero React-commit delay. `heldCodes`
+  // (throttled state) only drives the on-screen key HUD.
+  const { heldCodes: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef } =
+    usePlaytestInput({
+      active: playtest.active,
+      paused: playtest.paused,
+      keyCount: active.keyCount,
+      keybinds: playtestSettings.keybinds,
+      quickRestartCode: playtestSettings.quickRestartKey,
+      onPress: handlePlaytestPress,
+      onRelease: handlePlaytestRelease,
+      onPause: togglePlaytestPause,
+      onRestart: restartPlaytest,
     });
-    return cols;
-  }, [heldPlaytestKeys, playtestSettings.keybinds, active.keyCount]);
 
   // Everything the miss-detection loop reads, mirrored into a ref so the rAF
   // effect can depend only on the run's lifecycle (active/ended/paused) and
@@ -1190,10 +1191,20 @@ export default function App() {
           consumePlaytestNote(note.id);
         }
       }
+      // Arm end-detection only once the seek for this run has landed (the
+      // playhead is at/after the run's start). This prevents a stale, near-the-
+      // end currentTime — left over from a previous run that ended near the
+      // finish — from instantly ending a fresh run started at the beginning.
+      const now = audio.getCurrentTime();
+      if (!playtestEndArmedRef.current) {
+        const runStart = playtestRef.current.startTime ?? 0;
+        if (now <= runStart + 1000) playtestEndArmedRef.current = true;
+      }
       if (
+        playtestEndArmedRef.current &&
         Number.isFinite(audio.duration) &&
         audio.duration > 0 &&
-        audio.getCurrentTime() >= audio.duration - 10
+        now >= audio.duration - 10
       ) {
         audio.pause();
         setPlaytest((prev) => ({ ...prev, ended: true }));
@@ -3368,7 +3379,8 @@ export default function App() {
                 playtestMode={playtest.active}
                 heldLnIdsRef={playtestHeldLnRef}
                 consumedIdsRef={playtestConsumedRef}
-                pressedColumns={playtestPressedColumns}
+                pressedColumnsRef={playtestPressedColumnsRef}
+                hitPositionOffset={playtestSettings.hitPositionOffset}
                 missWindowMs={playtestWindows.miss}
                 hideHints={playtest.active}
               />
