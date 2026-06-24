@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/components/maniaeditor.tsx","./src/components/settingspanel.tsx","./src/components/transportbar.tsx","./src/components/ui/controls.tsx","./src/hooks/useaudio.ts","./src/lib/osuexport.ts","./src/lib/oszexport.ts","./src/lib/timing.ts","./src/types/index.ts"],"errors":true,"version":"5.9.3"}
