@@ -187,7 +187,13 @@ export function gridLinesInRange(
 
     // First grid index (relative to the timing point) inside the window.
     const firstIdx = Math.ceil((visibleStart - segStart) / interval);
-    const lastIdx = Math.floor((visibleEnd - segStart) / interval);
+    let lastIdx = Math.floor((visibleEnd - segStart) / interval);
+    // The next red point owns the grid line at its own time (it re-emits it as a
+    // bar start). If this non-final segment's last line lands exactly on that
+    // boundary, drop it so the tempo change doesn't draw two lines at one spot.
+    if (i + 1 < reds.length && segStart + lastIdx * interval >= segEnd - 1e-6) {
+      lastIdx -= 1;
+    }
     // Guard against pathological scroll speeds producing huge loops.
     if (lastIdx - firstIdx > 20000) continue;
 
