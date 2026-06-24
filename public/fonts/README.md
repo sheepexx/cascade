@@ -28,3 +28,20 @@ public/fonts/
 `format()` hints in `src/index.css` accordingly.)
 
 Without these files everything works fine - you just see Inter instead of Torus.
+
+## Deploying (without redistributing the font)
+
+The `.woff2` files here are **gitignored** (`public/fonts/*.woff2`) so a paid
+font is never pushed to the repo. They still work locally — `vite build` copies
+`public/` into `dist/`, so the built `dist/fonts/*.woff2` are real and served at
+`/fonts/...`. The only question is getting that `dist/` to production:
+
+- **Vercel (git deploys):** a gitignored file won't reach a build that runs from
+  git, so deploy the *prebuilt* output instead:
+  `vite build` then `vercel deploy --prebuilt --prod` (uploads the local `dist/`,
+  fonts included).
+- **VPS (after migration):** the build + `rsync dist/` naturally carries
+  `dist/fonts/*.woff2` — nothing extra to do.
+- **Private repo:** if you're fine with it, delete the `public/fonts/*.woff2`
+  line in the root `.gitignore` and commit the files; Vercel's git deploy then
+  serves them with no special steps.
