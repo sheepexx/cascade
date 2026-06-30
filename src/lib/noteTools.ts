@@ -54,3 +54,16 @@ export function fullRiceNotes(notes: ManiaNote[]): ManiaNote[] {
     return rice;
   });
 }
+
+/**
+ * Mirror notes horizontally across the playfield: lane `c` maps to
+ * `keyCount - 1 - c`, so the leftmost column swaps with the rightmost. Note ids,
+ * times, hold lengths and hitsounds are untouched - only the column flips. This
+ * is the osu!mania "Mirror" transform.
+ */
+export function mirrorColumns(
+  notes: ManiaNote[],
+  keyCount: number,
+): ManiaNote[] {
+  return notes.map((n) => ({ ...n, column: keyCount - 1 - n.column }));
+}
