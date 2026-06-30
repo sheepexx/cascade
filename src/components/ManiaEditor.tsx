@@ -24,6 +24,7 @@ import {
 } from "../lib/timing";
 import type { PatternNote } from "../lib/patterns";
 import { hasNoteCollisions, withoutNoteCollisions } from "../lib/noteCollision";
+import { mirrorColumns } from "../lib/noteTools";
 
 /**
  * Canvas-based vertical mania editor.
@@ -411,6 +412,19 @@ export function ManiaEditor(props: Props) {
     if (copySelection()) deleteSelection();
   }, [copySelection, deleteSelection]);
 
+  // ---- Mirror: flip the selected notes left<->right (osu!mania "Mirror") ----
+  // Columns map to keyCount-1-col; ids/times/holds/hitsounds are preserved so
+  // the selection survives the move. onMoveNotes rejects the op if the flip
+  // would collide with unselected notes (same as a drag-move).
+  const mirrorSelection = useCallback(() => {
+    const ids = selectedNoteIdsRef.current;
+    if (!ids.size) return;
+    const { notes, keyCount } = propsRef.current;
+    const selected = notes.filter((n) => ids.has(n.id));
+    if (!selected.length) return;
+    propsRef.current.onMoveNotes(mirrorColumns(selected, keyCount));
+  }, []);
+
   const paste = useCallback(() => {
     const clip = clipboardRef.current;
     if (!clip) return;
@@ -512,6 +526,20 @@ export function ManiaEditor(props: Props) {
         setHitsoundMode((on) => !on);
         return;
       }
+      // M mirrors the selected notes left<->right (flips columns). No-op with
+      // an empty selection, so it stays out of the way when nothing is picked.
+      if (
+        e.key.toLowerCase() === "m" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !isTyping(e.target) &&
+        selectedNoteIdsRef.current.size
+      ) {
+        e.preventDefault();
+        mirrorSelection();
+        return;
+      }
       // W / F / C toggle whistle / finish / clap on the selection (osu!mania).
       // Only while hitsound mode is active so they don't clash with editing.
       if (
@@ -586,7 +614,7 @@ export function ManiaEditor(props: Props) {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [copySelection, cutSelection, paste, toggleAddition]);
+  }, [copySelection, cutSelection, paste, toggleAddition, mirrorSelection]);
 
   // ---- Background image loading -------------------------------------------
   useEffect(() => {

@@ -4043,6 +4043,7 @@ function InfoModal({
           <InfoRow keys="Ctrl/Cmd + C" text="Copy selected notes." />
           <InfoRow keys="Ctrl/Cmd + X" text="Cut selected notes." />
           <InfoRow keys="Ctrl/Cmd + V" text="Paste copied notes at the snapped playhead time." />
+          <InfoRow keys="M" text="Mirror selected notes left↔right (flip columns)." />
           <InfoRow keys="Delete / Backspace" text="Delete selected notes." />
         </InfoSection>
 
