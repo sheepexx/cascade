@@ -5,19 +5,43 @@ export function beatLength(bpm: number): number {
   return 60000 / bpm;
 }
 
+// Derived-array caches keyed by the source `points` array identity. The editor
+// draws every frame and, per frame, resolves timing (kiai / BPM / SV) for many
+// notes, and each call used to re-filter and re-sort, allocating throwaway
+// arrays that spiked the GC and dropped frames on high-refresh displays.
+// `timingPoints`
+// is immutable React state (replaced, never mutated in place), so caching by
+// reference is safe: a new array only appears when the timing actually changes,
+// and the returned arrays are treated as read-only by every caller.
+const sortedCache = new WeakMap<TimingPoint[], TimingPoint[]>();
+const redCache = new WeakMap<TimingPoint[], TimingPoint[]>();
+const greenCache = new WeakMap<TimingPoint[], TimingPoint[]>();
+
 /** Timing points sorted ascending by time (does not mutate the input). */
 export function sortedPoints(points: TimingPoint[]): TimingPoint[] {
-  return [...points].sort((a, b) => a.time - b.time);
+  const hit = sortedCache.get(points);
+  if (hit) return hit;
+  const sorted = [...points].sort((a, b) => a.time - b.time);
+  sortedCache.set(points, sorted);
+  return sorted;
 }
 
 /** Only the red (uninherited) points, sorted by time - these drive the grid. */
 export function redPoints(points: TimingPoint[]): TimingPoint[] {
-  return sortedPoints(points.filter((p) => p.uninherited));
+  const hit = redCache.get(points);
+  if (hit) return hit;
+  const reds = [...points].filter((p) => p.uninherited).sort((a, b) => a.time - b.time);
+  redCache.set(points, reds);
+  return reds;
 }
 
 /** Only the green (inherited) points, sorted by time. */
 export function greenPoints(points: TimingPoint[]): TimingPoint[] {
-  return sortedPoints(points.filter((p) => !p.uninherited));
+  const hit = greenCache.get(points);
+  if (hit) return hit;
+  const greens = [...points].filter((p) => !p.uninherited).sort((a, b) => a.time - b.time);
+  greenCache.set(points, greens);
+  return greens;
 }
 
 /**

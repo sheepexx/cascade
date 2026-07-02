@@ -93,11 +93,31 @@ export function WelcomeModal({
     id: string;
     title: string;
   } | null>(null);
+  /** True until this browser has opened the start screen at least once. Drives
+   *  the one-time onboarding banner for first-time (e.g. search-referred) visitors. */
+  const [firstRun, setFirstRun] = useState(false);
+
+  // Detect a first-ever visit, then immediately record it so the onboarding
+  // banner shows only once. Reads/writes are guarded, since private-mode
+  // browsers can throw on localStorage.
+  useEffect(() => {
+    if (!open) return;
+    try {
+      if (!localStorage.getItem("mania:onboarded")) {
+        setFirstRun(true);
+        localStorage.setItem("mania:onboarded", "1");
+      }
+    } catch {
+      /* storage unavailable, so just skip the banner */
+    }
+  }, [open]);
 
   // Local projects (with background blobs for thumbnails).
   useEffect(() => {
     if (!open) {
-      setLocalProjects(null);
+      // Reset only transient UI. Keep the loaded list: nulling it here would make
+      // the sections flip to their "Loading…" placeholder while the modal is
+      // still animating out, which reads as a stray loading flash on close.
       setConfirm(null);
       setShowArchived(false);
       return;
@@ -221,6 +241,23 @@ export function WelcomeModal({
   return (
     <>
       <Modal open={open} title="Get started" onClose={onClose} width="max-w-3xl">
+      {firstRun && (
+        <div className="mb-4 rounded-xl border border-accent/40 bg-accent/10 p-4">
+          <p className="text-sm font-semibold text-slate-100">
+            👋 Welcome to Cascade, a free osu!mania editor in your browser.
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-300">
+            Nothing to install. The quickest way to see how it works is to load a
+            ready-made map and press <span className="text-slate-100">Space</span>{" "}
+            to play. Or start a blank map and drop in your own song.
+          </p>
+          <div className="mt-3">
+            <Button variant="accent" onClick={onTryMaps}>
+              Try a sample map →
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
@@ -331,7 +368,7 @@ export function WelcomeModal({
             <SectionMessage>Loading…</SectionMessage>
           ) : owned.length === 0 ? (
             <SectionMessage>
-              No saved maps yet — use “Save to cloud” after you start one.
+              No saved maps yet. Use “Save to cloud” after you start one.
             </SectionMessage>
           ) : (
             <CardGrid>
