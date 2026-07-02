@@ -233,6 +233,11 @@ export function useAudio(
     return tr.from + (tr.to - tr.from) * easeOutCubic(t);
   }, []);
 
+  const syncLivePlaybackRate = useCallback((): number => {
+    const ctx = ctxRef.current;
+    return ctx ? rateAtCtxTime(ctx.currentTime) : playbackRateRef.current;
+  }, [rateAtCtxTime]);
+
   const positionAtCtxTime = useCallback((ctxTime: number): number => {
     const tr = rateTransitionRef.current;
     if (!tr) {
@@ -437,7 +442,6 @@ export function useAudio(
       audio.pause();
       if (startWebRef.current()) setIsPlaying(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buffer]);
 
   // Prefer the authoritative decoded duration when supplied. Sample-accurate
@@ -714,14 +718,14 @@ export function useAudio(
   //      the latency makes the clock reflect what the player actually hears.
   const getCurrentTime = useCallback(() => {
     if (bufferRef.current && sourceRef.current) {
-      return webPosition() * 1000 - outputLatencyMs() * playbackRateRef.current;
+      return webPosition() * 1000 - outputLatencyMs() * syncLivePlaybackRate();
     }
     const audio = audioRef.current;
     if (!bufferRef.current && audio && !audio.paused) {
       return audio.currentTime * 1000;
     }
     return currentTimeRef.current;
-  }, [webPosition, outputLatencyMs]);
+  }, [webPosition, outputLatencyMs, syncLivePlaybackRate]);
 
   // Tear down the AudioContext when the hook unmounts.
   useEffect(() => {
