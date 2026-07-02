@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
     "@supabase/supabase-js": "^2.108.2",
     "jszip": "^3.10.1",
     "react": "^18.3.1",

@@ -359,6 +359,12 @@ export function ManiaEditor(props: Props) {
   const selectionDragRef = useRef<SelectionDragState | null>(null);
   const moveDragRef = useRef<MoveDragState | null>(null);
   const selectionAutoscrollTimeRef = useRef<number | null>(null);
+  // Touch input: every active touch/pen pointer by id (client coords), plus the
+  // two-finger scrub state (the touch replacement for the mouse wheel).
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(
+    new Map(),
+  );
+  const scrubRef = useRef<{ time: number; lastMidY: number } | null>(null);
 
   // ---- Selection mutation (keeps the draw-loop ref and UI count in sync) ---
   const setSelection = useCallback((ids: Set<string>) => {
@@ -1921,6 +1927,102 @@ export function ManiaEditor(props: Props) {
     }
   };
 
+  // ---- Pointer routing (mouse + touch + pen) -------------------------------
+  // A single pointer path so the notefield works with a finger, a stylus or a
+  // mouse. Mouse keeps its exact previous behavior (delegates straight to the
+  // legacy mouse handlers, no pointer capture). Touch/pen additionally gets:
+  //   • pointer capture, so a drag keeps tracking if the finger leaves the canvas
+  //   • two-finger vertical drag to scrub time (there is no wheel on touch)
+  //   • touch-action:none on the canvas so the browser never steals the gesture
+  const averagePointerY = (pts: Map<number, { x: number; y: number }>) => {
+    let sum = 0;
+    for (const p of pts.values()) sum += p.y;
+    return pts.size ? sum / pts.size : 0;
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") {
+      onMouseDown(e);
+      return;
+    }
+    if (props.playtestMode) return;
+    e.preventDefault();
+    const pts = activePointersRef.current;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* capture unsupported / pointer already gone */
+    }
+    if (pts.size >= 2) {
+      // Second finger down: abandon any single-finger edit and start scrubbing.
+      dragRef.current = null;
+      moveDragRef.current = null;
+      selectionDragRef.current = null;
+      scrubRef.current = {
+        time: propsRef.current.getCurrentTime(),
+        lastMidY: averagePointerY(pts),
+      };
+      return;
+    }
+    onMouseDown(e);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") {
+      onMouseMove(e);
+      return;
+    }
+    const pts = activePointersRef.current;
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const scrub = scrubRef.current;
+    if (scrub && pts.size >= 2) {
+      const midY = averagePointerY(pts);
+      const dy = midY - scrub.lastMidY;
+      scrub.lastMidY = midY;
+      // Time-per-pixel (sign encodes scroll direction); moving content with the
+      // finger keeps the point under it roughly fixed, like touch-scrolling.
+      const msPerPx = yToTime(1) - yToTime(0);
+      scrub.time = Math.max(0, scrub.time - msPerPx * dy);
+      propsRef.current.onSeek(scrub.time);
+      return;
+    }
+    onMouseMove(e);
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") {
+      onMouseUp(e);
+      return;
+    }
+    const pts = activePointersRef.current;
+    pts.delete(e.pointerId);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* nothing to release */
+    }
+    if (scrubRef.current) {
+      // Lifting out of a scrub: never treat the release as a note placement.
+      if (pts.size < 2) scrubRef.current = null;
+      return;
+    }
+    onMouseUp(e);
+  };
+
+  const onPointerCancel = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") return;
+    activePointersRef.current.delete(e.pointerId);
+    scrubRef.current = null;
+    if (activePointersRef.current.size === 0) onMouseLeave();
+  };
+
+  const onPointerLeave = (e: React.PointerEvent) => {
+    // Preserve the mouse "cancel drag when the cursor leaves" behavior. Touch
+    // uses pointer capture, so it keeps tracking and ignores leave.
+    if (e.pointerType === "mouse") onMouseLeave();
+  };
+
   const onWheel = (e: React.WheelEvent) => {
     if (props.playtestMode) {
       e.preventDefault();
@@ -1991,13 +2093,14 @@ export function ManiaEditor(props: Props) {
     >
       <canvas
         ref={canvasRef}
-        className={`block h-full w-full ${
+        className={`block h-full w-full touch-none ${
           props.playtestMode ? "cursor-default" : "cursor-crosshair"
         }`}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseLeave}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onPointerLeave={onPointerLeave}
         onWheel={onWheel}
       />
       {!props.hideHints && !props.playtestMode && (

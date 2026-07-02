@@ -76,17 +76,209 @@
       osu!lazer typeface. The UI font is Torus (with Torus-Alternate); these are
       proprietary and loaded from /fonts only if you provide the licensed files
       (see public/fonts/README.md) or have them installed. Inter - also part of
-      lazer's font set and freely licensed - is loaded here as the fallback.
+      lazer's font set and freely licensed - is the fallback and is self-hosted
+      via the @fontsource/inter package (imported in src/main.tsx), so there is
+      no render-blocking Google Fonts request.
     -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+
+    <!-- FAQ rich-result data; mirrors the visible FAQ in the boot section. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is Cascade free to use?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Cascade is a free online osu!mania editor that runs entirely in your web browser."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need to install anything to use the mania editor?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Cascade is a web app: open it in any modern browser and start mapping immediately, with no download or install."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I import my existing osu!mania beatmaps?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Drag an .osz or .osu file onto the page to edit an existing osu!mania map, then export it back out as .osu or .osz."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Cascade a VSRG editor?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Cascade charts on a standard vertical-scrolling rhythm-game (VSRG) playfield and exports osu!mania .osu / .osz files."
+            }
+          }
+        ]
+      }
+    </script>
+
+    <!-- HowTo rich-result data: "How to make an osu!mania map". -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to make an osu!mania map online",
+        "description": "Create an osu!mania beatmap in your browser with Cascade, no install required.",
+        "totalTime": "PT10M",
+        "tool": { "@type": "HowToTool", "name": "Cascade online osu!mania editor" },
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Load your song",
+            "text": "Open Cascade and drag an audio file (.mp3/.ogg) or a whole .osz onto the page."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Set the timing",
+            "text": "Open the Timing panel and set your BPM and offset, then use tap tempo to detect the beat and the metronome to check it."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Chart your notes",
+            "text": "Click the lanes on the vertical playfield to place notes; click and drag for long notes (holds). Pick a snap divisor for accuracy."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Export the beatmap",
+            "text": "Export a single difficulty as .osu, or the whole mapset as an .osz that osu! imports directly."
+          }
+        ]
+      }
+    </script>
+
+    <!--
+      Boot screen + crawlable landing content. The visible part is a minimal
+      loading screen (logo + spinner) on the exact app background, so the brief
+      hand-off to the app reads as loading, not as a separate landing screen.
+      The keyword-rich copy below sits under the fold: users never see it in the
+      split second before the app mounts, but search engines, social scrapers
+      and no-JS clients still get real, indexable content. #boot is removed by
+      src/main.tsx once React has painted.
+    -->
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        overflow-y: auto;
+        background: #0b0b10;
+        color: #8b909d;
+        font-family:
+          "Torus", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+          Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* Full-viewport spacer that keeps the crawlable copy off the first paint. */
+      #boot .boot-screen {
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+      /* Below-the-fold crawlable content. */
+      #boot .boot-seo {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 40px 20px 56px;
+        text-align: left;
+      }
+      #boot .boot-seo h1 {
+        margin: 0 0 12px;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #cfd2dc;
+      }
+      #boot .boot-seo h2 {
+        margin: 28px 0 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b7180;
+      }
+      #boot .boot-seo p { margin: 0 0 8px; line-height: 1.6; }
+      #boot .boot-seo ul { margin: 0; padding-left: 20px; line-height: 1.9; }
+      #boot .boot-seo dt { margin-top: 14px; font-weight: 600; color: #c3c7d1; }
+      #boot .boot-seo dd { margin: 4px 0 0; line-height: 1.6; }
+      #boot .boot-seo code {
+        padding: 1px 6px;
+        border-radius: 5px;
+        background: #1d1d27;
+        color: #cfd2dc;
+        font-size: 0.85em;
+      }
+      #boot .boot-seo strong { color: #f48a8a; font-weight: 600; }
+      #boot .boot-noscript { margin-top: 16px; color: #f48a8a; }
+      #boot .boot-links { margin-top: 28px; font-size: 0.85rem; }
+      #boot .boot-links a { color: #9aa0ad; text-decoration: none; }
+      #boot .boot-links a:hover { color: #f48a8a; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+
+    <div id="boot">
+      <!--
+        Empty full-viewport spacer on the app's own background: the split-second
+        before React paints looks like nothing (matching the app), not a loading
+        screen. The keyword-rich content below stays out of view (and off the
+        first paint) but remains in the document for crawlers / no-JS clients.
+      -->
+      <div class="boot-screen" aria-hidden="true"></div>
+
+      <section class="boot-seo">
+        <h1>Free Online osu!mania Editor &amp; Map Viewer</h1>
+        <p>
+          <strong>Cascade</strong> is a browser-based <strong>osu!mania</strong>
+          beatmap editor and VSRG map viewer. Import <code>.osz</code> /
+          <code>.osu</code> files, chart notes on a vertical scrolling
+          playfield, set timing, hear real osu! hitsounds, collaborate in
+          realtime, and export a ready-to-play map. No download, no install.
+        </p>
+
+        <h2>What you can do</h2>
+        <ul>
+          <li>Edit osu!mania beatmaps online (1K to 18K), with rice notes and long notes</li>
+          <li>Preview and view osu!mania maps right in the browser</li>
+          <li>Import <code>.osz</code> / <code>.osu</code>, export <code>.osu</code> or <code>.osz</code></li>
+          <li>Set BPM and timing with tap tempo and a metronome</li>
+          <li>Real osu! hitsounds and <code>.osk</code> skin support</li>
+          <li>Realtime collaborative mapping with live comments</li>
+        </ul>
+
+        <h2>osu!mania editor FAQ</h2>
+        <dl>
+          <dt>Is Cascade free to use?</dt>
+          <dd>Yes. Cascade is a free online osu!mania editor that runs entirely in your web browser.</dd>
+          <dt>Do I need to install anything?</dt>
+          <dd>No. It is a web app: open it in any modern browser and start mapping immediately.</dd>
+          <dt>Can I import my existing osu!mania beatmaps?</dt>
+          <dd>Yes. Drag an <code>.osz</code> or <code>.osu</code> file onto the page to edit an existing map, then export it back out.</dd>
+          <dt>Is this a VSRG editor?</dt>
+          <dd>Yes. Cascade charts on a standard vertical-scrolling rhythm-game (VSRG) playfield and exports osu!mania <code>.osu</code> / <code>.osz</code> files.</dd>
+        </dl>
+
+        <noscript>
+          <p class="boot-noscript">
+            Cascade needs JavaScript enabled to run the editor.
+          </p>
+        </noscript>
+
+        <p class="boot-links">
+          <a href="https://cascade.sheepex.net/">cascade.sheepex.net</a>
+        </p>
+      </section>
+    </div>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
