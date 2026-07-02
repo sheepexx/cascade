@@ -9,7 +9,7 @@
  * resolved first from a locally installed copy, then from /fonts (drop the
  * licensed .woff2 files there - see public/fonts/README.md). When neither is
  * present the stack falls through to Inter, which lazer also ships and which
- * is loaded from Google Fonts in index.html.
+ * is self-hosted via the @fontsource/inter package (imported in src/main.tsx).
  */
 @font-face {
   font-family: "Torus";
