@@ -338,6 +338,7 @@ export function WelcomeModal({
                 note={`${p.difficultyCount} diff${
                   p.difficultyCount === 1 ? "" : "s"
                 } · saved ${new Date(p.updatedAt).toLocaleDateString()}`}
+                sourceFormat={p.sourceFormat}
                 thumbUrl={localThumbs[p.id]}
                 onOpen={() => onOpenLocalProject(p.id)}
                 actions={
@@ -580,6 +581,7 @@ function ProjectCard({
   note,
   thumbUrl,
   badge,
+  sourceFormat,
   participants,
   actions,
   onOpen,
@@ -589,6 +591,7 @@ function ProjectCard({
   note?: string;
   thumbUrl?: string;
   badge?: string;
+  sourceFormat?: "osu" | "sm";
   participants?: ProjectParticipant[];
   actions?: React.ReactNode;
   onOpen: () => void;
@@ -613,8 +616,15 @@ function ProjectCard({
               🎵
             </div>
           )}
+          {sourceFormat && (
+            <img
+              src={asset(`${sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`)}
+              alt={sourceFormat === "sm" ? "Etterna Map" : "osu! Map"}
+              className="absolute left-2 top-2 h-5 w-5 object-contain drop-shadow-md opacity-90"
+            />
+          )}
           {badge && (
-            <span className="absolute left-2 top-2 rounded-md bg-accent/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
+            <span className={`absolute ${sourceFormat ? "left-8" : "left-2"} top-2 rounded-md bg-accent/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow`}>
               {badge}
             </span>
           )}
@@ -876,6 +886,11 @@ export function SampleMapsModal({
                       🎵
                     </div>
                   )}
+                  <img
+                    src={asset(`${map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? "etterna-logo" : "osu-logo"}.png`)}
+                    alt={map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? "Etterna Map" : "osu! Map"}
+                    className="absolute left-2 top-2 h-5 w-5 object-contain drop-shadow-md opacity-90"
+                  />
                   <span
                     className="absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[11px] font-semibold shadow"
                     style={{

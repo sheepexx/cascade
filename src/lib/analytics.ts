@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 export type AnalyticsEventType =
   | "export_osu"
   | "export_osz"
+  | "export_sm"
   | "local_project_created";
 
 type BrowserInfo = {
