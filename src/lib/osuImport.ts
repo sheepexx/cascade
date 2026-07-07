@@ -213,6 +213,7 @@ export function parseOsuFile(text: string): ParsedOsu {
 
   const difficulty: Difficulty = {
     id: uid("diff"),
+    sourceFormat: "osu",
     name: meta["Version"] ?? "Imported",
     audioFilename: general["AudioFilename"] ?? undefined,
     keyCount,

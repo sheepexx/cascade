@@ -187,9 +187,39 @@ export type SongMeta = {
   tags?: string;
 };
 
+/**
+ * StepMania-specific metadata, stored on each difficulty so it survives
+ * import/export round-trips and can be edited in the settings panel.
+ * All fields map 1-to-1 to SM header tags.
+ */
+export type SmMeta = {
+  /** #SUBTITLE — secondary part of the song title. */
+  subtitle?: string;
+  /** #TITLETRANSLIT — romanised / transliterated title. */
+  titleTranslit?: string;
+  /** #SUBTITLETRANSLIT — romanised / transliterated subtitle. */
+  subtitleTranslit?: string;
+  /** #ARTISTTRANSLIT — romanised / transliterated artist. */
+  artistTranslit?: string;
+  /** #GENRE — style/genre tag shown in StepMania. */
+  genre?: string;
+  /** #DISPLAYBPM — custom BPM displayed in the song wheel, e.g. "120" or "80:200". */
+  displayBpm?: string;
+  /** #SELECTABLE — whether the song appears in the wheel (YES/NO). */
+  selectable?: "YES" | "NO";
+  /** #SAMPLELENGTH — preview clip length in seconds. */
+  sampleLength?: number;
+  /** #LISTNOTES — number of notes shown in the song info panel. */
+  listnotes?: string;
+};
+
 /** A single difficulty within the set. */
 export type Difficulty = {
   id: string;
+  /** Format of the original beatmap file. Used for logos. */
+  sourceFormat?: "osu" | "sm";
+  /** StepMania-specific metadata. Only set for SM-sourced difficulties. */
+  smMeta?: SmMeta;
   /** Difficulty name -> [Metadata] Version. */
   name: string;
   /**
