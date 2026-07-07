@@ -1,4 +1,4 @@
-import type { BackgroundScope, LoadedFile, SongMeta } from "../../types";
+import type { BackgroundScope, Difficulty, LoadedFile, SmMeta, SongMeta } from "../../types";
 import { Modal } from "../ui/Modal";
 import { Field, FileButton, TextInput } from "../ui/Controls";
 
@@ -15,6 +15,11 @@ type Props = {
   onBackgroundFile: (f: File) => void;
   onClearBackground: () => void;
   onImportOsz: (f: File) => void;
+  onImportSm?: (f: File) => void;
+  /** Currently active difficulty — used to detect SM maps and read smMeta. */
+  activeDiff?: Difficulty;
+  /** Called with the updated smMeta whenever an SM field changes. */
+  onSmMeta?: (sm: SmMeta) => void;
 };
 
 /** Audio / background files + song metadata. (No timing, no difficulty.) */
@@ -31,9 +36,18 @@ export function SettingsModal({
   onBackgroundFile,
   onClearBackground,
   onImportOsz,
+  onImportSm,
+  activeDiff,
+  onSmMeta,
 }: Props) {
   const set = <K extends keyof SongMeta>(key: K, value: SongMeta[K]) =>
     onMeta({ ...meta, [key]: value });
+
+  const isSm = activeDiff?.sourceFormat === "sm";
+  const sm: SmMeta = activeDiff?.smMeta ?? {};
+
+  const setSm = <K extends keyof SmMeta>(key: K, value: SmMeta[K]) =>
+    onSmMeta?.({ ...sm, [key]: value });
 
   return (
     <Modal open={open} onClose={onClose} title="Map Settings">
@@ -47,6 +61,13 @@ export function SettingsModal({
             accept=".osz,.zip,application/zip"
             onFile={onImportOsz}
           />
+          {onImportSm && (
+            <FileButton
+              label="Import .sm map…"
+              accept=".sm"
+              onFile={onImportSm}
+            />
+          )}
           <p className="mt-1.5 text-[11px] text-slate-500">
             Replaces the current project with all mania difficulties in the
             archive.
@@ -153,6 +174,120 @@ export function SettingsModal({
             key count are set per difficulty in the Difficulty menu.
           </p>
         </section>
+
+        {/* ── StepMania-specific metadata — only shown for SM maps ── */}
+        {isSm && onSmMeta && (
+          <section className="flex flex-col gap-3 rounded-xl border border-pink-500/20 bg-pink-500/5 p-4">
+            <div className="flex items-center gap-2">
+              <img
+                src="/etterna-logo.png"
+                alt="Etterna"
+                className="h-4 w-4 object-contain opacity-80"
+              />
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-pink-300">
+                StepMania / Etterna Fields
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              These are written directly to the{" "}
+              <code className="rounded bg-ink-700 px-1 text-pink-300">.sm</code>{" "}
+              header on export. Leave blank to use defaults.
+            </p>
+
+            <Field label="Subtitle (#SUBTITLE)">
+              <TextInput
+                value={sm.subtitle ?? ""}
+                onChange={(e) => setSm("subtitle", e.target.value || undefined)}
+                placeholder="e.g. (TV Size)"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Title Translit (#TITLETRANSLIT)">
+                <TextInput
+                  value={sm.titleTranslit ?? ""}
+                  onChange={(e) =>
+                    setSm("titleTranslit", e.target.value || undefined)
+                  }
+                  placeholder="Romanised title"
+                />
+              </Field>
+              <Field label="Subtitle Translit (#SUBTITLETRANSLIT)">
+                <TextInput
+                  value={sm.subtitleTranslit ?? ""}
+                  onChange={(e) =>
+                    setSm("subtitleTranslit", e.target.value || undefined)
+                  }
+                  placeholder="Romanised subtitle"
+                />
+              </Field>
+            </div>
+
+            <Field label="Artist Translit (#ARTISTTRANSLIT)">
+              <TextInput
+                value={sm.artistTranslit ?? ""}
+                onChange={(e) =>
+                  setSm("artistTranslit", e.target.value || undefined)
+                }
+                placeholder="Romanised artist name"
+              />
+            </Field>
+
+            <Field label="Genre (#GENRE)">
+              <TextInput
+                value={sm.genre ?? ""}
+                onChange={(e) => setSm("genre", e.target.value || undefined)}
+                placeholder="e.g. J-Pop, Electronic"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Display BPM (#DISPLAYBPM)">
+                <TextInput
+                  value={sm.displayBpm ?? ""}
+                  onChange={(e) =>
+                    setSm("displayBpm", e.target.value || undefined)
+                  }
+                  placeholder="e.g. 120 or 80:200"
+                />
+              </Field>
+              <Field label="Sample Length (#SAMPLELENGTH) (s)">
+                <TextInput
+                  value={
+                    sm.sampleLength !== undefined ? String(sm.sampleLength) : ""
+                  }
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    setSm("sampleLength", Number.isFinite(v) ? v : undefined);
+                  }}
+                  placeholder="seconds, e.g. 10"
+                />
+              </Field>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-slate-400">
+                Selectable (#SELECTABLE)
+              </span>
+              <div className="inline-flex overflow-hidden rounded-lg border border-ink-500/60">
+                {(["YES", "NO"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setSm("selectable", v)}
+                    className={`px-4 py-1.5 text-xs transition ${
+                      (sm.selectable ?? "YES") === v
+                        ? "bg-pink-500/70 text-white"
+                        : "bg-ink-700 text-slate-300 hover:bg-ink-600"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </div>
     </Modal>
   );

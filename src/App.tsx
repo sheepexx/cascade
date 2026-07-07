@@ -80,6 +80,9 @@ import { downloadOsu } from "./lib/osuExport";
 import { downloadOsz } from "./lib/oszExport";
 import { importOsz } from "./lib/osuImport";
 import { importOsk } from "./lib/skinImport";
+import { parseSmFile, readSmFolder } from "./lib/smImport";
+import type { ImportedSmFolder } from "./lib/smImport";
+import { downloadSmZip } from "./lib/smExport";
 import {
   emptyJudgementCounts,
   judgeHitError,
@@ -1557,6 +1560,110 @@ export default function App() {
     [hasProjectContent, importMapFile],
   );
 
+  // ---- Import .sm ---------------------------------------------------------
+  const importSmFile = useCallback(async (file: File) => {
+    importStartedRef.current = true;
+    setImportError(null);
+    setImportingMap(true);
+    try {
+      const text = await file.text();
+      const map = parseSmFile(text);
+      setCloudProjectId(null);
+      setCloudOwnerId(null);
+      setMyRole(null);
+      setReferenceId(null);
+      setProjectStarted(true);
+      setMeta(map.meta);
+      setTimingPoints(
+        map.timingPoints.length
+          ? normalizeTimingPoints(map.timingPoints)
+          : defaultTimingPoints(),
+      );
+      const smBgFilename = map.backgroundFilename;
+      const diffs = (map.difficulties.length
+        ? map.difficulties
+        : [makeDifficulty()]
+      ).map((d) => ({
+        ...d,
+        backgroundFilename: d.backgroundFilename || smBgFilename || undefined,
+        timingPoints: normalizeTimingPoints(d.timingPoints),
+      }));
+      setDifficulties(diffs);
+      setActiveId(diffs[0].id);
+      setPendingImport(null);
+      setModal(null);
+      setLocalProjectId(newLocalProjectId());
+      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
+        () => {},
+      );
+    } catch (err) {
+      setImportError(
+        err instanceof Error ? err.message : "Failed to import .sm file.",
+      );
+    } finally {
+      setImportingMap(false);
+    }
+  }, []);
+
+  const requestImportSm = useCallback(
+    (file: File) => {
+      if (hasProjectContent) {
+        setPendingImport(file);
+      } else {
+        void importSmFile(file);
+      }
+    },
+    [hasProjectContent, importSmFile],
+  );
+
+  // ---- Import .sm from dropped folder (with media) ------------------------
+  const importSmFolder = useCallback(
+    async (folder: ImportedSmFolder) => {
+      const { parsed, audioFiles, backgroundFiles } = folder;
+      setCloudProjectId(null);
+      setCloudOwnerId(null);
+      setMyRole(null);
+      setReferenceId(null);
+      setProjectStarted(true);
+      setAudioFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return audioFiles;
+      });
+      setBgFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return backgroundFiles;
+      });
+      setMeta(parsed.meta);
+      setTimingPoints(
+        parsed.timingPoints.length
+          ? normalizeTimingPoints(parsed.timingPoints)
+          : defaultTimingPoints(),
+      );
+      const audioKeys = Object.keys(audioFiles);
+      const bgKeys = Object.keys(backgroundFiles);
+      const smAudioFilename = parsed.audioFilename ?? (audioKeys.length > 0 ? audioKeys[0] : undefined);
+      const smBgFilename = parsed.backgroundFilename ?? (bgKeys.length > 0 ? bgKeys[0] : undefined);
+      const diffs = (parsed.difficulties.length
+        ? parsed.difficulties
+        : [makeDifficulty()]
+      ).map((d) => ({
+        ...d,
+        audioFilename: d.audioFilename || smAudioFilename || undefined,
+        backgroundFilename: d.backgroundFilename || smBgFilename || undefined,
+        timingPoints: normalizeTimingPoints(d.timingPoints),
+      }));
+      setDifficulties(diffs);
+      setActiveId(diffs[0].id);
+      setPendingImport(null);
+      setModal(null);
+      setLocalProjectId(newLocalProjectId());
+      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
+        () => {},
+      );
+    },
+    [],
+  );
+
   // ---- Bundled "try these maps" -------------------------------------------
   const loadSampleMap = useCallback(
     async (map: SampleMap) => {
@@ -2411,6 +2518,7 @@ export default function App() {
     f.type.startsWith("image/") || /\.(png|jpe?g|gif)$/i.test(f.name);
   const isOszFile = (f: File) => /\.(osz|zip)$/i.test(f.name);
   const isOskFile = (f: File) => /\.osk$/i.test(f.name);
+  const isSmFile = (f: File) => /\.sm$/i.test(f.name);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -2422,9 +2530,33 @@ export default function App() {
   }, []);
 
   const onDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
+
+      // Check for dropped folder via webkitGetAsEntry
+      if (e.dataTransfer.items?.length) {
+        const hasDir = Array.from(e.dataTransfer.items).some(
+          (item) => item.webkitGetAsEntry()?.isDirectory,
+        );
+        if (hasDir) {
+          setImportingMap(true);
+          try {
+            const folder = await readSmFolder(e.dataTransfer.items);
+            if (folder) {
+              await importSmFolder(folder);
+              setImportingMap(false);
+              return;
+            }
+          } catch {
+            setImportError("Failed to import .sm folder.");
+            setImportingMap(false);
+            return;
+          }
+          setImportingMap(false);
+        }
+      }
+
       const files = Array.from(e.dataTransfer.files);
       const osk = files.find(isOskFile);
       if (osk) {
@@ -2436,12 +2568,17 @@ export default function App() {
         requestImportMap(osz);
         return;
       }
+      const sm = files.find(isSmFile);
+      if (sm) {
+        requestImportSm(sm);
+        return;
+      }
       const audioF = files.find(isAudioFile);
       if (audioF) onAudioFile(audioF);
       const image = files.find(isImageFile);
       if (image) onBackgroundFile(image);
     },
-    [onAudioFile, onBackgroundFile, onSkinFile, requestImportMap],
+    [onAudioFile, onBackgroundFile, onSkinFile, requestImportMap, requestImportSm, importSmFolder],
   );
 
   // ---- Export --------------------------------------------------------------
@@ -2465,6 +2602,24 @@ export default function App() {
     playUiSound("mapExportDone");
     void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
   }, [audioFile, active, activeTimingPoints, meta, authUser?.id]);
+
+  const doExportSm = useCallback(async () => {
+    if (Object.keys(audioFiles).length === 0) return;
+    setExporting(true);
+    try {
+      await downloadSmZip({
+        meta,
+        difficulties,
+        timingPoints,
+        audioFiles,
+        bgFiles,
+      });
+      playUiSound("mapExportDone");
+      void logAnalyticsEvent("export_sm", authUser?.id).catch(() => {});
+    } finally {
+      setExporting(false);
+    }
+  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id]);
 
   const doExportOsz = useCallback(async () => {
     if (Object.keys(audioFiles).length === 0) return;
@@ -2505,13 +2660,28 @@ export default function App() {
     () => requestExport(".osz", () => void doExportOsz()),
     [requestExport, doExportOsz],
   );
+  const handleExportSm = useCallback(
+    () => requestExport(".sm", () => void doExportSm()),
+    [requestExport, doExportSm],
+  );
+
+  const importFile = useCallback(
+    (file: File) => {
+      if (/\.sm$/i.test(file.name)) {
+        void importSmFile(file);
+      } else {
+        void importMapFile(file);
+      }
+    },
+    [importSmFile, importMapFile],
+  );
 
   const confirmImportWithoutExport = useCallback(() => {
     if (!pendingImport) return;
     const file = pendingImport;
     setPendingImport(null);
-    void importMapFile(file);
-  }, [pendingImport, importMapFile]);
+    importFile(file);
+  }, [pendingImport, importFile]);
 
   const confirmExportAndImport = useCallback(async () => {
     if (!pendingImport) return;
@@ -2519,11 +2689,11 @@ export default function App() {
     setPendingImport(null);
     try {
       await doExportOsz();
-      await importMapFile(file);
+      importFile(file);
     } catch {
       setImportError("Failed to export current project. Import canceled.");
     }
-  }, [pendingImport, doExportOsz, importMapFile]);
+  }, [pendingImport, doExportOsz, importFile]);
 
   const cancelPendingImport = useCallback(() => {
     setPendingImport(null);
@@ -3055,7 +3225,7 @@ export default function App() {
             <div className="mb-2 text-3xl">🎵</div>
             <p className="text-lg font-semibold text-slate-100">Drop to load</p>
             <p className="text-sm text-slate-400">
-              audio (.mp3 / .ogg) · image background · .osz map · .osk skin
+              audio (.mp3 / .ogg) · image background · .osz / .sm map (.sm folder) · .osk skin
             </p>
           </div>
         </div>
@@ -3227,6 +3397,11 @@ export default function App() {
                     label: "Export .osz",
                     disabled: !canExport || exporting,
                     onClick: handleExportOsz,
+                  },
+                  {
+                    label: "Export .sm",
+                    disabled: !canExport,
+                    onClick: handleExportSm,
                   },
                 ]}
               />
@@ -3628,6 +3803,9 @@ export default function App() {
         onBackgroundFile={onBackgroundFile}
         onClearBackground={onClearBackground}
         onImportOsz={requestImportMap}
+        onImportSm={requestImportSm}
+        activeDiff={active}
+        onSmMeta={(sm) => patchDifficulty(active.id, { smMeta: sm })}
       />
       <AppSettingsModal
         open={modal === "settings"}

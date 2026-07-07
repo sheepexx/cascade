@@ -176,6 +176,14 @@ function DiffRow({
             {difficulty.name || "Unnamed"}
           </span>
         )}
+        {difficulty.sourceFormat && (
+          <img
+            src={`/${difficulty.sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`}
+            alt={difficulty.sourceFormat}
+            className="ml-1.5 h-3.5 w-3.5 object-contain opacity-70 flex-shrink-0"
+            title={difficulty.sourceFormat === "sm" ? "Etterna Map" : "osu! Map"}
+          />
+        )}
         {peersHere.length > 0 && (
           <span className="flex items-center -space-x-1.5" title="Editing here">
             {peersHere.slice(0, 4).map((p) => (

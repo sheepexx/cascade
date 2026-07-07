@@ -83,6 +83,8 @@ export type LocalProjectSummary = {
   creator: string;
   updatedAt: number;
   difficultyCount: number;
+  /** Format of the original imported map, if known. */
+  sourceFormat?: "osu" | "sm";
   /** A background image blob to use as the start-menu thumbnail, if any. */
   backgroundBlob?: Blob;
 };
@@ -192,6 +194,7 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
                 creator: project.meta.creator,
                 updatedAt: project.savedAt,
                 difficultyCount: project.difficulties.length,
+                sourceFormat: project.difficulties[0]?.sourceFormat,
                 backgroundBlob: pickLocalBackground(project),
               });
             }
