@@ -10,6 +10,7 @@
  * Nothing here mutates the in-editor project — every function returns new data.
  */
 
+import { getMp3Encoder } from "./lameEncoder";
 import type { Difficulty, ManiaNote, TimingPoint } from "../types";
 
 /** A baked trim region, all values in milliseconds. */
@@ -87,6 +88,19 @@ function sliceAndFade(buffer: AudioBuffer, region: BakedRegion): Float32Array[] 
   return channels;
 }
 
+/** Convert float samples to 16-bit PCM Int16Array. */
+function floatToInt16(channels: Float32Array[]): Int16Array[] {
+  return channels.map((ch) => {
+    const out = new Int16Array(ch.length);
+    for (let i = 0; i < ch.length; i++) {
+      let s = ch[i];
+      s = s < -1 ? -1 : s > 1 ? 1 : s;
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    return out;
+  });
+}
+
 /** Encode per-channel float samples to a 16-bit PCM WAV blob. */
 function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
   const numCh = Math.max(1, channels.length);
@@ -135,9 +149,99 @@ function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
   return new Blob([ab], { type: "audio/wav" });
 }
 
-/** Slice + fade + encode in one step: produce the trimmed audio as a WAV blob. */
-export function renderTrimmedWav(buffer: AudioBuffer, region: BakedRegion): Blob {
-  return encodeWav(sliceAndFade(buffer, region), buffer.sampleRate);
+/** Try MP3 encoding; return null on failure so callers can fall back. */
+function tryEncodeMp3(channels: Float32Array[], sampleRate: number): Blob | null {
+  const numCh = Math.max(1, channels.length);
+  const numFrames = channels[0]?.length ?? 0;
+  if (numFrames === 0) return null;
+
+  const intChannels = floatToInt16(channels);
+  const Mp3Encoder = getMp3Encoder();
+  const encoder = new Mp3Encoder(numCh, sampleRate, 128);
+  const maxSamples = 1152;
+  const mp3Data: Int8Array[] = [];
+
+  for (let i = 0; i < numFrames; i += maxSamples) {
+    const end = Math.min(i + maxSamples, numFrames);
+    const chunk = intChannels[0].subarray(i, end);
+    let mp3buf: Int8Array;
+    if (numCh === 1) {
+      mp3buf = encoder.encodeBuffer(chunk);
+    } else {
+      const right = intChannels[1].subarray(i, end);
+      mp3buf = encoder.encodeBuffer(chunk, right);
+    }
+    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+  }
+
+  const flushed = encoder.flush();
+  if (flushed.length > 0) mp3Data.push(flushed);
+
+  return new Blob(mp3Data as BlobPart[], { type: "audio/mpeg" });
+}
+
+/**
+ * Simple linear-interpolation resampler. Used to re-encode at a supported
+ * sample rate when the original rate causes the MP3 encoder to fail.
+ */
+function resampleChannels(
+  data: Float32Array[],
+  fromRate: number,
+  toRate: number,
+): Float32Array[] {
+  if (fromRate === toRate) return data;
+  const ratio = fromRate / toRate;
+  const numFrames = data[0]?.length ?? 0;
+  const newLength = Math.max(1, Math.round(numFrames / ratio));
+  return data.map((ch) => {
+    const out = new Float32Array(newLength);
+    for (let i = 0; i < newLength; i++) {
+      const srcIdx = i * ratio;
+      const lo = Math.min(Math.floor(srcIdx), numFrames - 1);
+      const hi = Math.min(lo + 1, numFrames - 1);
+      const frac = srcIdx - lo;
+      out[i] = ch[lo] * (1 - frac) + ch[hi] * frac;
+    }
+    return out;
+  });
+}
+
+/** Try MP3 at the given sample rate; on failure retry at 44100; then WAV. */
+function encodeBest(channels: Float32Array[], sampleRate: number): EncodedAudio {
+  const tryAt = (rate: number): Blob | null => {
+    try {
+      if (rate === sampleRate) return tryEncodeMp3(channels, rate);
+      return tryEncodeMp3(resampleChannels(channels, sampleRate, rate), rate);
+    } catch (err) {
+      console.error(`MP3 encode failed @ ${rate} Hz:`, err);
+      return null;
+    }
+  };
+
+  const mp3 = tryAt(sampleRate) ?? (sampleRate !== 44100 ? tryAt(44100) : null);
+  if (mp3) return { blob: mp3, ext: "mp3" };
+
+  return { blob: encodeWav(channels, sampleRate), ext: "wav" };
+}
+
+export type EncodedAudio = {
+  blob: Blob;
+  /** File extension (without dot) matching the actual format — "mp3" or "wav". */
+  ext: "mp3" | "wav";
+};
+
+/** Slice + fade + encode in one step. Prefers MP3 (attempts resample to 44100 on failure), then WAV. */
+export function renderTrimmedAudio(buffer: AudioBuffer, region: BakedRegion): EncodedAudio {
+  return encodeBest(sliceAndFade(buffer, region), buffer.sampleRate);
+}
+
+/** Re-encode an AudioBuffer without trimming. Prefers MP3 (attempts resample to 44100 on failure), then WAV. */
+export function convertAudio(buffer: AudioBuffer): EncodedAudio {
+  const channels: Float32Array[] = [];
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    channels.push(buffer.getChannelData(ch));
+  }
+  return encodeBest(channels, buffer.sampleRate);
 }
 
 /** Shift every timing point's time so `shiftMs` becomes the new time 0. */
@@ -198,17 +302,28 @@ export function cutDifficulty(
 }
 
 /**
- * Build a WAV filename for the cut audio derived from the original name,
+ * Build a cut audio filename derived from the original name,
  * guaranteed not to collide with anything already in `taken`.
+ * @param ext File extension without dot (e.g. "mp3" or "wav").
  */
-export function cutAudioName(originalName: string, taken: Set<string>): string {
+export function cutAudioName(originalName: string, taken: Set<string>, ext: string): string {
   const dot = originalName.lastIndexOf(".");
   const base = dot > 0 ? originalName.slice(0, dot) : originalName;
-  let name = `${base}_cut.wav`;
+  let name = `${base}_cut.${ext}`;
   let i = 2;
   while (taken.has(name)) {
-    name = `${base}_cut${i}.wav`;
+    name = `${base}_cut${i}.${ext}`;
     i++;
   }
   return name;
+}
+
+/** Check if a filename has a `.wav` extension (case-insensitive). */
+export function isWav(name: string): boolean {
+  return /\.wav$/i.test(name);
+}
+
+/** Replace `.wav` extension with `.mp3`, or return the name unchanged. */
+export function toMp3Name(name: string): string {
+  return name.replace(/\.wav$/i, ".mp3");
 }

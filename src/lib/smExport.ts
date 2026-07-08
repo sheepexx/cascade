@@ -3,12 +3,15 @@ import type { Difficulty, LoadedFile, ManiaNote, SongMeta, TimingPoint } from ".
 import { makeRedPoint } from "../types";
 import { sortedPoints, redPoints } from "./timing";
 import {
+  convertAudio,
   cutAudioName,
   cutDifficulty,
   decodeAudioBlob,
   effectiveRegion,
-  renderTrimmedWav,
+  isWav,
+  renderTrimmedAudio,
   shiftTimingPoints,
+  toMp3Name,
   type BakedRegion,
 } from "./audioTrim";
 
@@ -431,8 +434,9 @@ export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
         const key = `${audio.name}|${region.startMs}|${region.endMs}|${region.fadeInMs}|${region.fadeOutMs}`;
         let cutName = cutNameByKey.get(key);
         if (!cutName) {
-          cutName = cutAudioName(audio.name, bundled);
-          zip.file(cutName, renderTrimmedWav(buffer, region));
+          const encoded = renderTrimmedAudio(buffer, region);
+          cutName = cutAudioName(audio.name, bundled, encoded.ext);
+          zip.file(cutName, encoded.blob);
           bundled.add(cutName);
           cutNameByKey.set(key, cutName);
         }
@@ -445,9 +449,26 @@ export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
     }
 
     // Bundle the verbatim audio only when it wasn't cut.
-    if (audio && audioName === audio.name && !bundled.has(audio.name)) {
-      zip.file(audio.name, audio.blob);
-      bundled.add(audio.name);
+    // Convert WAV → preferred format; keep other formats as-is.
+    if (audio && audioName === audio.name) {
+      let effectiveName = audio.name;
+      let effectiveBlob = audio.blob;
+      if (isWav(audio.name)) {
+        const ctx = ensureCtx();
+        if (ctx) {
+          const buffer = await getDecoded(audio);
+          if (buffer) {
+            const encoded = convertAudio(buffer);
+            effectiveName = toMp3Name(audio.name).replace(/\.mp3$/i, `.${encoded.ext}`);
+            effectiveBlob = encoded.blob;
+          }
+        }
+      }
+      if (!bundled.has(effectiveName)) {
+        zip.file(effectiveName, effectiveBlob);
+        bundled.add(effectiveName);
+      }
+      audioName = effectiveName;
     }
 
     // Attempt to fetch avatar for CDTITLE

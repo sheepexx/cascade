@@ -336,11 +336,11 @@ export type ImportedSmFolder = {
   backgroundFiles: Record<string, LoadedFile>;
 };
 
-function isAudioName(name: string): boolean {
+export function isAudioName(name: string): boolean {
   return /\.(mp3|ogg|wav|oga|flac|m4a)$/i.test(name);
 }
 
-function isImageName(name: string): boolean {
+export function isImageName(name: string): boolean {
   return /\.(png|jpe?g|gif|bmp|webp)$/i.test(name);
 }
 
