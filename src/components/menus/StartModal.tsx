@@ -63,6 +63,7 @@ export function WelcomeModal({
   onClose,
   onNewMap,
   onTryMaps,
+  onImportSmPack,
   onOpenCloudProject,
   onOpenLocalProject,
 }: {
@@ -70,6 +71,7 @@ export function WelcomeModal({
   onClose: () => void;
   onNewMap: () => void;
   onTryMaps: () => void;
+  onImportSmPack?: () => void;
   /** Open one of the user's cloud maps (owned or shared) by id. */
   onOpenCloudProject: (id: string) => void;
   /** Open one of the locally saved projects from this browser. */
@@ -287,6 +289,23 @@ export function WelcomeModal({
             Load a ready-made beatmap to explore the editor right away.
           </span>
         </button>
+        {onImportSmPack && (
+          <button
+            type="button"
+            onClick={onImportSmPack}
+            className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
+          >
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-2xl transition group-hover:bg-accent/20">
+              📦
+            </span>
+            <span className="text-sm font-semibold text-slate-100">
+              Import SM pack
+            </span>
+            <span className="text-xs text-slate-400">
+              Browse an Etterna pack folder and open a song in the editor.
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Community link */}
