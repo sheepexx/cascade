@@ -15,3 +15,11 @@ interface ImportMeta {
 
 /** App version, injected from package.json at build time (see vite.config.ts). */
 declare const __APP_VERSION__: string;
+
+declare module "lamejs" {
+  export class Mp3Encoder {
+    constructor(channels: number, sampleRate: number, kbps: number);
+    encodeBuffer(left: Int16Array, right?: Int16Array): Int8Array;
+    flush(): Int8Array;
+  }
+}

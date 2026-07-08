@@ -16,6 +16,7 @@ type Props = {
   onClearBackground: () => void;
   onImportOsz: (f: File) => void;
   onImportSm?: (f: File) => void;
+  onImportSmPack?: () => void;
   /** Currently active difficulty — used to detect SM maps and read smMeta. */
   activeDiff?: Difficulty;
   /** Called with the updated smMeta whenever an SM field changes. */
@@ -37,6 +38,7 @@ export function SettingsModal({
   onClearBackground,
   onImportOsz,
   onImportSm,
+  onImportSmPack,
   activeDiff,
   onSmMeta,
 }: Props) {
@@ -67,6 +69,15 @@ export function SettingsModal({
               accept=".sm"
               onFile={onImportSm}
             />
+          )}
+          {onImportSmPack && (
+            <button
+              type="button"
+              onClick={onImportSmPack}
+              className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85"
+            >
+              Import SM pack…
+            </button>
           )}
           <p className="mt-1.5 text-[11px] text-slate-500">
             Replaces the current project with all mania difficulties in the

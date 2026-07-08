@@ -82,6 +82,9 @@ import { importOsz } from "./lib/osuImport";
 import { importOsk } from "./lib/skinImport";
 import { parseSmFile, readSmFolder } from "./lib/smImport";
 import type { ImportedSmFolder } from "./lib/smImport";
+import { PackBrowserModal } from "./components/menus/PackBrowserModal";
+import { scanPackFromPicker, scanPackFromDrop } from "./lib/smPackImport";
+import type { PackSong } from "./lib/smPackImport";
 import { downloadSmZip } from "./lib/smExport";
 import {
   emptyJudgementCounts,
@@ -156,6 +159,7 @@ type ModalId =
   | "feedback"
   | "admin"
   | "share"
+  | "packBrowser"
   | null;
 
 /** Snapshot of the undoable beatmap document. */
@@ -289,6 +293,9 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const [importingMap, setImportingMap] = useState(false);
+  const [scannedPackSongs, setScannedPackSongs] = useState<PackSong[]>([]);
+  const [scanningPack, setScanningPack] = useState(false);
+  const [packError, setPackError] = useState<string | null>(null);
   // Hitsound applied to newly placed notes (additions bitmask + normal set).
   const [currentHitSound, setCurrentHitSound] = useState(0);
   const [currentSampleSet, setCurrentSampleSet] = useState(0);
@@ -1664,6 +1671,93 @@ export default function App() {
     [],
   );
 
+  /** Import a song selected from a scanned pack. */
+  const importPackSong = useCallback(
+    (song: PackSong) => {
+      setAudioFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return Object.fromEntries(
+          Object.entries(song.audioBlobs).map(([name, blob]) => [
+            name,
+            { name, url: URL.createObjectURL(blob), blob },
+          ]),
+        );
+      });
+      setBgFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return Object.fromEntries(
+          Object.entries(song.bgBlobs).map(([name, blob]) => [
+            name,
+            { name, url: URL.createObjectURL(blob), blob },
+          ]),
+        );
+      });
+      setCloudProjectId(null);
+      setCloudOwnerId(null);
+      setMyRole(null);
+      setReferenceId(null);
+      setProjectStarted(true);
+      setMeta(song.parsed.meta);
+      setTimingPoints(
+        song.parsed.timingPoints.length
+          ? normalizeTimingPoints(song.parsed.timingPoints)
+          : defaultTimingPoints(),
+      );
+      const audioKeys = Object.keys(song.audioBlobs);
+      const bgKeys = Object.keys(song.bgBlobs);
+      const smAudioFilename = song.parsed.audioFilename ?? (audioKeys.length > 0 ? audioKeys[0] : undefined);
+      const smBgFilename = song.parsed.backgroundFilename ?? (bgKeys.length > 0 ? bgKeys[0] : undefined);
+      const diffs = (song.parsed.difficulties.length
+        ? song.parsed.difficulties
+        : [makeDifficulty()]
+      ).map((d) => ({
+        ...d,
+        audioFilename: d.audioFilename || smAudioFilename || undefined,
+        backgroundFilename: d.backgroundFilename || smBgFilename || undefined,
+        timingPoints: normalizeTimingPoints(d.timingPoints),
+      }));
+      setDifficulties(diffs);
+      setActiveId(diffs[0].id);
+      setModal(null);
+      setLocalProjectId(newLocalProjectId());
+      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
+        () => {},
+      );
+    },
+    [],
+  );
+
+  /** Open a folder picker to scan an Etterna pack. */
+  const onImportSmPack = useCallback(async () => {
+    if (!("showDirectoryPicker" in window)) {
+      setPackError("Folder picker is not supported in this browser. Please drag & drop the pack folder instead.");
+      setModal("packBrowser");
+      return;
+    }
+    setScanningPack(true);
+    setPackError(null);
+    setModal("packBrowser");
+    try {
+      const dirHandle = await (window as unknown as {
+        showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>;
+      }).showDirectoryPicker();
+      const songs = await scanPackFromPicker(dirHandle);
+      setScannedPackSongs(songs);
+      if (songs.length === 0) {
+        setPackError("No .sm beatmaps found in the selected folder.");
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setModal(null);
+        setScannedPackSongs([]);
+      } else {
+        setPackError(err instanceof Error ? err.message : "Failed to scan pack.");
+      }
+    } finally {
+      setScanningPack(false);
+    }
+  }, []);
+
   // ---- Bundled "try these maps" -------------------------------------------
   const loadSampleMap = useCallback(
     async (map: SampleMap) => {
@@ -2552,6 +2646,18 @@ export default function App() {
             setImportError("Failed to import .sm folder.");
             setImportingMap(false);
             return;
+          }
+          // No single .sm found — try scanning as a pack.
+          try {
+            const songs = await scanPackFromDrop(e.dataTransfer.items);
+            if (songs.length > 0) {
+              setScannedPackSongs(songs);
+              setImportingMap(false);
+              setModal("packBrowser");
+              return;
+            }
+          } catch {
+            // Not a pack either — fall through to individual file handling.
           }
           setImportingMap(false);
         }
@@ -3763,6 +3869,7 @@ export default function App() {
         onClose={close}
         onNewMap={() => handleNew(hasProjectContent)}
         onTryMaps={() => setModal("sampleMaps")}
+        onImportSmPack={onImportSmPack}
         onOpenLocalProject={(id) => void loadLocalProject(id)}
         onOpenCloudProject={(id) => void loadCloudProject(id)}
       />
@@ -3804,6 +3911,7 @@ export default function App() {
         onClearBackground={onClearBackground}
         onImportOsz={requestImportMap}
         onImportSm={requestImportSm}
+        onImportSmPack={onImportSmPack}
         activeDiff={active}
         onSmMeta={(sm) => patchDifficulty(active.id, { smMeta: sm })}
       />
@@ -3987,6 +4095,20 @@ export default function App() {
         open={modal === "share"}
         onClose={close}
         projectId={cloudProjectId}
+      />
+
+      <PackBrowserModal
+        open={modal === "packBrowser"}
+        onClose={close}
+        onBack={() => {
+          setScannedPackSongs([]);
+          setPackError(null);
+          setModal(null);
+        }}
+        songs={scannedPackSongs}
+        onImport={importPackSong}
+        error={packError}
+        scanning={scanningPack}
       />
 
       {/* Collaborator join/leave toast */}
