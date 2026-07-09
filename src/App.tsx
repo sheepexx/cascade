@@ -4471,6 +4471,17 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
             sheepex_
           </a>
         </p>
+        <p>
+          Contributors:{" "}
+          <a
+            href="https://github.com/kaanreal"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-slate-300 transition hover:text-accent"
+          >
+            kaanreal
+          </a>
+        </p>
         <a
           href="https://buymeacoffee.com/sheepex_"
           target="_blank"
