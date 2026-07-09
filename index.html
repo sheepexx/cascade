@@ -14,11 +14,11 @@
     <title>Cascade | Online osu!mania Editor and Map Viewer</title>
     <meta
       name="description"
-      content="Cascade is an online mania editor for osu!mania beatmaps. Preview osu mania maps, import .osz files, edit timing and notes, collaborate, and export .osu or .osz."
+      content="Cascade is an online mania editor for osu!mania, StepMania, and Etterna beatmaps. Preview mania maps, import .osz files, convert osu to Etterna or StepMania, edit timing and notes, collaborate, and export .osu, .osz, or .sm."
     />
     <meta
       name="keywords"
-      content="mania editor, online mania editor, osu mania editor, osu!mania editor, osu mania map preview, osu!mania map preview, mania map viewer, osu mania map viewer, osu!mania beatmap editor, .osu editor, .osz editor"
+      content="mania editor, online mania editor, osu mania editor, osu!mania editor, osu mania map preview, osu!mania map preview, mania map viewer, osu mania map viewer, osu!mania beatmap editor, .osu editor, .osz editor, arrowvortex, arrow vortex, StepMania editor, stepmania editor, Etterna editor, etterna editor, VSRG editor, rhythm game editor, beatmap converter, mania converter, osu to Etterna, osu to etterna, osu mania to Etterna, osu mania to StepMania, osu to StepMania, .sm editor, .sm converter, StepMania chart editor, Etterna chart editor"
     />
 
     <!-- Open Graph / social cards -->
@@ -27,7 +27,7 @@
     <meta property="og:title" content="Cascade | Online osu!mania Editor and Map Viewer" />
     <meta
       property="og:description"
-      content="Create, preview, import, and export osu!mania beatmaps in a browser-based mania editor with live collaboration."
+      content="Create, preview, import, convert, and export osu!mania, StepMania, and Etterna beatmaps in a browser-based mania editor with live collaboration."
     />
     <meta property="og:url" content="https://cascade.sheepex.net/" />
     <meta property="og:image" content="https://cascade.sheepex.net/logo.png" />
@@ -36,7 +36,7 @@
     <meta name="twitter:title" content="Cascade | Online osu!mania Editor and Map Viewer" />
     <meta
       name="twitter:description"
-      content="Create, preview, import, and export osu!mania beatmaps in a browser-based mania editor with live collaboration."
+      content="Create, preview, import, convert, and export osu!mania, StepMania, and Etterna beatmaps in a browser-based mania editor with live collaboration."
     />
     <meta name="twitter:image" content="https://cascade.sheepex.net/logo.png" />
     <script type="application/ld+json">
@@ -48,11 +48,17 @@
           "online mania editor",
           "osu mania editor",
           "osu!mania editor",
+          "StepMania editor",
+          "Etterna editor",
+          "ArrowVortex alternative",
+          "mania converter",
+          "osu to Etterna converter",
+          "osu to StepMania converter",
           "osu mania map preview",
           "mania map viewer"
         ],
         "url": "https://cascade.sheepex.net/",
-        "description": "Cascade is an online mania editor for osu!mania beatmaps. Preview osu mania maps, import .osz files, edit timing and notes, collaborate, and export .osu or .osz.",
+        "description": "Cascade is an online mania editor for osu!mania, StepMania, and Etterna beatmaps. Preview mania maps, import .osz files, convert osu to Etterna or StepMania, edit timing and notes, collaborate, and export .osu, .osz, or .sm.",
         "applicationCategory": "MultimediaApplication",
         "operatingSystem": "Any",
         "browserRequirements": "Requires a modern browser with JavaScript enabled",
@@ -64,9 +70,12 @@
         },
         "featureList": [
           "Online osu!mania beatmap editing",
+          "StepMania and Etterna chart editing",
           "osu mania map preview",
           "mania map viewing",
           ".osu and .osz import",
+          ".sm import and export",
+          "osu to Etterna and StepMania conversion",
           ".osu and .osz export",
           "Live collaboration"
         ]
@@ -108,7 +117,7 @@
             "name": "Can I import my existing osu!mania beatmaps?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Yes. Drag an .osz or .osu file onto the page to edit an existing osu!mania map, then export it back out as .osu or .osz."
+              "text": "Yes. Drag an .osz or .osu file onto the page to edit an existing osu!mania map, then export it back out as .osu, .osz, or convert it for StepMania and Etterna."
             }
           },
           {
@@ -116,7 +125,15 @@
             "name": "Is Cascade a VSRG editor?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Yes. Cascade charts on a standard vertical-scrolling rhythm-game (VSRG) playfield and exports osu!mania .osu / .osz files."
+              "text": "Yes. Cascade charts on a standard vertical-scrolling rhythm-game (VSRG) playfield and exports osu!mania .osu / .osz files plus StepMania and Etterna .sm charts."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can Cascade convert osu!mania maps to Etterna or StepMania?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Cascade can import osu!mania .osu or .osz beatmaps and export StepMania or Etterna-compatible .sm files."
             }
           }
         ]
@@ -129,7 +146,7 @@
         "@context": "https://schema.org",
         "@type": "HowTo",
         "name": "How to make an osu!mania map online",
-        "description": "Create an osu!mania beatmap in your browser with Cascade, no install required.",
+        "description": "Create an osu!mania, StepMania, or Etterna beatmap in your browser with Cascade, no install required.",
         "totalTime": "PT10M",
         "tool": { "@type": "HowToTool", "name": "Cascade online osu!mania editor" },
         "step": [
@@ -151,7 +168,7 @@
           {
             "@type": "HowToStep",
             "name": "Export the beatmap",
-            "text": "Export a single difficulty as .osu, or the whole mapset as an .osz that osu! imports directly."
+            "text": "Export a single difficulty as .osu, the whole mapset as an .osz, or convert the chart to .sm for StepMania and Etterna."
           }
         ]
       }
@@ -239,17 +256,22 @@
         <h1>Free Online osu!mania Editor &amp; Map Viewer</h1>
         <p>
           <strong>Cascade</strong> is a browser-based <strong>osu!mania</strong>
-          beatmap editor and VSRG map viewer. Import <code>.osz</code> /
-          <code>.osu</code> files, chart notes on a vertical scrolling
+          beatmap editor, <strong>StepMania editor</strong>,
+          <strong>Etterna editor</strong>, and VSRG map viewer. Import
+          <code>.osz</code> / <code>.osu</code> files, convert osu to Etterna
+          or StepMania, chart notes on a vertical scrolling
           playfield, set timing, hear real osu! hitsounds, collaborate in
-          realtime, and export a ready-to-play map. No download, no install.
+          realtime, and export a ready-to-play <code>.osu</code>,
+          <code>.osz</code>, or <code>.sm</code> map. No download, no install.
         </p>
 
         <h2>What you can do</h2>
         <ul>
           <li>Edit osu!mania beatmaps online (1K to 18K), with rice notes and long notes</li>
+          <li>Edit StepMania and Etterna charts in a browser-based ArrowVortex-style workflow</li>
           <li>Preview and view osu!mania maps right in the browser</li>
-          <li>Import <code>.osz</code> / <code>.osu</code>, export <code>.osu</code> or <code>.osz</code></li>
+          <li>Import <code>.osz</code> / <code>.osu</code>, export <code>.osu</code>, <code>.osz</code>, or <code>.sm</code></li>
+          <li>Convert osu!mania maps to Etterna or StepMania-compatible <code>.sm</code> files</li>
           <li>Set BPM and timing with tap tempo and a metronome</li>
           <li>Real osu! hitsounds and <code>.osk</code> skin support</li>
           <li>Realtime collaborative mapping with live comments</li>
@@ -262,9 +284,11 @@
           <dt>Do I need to install anything?</dt>
           <dd>No. It is a web app: open it in any modern browser and start mapping immediately.</dd>
           <dt>Can I import my existing osu!mania beatmaps?</dt>
-          <dd>Yes. Drag an <code>.osz</code> or <code>.osu</code> file onto the page to edit an existing map, then export it back out.</dd>
+          <dd>Yes. Drag an <code>.osz</code> or <code>.osu</code> file onto the page to edit an existing map, then export it back out or convert osu to Etterna / StepMania.</dd>
           <dt>Is this a VSRG editor?</dt>
-          <dd>Yes. Cascade charts on a standard vertical-scrolling rhythm-game (VSRG) playfield and exports osu!mania <code>.osu</code> / <code>.osz</code> files.</dd>
+          <dd>Yes. Cascade charts on a standard vertical-scrolling rhythm-game (VSRG) playfield and exports osu!mania <code>.osu</code> / <code>.osz</code> files plus StepMania and Etterna <code>.sm</code> charts.</dd>
+          <dt>Is Cascade like ArrowVortex?</dt>
+          <dd>Cascade covers similar mania chart editing and conversion workflows in the browser, including osu!mania, StepMania, and Etterna formats.</dd>
         </dl>
 
         <noscript>
