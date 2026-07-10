@@ -242,6 +242,10 @@ function blurActiveControl(): void {
   if (typeof el.blur === "function") el.blur();
 }
 
+function hasDraggedFiles(dataTransfer: DataTransfer | null): boolean {
+  return !!dataTransfer && Array.from(dataTransfer.types).includes("Files");
+}
+
 /** Min gap between trim/fade op broadcasts while dragging (≈11 sends/sec). */
 const TRIM_BROADCAST_MS = 90;
 
@@ -272,6 +276,7 @@ export default function App() {
   const [skinError, setSkinError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const dragDepthRef = useRef(0);
   const [modal, setModal] = useState<ModalId>(null);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   // Id of a difficulty pending an "are you sure?" delete confirmation, or null.
@@ -2605,6 +2610,16 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const onDevtoolsKey = (e: KeyboardEvent) => {
+      if (e.key !== "F12") return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("keydown", onDevtoolsKey, true);
+    return () => window.removeEventListener("keydown", onDevtoolsKey, true);
+  }, []);
+
   // ---- Drag & drop (audio / image / .osz) ----------------------------------
   const isAudioFile = (f: File) =>
     f.type.startsWith("audio/") || /\.(mp3|ogg)$/i.test(f.name);
@@ -2614,19 +2629,62 @@ export default function App() {
   const isOskFile = (f: File) => /\.osk$/i.test(f.name);
   const isSmFile = (f: File) => /\.sm$/i.test(f.name);
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
+  const resetFileDrag = useCallback(() => {
+    dragDepthRef.current = 0;
+    setIsDragging(false);
+  }, []);
+
+  const onDragEnter = useCallback((e: React.DragEvent) => {
+    if (!hasDraggedFiles(e.dataTransfer)) return;
     e.preventDefault();
-    if (e.dataTransfer.types.includes("Files")) setIsDragging(true);
+    dragDepthRef.current += 1;
+    setIsDragging(true);
+  }, []);
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    if (!hasDraggedFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    if (dragDepthRef.current === 0) dragDepthRef.current = 1;
+    setIsDragging(true);
   }, []);
 
   const onDragLeave = useCallback((e: React.DragEvent) => {
-    if (e.currentTarget === e.target) setIsDragging(false);
+    if (!hasDraggedFiles(e.dataTransfer) && dragDepthRef.current === 0) return;
+    e.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setIsDragging(false);
   }, []);
+
+  useEffect(() => {
+    const onDocumentDragLeave = (e: DragEvent) => {
+      if (!hasDraggedFiles(e.dataTransfer) && dragDepthRef.current === 0)
+        return;
+      if (e.relatedTarget === null) resetFileDrag();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") resetFileDrag();
+    };
+
+    document.addEventListener("dragleave", onDocumentDragLeave);
+    document.addEventListener("dragend", resetFileDrag);
+    document.addEventListener("drop", resetFileDrag);
+    window.addEventListener("blur", resetFileDrag);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("dragleave", onDocumentDragLeave);
+      document.removeEventListener("dragend", resetFileDrag);
+      document.removeEventListener("drop", resetFileDrag);
+      window.removeEventListener("blur", resetFileDrag);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [resetFileDrag]);
 
   const onDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault();
-      setIsDragging(false);
+      resetFileDrag();
 
       // Check for dropped folder via webkitGetAsEntry
       if (e.dataTransfer.items?.length) {
@@ -2684,7 +2742,7 @@ export default function App() {
       const image = files.find(isImageFile);
       if (image) onBackgroundFile(image);
     },
-    [onAudioFile, onBackgroundFile, onSkinFile, requestImportMap, requestImportSm, importSmFolder],
+    [onAudioFile, onBackgroundFile, onSkinFile, requestImportMap, requestImportSm, importSmFolder, resetFileDrag],
   );
 
   // ---- Export --------------------------------------------------------------
@@ -3313,6 +3371,7 @@ export default function App() {
   return (
     <div
       className="relative h-full overflow-hidden bg-ink-900"
+      onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -3345,7 +3404,9 @@ export default function App() {
           <img
             src={`${import.meta.env.BASE_URL}logo.png?v=2`}
             alt=""
-            className="loader-logo-pulse loader-content-in h-20 w-20 rounded-2xl object-cover"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            className="loader-logo-pulse loader-content-in h-20 w-20 select-none rounded-2xl object-cover"
           />
           <div className="loader-content-in flex h-12 items-end gap-1.5">
             {[0, 1, 2, 3, 4, 5, 6].map((i) => (
@@ -3385,7 +3446,9 @@ export default function App() {
               <img
                 src={`${import.meta.env.BASE_URL}logo.png?v=2`}
                 alt="Cascade"
-                className="h-8 w-8 rounded-lg object-cover"
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
+                className="h-8 w-8 select-none rounded-lg object-cover"
               />
               <h1 className="text-sm font-semibold text-slate-100">
                 Cascade
@@ -4436,7 +4499,9 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
         <img
           src={`${import.meta.env.BASE_URL}logo.png?v=2`}
           alt="Cascade"
-          className="mx-auto mb-4 h-24 w-24 rounded-2xl object-cover"
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          className="mx-auto mb-4 h-24 w-24 select-none rounded-2xl object-cover"
         />
         <h2 className="mb-1 text-lg font-semibold text-slate-200">
           Drop audio anywhere to start mapping
