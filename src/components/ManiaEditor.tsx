@@ -49,6 +49,9 @@ const MANIA_MAX_TIME_RANGE = 11485;
 const PLAYHEAD_FROM_BOTTOM = 96;
 const NOTE_HEIGHT = 16;
 const SELECT_AUTOSCROLL_TOP_ZONE = 64;
+// Inset (px) the box-select rectangle stops short of the canvas edge, so it
+// visibly halts inside the notefield instead of hugging the very border.
+const SELECT_EDGE_INSET = 12;
 const SELECT_AUTOSCROLL_MIN_PX_PER_SEC = 280;
 const SELECT_AUTOSCROLL_MAX_PX_PER_SEC = 900;
 // How close (ms) the playhead must be to a note for that column's receptor to
@@ -170,6 +173,10 @@ type SelectionDragState = {
   currentX: number;
   currentY: number;
   currentTime: number;
+  // Raw (un-clamped) pointer Y. currentY is pinned to the canvas inset for
+  // drawing; rawY tracks the true cursor so edge-autoscroll speed can scale with
+  // how far outside the canvas the pointer is dragged.
+  rawY: number;
 };
 
 /** In-progress drag of the current selection to a new column / time. */
@@ -359,6 +366,9 @@ export function ManiaEditor(props: Props) {
   const selectionDragRef = useRef<SelectionDragState | null>(null);
   const moveDragRef = useRef<MoveDragState | null>(null);
   const selectionAutoscrollTimeRef = useRef<number | null>(null);
+  // True while a *mouse* box-select holds pointer capture, so the drag keeps
+  // tracking (and doesn't get cancelled) when the cursor leaves the canvas.
+  const boxSelectCapturedRef = useRef(false);
   // Touch input: every active touch/pen pointer by id (client coords), plus the
   // two-finger scrub state (the touch replacement for the mouse wheel).
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(
@@ -1448,13 +1458,25 @@ export function ManiaEditor(props: Props) {
     const selection = selectionDragRef.current;
     if (selection) {
       const rect = selectionScreenRect(selection);
-      ctx.fillStyle = "rgba(255,210,63,0.12)";
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      ctx.strokeStyle = "#ffd23f";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 4]);
-      ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w, rect.h);
-      ctx.setLineDash([]);
+      // Clamp the *drawn* rectangle to a small inset so it visibly stops short
+      // of the canvas edge — including its time-anchored corner, which can
+      // otherwise scroll off-screen while dragging. Hit-testing on mouse-up uses
+      // the unclamped rect, so notes beyond the edge still get selected.
+      const x0 = Math.max(SELECT_EDGE_INSET, rect.x);
+      const y0 = Math.max(SELECT_EDGE_INSET, rect.y);
+      const x1 = Math.min(width - SELECT_EDGE_INSET, rect.x + rect.w);
+      const y1 = Math.min(height - SELECT_EDGE_INSET, rect.y + rect.h);
+      const w = x1 - x0;
+      const h = y1 - y0;
+      if (w > 0 && h > 0) {
+        ctx.fillStyle = "rgba(255,210,63,0.12)";
+        ctx.fillRect(x0, y0, w, h);
+        ctx.strokeStyle = "#ffd23f";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(x0 + 0.5, y0 + 0.5, w, h);
+        ctx.setLineDash([]);
+      }
     }
 
     // ---- Playhead (judgement line) ----
@@ -1571,6 +1593,7 @@ export function ManiaEditor(props: Props) {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
+
   const findNoteAt = (x: number, y: number): ManiaNote | null => {
     const { notes, keyCount } = propsRef.current;
     const col = columnAtX(x);
@@ -1666,6 +1689,9 @@ export function ManiaEditor(props: Props) {
       const phY = playheadY();
       const up = propsRef.current.upscroll === true;
       const y = selection.currentY;
+      // Intensity keys off the *raw* cursor position so speed keeps ramping the
+      // further past the edge you drag, instead of pinning to the clamped box.
+      const rawY = selection.rawY;
       let dir: 1 | -1 | 0 = 0;
       let intensity = 0;
 
@@ -1673,27 +1699,27 @@ export function ManiaEditor(props: Props) {
       // means "advance" flips with scroll direction: the top edge points to the
       // future in downscroll, the bottom edge in upscroll.
       if (!up) {
-        if (y < SELECT_AUTOSCROLL_TOP_ZONE) {
+        if (rawY < SELECT_AUTOSCROLL_TOP_ZONE) {
           dir = 1;
           intensity = Math.min(
             1,
-            (SELECT_AUTOSCROLL_TOP_ZONE - y) / SELECT_AUTOSCROLL_TOP_ZONE,
+            (SELECT_AUTOSCROLL_TOP_ZONE - rawY) / SELECT_AUTOSCROLL_TOP_ZONE,
           );
-        } else if (y > phY) {
+        } else if (rawY > phY) {
           dir = -1;
-          intensity = Math.min(1, (y - phY) / Math.max(1, height - phY));
+          intensity = Math.min(1, (rawY - phY) / Math.max(1, height - phY));
         }
       } else {
         const futureEdge = height - SELECT_AUTOSCROLL_TOP_ZONE;
-        if (y > futureEdge) {
+        if (rawY > futureEdge) {
           dir = 1;
           intensity = Math.min(
             1,
-            (y - futureEdge) / SELECT_AUTOSCROLL_TOP_ZONE,
+            (rawY - futureEdge) / SELECT_AUTOSCROLL_TOP_ZONE,
           );
-        } else if (y < phY) {
+        } else if (rawY < phY) {
           dir = -1;
-          intensity = Math.min(1, (phY - y) / Math.max(1, phY));
+          intensity = Math.min(1, (phY - rawY) / Math.max(1, phY));
         }
       }
 
@@ -1746,6 +1772,7 @@ export function ManiaEditor(props: Props) {
         currentX: x,
         currentY: y,
         currentTime: yToTime(y),
+        rawY: y,
       };
       setSelection(new Set());
       return;
@@ -1804,10 +1831,19 @@ export function ManiaEditor(props: Props) {
     mouseRef.current = { x, y, inside: true };
     const selection = selectionDragRef.current;
     if (selection) {
-      selection.currentX = x;
-      selection.currentY = y;
-      selection.currentTime = yToTime(y);
-      selectionAutoscrollTimeRef.current = null;
+      // Clamp the box to just inside the canvas so it visibly stops short of the
+      // editor edge instead of running off when the pointer leaves the notefield.
+      const { width, height } = sizeRef.current;
+      const cx = Math.max(SELECT_EDGE_INSET, Math.min(x, width - SELECT_EDGE_INSET));
+      const cy = Math.max(SELECT_EDGE_INSET, Math.min(y, height - SELECT_EDGE_INSET));
+      selection.currentX = cx;
+      selection.currentY = cy;
+      selection.rawY = y;
+      selection.currentTime = yToTime(cy);
+      // NB: do *not* reset the autoscroll accumulator here. Resetting on every
+      // move made hand-jitter (common while dragging off-canvas) restart the
+      // scroll from the eased/lagging clock each frame — the source of the
+      // stutter. The autoscroll loop clears it on its own once out of the zone.
       return;
     }
 
@@ -1908,9 +1944,14 @@ export function ManiaEditor(props: Props) {
   const onMouseLeave = () => {
     mouseRef.current.inside = false;
     dragRef.current = null;
-    selectionDragRef.current = null;
-    selectionAutoscrollTimeRef.current = null;
     moveDragRef.current = null;
+    // A mouse box-select holding pointer capture is intentionally *not*
+    // cancelled here — capture keeps its move/up events flowing off-canvas so
+    // the drag continues (clamped to the edge) until the button is released.
+    if (!boxSelectCapturedRef.current) {
+      selectionDragRef.current = null;
+      selectionAutoscrollTimeRef.current = null;
+    }
   };
 
   const onContextMenu = (e: React.MouseEvent) => {
@@ -1943,6 +1984,18 @@ export function ManiaEditor(props: Props) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse") {
       onMouseDown(e);
+      // If that began a box-select, capture the pointer so the drag keeps
+      // tracking (clamped to the edge) after the cursor leaves the canvas and
+      // still commits on release outside the notefield — same mechanism the
+      // touch/pen path uses.
+      if (selectionDragRef.current) {
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          boxSelectCapturedRef.current = true;
+        } catch {
+          /* capture unsupported / pointer already gone */
+        }
+      }
       return;
     }
     if (props.playtestMode) return;
@@ -1992,6 +2045,14 @@ export function ManiaEditor(props: Props) {
 
   const onPointerUp = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse") {
+      if (boxSelectCapturedRef.current) {
+        boxSelectCapturedRef.current = false;
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          /* nothing to release */
+        }
+      }
       onMouseUp(e);
       return;
     }
@@ -2011,7 +2072,16 @@ export function ManiaEditor(props: Props) {
   };
 
   const onPointerCancel = (e: React.PointerEvent) => {
-    if (e.pointerType === "mouse") return;
+    if (e.pointerType === "mouse") {
+      // A cancelled mouse box-select: drop the capture flag and the drag so it
+      // doesn't get stuck on-screen.
+      if (boxSelectCapturedRef.current) {
+        boxSelectCapturedRef.current = false;
+        selectionDragRef.current = null;
+        selectionAutoscrollTimeRef.current = null;
+      }
+      return;
+    }
     activePointersRef.current.delete(e.pointerId);
     scrubRef.current = null;
     if (activePointersRef.current.size === 0) onMouseLeave();
