@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png?v=2" />
+    <link rel="canonical" href="https://cascade.sheepex.net/how-to-make-an-osu-mania-map" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>How to Make an osu!mania Map Online (No Install) | Cascade</title>
+    <meta
+      name="description"
+      content="Step-by-step guide to making your first osu!mania beatmap in the browser: load a song, set BPM and offset with tap tempo, place notes and holds, add hitsounds and a background, then export a playable .osz."
+    />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:title" content="How to make an osu!mania map online" />
+    <meta property="og:description" content="From audio file to playable .osz in your browser: timing, note placement, hitsounds and export." />
+    <meta property="og:url" content="https://cascade.sheepex.net/how-to-make-an-osu-mania-map" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to make an osu!mania map online",
+        "description": "Create an osu!mania, StepMania, or Etterna beatmap in your browser with Cascade, no install required.",
+        "totalTime": "PT10M",
+        "tool": { "@type": "HowToTool", "name": "Cascade online osu!mania editor" },
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Load your song",
+            "text": "Open Cascade and drag an audio file (.mp3/.ogg) or a whole .osz onto the page."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Set the timing",
+            "text": "Open the Timing panel and set your BPM and offset, then use tap tempo to detect the beat and the metronome to check it."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Chart your notes",
+            "text": "Click the lanes on the vertical playfield to place notes; click and drag for long notes (holds). Pick a snap divisor for accuracy."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Export the beatmap",
+            "text": "Export a single difficulty as .osu, the whole mapset as an .osz, or convert the chart to .sm for StepMania and Etterna."
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      kbd { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.85em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/logo.png?v=2" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>How to make an osu!mania map online</h1>
+      <p>
+        You don't need to install osu! (or even own a PC that runs it) to start
+        mapping. This guide walks through making a playable
+        <strong> osu!mania</strong> beatmap entirely in the browser with
+        <a href="/"> Cascade</a>, from a bare audio file to an exported
+        <code>.osz</code>.
+      </p>
+      <a class="cta" href="/">Open the editor</a>
+
+      <h2>1. Load your song</h2>
+      <p>
+        Drag an <code>.mp3</code> or <code>.ogg</code> onto the page. The song
+        appears in the bottom timeline as a waveform. If you already have a map
+        you want to improve instead, drop the whole <code>.osz</code>.
+      </p>
+
+      <h2>2. Set BPM and offset</h2>
+      <p>
+        Open the <em>Timing</em> panel. If you don't know the BPM, use
+        <em> tap tempo</em>: play the song and tap along, and Cascade averages
+        your taps. Set the offset so the first beat lands on a barline, then
+        turn on the metronome to check it. Getting timing right first matters
+        more than anything else: every note you place snaps to this grid.
+      </p>
+
+      <h2>3. Place notes</h2>
+      <ul>
+        <li>Click a lane to place a note; click and drag upward for a long note (hold).</li>
+        <li>Pick a snap divisor (1/4 for most rhythms, 1/6 and 1/8 for triplets and bursts).</li>
+        <li>Press <kbd>Space</kbd> to play back what you have; scrub with the mouse wheel.</li>
+        <li>Copy, paste and mirror selections to build patterns faster, or start from the built-in pattern presets.</li>
+      </ul>
+
+      <h2>4. Polish</h2>
+      <ul>
+        <li>Add hitsound additions (whistle, finish, clap) to accent the rhythm.</li>
+        <li>Set a background image or a muted background video in Map Settings.</li>
+        <li>Use Playtest mode to actually play your chart with judgements and accuracy, then fix what feels wrong.</li>
+        <li>Add more difficulties to turn the map into a full spread.</li>
+      </ul>
+
+      <h2>5. Export</h2>
+      <p>
+        <em>File → Export .osz</em> packages the audio, background, video and
+        every difficulty into one file you can drop straight into osu!. You can
+        also export a single <code>.osu</code>, or
+        <a href="/osu-to-stepmania"> convert the map to StepMania / Etterna</a>
+        as <code>.sm</code>.
+      </p>
+
+      <h2>Tips for your first map</h2>
+      <ul>
+        <li>Map a song you know well; predictable rhythm is easier to chart.</li>
+        <li>Follow the music, not the maximum note density you can play.</li>
+        <li>Keep patterns consistent: similar sounds should produce similar shapes.</li>
+        <li>Watch your map in the <a href="/osu-mania-map-viewer">map viewer</a> at 50% speed to spot mistimed notes.</li>
+      </ul>
+
+      <footer>
+        <p>
+          More: <a href="/">Cascade, the online osu!mania editor</a> ·
+          <a href="/osu-to-stepmania">Convert osu!mania to StepMania / Etterna</a> ·
+          <a href="/osu-mania-map-viewer">Preview osu!mania maps online</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

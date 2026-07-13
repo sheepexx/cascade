@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png?v=2" />
+    <link rel="canonical" href="https://cascade.sheepex.net/osu-mania-map-viewer" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>osu!mania Map Viewer: Preview Beatmaps Online | Cascade</title>
+    <meta
+      name="description"
+      content="Preview any osu!mania beatmap in your browser: drop an .osz file to watch the map scroll with audio, hitsounds and skins, playtest it with your keyboard, and inspect timing, SVs and patterns. Free, no install."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:title" content="Preview osu!mania maps online" />
+    <meta property="og:description" content="Drop an .osz and watch the map play with audio, hitsounds and skins. Free, in your browser." />
+    <meta property="og:url" content="https://cascade.sheepex.net/osu-mania-map-viewer" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/logo.png?v=2" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Preview osu!mania maps online</h1>
+      <p>
+        Want to see a beatmap without launching osu!? Cascade is a free
+        <strong> osu!mania map viewer</strong> that runs in the browser: drop an
+        <code>.osz</code> onto the page and the map plays on a vertical
+        scrolling playfield with the song, real osu! hitsounds, background
+        image or video, and even your own <code>.osk</code> skin.
+      </p>
+      <a class="cta" href="/">Open the map viewer</a>
+
+      <h2>How it works</h2>
+      <ol>
+        <li>Open <a href="/">Cascade</a> and drag any <code>.osz</code> file onto the window.</li>
+        <li>Press <code>Space</code> to play. Scrub the timeline, change playback speed (25% to 100%), or jump between bookmarks and kiai sections.</li>
+        <li>Switch difficulties in the sidebar to compare charts in the same set.</li>
+      </ol>
+
+      <h2>Viewer features</h2>
+      <ul>
+        <li>Every keymode from 1K to 18K, with long notes, SVs and BPM changes rendered accurately</li>
+        <li>Playtest mode: play the map with your keyboard, with judgements, combo and accuracy</li>
+        <li>Waveform timeline, per-difficulty star rating and a PP counter</li>
+        <li>Skin support: load an <code>.osk</code> to see the map with your own note style</li>
+        <li>Slow-motion playback for reading dense patterns</li>
+      </ul>
+
+      <h2>More than a viewer</h2>
+      <p>
+        Cascade is a full <a href="/">online osu!mania editor</a>: the same page
+        lets you fix a note, retime a section, or
+        <a href="/osu-to-stepmania"> convert the map to StepMania / Etterna</a>
+        and export it back out as <code>.osu</code>, <code>.osz</code> or
+        <code>.sm</code>. If you are new to mapping, start with the guide on
+        <a href="/how-to-make-an-osu-mania-map"> how to make an osu!mania map</a>.
+      </p>
+
+      <footer>
+        <p>
+          More: <a href="/">Cascade, the online osu!mania editor</a> ·
+          <a href="/how-to-make-an-osu-mania-map">How to make an osu!mania map</a> ·
+          <a href="/osu-to-stepmania">Convert osu!mania to StepMania / Etterna</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

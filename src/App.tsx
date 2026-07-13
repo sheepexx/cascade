@@ -3549,9 +3549,9 @@ export default function App() {
                 onDragStart={(e) => e.preventDefault()}
                 className="h-8 w-8 select-none rounded-lg object-cover"
               />
-              <h1 className="text-sm font-semibold text-slate-100">
+              <span className="text-sm font-semibold text-slate-100">
                 Cascade
-              </h1>
+              </span>
             </button>
           </div>
 
@@ -4602,68 +4602,162 @@ function InfoRow({ keys, text }: { keys: string; text: string }) {
 
 function EmptyState({ onEnter }: { onEnter: () => void }) {
   return (
-    <div className="relative grid h-full place-items-center text-center">
-      <div className="max-w-sm">
-        <img
-          src={`${import.meta.env.BASE_URL}logo.png?v=2`}
-          alt="Cascade"
-          draggable={false}
-          onDragStart={(e) => e.preventDefault()}
-          className="mx-auto mb-4 h-24 w-24 select-none rounded-2xl object-cover"
-        />
-        <h2 className="mb-1 text-lg font-semibold text-slate-200">
-          Drop audio anywhere to start mapping
+    <div className="h-full overflow-y-auto">
+      {/* Hero: fills the viewport so the boot hand-off looks unchanged. */}
+      <div className="relative grid min-h-full place-items-center text-center">
+        <div className="max-w-sm">
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png?v=2`}
+            alt="Cascade"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            className="mx-auto mb-4 h-24 w-24 select-none rounded-2xl object-cover"
+          />
+          <h2 className="mb-1 text-lg font-semibold text-slate-200">
+            Drop audio anywhere to start mapping
+          </h2>
+          <p className="mb-4 text-sm text-slate-500">
+            Drag an <code className="text-slate-400">.mp3</code>,{" "}
+            <code className="text-slate-400">.ogg</code>, an image background, or
+            a whole <code className="text-slate-400">.osz</code> onto this window.
+            Set BPM in <span className="text-slate-300">Timing</span>, then click
+            the lanes to place notes. Press{" "}
+            <kbd className="rounded bg-ink-700 px-1.5 py-0.5 text-[11px] text-slate-300">
+              Space
+            </kbd>{" "}
+            to play / pause.
+          </p>
+          <Button variant="accent" onClick={onEnter}>
+            Enter
+          </Button>
+          <p className="mt-6 text-[11px] font-medium tracking-wide text-slate-600">
+            Cascade · v{__APP_VERSION__}
+          </p>
+        </div>
+        <div className="absolute bottom-4 left-1/2 flex w-max -translate-x-1/2 flex-col items-center gap-1 text-xs text-slate-500">
+          <p>
+            Made by{" "}
+            <a
+              href="https://osu.ppy.sh/u/sheepex_"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-slate-300 transition hover:text-accent"
+            >
+              sheepex_
+            </a>
+          </p>
+          <p>
+            Contributors:{" "}
+            <a
+              href="https://github.com/kaanreal"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-slate-300 transition hover:text-accent"
+            >
+              kaanreal
+            </a>
+          </p>
+          <a
+            href="https://buymeacoffee.com/sheepex_"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-slate-400 transition hover:text-accent"
+          >
+            buy me a coffee :)
+          </a>
+        </div>
+      </div>
+
+      {/* About / landing content. Lives in the rendered DOM (not just the
+          pre-React boot HTML) so search engines that execute JS index it. */}
+      <section className="mx-auto max-w-2xl px-5 pb-14 pt-10 text-left text-sm leading-relaxed text-slate-400">
+        <h1 className="mb-3 text-xl font-bold text-slate-200">
+          Free Online osu!mania Editor &amp; Map Viewer
+        </h1>
+        <p className="mb-2">
+          <strong className="font-semibold text-slate-300">Cascade</strong> is a
+          browser-based <strong className="font-semibold text-slate-300">osu!mania</strong>{" "}
+          beatmap editor, StepMania editor, Etterna editor, and VSRG map viewer.
+          Import <code className="text-slate-300">.osz</code> /{" "}
+          <code className="text-slate-300">.osu</code> files, convert osu to
+          Etterna or StepMania, chart notes on a vertical scrolling playfield,
+          set timing, hear real osu! hitsounds, collaborate in realtime, and
+          export a ready-to-play <code className="text-slate-300">.osu</code>,{" "}
+          <code className="text-slate-300">.osz</code>, or{" "}
+          <code className="text-slate-300">.sm</code> map. No download, no
+          install.
+        </p>
+
+        <h2 className="mb-2 mt-7 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          What you can do
         </h2>
-        <p className="mb-4 text-sm text-slate-500">
-          Drag an <code className="text-slate-400">.mp3</code>,{" "}
-          <code className="text-slate-400">.ogg</code>, an image background, or
-          a whole <code className="text-slate-400">.osz</code> onto this window.
-          Set BPM in <span className="text-slate-300">Timing</span>, then click
-          the lanes to place notes. Press{" "}
-          <kbd className="rounded bg-ink-700 px-1.5 py-0.5 text-[11px] text-slate-300">
-            Space
-          </kbd>{" "}
-          to play / pause.
-        </p>
-        <Button variant="accent" onClick={onEnter}>
-          Enter
-        </Button>
-        <p className="mt-6 text-[11px] font-medium tracking-wide text-slate-600">
-          Cascade · v{__APP_VERSION__}
-        </p>
-      </div>
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-xs text-slate-500">
-        <p>
-          Made by{" "}
-          <a
-            href="https://osu.ppy.sh/u/sheepex_"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-slate-300 transition hover:text-accent"
-          >
-            sheepex_
-          </a>
-        </p>
-        <p>
-          Contributors:{" "}
-          <a
-            href="https://github.com/kaanreal"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-slate-300 transition hover:text-accent"
-          >
-            kaanreal
-          </a>
-        </p>
-        <a
-          href="https://buymeacoffee.com/sheepex_"
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-slate-400 transition hover:text-accent"
-        >
-          buy me a coffee :)
-        </a>
-      </div>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>Edit osu!mania beatmaps online (1K to 18K), with rice notes and long notes</li>
+          <li>Edit StepMania and Etterna charts in a browser-based ArrowVortex-style workflow</li>
+          <li>Preview and view osu!mania maps right in the browser</li>
+          <li>
+            Import <code className="text-slate-300">.osz</code> /{" "}
+            <code className="text-slate-300">.osu</code>, export{" "}
+            <code className="text-slate-300">.osu</code>,{" "}
+            <code className="text-slate-300">.osz</code>, or{" "}
+            <code className="text-slate-300">.sm</code>
+          </li>
+          <li>Convert osu!mania maps to Etterna or StepMania-compatible .sm files</li>
+          <li>Set BPM and timing with tap tempo and a metronome</li>
+          <li>Set a background image or a muted background video, like ranked osu! maps</li>
+          <li>Real osu! hitsounds and <code className="text-slate-300">.osk</code> skin support</li>
+          <li>Realtime collaborative mapping with live comments</li>
+        </ul>
+
+        <h2 className="mb-2 mt-7 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          osu!mania editor FAQ
+        </h2>
+        <dl>
+          <dt className="mt-3 font-semibold text-slate-300">Is Cascade free to use?</dt>
+          <dd>Yes. Cascade is a free online osu!mania editor that runs entirely in your web browser.</dd>
+          <dt className="mt-3 font-semibold text-slate-300">Do I need to install anything?</dt>
+          <dd>No. It is a web app: open it in any modern browser and start mapping immediately.</dd>
+          <dt className="mt-3 font-semibold text-slate-300">Can I import my existing osu!mania beatmaps?</dt>
+          <dd>
+            Yes. Drag an <code className="text-slate-300">.osz</code> or{" "}
+            <code className="text-slate-300">.osu</code> file onto the page to
+            edit an existing map, then export it back out or convert osu to
+            Etterna / StepMania.
+          </dd>
+          <dt className="mt-3 font-semibold text-slate-300">Is this a VSRG editor?</dt>
+          <dd>
+            Yes. Cascade charts on a standard vertical-scrolling rhythm-game
+            (VSRG) playfield and exports osu!mania .osu / .osz files plus
+            StepMania and Etterna .sm charts.
+          </dd>
+          <dt className="mt-3 font-semibold text-slate-300">Is Cascade like ArrowVortex?</dt>
+          <dd>
+            Cascade covers similar mania chart editing and conversion workflows
+            in the browser, including osu!mania, StepMania, and Etterna formats.
+          </dd>
+        </dl>
+
+        <h2 className="mb-2 mt-7 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Guides
+        </h2>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            <a href="/how-to-make-an-osu-mania-map" className="text-slate-300 underline-offset-2 transition hover:text-accent hover:underline">
+              How to make an osu!mania map online
+            </a>
+          </li>
+          <li>
+            <a href="/osu-to-stepmania" className="text-slate-300 underline-offset-2 transition hover:text-accent hover:underline">
+              Convert osu!mania maps to StepMania / Etterna (.osz to .sm)
+            </a>
+          </li>
+          <li>
+            <a href="/osu-mania-map-viewer" className="text-slate-300 underline-offset-2 transition hover:text-accent hover:underline">
+              Preview osu!mania maps online
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }
