@@ -14,6 +14,11 @@ type Props = {
   onAudioFile: (f: File) => void;
   onBackgroundFile: (f: File) => void;
   onClearBackground: () => void;
+  video: LoadedFile | null;
+  videoOffsetMs: number;
+  onVideoFile: (f: File) => void;
+  onClearVideo: () => void;
+  onVideoOffsetMs: (ms: number) => void;
   onImportOsz: (f: File) => void;
   onImportSm?: (f: File) => void;
   onImportSmPack?: () => void;
@@ -36,6 +41,11 @@ export function SettingsModal({
   onAudioFile,
   onBackgroundFile,
   onClearBackground,
+  video,
+  videoOffsetMs,
+  onVideoFile,
+  onClearVideo,
+  onVideoOffsetMs,
   onImportOsz,
   onImportSm,
   onImportSmPack,
@@ -147,6 +157,77 @@ export function SettingsModal({
                   </div>
                 </div>
               </>
+            )}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Background Video
+            </h3>
+            <span
+              className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300"
+              title="The video file is kept on this device and bundled into exported .osz files, but it is not uploaded with cloud saves or live collab sessions."
+            >
+              no cloud support
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            <FileButton
+              label={video ? "Replace video…" : "Upload video (optional)"}
+              accept="video/*,.mp4,.webm,.avi,.flv,.mov,.wmv,.m4v"
+              onFile={onVideoFile}
+            />
+            {video ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <video
+                    src={video.url}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="h-12 w-20 rounded object-cover"
+                  />
+                  <div className="flex min-w-0 flex-col">
+                    <span
+                      className="truncate text-xs text-slate-400"
+                      title={video.name}
+                    >
+                      {video.name}
+                    </span>
+                    <button
+                      onClick={onClearVideo}
+                      className="self-start text-xs text-accent hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <span>Starts at</span>
+                  <TextInput
+                    type="number"
+                    value={videoOffsetMs}
+                    onChange={(e) => {
+                      const v = Math.round(Number(e.target.value));
+                      onVideoOffsetMs(Number.isFinite(v) ? v : 0);
+                    }}
+                    className="w-24 px-2 py-1 text-xs"
+                  />
+                  <span>ms into the song</span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Plays muted behind the playfield, in place of the background
+                  image. Applies to the whole set. osu! plays .mp4/.avi/.flv;
+                  use H.264 .mp4 for the widest support.
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] text-slate-500">
+                Optional. The video plays muted behind the playfield while the
+                song plays, like ranked osu! maps with a video.
+              </p>
             )}
           </div>
         </section>

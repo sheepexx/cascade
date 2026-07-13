@@ -294,6 +294,11 @@ export function cutDifficulty(
     notes,
     previewTime,
     bookmarks: bookmarks && bookmarks.length ? bookmarks : undefined,
+    // The video offset is relative to the audio start, which just moved.
+    videoOffsetMs:
+      difficulty.videoFilename !== undefined
+        ? (difficulty.videoOffsetMs ?? 0) - startMs
+        : difficulty.videoOffsetMs,
     trimStartMs: undefined,
     trimEndMs: undefined,
     fadeInMs: undefined,

@@ -81,6 +81,12 @@ type Props = {
   getCurrentTime: () => number;
   isPlaying: boolean;
   backgroundUrl: string | null;
+  /** Background video object URL (osu! Video event). Always played muted. */
+  videoUrl?: string | null;
+  /** Ms into the song at which the background video starts. Default 0. */
+  videoOffsetMs?: number;
+  /** Audio playback rate, mirrored onto the background video. Default 1. */
+  playbackRate?: number;
   /** How strongly to dim the background image for note readability, 0..100. */
   dimBackground: number;
   /** Skin assets for the active keymode, or null to use the default look. */
@@ -310,6 +316,9 @@ export function ManiaEditor(props: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const bgFadeStartRef = useRef(0);
+  // Off-DOM muted <video> for the background video; drawn straight into the
+  // canvas each frame and kept in sync with the audio clock (see draw()).
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   // Resolved skin sprites/colours per column. Read by the rAF draw loop.
   const skinColsRef = useRef<ColumnRender[]>([]);
   const shiftActiveRef = useRef(false);
@@ -649,6 +658,26 @@ export function ManiaEditor(props: Props) {
     };
   }, [props.backgroundUrl]);
 
+  // ---- Background video loading ---------------------------------------------
+  useEffect(() => {
+    if (!props.videoUrl) {
+      videoRef.current = null;
+      return;
+    }
+    const video = document.createElement("video");
+    video.src = props.videoUrl;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    videoRef.current = video;
+    return () => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      if (videoRef.current === video) videoRef.current = null;
+    };
+  }, [props.videoUrl]);
+
   // ---- Skin sprite loading -------------------------------------------------
   useEffect(() => {
     const skin = props.skin;
@@ -934,16 +963,57 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    // Optional dimmed background image behind the playfield
-    const bg = bgImgRef.current;
+    // ---- Background video sync ----
+    // The muted off-DOM <video> is slaved to the audio clock every frame:
+    // play/pause follows the transport, scrubbing seeks it, and drift beyond
+    // a small threshold snaps it back. Only a frame within the video's range
+    // is drawn; outside it (before the offset / past the end) the background
+    // image shows instead — matching how osu! treats map videos.
+    const video = videoRef.current;
+    let videoFrame: HTMLVideoElement | null = null;
+    if (video && video.readyState >= 2 && video.videoWidth > 0) {
+      const targetSec = (ct - (propsRef.current.videoOffsetMs ?? 0)) / 1000;
+      const rate = propsRef.current.playbackRate ?? 1;
+      if (video.playbackRate !== rate) video.playbackRate = rate;
+      const inRange =
+        targetSec >= 0 &&
+        (!Number.isFinite(video.duration) || targetSec < video.duration);
+      if (propsRef.current.isPlaying && inRange) {
+        if (video.paused) {
+          video.currentTime = targetSec;
+          void video.play().catch(() => {});
+        } else if (
+          !video.seeking &&
+          Math.abs(video.currentTime - targetSec) > 0.2
+        ) {
+          video.currentTime = targetSec;
+        }
+      } else {
+        if (!video.paused) video.pause();
+        if (
+          inRange &&
+          !video.seeking &&
+          Math.abs(video.currentTime - targetSec) > 0.05
+        ) {
+          video.currentTime = targetSec;
+        }
+      }
+      if (inRange) videoFrame = video;
+    }
+
+    // Optional dimmed background image / video behind the playfield
+    const bg = videoFrame ?? bgImgRef.current;
     if (bg) {
-      const elapsed =
-        performance.now() - bgFadeStartRef.current - BACKGROUND_FADE_DELAY_MS;
-      const progress =
-        bgFadeStartRef.current > 0
-          ? Math.min(1, Math.max(0, elapsed / BACKGROUND_FADE_MS))
-          : 1;
-      const eased = 1 - Math.pow(1 - progress, 3);
+      let eased = 1;
+      if (!videoFrame) {
+        const elapsed =
+          performance.now() - bgFadeStartRef.current - BACKGROUND_FADE_DELAY_MS;
+        const progress =
+          bgFadeStartRef.current > 0
+            ? Math.min(1, Math.max(0, elapsed / BACKGROUND_FADE_MS))
+            : 1;
+        eased = 1 - Math.pow(1 - progress, 3);
+      }
       // Draw background at full opacity, then overlay black scaled to dim %.
       // 0% dim = no overlay (background fully visible).
       // 100% dim = fully opaque black overlay (completely black).
@@ -2627,22 +2697,24 @@ function drawReceptorGlow(
 
 function drawCover(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
+  img: HTMLImageElement | HTMLVideoElement,
   dx: number,
   dy: number,
   dw: number,
   dh: number,
 ) {
-  const ir = img.width / img.height;
+  const w = img instanceof HTMLVideoElement ? img.videoWidth : img.width;
+  const h = img instanceof HTMLVideoElement ? img.videoHeight : img.height;
+  const ir = w / h;
   const r = dw / dh;
-  let sw = img.width;
-  let sh = img.height;
+  let sw = w;
+  let sh = h;
   if (ir > r) {
-    sw = img.height * r;
+    sw = h * r;
   } else {
-    sh = img.width / r;
+    sh = w / r;
   }
-  const sx = (img.width - sw) / 2;
-  const sy = (img.height - sh) / 2;
+  const sx = (w - sw) / 2;
+  const sy = (h - sh) / 2;
   ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }

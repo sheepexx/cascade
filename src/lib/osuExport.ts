@@ -60,6 +60,9 @@ export type BuildOsuArgs = {
   timingPoints: TimingPoint[];
   audioFilename: string;
   backgroundFilename?: string;
+  videoFilename?: string;
+  /** Video event startTime in ms (how far into the song the video begins). */
+  videoOffsetMs?: number;
 };
 
 /** Produce the full text content of a `.osu` difficulty file. */
@@ -69,6 +72,8 @@ export function buildOsuFile({
   timingPoints,
   audioFilename,
   backgroundFilename,
+  videoFilename,
+  videoOffsetMs,
 }: BuildOsuArgs): string {
   const points = sortedPoints(
     timingPoints.length ? timingPoints : [makeRedPoint(0, 120)],
@@ -99,6 +104,9 @@ export function buildOsuFile({
 
   const events = [
     "//Background and Video events",
+    ...(videoFilename
+      ? [`Video,${Math.round(videoOffsetMs ?? 0)},"${videoFilename}"`]
+      : []),
     ...(backgroundFilename ? [`0,0,"${backgroundFilename}",0,0`] : []),
     "//Break Periods",
     "//Storyboard Layer 0 (Background)",
