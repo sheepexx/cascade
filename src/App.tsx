@@ -267,6 +267,10 @@ export default function App() {
   // its song by name; the active difficulty's audio is derived below.
   const [audioFiles, setAudioFiles] = useState<Record<string, LoadedFile>>({});
   const [bgFiles, setBgFiles] = useState<Record<string, LoadedFile>>({});
+  // Background videos, keyed by filename. Kept local-only (not cloud-synced —
+  // video files are too large for the per-project upload ceiling) but saved to
+  // IndexedDB and bundled into exported .osz archives.
+  const [videoFiles, setVideoFiles] = useState<Record<string, LoadedFile>>({});
   const [pendingBgName, setPendingBgName] = useState<string | null>(null);
   const [skin, setSkin] = useState<LoadedSkin | null>(null);
   const [hitsoundSkin, setHitsoundSkin] = useState<LoadedSkin | null>(null);
@@ -891,6 +895,7 @@ export default function App() {
 
   // Background for the active difficulty.
   const activeBg = active.backgroundFilename ? bgFiles[active.backgroundFilename] ?? null : null;
+  const activeVideo = active.videoFilename ? videoFiles[active.videoFilename] ?? null : null;
 
   const activeTimingPoints =
     active.timingPoints?.length ? active.timingPoints : timingPoints;
@@ -1302,6 +1307,7 @@ export default function App() {
   const hasProjectContent =
     Object.keys(audioFiles).length > 0 ||
     Object.keys(bgFiles).length > 0 ||
+    Object.keys(videoFiles).length > 0 ||
     totalNotes > 0 ||
     meta.title !== DEFAULT_SONG_META.title ||
     meta.artist !== DEFAULT_SONG_META.artist ||
@@ -1384,6 +1390,52 @@ export default function App() {
     setPendingBgName(loaded.name);
     setAskBgScope(true);
   }, []);
+
+  // Background videos always apply to the whole set (the common osu! case);
+  // uploading one assigns it to every difficulty in one step.
+  const onVideoFile = useCallback((file: File) => {
+    const loaded = loadFile(file);
+    setProjectStarted(true);
+    setVideoFiles((prev) => {
+      if (prev[loaded.name]) URL.revokeObjectURL(prev[loaded.name].url);
+      return { ...prev, [loaded.name]: loaded };
+    });
+    markStructural();
+    setDifficulties((prev) =>
+      prev.map((d) => ({ ...d, videoFilename: loaded.name })),
+    );
+  }, [markStructural]);
+
+  const onClearVideo = useCallback(() => {
+    const videoName = active.videoFilename;
+    if (!videoName) return;
+    markStructural();
+    setDifficulties((prev) =>
+      prev.map((d) =>
+        d.videoFilename === videoName
+          ? { ...d, videoFilename: undefined, videoOffsetMs: undefined }
+          : d,
+      ),
+    );
+    setVideoFiles((prev) => {
+      const next = { ...prev };
+      if (next[videoName]) URL.revokeObjectURL(next[videoName].url);
+      delete next[videoName];
+      return next;
+    });
+  }, [active.videoFilename, markStructural]);
+
+  const onVideoOffsetMs = useCallback((ms: number) => {
+    const videoName = active.videoFilename;
+    if (!videoName) return;
+    setDifficulties((prev) =>
+      prev.map((d) =>
+        d.videoFilename === videoName
+          ? { ...d, videoOffsetMs: ms || undefined }
+          : d,
+      ),
+    );
+  }, [active.videoFilename]);
 
   const onClearBackground = useCallback(() => {
     const bgName = active.backgroundFilename;
@@ -1534,6 +1586,10 @@ export default function App() {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
         return map.backgroundFiles;
       });
+      setVideoFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return map.videoFiles;
+      });
       setMeta(map.meta);
       setTimingPoints(
         map.timingPoints.length
@@ -1645,6 +1701,10 @@ export default function App() {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
         return backgroundFiles;
       });
+      setVideoFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return {};
+      });
       setMeta(parsed.meta);
       setTimingPoints(
         parsed.timingPoints.length
@@ -1696,6 +1756,10 @@ export default function App() {
             { name, url: URL.createObjectURL(blob), blob },
           ]),
         );
+      });
+      setVideoFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return {};
       });
       setCloudProjectId(null);
       setCloudOwnerId(null);
@@ -2347,6 +2411,19 @@ export default function App() {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
       return restoredBgFiles;
     });
+
+    const restoredVideoFiles: Record<string, LoadedFile> = {};
+    for (const v of saved.videoFiles ?? []) {
+      restoredVideoFiles[v.name] = {
+        name: v.name,
+        url: URL.createObjectURL(v.blob),
+        blob: v.blob,
+      };
+    }
+    setVideoFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return restoredVideoFiles;
+    });
     setZenMode(false);
     setReferenceId(null);
     setCloudProjectId(null);
@@ -2625,6 +2702,9 @@ export default function App() {
     f.type.startsWith("audio/") || /\.(mp3|ogg)$/i.test(f.name);
   const isImageFile = (f: File) =>
     f.type.startsWith("image/") || /\.(png|jpe?g|gif)$/i.test(f.name);
+  const isVideoFile = (f: File) =>
+    f.type.startsWith("video/") ||
+    /\.(mp4|webm|avi|flv|mov|wmv|m4v|mpe?g)$/i.test(f.name);
   const isOszFile = (f: File) => /\.(osz|zip)$/i.test(f.name);
   const isOskFile = (f: File) => /\.osk$/i.test(f.name);
   const isSmFile = (f: File) => /\.sm$/i.test(f.name);
@@ -2741,8 +2821,10 @@ export default function App() {
       if (audioF) onAudioFile(audioF);
       const image = files.find(isImageFile);
       if (image) onBackgroundFile(image);
+      const videoF = files.find(isVideoFile);
+      if (videoF) onVideoFile(videoF);
     },
-    [onAudioFile, onBackgroundFile, onSkinFile, requestImportMap, requestImportSm, importSmFolder, resetFileDrag],
+    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, requestImportMap, requestImportSm, importSmFolder, resetFileDrag],
   );
 
   // ---- Export --------------------------------------------------------------
@@ -2762,6 +2844,8 @@ export default function App() {
       timingPoints: activeTimingPoints,
       audioFilename: audioFile.name,
       backgroundFilename: active.backgroundFilename,
+      videoFilename: active.videoFilename,
+      videoOffsetMs: active.videoOffsetMs,
     });
     playUiSound("mapExportDone");
     void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
@@ -2795,13 +2879,14 @@ export default function App() {
         timingPoints,
         audioFiles,
         bgFiles,
+        videoFiles,
       });
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
     } finally {
       setExporting(false);
     }
-  }, [audioFiles, difficulties, bgFiles, meta, timingPoints, authUser?.id]);
+  }, [audioFiles, difficulties, bgFiles, videoFiles, meta, timingPoints, authUser?.id]);
 
   /** Validate first; only export straight away when there's nothing to flag. */
   const requestExport = useCallback(
@@ -2901,6 +2986,10 @@ export default function App() {
       name: f.name,
       blob: f.blob,
     })),
+    videoFiles: Object.values(videoFiles).map((f) => ({
+      name: f.name,
+      blob: f.blob,
+    })),
     background: null,
     skin: skin ? { name: skin.fileName, blob: skin.blob } : null,
   }), [
@@ -2913,6 +3002,7 @@ export default function App() {
     bgScope,
     audioFiles,
     bgFiles,
+    videoFiles,
     skin,
   ]);
 
@@ -3104,6 +3194,11 @@ export default function App() {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
         return bgReg;
       });
+      // Videos aren't cloud-synced; drop any from the previous local project.
+      setVideoFiles((prev) => {
+        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+        return {};
+      });
 
       const d = proj.data;
       setMeta(d.meta);
@@ -3267,6 +3362,10 @@ export default function App() {
       return {};
     });
     setBgFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return {};
+    });
+    setVideoFiles((prev) => {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
       return {};
     });
@@ -3704,6 +3803,9 @@ export default function App() {
                 getCurrentTime={getEditorCurrentTime}
                 isPlaying={audio.isPlaying}
                 backgroundUrl={activeBg?.url ?? null}
+                videoUrl={activeVideo?.url ?? null}
+                videoOffsetMs={active.videoOffsetMs ?? 0}
+                playbackRate={audio.playbackRate}
                 dimBackground={editorDimBackground}
                 skin={activeSkin}
                 playfieldScale={editorPlayfieldScale}
@@ -3758,6 +3860,7 @@ export default function App() {
                       getCurrentTime={getCurrentTime}
                       isPlaying={audio.isPlaying}
                       backgroundUrl={null}
+                      videoUrl={null}
                       dimBackground={appSettings.dimBackground}
                       skin={referenceSkin}
                       playfieldScale={appSettings.playfieldScale}
@@ -3972,6 +4075,11 @@ export default function App() {
         onAudioFile={onAudioFile}
         onBackgroundFile={onBackgroundFile}
         onClearBackground={onClearBackground}
+        video={activeVideo}
+        videoOffsetMs={active.videoOffsetMs ?? 0}
+        onVideoFile={onVideoFile}
+        onClearVideo={onClearVideo}
+        onVideoOffsetMs={onVideoOffsetMs}
         onImportOsz={requestImportMap}
         onImportSm={requestImportSm}
         onImportSmPack={onImportSmPack}

@@ -47,6 +47,8 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
     timingPoints,
     audioFilename: "audio.mp3",
     backgroundFilename: "bg.jpg",
+    videoFilename: "video.mp4",
+    videoOffsetMs: 250,
   });
   const parsed = parseOsuFile(text);
 
@@ -65,6 +67,19 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
   it("preserves audio and background filenames", () => {
     expect(parsed.audioFilename).toBe("audio.mp3");
     expect(parsed.backgroundFilename).toBe("bg.jpg");
+  });
+
+  it("preserves the background video and its start offset", () => {
+    expect(parsed.videoFilename).toBe("video.mp4");
+    expect(parsed.videoOffsetMs).toBe(250);
+  });
+
+  it("parses the legacy numeric video event type", () => {
+    const legacy = text.replace('Video,250,"video.mp4"', '1,250,"video.mp4"');
+    const p = parseOsuFile(legacy);
+    expect(p.videoFilename).toBe("video.mp4");
+    expect(p.videoOffsetMs).toBe(250);
+    expect(p.backgroundFilename).toBe("bg.jpg");
   });
 
   it("round-trips notes (column + timing), including the long note", () => {

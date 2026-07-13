@@ -235,6 +235,17 @@ export type Difficulty = {
    * Undefined means no background for this difficulty.
    */
   backgroundFilename?: string;
+  /**
+   * Background video filename for this difficulty (osu! `Video` event),
+   * resolved through the mapset's video registry. Always played muted.
+   * Undefined means no background video.
+   */
+  videoFilename?: string;
+  /**
+   * Video start offset in milliseconds (the osu! Video event's startTime):
+   * the video begins playing this far into the song. Undefined = 0.
+   */
+  videoOffsetMs?: number;
   /** 1K .. 18K. Exported as CircleSize. */
   keyCount: number;
   /** HPDrainRate, 0..10. */

@@ -70,6 +70,8 @@ export type SavedProject = {
   audio?: { name: string; blob: Blob } | null;
   /** Every background image in the set, keyed by filename. New format. */
   backgroundFiles?: { name: string; blob: Blob }[];
+  /** Every background video in the set, keyed by filename. */
+  videoFiles?: { name: string; blob: Blob }[];
   /** Legacy single background field, still read from older saves. */
   background?: { name: string; blob: Blob } | null;
   /** Raw `.osk` bytes of the active editor skin, re-parsed on load. */

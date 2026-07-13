@@ -23,6 +23,9 @@ export type ParsedOsu = {
   timingPoints: TimingPoint[];
   audioFilename: string | null;
   backgroundFilename: string | null;
+  videoFilename: string | null;
+  /** Video event startTime (ms into the song where the video begins). */
+  videoOffsetMs: number;
 };
 
 /** A fully imported beatmap set, with media resolved from the `.osz`. */
@@ -34,6 +37,8 @@ export type ImportedMap = {
   audioFiles: Record<string, LoadedFile>;
   /** Every distinct background image in the set, keyed by filename. */
   backgroundFiles: Record<string, LoadedFile>;
+  /** Every distinct background video in the set, keyed by filename. */
+  videoFiles: Record<string, LoadedFile>;
 };
 
 /** Split the file into `[Section] -> lines` while ignoring comments/blanks. */
@@ -164,13 +169,26 @@ export function parseOsuFile(text: string): ParsedOsu {
   }
   timingPoints.sort((a, b) => a.time - b.time);
 
-  // ---- Background event ----
+  // ---- Background / Video events ----
+  // Background: `0,0,"file.jpg",x,y`. Video: `Video,startTime,"file.mp4",x,y`
+  // (the event type may also be written as the legacy numeric `1`).
   let backgroundFilename: string | null = null;
+  let videoFilename: string | null = null;
+  let videoOffsetMs = 0;
   for (const line of sections["Events"] ?? []) {
-    const m = line.match(/^0\s*,\s*0\s*,\s*"?([^",]+)"?/);
-    if (m) {
-      backgroundFilename = m[1];
-      break;
+    if (!backgroundFilename) {
+      const m = line.match(/^0\s*,\s*0\s*,\s*"?([^",]+)"?/);
+      if (m) {
+        backgroundFilename = m[1];
+        continue;
+      }
+    }
+    if (!videoFilename) {
+      const v = line.match(/^(?:Video|1)\s*,\s*(-?\d+)\s*,\s*"?([^",]+)"?/i);
+      if (v) {
+        videoOffsetMs = Math.round(Number(v[1])) || 0;
+        videoFilename = v[2];
+      }
     }
   }
 
@@ -231,6 +249,8 @@ export function parseOsuFile(text: string): ParsedOsu {
     timingPoints,
     audioFilename: general["AudioFilename"] ?? null,
     backgroundFilename,
+    videoFilename,
+    videoOffsetMs,
   };
 }
 
@@ -269,6 +289,17 @@ function mimeForAudio(name: string): string {
   return name.split(".").pop()?.toLowerCase() === "ogg"
     ? "audio/ogg"
     : "audio/mpeg";
+}
+
+function mimeForVideo(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase();
+  if (ext === "webm") return "video/webm";
+  if (ext === "avi") return "video/x-msvideo";
+  if (ext === "flv") return "video/x-flv";
+  if (ext === "mov") return "video/quicktime";
+  if (ext === "wmv") return "video/x-ms-wmv";
+  if (ext === "mpg" || ext === "mpeg") return "video/mpeg";
+  return "video/mp4";
 }
 
 /**
@@ -316,11 +347,26 @@ export async function importOsz(blob: Blob): Promise<ImportedMap> {
     if (loaded) backgroundFiles[name] = loaded;
   }
 
+  const videoFiles: Record<string, LoadedFile> = {};
+  for (const name of new Set(parsed.map((p) => p.videoFilename))) {
+    if (!name || videoFiles[name]) continue;
+    const entry = findEntry(zip, name);
+    const loaded = await toLoadedFile(entry, mimeForVideo(name));
+    if (loaded) videoFiles[name] = loaded;
+  }
+
   const difficulties = parsed.map((p) => ({
     ...p.difficulty,
     backgroundFilename: p.backgroundFilename && backgroundFiles[p.backgroundFilename]
       ? p.backgroundFilename
       : undefined,
+    videoFilename: p.videoFilename && videoFiles[p.videoFilename]
+      ? p.videoFilename
+      : undefined,
+    videoOffsetMs:
+      p.videoFilename && videoFiles[p.videoFilename] && p.videoOffsetMs
+        ? p.videoOffsetMs
+        : undefined,
   }));
 
   return {
@@ -329,5 +375,6 @@ export async function importOsz(blob: Blob): Promise<ImportedMap> {
     timingPoints: first.timingPoints,
     audioFiles,
     backgroundFiles,
+    videoFiles,
   };
 }

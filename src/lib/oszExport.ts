@@ -32,6 +32,8 @@ export type BuildOszArgs = {
   audioFiles: Record<string, LoadedFile>;
   /** Every background image in the set, keyed by filename. */
   bgFiles?: Record<string, LoadedFile>;
+  /** Every background video in the set, keyed by filename. */
+  videoFiles?: Record<string, LoadedFile>;
 };
 
 /**
@@ -46,10 +48,11 @@ export async function buildOsz({
   timingPoints,
   audioFiles,
   bgFiles,
+  videoFiles,
 }: BuildOszArgs): Promise<Blob> {
   const zip = new JSZip();
 
-  // Bundle every unique background referenced by any difficulty.
+  // Bundle every unique background image / video referenced by any difficulty.
   const bundledBgs = new Set<string>();
   for (const difficulty of difficulties) {
     if (difficulty.backgroundFilename && bgFiles?.[difficulty.backgroundFilename]) {
@@ -57,6 +60,13 @@ export async function buildOsz({
       if (!bundledBgs.has(bg.name)) {
         zip.file(bg.name, bg.blob);
         bundledBgs.add(bg.name);
+      }
+    }
+    if (difficulty.videoFilename && videoFiles?.[difficulty.videoFilename]) {
+      const video = videoFiles[difficulty.videoFilename];
+      if (!bundledBgs.has(video.name)) {
+        zip.file(video.name, video.blob);
+        bundledBgs.add(video.name);
       }
     }
   }
@@ -165,6 +175,11 @@ export async function buildOsz({
         timingPoints: exportTiming.length ? exportTiming : timingPoints,
         audioFilename: audioName,
         backgroundFilename: difficulty.backgroundFilename,
+        videoFilename:
+          difficulty.videoFilename && videoFiles?.[difficulty.videoFilename]
+            ? difficulty.videoFilename
+            : undefined,
+        videoOffsetMs: exportDiff.videoOffsetMs,
       });
       zip.file(osuFilename(meta, difficulty), osu);
     }
