@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png?v=2" />
+    <link rel="canonical" href="https://cascade.sheepex.net/privacy" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>Privacy Policy | Cascade</title>
+    <meta
+      name="description"
+      content="What data Cascade stores when you use the editor, log in with osu! or save maps to the cloud, and how to get it removed."
+    />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      .updated { margin: 0 0 22px; font-size: 0.85rem; color: #6b7180; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      a { color: #f48a8a; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/logo.png?v=2" alt="" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: 15 July 2026</p>
+
+      <p>
+        Cascade is a browser-based osu!mania beatmap editor at
+        <a href="https://cascade.sheepex.net">cascade.sheepex.net</a>. You can
+        use the whole editor without an account; everything you make stays on
+        your device unless you log in and choose to save to the cloud. This
+        page explains what is stored where, and how to get it removed.
+      </p>
+
+      <h2>Using the editor without an account</h2>
+      <ul>
+        <li>
+          Projects, autosaves, imported audio/skins and your editor settings
+          are stored locally in your browser (localStorage / IndexedDB). They
+          never leave your device and we cannot see them. Clearing your
+          browser's site data removes them.
+        </li>
+        <li>
+          We record a small anonymous usage event when a project is created or
+          a map is exported: the event type, your browser name and version,
+          and your operating system name. No account, no IP address and no
+          map content is included in these events.
+        </li>
+        <li>We use no advertising and no third-party tracking scripts.</li>
+      </ul>
+
+      <h2>If you log in with osu!</h2>
+      <p>
+        Login uses osu!'s official OAuth flow — we never see your osu!
+        password. After you approve, we store your public osu! profile basics
+        in our database: your osu! user id, username and avatar URL. A session
+        cookie keeps you signed in; it identifies your session and nothing
+        else.
+      </p>
+
+      <h2>Cloud saves and community features</h2>
+      <p>If you use these features while logged in, we store what you submit:</p>
+      <ul>
+        <li>
+          <strong>Cloud projects</strong> — your charts and their assets
+          (audio, background images or video, skins), linked to your account,
+          plus the accounts of collaborators you invite.
+        </li>
+        <li><strong>Comments</strong> you leave on shared projects.</li>
+        <li><strong>Presets/patterns</strong> you publish for others.</li>
+        <li><strong>Feedback</strong> you send through the feedback form.</li>
+      </ul>
+      <p>
+        Deleting a project, comment or preset in the app removes it from our
+        database. Uploaded maps are private to you and your invited
+        collaborators unless a sharing feature explicitly says otherwise.
+      </p>
+
+      <h2>Where the data lives</h2>
+      <p>
+        Cascade runs on three infrastructure providers, which process data on
+        our behalf: <strong>Supabase</strong> (database and file storage),
+        <strong>Cloudflare</strong> (login/session service) and
+        <strong>Vercel</strong> (site hosting). Like any web host, they may
+        keep short-lived technical logs (including IP addresses) to run and
+        secure their services.
+      </p>
+
+      <h2>Deleting your data</h2>
+      <ul>
+        <li>Projects, comments and presets: delete them directly in the app.</li>
+        <li>
+          Your account and everything tied to it: email
+          <a href="mailto:contact@sheepex.net">contact@sheepex.net</a> from
+          any address, naming your osu! username, and we will remove it.
+        </li>
+        <li>Local data: clear this site's data in your browser.</li>
+      </ul>
+
+      <h2>Changes and contact</h2>
+      <p>
+        If this policy changes in a way that matters, the date above changes
+        with it. Questions or requests:
+        <a href="mailto:contact@sheepex.net">contact@sheepex.net</a>.
+      </p>
+
+      <footer>
+        <a href="/">← Back to the editor</a>
+      </footer>
+    </main>
+  </body>
+</html>
