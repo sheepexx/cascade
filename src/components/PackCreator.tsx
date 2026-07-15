@@ -25,6 +25,7 @@ import { PackCreatorItem } from "./PackCreatorItem";
 import { PackCreatorValidation } from "./PackCreatorValidation";
 import { PackProjectBrowser } from "./PackProjectBrowser";
 import { playUiSound } from "../lib/uiSounds";
+import { useAuth } from "../lib/auth";
 
 const selectClass =
   "w-full rounded-lg bg-ink-700/65 border border-white/10 px-3 py-2 text-sm text-slate-100 " +
@@ -71,10 +72,14 @@ export function PackCreator({
   open: boolean;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
   const [metadata, setMetadata] = useState<PackMetadata>(DEFAULT_PACK_METADATA);
   const [settings, setSettings] = useState<PackCreatorSettings>(
     DEFAULT_PACK_SETTINGS,
   );
+  // Raw text of the Tags input. Binding the input to tags.join(" ") would
+  // strip the trailing space on every keystroke and make spaces untypable.
+  const [tagsText, setTagsText] = useState("");
   const [items, setItems] = useState<PackItem[]>([]);
   /** Non-mania difficulties found during import, excluded unless included. */
   const [excluded, setExcluded] = useState<PackItem[]>([]);
@@ -107,6 +112,13 @@ export function PackCreator({
     }, EXIT_MS);
     return () => window.clearTimeout(id);
   }, [open, mounted]);
+
+  // Prefill the pack creator with the logged-in osu! username. Only fills an
+  // empty field, so anything the user typed is never overwritten.
+  useEffect(() => {
+    if (!open || !user?.username) return;
+    setMetadata((m) => (m.creator.trim() ? m : { ...m, creator: user.username }));
+  }, [open, user]);
 
   // Close with Esc (capture, so the editor underneath never sees it). While
   // the project browser modal is open, Esc belongs to the modal instead.
@@ -485,13 +497,14 @@ export function PackCreator({
                 </Field>
                 <Field label="Tags" hint="space-separated; added to every difficulty">
                   <TextInput
-                    value={(metadata.tags ?? []).join(" ")}
-                    onChange={(e) =>
+                    value={tagsText}
+                    onChange={(e) => {
+                      setTagsText(e.target.value);
                       setMetadata((m) => ({
                         ...m,
                         tags: e.target.value.split(/\s+/).filter(Boolean),
-                      }))
-                    }
+                      }));
+                    }}
                     placeholder="e.g. pack jumpstream dump"
                   />
                 </Field>
