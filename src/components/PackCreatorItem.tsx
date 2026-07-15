@@ -59,7 +59,15 @@ export function PackCreatorItem({
         <Field label="Rate" hint="e.g. x1.2, x0.9, DT">
           <TextInput
             value={item.rate ?? ""}
-            onChange={(e) => onChange({ rate: e.target.value || undefined })}
+            onChange={(e) => {
+              const rate = e.target.value || undefined;
+              const patch: Partial<PackItem> = { rate };
+              // Entering a rate into an empty field turns on its inclusion so
+              // the difficulty name updates as expected; editing an existing
+              // rate leaves the toggle as the user set it.
+              if (rate && !item.rate) patch.includeRateInDifficultyName = true;
+              onChange(patch);
+            }}
             placeholder="none"
           />
         </Field>
