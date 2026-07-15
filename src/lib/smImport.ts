@@ -58,9 +58,9 @@ function extractNotesSections(raw: string): string[] {
   return sections;
 }
 
-function detectKeys(notesSection: string): number {
-  const first = notesSection.split("\n")[0]?.trim().replace(/:+$/, "").trim().replace(/"/g, "") ?? "";
-  switch (first) {
+/** Column count for a StepMania/Etterna steptype (dance-single, kb7-single…). */
+function stepTypeToKeys(steptype: string): number {
+  switch (steptype.trim().replace(/:+$/, "").trim().replace(/"/g, "")) {
     case "dance-single": return 4;
     case "dance-solo": return 6;
     case "dance-double": return 8;
@@ -70,6 +70,11 @@ function detectKeys(notesSection: string): number {
     case "kbx-single": return 7;
     default: return 4;
   }
+}
+
+/** `.sm` steptype is the first line of the #NOTES section. */
+function detectKeys(notesSection: string): number {
+  return stepTypeToKeys(notesSection.split("\n")[0] ?? "");
 }
 
 function detectDifficultyName(notesSection: string): string {
@@ -186,6 +191,8 @@ function buildTimingPoints(
   return points;
 }
 
+/** `.sm` #NOTES: the steptype/description/difficulty/meter/radar header lines
+ *  followed by measure data. Strip the header, then parse the measures. */
 function parseNotesData(
   notesSection: string,
   keys: number,
@@ -193,22 +200,51 @@ function parseNotesData(
   stops: StopEntry[],
   offsetMs: number,
 ): ManiaNote[] {
-  const lines = notesSection
+  const lines = toDataLines(notesSection);
+
+  // Skip the 5 header lines (steptype, description, difficulty, meter, radar)
+  let skipped = 0;
+  while (skipped < lines.length && skipped < 5 && lines[skipped].endsWith(":")) {
+    skipped++;
+  }
+  if (skipped === 0) return [];
+  return notesFromRows(lines.slice(skipped), keys, bpms, stops, offsetMs);
+}
+
+/** Strip comments and blank lines from a raw notes section. */
+function toDataLines(notesSection: string): string[] {
+  return notesSection
     .split("\n")
     .map((l) => {
       const commentIdx = l.indexOf("//");
       return (commentIdx >= 0 ? l.slice(0, commentIdx) : l).trim();
     })
     .filter((l) => l.length > 0);
+}
 
-  // Skip the 5 header lines (steptype, description, difficulty, meter, radar)
+/**
+ * `.ssc` #NOTES is measure data only (the chart's steptype/difficulty/meter
+ * live in sibling #NOTEDATA tags), so parse the rows directly.
+ */
+function parseSscNotesData(
+  notesSection: string,
+  keys: number,
+  bpms: BpmEntry[],
+  stops: StopEntry[],
+  offsetMs: number,
+): ManiaNote[] {
+  return notesFromRows(toDataLines(notesSection), keys, bpms, stops, offsetMs);
+}
+
+/** Turn measure-data lines (no headers) into notes. */
+function notesFromRows(
+  lines: string[],
+  keys: number,
+  bpms: BpmEntry[],
+  stops: StopEntry[],
+  offsetMs: number,
+): ManiaNote[] {
   let idx = 0;
-  let skipped = 0;
-  while (idx < lines.length && skipped < 5 && lines[idx].endsWith(":")) {
-    idx++;
-    skipped++;
-  }
-  if (skipped === 0) return [];
 
   // Group into measures separated by ',' lines
   const measures: string[][] = [];
@@ -398,8 +434,8 @@ export async function readSmFolder(
   const fileBatches = await Promise.all(entryPromises);
   const allFiles = fileBatches.flat();
 
-  const smFiles = allFiles.filter((f) => /\.sm$/i.test(f.name));
-  if (smFiles.length === 0) return null;
+  const chartFiles = allFiles.filter((f) => /\.(sm|ssc)$/i.test(f.name));
+  if (chartFiles.length === 0) return null;
 
   const audioBlobs: Record<string, Blob> = {};
   const bgBlobs: Record<string, Blob> = {};
@@ -408,8 +444,9 @@ export async function readSmFolder(
     else if (isImageName(f.name)) bgBlobs[f.name.toLowerCase()] = f;
   }
 
-  // Import the first .sm file
-  const text = await smFiles[0].text();
+  // Prefer .ssc (Etterna's richer native format) when a song ships both.
+  const chart = chartFiles.find((f) => /\.ssc$/i.test(f.name)) ?? chartFiles[0];
+  const text = await chart.text();
   const parsed = parseSmFile(text);
 
   // Resolve audio by filename (case-insensitive, then first audio in folder)
@@ -475,10 +512,80 @@ export async function readSmFolder(
   return { parsed, audioFiles, backgroundFiles };
 }
 
+/**
+ * Parse the `#NOTEDATA` chart blocks of a `.ssc` file into difficulties. Each
+ * block carries its own steptype / difficulty / meter tags and may override the
+ * song timing (Etterna "split timing"); the measure data lives in `#NOTES:`.
+ */
+function parseSscCharts(
+  raw: string,
+  song: {
+    bpms: BpmEntry[];
+    stops: StopEntry[];
+    offsetMs: number;
+    timingPoints: TimingPoint[];
+    previewTime: number;
+    smMeta: SmMeta;
+    audioFilename: string | null;
+  },
+): Difficulty[] {
+  const blocks = raw.split(/#NOTEDATA\s*:/i).slice(1);
+  const diffs: Difficulty[] = [];
+  for (const block of blocks) {
+    const noteAt = block.search(/#NOTES\s*:/i);
+    const headerPart = noteAt >= 0 ? block.slice(0, noteAt) : block;
+    const notesPart =
+      noteAt >= 0 ? block.slice(noteAt).replace(/^#NOTES\s*:\s*/i, "") : "";
+    const h = parseHeaders(headerPart);
+
+    const keys = stepTypeToKeys(h["STEPSTYPE"] ?? "dance-single");
+    const name =
+      h["CHARTNAME"] || h["DESCRIPTION"] || h["DIFFICULTY"] || "Imported";
+
+    // Per-chart timing overrides (split timing); otherwise the song timing.
+    const hasBpms = !!h["BPMS"];
+    const hasOffset = h["OFFSET"] !== undefined;
+    const bpms = hasBpms ? parseBpms(h["BPMS"]) : song.bpms;
+    const stops = h["STOPS"]
+      ? parseStops(h["STOPS"])
+      : hasBpms
+        ? []
+        : song.stops;
+    const offsetMs = hasOffset
+      ? -parseFloat(h["OFFSET"]) * 1000 - 50
+      : song.offsetMs;
+    const timing =
+      hasBpms || hasOffset
+        ? buildTimingPoints(bpms, stops, offsetMs)
+        : song.timingPoints;
+
+    const notes = parseSscNotesData(notesPart, keys, bpms, stops, offsetMs);
+    diffs.push({
+      id: uid("diff"),
+      sourceFormat: "sm",
+      smMeta: song.smMeta,
+      name: name || "Imported",
+      audioFilename: song.audioFilename ?? undefined,
+      keyCount: Math.max(MIN_KEYS, Math.min(MAX_KEYS, keys)),
+      hpDrainRate: 7,
+      overallDifficulty: 7,
+      previewTime: Math.round(song.previewTime),
+      timingPoints: (timing.length > 0 ? timing : [makeRedPoint(0, 120)]).map(
+        (tp) => ({ ...tp }),
+      ),
+      notes,
+    });
+  }
+  return diffs;
+}
+
 export function parseSmFile(text: string): ParsedSm {
   const raw = text.replace(/\r\n/g, "\n");
-  const headers = parseHeaders(raw);
-  const sections = extractNotesSections(raw);
+  // Etterna's native format is .ssc: song headers first, then one #NOTEDATA
+  // block per chart. In .sm every chart is a #NOTES: section with an inline
+  // 5-line header. Detect .ssc so song headers aren't polluted by chart tags.
+  const isSsc = /#NOTEDATA\s*:/i.test(raw);
+  const headers = parseHeaders(isSsc ? raw.split(/#NOTEDATA\s*:/i)[0] : raw);
 
   const offsetSeconds = parseFloat(headers["OFFSET"] ?? "0");
   // SM files natively play with a ~50ms delay compared to osu! strict timing.
@@ -516,28 +623,39 @@ export function parseSmFile(text: string): ParsedSm {
   const audioFilename = headers["MUSIC"] ?? null;
   const backgroundFilename = headers["BACKGROUND"] ?? headers["BANNER"] ?? null;
 
-  const difficulties: Difficulty[] = sections.map((section) => {
-    const keys = detectKeys(section);
-    const name = detectDifficultyName(section);
-    const notes = parseNotesData(section, keys, bpms, stops, offsetMs);
-    const localTiming = timingPoints.length > 0
-      ? timingPoints.map((tp) => ({ ...tp }))
-      : [makeRedPoint(0, 120)];
+  const difficulties: Difficulty[] = isSsc
+    ? parseSscCharts(raw, {
+        bpms,
+        stops,
+        offsetMs,
+        timingPoints,
+        previewTime,
+        smMeta,
+        audioFilename,
+      })
+    : extractNotesSections(raw).map((section) => {
+        const keys = detectKeys(section);
+        const name = detectDifficultyName(section);
+        const notes = parseNotesData(section, keys, bpms, stops, offsetMs);
+        const localTiming =
+          timingPoints.length > 0
+            ? timingPoints.map((tp) => ({ ...tp }))
+            : [makeRedPoint(0, 120)];
 
-    return {
-      id: uid("diff"),
-      sourceFormat: "sm",
-      smMeta,
-      name: name || "Imported",
-      audioFilename: audioFilename ?? undefined,
-      keyCount: Math.max(MIN_KEYS, Math.min(MAX_KEYS, keys)),
-      hpDrainRate: 7,
-      overallDifficulty: 7,
-      previewTime: Math.round(previewTime),
-      timingPoints: localTiming,
-      notes,
-    };
-  });
+        return {
+          id: uid("diff"),
+          sourceFormat: "sm",
+          smMeta,
+          name: name || "Imported",
+          audioFilename: audioFilename ?? undefined,
+          keyCount: Math.max(MIN_KEYS, Math.min(MAX_KEYS, keys)),
+          hpDrainRate: 7,
+          overallDifficulty: 7,
+          previewTime: Math.round(previewTime),
+          timingPoints: localTiming,
+          notes,
+        };
+      });
 
   if (difficulties.length === 0) {
     difficulties.push({

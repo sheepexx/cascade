@@ -41,7 +41,7 @@ export function PackBrowserModal({
       )}
       {!scanning && !error && songs.length === 0 && (
         <p className="text-sm text-slate-400">
-          No .sm beatmaps found in this folder.
+          No .sm / .ssc beatmaps found in this folder.
         </p>
       )}
       {!scanning && songs.length > 0 && (
