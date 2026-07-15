@@ -1,6 +1,5 @@
 import type {
   Difficulty,
-  LoadedFile,
   ManiaNote,
   SmMeta,
   SongMeta,
@@ -365,151 +364,12 @@ function notesFromRows(
   return notes;
 }
 
-/** Result of reading a dropped folder: parsed SM + resolved media files. */
-export type ImportedSmFolder = {
-  parsed: ParsedSm;
-  audioFiles: Record<string, LoadedFile>;
-  backgroundFiles: Record<string, LoadedFile>;
-};
-
 export function isAudioName(name: string): boolean {
   return /\.(mp3|ogg|wav|oga|flac|m4a)$/i.test(name);
 }
 
 export function isImageName(name: string): boolean {
   return /\.(png|jpe?g|gif|bmp|webp)$/i.test(name);
-}
-
-/** Walk a tree of FileSystemEntry objects, returning flat File[]. */
-function readEntryTree(
-  entry: FileSystemEntry,
-): Promise<File[]> {
-  return new Promise((resolve) => {
-    if (entry.isFile) {
-      (entry as FileSystemFileEntry).file(
-        (f) => resolve([f]),
-        () => resolve([]),
-      );
-    } else if (entry.isDirectory) {
-      const reader = (entry as FileSystemDirectoryEntry).createReader();
-      const all: File[] = [];
-      const readBatch = () => {
-        reader.readEntries(
-          (entries) => {
-            if (entries.length === 0) {
-              resolve(all);
-            } else {
-              void Promise.all(entries.map(readEntryTree)).then(
-                (batches) => {
-                  all.push(...batches.flat());
-                  readBatch();
-                },
-              );
-            }
-          },
-          () => resolve(all),
-        );
-      };
-      readBatch();
-    } else {
-      resolve([]);
-    }
-  });
-}
-
-/**
- * Read all files from a dropped folder (drag-and-drop with directory).
- * Returns the parsed first .sm file + resolved media.
- */
-export async function readSmFolder(
-  items: DataTransferItemList,
-): Promise<ImportedSmFolder | null> {
-  const entryPromises: Promise<File[]>[] = [];
-  for (let i = 0; i < items.length; i++) {
-    const entry = items[i].webkitGetAsEntry();
-    if (entry) entryPromises.push(readEntryTree(entry));
-  }
-  if (entryPromises.length === 0) return null;
-
-  const fileBatches = await Promise.all(entryPromises);
-  const allFiles = fileBatches.flat();
-
-  const chartFiles = allFiles.filter((f) => /\.(sm|ssc)$/i.test(f.name));
-  if (chartFiles.length === 0) return null;
-
-  const audioBlobs: Record<string, Blob> = {};
-  const bgBlobs: Record<string, Blob> = {};
-  for (const f of allFiles) {
-    if (isAudioName(f.name)) audioBlobs[f.name.toLowerCase()] = f;
-    else if (isImageName(f.name)) bgBlobs[f.name.toLowerCase()] = f;
-  }
-
-  // Prefer .ssc (Etterna's richer native format) when a song ships both.
-  const chart = chartFiles.find((f) => /\.ssc$/i.test(f.name)) ?? chartFiles[0];
-  const text = await chart.text();
-  const parsed = parseSmFile(text);
-
-  // Resolve audio by filename (case-insensitive, then first audio in folder)
-  const audioFiles: Record<string, LoadedFile> = {};
-  const audioRef = parsed.audioFilename?.toLowerCase();
-  let resolvedAudioKey: string | null = null;
-  if (audioRef) {
-    if (audioBlobs[audioRef]) {
-      resolvedAudioKey = audioRef;
-    } else {
-      const audioBase = audioRef.replace(/\.[^.]+$/, "");
-      const match = Object.keys(audioBlobs).find(
-        (k) => k.replace(/\.[^.]+$/, "") === audioBase,
-      );
-      if (match) resolvedAudioKey = match;
-    }
-  } else if (Object.keys(audioBlobs).length > 0) {
-    resolvedAudioKey = Object.keys(audioBlobs)[0];
-  }
-  if (resolvedAudioKey) {
-    const blob = audioBlobs[resolvedAudioKey];
-    const displayName = parsed.audioFilename ?? resolvedAudioKey;
-    audioFiles[displayName] = {
-      name: displayName,
-      url: URL.createObjectURL(blob),
-      blob,
-    };
-  }
-
-  // Resolve background by filename (case-insensitive, then base-name fallback).
-  // If no background header exists, use the first image from the folder.
-  const backgroundFiles: Record<string, LoadedFile> = {};
-  let resolvedBgKey: string | null = null;
-  const bgRef = parsed.backgroundFilename?.toLowerCase();
-  if (bgRef) {
-    if (bgBlobs[bgRef]) {
-      resolvedBgKey = bgRef;
-    } else {
-      const bgBase = bgRef.replace(/\.[^.]+$/, "");
-      const match = Object.keys(bgBlobs).find(
-        (k) => k.replace(/\.[^.]+$/, "") === bgBase,
-      );
-      if (match) resolvedBgKey = match;
-    }
-  } else if (Object.keys(bgBlobs).length > 0) {
-    // No background header — pick the first plausible image
-    const sorted = Object.keys(bgBlobs).sort();
-    resolvedBgKey =
-      sorted.find((k) => /^bg|back/i.test(k)) ??
-      sorted.find((k) => /banner/i.test(k)) ??
-      sorted[0];
-  }
-  if (resolvedBgKey) {
-    const blob = bgBlobs[resolvedBgKey];
-    const displayName = parsed.backgroundFilename ?? resolvedBgKey;
-    backgroundFiles[displayName] = {
-      name: displayName,
-      url: URL.createObjectURL(blob),
-      blob,
-    };
-  }
-
-  return { parsed, audioFiles, backgroundFiles };
 }
 
 /**

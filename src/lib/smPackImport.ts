@@ -184,8 +184,13 @@ export async function scanPackFromPicker(
   return buildPackSongs(all);
 }
 
+/**
+ * Scan dropped folder entries into pack songs. Entries must be captured
+ * synchronously from the drop event (webkitGetAsEntry) before any await — the
+ * DataTransferItemList they came from is neutered once the event returns.
+ */
 export async function scanPackFromDrop(
-  entries: DataTransferItemList,
+  entries: FileSystemEntry[],
 ): Promise<PackSong[]> {
   const all: { file: File; relPath: string }[] = [];
 
@@ -223,10 +228,7 @@ export async function scanPackFromDrop(
     });
   };
 
-  for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i].webkitGetAsEntry();
-    if (entry) await readEntry(entry, "");
-  }
+  await Promise.all(entries.map((entry) => readEntry(entry, "")));
 
   return buildPackSongs(all);
 }
