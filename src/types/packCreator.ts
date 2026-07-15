@@ -112,7 +112,7 @@ export type PackCreatorSettings = {
   creatorFieldMode: PackCreatorFieldMode;
   /** Append each map's original tags/artist/creator to the exported Tags. */
   keepOriginalTags: boolean;
-  /** "-Delete" thumbnail/placeholder difficulty. */
+  /** "<Delete" thumbnail/placeholder difficulty. */
   placeholderEnabled: boolean;
   /** Item whose (possibly renamed) audio the placeholder uses. */
   placeholderAudioItemId: string | null;
@@ -139,4 +139,4 @@ export const DEFAULT_PACK_SETTINGS: PackCreatorSettings = {
 };
 
 export const VARIOUS_ARTISTS = "Various Artists";
-export const PLACEHOLDER_VERSION = "-Delete";
+export const PLACEHOLDER_VERSION = "<Delete";

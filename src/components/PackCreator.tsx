@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_PACK_METADATA,
   DEFAULT_PACK_SETTINGS,
+  PLACEHOLDER_VERSION,
   VARIOUS_ARTISTS,
   type PackArtistMode,
   type PackCreatorFieldMode,
@@ -247,7 +248,9 @@ export function PackCreator({
       : VARIOUS_ARTISTS;
     return `${sanitizePackFilename(artist)} - ${sanitizePackFilename(
       metadata.title || "Pack Title",
-    )} (${sanitizePackFilename(metadata.creator || "Creator")}) [-Delete].osu`;
+    )} (${sanitizePackFilename(
+      metadata.creator || "Creator",
+    )}) [${sanitizePackFilename(PLACEHOLDER_VERSION)}].osu`;
   }, [metadata, placeholderItem]);
 
   // Keep drops inside the tool: the app-level handler would import into the
@@ -667,7 +670,7 @@ export function PackCreator({
               title="Thumbnail difficulty"
               badge={
                 <code className="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] text-slate-300">
-                  -Delete
+                  &lt;Delete
                 </code>
               }
               right={
@@ -677,7 +680,7 @@ export function PackCreator({
                   onChange={(v) =>
                     setSettings((s) => ({ ...s, placeholderEnabled: v }))
                   }
-                  aria-label="Add a -Delete placeholder difficulty"
+                  aria-label="Add a <Delete placeholder difficulty"
                 />
               }
             >
@@ -724,7 +727,7 @@ export function PackCreator({
                     {placeholderFilename}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    This creates a minimal -Delete difficulty with two notes. It
+                    This creates a minimal &lt;Delete difficulty with two notes. It
                     is intended as a local pack helper.
                   </p>
                 </div>
