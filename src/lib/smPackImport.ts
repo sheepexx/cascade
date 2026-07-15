@@ -33,7 +33,7 @@ function groupFilesByDir(
       dirs.set(dir, { sm: [], audio: [], bg: [] });
     }
     const entry = dirs.get(dir)!;
-    if (/\.sm$/i.test(file.name)) {
+    if (/\.(sm|ssc)$/i.test(file.name)) {
       entry.sm.push({ file, relPath });
     } else if (isAudioName(file.name)) {
       entry.audio.push(file);
@@ -43,6 +43,13 @@ function groupFilesByDir(
   }
 
   return dirs;
+}
+
+/** Pick a song's chart file, preferring .ssc over .sm when it ships both. */
+function pickMainChart(
+  charts: { file: File; relPath: string }[],
+): { file: File; relPath: string } {
+  return charts.find((c) => /\.ssc$/i.test(c.file.name)) ?? charts[0];
 }
 
 function resolveAudio(
@@ -135,7 +142,7 @@ export async function scanPackFromPicker(
   for (const [dirName, files] of dirs) {
     if (files.sm.length === 0) continue;
 
-    const mainSm = files.sm[0];
+    const mainSm = pickMainChart(files.sm);
     const text = await mainSm.file.text();
     const parsed = parseSmFile(text);
 
@@ -217,7 +224,7 @@ export async function scanPackFromDrop(
   for (const [dirName, files] of dirs) {
     if (files.sm.length === 0) continue;
 
-    const mainSm = files.sm[0];
+    const mainSm = pickMainChart(files.sm);
     const text = await mainSm.file.text();
     const parsed = parseSmFile(text);
 

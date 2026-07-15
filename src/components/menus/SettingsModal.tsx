@@ -75,8 +75,8 @@ export function SettingsModal({
           />
           {onImportSm && (
             <FileButton
-              label="Import .sm map…"
-              accept=".sm"
+              label="Import .sm / .ssc map…"
+              accept=".sm,.ssc"
               onFile={onImportSm}
             />
           )}

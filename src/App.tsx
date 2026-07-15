@@ -1828,7 +1828,7 @@ export default function App() {
       const songs = await scanPackFromPicker(dirHandle);
       setScannedPackSongs(songs);
       if (songs.length === 0) {
-        setPackError("No .sm beatmaps found in the selected folder.");
+        setPackError("No .sm / .ssc beatmaps found in the selected folder.");
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -2782,7 +2782,7 @@ export default function App() {
     /\.(mp4|webm|avi|flv|mov|wmv|m4v|mpe?g)$/i.test(f.name);
   const isOszFile = (f: File) => /\.(osz|zip)$/i.test(f.name);
   const isOskFile = (f: File) => /\.osk$/i.test(f.name);
-  const isSmFile = (f: File) => /\.sm$/i.test(f.name);
+  const isSmFile = (f: File) => /\.(sm|ssc)$/i.test(f.name);
 
   const resetFileDrag = useCallback(() => {
     dragDepthRef.current = 0;
@@ -3004,7 +3004,7 @@ export default function App() {
 
   const importFile = useCallback(
     (file: File) => {
-      if (/\.sm$/i.test(file.name)) {
+      if (/\.(sm|ssc)$/i.test(file.name)) {
         void importSmFile(file);
       } else {
         void importMapFile(file);
@@ -3577,7 +3577,7 @@ export default function App() {
             <div className="mb-2 text-3xl">🎵</div>
             <p className="text-lg font-semibold text-slate-100">Drop to load</p>
             <p className="text-sm text-slate-400">
-              audio (.mp3 / .ogg) · image background · .osz / .sm map (.sm folder) · .osk skin
+              audio (.mp3 / .ogg) · image background · .osz / .sm / .ssc map (folder) · .osk skin
             </p>
           </div>
         </div>
