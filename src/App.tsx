@@ -4720,6 +4720,7 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
             <code className="text-slate-300">.sm</code>
           </li>
           <li>Convert osu!mania maps to Etterna or StepMania-compatible .sm files</li>
+          <li>Combine multiple maps into one .osz song pack with the Pack Creator</li>
           <li>Set BPM and timing with tap tempo and a metronome</li>
           <li>Set a background image or a muted background video, like ranked osu! maps</li>
           <li>Real osu! hitsounds and <code className="text-slate-300">.osk</code> skin support</li>
@@ -4752,6 +4753,14 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
             Cascade covers similar mania chart editing and conversion workflows
             in the browser, including osu!mania, StepMania, and Etterna formats.
           </dd>
+          <dt className="mt-3 font-semibold text-slate-300">
+            Can I combine multiple maps into one .osz pack?
+          </dt>
+          <dd>
+            Yes. The Pack Creator on the start menu merges several beatmaps
+            into a single .osz song pack with shared metadata, mapper credits,
+            and generated difficulty names, for local play.
+          </dd>
         </dl>
 
         <h2 className="mb-2 mt-7 text-xs font-semibold uppercase tracking-widest text-slate-500">
@@ -4771,6 +4780,11 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
           <li>
             <a href="/osu-mania-map-viewer" className="text-slate-300 underline-offset-2 transition hover:text-accent hover:underline">
               Preview osu!mania maps online
+            </a>
+          </li>
+          <li>
+            <a href="/osu-mania-pack-creator" className="text-slate-300 underline-offset-2 transition hover:text-accent hover:underline">
+              Combine multiple maps into one .osz pack
             </a>
           </li>
         </ul>
