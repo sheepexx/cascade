@@ -18,6 +18,7 @@ import {
   type SampleMap,
 } from "./components/menus/StartModal";
 import { MyMapsModal } from "./components/menus/MyMapsModal";
+import { PackCreator } from "./components/PackCreator";
 import { PresetBrowserModal } from "./components/menus/PresetBrowserModal";
 import { PublishPresetModal } from "./components/menus/PublishPresetModal";
 import { FeedbackModal } from "./components/menus/FeedbackModal";
@@ -282,6 +283,8 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const dragDepthRef = useRef(0);
   const [modal, setModal] = useState<ModalId>(null);
+  // Pack Creator: a separate full-screen tool opened from the start menu.
+  const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   // Id of a difficulty pending an "are you sure?" delete confirmation, or null.
   const [pendingDeleteDiffId, setPendingDeleteDiffId] = useState<string | null>(
@@ -3535,9 +3538,11 @@ export default function App() {
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={() => setShowHomeConfirm(true)}
+              // Already on the home screen when no project is open, so the
+              // "return to home" confirmation only makes sense with one.
+              onClick={() => hasProject && setShowHomeConfirm(true)}
               className="flex items-center gap-2.5 rounded-md transition hover:opacity-80"
-              title="Return to home screen"
+              title={hasProject ? "Return to home screen" : undefined}
               // Opens the "are you sure" modal (which has its own chime); skip
               // the general UI click so the two sounds don't overlap.
               data-no-uisound=""
@@ -4036,8 +4041,20 @@ export default function App() {
         onNewMap={() => handleNew(hasProjectContent)}
         onTryMaps={() => setModal("sampleMaps")}
         onImportSmPack={onImportSmPack}
+        onPackCreator={() => {
+          setModal(null);
+          setPackCreatorOpen(true);
+        }}
         onOpenLocalProject={(id) => void loadLocalProject(id)}
         onOpenCloudProject={(id) => void loadCloudProject(id)}
+      />
+      <PackCreator
+        open={packCreatorOpen}
+        onClose={() => {
+          setPackCreatorOpen(false);
+          // Land back on the start menu when no project is open underneath.
+          if (!hasProject) setModal("welcome");
+        }}
       />
       <SampleMapsModal
         open={modal === "sampleMaps"}
@@ -4399,7 +4416,7 @@ export default function App() {
       >
         <p className="text-sm text-slate-300">
           This will open the home screen. Your current project stays in the
-          editor — you can come back to it at any time.
+          editor, and you can come back to it at any time.
         </p>
       </Modal>
 
