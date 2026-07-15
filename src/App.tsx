@@ -2038,18 +2038,78 @@ export default function App() {
     [markStructural],
   );
 
+  /**
+   * Drop audio / background / video files that no remaining difficulty
+   * references, revoking their object URLs. So importing a multi-song mapset
+   * and deleting the unwanted difficulties also drops those songs from the
+   * project (and therefore from saves, cloud sync and exports). Mirrors the
+   * asset removal in {@link onClearVideo}; like it, undo restores only the
+   * chart, not the removed bytes.
+   */
+  const pruneOrphanAssets = useCallback((remaining: Difficulty[]) => {
+    const prune = (
+      reg: Record<string, LoadedFile>,
+      used: Set<string>,
+    ): Record<string, LoadedFile> => {
+      let changed = false;
+      const next: Record<string, LoadedFile> = {};
+      for (const [name, file] of Object.entries(reg)) {
+        if (used.has(name)) next[name] = file;
+        else {
+          if (file.url) URL.revokeObjectURL(file.url);
+          changed = true;
+        }
+      }
+      return changed ? next : reg;
+    };
+
+    setAudioFiles((prev) => {
+      const names = Object.keys(prev);
+      // A difficulty with no explicit song uses the lone track (the common
+      // single-song workflow); keep that track so it isn't seen as an orphan.
+      const lone = names.length === 1 ? names[0] : null;
+      const used = new Set<string>();
+      for (const d of remaining) {
+        const name =
+          d.audioFilename && prev[d.audioFilename] ? d.audioFilename : lone;
+        if (name) used.add(name);
+      }
+      return prune(prev, used);
+    });
+
+    setBgFiles((prev) =>
+      prune(
+        prev,
+        new Set(
+          remaining
+            .map((d) => d.backgroundFilename)
+            .filter((n): n is string => !!n),
+        ),
+      ),
+    );
+
+    setVideoFiles((prev) =>
+      prune(
+        prev,
+        new Set(
+          remaining.map((d) => d.videoFilename).filter((n): n is string => !!n),
+        ),
+      ),
+    );
+  }, []);
+
   const deleteDifficulty = useCallback(
     (id: string) => {
       if (!canEditRef.current) return;
+      const prev = difficultiesRef.current;
+      if (prev.length <= 1) return;
       markStructural();
-      setDifficulties((prev) => {
-        if (prev.length <= 1) return prev;
-        const next = prev.filter((d) => d.id !== id);
-        if (id === activeId) setActiveId(next[0].id);
-        return next;
-      });
+      const next = prev.filter((d) => d.id !== id);
+      setDifficulties(next);
+      if (id === activeIdRef.current) setActiveId(next[0].id);
+      pruneOrphanAssets(next);
     },
-    [activeId, markStructural],
+    [markStructural, pruneOrphanAssets],
   );
 
   // ---- Note editing (on the active difficulty) ----------------------------
