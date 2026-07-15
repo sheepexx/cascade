@@ -377,12 +377,6 @@ export type PlaytestSettings = {
   showHitError: boolean;
   /** Show the osu!-style hit-error / unstable-rate (UR) bar. */
   showErrorBar: boolean;
-  /**
-   * Overlay the audio waveform on the hit lane during playtest, so audio
-   * peaks can be visually lined up with the notes crossing the receptors —
-   * an offset-syncing aid.
-   */
-  showWaveform: boolean;
   useSkinComboFont: boolean;
   useSkinJudgements: boolean;
   /** KeyboardEvent.code per keymode, 1K through 18K. */
@@ -409,6 +403,12 @@ export type AppSettings = {
   dimBackground: number;
   /** Ease scrubbing between snap lines (still snaps) instead of jumping. */
   smoothScrolling: boolean;
+  /**
+   * Overlay the song's waveform on the hit lane (editor and playtest), so
+   * audio peaks can be visually lined up with notes — an offset-syncing aid.
+   * Toggled with W.
+   */
+  showWaveform: boolean;
   /** Flip the playfield so notes scroll upward (upscroll) instead of down. */
   upscroll: boolean;
   /** Whether the full project is automatically saved to IndexedDB. */
@@ -494,6 +494,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundVolume: 0.18,
   dimBackground: 82,
   smoothScrolling: true,
+  showWaveform: false,
   upscroll: false,
   localAutosaveEnabled: true,
   uiSoundsEnabled: true,
@@ -510,7 +511,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     showAccuracy: true,
     showHitError: true,
     showErrorBar: true,
-    showWaveform: false,
     useSkinComboFont: true,
     useSkinJudgements: true,
     keybinds: {},

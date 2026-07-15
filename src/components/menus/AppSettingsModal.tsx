@@ -25,6 +25,9 @@ type Props = {
   /** Ease scrubbing between snap lines instead of jumping. */
   smoothScrolling: boolean;
   onSmoothScrolling: (value: boolean) => void;
+  /** Overlay the song's waveform on the hit lane (editor and playtest). */
+  showWaveform: boolean;
+  onShowWaveform: (value: boolean) => void;
   /** Flip the playfield so notes scroll upward (upscroll). */
   upscroll: boolean;
   onUpscroll: (value: boolean) => void;
@@ -64,6 +67,8 @@ export function AppSettingsModal({
   onDimBackground,
   smoothScrolling,
   onSmoothScrolling,
+  showWaveform,
+  onShowWaveform,
   upscroll,
   onUpscroll,
   playtest,
@@ -162,6 +167,19 @@ export function AppSettingsModal({
                 <p className="text-[11px] text-slate-500">
                   Higher dim keeps the notefield easier to read. Size / zoom is
                   visual only — also adjustable with the + / − keys.
+                </p>
+                <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
+                  <span>Waveform on hit lane</span>
+                  <Toggle
+                    checked={showWaveform}
+                    onChange={onShowWaveform}
+                    aria-label="Waveform on hit lane"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Overlays the song&rsquo;s waveform on the lanes, in the editor
+                  and in playtest, so audio peaks line up with your notes —
+                  handy for checking the offset. Toggle with W.
                 </p>
               </div>
             </section>
@@ -378,7 +396,6 @@ export function AppSettingsModal({
               <SettingToggle label="Show accuracy" checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
               <SettingToggle label="Show hit error" checked={playtest.showHitError} onChange={(v) => patchPlaytest({ showHitError: v })} />
               <SettingToggle label="Show error (UR) bar" checked={playtest.showErrorBar} onChange={(v) => patchPlaytest({ showErrorBar: v })} />
-              <SettingToggle label="Waveform on hit lane" checked={playtest.showWaveform} onChange={(v) => patchPlaytest({ showWaveform: v })} />
               <SettingToggle label="Skin combo font" checked={playtest.useSkinComboFont} onChange={(v) => patchPlaytest({ useSkinComboFont: v })} />
               <SettingToggle label="Skin judgements" checked={playtest.useSkinJudgements} onChange={(v) => patchPlaytest({ useSkinJudgements: v })} />
             </div>
