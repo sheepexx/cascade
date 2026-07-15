@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { isAudioName, isImageName, parseSmFile, type ParsedSm } from "./smImport";
 
 export type PackSongInfo = {
@@ -50,6 +51,51 @@ function pickMainChart(
   charts: { file: File; relPath: string }[],
 ): { file: File; relPath: string } {
   return charts.find((c) => /\.ssc$/i.test(c.file.name)) ?? charts[0];
+}
+
+/**
+ * Group a flat file list by directory and parse each song directory holding a
+ * .sm/.ssc chart into a PackSong. Shared by the folder, drop and zip scanners.
+ */
+async function buildPackSongs(
+  all: { file: File; relPath: string }[],
+): Promise<PackSong[]> {
+  const dirs = groupFilesByDir(all);
+  const songs: PackSong[] = [];
+
+  for (const [dirName, files] of dirs) {
+    if (files.sm.length === 0) continue;
+
+    const mainSm = pickMainChart(files.sm);
+    const text = await mainSm.file.text();
+    const parsed = parseSmFile(text);
+
+    const audioBlobs = resolveAudio(parsed, files.audio);
+    const bgBlobs = resolveBackground(parsed, files.bg);
+
+    const diffInfo = parsed.difficulties.map((d) => ({
+      name: d.name,
+      keys: d.keyCount,
+    }));
+
+    songs.push({
+      info: {
+        title: parsed.meta.title,
+        artist: parsed.meta.artist,
+        creator: parsed.meta.creator,
+        dirName,
+        sourceSmName: mainSm.file.name,
+        audioFilename: parsed.audioFilename,
+        backgroundFilename: parsed.backgroundFilename,
+        difficulties: diffInfo,
+      },
+      parsed,
+      audioBlobs,
+      bgBlobs,
+    });
+  }
+
+  return songs;
 }
 
 function resolveAudio(
@@ -135,43 +181,7 @@ export async function scanPackFromPicker(
   }
 
   await walk(dirHandle, "");
-
-  const dirs = groupFilesByDir(all);
-  const songs: PackSong[] = [];
-
-  for (const [dirName, files] of dirs) {
-    if (files.sm.length === 0) continue;
-
-    const mainSm = pickMainChart(files.sm);
-    const text = await mainSm.file.text();
-    const parsed = parseSmFile(text);
-
-    const audioBlobs = resolveAudio(parsed, files.audio);
-    const bgBlobs = resolveBackground(parsed, files.bg);
-
-    const diffInfo = parsed.difficulties.map((d) => ({
-      name: d.name,
-      keys: d.keyCount,
-    }));
-
-    songs.push({
-      info: {
-        title: parsed.meta.title,
-        artist: parsed.meta.artist,
-        creator: parsed.meta.creator,
-        dirName,
-        sourceSmName: mainSm.file.name,
-        audioFilename: parsed.audioFilename,
-        backgroundFilename: parsed.backgroundFilename,
-        difficulties: diffInfo,
-      },
-      parsed,
-      audioBlobs,
-      bgBlobs,
-    });
-  }
-
-  return songs;
+  return buildPackSongs(all);
 }
 
 export async function scanPackFromDrop(
@@ -218,40 +228,31 @@ export async function scanPackFromDrop(
     if (entry) await readEntry(entry, "");
   }
 
-  const dirs = groupFilesByDir(all);
-  const songs: PackSong[] = [];
+  return buildPackSongs(all);
+}
 
-  for (const [dirName, files] of dirs) {
-    if (files.sm.length === 0) continue;
+/**
+ * Scan a StepMania/Etterna pack distributed as a `.zip` archive. Only chart and
+ * media entries are decoded, so a large pack isn't fully unpacked just to list
+ * its songs. Returns [] when the archive holds no .sm/.ssc charts (e.g. it's an
+ * osu! `.osz`), so callers can fall back to the osu importer.
+ */
+export async function scanPackFromZip(file: File): Promise<PackSong[]> {
+  const zip = await JSZip.loadAsync(file);
+  const entries = Object.values(zip.files).filter((e) => !e.dir);
+  const chartBase = (name: string) => name.split("/").pop() ?? name;
 
-    const mainSm = pickMainChart(files.sm);
-    const text = await mainSm.file.text();
-    const parsed = parseSmFile(text);
+  // Bail before decoding anything when there are no charts — the archive is an
+  // osu! set, and the caller falls back to the osu importer.
+  if (!entries.some((e) => /\.(sm|ssc)$/i.test(chartBase(e.name)))) return [];
 
-    const audioBlobs = resolveAudio(parsed, files.audio);
-    const bgBlobs = resolveBackground(parsed, files.bg);
-
-    const diffInfo = parsed.difficulties.map((d) => ({
-      name: d.name,
-      keys: d.keyCount,
-    }));
-
-    songs.push({
-      info: {
-        title: parsed.meta.title,
-        artist: parsed.meta.artist,
-        creator: parsed.meta.creator,
-        dirName,
-        sourceSmName: mainSm.file.name,
-        audioFilename: parsed.audioFilename,
-        backgroundFilename: parsed.backgroundFilename,
-        difficulties: diffInfo,
-      },
-      parsed,
-      audioBlobs,
-      bgBlobs,
-    });
+  const all: { file: File; relPath: string }[] = [];
+  for (const entry of entries) {
+    const base = chartBase(entry.name);
+    if (/\.(sm|ssc)$/i.test(base) || isAudioName(base) || isImageName(base)) {
+      const blob = await entry.async("blob");
+      all.push({ file: new File([blob], base), relPath: entry.name });
+    }
   }
-
-  return songs;
+  return buildPackSongs(all);
 }
