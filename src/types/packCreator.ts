@@ -90,6 +90,11 @@ export type PackItem = {
   /** Overrides the Creator field for this difficulty only. */
   creatorFieldOverride?: string;
 
+  /** OverallDifficulty written to this difficulty on export (0..10). */
+  overallDifficulty: number;
+  /** HPDrainRate written to this difficulty on export (0..10). */
+  hpDrainRate: number;
+
   originalAudioFilename: string;
   originalOsuFilename: string;
   /** Name of the imported .osz this came from. */
@@ -140,3 +145,7 @@ export const DEFAULT_PACK_SETTINGS: PackCreatorSettings = {
 
 export const VARIOUS_ARTISTS = "Various Artists";
 export const PLACEHOLDER_VERSION = "<Delete";
+
+/** Default OverallDifficulty / HPDrainRate applied to every imported pack item. */
+export const PACK_DEFAULT_OD = 8;
+export const PACK_DEFAULT_HP = 7.5;

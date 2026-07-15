@@ -2,6 +2,13 @@ import type { PackItem } from "../types/packCreator";
 import { generatePackDifficultyName } from "../lib/packCreator";
 import { Field, TextInput, Toggle } from "./ui/Controls";
 
+/** Parse an OD/HP input to a number clamped to the osu! 0–10 range. */
+function clampRate(value: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(10, Math.max(0, n));
+}
+
 /** Editor for one imported map (one difficulty of the final pack). */
 export function PackCreatorItem({
   item,
@@ -75,6 +82,33 @@ export function PackCreatorItem({
           <TextInput
             value={item.mapperName}
             onChange={(e) => onChange({ mapperName: e.target.value })}
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="OD" hint="Overall difficulty (0–10)">
+          <TextInput
+            type="number"
+            min={0}
+            max={10}
+            step={0.1}
+            value={item.overallDifficulty}
+            onChange={(e) =>
+              onChange({ overallDifficulty: clampRate(e.target.value) })
+            }
+          />
+        </Field>
+        <Field label="HP" hint="HP drain (0–10)">
+          <TextInput
+            type="number"
+            min={0}
+            max={10}
+            step={0.1}
+            value={item.hpDrainRate}
+            onChange={(e) =>
+              onChange({ hpDrainRate: clampRate(e.target.value) })
+            }
           />
         </Field>
       </div>
