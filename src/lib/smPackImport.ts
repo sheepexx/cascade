@@ -1,5 +1,8 @@
 import JSZip from "jszip";
 import { isAudioName, isImageName, parseSmFile, type ParsedSm } from "./smImport";
+import { buildOsz } from "./oszExport";
+import { sanitizePackFilename } from "./packCreator";
+import { makeDifficulty, normalizeTimingPoints, type LoadedFile } from "../types";
 
 export type PackSongInfo = {
   title: string;
@@ -239,6 +242,47 @@ export async function scanPackFromDrop(
  * its songs. Returns [] when the archive holds no .sm/.ssc charts (e.g. it's an
  * osu! `.osz`), so callers can fall back to the osu importer.
  */
+function blobRegistry(blobs: Record<string, Blob>): Record<string, LoadedFile> {
+  const out: Record<string, LoadedFile> = {};
+  for (const [name, blob] of Object.entries(blobs)) {
+    out[name] = { name, url: "", blob };
+  }
+  return out;
+}
+
+/**
+ * Repackage a scanned StepMania/Etterna song as an in-memory osu! `.osz`, so it
+ * can be imported through the exact same path as an osu! map (e.g. into the
+ * Pack Creator). Reuses the osu exporter, mirroring how the project browser
+ * repackages local/cloud projects.
+ */
+export async function packSongToOszFile(song: PackSong): Promise<File> {
+  const smAudio =
+    song.parsed.audioFilename ?? Object.keys(song.audioBlobs)[0];
+  const smBg = song.parsed.backgroundFilename ?? Object.keys(song.bgBlobs)[0];
+  const difficulties = (
+    song.parsed.difficulties.length
+      ? song.parsed.difficulties
+      : [makeDifficulty()]
+  ).map((d) => ({
+    ...d,
+    audioFilename: d.audioFilename || smAudio || undefined,
+    backgroundFilename: d.backgroundFilename || smBg || undefined,
+    timingPoints: normalizeTimingPoints(d.timingPoints ?? []),
+  }));
+  const blob = await buildOsz({
+    meta: song.parsed.meta,
+    difficulties,
+    timingPoints: normalizeTimingPoints(song.parsed.timingPoints ?? []),
+    audioFiles: blobRegistry(song.audioBlobs),
+    bgFiles: blobRegistry(song.bgBlobs),
+  });
+  return new File(
+    [blob],
+    `${sanitizePackFilename(song.info.title || "song")}.osz`,
+  );
+}
+
 export async function scanPackFromZip(file: File): Promise<PackSong[]> {
   const zip = await JSZip.loadAsync(file);
   const entries = Object.values(zip.files).filter((e) => !e.dir);

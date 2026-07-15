@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import JSZip from "jszip";
-import { scanPackFromZip } from "./smPackImport";
+import { scanPackFromZip, packSongToOszFile } from "./smPackImport";
+import { importOszForPack } from "./packCreator";
 
 const SSC = `#TITLE:Zip Song;
 #ARTIST:Z;
@@ -55,5 +56,56 @@ describe("scanPackFromZip", () => {
       "set/audio.mp3": new Uint8Array([1, 2, 3]),
     });
     expect(await scanPackFromZip(file)).toEqual([]);
+  });
+
+  it("repackages a scanned SM song into an .osz importable by the pack creator", async () => {
+    const song = {
+      info: {
+        title: "Zip Song",
+        artist: "Z",
+        creator: "C",
+        dirName: "Zip Song",
+        sourceSmName: "chart.ssc",
+        audioFilename: "song.ogg",
+        backgroundFilename: "bg.png",
+        difficulties: [{ name: "Hard", keys: 4 }],
+      },
+      parsed: {
+        meta: { title: "Zip Song", artist: "Z", creator: "C", tags: "" },
+        difficulties: [
+          {
+            id: "d1",
+            sourceFormat: "sm" as const,
+            name: "Hard",
+            keyCount: 4,
+            hpDrainRate: 7,
+            overallDifficulty: 7,
+            previewTime: -1,
+            audioFilename: "song.ogg",
+            timingPoints: [],
+            notes: [
+              { id: "n1", column: 0, startTime: 500 },
+              { id: "n2", column: 2, startTime: 1000 },
+            ],
+          },
+        ],
+        timingPoints: [],
+        audioFilename: "song.ogg",
+        backgroundFilename: "bg.png",
+      },
+      // Uint8Array blobs so JSZip can serialise them under the test runner.
+      audioBlobs: { "song.ogg": new Uint8Array([1, 2, 3]) as unknown as Blob },
+      bgBlobs: { "bg.png": new Uint8Array([4, 5, 6]) as unknown as Blob },
+    };
+
+    const osz = await packSongToOszFile(song);
+    expect(osz.name).toBe("Zip Song.osz");
+
+    // Round-trip through the actual pack importer.
+    const buf = await osz.arrayBuffer();
+    const res = await importOszForPack(buf as unknown as File);
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0].parsedOsu.keyCount).toBe(4);
+    expect(res.items[0].originalTitle).toBe("Zip Song");
   });
 });
