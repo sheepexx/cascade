@@ -124,6 +124,15 @@ export function AccountControl({
               <MenuItem onClick={() => choose(onOpenAdmin)}>Admin</MenuItem>
             )}
             <div className="my-1 h-px bg-ink-600" />
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noreferrer"
+              className="block w-full px-3 py-1.5 text-left text-sm text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"
+              onClick={() => setOpen(false)}
+            >
+              Privacy policy
+            </a>
             <MenuItem onClick={() => choose(() => void logout())} danger>
               Log out
             </MenuItem>

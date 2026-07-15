@@ -343,7 +343,15 @@ export function WelcomeModal({
       {!user && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
           <span className="text-sm text-slate-400">
-            Log in with osu! to see your saved maps and mapping invitations.
+            Log in with osu! to see your saved maps and mapping invitations.{" "}
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noreferrer"
+              className="whitespace-nowrap text-slate-500 underline decoration-ink-500 underline-offset-2 transition hover:text-slate-300"
+            >
+              Privacy policy
+            </a>
           </span>
           <Button variant="accent" onClick={login} className="whitespace-nowrap">
             Log in with osu!
