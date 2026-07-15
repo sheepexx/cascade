@@ -42,6 +42,8 @@ function makeItem(overrides: Partial<PackItem>): PackItem {
     includeRateInDifficultyName: true,
     includeOriginalDifficultyName: false,
     includeMapperInBrackets: true,
+    overallDifficulty: 8,
+    hpDrainRate: 7.5,
     originalAudioFilename: "audio.mp3",
     originalOsuFilename: "song.osu",
     sourceArchiveId: "src1",
@@ -189,6 +191,20 @@ describe("rewriteOsuForPack", () => {
       renames: new Map(),
     });
     expect(parseOsuFile(out).meta.creator).toBe("OrigMapper");
+  });
+
+  it("writes the item's OD and HP into the difficulty", () => {
+    const out = rewriteOsuForPack({
+      item: { ...item, overallDifficulty: 8, hpDrainRate: 7.5 },
+      metadata,
+      settings: DEFAULT_PACK_SETTINGS,
+      renames: new Map(),
+    });
+    const parsed = parseOsuFile(out);
+    expect(parsed.difficulty.overallDifficulty).toBe(8);
+    expect(parsed.difficulty.hpDrainRate).toBe(7.5);
+    expect(out).toMatch(/^OverallDifficulty:8$/m);
+    expect(out).toMatch(/^HPDrainRate:7\.5$/m);
   });
 
   it("updates audio and background references when renamed", () => {

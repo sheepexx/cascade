@@ -1,6 +1,8 @@
 import JSZip from "jszip";
 import { uid, makeDifficulty, MIN_KEYS, MAX_KEYS, type ManiaNote } from "../types";
 import {
+  PACK_DEFAULT_HP,
+  PACK_DEFAULT_OD,
   PLACEHOLDER_VERSION,
   VARIOUS_ARTISTS,
   type PackAsset,
@@ -271,6 +273,16 @@ export function rewriteOsuForPack({
         continue;
       }
     }
+    if (section === "Difficulty") {
+      if (/^\s*OverallDifficulty\s*:/i.test(raw)) {
+        out.push(`OverallDifficulty:${item.overallDifficulty}`);
+        continue;
+      }
+      if (/^\s*HPDrainRate\s*:/i.test(raw)) {
+        out.push(`HPDrainRate:${item.hpDrainRate}`);
+        continue;
+      }
+    }
     if (section === "Events" || section === "HitObjects") {
       out.push(applyRenames(raw));
       continue;
@@ -298,7 +310,12 @@ export type PackImportResult = {
  * text), load every other file as a shared PackAsset, and split difficulties
  * into mania and non-mania.
  */
-export async function importOszForPack(file: File): Promise<PackImportResult> {
+export async function importOszForPack(
+  file: File,
+  /** Overrides the "From" label (e.g. the original .sm/.ssc name for a
+   *  StepMania song that was repackaged to .osz before import). */
+  sourceLabel?: string,
+): Promise<PackImportResult> {
   const zip = await JSZip.loadAsync(file);
   const archiveId = uid("packsrc");
   const problems: string[] = [];
@@ -362,9 +379,11 @@ export async function importOszForPack(file: File): Promise<PackImportResult> {
       includeRateInDifficultyName: rate !== undefined,
       includeOriginalDifficultyName: false,
       includeMapperInBrackets: true,
+      overallDifficulty: PACK_DEFAULT_OD,
+      hpDrainRate: PACK_DEFAULT_HP,
       originalAudioFilename: parsed.audioFilename ?? "",
       originalOsuFilename: name,
-      sourceFileName: file.name,
+      sourceFileName: sourceLabel ?? file.name,
       sourceArchiveId: archiveId,
       finalDifficultyName: "",
       nonMania: parsed.mode !== 3 ? true : undefined,

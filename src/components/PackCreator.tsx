@@ -143,44 +143,60 @@ export function PackCreator({
     return () => window.removeEventListener("keydown", onKey, true);
   }, [open, browseOpen, onClose]);
 
-  const importFiles = useCallback(async (files: File[]) => {
-    const oszFiles = files.filter((f) => /\.(osz|zip)$/i.test(f.name));
-    if (!oszFiles.length) return;
-    setImporting(true);
-    const problems: string[] = [];
-    try {
-      for (const file of oszFiles) {
-        try {
-          const res = await importOszForPack(file);
-          problems.push(...res.problems);
-          if (res.nonManiaItems.length)
+  // Import a batch of osu! archives. `sourceLabel` overrides the "From" text —
+  // used for StepMania/Etterna songs that were repackaged to .osz so the item
+  // still shows its original .sm/.ssc name instead of the temporary .osz.
+  const importInputs = useCallback(
+    async (inputs: { file: File; sourceLabel?: string }[]) => {
+      if (!inputs.length) return;
+      setImporting(true);
+      const problems: string[] = [];
+      try {
+        for (const { file, sourceLabel } of inputs) {
+          const label = sourceLabel ?? file.name;
+          try {
+            const res = await importOszForPack(file, sourceLabel);
+            problems.push(...res.problems);
+            if (res.nonManiaItems.length)
+              problems.push(
+                `${label}: ${res.nonManiaItems.length} non-mania difficult${
+                  res.nonManiaItems.length === 1 ? "y" : "ies"
+                } skipped (include below if wanted).`,
+              );
+            setItems((prev) => [...prev, ...res.items]);
+            setExcluded((prev) => [...prev, ...res.nonManiaItems]);
+            if (res.items.length) {
+              setSelectedId((cur) => cur ?? res.items[0].id);
+              setSettings((s) =>
+                s.placeholderAudioItemId
+                  ? s
+                  : { ...s, placeholderAudioItemId: res.items[0].id },
+              );
+            }
+          } catch (err) {
             problems.push(
-              `${file.name}: ${res.nonManiaItems.length} non-mania difficult${
-                res.nonManiaItems.length === 1 ? "y" : "ies"
-              } skipped (include below if wanted).`,
-            );
-          setItems((prev) => [...prev, ...res.items]);
-          setExcluded((prev) => [...prev, ...res.nonManiaItems]);
-          if (res.items.length) {
-            setSelectedId((cur) => cur ?? res.items[0].id);
-            setSettings((s) =>
-              s.placeholderAudioItemId
-                ? s
-                : { ...s, placeholderAudioItemId: res.items[0].id },
+              err instanceof Error ? err.message : `Failed to import ${label}.`,
             );
           }
-        } catch (err) {
-          problems.push(
-            err instanceof Error ? err.message : `Failed to import ${file.name}.`,
-          );
         }
+      } finally {
+        setImporting(false);
+        setImportProblems((prev) => [...prev, ...problems]);
+        setValidation(null);
       }
-    } finally {
-      setImporting(false);
-      setImportProblems((prev) => [...prev, ...problems]);
-      setValidation(null);
-    }
-  }, []);
+    },
+    [],
+  );
+
+  const importFiles = useCallback(
+    (files: File[]) =>
+      importInputs(
+        files
+          .filter((f) => /\.(osz|zip)$/i.test(f.name))
+          .map((file) => ({ file })),
+      ),
+    [importInputs],
+  );
 
   const updateItem = useCallback((id: string, patch: Partial<PackItem>) => {
     setItems((prev) =>
@@ -274,11 +290,13 @@ export function PackCreator({
       }
       setImporting(true);
       try {
-        const converted: File[] = [];
-        const passthrough: File[] = [];
+        const inputs: { file: File; sourceLabel?: string }[] = [];
         if (hasFolder) {
           for (const song of await scanPackFromDrop(entries)) {
-            converted.push(await packSongToOszFile(song));
+            inputs.push({
+              file: await packSongToOszFile(song),
+              sourceLabel: song.info.sourceSmName,
+            });
           }
         }
         for (const file of files) {
@@ -286,15 +304,17 @@ export function PackCreator({
             const songs = await scanPackFromZip(file);
             if (songs.length) {
               for (const song of songs) {
-                converted.push(await packSongToOszFile(song));
+                inputs.push({
+                  file: await packSongToOszFile(song),
+                  sourceLabel: song.info.sourceSmName,
+                });
               }
               continue; // handled as an SM pack
             }
           }
-          passthrough.push(file); // osu! .osz/.zip
+          if (/\.(osz|zip)$/i.test(file.name)) inputs.push({ file }); // osu!
         }
-        const all = [...converted, ...passthrough];
-        if (all.length) await importFiles(all);
+        if (inputs.length) await importInputs(inputs);
         else
           setImportProblems((prev) => [
             ...prev,
@@ -309,7 +329,7 @@ export function PackCreator({
         setImporting(false);
       }
     },
-    [importFiles],
+    [importFiles, importInputs],
   );
 
   // Keep drops inside the tool: the app-level handler would import into the
