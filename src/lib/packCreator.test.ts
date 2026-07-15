@@ -237,7 +237,7 @@ describe("resolveAssetCollisions", () => {
 });
 
 describe("generatePlaceholderDifficulty", () => {
-  it("builds a valid -Delete mania diff with a start and end note", () => {
+  it("builds a valid <Delete mania diff with a start and end note", () => {
     const item = makeItem({});
     const text = generatePlaceholderDifficulty({
       metadata,
@@ -248,7 +248,7 @@ describe("generatePlaceholderDifficulty", () => {
     });
     expect(text).toMatch(/^Mode: 3$/m);
     const parsed = parseOsuFile(text);
-    expect(parsed.difficulty.name).toBe("-Delete");
+    expect(parsed.difficulty.name).toBe("<Delete");
     expect(parsed.difficulty.keyCount).toBe(7);
     expect(parsed.audioFilename).toBe("audio_2.mp3");
     expect(parsed.meta.artist).toBe("Various Artists");

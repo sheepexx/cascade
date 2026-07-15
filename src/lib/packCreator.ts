@@ -512,7 +512,7 @@ async function convertPackBackgroundsToJpeg(
 }
 
 // ---------------------------------------------------------------------------
-// "-Delete" placeholder difficulty
+// "<Delete" placeholder difficulty
 // ---------------------------------------------------------------------------
 
 /** Decode the audio to find its real duration; null when undecodable. */
@@ -545,7 +545,7 @@ export type PlaceholderArgs = {
 };
 
 /**
- * Build the minimal "-Delete" thumbnail difficulty: valid mania metadata,
+ * Build the minimal "<Delete" thumbnail difficulty: valid mania metadata,
  * default timing, one note at the start and one near the end of the audio.
  */
 export function generatePlaceholderDifficulty({
@@ -657,7 +657,7 @@ export function validatePack({
       settings.placeholderKeyCount > MAX_KEYS
     )
       errors.push(`Invalid thumbnail key count (${settings.placeholderKeyCount}).`);
-    warnings.push("The -Delete thumbnail difficulty is only meant as a local pack helper.");
+    warnings.push("The <Delete thumbnail difficulty is only meant as a local pack helper.");
   }
 
   const distinctArtists = new Set(items.map((i) => i.originalArtist.toLowerCase()));
@@ -718,7 +718,7 @@ export type BuildPackArgs = {
   jpegQuality?: number;
 };
 
-/** Assemble the final .osz: rewritten .osu files, assets, optional -Delete. */
+/** Assemble the final .osz: rewritten .osu files, assets, optional <Delete. */
 export async function buildPack({
   metadata,
   items,
