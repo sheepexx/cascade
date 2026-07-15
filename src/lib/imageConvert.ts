@@ -32,10 +32,10 @@ export function uniqueFileName(name: string, taken: Set<string>): string {
 }
 
 /**
- * Re-encode a PNG blob as JPEG at the given quality (0..1). Returns null when
- * the image can't be decoded, JPEG encoding isn't available, or the result
- * wouldn't actually be smaller — in every such case callers keep the original
- * bytes (and its original `.png` name).
+ * Re-encode a PNG blob as JPEG at the given quality (0..1). Returns null only
+ * when the image genuinely can't be decoded or JPEG-encoded (callers then keep
+ * the original PNG). A successful re-encode is always returned even in the rare
+ * case where it isn't smaller, so no PNG background is ever left behind.
  */
 export async function pngToJpeg(
   blob: Blob,
@@ -57,11 +57,9 @@ export async function pngToJpeg(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bitmap, 0, 0);
     bitmap.close();
-    const out = await new Promise<Blob | null>((resolve) =>
+    return await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), "image/jpeg", quality),
     );
-    // Never grow the file: tiny/flat PNGs can encode larger as JPEG.
-    return out && out.size < blob.size ? out : null;
   } catch {
     return null;
   }

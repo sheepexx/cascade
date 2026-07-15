@@ -462,17 +462,30 @@ async function convertPackBackgroundsToJpeg(
   items: PackItem[],
   quality: number,
 ): Promise<void> {
+  // Snapshot the collision renames up front. We add our own JPEG renames to the
+  // same map below, so reading it live would make a later difficulty see the
+  // .jpg name as the "current" file and try to re-convert an already-converted
+  // background.
+  const collisionRenames = new Map<string, Map<string, string>>();
+  for (const [archive, map] of renamesByArchive)
+    collisionRenames.set(archive, new Map(map));
+
   // A background shared by several difficulties resolves to one file; convert
   // it once, keyed by its current (post-collision) name.
   const convertedFinal = new Map<string, string>();
+  const handled = new Set<string>();
   const taken = new Set(files.map((f) => f.name.toLowerCase()));
 
   for (const item of items) {
     const bg = item.parsedOsu.backgroundFilename;
     if (!bg || !isPngName(bg)) continue;
 
-    const archiveRenames = renamesByArchive.get(item.sourceArchiveId);
-    const currentFinal = archiveRenames?.get(bg.toLowerCase()) ?? bg;
+    const dedupeKey = `${item.sourceArchiveId}\n${bg.toLowerCase()}`;
+    if (handled.has(dedupeKey)) continue;
+    handled.add(dedupeKey);
+
+    const currentFinal =
+      collisionRenames.get(item.sourceArchiveId)?.get(bg.toLowerCase()) ?? bg;
     const finalLower = currentFinal.toLowerCase();
 
     let jpgName = convertedFinal.get(finalLower);
@@ -480,7 +493,7 @@ async function convertPackBackgroundsToJpeg(
       const fileEntry = files.find((f) => f.name.toLowerCase() === finalLower);
       if (!fileEntry) continue; // background missing from the archive
       const jpeg = await pngToJpeg(fileEntry.blob, quality);
-      if (!jpeg) continue; // undecodable, or not actually smaller: keep the PNG
+      if (!jpeg) continue; // undecodable: keep the PNG
       taken.delete(finalLower);
       jpgName = uniqueFileName(toJpegName(currentFinal), taken);
       taken.add(jpgName.toLowerCase());
