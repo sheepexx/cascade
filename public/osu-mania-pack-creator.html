@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png?v=2" />
+    <link rel="canonical" href="https://cascade.sheepex.net/osu-mania-pack-creator" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>osu!mania Pack Creator: Combine Maps into One .osz | Cascade</title>
+    <meta
+      name="description"
+      content="Free online pack creator for osu!mania: merge multiple beatmaps into a single .osz song pack with shared Various Artists metadata, per-map mapper credits, rate detection (x1.2, DT), safe file renaming and an optional -Delete thumbnail difficulty."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:title" content="Combine multiple osu!mania maps into one .osz pack" />
+    <meta property="og:description" content="Build osu!mania song packs in your browser: import .osz files, review difficulty names, and export one merged pack." />
+    <meta property="og:url" content="https://cascade.sheepex.net/osu-mania-pack-creator" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to combine multiple osu!mania maps into one .osz pack",
+        "description": "Merge several osu!mania beatmaps into a single .osz song pack in your browser with Cascade's Pack Creator.",
+        "totalTime": "PT5M",
+        "tool": { "@type": "HowToTool", "name": "Cascade Pack Creator" },
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Open the Pack Creator",
+            "text": "Open Cascade, press Enter to reach the start menu and choose the Pack Creator card."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Import your maps",
+            "text": "Drop .osz files onto the screen or browse your saved local and cloud projects. Every difficulty becomes one entry in the pack."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Name the pack",
+            "text": "Set a pack title and creator. The Artist field defaults to Various Artists; each entry keeps its original artist and mapper visible."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Review difficulty names",
+            "text": "Check the generated names like Song Name x1.2 [Mapper]. Rates such as x1.2 or DT are detected automatically and can be edited."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Validate and export",
+            "text": "Run Validate Pack, fix anything flagged, then export a single .osz containing every song, audio file and background."
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/logo.png?v=2" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Combine multiple osu!mania maps into one .osz pack</h1>
+      <p>
+        Cascade's <strong>Pack Creator</strong> merges several
+        <strong> osu!mania</strong> beatmaps into a single <code>.osz</code>
+        song pack, entirely in your browser. Import any number of maps, give
+        the pack one title and creator, and export one beatmapset where every
+        song appears as its own difficulty, the way dan courses, jumpstream
+        collections and training packs are usually distributed.
+      </p>
+      <a class="cta" href="/">Open the Pack Creator</a>
+
+      <h2>How it works</h2>
+      <ol>
+        <li>Open <a href="/">Cascade</a> and pick <em>Pack Creator</em> on the start menu.</li>
+        <li>Drop your <code>.osz</code> files onto the screen, or browse the projects you already saved locally or to your account.</li>
+        <li>Set a pack title and creator. The Artist field defaults to <em>Various Artists</em> since the pack holds songs from many artists.</li>
+        <li>Review each entry: song display name, optional rate, and the mapper credit shown in brackets.</li>
+        <li>Validate, then export one merged <code>.osz</code> and drop it straight into osu!.</li>
+      </ol>
+
+      <h2>What it handles for you</h2>
+      <ul>
+        <li><strong>Difficulty names</strong> are generated live, like <code>Galaxy Collapse x0.9 [Mapper]</code>, so every song stays searchable inside the pack.</li>
+        <li><strong>Rate detection</strong>: markers like <code>x1.2</code>, <code>0.9x</code>, <code>DT</code> or <code>HT</code> in the original difficulty name prefill the rate field.</li>
+        <li><strong>Mapper credits</strong>: each map's original creator stays visible and lands in the difficulty name, while the pack has one shared creator.</li>
+        <li><strong>File collisions</strong>: when two maps ship an <code>audio.mp3</code> with different contents, one is renamed safely and its <code>.osu</code> references are rewritten.</li>
+        <li><strong>Charts stay untouched</strong>: notes, timing, SVs and hitsounds are carried over byte for byte; only the metadata is rewritten.</li>
+        <li><strong>Thumbnail difficulty</strong>: optionally adds the classic minimal <code>-Delete</code> placeholder entry packs use as a cover slot.</li>
+        <li><strong>Validation</strong> flags missing titles, duplicate difficulty names, missing audio and other problems before you export.</li>
+      </ul>
+
+      <p class="note">
+        Multi-song packs are meant for local play and unranked sharing. The
+        official osu! ranking process expects one song per beatmapset, so
+        don't submit a merged pack for ranking.
+      </p>
+
+      <h2>Why packs?</h2>
+      <p>
+        Rhythm game communities have always shared training material as packs:
+        StepMania and Etterna players download whole folders of themed charts,
+        and osu!mania players rebuild the same idea as multi-difficulty
+        beatmapsets. Building one by hand means editing metadata in a dozen
+        <code>.osu</code> files and fixing filename clashes yourself. The Pack
+        Creator does that busywork in seconds, and because Cascade is also a
+        full <a href="/">online osu!mania editor</a>, you can fix a chart, retime
+        a section or <a href="/osu-to-stepmania">convert maps from StepMania /
+        Etterna</a> before packing them.
+      </p>
+
+      <footer>
+        <p>
+          More: <a href="/">Cascade, the online osu!mania editor</a> ·
+          <a href="/how-to-make-an-osu-mania-map">How to make an osu!mania map</a> ·
+          <a href="/osu-to-stepmania">Convert osu!mania to StepMania / Etterna</a> ·
+          <a href="/osu-mania-map-viewer">Preview osu!mania maps online</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
