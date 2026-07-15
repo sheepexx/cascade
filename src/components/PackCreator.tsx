@@ -20,6 +20,11 @@ import {
   validatePack,
 } from "../lib/packCreator";
 import { triggerDownload } from "../lib/osuExport";
+import {
+  packSongToOszFile,
+  scanPackFromDrop,
+  scanPackFromZip,
+} from "../lib/smPackImport";
 import { MAX_KEYS, MIN_KEYS } from "../types";
 import { Button, Field, TextInput, Toggle } from "./ui/Controls";
 import { PackCreatorItem } from "./PackCreatorItem";
@@ -253,14 +258,74 @@ export function PackCreator({
     )}) [${sanitizePackFilename(PLACEHOLDER_VERSION)}].osu`;
   }, [metadata, placeholderItem]);
 
+  /**
+   * Handle a drop of osu! archives and/or StepMania/Etterna sources. osu!
+   * `.osz`/`.zip` files go straight to the importer; dropped folders and SM
+   * `.zip` packs are scanned and each song repackaged to an in-memory `.osz`
+   * first, so everything funnels through the same importOszForPack path.
+   */
+  const importDropped = useCallback(
+    async (entries: FileSystemEntry[], files: File[]) => {
+      const hasFolder = entries.some((en) => en.isDirectory);
+      const hasZip = files.some((f) => /\.zip$/i.test(f.name));
+      if (!hasFolder && !hasZip) {
+        void importFiles(files);
+        return;
+      }
+      setImporting(true);
+      try {
+        const converted: File[] = [];
+        const passthrough: File[] = [];
+        if (hasFolder) {
+          for (const song of await scanPackFromDrop(entries)) {
+            converted.push(await packSongToOszFile(song));
+          }
+        }
+        for (const file of files) {
+          if (/\.zip$/i.test(file.name)) {
+            const songs = await scanPackFromZip(file);
+            if (songs.length) {
+              for (const song of songs) {
+                converted.push(await packSongToOszFile(song));
+              }
+              continue; // handled as an SM pack
+            }
+          }
+          passthrough.push(file); // osu! .osz/.zip
+        }
+        const all = [...converted, ...passthrough];
+        if (all.length) await importFiles(all);
+        else
+          setImportProblems((prev) => [
+            ...prev,
+            "No osu! or StepMania/Etterna maps found in the drop.",
+          ]);
+      } catch (err) {
+        setImportProblems((prev) => [
+          ...prev,
+          err instanceof Error ? err.message : "Failed to read the drop.",
+        ]);
+      } finally {
+        setImporting(false);
+      }
+    },
+    [importFiles],
+  );
+
   // Keep drops inside the tool: the app-level handler would import into the
-  // editor instead. stopPropagation on every drag event prevents that.
+  // editor instead. stopPropagation on every drag event prevents that. Folder
+  // entries must be captured synchronously, before the handler awaits anything.
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragDepthRef.current = 0;
     setDragActive(false);
-    void importFiles(Array.from(e.dataTransfer.files));
+    const entries = e.dataTransfer.items?.length
+      ? Array.from(e.dataTransfer.items)
+          .map((item) => item.webkitGetAsEntry())
+          .filter((entry): entry is FileSystemEntry => !!entry)
+      : [];
+    void importDropped(entries, Array.from(e.dataTransfer.files));
   };
 
   if (!mounted) return null;
