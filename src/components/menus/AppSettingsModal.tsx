@@ -178,8 +178,8 @@ export function AppSettingsModal({
                 </div>
                 <p className="text-[11px] text-slate-500">
                   Overlays the song&rsquo;s waveform on the lanes, in the editor
-                  and in playtest, so audio peaks line up with your notes —
-                  handy for checking the offset. Toggle with W.
+                  and in playtest, so audio peaks line up with your notes.
+                  Handy for checking the offset. Toggle with W.
                 </p>
               </div>
             </section>
