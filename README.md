@@ -22,7 +22,10 @@ accounts/cloud/collab, and a small **Cloudflare Worker** for osu! OAuth.
   start screen that gathers your local, cloud, and invited maps.
 - 🎨 osu! skin (`.osk`) support, pattern presets, and a star-rating / max-pp
   readout.
-- 📦 Import and export `.osz` / `.osu`, verified against real ranked maps.
+- 📦 Import and export `.osz` / `.osu` (verified against real ranked maps),
+  plus StepMania / Etterna `.sm` import, export, and pack browsing.
+- 🧩 **Pack Creator** — combine multiple songs into one local `.osz` song pack,
+  with shared metadata, mapper credits, and rate detection.
 
 ---
 
@@ -123,6 +126,9 @@ VITE_WORKER_URL=…            # Cloudflare Worker that runs osu! OAuth
 - **Map settings**: title, artist, creator, difficulty name, key count, HP
   drain, overall difficulty, preview time, and a per-mapset or per-difficulty
   **background image** scope.
+- **Background video** (osu! `Video` event): set a muted video that plays
+  behind the playfield with an adjustable start offset, imported from and
+  exported to `.osz` like ranked maps with videos.
 - **Star rating** and **max pp** (perfect-play) readouts that update live.
 
 ### Skins & presets
@@ -155,9 +161,27 @@ VITE_WORKER_URL=…            # Cloudflare Worker that runs osu! OAuth
 ### Import / export
 
 - **Import `.osz`** (drag-and-drop or file picker) to edit existing maps.
+- **Import `.sm`** files or whole StepMania / Etterna pack folders, and
+  **export `.sm`** to convert osu!mania maps for Etterna / StepMania.
 - **Export `.osu`** for a single difficulty, or **export `.osz`** packaging the
-  audio, background, and every difficulty into a zip osu! imports directly.
+  audio, background, video, and every difficulty into a zip osu! imports
+  directly.
 - **Export validation** warns about issues before you export.
+
+### Pack Creator
+
+- A separate start-menu tool that **combines multiple existing maps into one
+  local `.osz` song pack** (dan courses, jumpstream collections, …).
+- Import `.osz` files or pick from your **local and cloud projects**; every
+  difficulty becomes one entry in the pack.
+- Shared **Various Artists** metadata with configurable artist / creator field
+  modes, per-map mapper credits in generated difficulty names, **rate
+  detection** (`x1.2`, `0.9x`, `DT`, …), safe filename-collision renaming, an
+  optional minimal **`-Delete` thumbnail difficulty**, and pre-export
+  validation.
+- Charts are carried over byte-for-byte; only metadata and renamed file
+  references are rewritten. Meant for **local play** (multi-song sets are not
+  rankable).
 
 ### Polish
 
@@ -199,6 +223,7 @@ src/
     osuExport.ts            # build + download a .osu file (column→X, HitObjects)
     oszExport.ts            # build + download a .osz zip via JSZip
     osuImport.ts            # parse an imported .osz back into the editor
+    packCreator.ts          # merge multiple maps into one .osz song pack
     skinImport.ts           # parse .osk skins (playfield + hitsounds)
     noteTools.ts            # Full LN / Full RC bulk tools
     noteCollision.ts        # overlap rules for placement / paste / move
@@ -221,6 +246,7 @@ src/
     TransportBar.tsx        # play/scrub, ms readout, volumes, scroll speed
     BottomTimeline.tsx      # waveform, bookmarks, preview point, trim/fades
     DifficultySidebar.tsx   # difficulty list + reference mode
+    PackCreator.tsx         # start-menu tool: combine maps into one .osz pack
     CommentsSidebar.tsx     # threaded comments
     PPCounter.tsx           # star rating + max pp pill
     menus/                  # every modal (timing, tools, skin, share, start, …)
