@@ -2895,13 +2895,26 @@ export default function App() {
         audioFiles,
         bgFiles,
         videoFiles,
+        jpegQuality: appSettings.exportPngBackgroundsAsJpeg
+          ? appSettings.exportJpegQuality
+          : undefined,
       });
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
     } finally {
       setExporting(false);
     }
-  }, [audioFiles, difficulties, bgFiles, videoFiles, meta, timingPoints, authUser?.id]);
+  }, [
+    audioFiles,
+    difficulties,
+    bgFiles,
+    videoFiles,
+    meta,
+    timingPoints,
+    authUser?.id,
+    appSettings.exportPngBackgroundsAsJpeg,
+    appSettings.exportJpegQuality,
+  ]);
 
   /** Validate first; only export straight away when there's nothing to flag. */
   const requestExport = useCallback(
@@ -4068,6 +4081,11 @@ export default function App() {
         onOpenCloudProject={(id) => void loadCloudProject(id)}
       />
       <PackCreator
+        jpegQuality={
+          appSettings.exportPngBackgroundsAsJpeg
+            ? appSettings.exportJpegQuality
+            : undefined
+        }
         open={packCreatorOpen}
         onClose={() => {
           setPackCreatorOpen(false);
@@ -4160,6 +4178,14 @@ export default function App() {
         localAutosaveEnabled={appSettings.localAutosaveEnabled}
         onLocalAutosaveEnabled={(v) =>
           setAppSettings((s) => ({ ...s, localAutosaveEnabled: v }))
+        }
+        exportPngBackgroundsAsJpeg={appSettings.exportPngBackgroundsAsJpeg}
+        onExportPngBackgroundsAsJpeg={(v) =>
+          setAppSettings((s) => ({ ...s, exportPngBackgroundsAsJpeg: v }))
+        }
+        exportJpegQuality={appSettings.exportJpegQuality}
+        onExportJpegQuality={(v) =>
+          setAppSettings((s) => ({ ...s, exportJpegQuality: v }))
         }
         uiSoundsEnabled={appSettings.uiSoundsEnabled}
         onUiSoundsEnabled={(v) =>

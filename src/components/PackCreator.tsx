@@ -68,9 +68,12 @@ function Panel({
 export function PackCreator({
   open,
   onClose,
+  jpegQuality,
 }: {
   open: boolean;
   onClose: () => void;
+  /** When set, re-encode PNG backgrounds as JPEG at this quality on export. */
+  jpegQuality?: number;
 }) {
   const { user } = useAuth();
   const [metadata, setMetadata] = useState<PackMetadata>(DEFAULT_PACK_METADATA);
@@ -214,7 +217,12 @@ export function PackCreator({
     if (result.errors.length > 0) return;
     setExporting(true);
     try {
-      const { blob, filename } = await buildPack({ metadata, items, settings });
+      const { blob, filename } = await buildPack({
+        metadata,
+        items,
+        settings,
+        jpegQuality,
+      });
       triggerDownload(blob, filename);
       playUiSound("mapExportDone");
     } catch (err) {
@@ -227,7 +235,7 @@ export function PackCreator({
     } finally {
       setExporting(false);
     }
-  }, [runValidation, metadata, items, settings]);
+  }, [runValidation, metadata, items, settings, jpegQuality]);
 
   const selected = items.find((it) => it.id === selectedId) ?? null;
   const placeholderItem =

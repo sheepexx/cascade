@@ -23,6 +23,7 @@ import {
   toMp3Name,
   type BakedRegion,
 } from "./audioTrim";
+import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 
 export type BuildOszArgs = {
   meta: SongMeta;
@@ -34,6 +35,11 @@ export type BuildOszArgs = {
   bgFiles?: Record<string, LoadedFile>;
   /** Every background video in the set, keyed by filename. */
   videoFiles?: Record<string, LoadedFile>;
+  /**
+   * When set (0 < q ≤ 1), re-encode PNG background images as JPEG at this
+   * quality to shrink the archive. Undefined keeps every image byte-for-byte.
+   */
+  jpegQuality?: number;
 };
 
 /**
@@ -49,23 +55,42 @@ export async function buildOsz({
   audioFiles,
   bgFiles,
   videoFiles,
+  jpegQuality,
 }: BuildOszArgs): Promise<Blob> {
   const zip = new JSZip();
 
   // Bundle every unique background image / video referenced by any difficulty.
+  // PNG backgrounds are re-encoded to JPEG when a quality is given; the name
+  // each background is written under (which may change from .png to .jpg) is
+  // remembered so the .osu can reference it.
   const bundledBgs = new Set<string>();
+  const usedNames = new Set<string>();
+  const bgExportName = new Map<string, string>();
+  const convert = typeof jpegQuality === "number" && jpegQuality > 0;
   for (const difficulty of difficulties) {
     if (difficulty.backgroundFilename && bgFiles?.[difficulty.backgroundFilename]) {
       const bg = bgFiles[difficulty.backgroundFilename];
       if (!bundledBgs.has(bg.name)) {
-        zip.file(bg.name, bg.blob);
+        let outName = bg.name;
+        let outBlob = bg.blob;
+        if (convert && isPngName(bg.name)) {
+          const jpeg = await pngToJpeg(bg.blob, jpegQuality!);
+          if (jpeg) {
+            outName = uniqueFileName(toJpegName(bg.name), usedNames);
+            outBlob = jpeg;
+          }
+        }
+        zip.file(outName, outBlob);
+        usedNames.add(outName.toLowerCase());
         bundledBgs.add(bg.name);
+        bgExportName.set(bg.name, outName);
       }
     }
     if (difficulty.videoFilename && videoFiles?.[difficulty.videoFilename]) {
       const video = videoFiles[difficulty.videoFilename];
       if (!bundledBgs.has(video.name)) {
         zip.file(video.name, video.blob);
+        usedNames.add(video.name.toLowerCase());
         bundledBgs.add(video.name);
       }
     }
@@ -174,7 +199,10 @@ export async function buildOsz({
         difficulty: exportDiff,
         timingPoints: exportTiming.length ? exportTiming : timingPoints,
         audioFilename: audioName,
-        backgroundFilename: difficulty.backgroundFilename,
+        backgroundFilename: difficulty.backgroundFilename
+          ? bgExportName.get(difficulty.backgroundFilename) ??
+            difficulty.backgroundFilename
+          : undefined,
         videoFilename:
           difficulty.videoFilename && videoFiles?.[difficulty.videoFilename]
             ? difficulty.videoFilename

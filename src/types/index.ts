@@ -413,6 +413,14 @@ export type AppSettings = {
   upscroll: boolean;
   /** Whether the full project is automatically saved to IndexedDB. */
   localAutosaveEnabled: boolean;
+  /**
+   * Re-encode PNG background images as JPEG when exporting a .osz / pack, to
+   * shrink the archive. Only backgrounds are converted; skin and storyboard
+   * images (which may need transparency) are always left as-is.
+   */
+  exportPngBackgroundsAsJpeg: boolean;
+  /** JPEG quality (0.5 .. 1) used when {@link exportPngBackgroundsAsJpeg}. */
+  exportJpegQuality: number;
   /** Whether UI sound effects (clicks, chimes, invites) play. */
   uiSoundsEnabled: boolean;
   /** UI sound effects volume, 0..1 (1 = 100%). */
@@ -497,6 +505,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showWaveform: false,
   upscroll: false,
   localAutosaveEnabled: true,
+  exportPngBackgroundsAsJpeg: true,
+  exportJpegQuality: 0.9,
   uiSoundsEnabled: true,
   uiSoundVolume: 1,
   playtest: {
