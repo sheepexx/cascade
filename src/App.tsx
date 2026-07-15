@@ -81,8 +81,7 @@ import { downloadOsu } from "./lib/osuExport";
 import { downloadOsz } from "./lib/oszExport";
 import { importOsz } from "./lib/osuImport";
 import { importOsk } from "./lib/skinImport";
-import { parseSmFile, readSmFolder } from "./lib/smImport";
-import type { ImportedSmFolder } from "./lib/smImport";
+import { parseSmFile } from "./lib/smImport";
 import { PackBrowserModal } from "./components/menus/PackBrowserModal";
 import { scanPackFromPicker, scanPackFromDrop, scanPackFromZip } from "./lib/smPackImport";
 import type { PackSong } from "./lib/smPackImport";
@@ -1726,59 +1725,7 @@ export default function App() {
     [hasProjectContent, importSmFile],
   );
 
-  // ---- Import .sm from dropped folder (with media) ------------------------
-  const importSmFolder = useCallback(
-    async (folder: ImportedSmFolder) => {
-      const { parsed, audioFiles, backgroundFiles } = folder;
-      setCloudProjectId(null);
-      setCloudOwnerId(null);
-      setMyRole(null);
-      setReferenceId(null);
-      setProjectStarted(true);
-      setAudioFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return audioFiles;
-      });
-      setBgFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return backgroundFiles;
-      });
-      setVideoFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return {};
-      });
-      setMeta(parsed.meta);
-      setTimingPoints(
-        parsed.timingPoints.length
-          ? normalizeTimingPoints(parsed.timingPoints)
-          : defaultTimingPoints(),
-      );
-      const audioKeys = Object.keys(audioFiles);
-      const bgKeys = Object.keys(backgroundFiles);
-      const smAudioFilename = parsed.audioFilename ?? (audioKeys.length > 0 ? audioKeys[0] : undefined);
-      const smBgFilename = parsed.backgroundFilename ?? (bgKeys.length > 0 ? bgKeys[0] : undefined);
-      const diffs = (parsed.difficulties.length
-        ? parsed.difficulties
-        : [makeDifficulty()]
-      ).map((d) => ({
-        ...d,
-        audioFilename: d.audioFilename || smAudioFilename || undefined,
-        backgroundFilename: d.backgroundFilename || smBgFilename || undefined,
-        timingPoints: normalizeTimingPoints(d.timingPoints),
-      }));
-      setDifficulties(diffs);
-      setActiveId(diffs[0].id);
-      setPendingImport(null);
-      setModal(null);
-      setLocalProjectId(newLocalProjectId());
-      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
-        () => {},
-      );
-    },
-    [],
-  );
-
-  /** Import a song selected from a scanned pack. */
+  /** Import a song selected from a scanned pack (also used for dropped folders). */
   const importPackSong = useCallback(
     (song: PackSong) => {
       setAudioFiles((prev) => {
@@ -2868,37 +2815,36 @@ export default function App() {
       e.preventDefault();
       resetFileDrag();
 
-      // Check for dropped folder via webkitGetAsEntry
+      // Dropped folder (StepMania/Etterna song or pack). The entries must be
+      // captured synchronously here — the DataTransferItemList is neutered the
+      // moment this handler awaits anything.
       if (e.dataTransfer.items?.length) {
-        const hasDir = Array.from(e.dataTransfer.items).some(
-          (item) => item.webkitGetAsEntry()?.isDirectory,
-        );
-        if (hasDir) {
+        const entries = Array.from(e.dataTransfer.items)
+          .map((item) => item.webkitGetAsEntry())
+          .filter((entry): entry is FileSystemEntry => !!entry);
+        if (entries.some((entry) => entry.isDirectory)) {
           setImportingMap(true);
           try {
-            const folder = await readSmFolder(e.dataTransfer.items);
-            if (folder) {
-              await importSmFolder(folder);
+            const songs = await scanPackFromDrop(entries);
+            if (songs.length === 1) {
+              // A single song folder imports straight into the editor.
+              importPackSong(songs[0]);
               setImportingMap(false);
               return;
             }
-          } catch {
-            setImportError("Failed to import .sm folder.");
-            setImportingMap(false);
-            return;
-          }
-          // No single .sm found — try scanning as a pack.
-          try {
-            const songs = await scanPackFromDrop(e.dataTransfer.items);
-            if (songs.length > 0) {
+            if (songs.length > 1) {
+              // A pack (many song folders) opens the browser to pick one.
               setScannedPackSongs(songs);
               setImportingMap(false);
               setModal("packBrowser");
               return;
             }
           } catch {
-            // Not a pack either — fall through to individual file handling.
+            setImportError("Failed to read the dropped folder.");
+            setImportingMap(false);
+            return;
           }
+          // No charts found — fall through to loose-file handling below.
           setImportingMap(false);
         }
       }
@@ -2926,7 +2872,7 @@ export default function App() {
       const videoF = files.find(isVideoFile);
       if (videoF) onVideoFile(videoF);
     },
-    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, requestImportSm, importSmFolder, resetFileDrag],
+    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, requestImportSm, importPackSong, resetFileDrag],
   );
 
   // ---- Export --------------------------------------------------------------
