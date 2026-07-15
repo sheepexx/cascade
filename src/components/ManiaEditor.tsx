@@ -23,6 +23,7 @@ import {
   stepToSnap,
 } from "../lib/timing";
 import type { PatternNote } from "../lib/patterns";
+import type { Waveform } from "../hooks/useWaveform";
 import { hasNoteCollisions, withoutNoteCollisions } from "../lib/noteCollision";
 import { mirrorColumns } from "../lib/noteTools";
 
@@ -154,6 +155,12 @@ type Props = {
    * applied in the editor.
    */
   hitPositionOffset?: number;
+  /**
+   * Decoded song waveform to overlay on the hit lane (Playtest Mode only), or
+   * null/undefined to hide it. Lets audio peaks be lined up visually with the
+   * notes crossing the receptors when dialing in an offset.
+   */
+  waveformOverlay?: Waveform | null;
   /**
    * Playtest Mode: the miss-window (ms) for the active OD. A fallen-through note
    * stays fully opaque until it's this far past its time, then fades — so notes
@@ -900,6 +907,42 @@ export function ManiaEditor(props: Props) {
   const sortedNotesRef = useRef(sortedNotes);
   sortedNotesRef.current = sortedNotes;
 
+  // High-resolution RMS envelope (2ms buckets) for the playtest hit-lane
+  // waveform overlay. Recomputed once per song from the decoded PCM — the
+  // bottom timeline's ~1800 whole-song buckets are far too coarse to line up
+  // against individual notes.
+  const overlayPeaks = useMemo(() => {
+    const buffer = props.waveformOverlay?.buffer;
+    if (!buffer) return null;
+    const channel = buffer.getChannelData(0);
+    const bucketMs = 2;
+    const bucketSamples = Math.max(
+      1,
+      Math.round((buffer.sampleRate * bucketMs) / 1000),
+    );
+    const count = Math.ceil(channel.length / bucketSamples);
+    const peaks = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      const start = i * bucketSamples;
+      const end = Math.min(channel.length, start + bucketSamples);
+      let sumSq = 0;
+      for (let j = start; j < end; j++) sumSq += channel[j] * channel[j];
+      peaks[i] = Math.sqrt(sumSq / Math.max(1, end - start));
+    }
+    // Normalize against a high percentile (as the timeline waveform does) so
+    // a few loud transients don't flatten the rest of the song.
+    const sorted = Float32Array.from(peaks).sort();
+    const ref = sorted[Math.floor(sorted.length * 0.95)] || 1;
+    if (ref > 0) {
+      for (let i = 0; i < peaks.length; i++) {
+        peaks[i] = Math.min(1, peaks[i] / ref);
+      }
+    }
+    return { peaks, bucketMs };
+  }, [props.waveformOverlay]);
+  const overlayPeaksRef = useRef(overlayPeaks);
+  overlayPeaksRef.current = overlayPeaks;
+
   // First index in a start-time-sorted array whose startTime >= t (lower bound).
   const firstNoteFrom = useCallback((list: ManiaNote[], t: number) => {
     let lo = 0;
@@ -1078,11 +1121,21 @@ export function ManiaEditor(props: Props) {
       );
       for (const line of lines) {
         const y = Math.round(timeToY(line.time)) + 0.5;
-        if (y < -2 || y > height + 2) continue;
+        if (y < -4 || y > height + 4) continue;
         // Measure (bar) boundaries get a brighter, slightly heavier line.
-        ctx.strokeStyle = line.barline
-          ? "rgba(255,255,255,0.8)"
+        const color = line.barline
+          ? "rgba(255,255,255,0.9)"
           : gridLineColor(line.idxInBeat, view.snapDivisor);
+        // Soft glow: a wider, faint pass under the crisp line so snap lines
+        // stay readable over backgrounds and lane tints.
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.28;
+        ctx.lineWidth = line.barline ? 5 : 4;
+        ctx.beginPath();
+        ctx.moveTo(originX, y);
+        ctx.lineTo(originX + playfieldWidth, y);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
         ctx.lineWidth = line.barline ? 1.5 : 1;
         ctx.beginPath();
         ctx.moveTo(originX, y);
@@ -1243,6 +1296,19 @@ export function ManiaEditor(props: Props) {
     const cullLo = bottomTime - cullMarginMs;
     const cullHi = topTime + cullMarginMs;
 
+    // "Vanish at the line" time for the receptors-on editor preview. While
+    // smooth-scrolling backwards the eased display time trails the seek target,
+    // so checking against the display time alone keeps already-passed notes
+    // hidden until the ease settles — they pop in at the end of the scroll.
+    // Taking the earlier of display time and target time makes those notes
+    // eligible immediately; the judgement-line clip then reveals them smoothly
+    // as they rise across the line. Forward scrolling and playback see
+    // min(display, target) === display, so their behavior is unchanged.
+    const vanishTime = Math.min(
+      liveCurrentTime(),
+      propsRef.current.getCurrentTime(),
+    );
+
     // Draw a single note for the current frame. In Playtest Mode a held long
     // note pins to the line, while a note the player missed keeps falling and
     // fades out once it's past the miss window. The editor preview (not playtest)
@@ -1275,7 +1341,7 @@ export function ManiaEditor(props: Props) {
       // removed only when off-screen (span cull above) or fully faded below.
       if (clipNotes && !playtest) {
         const goneAt = isLN ? note.endTime! : note.startTime;
-        if (liveCurrentTime() > goneAt) return;
+        if (vanishTime > goneAt) return;
       }
       // Playtest: a missed note (past the line, not held) stays fully opaque
       // while it's still hittable, then fades out once past the miss window.
@@ -1461,6 +1527,33 @@ export function ManiaEditor(props: Props) {
     if (hitPosOffset) {
       ctx.save();
       ctx.translate(0, hitPosOffset);
+    }
+    // Playtest waveform overlay: the song's RMS envelope drawn along the
+    // lane's time axis, under the notes and in the same (possibly offset)
+    // space, so a note and the audio peak it maps should cross the receptors
+    // together — if they don't, the map's offset is off by that gap.
+    const overlay = playtest ? overlayPeaksRef.current : null;
+    if (overlay) {
+      const half = playfieldWidth / 2;
+      const cx = originX + half;
+      const step = 3;
+      const pad = Math.abs(hitPosOffset) + step;
+      const ys: number[] = [];
+      const widths: number[] = [];
+      for (let y = -pad; y <= height + pad; y += step) {
+        const idx = Math.floor(yToTime(y) / overlay.bucketMs);
+        const amp =
+          idx >= 0 && idx < overlay.peaks.length ? overlay.peaks[idx] : 0;
+        ys.push(y);
+        widths.push(amp * (half - 2));
+      }
+      ctx.beginPath();
+      ctx.moveTo(cx + widths[0], ys[0]);
+      for (let i = 1; i < ys.length; i++) ctx.lineTo(cx + widths[i], ys[i]);
+      for (let i = ys.length - 1; i >= 0; i--) ctx.lineTo(cx - widths[i], ys[i]);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(125,211,252,0.16)";
+      ctx.fill();
     }
     // Iterate only the notes whose span can reach the screen. While a selection
     // is being move-dragged, the dragged notes shift in time, so fall back to a
@@ -2290,7 +2383,20 @@ export function ManiaEditor(props: Props) {
         <div className="absolute right-3 top-14 w-44 select-none rounded-lg border border-ink-600 bg-ink-800/90 p-2 text-xs text-slate-300 shadow-xl backdrop-blur">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="font-medium text-slate-200">Clipboard</span>
-            <span className="text-[10px] text-slate-500">Ctrl+V</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setClipboard(null);
+                  setHistory([]);
+                }}
+                className="rounded px-1 py-0.5 text-[10px] text-slate-500 transition hover:bg-ink-600 hover:text-slate-200"
+                title="Clear the clipboard and pasteboard history"
+              >
+                Clear
+              </button>
+              <span className="text-[10px] text-slate-500">Ctrl+V</span>
+            </div>
           </div>
           {clipboard ? (
             <div className="flex flex-col gap-1.5">

@@ -378,6 +378,7 @@ export function AppSettingsModal({
               <SettingToggle label="Show accuracy" checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
               <SettingToggle label="Show hit error" checked={playtest.showHitError} onChange={(v) => patchPlaytest({ showHitError: v })} />
               <SettingToggle label="Show error (UR) bar" checked={playtest.showErrorBar} onChange={(v) => patchPlaytest({ showErrorBar: v })} />
+              <SettingToggle label="Waveform on hit lane" checked={playtest.showWaveform} onChange={(v) => patchPlaytest({ showWaveform: v })} />
               <SettingToggle label="Skin combo font" checked={playtest.useSkinComboFont} onChange={(v) => patchPlaytest({ useSkinComboFont: v })} />
               <SettingToggle label="Skin judgements" checked={playtest.useSkinJudgements} onChange={(v) => patchPlaytest({ useSkinJudgements: v })} />
             </div>

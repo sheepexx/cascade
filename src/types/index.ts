@@ -326,8 +326,11 @@ export function defaultTimingPoints(): TimingPoint[] {
   return [makeRedPoint(0, 120)];
 }
 
+// Editor default is deliberately slower than the playtest default (35):
+// a lower speed shows more upcoming chart, which helps when planning
+// larger patterns and transitions.
 export const DEFAULT_VIEW: ViewState = {
-  scrollSpeed: 35,
+  scrollSpeed: 25,
   snapDivisor: 4,
 };
 
@@ -374,6 +377,12 @@ export type PlaytestSettings = {
   showHitError: boolean;
   /** Show the osu!-style hit-error / unstable-rate (UR) bar. */
   showErrorBar: boolean;
+  /**
+   * Overlay the audio waveform on the hit lane during playtest, so audio
+   * peaks can be visually lined up with the notes crossing the receptors —
+   * an offset-syncing aid.
+   */
+  showWaveform: boolean;
   useSkinComboFont: boolean;
   useSkinJudgements: boolean;
   /** KeyboardEvent.code per keymode, 1K through 18K. */
@@ -501,6 +510,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     showAccuracy: true,
     showHitError: true,
     showErrorBar: true,
+    showWaveform: false,
     useSkinComboFont: true,
     useSkinJudgements: true,
     keybinds: {},
