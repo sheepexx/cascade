@@ -3850,6 +3850,11 @@ export default function App() {
                 consumedIdsRef={playtestConsumedRef}
                 pressedColumnsRef={playtestPressedColumnsRef}
                 hitPositionOffset={playtestSettings.hitPositionOffset}
+                waveformOverlay={
+                  playtest.active && playtestSettings.showWaveform
+                    ? waveform
+                    : null
+                }
                 missWindowMs={playtestWindows.miss}
                 hideHints={playtest.active}
               />

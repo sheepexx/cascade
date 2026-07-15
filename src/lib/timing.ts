@@ -238,27 +238,27 @@ export function gridLinesInRange(
 
 /** A tint color for a grid line based on its position within the beat. */
 export function gridLineColor(idxInBeat: number, divisor: SnapDivisor): string {
-  if (idxInBeat === 0) return "rgba(255,255,255,0.55)"; // full beat
+  if (idxInBeat === 0) return "rgba(255,255,255,0.85)"; // full beat
 
   const reducedDivisor = divisor / gcd(Math.abs(idxInBeat), divisor);
   switch (reducedDivisor) {
     case 2:
-      return "rgba(255,90,90,0.55)"; // 1/2 red
+      return "rgba(255,105,105,0.8)"; // 1/2 red
     case 3:
     case 6:
-      return "rgba(190,110,255,0.55)"; // 1/3, 1/6 purple
+      return "rgba(200,130,255,0.8)"; // 1/3, 1/6 purple
     case 4:
-      return "rgba(95,160,255,0.55)"; // 1/4 blue
+      return "rgba(115,175,255,0.8)"; // 1/4 blue
     case 5:
     case 7:
     case 8:
     case 9:
-      return "rgba(255,225,70,0.6)"; // 1/5, 1/7, 1/8, 1/9 yellow
+      return "rgba(255,230,90,0.8)"; // 1/5, 1/7, 1/8, 1/9 yellow
     case 12:
     case 16:
-      return "rgba(180,185,195,0.55)"; // 1/12, 1/16 grey
+      return "rgba(195,200,210,0.75)"; // 1/12, 1/16 grey
     default:
-      return "rgba(255,255,255,0.12)";
+      return "rgba(255,255,255,0.3)";
   }
 }
 
