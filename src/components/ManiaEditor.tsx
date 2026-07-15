@@ -156,11 +156,13 @@ type Props = {
    */
   hitPositionOffset?: number;
   /**
-   * Decoded song waveform to overlay on the hit lane (Playtest Mode only), or
-   * null/undefined to hide it. Lets audio peaks be lined up visually with the
-   * notes crossing the receptors when dialing in an offset.
+   * Decoded song waveform to overlay on the hit lane (editor and playtest),
+   * or null/undefined to hide it. Lets audio peaks be lined up visually with
+   * the notes when dialing in an offset.
    */
   waveformOverlay?: Waveform | null;
+  /** Toggle the waveform-overlay app setting (bound to W in the editor). */
+  onToggleWaveformOverlay?: () => void;
   /**
    * Playtest Mode: the miss-window (ms) for the active OD. A fallen-through note
    * stays fully opaque until it's this far past its time, then fades — so notes
@@ -597,6 +599,20 @@ export function ManiaEditor(props: Props) {
           toggleAddition(HITSOUND_CLAP);
           return;
         }
+      }
+      // W toggles the waveform overlay on the hit lane. Checked after the
+      // hitsound block so that in hitsound mode W keeps meaning "whistle"
+      // (osu! convention).
+      if (
+        e.key.toLowerCase() === "w" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !isTyping(e.target)
+      ) {
+        e.preventDefault();
+        propsRef.current.onToggleWaveformOverlay?.();
+        return;
       }
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
@@ -1103,6 +1119,43 @@ export function ManiaEditor(props: Props) {
       ctx.stroke();
     }
 
+    // ---- Waveform overlay (editor + playtest) ----
+    // The song's RMS envelope drawn along the lane's time axis, under the grid
+    // and the notes, so audio peaks can be lined up visually with both. In
+    // playtest it shifts with the notes ("hit position" offset) so a note and
+    // the peak it maps should cross the receptors together — if they don't,
+    // the map's offset is off by that gap. Toggled with W.
+    const overlay = overlayPeaksRef.current;
+    if (overlay) {
+      const inPlaytest = !!propsRef.current.playtestMode;
+      const overlayShift = inPlaytest
+        ? propsRef.current.hitPositionOffset ?? 0
+        : 0;
+      const half = playfieldWidth / 2;
+      const cx = originX + half;
+      const step = 3;
+      const pad = Math.abs(overlayShift) + step;
+      ctx.save();
+      if (overlayShift) ctx.translate(0, overlayShift);
+      const ys: number[] = [];
+      const widths: number[] = [];
+      for (let y = -pad; y <= height + pad; y += step) {
+        const idx = Math.floor(yToTime(y) / overlay.bucketMs);
+        const amp =
+          idx >= 0 && idx < overlay.peaks.length ? overlay.peaks[idx] : 0;
+        ys.push(y);
+        widths.push(amp * (half - 2));
+      }
+      ctx.beginPath();
+      ctx.moveTo(cx + widths[0], ys[0]);
+      for (let i = 1; i < ys.length; i++) ctx.lineTo(cx + widths[i], ys[i]);
+      for (let i = ys.length - 1; i >= 0; i--) ctx.lineTo(cx - widths[i], ys[i]);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(125,211,252,0.16)";
+      ctx.fill();
+      ctx.restore();
+    }
+
     // ---- Beat / snap grid (tempo-aware) ----
     // Under upscroll the screen top is the *earlier* time, so derive the visible
     // window as min/max rather than assuming top=latest.
@@ -1527,33 +1580,6 @@ export function ManiaEditor(props: Props) {
     if (hitPosOffset) {
       ctx.save();
       ctx.translate(0, hitPosOffset);
-    }
-    // Playtest waveform overlay: the song's RMS envelope drawn along the
-    // lane's time axis, under the notes and in the same (possibly offset)
-    // space, so a note and the audio peak it maps should cross the receptors
-    // together — if they don't, the map's offset is off by that gap.
-    const overlay = playtest ? overlayPeaksRef.current : null;
-    if (overlay) {
-      const half = playfieldWidth / 2;
-      const cx = originX + half;
-      const step = 3;
-      const pad = Math.abs(hitPosOffset) + step;
-      const ys: number[] = [];
-      const widths: number[] = [];
-      for (let y = -pad; y <= height + pad; y += step) {
-        const idx = Math.floor(yToTime(y) / overlay.bucketMs);
-        const amp =
-          idx >= 0 && idx < overlay.peaks.length ? overlay.peaks[idx] : 0;
-        ys.push(y);
-        widths.push(amp * (half - 2));
-      }
-      ctx.beginPath();
-      ctx.moveTo(cx + widths[0], ys[0]);
-      for (let i = 1; i < ys.length; i++) ctx.lineTo(cx + widths[i], ys[i]);
-      for (let i = ys.length - 1; i >= 0; i--) ctx.lineTo(cx - widths[i], ys[i]);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(125,211,252,0.16)";
-      ctx.fill();
     }
     // Iterate only the notes whose span can reach the screen. While a selection
     // is being move-dragged, the dragged notes shift in time, so fall back to a

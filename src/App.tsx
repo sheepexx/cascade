@@ -3850,10 +3850,12 @@ export default function App() {
                 consumedIdsRef={playtestConsumedRef}
                 pressedColumnsRef={playtestPressedColumnsRef}
                 hitPositionOffset={playtestSettings.hitPositionOffset}
-                waveformOverlay={
-                  playtest.active && playtestSettings.showWaveform
-                    ? waveform
-                    : null
+                waveformOverlay={appSettings.showWaveform ? waveform : null}
+                onToggleWaveformOverlay={() =>
+                  setAppSettings((s) => ({
+                    ...s,
+                    showWaveform: !s.showWaveform,
+                  }))
                 }
                 missWindowMs={playtestWindows.miss}
                 hideHints={playtest.active}
@@ -4146,6 +4148,10 @@ export default function App() {
         smoothScrolling={appSettings.smoothScrolling}
         onSmoothScrolling={(v) =>
           setAppSettings((s) => ({ ...s, smoothScrolling: v }))
+        }
+        showWaveform={appSettings.showWaveform}
+        onShowWaveform={(v) =>
+          setAppSettings((s) => ({ ...s, showWaveform: v }))
         }
         upscroll={appSettings.upscroll}
         onUpscroll={(v) => setAppSettings((s) => ({ ...s, upscroll: v }))}
@@ -4565,6 +4571,7 @@ function InfoModal({
           <InfoRow keys="F3 / F4" text="Decrease or increase visual note scroll speed." />
           <InfoRow keys="Scroll speed" text="Change visual note scroll speed. This is not exported." />
           <InfoRow keys="R" text="Toggle receptors on or off." />
+          <InfoRow keys="W" text="Toggle the waveform overlay on the hit lane (outside hitsound mode)." />
           <InfoRow keys="PP counter" text="Shows max SS no-mod pp for the active difficulty." />
           <InfoRow keys="Kiai" text="Kiai timing sections tint notes during preview." />
         </InfoSection>
