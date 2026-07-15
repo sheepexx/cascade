@@ -36,6 +36,12 @@ type Props = {
   /** Whether the whole local project autosaves to IndexedDB. */
   localAutosaveEnabled: boolean;
   onLocalAutosaveEnabled: (value: boolean) => void;
+  /** Re-encode PNG backgrounds as JPEG on export to save storage. */
+  exportPngBackgroundsAsJpeg: boolean;
+  onExportPngBackgroundsAsJpeg: (value: boolean) => void;
+  /** JPEG quality (0.5 .. 1) used for background conversion. */
+  exportJpegQuality: number;
+  onExportJpegQuality: (value: number) => void;
   /** Whether UI sound effects play. */
   uiSoundsEnabled: boolean;
   onUiSoundsEnabled: (value: boolean) => void;
@@ -44,7 +50,7 @@ type Props = {
   onUiSoundVolume: (value: number) => void;
 };
 
-const TABS = ["Editor", "Playtest", "Audio"] as const;
+const TABS = ["Editor", "Playtest", "Audio", "Export"] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -75,6 +81,10 @@ export function AppSettingsModal({
   onPlaytest,
   localAutosaveEnabled,
   onLocalAutosaveEnabled,
+  exportPngBackgroundsAsJpeg,
+  onExportPngBackgroundsAsJpeg,
+  exportJpegQuality,
+  onExportJpegQuality,
   uiSoundsEnabled,
   onUiSoundsEnabled,
   uiSoundVolume,
@@ -576,6 +586,52 @@ export function AppSettingsModal({
                 Clicks, confirmations, and chimes for invites, cloud saves and map
                 exports.
               </p>
+            </section>
+          </div>
+        )}
+
+        {tab === "Export" && (
+          <div className="flex flex-col gap-6">
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Background images
+              </h3>
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span>Convert PNG backgrounds to JPEG</span>
+                <Toggle
+                  checked={exportPngBackgroundsAsJpeg}
+                  onChange={onExportPngBackgroundsAsJpeg}
+                  aria-label="Convert PNG backgrounds to JPEG"
+                />
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                Re-encodes PNG background images as JPEG when exporting a .osz or
+                a pack, which greatly shrinks the file. Only backgrounds are
+                converted — skin and storyboard images are always left untouched.
+              </p>
+
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>JPEG quality</span>
+                  <span className="font-medium text-slate-200">
+                    {Math.round(exportJpegQuality * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0.5}
+                  max={1}
+                  step={0.01}
+                  value={exportJpegQuality}
+                  disabled={!exportPngBackgroundsAsJpeg}
+                  onChange={(e) => onExportJpegQuality(Number(e.target.value))}
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Higher quality looks better but saves less space. 90% is
+                  near-lossless at gameplay scale.
+                </p>
+              </div>
             </section>
           </div>
         )}

@@ -12,6 +12,7 @@ import {
 } from "../types/packCreator";
 import { parseOsuFile } from "./osuImport";
 import { buildOsuFile } from "./osuExport";
+import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 
 /**
  * Pack Creator engine: imports whole .osz archives, keeps every .osu as raw
@@ -441,6 +442,63 @@ export function resolveAssetCollisions(items: PackItem[]): CollisionResolution {
 }
 
 // ---------------------------------------------------------------------------
+// Background JPEG conversion
+// ---------------------------------------------------------------------------
+
+/**
+ * Re-encode PNG backgrounds referenced by the pack's difficulties to JPEG,
+ * in place on the resolved `files` list. Only images referenced as a
+ * difficulty background are touched — skin sprites, storyboard elements and
+ * hitsound images are left alone since JPEG can't carry transparency.
+ *
+ * Each converted file is renamed `.png` -> `.jpg`; the corresponding `.osu`
+ * reference is updated by adding a rename (keyed by the ORIGINAL name) to
+ * `renamesByArchive`, chaining through any collision rename already recorded,
+ * so {@link rewriteOsuForPack} rewrites the [Events] background line to match.
+ */
+async function convertPackBackgroundsToJpeg(
+  files: { name: string; blob: Blob }[],
+  renamesByArchive: Map<string, Map<string, string>>,
+  items: PackItem[],
+  quality: number,
+): Promise<void> {
+  // A background shared by several difficulties resolves to one file; convert
+  // it once, keyed by its current (post-collision) name.
+  const convertedFinal = new Map<string, string>();
+  const taken = new Set(files.map((f) => f.name.toLowerCase()));
+
+  for (const item of items) {
+    const bg = item.parsedOsu.backgroundFilename;
+    if (!bg || !isPngName(bg)) continue;
+
+    const archiveRenames = renamesByArchive.get(item.sourceArchiveId);
+    const currentFinal = archiveRenames?.get(bg.toLowerCase()) ?? bg;
+    const finalLower = currentFinal.toLowerCase();
+
+    let jpgName = convertedFinal.get(finalLower);
+    if (!jpgName) {
+      const fileEntry = files.find((f) => f.name.toLowerCase() === finalLower);
+      if (!fileEntry) continue; // background missing from the archive
+      const jpeg = await pngToJpeg(fileEntry.blob, quality);
+      if (!jpeg) continue; // undecodable, or not actually smaller: keep the PNG
+      taken.delete(finalLower);
+      jpgName = uniqueFileName(toJpegName(currentFinal), taken);
+      taken.add(jpgName.toLowerCase());
+      fileEntry.name = jpgName;
+      fileEntry.blob = jpeg;
+      convertedFinal.set(finalLower, jpgName);
+    }
+
+    let map = renamesByArchive.get(item.sourceArchiveId);
+    if (!map) {
+      map = new Map();
+      renamesByArchive.set(item.sourceArchiveId, map);
+    }
+    map.set(bg.toLowerCase(), jpgName);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // "-Delete" placeholder difficulty
 // ---------------------------------------------------------------------------
 
@@ -640,6 +698,11 @@ export type BuildPackArgs = {
   metadata: PackMetadata;
   items: PackItem[];
   settings: PackCreatorSettings;
+  /**
+   * When set (0 < q ≤ 1), re-encode PNG backgrounds as JPEG at this quality to
+   * shrink the archive. Undefined keeps every image byte-for-byte.
+   */
+  jpegQuality?: number;
 };
 
 /** Assemble the final .osz: rewritten .osu files, assets, optional -Delete. */
@@ -647,9 +710,13 @@ export async function buildPack({
   metadata,
   items,
   settings,
+  jpegQuality,
 }: BuildPackArgs): Promise<{ blob: Blob; filename: string }> {
   const zip = new JSZip();
   const { files, renamesByArchive } = resolveAssetCollisions(items);
+  if (typeof jpegQuality === "number" && jpegQuality > 0) {
+    await convertPackBackgroundsToJpeg(files, renamesByArchive, items, jpegQuality);
+  }
   for (const f of files) zip.file(f.name, f.blob);
 
   const takenOsuNames = new Set<string>();
