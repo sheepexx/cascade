@@ -64,6 +64,7 @@ export function WelcomeModal({
   onNewMap,
   onTryMaps,
   onImportSmPack,
+  onPackCreator,
   onOpenCloudProject,
   onOpenLocalProject,
 }: {
@@ -72,6 +73,8 @@ export function WelcomeModal({
   onNewMap: () => void;
   onTryMaps: () => void;
   onImportSmPack?: () => void;
+  /** Open the Pack Creator (combine multiple maps into one .osz pack). */
+  onPackCreator?: () => void;
   /** Open one of the user's cloud maps (owned or shared) by id. */
   onOpenCloudProject: (id: string) => void;
   /** Open one of the locally saved projects from this browser. */
@@ -303,6 +306,23 @@ export function WelcomeModal({
             </span>
             <span className="text-xs text-slate-400">
               Browse an Etterna pack folder and open a song in the editor.
+            </span>
+          </button>
+        )}
+        {onPackCreator && (
+          <button
+            type="button"
+            onClick={onPackCreator}
+            className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
+          >
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-2xl transition group-hover:bg-accent/20">
+              🧩
+            </span>
+            <span className="text-sm font-semibold text-slate-100">
+              Pack Creator
+            </span>
+            <span className="text-xs text-slate-400">
+              Combine multiple mania maps into one .osz pack.
             </span>
           </button>
         )}
