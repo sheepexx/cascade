@@ -912,8 +912,20 @@ export default function App() {
   );
 
   const resetPlaytestRuntime = useCallback((startTime: number) => {
-    playtestHeadJudgedRef.current = new Set();
-    playtestTailJudgedRef.current = new Set();
+    // A run only judges what's playable from its start point. Notes that begin
+    // before the jump-in time are marked judged up front — otherwise the miss
+    // sweep would count every earlier note as a miss on the first frame, and a
+    // mid-map playtest would start at 0% accuracy instead of 100%.
+    const headJudged = new Set<string>();
+    const tailJudged = new Set<string>();
+    for (const n of active.notes) {
+      if (n.startTime < startTime) {
+        headJudged.add(n.id);
+        tailJudged.add(n.id);
+      }
+    }
+    playtestHeadJudgedRef.current = headJudged;
+    playtestTailJudgedRef.current = tailJudged;
     playtestHeldLnRef.current = new Map();
     playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
     playtestConsumedRef.current = new Set();
@@ -924,7 +936,7 @@ export default function App() {
       active: true,
       startTime,
     });
-  }, []);
+  }, [active.notes]);
 
   const registerPlaytestResult = useCallback((result: HitResult) => {
     // Unstable rate = 10x the standard deviation of hit errors, over actual
