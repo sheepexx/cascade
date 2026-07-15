@@ -84,7 +84,7 @@ import { importOsk } from "./lib/skinImport";
 import { parseSmFile, readSmFolder } from "./lib/smImport";
 import type { ImportedSmFolder } from "./lib/smImport";
 import { PackBrowserModal } from "./components/menus/PackBrowserModal";
-import { scanPackFromPicker, scanPackFromDrop } from "./lib/smPackImport";
+import { scanPackFromPicker, scanPackFromDrop, scanPackFromZip } from "./lib/smPackImport";
 import type { PackSong } from "./lib/smPackImport";
 import { downloadSmZip } from "./lib/smExport";
 import {
@@ -1643,6 +1643,33 @@ export default function App() {
     [hasProjectContent, importMapFile],
   );
 
+  /**
+   * Route an archive import. A `.osz` is always an osu! set; a generic `.zip`
+   * may instead be a StepMania/Etterna pack, so peek inside for .sm/.ssc charts
+   * and open the pack browser when found, otherwise fall back to the osu path.
+   */
+  const importArchive = useCallback(
+    async (file: File) => {
+      if (/\.zip$/i.test(file.name)) {
+        setImportingMap(true);
+        try {
+          const songs = await scanPackFromZip(file);
+          if (songs.length > 0) {
+            setScannedPackSongs(songs);
+            setImportingMap(false);
+            setModal("packBrowser");
+            return;
+          }
+        } catch {
+          /* not a readable SM pack — fall through to the osu importer */
+        }
+        setImportingMap(false);
+      }
+      requestImportMap(file);
+    },
+    [requestImportMap],
+  );
+
   // ---- Import .sm ---------------------------------------------------------
   const importSmFile = useCallback(async (file: File) => {
     importStartedRef.current = true;
@@ -2884,7 +2911,7 @@ export default function App() {
       }
       const osz = files.find(isOszFile);
       if (osz) {
-        requestImportMap(osz);
+        void importArchive(osz);
         return;
       }
       const sm = files.find(isSmFile);
@@ -2899,7 +2926,7 @@ export default function App() {
       const videoF = files.find(isVideoFile);
       if (videoF) onVideoFile(videoF);
     },
-    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, requestImportMap, requestImportSm, importSmFolder, resetFileDrag],
+    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, requestImportSm, importSmFolder, resetFileDrag],
   );
 
   // ---- Export --------------------------------------------------------------
@@ -4194,7 +4221,7 @@ export default function App() {
         onVideoFile={onVideoFile}
         onClearVideo={onClearVideo}
         onVideoOffsetMs={onVideoOffsetMs}
-        onImportOsz={requestImportMap}
+        onImportOsz={(f) => void importArchive(f)}
         onImportSm={requestImportSm}
         onImportSmPack={onImportSmPack}
         activeDiff={active}
