@@ -945,6 +945,18 @@ export function ManiaEditor(props: Props) {
       for (let j = start; j < end; j++) sumSq += channel[j] * channel[j];
       peaks[i] = Math.sqrt(sumSq / Math.max(1, end - start));
     }
+    // Moving average over ±2 buckets (a ~10ms window): a 2ms RMS window is
+    // shorter than one cycle of low bass, so raw neighbouring buckets differ
+    // wildly and the outline flickers. The average keeps the 2ms positioning
+    // but yields a stable envelope.
+    const raw = Float32Array.from(peaks);
+    for (let i = 0; i < count; i++) {
+      const from = Math.max(0, i - 2);
+      const to = Math.min(count - 1, i + 2);
+      let sum = 0;
+      for (let j = from; j <= to; j++) sum += raw[j];
+      peaks[i] = sum / (to - from + 1);
+    }
     // Normalize against a high percentile (as the timeline waveform does) so
     // a few loud transients don't flatten the rest of the song.
     const sorted = Float32Array.from(peaks).sort();
@@ -1133,27 +1145,51 @@ export function ManiaEditor(props: Props) {
         : 0;
       const half = playfieldWidth / 2;
       const cx = originX + half;
-      const step = 3;
-      const pad = Math.abs(overlayShift) + step;
-      ctx.save();
-      if (overlayShift) ctx.translate(0, overlayShift);
-      const ys: number[] = [];
-      const widths: number[] = [];
-      for (let y = -pad; y <= height + pad; y += step) {
-        const idx = Math.floor(yToTime(y) / overlay.bucketMs);
-        const amp =
-          idx >= 0 && idx < overlay.peaks.length ? overlay.peaks[idx] : 0;
-        ys.push(y);
-        widths.push(amp * (half - 2));
+      const pad = Math.abs(overlayShift) + 4;
+      // Sample points are anchored to bucket *times*, never to screen rows:
+      // fixed screen rows re-sample a different bucket every frame while
+      // scrolling, which makes the outline shimmer and change shape. Anchored
+      // in time, the polygon scrolls rigidly with the notes. The stride merges
+      // buckets so adjacent points stay ~3px apart at any scroll speed.
+      const stride = Math.max(
+        1,
+        Math.round(3 / (overlay.bucketMs * ppms())),
+      );
+      const strideMs = overlay.bucketMs * stride;
+      const tA = yToTime(-pad);
+      const tB = yToTime(height + pad);
+      const lo = Math.max(0, Math.floor(Math.min(tA, tB) / strideMs));
+      const hi = Math.min(
+        Math.ceil(overlay.peaks.length / stride),
+        Math.ceil(Math.max(tA, tB) / strideMs),
+      );
+      if (hi > lo) {
+        ctx.save();
+        if (overlayShift) ctx.translate(0, overlayShift);
+        const ys: number[] = [];
+        const widths: number[] = [];
+        for (let i = lo; i <= hi; i++) {
+          // Peak over the merged window, so striding never drops a transient.
+          const from = i * stride;
+          const to = Math.min(overlay.peaks.length, from + stride);
+          let amp = 0;
+          for (let j = from; j < to; j++) {
+            if (overlay.peaks[j] > amp) amp = overlay.peaks[j];
+          }
+          ys.push(timeToY(i * strideMs));
+          widths.push(amp * (half - 2));
+        }
+        ctx.beginPath();
+        ctx.moveTo(cx + widths[0], ys[0]);
+        for (let i = 1; i < ys.length; i++) ctx.lineTo(cx + widths[i], ys[i]);
+        for (let i = ys.length - 1; i >= 0; i--) {
+          ctx.lineTo(cx - widths[i], ys[i]);
+        }
+        ctx.closePath();
+        ctx.fillStyle = "rgba(125,211,252,0.16)";
+        ctx.fill();
+        ctx.restore();
       }
-      ctx.beginPath();
-      ctx.moveTo(cx + widths[0], ys[0]);
-      for (let i = 1; i < ys.length; i++) ctx.lineTo(cx + widths[i], ys[i]);
-      for (let i = ys.length - 1; i >= 0; i--) ctx.lineTo(cx - widths[i], ys[i]);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(125,211,252,0.16)";
-      ctx.fill();
-      ctx.restore();
     }
 
     // ---- Beat / snap grid (tempo-aware) ----
