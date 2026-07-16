@@ -142,11 +142,9 @@ const SPECTRUM: Stop[] = [
   { star: 4.2, color: hex("#ff8068") },
   { star: 4.9, color: hex("#ff4e6f") },
   { star: 5.8, color: hex("#c645b8") },
-  { star: 6.6, color: hex("#6563de") },
-  { star: 6.7, color: hex("#f6d54c") },
-  { star: 9.0, color: hex("#ff8c3a") },
-  { star: 11.0, color: hex("#ff4757") },
-  { star: 13.0, color: hex("#b34cf0") },
+  { star: 6.7, color: hex("#6563de") },
+  { star: 7.7, color: hex("#18158e") },
+  { star: 9.0, color: hex("#000000") },
 ];
 
 function hex(h: string): [number, number, number] {
@@ -158,25 +156,36 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-export function starColor(star: number): string {
-  if (star <= 0.05) return "#aaaaaa";
-  if (star <= SPECTRUM[0].star) return rgb(SPECTRUM[0].color);
+function colorAt(star: number): [number, number, number] {
+  if (star <= 0.05) return [170, 170, 170];
+  if (star <= SPECTRUM[0].star) return SPECTRUM[0].color;
   const last = SPECTRUM[SPECTRUM.length - 1];
-  if (star >= last.star) return rgb(last.color);
+  if (star >= last.star) return last.color;
 
   for (let i = 0; i < SPECTRUM.length - 1; i++) {
     const a = SPECTRUM[i];
     const b = SPECTRUM[i + 1];
     if (star >= a.star && star <= b.star) {
       const t = (star - a.star) / (b.star - a.star);
-      return rgb([
+      return [
         Math.round(lerp(a.color[0], b.color[0], t)),
         Math.round(lerp(a.color[1], b.color[1], t)),
         Math.round(lerp(a.color[2], b.color[2], t)),
-      ]);
+      ];
     }
   }
-  return rgb(last.color);
+  return last.color;
+}
+
+export function starColor(star: number): string {
+  if (star <= 0.05) return "#aaaaaa";
+  return rgb(colorAt(star));
+}
+
+export function starTextOn(star: number): string {
+  const [r, g, b] = colorAt(star);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.35 ? "#1b1b1b" : "#f2c14e";
 }
 
 function rgb([r, g, b]: [number, number, number]): string {
