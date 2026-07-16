@@ -22,8 +22,7 @@ export default {
       },
       fontFamily: {
         sans: [
-          "Torus",
-          "Torus-Alternate",
+          "Quicksand",
           "Inter",
           "ui-sans-serif",
           "system-ui",
