@@ -6,7 +6,7 @@ const ANON_KEY =
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
   console.warn(
     "[supabase] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing at build " +
-      "time — account & cloud features are disabled. Set them in the Vercel " +
+      "time - account & cloud features are disabled. Set them in the Vercel " +
       "project env and redeploy.",
   );
 }

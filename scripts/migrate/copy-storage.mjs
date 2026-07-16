@@ -136,7 +136,7 @@ async function main() {
 
   console.log(`\nCopied ${copied}, skipped ${skipped}, failed ${failures.length}`);
   if (failures.length) {
-    console.error("Some objects failed — re-run with --skip-existing to retry only the rest.");
+    console.error("Some objects failed - re-run with --skip-existing to retry only the rest.");
     process.exit(1);
   }
 }

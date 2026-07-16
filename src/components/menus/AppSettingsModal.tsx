@@ -158,7 +158,7 @@ export function AppSettingsModal({
                 />
                 <p className="text-[11px] text-slate-500">
                   Higher dim keeps the notefield easier to read. Size / zoom is
-                  visual only — also adjustable with the + / − keys.
+                  visual only - also adjustable with the + / − keys.
                 </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
                   <span>Waveform on hit lane</span>
@@ -190,7 +190,7 @@ export function AppSettingsModal({
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
                 Glides the playfield between snap lines instead of jumping. Still
-                snaps to the grid — only the motion is animated.
+                snaps to the grid - only the motion is animated.
               </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
                 <span>Scroll direction</span>
@@ -224,7 +224,7 @@ export function AppSettingsModal({
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
                 Downscroll drops notes toward a bottom judgement line; upscroll
-                flips the playfield so notes rise toward a top line. Editor-only —
+                flips the playfield so notes rise toward a top line. Editor-only,
                 it doesn&rsquo;t change the exported map.
               </p>
             </section>
@@ -378,7 +378,7 @@ export function AppSettingsModal({
                 />
                 <span className="text-[11px] text-slate-500">
                   Moves the hit point below (or above) the receptors in playtest
-                  only — the receptors don't move. Visual; doesn't affect timing.
+                  only - the receptors don't move. Visual; doesn't affect timing.
                 </span>
               </label>
             </div>
@@ -588,7 +588,7 @@ export function AppSettingsModal({
               <p className="mt-2 text-[11px] text-slate-500">
                 Re-encodes PNG background images as JPEG when exporting a .osz or
                 a pack, which greatly shrinks the file. Only backgrounds are
-                converted — skin and storyboard images are always left untouched.
+                converted - skin and storyboard images are always left untouched.
               </p>
 
               <div className="mt-4 flex flex-col gap-2">

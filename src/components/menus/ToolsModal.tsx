@@ -86,7 +86,7 @@ export function ToolsModal({
           </div>
           <p className="mb-3 text-[11px] text-slate-500">
             Deletes every note that starts outside the trim brackets and trims
-            any hold running past the end bracket — the same cut the .osz export
+            any hold running past the end bracket - the same cut the .osz export
             bakes in.{" "}
             {!trimActive
               ? "Set the trim brackets on the timeline first."

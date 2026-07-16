@@ -2,7 +2,7 @@
 
 A browser-based **osu!mania** beatmap editor. Upload a song, set your timing,
 chart notes on a vertical scrolling playfield, hear your hitsounds, and export a
-ready-to-play `.osu` or `.osz` — or save to the cloud and map **together in
+ready-to-play `.osu` or `.osz` - or save to the cloud and map **together in
 realtime** with other people.
 
 Built with **React + TypeScript + Vite + TailwindCSS**, a **Canvas** editor,
@@ -13,7 +13,7 @@ accounts/cloud/collab, and a small **Cloudflare Worker** for osu! OAuth.
 
 ## Highlights
 
-- 🎹 Full Canvas mania editor — 1K–18K, rice + long notes, snap grid, live
+- 🎹 Full Canvas mania editor - 1K–18K, rice + long notes, snap grid, live
   playback with falling notes.
 - 🔊 Real osu! hitsounds, metronome, and tap-to-find-BPM timing.
 - 👥 Google-Docs-style **realtime co-op** with presence, cursors, comments, and
@@ -24,7 +24,7 @@ accounts/cloud/collab, and a small **Cloudflare Worker** for osu! OAuth.
   readout.
 - 📦 Import and export `.osz` / `.osu` (verified against real ranked maps),
   plus StepMania / Etterna `.sm` import, export, and pack browsing.
-- 🧩 **Pack Creator** — combine multiple songs into one local `.osz` song pack,
+- 🧩 **Pack Creator** - combine multiple songs into one local `.osz` song pack,
   with shared metadata, mapper credits, and rate detection.
 
 ---
@@ -53,10 +53,10 @@ VITE_SUPABASE_ANON_KEY=…     # Supabase anon key (public)
 VITE_WORKER_URL=…            # Cloudflare Worker that runs osu! OAuth
 ```
 
-- `supabase/migrations/` — database schema (projects, assets, collaborators,
+- `supabase/migrations/` - database schema (projects, assets, collaborators,
   comments, presets, feedback, admin stats, RLS policies, Realtime).
-- `worker/` — Cloudflare Worker handling the osu! OAuth login bounce.
-- `scripts/build-sample-maps.mjs` — builds the bundled "try these maps" gallery.
+- `worker/` - Cloudflare Worker handling the osu! OAuth login bounce.
+- `scripts/build-sample-maps.mjs` - builds the bundled "try these maps" gallery.
 
 ---
 
@@ -70,7 +70,7 @@ VITE_WORKER_URL=…            # Cloudflare Worker that runs osu! OAuth
 - **Mouse-wheel** scrubs through time; the playfield follows the audio clock.
 - **Snap grid** at 1/1 through 1/9 plus 1/12 and 1/16, with osu!-style
   beat-division colors.
-- Adjustable **zoom**, **scroll speed** (preview-only — see below), playfield
+- Adjustable **zoom**, **scroll speed** (preview-only - see below), playfield
   scale, and long-note body scale.
 - **Selection & clipboard**: Ctrl+click to multi-select, **box-select** (drag),
   **Ctrl+A** select all, **Ctrl+C/X/V** copy / cut / paste (columns preserved),
@@ -93,7 +93,7 @@ VITE_WORKER_URL=…            # Cloudflare Worker that runs osu! OAuth
 
 - **Multiple timing points**: red (uninherited, BPM) and green (inherited, SV)
   points, with quick **SV presets** (0.5×–2×).
-- **Tap tempo** — tap along with **T** (or a button) to detect BPM + offset; it
+- **Tap tempo** - tap along with **T** (or a button) to detect BPM + offset; it
   auto-applies once you've tapped enough.
 - **Metronome** that clicks the beat during playback while the Timing panel is
   open, with an on-beat indicator.
@@ -111,17 +111,17 @@ VITE_WORKER_URL=…            # Cloudflare Worker that runs osu! OAuth
 
 ### Tools
 
-- **Full LN** — convert every note to a long note ending a set number of ticks
+- **Full LN** - convert every note to a long note ending a set number of ticks
   before the next note in its lane.
-- **Full RC** — convert every long note back to a rice note.
-- **Crop to brackets** — delete notes outside the trim region and clamp holds
+- **Full RC** - convert every long note back to a rice note.
+- **Crop to brackets** - delete notes outside the trim region and clamp holds
   that overrun the end bracket. All tools are undoable.
 
 ### Difficulties & metadata
 
 - **Multiple difficulties per mapset**, with a sidebar to switch, add,
   duplicate, rename, and delete them (sorted by star rating).
-- **Reference mode** — show a second difficulty (same audio) side-by-side,
+- **Reference mode** - show a second difficulty (same audio) side-by-side,
   read-only and scroll-synced, for cross-referencing patterns.
 - **Map settings**: title, artist, creator, difficulty name, key count, HP
   drain, overall difficulty, preview time, and a per-mapset or per-difficulty
@@ -135,7 +135,7 @@ VITE_WORKER_URL=…            # Cloudflare Worker that runs osu! OAuth
 
 - Load osu! **`.osk` skins** for the playfield and/or hitsounds, keep a local
   **skin library**, or apply bundled preset skins.
-- **Pattern presets** — publish a copied pattern as a reusable preset (public or
+- **Pattern presets** - publish a copied pattern as a reusable preset (public or
   private), browse the **preset library**, and paste presets into the editor.
 
 ### Accounts, cloud & collaboration
@@ -194,7 +194,7 @@ VITE_WORKER_URL=…            # Cloudflare Worker that runs osu! OAuth
 
 The *Scroll* slider only changes how fast notes move on screen while editing.
 osu!mania players pick their own scroll speed at play time, so this value is
-**never written** to the exported file — by design.
+**never written** to the exported file - by design.
 
 ---
 

@@ -4,7 +4,7 @@
 -- `.insert(...).select('id')`, i.e. INSERT ... RETURNING. To return the row,
 -- Postgres evaluates the SELECT policy on the new row. The SELECT policy was
 -- `can_view_project(id)`, which runs `select 1 from projects where id = pid and
--- owner = auth.uid()` — a self-referential subquery that CANNOT see the
+-- owner = auth.uid()` - a self-referential subquery that CANNOT see the
 -- row being inserted in the same command. So it returns false for non-admins
 -- (admins pass via the is_admin() short-circuit), raising
 -- "new row violates row-level security policy for table projects".

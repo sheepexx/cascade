@@ -2,7 +2,7 @@
 -- verification query. Run this whole file in the Supabase SQL editor.
 --
 -- Symptom it fixes: cloud save/load + invites work (public-table RLS is in
--- effect) but NOTHING syncs live — note ops, presence, and comment updates
+-- effect) but NOTHING syncs live - note ops, presence, and comment updates
 -- never reach collaborators. That means Postgres-changes replication and/or the
 -- realtime.messages authorization policies for the private `project:<uuid>`
 -- channels never took effect.
@@ -41,7 +41,7 @@ alter table public.comments replica identity full;
 do $$ begin
   alter table realtime.messages enable row level security;
 exception when others then
-  -- Already enabled, or not owner — safe to ignore; policies are what matter.
+  -- Already enabled, or not owner - safe to ignore; policies are what matter.
   null;
 end $$;
 
@@ -60,7 +60,7 @@ create policy "collab send project channel" on realtime.messages
   );
 
 -- ---------------------------------------------------------------------------
--- 3) Verify — this SELECT should return FOUR rows:
+-- 3) Verify - this SELECT should return FOUR rows:
 --      publication | comments
 --      publication | project_collaborators
 --      policy      | collab read project channel

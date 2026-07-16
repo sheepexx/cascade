@@ -41,7 +41,7 @@ create policy projects_update on public.projects
 create policy projects_delete on public.projects
   for delete using (owner = auth.uid() or public.is_admin());
 
--- 3) Verify — INSERT must be permissive with check `(owner = auth.uid())` and
+-- 3) Verify - INSERT must be permissive with check `(owner = auth.uid())` and
 --    NO is_admin() anywhere. Expect 4 rows, all permissive=PERMISSIVE.
 select policyname, cmd, permissive, qual, with_check
 from pg_policies

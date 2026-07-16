@@ -57,7 +57,7 @@ const SM = `#TITLE:SM Song;
 ;
 `;
 
-describe("parseSmFile — .ssc (Etterna)", () => {
+describe("parseSmFile - .ssc (Etterna)", () => {
   const parsed = parseSmFile(SSC);
 
   it("reads song-level metadata and assets", () => {
@@ -93,7 +93,7 @@ describe("parseSmFile — .ssc (Etterna)", () => {
   });
 });
 
-describe("parseSmFile — .sm still works after the refactor", () => {
+describe("parseSmFile - .sm still works after the refactor", () => {
   const parsed = parseSmFile(SM);
 
   it("reads metadata and a single chart", () => {
