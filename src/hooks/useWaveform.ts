@@ -1,22 +1,11 @@
 import { useEffect, useState } from "react";
 
 export type Waveform = {
-  /** Per-bucket peak amplitude, 0..1. */
   peaks: Float32Array;
-  /** Decoded duration in seconds. */
   duration: number;
-  /**
-   * The fully decoded PCM. Reused for sample-accurate, low-latency playback via
-   * the Web Audio API, so the song shares the same clock as the hitsounds (an
-   * HTMLAudioElement's output latency makes the song lag the notes otherwise).
-   */
   buffer: AudioBuffer;
 };
 
-/**
- * Decode an audio blob into a downsampled peaks array for waveform rendering.
- * Uses the Web Audio API's decodeAudioData. Returns null until ready.
- */
 export function useWaveform(
   blob: Blob | null,
   buckets = 1800,
@@ -46,8 +35,6 @@ export function useWaveform(
         const blockSize = Math.max(1, Math.floor(channel.length / buckets));
         const peaks = new Float32Array(buckets);
 
-        // RMS (average energy) per bucket - far less twitchy than peak/max,
-        // since a single loud transient no longer spikes the whole bar.
         for (let i = 0; i < buckets; i++) {
           const start = i * blockSize;
           let sumSq = 0;
@@ -58,9 +45,6 @@ export function useWaveform(
           peaks[i] = Math.sqrt(sumSq / blockSize);
         }
 
-        // Normalize against a high percentile rather than the absolute max,
-        // so the overall loud sections fill the band without a few outliers
-        // flattening everything else.
         const sorted = Array.from(peaks).sort((a, b) => a - b);
         const ref = sorted[Math.floor(sorted.length * 0.95)] || 1;
         if (ref > 0) {

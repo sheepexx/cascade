@@ -7,45 +7,32 @@ import { keyLabel, keybindWarnings } from "../../lib/playtestKeybinds";
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** Current playfield size multiplier (0.5 .. 2). */
   playfieldScale: number;
   onPlayfieldScale: (value: number) => void;
-  /** Current default long-note body width multiplier (0.2 .. 1). */
   longNoteBodyScale: number;
   onLongNoteBodyScale: (value: number) => void;
-  /** Whether hitsounds play during playback. */
   hitsoundsEnabled: boolean;
   onHitsoundsEnabled: (value: boolean) => void;
-  /** Hitsound volume (perceived slider position 0..1). */
   hitsoundVolume: number;
   onHitsoundVolume: (value: number) => void;
-  /** Background dim strength in the editor, 0..100. */
   dimBackground: number;
   onDimBackground: (value: number) => void;
-  /** Ease scrubbing between snap lines instead of jumping. */
   smoothScrolling: boolean;
   onSmoothScrolling: (value: boolean) => void;
-  /** Overlay the song's waveform on the hit lane (editor and playtest). */
   showWaveform: boolean;
   onShowWaveform: (value: boolean) => void;
-  /** Flip the playfield so notes scroll upward (upscroll). */
   upscroll: boolean;
   onUpscroll: (value: boolean) => void;
   playtest: PlaytestSettings;
   onPlaytest: (value: PlaytestSettings) => void;
-  /** Whether the whole local project autosaves to IndexedDB. */
   localAutosaveEnabled: boolean;
   onLocalAutosaveEnabled: (value: boolean) => void;
-  /** Re-encode PNG backgrounds as JPEG on export to save storage. */
   exportPngBackgroundsAsJpeg: boolean;
   onExportPngBackgroundsAsJpeg: (value: boolean) => void;
-  /** JPEG quality (0.5 .. 1) used for background conversion. */
   exportJpegQuality: number;
   onExportJpegQuality: (value: number) => void;
-  /** Whether UI sound effects play. */
   uiSoundsEnabled: boolean;
   onUiSoundsEnabled: (value: boolean) => void;
-  /** UI sound effects volume, 0..1. */
   uiSoundVolume: number;
   onUiSoundVolume: (value: number) => void;
 };
@@ -53,11 +40,6 @@ type Props = {
 const TABS = ["Editor", "Playtest", "Audio", "Export"] as const;
 type Tab = (typeof TABS)[number];
 
-/**
- * Editor preferences, grouped into tabs (Editor / Playtest / Audio) so each
- * group is easy to find instead of one long scroll. Skin selection lives in its
- * own modal ({@link SkinModal}).
- */
 export function AppSettingsModal({
   open,
   onClose,
@@ -426,7 +408,6 @@ export function AppSettingsModal({
                 onKeyDown={(e) => {
                   if (!capturingRestart) return;
                   e.preventDefault();
-                  // F5 is reserved for entering / leaving the playtest.
                   if (e.key === "Escape" || e.key === "F5") setCapturingRestart(false);
                   else if (e.key === "Backspace" || e.key === "Delete") {
                     patchPlaytest({ quickRestartKey: "" });

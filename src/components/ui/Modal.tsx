@@ -5,15 +5,12 @@ type Props = {
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** Optional footer (e.g. action buttons). */
   footer?: ReactNode;
   width?: string;
 };
 
-/** How long the exit animation runs; keep in sync with .modal-*-out in index.css. */
 const EXIT_MS = 220;
 
-/** Centered modal dialog with backdrop, Esc-to-close and a scrollable body. */
 export function Modal({
   open,
   title,
@@ -22,7 +19,6 @@ export function Modal({
   footer,
   width = "max-w-md",
 }: Props) {
-  // Keep the modal mounted while it animates out so the exit transition plays.
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
 
@@ -58,8 +54,6 @@ export function Modal({
   return (
     <div
       className={`fixed inset-0 flex items-center justify-center bg-ink-900/72 p-4 backdrop-blur-md ${
-        // A modal animating out must not sit above (or catch clicks meant for)
-        // a modal opening over it — e.g. Get started → Try these maps.
         closing
           ? "pointer-events-none z-40 modal-backdrop-out"
           : "z-50 modal-backdrop-in"

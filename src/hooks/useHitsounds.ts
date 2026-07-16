@@ -13,40 +13,21 @@ import {
 } from "../lib/audioAtmosphere";
 import { activeTimingAt } from "../lib/timing";
 
-/** Lowercase set prefixes indexed by sample-set number (1=normal,2=soft,3=drum). */
 const SET_PREFIX: Record<number, string> = { 1: "normal", 2: "soft", 3: "drum" };
 const HIT_SOUNDS = ["normal", "whistle", "finish", "clap"] as const;
 const DEFAULT_SAMPLE_BASES = Object.values(SET_PREFIX).flatMap((setPrefix) =>
   HIT_SOUNDS.map((sound) => `${setPrefix}-hit${sound}`),
 );
 
-/** Build the public URL for a bundled default sample, e.g. `soft-hitclap`. */
 function sampleUrl(base: string): string {
   return `${import.meta.env.BASE_URL}hitsounds/${base}.wav`;
 }
 
-/**
- * Plays a map's actual osu! hitsounds during playback preview.
- *
- * For every note head crossing the judgement line (long-note tails are silent,
- * as in osu!mania), it resolves the effective sample set, additions, and volume
- * from the note's
- * own hit-sample data falling back to the active timing point - exactly like
- * osu!mania - and plays the matching bundled samples (normal/soft/drum ×
- * normal/whistle/finish/clap).
- *
- * Detection runs in song-time, so it stays accurate at reduced playback speeds.
- * If the active skin includes osu!-named hitsound files (e.g.
- * `normal-hitnormal.wav` or `soft-hitclap2.ogg`) those samples override the
- * bundled defaults. Custom per-note sample files (keysounds) are preserved on
- * import/export but are not played back here.
- */
 export function useHitsounds(
   getCurrentTime: () => number,
   isPlaying: boolean,
   notes: ManiaNote[],
   timingPoints: TimingPoint[],
-  /** Perceived slider position, 0..1 (square-law applied internally). */
   volume: number,
   enabled: boolean,
   ducked: boolean,
@@ -55,16 +36,11 @@ export function useHitsounds(
   const ctxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const filterRef = useRef<BiquadFilterNode | null>(null);
-  // Decoded sample buffers keyed by source (`skin:soft-hitclap2`, etc.).
   const buffersRef = useRef<Map<string, AudioBuffer>>(new Map());
-  // Keys currently being fetched/decoded, so we don't request them twice.
   const loadingRef = useRef<Set<string>>(new Set());
-  // Sorted hit events (note heads + long-note tails) carrying the source note.
   const eventsRef = useRef<{ time: number; note: ManiaNote }[]>([]);
-  // Last playhead position we've already emitted hits up to.
   const lastTimeRef = useRef<number | null>(null);
 
-  // Keep the latest values on a ref so the rAF loop reads fresh data.
   const stateRef = useRef({
     isPlaying,
     timingPoints,
@@ -137,12 +113,9 @@ export function useHitsounds(
     [currentMixPower],
   );
 
-  // Rebuild the sorted hit-event index whenever the notes change.
   useEffect(() => {
     const events: { time: number; note: ManiaNote }[] = [];
     for (const n of notes) {
-      // Only note heads play a hitsound. A long note's tail is a release, not a
-      // hit, so it stays silent — matching osu!mania.
       events.push({ time: n.startTime, note: n });
     }
     events.sort((a, b) => a.time - b.time);
@@ -197,7 +170,6 @@ export function useHitsounds(
           .then((buf) => ctx.decodeAudioData(buf))
           .then((decoded) => buffersRef.current.set(key, decoded))
           .catch(() => {
-            /* missing / unsupported - that sample stays silent */
           })
           .finally(() => loadingRef.current.delete(key));
       }
@@ -286,7 +258,6 @@ export function useHitsounds(
       return null;
     };
 
-    /** Fetch + decode a sample if not already available; returns it if ready. */
     const getBuffer = (ctx: AudioContext, base: string): AudioBuffer | null => {
       const source = sourceFor(base);
       if (!source) return null;
@@ -300,7 +271,6 @@ export function useHitsounds(
           .then((buf) => ctx.decodeAudioData(buf))
           .then((decoded) => buffersRef.current.set(key, decoded))
           .catch(() => {
-            /* missing / unsupported - that sample stays silent */
           })
           .finally(() => loadingRef.current.delete(key));
       }
@@ -333,21 +303,15 @@ export function useHitsounds(
       if (!ctx) return;
       const s = stateRef.current;
       const tp = activeTimingAt(note.startTime, s.timingPoints);
-      // Resolve the effective sample sets. 0 = auto: notes fall back to the
-      // timing point's set, which itself falls back to Normal (the General
-      // default SampleSet). Additions fall back to the normal set.
       const normalSet = note.sampleSet || tp.sampleSet || 1;
       const additionSet = note.additionSet || normalSet;
       const normalPrefix = SET_PREFIX[normalSet] ?? "normal";
       const additionPrefix = SET_PREFIX[additionSet] ?? "normal";
       const sampleIndex = note.sampleIndex || tp.sampleIndex || 0;
-      // Volume: per-note overrides the timing point; 0 means "inherit". The
-      // shared output chain applies the editor's overall hitsound/ducking mix.
       const volPct = note.sampleVolume || tp.volume || 100;
       const gainValue = volPct / 100;
       if (gainValue <= 0) return;
 
-      // The normal sample always plays in osu!mania; additions layer on top.
       playSample(ctx, normalPrefix, "normal", sampleIndex, gainValue);
       const adds = note.hitSound ?? 0;
       if (adds & HITSOUND_WHISTLE)
@@ -358,8 +322,6 @@ export function useHitsounds(
         playSample(ctx, additionPrefix, "clap", sampleIndex, gainValue);
     };
 
-    // Warm up every bundled default sample, plus any skin-specific variants, so
-    // the first note/chord after entering the site doesn't pay decode latency.
     const warm = ensureCtx();
     if (warm) {
       for (const base of DEFAULT_SAMPLE_BASES) getBuffer(warm, base);
@@ -379,14 +341,11 @@ export function useHitsounds(
       const cur = getCurrentTime();
       const last = lastTimeRef.current;
       lastTimeRef.current = cur;
-      // First frame after starting, or a backward / large forward jump (a seek):
-      // re-anchor without machine-gunning every note we skipped over.
       if (last === null || cur < last || cur - last > 250) return;
 
       const events = eventsRef.current;
       if (events.length === 0) return;
 
-      // Emit every event in (last, cur]. Binary-search the first index > last.
       let lo = 0;
       let hi = events.length;
       while (lo < hi) {
@@ -396,7 +355,6 @@ export function useHitsounds(
       }
       let played = 0;
       for (let i = lo; i < events.length && events[i].time <= cur; i++) {
-        // Cap simultaneous hits so dense chords don't clip the output.
         if (played >= 6) break;
         playNote(events[i].note);
         played++;
@@ -407,7 +365,6 @@ export function useHitsounds(
     return () => cancelAnimationFrame(raf);
   }, [enabled, ensureCtx, applyOutputMix, skinHitsounds, getCurrentTime]);
 
-  // Release the audio context when the component using the hook unmounts.
   useEffect(() => {
     return () => {
       void ctxRef.current?.close();

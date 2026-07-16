@@ -16,7 +16,6 @@ import {
 } from "../types";
 import { xToColumn } from "./osuExport";
 
-/** Result of parsing a single `.osu` file (without its referenced media). */
 export type ParsedOsu = {
   meta: SongMeta;
   difficulty: Difficulty;
@@ -24,24 +23,18 @@ export type ParsedOsu = {
   audioFilename: string | null;
   backgroundFilename: string | null;
   videoFilename: string | null;
-  /** Video event startTime (ms into the song where the video begins). */
   videoOffsetMs: number;
 };
 
-/** A fully imported beatmap set, with media resolved from the `.osz`. */
 export type ImportedMap = {
   meta: SongMeta;
   difficulties: Difficulty[];
   timingPoints: TimingPoint[];
-  /** Every distinct audio file in the set, keyed by its filename. */
   audioFiles: Record<string, LoadedFile>;
-  /** Every distinct background image in the set, keyed by filename. */
   backgroundFiles: Record<string, LoadedFile>;
-  /** Every distinct background video in the set, keyed by filename. */
   videoFiles: Record<string, LoadedFile>;
 };
 
-/** Split the file into `[Section] -> lines` while ignoring comments/blanks. */
 function splitSections(text: string): Record<string, string[]> {
   const sections: Record<string, string[]> = {};
   let current = "";
@@ -74,13 +67,6 @@ function num(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/**
- * Parse a hit object's `hitSound` flags + `hitSample` string into the optional
- * hitsound fields stored on a {@link ManiaNote}. Only non-default values are
- * emitted so plain notes stay free of hitsound clutter.
- *
- * hitSample syntax: `normalSet:additionSet:index:volume:filename`.
- */
 function hitSampleFields(
   hitSound: number,
   sample: string,
@@ -101,7 +87,6 @@ function hitSampleFields(
   return out;
 }
 
-/** Parse the text of a `.osu` file into editor state. Assumes osu!mania. */
 export function parseOsuFile(text: string): ParsedOsu {
   const sections = splitSections(text);
   const general = keyValues(sections["General"] ?? []);
@@ -121,15 +106,12 @@ export function parseOsuFile(text: string): ParsedOsu {
     tags: meta["Tags"] ?? "",
   };
 
-  // [Editor] Bookmarks: comma-separated millisecond list.
   const bookmarks = (editor["Bookmarks"] ?? "")
     .split(",")
     .map((s) => Math.round(Number(s.trim())))
     .filter((n) => Number.isFinite(n))
     .sort((a, b) => a - b);
 
-  // ---- Timing points: every red (uninherited) and green (inherited) point ----
-  // Format: time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited,effects
   const timingPoints: TimingPoint[] = [];
   for (const line of sections["TimingPoints"] ?? []) {
     const p = line.split(",");
@@ -137,7 +119,6 @@ export function parseOsuFile(text: string): ParsedOsu {
     const time = Math.round(Number(p[0]));
     const beatLength = Number(p[1]);
     if (!Number.isFinite(time) || !Number.isFinite(beatLength)) continue;
-    // Default to uninherited when the field is missing (older single-BPM maps).
     const uninherited = p[6] === undefined ? 1 : Number(p[6]);
     const meter = p[2] !== undefined ? Math.round(Number(p[2])) || 4 : 4;
     const sampleSet = p[3] !== undefined ? Math.round(Number(p[3])) || 0 : 1;
@@ -152,10 +133,6 @@ export function parseOsuFile(text: string): ParsedOsu {
       timingPoints.push(
         makeRedPoint(
           time,
-          // Keep full precision: bpm = 60000 / beatLength without rounding, so
-          // the original beat length is recovered exactly (within float epsilon)
-          // by beatLength(bpm) = 60000 / bpm. Rounding bpm here would make the
-          // beat grid drift progressively over long maps.
           60000 / beatLength,
           extra,
         ),
@@ -169,9 +146,6 @@ export function parseOsuFile(text: string): ParsedOsu {
   }
   timingPoints.sort((a, b) => a.time - b.time);
 
-  // ---- Background / Video events ----
-  // Background: `0,0,"file.jpg",x,y`. Video: `Video,startTime,"file.mp4",x,y`
-  // (the event type may also be written as the legacy numeric `1`).
   let backgroundFilename: string | null = null;
   let videoFilename: string | null = null;
   let videoOffsetMs = 0;
@@ -192,7 +166,6 @@ export function parseOsuFile(text: string): ParsedOsu {
     }
   }
 
-  // ---- Hit objects ----
   const notes: ManiaNote[] = [];
   for (const line of sections["HitObjects"] ?? []) {
     const p = line.split(",");
@@ -205,7 +178,6 @@ export function parseOsuFile(text: string): ParsedOsu {
     const hitSound = Math.round(Number(p[4])) || 0;
 
     if (type & 128) {
-      // Hold: objectParams field is `endTime:hitSample`.
       const param = p[5] ?? "";
       const colon = param.indexOf(":");
       const endRaw = colon === -1 ? param : param.slice(0, colon);
@@ -254,7 +226,6 @@ export function parseOsuFile(text: string): ParsedOsu {
   };
 }
 
-/** Case-insensitive lookup of a zip entry by filename. */
 function findEntry(zip: JSZip, name: string | null) {
   if (!name) return null;
   const target = name.toLowerCase();
@@ -302,10 +273,6 @@ function mimeForVideo(name: string): string {
   return "video/mp4";
 }
 
-/**
- * Import a `.osz` (zip): parse every `.osu` difficulty (mania only) into one
- * mapset and resolve the shared audio + background out of the archive.
- */
 export async function importOsz(blob: Blob): Promise<ImportedMap> {
   const zip = await JSZip.loadAsync(blob);
 
@@ -321,15 +288,12 @@ export async function importOsz(blob: Blob): Promise<ImportedMap> {
   const parsed: ParsedOsu[] = [];
   for (const path of osuPaths) {
     const text = await zip.file(path)!.async("string");
-    // Only keep osu!mania difficulties (Mode: 3).
     if (/^\s*Mode\s*:\s*3\s*$/m.test(text)) parsed.push(parseOsuFile(text));
   }
   if (parsed.length === 0) {
     throw new Error("No osu!mania (Mode 3) difficulties found in the archive.");
   }
 
-  // Metadata + timing come from the first difficulty.
-  // Audio is resolved per filename. Background is also resolved per difficulty.
   const first = parsed[0];
 
   const audioFiles: Record<string, LoadedFile> = {};

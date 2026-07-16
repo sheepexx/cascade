@@ -49,17 +49,12 @@ function groupFilesByDir(
   return dirs;
 }
 
-/** Pick a song's chart file, preferring .ssc over .sm when it ships both. */
 function pickMainChart(
   charts: { file: File; relPath: string }[],
 ): { file: File; relPath: string } {
   return charts.find((c) => /\.ssc$/i.test(c.file.name)) ?? charts[0];
 }
 
-/**
- * Group a flat file list by directory and parse each song directory holding a
- * .sm/.ssc chart into a PackSong. Shared by the folder, drop and zip scanners.
- */
 async function buildPackSongs(
   all: { file: File; relPath: string }[],
 ): Promise<PackSong[]> {
@@ -187,11 +182,6 @@ export async function scanPackFromPicker(
   return buildPackSongs(all);
 }
 
-/**
- * Scan dropped folder entries into pack songs. Entries must be captured
- * synchronously from the drop event (webkitGetAsEntry) before any await — the
- * DataTransferItemList they came from is neutered once the event returns.
- */
 export async function scanPackFromDrop(
   entries: FileSystemEntry[],
 ): Promise<PackSong[]> {
@@ -236,12 +226,6 @@ export async function scanPackFromDrop(
   return buildPackSongs(all);
 }
 
-/**
- * Scan a StepMania/Etterna pack distributed as a `.zip` archive. Only chart and
- * media entries are decoded, so a large pack isn't fully unpacked just to list
- * its songs. Returns [] when the archive holds no .sm/.ssc charts (e.g. it's an
- * osu! `.osz`), so callers can fall back to the osu importer.
- */
 function blobRegistry(blobs: Record<string, Blob>): Record<string, LoadedFile> {
   const out: Record<string, LoadedFile> = {};
   for (const [name, blob] of Object.entries(blobs)) {
@@ -250,12 +234,6 @@ function blobRegistry(blobs: Record<string, Blob>): Record<string, LoadedFile> {
   return out;
 }
 
-/**
- * Repackage a scanned StepMania/Etterna song as an in-memory osu! `.osz`, so it
- * can be imported through the exact same path as an osu! map (e.g. into the
- * Pack Creator). Reuses the osu exporter, mirroring how the project browser
- * repackages local/cloud projects.
- */
 export async function packSongToOszFile(song: PackSong): Promise<File> {
   const smAudio =
     song.parsed.audioFilename ?? Object.keys(song.audioBlobs)[0];
@@ -288,8 +266,6 @@ export async function scanPackFromZip(file: File): Promise<PackSong[]> {
   const entries = Object.values(zip.files).filter((e) => !e.dir);
   const chartBase = (name: string) => name.split("/").pop() ?? name;
 
-  // Bail before decoding anything when there are no charts — the archive is an
-  // osu! set, and the caller falls back to the osu importer.
   if (!entries.some((e) => /\.(sm|ssc)$/i.test(chartBase(e.name)))) return [];
 
   const all: { file: File; relPath: string }[] = [];

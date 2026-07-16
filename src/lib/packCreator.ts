@@ -16,17 +16,7 @@ import { parseOsuFile } from "./osuImport";
 import { buildOsuFile } from "./osuExport";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 
-/**
- * Pack Creator engine: imports whole .osz archives, keeps every .osu as raw
- * text, and on export rewrites only the metadata plus any asset references
- * that had to be renamed to avoid collisions. See src/types/packCreator.ts.
- */
 
-// ---------------------------------------------------------------------------
-// Small helpers
-// ---------------------------------------------------------------------------
-
-/** Strip characters Windows forbids in filenames. */
 export function sanitizePackFilename(s: string): string {
   return s.replace(/[\\/:*?"<>|]/g, "").trim() || "untitled";
 }
@@ -43,7 +33,6 @@ async function sha1Hex(blob: Blob): Promise<string> {
     .join("");
 }
 
-/** `name.ext` -> `name_2.ext`, `name_3.ext`, … first one not in `taken`. */
 function uniqueAssetName(name: string, taken: Set<string>): string {
   const dot = name.lastIndexOf(".");
   const stem = dot === -1 ? name : name.slice(0, dot);
@@ -54,24 +43,16 @@ function uniqueAssetName(name: string, taken: Set<string>): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Parsing
-// ---------------------------------------------------------------------------
 
-/** All filenames referenced inside [Events] lines (quoted or bare). */
 function eventFilenames(lines: string[]): string[] {
   const out: string[] = [];
   for (const line of lines) {
     if (line.startsWith("//")) continue;
-    // Quoted references cover backgrounds, videos, storyboard sprites and
-    // sample events; a handful of old maps write them unquoted, which the
-    // background/video regexes in parseOsuFile already handle.
     for (const m of line.matchAll(/"([^"]+)"/g)) out.push(m[1]);
   }
   return out;
 }
 
-/** Light parse of one .osu: raw text + everything the pack tool needs. */
 export function parseOsuForPack(text: string): ParsedOsuFile & {
   meta: ReturnType<typeof parseOsuFile>["meta"];
   version: string;
@@ -79,7 +60,6 @@ export function parseOsuForPack(text: string): ParsedOsuFile & {
   const parsed = parseOsuFile(text);
   const mode = Number(text.match(/^\s*Mode\s*:\s*(\d+)\s*$/m)?.[1] ?? 0);
 
-  // [Events] section lines, for asset references beyond bg/video.
   const eventsBlock = text.match(/^\[Events\]\s*$([\s\S]*?)(?=^\[|\s*$(?![\s\S]))/m);
   const eventLines = (eventsBlock?.[1] ?? "")
     .split(/\r?\n/)
@@ -114,19 +94,10 @@ export function parseOsuForPack(text: string): ParsedOsuFile & {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Rate detection
-// ---------------------------------------------------------------------------
 
-/** Plausible playback-rate bounds; guards against "x4" style keymode names. */
 const MIN_RATE = 0.5;
 const MAX_RATE = 3;
 
-/**
- * Detect a rate marker in an original difficulty name: `x1.2`, `1.2x`,
- * `x0.9`, `0.9x`, `x1.05`, plus the mod aliases DT / HT / NC.
- * Numeric rates are normalised to the `x1.2` form.
- */
 export function detectRateFromVersion(version: string): string | undefined {
   const mod = version.match(/(?:^|[\s([\]-])(DT|HT|NC)(?=$|[\s)\]-])/i);
   if (mod) return mod[1].toUpperCase();
@@ -141,11 +112,7 @@ export function detectRateFromVersion(version: string): string | undefined {
   return `x${raw}`;
 }
 
-// ---------------------------------------------------------------------------
-// Difficulty names / metadata fields
-// ---------------------------------------------------------------------------
 
-/** `<Song Name> <Rate> [- <Original Diff>] [<Mapper>]`, live-previewed in the UI. */
 export function generatePackDifficultyName(item: PackItem): string {
   let name = item.songDisplayName.trim();
   if (item.includeRateInDifficultyName && item.rate?.trim())
@@ -190,7 +157,6 @@ function tagsFieldFor(
     words.push(item.originalArtist, item.originalCreator);
     if (item.originalTags) words.push(...item.originalTags.split(/\s+/));
   }
-  // Dedupe case-insensitively, preserving first spelling.
   const seen = new Set<string>();
   const out: string[] = [];
   for (const w of words) {
@@ -202,24 +168,14 @@ function tagsFieldFor(
   return out.join(" ");
 }
 
-// ---------------------------------------------------------------------------
-// .osu rewriting
-// ---------------------------------------------------------------------------
 
 export type RewriteArgs = {
   item: PackItem;
   metadata: PackMetadata;
   settings: PackCreatorSettings;
-  /** lowercased original name -> new name, for this item's source archive. */
   renames: Map<string, string>;
 };
 
-/**
- * Rewrite one imported .osu for the pack: replace the whole [Metadata] block,
- * point AudioFilename at the (possibly renamed) audio, and update any renamed
- * asset references inside [Events] / [HitObjects]. Everything else is kept
- * verbatim so the chart itself cannot be damaged.
- */
 export function rewriteOsuForPack({
   item,
   metadata,
@@ -230,9 +186,6 @@ export function rewriteOsuForPack({
     if (!renames.size) return line;
     let out = line;
     for (const [oldLower, next] of renames) {
-      // Case-insensitive, escaped literal match of the original filename,
-      // delimited so e.g. renaming "a.wav" can't touch "media.wav". Event and
-      // sample references are bounded by quotes, commas, colons or line edges.
       const escaped = oldLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const pattern = new RegExp(`(?<=^|["',:])${escaped}(?=$|["',:])`, "gi");
       out = out.replace(pattern, next);
@@ -263,7 +216,7 @@ export function rewriteOsuForPack({
       if (section === "Metadata") out.push(...metadataBlock);
       continue;
     }
-    if (section === "Metadata") continue; // replaced wholesale above
+    if (section === "Metadata") continue;
     if (section === "General") {
       const m = raw.match(/^(\s*AudioFilename\s*:\s*)(.*)$/);
       if (m) {
@@ -292,28 +245,15 @@ export function rewriteOsuForPack({
   return out.join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// Import
-// ---------------------------------------------------------------------------
 
 export type PackImportResult = {
-  /** osu!mania difficulties, ready to add to the pack. */
   items: PackItem[];
-  /** Non-mania difficulties, parsed but excluded unless manually included. */
   nonManiaItems: PackItem[];
-  /** Human-readable problems with this archive (unreadable .osu files etc.). */
   problems: string[];
 };
 
-/**
- * Import one .osz for the Pack Creator: parse every .osu (keeping the raw
- * text), load every other file as a shared PackAsset, and split difficulties
- * into mania and non-mania.
- */
 export async function importOszForPack(
   file: File,
-  /** Overrides the "From" label (e.g. the original .sm/.ssc name for a
-   *  StepMania song that was repackaged to .osz before import). */
   sourceLabel?: string,
 ): Promise<PackImportResult> {
   const zip = await JSZip.loadAsync(file);
@@ -346,7 +286,6 @@ export async function importOszForPack(
     }
   }
 
-  // Which asset names does any .osu in this archive reference?
   const referencedLower = new Set<string>();
   for (const { parsed } of parsedList)
     for (const r of parsed.referencedAssets) referencedLower.add(r.toLowerCase());
@@ -402,30 +341,18 @@ export async function importOszForPack(
   return { items, nonManiaItems, problems };
 }
 
-// ---------------------------------------------------------------------------
-// Asset collision handling
-// ---------------------------------------------------------------------------
 
 export type CollisionResolution = {
-  /** Final file list for the zip (deduped, collision-free). */
   files: { name: string; blob: Blob }[];
-  /** archiveId -> (lowercased old name -> new name). */
   renamesByArchive: Map<string, Map<string, string>>;
-  /** Convention-named files (custom hitsounds etc.) dropped on collision. */
   droppedNames: string[];
 };
 
-/**
- * Merge every item's assets into one flat file list. Identical contents under
- * the same name are shared; different contents under the same name are renamed
- * when the file is referenced by name (so the reference can be rewritten), or
- * dropped with a warning when only osu!'s naming conventions point at it.
- */
 export function resolveAssetCollisions(items: PackItem[]): CollisionResolution {
   const files: { name: string; blob: Blob }[] = [];
   const renamesByArchive = new Map<string, Map<string, string>>();
   const droppedNames: string[] = [];
-  const byName = new Map<string, string>(); // lower name -> hash
+  const byName = new Map<string, string>();
   const seenAssets = new Set<string>();
 
   for (const item of items) {
@@ -440,7 +367,7 @@ export function resolveAssetCollisions(items: PackItem[]): CollisionResolution {
         files.push({ name: asset.name, blob: asset.blob });
         continue;
       }
-      if (existing === asset.hash) continue; // same bytes: share the first copy
+      if (existing === asset.hash) continue;
 
       if (!asset.referenced) {
         droppedNames.push(asset.name);
@@ -460,37 +387,17 @@ export function resolveAssetCollisions(items: PackItem[]): CollisionResolution {
   return { files, renamesByArchive, droppedNames };
 }
 
-// ---------------------------------------------------------------------------
-// Background JPEG conversion
-// ---------------------------------------------------------------------------
 
-/**
- * Re-encode PNG backgrounds referenced by the pack's difficulties to JPEG,
- * in place on the resolved `files` list. Only images referenced as a
- * difficulty background are touched — skin sprites, storyboard elements and
- * hitsound images are left alone since JPEG can't carry transparency.
- *
- * Each converted file is renamed `.png` -> `.jpg`; the corresponding `.osu`
- * reference is updated by adding a rename (keyed by the ORIGINAL name) to
- * `renamesByArchive`, chaining through any collision rename already recorded,
- * so {@link rewriteOsuForPack} rewrites the [Events] background line to match.
- */
 async function convertPackBackgroundsToJpeg(
   files: { name: string; blob: Blob }[],
   renamesByArchive: Map<string, Map<string, string>>,
   items: PackItem[],
   quality: number,
 ): Promise<void> {
-  // Snapshot the collision renames up front. We add our own JPEG renames to the
-  // same map below, so reading it live would make a later difficulty see the
-  // .jpg name as the "current" file and try to re-convert an already-converted
-  // background.
   const collisionRenames = new Map<string, Map<string, string>>();
   for (const [archive, map] of renamesByArchive)
     collisionRenames.set(archive, new Map(map));
 
-  // A background shared by several difficulties resolves to one file; convert
-  // it once, keyed by its current (post-collision) name.
   const convertedFinal = new Map<string, string>();
   const handled = new Set<string>();
   const taken = new Set(files.map((f) => f.name.toLowerCase()));
@@ -510,9 +417,9 @@ async function convertPackBackgroundsToJpeg(
     let jpgName = convertedFinal.get(finalLower);
     if (!jpgName) {
       const fileEntry = files.find((f) => f.name.toLowerCase() === finalLower);
-      if (!fileEntry) continue; // background missing from the archive
+      if (!fileEntry) continue;
       const jpeg = await pngToJpeg(fileEntry.blob, quality);
-      if (!jpeg) continue; // undecodable: keep the PNG
+      if (!jpeg) continue;
       taken.delete(finalLower);
       jpgName = uniqueFileName(toJpegName(currentFinal), taken);
       taken.add(jpgName.toLowerCase());
@@ -530,11 +437,7 @@ async function convertPackBackgroundsToJpeg(
   }
 }
 
-// ---------------------------------------------------------------------------
-// "<Delete" placeholder difficulty
-// ---------------------------------------------------------------------------
 
-/** Decode the audio to find its real duration; null when undecodable. */
 async function audioDurationMs(blob: Blob): Promise<number | null> {
   const AC =
     window.AudioContext ||
@@ -555,18 +458,11 @@ async function audioDurationMs(blob: Blob): Promise<number | null> {
 export type PlaceholderArgs = {
   metadata: PackMetadata;
   settings: PackCreatorSettings;
-  /** The item whose audio the placeholder uses. */
   audioItem: PackItem;
-  /** Exported audio filename (after any collision rename). */
   audioFilename: string;
-  /** End-note time; from decoded duration when available. */
   lastNoteMs: number;
 };
 
-/**
- * Build the minimal "<Delete" thumbnail difficulty: valid mania metadata,
- * default timing, one note at the start and one near the end of the audio.
- */
 export function generatePlaceholderDifficulty({
   metadata,
   settings,
@@ -596,9 +492,6 @@ export function generatePlaceholderDifficulty({
   });
 }
 
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
 
 export type ValidatePackArgs = {
   metadata: PackMetadata;
@@ -699,11 +592,7 @@ export function validatePack({
   return { errors, warnings };
 }
 
-// ---------------------------------------------------------------------------
-// Build / export
-// ---------------------------------------------------------------------------
 
-/** `<Artist> - <Pack Title> (<Creator>) [<Diff>].osu`, sanitized + unique. */
 function packOsuFilename(
   artist: string,
   title: string,
@@ -730,14 +619,9 @@ export type BuildPackArgs = {
   metadata: PackMetadata;
   items: PackItem[];
   settings: PackCreatorSettings;
-  /**
-   * When set (0 < q ≤ 1), re-encode PNG backgrounds as JPEG at this quality to
-   * shrink the archive. Undefined keeps every image byte-for-byte.
-   */
   jpegQuality?: number;
 };
 
-/** Assemble the final .osz: rewritten .osu files, assets, optional <Delete. */
 export async function buildPack({
   metadata,
   items,

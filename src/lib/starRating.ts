@@ -1,43 +1,18 @@
 import type { ManiaNote } from "../types";
 
-/**
- * osu!mania star rating.
- *
- * Faithful port of the osu!(lazer) Mania difficulty calculator:
- *   StarRating = Strain.DifficultyValue() * 0.018
- *
- * The `Strain` skill keeps a per-column "individual" strain (jacks / same-hand
- * repeats) and a global "overall" strain (chord density / speed), both decaying
- * exponentially, with chord and hold-note handling. Per-note strain is bucketed
- * into 400 ms sections; the section peaks are combined as a 0.9-weighted sum.
- *
- * Differences vs. the game: no mods/clock-rate, and osu!'s exact
- * DifficultyHitObject ordering for dense chords may shift the value by a small
- * amount. Verified against a real ranked map to within a plausible margin.
- *
- * Sources (current master):
- *   ManiaDifficultyCalculator.cs   - StarRating = Strain.DifficultyValue() * 0.018
- *   Difficulty/Skills/Strain.cs
- *   Difficulty/Evaluators/IndividualStrainEvaluator.cs  - 2.0 * holdFactor
- *   Difficulty/Evaluators/OverallStrainEvaluator.cs     - (1 + holdAddition) * holdFactor
- *   Difficulty/Preprocessing/ManiaDifficultyHitObject.cs - ColumnStrainTime
- */
-
 const SECTION_MS = 400;
 const INDIVIDUAL_DECAY_BASE = 0.125;
 const OVERALL_DECAY_BASE = 0.3;
-const RELEASE_THRESHOLD = 30; // ms - OverallStrainEvaluator
-const LOGISTIC_MULTIPLIER = 0.27; // OverallStrainEvaluator hold-addition curve
+const RELEASE_THRESHOLD = 30;
+const LOGISTIC_MULTIPLIER = 0.27;
 const DECAY_WEIGHT = 0.9;
 const DIFFICULTY_MULTIPLIER = 0.018;
 
 const applyDecay = (value: number, deltaMs: number, base: number): number =>
   value * Math.pow(base, deltaMs / 1000);
 
-/** Precision.DefinitelyBigger with the osu! default epsilon of 1. */
 const definitelyBigger = (a: number, b: number): boolean => a > b + 1;
 
-/** osu! DifficultyCalculationUtils.Logistic(x, midpoint, multiplier, max=1). */
 const logistic = (x: number, midpoint: number, mult: number): number =>
   1 / (1 + Math.exp(mult * (midpoint - x)));
 
@@ -47,7 +22,6 @@ export function computeStarRating(
 ): number {
   if (notes.length < 2 || keyCount <= 0) return 0;
 
-  // Difficulty hit-objects, ordered like osu! (by start time, then column).
   const objs = notes
     .map((n) => ({
       start: n.startTime,
@@ -56,11 +30,10 @@ export function computeStarRating(
     }))
     .sort((a, b) => a.start - b.start || a.col - b.col);
 
-  // Strain skill state.
   const individualStrains = new Array(keyCount).fill(0);
   const startTimes = new Array(keyCount).fill(0);
   const endTimes = new Array(keyCount).fill(0);
-  const hasPrev = new Array(keyCount).fill(false); // column has a previous note
+  const hasPrev = new Array(keyCount).fill(false);
   let highestIndividualStrain = 0;
   let overallStrain = 1;
   let currentStrain = 0;
@@ -72,8 +45,6 @@ export function computeStarRating(
   ): number => {
     const { start, end, col } = cur;
 
-    // IndividualStrainEvaluator: 2.0 * holdFactor, where a note nested inside
-    // another column's still-held hold note earns the 1.25 bonus.
     let individualHoldFactor = 1.0;
     for (let i = 0; i < keyCount; i++) {
       if (!hasPrev[i]) continue;
@@ -84,7 +55,6 @@ export function computeStarRating(
         individualHoldFactor = 1.25;
     }
 
-    // OverallStrainEvaluator: (1 + holdAddition) * holdFactor.
     let overallHoldFactor = 1.0;
     let isOverlapping = false;
     let closestEnd = Math.abs(end - start);
@@ -100,7 +70,6 @@ export function computeStarRating(
       ? logistic(closestEnd, RELEASE_THRESHOLD, LOGISTIC_MULTIPLIER)
       : 0;
 
-    // Individual strain: decay by time since the previous note in this column.
     individualStrains[col] = applyDecay(
       individualStrains[col],
       start - startTimes[col],
@@ -126,7 +95,6 @@ export function computeStarRating(
     applyDecay(highestIndividualStrain, time - prevStart, INDIVIDUAL_DECAY_BASE) +
     applyDecay(overallStrain, time - prevStart, OVERALL_DECAY_BASE);
 
-  // Section-peak machinery (StrainSkill).
   const peaks: number[] = [];
   let sectionPeak = 0;
   let sectionEnd = 0;
@@ -146,7 +114,6 @@ export function computeStarRating(
       sectionEnd += SECTION_MS;
     }
 
-    // StrainDecaySkill with StrainDecayBase = 1 → currentStrain just accumulates.
     currentStrain += strainValueOf(cur, deltaTime);
     sectionPeak = Math.max(sectionPeak, currentStrain);
     prevStart = cur.start;
@@ -164,7 +131,6 @@ export function computeStarRating(
   return difficulty * DIFFICULTY_MULTIPLIER;
 }
 
-// ---- Color spectrum (exact values from osu!(lazer) OsuColour.cs) -----------
 type Stop = { star: number; color: [number, number, number] };
 
 const SPECTRUM: Stop[] = [
@@ -190,9 +156,8 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-/** Color for a star rating, interpolated along the osu! difficulty spectrum. */
 export function starColor(star: number): string {
-  if (star <= 0.05) return "#aaaaaa"; // unmapped / empty
+  if (star <= 0.05) return "#aaaaaa";
   if (star <= SPECTRUM[0].star) return rgb(SPECTRUM[0].color);
   const last = SPECTRUM[SPECTRUM.length - 1];
   if (star >= last.star) return rgb(last.color);
@@ -216,7 +181,6 @@ function rgb([r, g, b]: [number, number, number]): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-// ---- Named tiers (ranges from the osu! difficulty spectrum chart) ----------
 export function starTier(star: number): string {
   if (star < 2.0) return "Easy";
   if (star < 2.7) return "Normal";

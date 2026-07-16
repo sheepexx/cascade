@@ -6,15 +6,6 @@ import type { CollabOp } from "../lib/ops";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-/**
- * Send a broadcast over the Realtime REST endpoint (not the WebSocket).
- *
- * In the browser the WS `channel.send()` / `track()` intermittently can't push
- * (the channel leaves the `joined` state) and silently fails, so note ops and
- * presence never reach peers. Posting here with the signed-in user's token is
- * reliable (202) and the message is still delivered to every WS subscriber of
- * the topic — so we SEND over REST and RECEIVE over the WebSocket.
- */
 function restBroadcast(projectId: string, event: string, payload: unknown): void {
   if (!SUPABASE_URL || !projectId) return;
   const token = getSupabaseToken() ?? SUPABASE_ANON;
@@ -30,23 +21,6 @@ function restBroadcast(projectId: string, event: string, payload: unknown): void
     }),
   }).catch(() => {});
 }
-
-/**
- * Realtime co-op session for one cloud project.
- *
- * Joins a private `project:<id>` channel and provides:
- *  - granular note-op broadcast (`sendOp`) + receive (`onRemoteOp`),
- *  - cloud-backed structural sync: `sendRefresh()` pings peers (`onRefresh`) to
- *    re-pull the chart from the cloud after a structural change or the join
- *    handoff — the whole document never goes over the wire, so it can't hit
- *    Realtime's broadcast size limit on large maps,
- *  - presence (who's online + where they're working).
- *
- * Presence is implemented as periodic `presence` broadcasts (a heartbeat) plus a
- * prune timer, rather than Supabase Presence, because Presence rides the same
- * unreliable WS push. On join it asks peers to flush the freshest chart to the
- * cloud (`sync.request`); a present editor answers by saving + `sendRefresh()`.
- */
 
 export type Peer = {
   id: string;
@@ -70,12 +44,9 @@ type PresenceFields = {
 
 type Me = { id: string; username: string; avatar: string | null };
 
-/** How often we re-announce our presence (keep-alive). */
 const HEARTBEAT_MS = 3000;
-/** Drop a peer we haven't heard from in this long (≈3 missed heartbeats). */
 const PEER_TTL_MS = 9000;
 
-/** Deterministic, readable color per user id. */
 export function colorForId(id: string): string {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
@@ -87,22 +58,16 @@ export function useCollab(opts: {
   enabled: boolean;
   me: Me | null;
   onRemoteOp: (op: CollabOp) => void;
-  /** A peer signalled a structural change — re-pull the chart from the cloud. */
   onRefresh: () => void;
-  /** A newcomer asked for the latest — flush our chart to the cloud + ping. */
   onSyncRequest: () => void;
-  /** A collaborator appeared (after we joined) — for join notifications. */
   onPeerJoin?: (peer: Peer) => void;
-  /** A collaborator left. */
   onPeerLeave?: (peer: Peer) => void;
-  /** A collaborator announced something (e.g. changed the audio/background). */
   onNotice?: (notice: { text: string; avatar: string | null }) => void;
 }) {
   const { projectId, enabled, me } = opts;
   const [status, setStatus] = useState<CollabStatus>("idle");
   const [peers, setPeers] = useState<Peer[]>([]);
 
-  // Keep callbacks/state on refs so the channel effect runs once per project.
   const onRemoteOpRef = useRef(opts.onRemoteOp);
   onRemoteOpRef.current = opts.onRemoteOp;
   const onRefreshRef = useRef(opts.onRefresh);
@@ -120,12 +85,8 @@ export function useCollab(opts: {
   const presenceRef = useRef<PresenceFields>({});
   const meRef = useRef<Me | null>(me);
   meRef.current = me;
-  // id -> peer + last-seen timestamp (for prune-based leave detection).
   const peersRef = useRef<Map<string, Peer & { lastSeen: number }>>(new Map());
-  // Suppress join toasts for peers discovered in the first moment after we join
-  // (they were already here, answering our arrival — not genuinely joining).
   const readyAtRef = useRef(0);
-  // Throttle outgoing presence broadcasts (playhead updates fire often).
   const lastPresenceSendRef = useRef(0);
 
   useEffect(() => {
@@ -140,17 +101,10 @@ export function useCollab(opts: {
     setPeers([]);
     const myColor = colorForId(me.id);
 
-    // Lifecycle for this effect run. The channel is rebuilt on transient errors
-    // (a just-invited collaborator can hit a Realtime RLS race, or the socket
-    // can blip), so a failed join self-heals instead of needing a page reload.
     let disposed = false;
     let channel: RealtimeChannel | null = null;
     let reconnectTimer: number | undefined;
     let attempt = 0;
-    // Join handoff: ask a present peer to flush the freshest chart to the cloud
-    // and ping us back, so we re-pull it. The very first request can race a peer
-    // that hasn't subscribed yet, so retry it (on a timer and whenever a peer
-    // first appears) until a refresh ping actually arrives.
     let gotJoinDoc = false;
     const joinSyncTimers: number[] = [];
 
@@ -187,9 +141,6 @@ export function useCollab(opts: {
       if (disposed || reconnectTimer !== undefined) return;
       const delay = Math.min(1000 * 2 ** attempt, 15000);
       attempt += 1;
-      // Keep the optimistic "Connecting…" for the first few tries (covers the
-      // common transient race); surface a hard failure after that, but keep
-      // retrying so it still self-heals once Realtime/connectivity recovers.
       setStatus(attempt >= 5 ? "error" : "connecting");
       reconnectTimer = window.setTimeout(() => {
         reconnectTimer = undefined;
@@ -208,23 +159,18 @@ export function useCollab(opts: {
 
       ch.on("broadcast", { event: "op" }, ({ payload }) => {
         const p = payload as CollabOp & { _from?: string };
-        if (p?._from && p._from === meRef.current?.id) return; // ignore own echo
+        if (p?._from && p._from === meRef.current?.id) return;
         onRemoteOpRef.current(p as CollabOp);
       });
-      // A peer signalled a structural change (or answered our join handoff): the
-      // fresh chart is already in the cloud, so re-pull it. Carries no document.
       ch.on("broadcast", { event: "doc.bump" }, ({ payload }) => {
         if ((payload as { _from?: string })?._from === meRef.current?.id) return;
-        gotJoinDoc = true; // handoff satisfied (or a live structural update)
+        gotJoinDoc = true;
         onRefreshRef.current();
       });
-      // A newcomer wants the latest: flush our in-memory chart to the cloud and
-      // ping back (the App's handler owns the save + sendRefresh).
       ch.on("broadcast", { event: "sync.request" }, ({ payload }) => {
         if ((payload as { _from?: string })?._from === meRef.current?.id) return;
         onSyncRequestRef.current();
       });
-      // Presence over broadcast: a peer announced itself (or its position moved).
       ch.on("broadcast", { event: "presence" }, ({ payload }) => {
         const p = payload as Peer;
         if (!p?.id || p.id === meRef.current?.id) return;
@@ -233,8 +179,6 @@ export function useCollab(opts: {
         map.set(p.id, { ...p, lastSeen: Date.now() });
         publishPeers();
         if (isNew) {
-          // Let the newcomer learn about us too, and (re)pull the doc — this peer
-          // may hold edits our initial sync.request raced ahead of.
           broadcastPresence();
           requestSync();
           if (Date.now() >= readyAtRef.current) onPeerJoinRef.current?.(p);
@@ -249,7 +193,6 @@ export function useCollab(opts: {
           onPeerLeaveRef.current?.(peer);
         }
       });
-      // A peer announced an action (e.g. changed the audio/background).
       ch.on("broadcast", { event: "notice" }, ({ payload }) => {
         const p = payload as {
           text?: string;
@@ -261,16 +204,14 @@ export function useCollab(opts: {
       });
 
       ch.subscribe((s, err) => {
-        if (disposed || channel !== ch) return; // ignore stale-channel callbacks
+        if (disposed || channel !== ch) return;
         if (s === "SUBSCRIBED") {
           attempt = 0;
           setStatus("connected");
           readyAtRef.current = Date.now() + 1500;
-          broadcastPresence(); // announce our arrival
-          startJoinSync(); // pull freshest doc, with retries
+          broadcastPresence();
+          startJoinSync();
         } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") {
-          // Rebuild the channel rather than giving up (scheduleReconnect owns the
-          // status + backoff).
           console.warn(
             `[collab] channel ${s} for project:${projectId} — reconnecting`,
             err ?? "",
@@ -283,9 +224,7 @@ export function useCollab(opts: {
 
     connect();
 
-    // Heartbeat: keep peers aware we're still here.
     const heartbeat = window.setInterval(broadcastPresence, HEARTBEAT_MS);
-    // Prune: drop peers we haven't heard from (ungraceful leave / closed tab).
     const pruner = window.setInterval(() => {
       const now = Date.now();
       let changed = false;
@@ -301,7 +240,7 @@ export function useCollab(opts: {
 
     return () => {
       disposed = true;
-      restBroadcast(projectId, "presence.leave", { id: me.id }); // best-effort
+      restBroadcast(projectId, "presence.leave", { id: me.id });
       window.clearInterval(heartbeat);
       window.clearInterval(pruner);
       if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
@@ -312,8 +251,6 @@ export function useCollab(opts: {
       setStatus("idle");
       setPeers([]);
     };
-    // Re-subscribe only when the project, enabled flag, or user identity changes
-    // (not on every render — `me` is recreated each render by the parent).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, enabled, me?.id]);
 
@@ -321,12 +258,10 @@ export function useCollab(opts: {
     if (!projectId) return;
     restBroadcast(projectId, "op", { ...op, _from: meRef.current?.id });
   };
-  /** Ping peers to re-pull the chart from the cloud (after saving it there). */
   const sendRefresh = () => {
     if (!projectId) return;
     restBroadcast(projectId, "doc.bump", { _from: meRef.current?.id });
   };
-  /** Announce an action to peers (shown as a transient toast on their side). */
   const sendNotice = (text: string) => {
     const m = meRef.current;
     if (!projectId || !m) return;
@@ -339,8 +274,6 @@ export function useCollab(opts: {
     presenceRef.current = { ...prev, ...fields };
     const m = meRef.current;
     if (!projectId || !m) return;
-    // Broadcast immediately on a difficulty switch; otherwise throttle (playhead
-    // moves fire ~2×/s) and let the heartbeat carry the latest position.
     if (diffChanged || Date.now() - lastPresenceSendRef.current > 900) {
       lastPresenceSendRef.current = Date.now();
       restBroadcast(projectId, "presence", {

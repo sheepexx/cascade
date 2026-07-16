@@ -3,13 +3,11 @@ import { Modal } from "../ui/Modal";
 
 type Props = {
   open: boolean;
-  /** Preview of the just-added image. */
   previewUrl: string | null;
   onChoose: (scope: BackgroundScope) => void;
   onClose: () => void;
 };
 
-/** Asks whether a newly added background covers the whole set or one diff. */
 export function BackgroundScopeModal({
   open,
   previewUrl,

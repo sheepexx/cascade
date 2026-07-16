@@ -21,7 +21,6 @@
       content="mania editor, online mania editor, osu mania editor, osu!mania editor, osu mania map preview, osu!mania map preview, mania map viewer, osu mania map viewer, osu!mania beatmap editor, .osu editor, .osz editor, arrowvortex, arrow vortex, StepMania editor, stepmania editor, Etterna editor, etterna editor, VSRG editor, rhythm game editor, beatmap converter, mania converter, osu to Etterna, osu to etterna, osu mania to Etterna, osu mania to StepMania, osu to StepMania, .sm editor, .sm converter, StepMania chart editor, Etterna chart editor, osu mania pack creator, osu song pack maker, combine osu maps, merge osz files, osu mania song pack"
     />
 
-    <!-- Open Graph / social cards -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cascade" />
     <meta property="og:title" content="Cascade | Online osu!mania Editor and Map Viewer" />
@@ -87,16 +86,7 @@
         ]
       }
     </script>
-    <!--
-      osu!lazer typeface. The UI font is Torus (with Torus-Alternate); these are
-      proprietary and loaded from /fonts only if you provide the licensed files
-      (see public/fonts/README.md) or have them installed. Inter - also part of
-      lazer's font set and freely licensed - is the fallback and is self-hosted
-      via the @fontsource/inter package (imported in src/main.tsx), so there is
-      no render-blocking Google Fonts request.
-    -->
 
-    <!-- FAQ rich-result data; mirrors the visible FAQ in the boot section. -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -154,7 +144,6 @@
       }
     </script>
 
-    <!-- HowTo rich-result data: "How to make an osu!mania map". -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -188,15 +177,6 @@
       }
     </script>
 
-    <!--
-      Boot screen + crawlable landing content. The visible part is a minimal
-      loading screen (logo + spinner) on the exact app background, so the brief
-      hand-off to the app reads as loading, not as a separate landing screen.
-      The keyword-rich copy below sits under the fold: users never see it in the
-      split second before the app mounts, but search engines, social scrapers
-      and no-JS clients still get real, indexable content. #boot is removed by
-      src/main.tsx once React has painted.
-    -->
     <style>
       #boot {
         position: fixed;
@@ -258,12 +238,7 @@
     <div id="root"></div>
 
     <div id="boot">
-      <!--
-        Empty full-viewport spacer on the app's own background: the split-second
-        before React paints looks like nothing (matching the app), not a loading
-        screen. The keyword-rich content below stays out of view (and off the
-        first paint) but remains in the document for crawlers / no-JS clients.
-      -->
+
       <div class="boot-screen" aria-hidden="true"></div>
 
       <section class="boot-seo">

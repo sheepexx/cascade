@@ -22,13 +22,10 @@ type Props = {
   onImportOsz: (f: File) => void;
   onImportSm?: (f: File) => void;
   onImportSmPack?: () => void;
-  /** Currently active difficulty — used to detect SM maps and read smMeta. */
   activeDiff?: Difficulty;
-  /** Called with the updated smMeta whenever an SM field changes. */
   onSmMeta?: (sm: SmMeta) => void;
 };
 
-/** Audio / background files + song metadata. (No timing, no difficulty.) */
 export function SettingsModal({
   open,
   onClose,
@@ -267,7 +264,6 @@ export function SettingsModal({
           </p>
         </section>
 
-        {/* ── StepMania-specific metadata — only shown for SM maps ── */}
         {isSm && onSmMeta && (
           <section className="flex flex-col gap-3 rounded-xl border border-pink-500/20 bg-pink-500/5 p-4">
             <div className="flex items-center gap-2">

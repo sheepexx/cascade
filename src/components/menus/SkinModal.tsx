@@ -4,13 +4,6 @@ import type { SavedSkinBlob } from "../../lib/persistence";
 import { Modal } from "../ui/Modal";
 import { Button, FileButton } from "../ui/Controls";
 
-/**
- * Preset skins are the `.osk` archives kept in the project's `/skin/` folder.
- * Vite resolves each one to a served URL at build time, so dropping a new
- * `.osk` in that folder makes it appear here automatically.
- */
-// Relative (not root-absolute "/skin/*.osk") so Vite's dev server resolves the
-// path correctly on Windows; rollup handles both forms at build time.
 const PRESET_MODULES = import.meta.glob("../../../skin/*.osk", {
   eager: true,
   query: "?url",
@@ -24,7 +17,6 @@ const PRESET_SKINS = Object.entries(PRESET_MODULES)
   })
   .sort((a, b) => a.name.localeCompare(b.name));
 
-/** osu! profile links for known skin authors, keyed by lower-cased name. */
 const AUTHOR_PROFILES: Record<string, string> = {
   kxxn: "https://osu.ppy.sh/users/26595459",
   retsukiya: "https://osu.ppy.sh/users/1326008",
@@ -37,7 +29,6 @@ type Props = {
   hitsoundSource: HitsoundSkinSource;
   hitsoundSkin: LoadedSkin | null;
   savedSkins: SavedSkinBlob[];
-  /** Key count of the difficulty currently being edited. */
   activeKeyCount: number;
   onApplyPreset: (
     url: string,
@@ -55,11 +46,6 @@ type Props = {
   error: string | null;
 };
 
-/**
- * Pick the playfield skin: apply one of the bundled preset skins or upload a
- * personal osu! `.osk`. The chosen skin's lane colours and note sprites are
- * used to render the playfield.
- */
 export function SkinModal({
   open,
   onClose,
@@ -127,7 +113,6 @@ export function SkinModal({
             Preset skins
           </h3>
           <div className="flex flex-col gap-2">
-            {/* The built-in default look, selected when no skin is loaded. */}
             <button
               onClick={onClearSkin}
               disabled={loadingName !== null}

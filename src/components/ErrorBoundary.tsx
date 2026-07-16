@@ -1,14 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
-/**
- * Top-level error boundary. A render/runtime error anywhere in the tree would
- * otherwise unmount the whole app and leave a blank page — costly in an editor
- * where the user may have unsaved work. This catches it and offers a reload,
- * keeping the failure contained and visible instead of silent.
- *
- * Deliberately self-contained: it imports nothing from the app beyond React, so
- * the fallback can render even if app modules are what failed.
- */
 type Props = { children: ReactNode };
 type State = { error: Error | null };
 

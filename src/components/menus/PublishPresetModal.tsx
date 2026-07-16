@@ -10,10 +10,6 @@ import {
 } from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
 
-/**
- * Publish a copied pattern as a shared preset. Submitting creates a `pending`
- * preset for an admin to approve.
- */
 export function PublishPresetModal({
   open,
   onClose,

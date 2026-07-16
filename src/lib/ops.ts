@@ -1,17 +1,5 @@
 import type { Difficulty, ManiaNote, SongMeta, TimingPoint } from "../types";
 
-/**
- * Collaborative edit operations.
- *
- * Note edits (the frequent, concurrency-sensitive ones) are granular ops keyed
- * by note id, so two people editing the same difficulty converge under
- * last-write-wins per note. They are also invertible, which powers personal
- * synced undo. Structural changes (metadata, timing, difficulty add/remove/
- * rename) are infrequent and instead sync the whole document as a `DocState`
- * (see useCollab's doc-sync), so they don't need per-op inverses.
- */
-
-/** The shared, undoable document (matches App's note/timing/meta state). */
 export type DocState = {
   meta: SongMeta;
   timingPoints: TimingPoint[];
@@ -23,7 +11,6 @@ export type NoteOp =
   | { t: "note.remove"; diffId: string; notes: ManiaNote[] }
   | { t: "note.update"; diffId: string; before: ManiaNote[]; after: ManiaNote[] };
 
-/** The trim/fade fields that sync as a granular per-difficulty op. */
 export type DiffField = "trimStartMs" | "trimEndMs" | "fadeInMs" | "fadeOutMs";
 const DIFF_FIELDS: readonly DiffField[] = [
   "trimStartMs",
@@ -32,24 +19,14 @@ const DIFF_FIELDS: readonly DiffField[] = [
   "fadeOutMs",
 ];
 
-/**
- * A granular update to a difficulty's playback-region fields (trim brackets +
- * fades). These are dragged continuously, so — like note edits — they sync as a
- * small op (just the changed fields) instead of a whole-document broadcast, so
- * a drag can't flood the channel or clobber a peer's concurrent note edits.
- * `null` clears the field (drops back to the song boundary / no fade); JSON
- * keeps `null` where it would drop `undefined`.
- */
 export type DiffFieldOp = {
   t: "diff.fields";
   diffId: string;
   fields: Partial<Record<DiffField, number | null>>;
 };
 
-/** Any op broadcast over the live "op" channel. */
 export type CollabOp = NoteOp | DiffFieldOp;
 
-/** Apply a diff-field op, returning a new array. */
 export function applyDiffFieldOp(
   difficulties: Difficulty[],
   op: DiffFieldOp,
@@ -67,7 +44,6 @@ export function applyDiffFieldOp(
   });
 }
 
-/** Apply any collab op (note or diff-field), returning a new array. */
 export function applyOp(
   difficulties: Difficulty[],
   op: CollabOp,
@@ -77,7 +53,6 @@ export function applyOp(
     : applyNoteOp(difficulties, op);
 }
 
-/** Apply a note op to a difficulties array, returning a new array. */
 export function applyNoteOp(
   difficulties: Difficulty[],
   op: NoteOp,
@@ -102,7 +77,6 @@ export function applyNoteOp(
   });
 }
 
-/** The inverse of a note op (for undo / redo). */
 export function invertNoteOp(op: NoteOp): NoteOp {
   switch (op.t) {
     case "note.add":

@@ -1,19 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
 
-/**
- * mania-editor auth Worker.
- *
- * Handles the osu! OAuth dance (no Supabase Auth provider exists for osu!) and
- * mints a Supabase-compatible JWT so the browser can talk to Supabase directly
- * under Row-Level Security. The user identity lives in `public.users`; the
- * minted token's `sub` is that row's id, which RLS reads as `auth.uid()`.
- *
- * Session: an httpOnly cookie (signed JWT, `COOKIE_SECRET`) holding the user id.
- * Because the app (Vercel) and this Worker are different sites, the cookie is
- * `SameSite=None; Secure` and every response carries credentialed CORS for
- * `FRONTEND_URL`.
- */
-
 interface Env {
   CLIENT_ID: string;
   CLIENT_SECRET: string;
@@ -37,7 +23,7 @@ type DbUser = {
 const SESSION_COOKIE = "me_session";
 const STATE_COOKIE = "me_oauth_state";
 const SESSION_TTL_DAYS = 30;
-const SUPABASE_TOKEN_TTL_SECONDS = 60 * 60; // 1h
+const SUPABASE_TOKEN_TTL_SECONDS = 60 * 60;
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -66,8 +52,6 @@ export default {
     }
   },
 };
-
-// ---- Routes ---------------------------------------------------------------
 
 async function handleLogin(env: Env): Promise<Response> {
   const state = crypto.randomUUID();
@@ -102,7 +86,6 @@ async function handleCallback(
     ]);
   }
 
-  // 1. Exchange the code for an osu! access token.
   const tokenRes = await fetch("https://osu.ppy.sh/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -121,7 +104,6 @@ async function handleCallback(
   }
   const { access_token } = (await tokenRes.json()) as { access_token: string };
 
-  // 2. Fetch the osu! profile.
   const meRes = await fetch("https://osu.ppy.sh/api/v2/me", {
     headers: { Authorization: `Bearer ${access_token}` },
   });
@@ -136,14 +118,12 @@ async function handleCallback(
     avatar_url?: string;
   };
 
-  // 3. Upsert the user (service role bypasses RLS).
   const user = await upsertUser(env, {
     osu_id: me.id,
     username: me.username,
     avatar_url: me.avatar_url ?? null,
   });
 
-  // 4. Set the session cookie and bounce back to the app.
   const session = await signSession(env, user.id);
   return redirect(`${env.FRONTEND_URL}/?auth=ok`, env, [
     cookie(STATE_COOKIE, "", { maxAge: 0 }),
@@ -178,8 +158,6 @@ function handleLogout(env: Env): Response {
     cookie(SESSION_COOKIE, "", { maxAge: 0 }),
   ]);
 }
-
-// ---- Supabase REST (service role) -----------------------------------------
 
 async function upsertUser(
   env: Env,
@@ -223,9 +201,6 @@ async function fetchUser(env: Env, id: string): Promise<DbUser | null> {
   return rows[0] ?? null;
 }
 
-// ---- Token helpers --------------------------------------------------------
-
-/** Mint the Supabase access token the browser uses for RLS-scoped requests. */
 async function mintSupabaseToken(env: Env, user: DbUser): Promise<string> {
   const secret = new TextEncoder().encode(env.SUPABASE_JWT_SECRET);
   return new SignJWT({
@@ -258,8 +233,6 @@ async function verifySession(env: Env, token: string): Promise<string | null> {
     return null;
   }
 }
-
-// ---- HTTP helpers ---------------------------------------------------------
 
 function cors(env: Env): Record<string, string> {
   return {

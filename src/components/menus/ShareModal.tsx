@@ -11,11 +11,6 @@ import {
 } from "../../lib/collab";
 import { playUiSound } from "../../lib/uiSounds";
 
-/**
- * Owner-only sharing panel: invite osu! users by username, grant Editor/Viewer,
- * change roles, or remove collaborators. Role changes propagate live to active
- * sessions via the project_collaborators Realtime subscription (see useCollab).
- */
 export function ShareModal({
   open,
   onClose,

@@ -1,9 +1,5 @@
 import type { PatternNote } from "../../lib/patterns";
 
-/**
- * Tiny SVG thumbnail of a pattern: lanes across, time vertical. Mirrors the
- * editor's clipboard preview so presets read the same way.
- */
 export function PatternPreview({
   pattern,
   keyCount,

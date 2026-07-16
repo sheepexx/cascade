@@ -9,7 +9,6 @@ type Props = {
   onDifficulty: (d: Difficulty) => void;
 };
 
-/** Per-difficulty settings: name, key count, HP, OD. */
 export function DifficultyModal({
   open,
   onClose,

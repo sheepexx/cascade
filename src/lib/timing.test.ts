@@ -97,10 +97,10 @@ describe("kiaiRanges", () => {
 });
 
 describe("snapTime / snapIntervalAt", () => {
-  const points = [makeRedPoint(0, 120)]; // beat = 500ms
+  const points = [makeRedPoint(0, 120)];
 
   it("computes the snap cell length for a divisor", () => {
-    expect(snapIntervalAt(0, points, 4)).toBe(125); // 1/4 of 500ms
+    expect(snapIntervalAt(0, points, 4)).toBe(125);
     expect(snapIntervalAt(0, points, 1)).toBe(500);
   });
 
@@ -112,7 +112,7 @@ describe("snapTime / snapIntervalAt", () => {
 });
 
 describe("stepToSnap", () => {
-  const points = [makeRedPoint(0, 120)]; // 1/4 cell = 125ms
+  const points = [makeRedPoint(0, 120)];
 
   it("advances by one cell when already on a line", () => {
     expect(stepToSnap(0, points, 4, 1)).toBe(125);
@@ -127,7 +127,7 @@ describe("stepToSnap", () => {
 
 describe("gridLinesInRange", () => {
   it("emits one line per snap cell with a barline at the bar boundary", () => {
-    const points = [makeRedPoint(0, 120, { meter: 4 })]; // 1/4 = 125ms
+    const points = [makeRedPoint(0, 120, { meter: 4 })];
     const lines = gridLinesInRange(0, 1000, points, 4);
     expect(lines.map((l) => l.time)).toEqual([
       0, 125, 250, 375, 500, 625, 750, 875, 1000,
@@ -144,7 +144,6 @@ describe("gridLinesInRange", () => {
 
   it("switches tempo at the next red point", () => {
     const points = [makeRedPoint(0, 120), makeRedPoint(500, 240)];
-    // After 500ms, beat halves to 250ms, so 1/1 lines are every 250ms.
     const lines = gridLinesInRange(0, 1000, points, 1).map((l) => l.time);
     expect(lines).toEqual([0, 500, 750, 1000]);
   });

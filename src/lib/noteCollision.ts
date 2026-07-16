@@ -6,16 +6,13 @@ function noteEnd(note: ManiaNote): number {
     : note.startTime;
 }
 
-/** Whether two notes occupy the same column/time space. */
 export function notesCollide(a: ManiaNote, b: ManiaNote): boolean {
   if (a.id === b.id || a.column !== b.column) return false;
   const aEnd = noteEnd(a);
   const bEnd = noteEnd(b);
 
-  // Rice/rice duplicates, LN heads at the same time, and rice on an LN head.
   if (a.startTime === b.startTime) return true;
 
-  // Long notes occupy [start, end). A rice note exactly on an LN tail is OK.
   return a.startTime < bEnd && b.startTime < aEnd;
 }
 
@@ -35,7 +32,6 @@ export function hasNoteCollisions(notes: ManiaNote[]): boolean {
   return false;
 }
 
-/** Keep notes that do not collide with existing notes or earlier accepted notes. */
 export function withoutNoteCollisions(
   notes: ManiaNote[],
   existing: ManiaNote[],

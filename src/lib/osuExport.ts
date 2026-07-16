@@ -8,26 +8,10 @@ import type {
 import { makeRedPoint, svToBeatLength } from "../types";
 import { sortedPoints } from "./timing";
 
-/**
- * osu!mania export.
- *
- *  - Mode: 3            -> osu!mania
- *  - CircleSize         -> key count (1..18)
- *  - y in HitObjects    -> always 192 for mania
- *  - x in HitObjects    -> floor((col + 0.5) * 512 / keys)  → 0..512
- *  - Normal note type   -> 1
- *  - Long note type     -> 128, with the end time prefixed onto the hitSample:
- *                          "x,192,start,128,0,END:0:0:0:0:"
- *  - Every uninherited timing point is written; the first point's time is the
- *    offset. (Scroll speed / SV is a player-side choice and is not exported.)
- */
-
-/** osu!-compatible X position (0..512) for a column. */
 export function columnToX(column: number, keyCount: number): number {
   return Math.floor((column + 0.5) * 512 / keyCount);
 }
 
-/** Inverse: figure out which column an X belongs to (used when importing). */
 export function xToColumn(x: number, keyCount: number): number {
   const col = Math.floor((x * keyCount) / 512);
   return Math.max(0, Math.min(keyCount - 1, col));
@@ -38,7 +22,6 @@ function formatHitObject(note: ManiaNote, keyCount: number): string {
   const y = 192;
   const time = Math.round(note.startTime);
   const hitSound = note.hitSound ?? 0;
-  // hitSample: normalSet:additionSet:index:volume:filename
   const sample = [
     note.sampleSet ?? 0,
     note.additionSet ?? 0,
@@ -61,11 +44,9 @@ export type BuildOsuArgs = {
   audioFilename: string;
   backgroundFilename?: string;
   videoFilename?: string;
-  /** Video event startTime in ms (how far into the song the video begins). */
   videoOffsetMs?: number;
 };
 
-/** Produce the full text content of a `.osu` difficulty file. */
 export function buildOsuFile({
   meta,
   difficulty,
@@ -80,11 +61,6 @@ export function buildOsuFile({
   );
   const offset = Math.round(points[0].time);
 
-  // time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited,effects
-  // Red points carry beatLength = 60000/bpm and uninherited = 1; green points
-  // carry the inherited (negative) beatLength = -100/sv and uninherited = 0.
-  // Scroll speed / SV here is the *map* SV (green points), which is real
-  // gameplay data - the editor-only preview scroll speed is never written.
   const timingLines = points.map((p) => {
     const beatLengthMs = p.uninherited
       ? 60000 / p.bpm
@@ -124,7 +100,7 @@ export function buildOsuFile({
     formatHitObject(n, difficulty.keyCount),
   );
 
-  void offset; // offset is implicit via the first timing point's time.
+  void offset;
 
   const lines = [
     "osu file format v14",
@@ -185,24 +161,20 @@ export function buildOsuFile({
   return lines.join("\n");
 }
 
-/** Sanitize a string so it is safe to use inside a filename. */
 function sanitize(s: string): string {
   return s.replace(/[\\/:*?"<>|]/g, "").trim() || "untitled";
 }
 
-/** Standard osu! difficulty filename: Artist - Title (Creator) [Diff].osu */
 export function osuFilename(meta: SongMeta, difficulty: Difficulty): string {
   return `${sanitize(meta.artist)} - ${sanitize(meta.title)} (${sanitize(
     meta.creator,
   )}) [${sanitize(difficulty.name)}].osu`;
 }
 
-/** Filename for the beatmap set (used for the .osz). */
 export function setFilename(meta: SongMeta): string {
   return `${sanitize(meta.artist)} - ${sanitize(meta.title)}.osz`;
 }
 
-/** Trigger a browser download for a single standalone `.osu` file. */
 export function downloadOsu(args: BuildOsuArgs): void {
   const content = buildOsuFile(args);
   const blob = new Blob([content], { type: "text/plain" });

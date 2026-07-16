@@ -1,11 +1,5 @@
 import { supabase } from "./supabase";
 
-/**
- * Admin-only data access. Every call is authorized by the `is_admin()` RLS
- * policies in the database (the signed-in admin's minted token), so no separate
- * privileged endpoint is required.
- */
-
 export type AdminUser = {
   id: string;
   osu_id: number;

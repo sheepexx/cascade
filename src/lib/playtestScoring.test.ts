@@ -19,7 +19,7 @@ describe("addJudgement", () => {
     const base = counts({});
     const next = addJudgement(base, "300");
     expect(next["300"]).toBe(1);
-    expect(base["300"]).toBe(0); // original untouched
+    expect(base["300"]).toBe(0);
   });
 });
 
@@ -39,7 +39,6 @@ describe("accuracyFromCounts", () => {
   });
 
   it("computes the weighted osu!mania accuracy", () => {
-    // one 300 (300) + one 100 (100) over 2 notes => 400 / 600 = 66.67%
     expect(accuracyFromCounts(counts({ "300": 1, "100": 1 }))).toBeCloseTo(
       66.6667,
       3,
@@ -57,7 +56,6 @@ describe("scoreFromResults", () => {
   });
 
   it("scores a 300 below MAX (320 weight)", () => {
-    // 300 / 320 * 1e6
     expect(scoreFromResults([result("300")])).toBe(937_500);
   });
 

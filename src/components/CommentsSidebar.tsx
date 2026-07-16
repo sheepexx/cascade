@@ -9,7 +9,6 @@ import {
   type Comment,
 } from "../lib/comments";
 
-/** Format ms as m:ss:mmm (osu! timestamp style). */
 function fmt(ms: number): string {
   const sign = ms < 0 ? "-" : "";
   const t = Math.abs(Math.round(ms));
@@ -19,10 +18,6 @@ function fmt(ms: number): string {
   return `${sign}${m}:${String(s).padStart(2, "0")}:${String(milli).padStart(3, "0")}`;
 }
 
-/**
- * Google-Docs-style threaded, resolvable comments anchored to song timestamps.
- * Lives as a right-side drawer; markers also show on the bottom timeline.
- */
 export function CommentsSidebar({
   open,
   onClose,
@@ -43,9 +38,7 @@ export function CommentsSidebar({
   activeDiffId: string;
   onSeek: (ms: number) => void;
   canModerate: boolean;
-  /** Project owner's user id, to badge their comments as "Host". */
   ownerId: string | null;
-  /** Notifies the parent of the latest comments (for timeline markers). */
   onCommentsChange?: (comments: Comment[]) => void;
 }) {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -107,8 +100,6 @@ export function CommentsSidebar({
 
   const canModify = (c: Comment) => canModerate || c.author === me.id;
 
-  // Stays mounted (hidden when closed) so its subscription keeps the timeline
-  // comment markers up to date even while the panel isn't shown.
   return (
     <div
       className={`absolute right-0 top-0 z-40 flex h-full w-80 flex-col border-l border-ink-600 bg-ink-800/95 backdrop-blur ${
@@ -136,7 +127,6 @@ export function CommentsSidebar({
         </div>
       </header>
 
-      {/* New comment at playhead */}
       <div className="border-b border-ink-600 p-3">
         <textarea
           value={body}

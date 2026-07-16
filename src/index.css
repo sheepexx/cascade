@@ -2,15 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * osu!lazer typeface - Torus / Torus-Alternate.
- *
- * These are proprietary and not redistributed with the project. Each face is
- * resolved first from a locally installed copy, then from /fonts (drop the
- * licensed .woff2 files there - see public/fonts/README.md). When neither is
- * present the stack falls through to Inter, which lazer also ships and which
- * is self-hosted via the @fontsource/inter package (imported in src/main.tsx).
- */
 @font-face {
   font-family: "Torus";
   src: local("Torus Regular"), local("Torus"), url("/fonts/Torus-Regular.woff2") format("woff2");
@@ -45,7 +36,7 @@
 
 :root {
   color-scheme: dark;
-  /* Shared osu!lazer font stack; mirror in tailwind.config.js + canvas text. */
+
   --font-osu: "Torus", "Torus-Alternate", "Inter", ui-sans-serif, system-ui,
     -apple-system, "Segoe UI", Roboto, sans-serif;
 }
@@ -94,7 +85,6 @@ body {
   user-select: text;
 }
 
-/* Slim scrollbars to match the dark UI */
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -122,7 +112,6 @@ textarea {
   outline: none;
 }
 
-/* ---- Modal enter/exit animations ---------------------------------------- */
 @keyframes modal-backdrop-in {
   from {
     opacity: 0;
@@ -173,7 +162,6 @@ textarea {
   animation: modal-panel-out 220ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
-/* ---- Timeline peer avatar hover popover -------------------------------- */
 @keyframes pfp-pop-in {
   from {
     opacity: 0;
@@ -189,7 +177,6 @@ textarea {
   transform-origin: bottom center;
 }
 
-/* ---- Toast / notification animations ----------------------------------- */
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -200,8 +187,7 @@ textarea {
     transform: translate(-50%, 0) scale(1);
   }
 }
-/* Centered toasts already use -translate-x-1/2; this keeps that X offset while
-   sliding up + fading in. */
+
 .toast-in {
   animation: toast-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -233,7 +219,6 @@ textarea {
   animation: notif-out 200ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
-/* ---- Tap-tempo pad ring (one-shot on each tap) ------------------------- */
 @keyframes tap-ring {
   from {
     opacity: 0.55;
@@ -248,7 +233,6 @@ textarea {
   animation: tap-ring 400ms ease-out forwards;
 }
 
-/* ---- Full-screen map loading overlay ----------------------------------- */
 @keyframes loader-fade-in {
   from {
     opacity: 0;
@@ -305,7 +289,6 @@ textarea {
   animation: loader-logo-pulse 1700ms ease-in-out infinite;
 }
 
-/* ---- Scroll-direction switch (Settings) -------------------------------- */
 @keyframes scroll-dir-in-up {
   from {
     opacity: 0;
@@ -333,7 +316,6 @@ textarea {
   animation: scroll-dir-in-down 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ---- Playtest HUD ------------------------------------------------------- */
 @keyframes playtest-judgement-pop {
   0% {
     opacity: 0;

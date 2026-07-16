@@ -168,7 +168,6 @@ describe("rewriteOsuForPack", () => {
     expect(parsed.meta.tags).toContain("jumpstream");
     expect(parsed.meta.tags).toContain("Orig Artist");
     expect(out).toMatch(/^BeatmapSetID:-1$/m);
-    // Chart data untouched.
     expect(parsed.difficulty.notes).toHaveLength(1);
     expect(parsed.difficulty.notes[0].startTime).toBe(100);
   });

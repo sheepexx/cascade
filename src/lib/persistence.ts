@@ -15,29 +15,16 @@ import type {
   TimingPoint,
 } from "../types";
 
-/**
- * Local project persistence via IndexedDB.
- *
- * The whole working project - metadata, timing, every difficulty, the view
- * state, *and* the raw audio / background bytes - is stored as a single record.
- * IndexedDB is used instead of localStorage because audio files are Blobs that
- * are both too large for localStorage's ~5 MB budget and not JSON-serializable.
- */
-
 const DB_NAME = "mania-editor";
 const STORE = "project";
 const KEY = "current";
-/** Key (in the same store) for the site-level editor skin blob. */
 const SKIN_KEY = "skin";
 const HITSOUND_SKIN_KEY = "skin:hitsounds";
 const SKIN_LIBRARY_KEY = "skin:library";
 const VERSION = 1;
 
-/** localStorage key for the small, JSON-serialisable site preferences. */
 const PREFS_KEY = "mania-editor:prefs";
-/** localStorage key for the playback volume (perceived slider position 0..1). */
 const VOLUME_KEY = "mania-editor:volume";
-/** localStorage key for editor view controls such as snap and scroll speed. */
 const VIEW_KEY = "mania-editor:view";
 const HITSOUND_SKIN_SOURCE_KEY = "mania-editor:hitsound-skin-source";
 
@@ -51,10 +38,8 @@ const projectIdFromKey = (key: IDBValidKey) => {
     : null;
 };
 
-/** Everything needed to bring the editor back exactly as the user left it. */
 export type SavedProject = {
   version: number;
-  /** Stable local-project id. Legacy saves may not have one. */
   localId?: string;
   savedAt: number;
   meta: SongMeta;
@@ -64,17 +49,11 @@ export type SavedProject = {
   view: ViewState;
   appSettings: AppSettings;
   bgScope: BackgroundScope;
-  /** Every audio file in the set, keyed by filename. */
   audioFiles?: { name: string; blob: Blob }[];
-  /** Legacy single-audio field, still read from older saves. */
   audio?: { name: string; blob: Blob } | null;
-  /** Every background image in the set, keyed by filename. New format. */
   backgroundFiles?: { name: string; blob: Blob }[];
-  /** Every background video in the set, keyed by filename. */
   videoFiles?: { name: string; blob: Blob }[];
-  /** Legacy single background field, still read from older saves. */
   background?: { name: string; blob: Blob } | null;
-  /** Raw `.osk` bytes of the active editor skin, re-parsed on load. */
   skin?: { name: string; blob: Blob } | null;
 };
 
@@ -85,9 +64,7 @@ export type LocalProjectSummary = {
   creator: string;
   updatedAt: number;
   difficultyCount: number;
-  /** Format of the original imported map, if known. */
   sourceFormat?: "osu" | "sm";
-  /** A background image blob to use as the start-menu thumbnail, if any. */
   backgroundBlob?: Blob;
 };
 
@@ -97,10 +74,6 @@ export type SavedSkinBlob = {
   savedAt?: number;
 };
 
-/**
- * Pick a background blob to use as a thumbnail: prefer the active difficulty's
- * background, then any background in the set, then the legacy single background.
- */
 function pickLocalBackground(project: SavedProject): Blob | undefined {
   const files = project.backgroundFiles ?? [];
   const active =
@@ -126,7 +99,6 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-/** Persist a local project, overwriting the record with the same id. */
 export async function saveProject(
   project: SavedProject,
   localId: string = KEY,
@@ -145,7 +117,6 @@ export async function saveProject(
   }
 }
 
-/** Load a saved local project, or null if nothing has been saved for that id. */
 export async function loadProject(localId: string = KEY): Promise<SavedProject | null> {
   const db = await openDb();
   try {
@@ -163,7 +134,6 @@ export async function loadProject(localId: string = KEY): Promise<SavedProject |
   }
 }
 
-/** List local projects newest first, including the legacy single-slot save. */
 export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
   const db = await openDb();
   try {
@@ -215,7 +185,6 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
   }
 }
 
-/** Remove a saved local project. */
 export async function clearProject(localId: string = KEY): Promise<void> {
   const db = await openDb();
   try {
@@ -230,18 +199,13 @@ export async function clearProject(localId: string = KEY): Promise<void> {
   }
 }
 
-// ---- Site preferences (general settings), persisted independently of a map ---
-
-/** Persist the general app settings to localStorage. Cheap and synchronous. */
 export function savePreferences(prefs: AppSettings): void {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
   } catch {
-    /* storage full / unavailable - settings just won't persist */
   }
 }
 
-/** Load the saved app settings, or null if none / unreadable. */
 export function loadPreferences(): Partial<AppSettings> | null {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
@@ -256,9 +220,6 @@ export function loadPreferences(): Partial<AppSettings> | null {
           : 0
         : Number(parsed.dimBackground);
     const next = { ...parsed };
-    // Only carry a valid dim value through; otherwise drop the key entirely so
-    // the caller's default applies (an explicit `undefined` would override it
-    // when spread, surfacing as "NaN%" in the settings UI).
     if (Number.isFinite(dimBackground)) {
       next.dimBackground = Math.max(0, Math.min(100, dimBackground));
     } else {
@@ -270,7 +231,6 @@ export function loadPreferences(): Partial<AppSettings> | null {
   }
 }
 
-/** Persist editor view controls to localStorage. */
 export function saveViewPreferences(view: ViewState): void {
   try {
     localStorage.setItem(
@@ -281,11 +241,9 @@ export function saveViewPreferences(view: ViewState): void {
       }),
     );
   } catch {
-    /* ignore */
   }
 }
 
-/** Load saved editor view controls, clamped to currently supported values. */
 export function loadViewPreferences(): ViewState | null {
   try {
     const raw = localStorage.getItem(VIEW_KEY);
@@ -313,16 +271,13 @@ export function loadViewPreferences(): ViewState | null {
   }
 }
 
-/** Persist the playback volume (0..1). */
 export function saveVolume(volume: number): void {
   try {
     localStorage.setItem(VOLUME_KEY, String(volume));
   } catch {
-    /* ignore */
   }
 }
 
-/** Load the saved playback volume (clamped 0..1), or null if none. */
 export function loadVolume(): number | null {
   try {
     const raw = localStorage.getItem(VOLUME_KEY);
@@ -334,9 +289,6 @@ export function loadVolume(): number | null {
   }
 }
 
-// ---- Site skin, persisted independently of a map ----------------------------
-
-/** Persist (or clear, when null) the editor skin's raw `.osk` bytes. */
 export async function saveSkinBlob(
   skin: { name: string; blob: Blob } | null,
 ): Promise<void> {
@@ -356,7 +308,6 @@ export async function saveSkinBlob(
   }
 }
 
-/** Load the saved editor skin bytes, or null if none. */
 export async function loadSkinBlob(): Promise<{
   name: string;
   blob: Blob;
@@ -375,7 +326,6 @@ export async function loadSkinBlob(): Promise<{
   }
 }
 
-/** Persist (or clear) the selected skin used only for hitsound playback. */
 export async function saveHitsoundSkinBlob(
   skin: SavedSkinBlob | null,
 ): Promise<void> {
@@ -395,7 +345,6 @@ export async function saveHitsoundSkinBlob(
   }
 }
 
-/** Load the selected hitsound-only skin bytes, or null if none. */
 export async function loadHitsoundSkinBlob(): Promise<SavedSkinBlob | null> {
   const db = await openDb();
   try {
@@ -411,7 +360,6 @@ export async function loadHitsoundSkinBlob(): Promise<SavedSkinBlob | null> {
   }
 }
 
-/** Add or update an imported `.osk` in the reusable local skin library. */
 export async function saveSkinToLibrary(skin: {
   name: string;
   blob: Blob;
@@ -441,7 +389,6 @@ export async function saveSkinToLibrary(skin: {
   }
 }
 
-/** Load all user-imported skins saved in the reusable local library. */
 export async function loadSkinLibrary(): Promise<SavedSkinBlob[]> {
   const db = await openDb();
   try {
@@ -465,7 +412,6 @@ export function saveHitsoundSkinSource(source: HitsoundSkinSource): void {
   try {
     localStorage.setItem(HITSOUND_SKIN_SOURCE_KEY, source);
   } catch {
-    /* ignore */
   }
 }
 

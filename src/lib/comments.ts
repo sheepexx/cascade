@@ -1,12 +1,5 @@
 import { supabase } from "./supabase";
 
-/**
- * Timestamp comments for a cloud project. Threaded (via parent_id), resolvable,
- * and anchored to a time in the song. Live updates come through Supabase
- * Postgres Changes (durable + low-frequency), so an invited reviewer can leave
- * comments while the owner is offline and the owner sees them on next open.
- */
-
 export type Comment = {
   id: string;
   project_id: string;
@@ -71,7 +64,6 @@ export async function deleteComment(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/** Subscribe to live comment changes for a project. Returns an unsubscribe fn. */
 export function subscribeComments(
   projectId: string,
   onChange: () => void,

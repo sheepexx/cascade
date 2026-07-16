@@ -5,7 +5,6 @@ import { Button, Field, NumberInput } from "../ui/Controls";
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** Note tools operate on the active difficulty. */
   snapDivisor: SnapDivisor;
   riceCount: number;
   holdCount: number;
@@ -13,16 +12,12 @@ type Props = {
   onLnTicks: (ticks: number) => void;
   onFullLong: (ticks: number) => void;
   onFullRice: () => void;
-  /** Whether the active difficulty has trim brackets set. */
   trimActive: boolean;
-  /** Notes that start outside the brackets (would be deleted). */
   cropRemoveCount: number;
-  /** Holds that start inside but run past the end bracket (would be trimmed). */
   cropClampCount: number;
   onCropToBrackets: () => void;
 };
 
-/** Bulk note-editing tools for the active difficulty (Full LN / Full RC). */
 export function ToolsModal({
   open,
   onClose,

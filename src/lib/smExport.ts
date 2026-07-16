@@ -26,10 +26,9 @@ export type BuildSmArgs = {
 const SLOTS_PER_BEAT = 192;
 const SLOTS_PER_MEASURE = SLOTS_PER_BEAT * 4;
 
-/** Convert milliseconds to a beat position given timing points. */
 function msToBeat(timeMs: number, tps: TimingPoint[]): number {
   const reds = redPoints(tps);
-  if (reds.length === 0) return timeMs / 500; // fallback 120 BPM
+  if (reds.length === 0) return timeMs / 500;
 
   let beat = 0;
   for (let i = 0; i < reds.length; i++) {
@@ -38,7 +37,6 @@ function msToBeat(timeMs: number, tps: TimingPoint[]): number {
     const segEnd = next ? next.time : Infinity;
 
     if (timeMs < cur.time) {
-      // Before the first timing point — extrapolate backwards using first BPM
       const diff = cur.time - timeMs;
       return beat - diff * (cur.bpm / 60000);
     }
@@ -48,17 +46,14 @@ function msToBeat(timeMs: number, tps: TimingPoint[]): number {
       return beat + diff * (cur.bpm / 60000);
     }
 
-    // Advance past this segment
     const segMs = segEnd - cur.time;
     beat += segMs * (cur.bpm / 60000);
   }
 
-  // After the last timing point
   const last = reds[reds.length - 1];
   return beat + (timeMs - last.time) * (last.bpm / 60000);
 }
 
-/** Compute the OFFSET: the time (seconds) at which beat 0 occurs, ≤ 0. */
 function computeOffset(tps: TimingPoint[]): number {
   const reds = redPoints(tps);
   if (reds.length === 0) return 0;
@@ -66,7 +61,6 @@ function computeOffset(tps: TimingPoint[]): number {
   const first = reds[0];
   if (first.time <= 0) return first.time / 1000;
 
-  // Pull back by whole 4-beat measures until ≤ 0
   const measureMs = (60_000 / first.bpm) * 4;
   const n = Math.ceil(first.time / measureMs);
   return (first.time - n * measureMs) / 1000;
@@ -85,7 +79,6 @@ function computeBpms(
   ]);
 
   if (bpms.length === 0) bpms.push([0, 120]);
-  // force first BPM to beat 0 so Etterna has a defined tempo from the start
   bpms[0][0] = 0;
   return bpms;
 }
@@ -165,7 +158,6 @@ function notesToMeasures(
   );
   const numMeas = Math.max(1, Math.floor(slotOf(endMs) / SLOTS_PER_MEASURE) + 1);
 
-  // Build grid: measures[mi][si][col]
   const grid: string[][][] = Array.from({ length: numMeas }, () =>
     Array.from({ length: SLOTS_PER_MEASURE }, () => Array(keys).fill("0")),
   );
@@ -178,7 +170,6 @@ function notesToMeasures(
     if (note.endTime !== undefined && note.endTime > note.startTime) {
       const e = slotOf(note.endTime);
       if (e <= s) {
-        // Hold too short to encode as 2→3 — write as tap
         if (s >= 0 && Math.floor(s / SLOTS_PER_MEASURE) < numMeas) {
           const mi = Math.floor(s / SLOTS_PER_MEASURE);
           const si = s % SLOTS_PER_MEASURE;
@@ -210,13 +201,11 @@ function notesToMeasures(
   const out: string[] = [];
   for (let mi = 0; mi < numMeas; mi++) {
     const measure = grid[mi];
-    // Find occupied slots
     const occupied: number[] = [];
     for (let si = 0; si < SLOTS_PER_MEASURE; si++) {
       if (measure[si].some((c) => c !== "0")) occupied.push(si);
     }
 
-    // Pick the coarsest row count that holds all occupied slots
     const rows = rowCounts.find((r) => {
       const step = SLOTS_PER_MEASURE / r;
       return occupied.every((si) => si % step === 0);
@@ -246,23 +235,18 @@ export function buildSmFile({
   const offsetMs = offset * 1000;
   const beatShift = -msToBeat(offsetMs, points);
 
-  // ── BPMS ──
   const bpms = computeBpms(points, beatShift);
   const bpmStr = bpms
     .map(([b, bpm]) => `${b.toFixed(6)}=${bpm.toFixed(6)}`)
     .join(",");
 
-  // Revert the 50ms import shift so the SM file plays natively in StepMania
   const displayOffset = offset + 50 / 1000;
   const smOffset = displayOffset === 0 ? 0 : -displayOffset;
 
   const lines: string[] = [];
 
-  // Pull SM-specific metadata from the first difficulty (all diffs share the
-  // same set-level SM headers — they were parsed from a single .sm file).
   const sm = difficulties[0]?.smMeta ?? {};
 
-  // Header
   lines.push(`#TITLE:${escape(meta.title)};`);
   lines.push(`#SUBTITLE:${escape(sm.subtitle ?? "")};`);
   lines.push(`#ARTIST:${escape(meta.artist)};`);
@@ -292,7 +276,6 @@ export function buildSmFile({
   lines.push("#BGCHANGES:;");
   lines.push("#FGCHANGES:;");
 
-  // ── NOTES sections ──
   for (const diff of difficulties) {
     const st = stepType(diff.keyCount);
     const name = diff.name || "Converted";
@@ -364,7 +347,6 @@ export type BuildSmzArgs = {
 export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
   const zip = new JSZip();
 
-  // Bundle every unique background referenced by any difficulty.
   for (const diff of args.difficulties) {
     if (diff.backgroundFilename && args.bgFiles?.[diff.backgroundFilename]) {
       const bg = args.bgFiles[diff.backgroundFilename];
@@ -377,7 +359,6 @@ export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
     (d) => d.backgroundFilename,
   )?.backgroundFilename;
 
-  // Audio: all difficulties in a .sm share one audio file.
   const allAudio = Object.values(args.audioFiles);
   const fallbackAudio = allAudio.length === 1 ? allAudio[0] : null;
   const firstDiff = args.difficulties[0];
@@ -385,7 +366,6 @@ export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
     (firstDiff?.audioFilename && args.audioFiles[firstDiff.audioFilename]) ||
     fallbackAudio;
 
-  // Trim support (same as buildOsz — decode, cut, re-encode).
   const ctxHolder: { ctx: AudioContext | null } = { ctx: null };
   const decoded = new Map<string, Promise<AudioBuffer | null>>();
   const cutNameByKey = new Map<string, string>();
@@ -417,8 +397,6 @@ export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
     let exportDiffs = args.difficulties;
     let exportTiming = args.timingPoints;
 
-    // Find the first difficulty that has trim settings. Since SM has one
-    // shared audio, the first trim found is used for the whole export.
     const trimDiff = args.difficulties.find(
       (d) =>
         d != null &&
@@ -448,8 +426,6 @@ export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
       }
     }
 
-    // Bundle the verbatim audio only when it wasn't cut.
-    // Convert WAV → preferred format; keep other formats as-is.
     if (audio && audioName === audio.name) {
       let effectiveName = audio.name;
       let effectiveBlob = audio.blob;
@@ -471,7 +447,6 @@ export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
       audioName = effectiveName;
     }
 
-    // Attempt to fetch avatar for CDTITLE
     if (args.meta.creator && args.meta.creator !== "Mapper") {
       try {
         const resp = await fetch(`/api/avatar?user=${encodeURIComponent(args.meta.creator)}`);
@@ -479,7 +454,6 @@ export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
           zip.file("cdtitle.png", await resp.blob());
         }
       } catch {
-        // Silently fail and omit cdtitle image (SM will just ignore it)
       }
     }
 

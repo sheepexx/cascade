@@ -73,15 +73,14 @@ describe("parseSmFile — .ssc (Etterna)", () => {
 
   it("uses the chart name and steptype key count", () => {
     const [d1, d2] = parsed.difficulties;
-    expect(d1.name).toBe("My Chart"); // CHARTNAME wins
-    expect(d1.keyCount).toBe(4); // dance-single
-    expect(d2.name).toBe("Hard"); // falls back to DIFFICULTY
-    expect(d2.keyCount).toBe(7); // kb7-single
+    expect(d1.name).toBe("My Chart");
+    expect(d1.keyCount).toBe(4);
+    expect(d2.name).toBe("Hard");
+    expect(d2.keyCount).toBe(7);
   });
 
   it("parses measure rows into notes (no dropped .ssc header)", () => {
     const [d1] = parsed.difficulties;
-    // Second measure: one tap per column, staircase.
     expect(d1.notes).toHaveLength(4);
     expect(d1.notes.map((n) => n.column)).toEqual([0, 1, 2, 3]);
   });
@@ -104,7 +103,6 @@ describe("parseSmFile — .sm still works after the refactor", () => {
   });
 
   it("parses the inline-header note section", () => {
-    // Row index 1 of a 4-row measure holds a single tap in column 0.
     const notes = parsed.difficulties[0].notes;
     expect(notes).toHaveLength(1);
     expect(notes[0].column).toBe(0);

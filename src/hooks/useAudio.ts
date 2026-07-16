@@ -17,10 +17,6 @@ type RateTransition = {
   duration: number;
 };
 
-/**
- * Playback region + fade envelope. All fields optional; undefined means "use
- * the full song" (start 0, end = duration, no fade).
- */
 export type AudioRegion = {
   startMs?: number;
   endMs?: number;
@@ -45,25 +41,6 @@ const playbackCurve = (from: number, to: number): Float32Array => {
   return curve;
 };
 
-/**
- * Playback controller exposing a high-resolution clock (updated via
- * requestAnimationFrame) plus play/pause/seek. The current time is in
- * **milliseconds** to match the editor domain.
- *
- * Two playback engines are supported:
- *
- * 1. **Web Audio** (preferred): when a decoded `buffer` is supplied, the song
- *    plays through an `AudioBufferSourceNode`. This is sample-accurate, seeks
- *    instantly (no re-buffering) and - crucially - shares the near-zero output
- *    latency of the Web Audio hitsounds, so the song stays in sync with the
- *    falling notes instead of lagging seconds behind them.
- * 2. **HTMLAudioElement** (fallback): used until the buffer finishes decoding,
- *    or when decoding is unavailable.
- *
- * `knownDurationMs` is an authoritative duration (e.g. from the decoded
- * waveform's AudioBuffer). When provided it overrides the element's own
- * `duration`, which is unreliable for VBR / streamed MP3s.
- */
 export function useAudio(
   src: string | null,
   knownDurationMs?: number | null,
@@ -73,52 +50,38 @@ export function useAudio(
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  // ---- Web Audio engine state ----
   const ctxRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const filterRef = useRef<BiquadFilterNode | null>(null);
   const fadeGainRef = useRef<GainNode | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const bufferRef = useRef<AudioBuffer | null>(buffer ?? null);
-  // Authoritative paused position (seconds). While playing, the live position
-  // is derived from the AudioContext clock relative to these anchors.
   const positionRef = useRef(0);
-  const startCtxTimeRef = useRef(0); // ctx.currentTime when playback began
-  const startOffsetRef = useRef(0); // position (s) when playback began
-  // Set true immediately before a programmatic stop() so the source's `ended`
-  // handler can tell a manual stop from the song reaching its natural end.
+  const startCtxTimeRef = useRef(0);
+  const startOffsetRef = useRef(0);
   const manualStopRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0); // ms
+  const [currentTime, setCurrentTime] = useState(0);
   const currentTimeRef = useRef(0);
   const lastClockUiUpdateRef = useRef(0);
-  const [duration, setDuration] = useState(0); // ms
-  // `volume` is the *perceived* slider position (0-1). Actual gain is derived
-  // via a square law so the slider feels linear to the ear.
+  const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(0.2);
   const volumeRef = useRef(0.2);
-  // Playback speed (1 = full speed). Slowing it down also lowers the pitch, the
-  // way the osu! editor's 25/50/75% playback does.
   const [playbackRate, setPlaybackRateState] = useState(1);
   const playbackRateRef = useRef(1);
   const rateTransitionRef = useRef<RateTransition | null>(null);
   const elementVolumeRafRef = useRef<number | null>(null);
   const elementRateRafRef = useRef<number | null>(null);
   const ambientDuckedRef = useRef(false);
-  // Whether an authoritative decoded duration is in effect; while set, the
-  // element's own (VBR-unreliable) duration is ignored.
   const hasKnownDurationRef = useRef(false);
 
-  // Create the audio element once (the decode fallback).
   if (audioRef.current === null && typeof Audio !== "undefined") {
     const el = new Audio();
-    el.volume = 0.2 * 0.2; // square law on the initial default
+    el.volume = 0.2 * 0.2;
     audioRef.current = el;
   }
 
-  // Mirror the playback region into a ref so the rAF loop / Web Audio callbacks
-  // read the latest values without re-subscribing.
   const regionRef = useRef<AudioRegion | null>(region ?? null);
   regionRef.current = region ?? null;
 
@@ -185,7 +148,6 @@ export function useAudio(
     [effectivePower, rampElementVolume, targetFilterFrequency],
   );
 
-  /** Lazily create the playback AudioContext (matched to the buffer's rate). */
   const ensureCtx = useCallback((): AudioContext | null => {
     let ctx = ctxRef.current;
     if (!ctx) {
@@ -194,9 +156,6 @@ export function useAudio(
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext;
       if (!Ctor) return null;
-      // Match the buffer's sample rate so playback isn't pitch-shifted, and ask
-      // for the smallest output buffer ("interactive") to minimise the latency
-      // between the clock and the speakers — important for tight playtest input.
       const rate = bufferRef.current?.sampleRate;
       ctx = new Ctor({
         latencyHint: "interactive",
@@ -210,9 +169,6 @@ export function useAudio(
       filter.Q.value = 0.65;
       gain.gain.value = effectivePower();
       fadeGain.gain.value = 1;
-      // Chain: source → fadeGain → filter → gain → destination. The fade gain is
-      // kept separate from `gain` (volume + atmosphere ducking) so the trim
-      // fade envelope never fights `applyOutputMix`'s ramps.
       fadeGain.connect(filter);
       filter.connect(gain);
       gain.connect(ctx.destination);
@@ -264,7 +220,6 @@ export function useAudio(
     return tr.startPosition + transitioned + tr.to * (elapsed - tr.duration);
   }, []);
 
-  /** Live playback position in seconds (works whether playing or paused). */
   const webPosition = useCallback((): number => {
     const ctx = ctxRef.current;
     if (sourceRef.current && ctx) {
@@ -273,7 +228,6 @@ export function useAudio(
     return positionRef.current;
   }, [positionAtCtxTime]);
 
-  /** Stop the current Web Audio source, optionally saving the position. */
   const stopWeb = useCallback(
     (savePosition: boolean) => {
       const source = sourceRef.current;
@@ -284,7 +238,6 @@ export function useAudio(
       try {
         source.stop();
       } catch {
-        /* already stopped */
       }
       source.disconnect();
       sourceRef.current = null;
@@ -292,13 +245,6 @@ export function useAudio(
     [webPosition],
   );
 
-  /**
-   * Schedule the trim fade-in / fade-out envelope on the dedicated fade gain,
-   * starting from `startPositionSec` (the song position playback begins at).
-   * No-ops gracefully when the region has no fades. Gain is 1 everywhere except
-   * inside the fade ramps; before the start bracket it is silenced so a stray
-   * play before the cut stays quiet.
-   */
   const scheduleFadeEnvelope = useCallback(
     (ctx: AudioContext, startPositionSec: number, durMs: number) => {
       const fadeGain = fadeGainRef.current;
@@ -308,7 +254,6 @@ export function useAudio(
       const t0 = ctx.currentTime;
       g.cancelScheduledValues(t0);
 
-      // No region / no fades → hold unity gain and bail.
       const fadeInMs = Math.max(0, region?.fadeInMs ?? 0);
       const fadeOutMs = Math.max(0, region?.fadeOutMs ?? 0);
       if (!region || (fadeInMs <= 0 && fadeOutMs <= 0)) {
@@ -323,14 +268,12 @@ export function useAudio(
       const p = startPositionSec;
       const rate = playbackRateRef.current || 1;
 
-      // Envelope value (0..1) at a given song position q (seconds).
       const gainAt = (q: number): number => {
         let v = 1;
         if (fiS > 0 && q < startS + fiS) v = Math.min(v, (q - startS) / fiS);
         if (foS > 0 && q > endS - foS) v = Math.min(v, (endS - q) / foS);
         return Math.max(0, Math.min(1, v));
       };
-      // Map a song position to wall-clock time on the audio context.
       const wall = (q: number): number => t0 + Math.max(0, (q - p) / rate);
 
       g.setValueAtTime(gainAt(p), t0);
@@ -344,27 +287,19 @@ export function useAudio(
     [],
   );
 
-  /** Start a fresh Web Audio source from the saved position. */
   const startWeb = useCallback((): boolean => {
     const audioBuffer = bufferRef.current;
     const ctx = ensureCtx();
     const gain = gainRef.current;
     if (!audioBuffer || !ctx || !gain) return false;
-    // Kill any source still playing first, so a second start (e.g. seek-then-
-    // play, or starting playtest while already playing) can never orphan the
-    // previous source — an orphan keeps sounding forever and a later pause,
-    // which only stops the *current* sourceRef, can't silence it.
     stopWeb(false);
 
     const durMs =
       Number.isFinite(duration) && duration > 0
         ? duration
         : audioBuffer.duration * 1000;
-    // Playback region (defaults to the whole song when no brackets are set).
     const region = regionRef.current;
     const regionStartMs = Math.max(0, region?.startMs ?? 0);
-    // If we're at (or past) the very end of the song, restart from the region
-    // start (so pressing play at the end loops back to the start bracket).
     if (positionRef.current * 1000 >= durMs - 1) {
       positionRef.current = regionStartMs / 1000;
     }
@@ -375,7 +310,6 @@ export function useAudio(
     source.connect(fadeGainRef.current ?? filterRef.current ?? gain);
     scheduleFadeEnvelope(ctx, positionRef.current, durMs);
     source.onended = () => {
-      // Only fires here on a *natural* end (manual stops null the handler).
       sourceRef.current = null;
       positionRef.current = durMs / 1000;
       currentTimeRef.current = durMs;
@@ -397,13 +331,9 @@ export function useAudio(
     return true;
   }, [duration, ensureCtx, scheduleFadeEnvelope, stopWeb]);
 
-  // Latest startWeb, so effects can hand off to Web Audio without taking
-  // startWeb as a dependency (which would re-run them when `duration` changes).
   const startWebRef = useRef(startWeb);
   startWebRef.current = startWeb;
 
-  // Wire up the element source (fallback path) and reset the clock on song
-  // change so a previous (different-length) song can't leave stale state.
   useEffect(() => {
     const audio = audioRef.current;
     stopWeb(false);
@@ -421,16 +351,10 @@ export function useAudio(
     }
     audio.src = src;
     audio.load();
-    // Re-apply the chosen speed/pitch: load() reset playbackRate to default.
     applyRate(audio, playbackRateRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
-  // Track the decoded buffer; its presence switches playback to Web Audio.
-  // If the element fallback was already mid-playback when the buffer arrives,
-  // hand off seamlessly: pause the element and resume from the same position on
-  // the Web Audio engine. Without this, the engines disagree and a later pause
-  // would stop the silent engine while the element kept playing (UI frozen).
   useEffect(() => {
     bufferRef.current = buffer ?? null;
     if (!buffer) return;
@@ -444,9 +368,6 @@ export function useAudio(
     }
   }, [buffer]);
 
-  // Prefer the authoritative decoded duration when supplied. Sample-accurate
-  // and, unlike the element's `duration`, correct for VBR / streamed MP3s - so
-  // the seek clamp and the timeline scale stay right after a song switch.
   useEffect(() => {
     if (typeof knownDurationMs === "number" && knownDurationMs > 0) {
       hasKnownDurationRef.current = true;
@@ -454,14 +375,10 @@ export function useAudio(
     }
   }, [knownDurationMs]);
 
-  // Track element metadata + end of playback (fallback engine only).
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Fast path / fallback: most files (CBR / headered) expose a finite
-    // duration as soon as metadata loads. Used until the authoritative decoded
-    // duration arrives.
     const onLoaded = () => {
       if (hasKnownDurationRef.current) return;
       const d = audio.duration;
@@ -489,7 +406,6 @@ export function useAudio(
     };
   }, []);
 
-  // Drive the clock with rAF while playing for smooth canvas updates.
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -501,8 +417,6 @@ export function useAudio(
         next = audio.currentTime * 1000;
       }
 
-      // Stop at the region end bracket once one is set. The fade-out envelope
-      // has already eased the gain to zero by this point, so the cut is clean.
       const endMs = regionRef.current?.endMs;
       if (endMs != null && next >= endMs) {
         next = endMs;
@@ -515,7 +429,7 @@ export function useAudio(
           audio.pause();
         }
         setIsPlaying(false);
-        return; // don't schedule another frame
+        return;
       }
 
       currentTimeRef.current = next;
@@ -536,9 +450,6 @@ export function useAudio(
   }, [isPlaying, webPosition, stopWeb]);
 
   const play = useCallback(() => {
-    // Start-at-bracket: when an explicit play begins outside the trimmed
-    // region, jump the playhead to the region start so playback honors the cut.
-    // Scrubbing/seeking stays unclamped so editing anywhere remains free.
     const region = regionRef.current;
     if (region) {
       const startMs = Math.max(0, region.startMs ?? 0);
@@ -553,8 +464,6 @@ export function useAudio(
       }
     }
     if (bufferRef.current) {
-      // Guard against the element fallback also running (e.g. it was started
-      // before the buffer finished decoding): only one engine may sound.
       const audio = audioRef.current;
       if (audio && !audio.paused) audio.pause();
       if (startWeb()) setIsPlaying(true);
@@ -564,16 +473,11 @@ export function useAudio(
   }, [startWeb]);
 
   const pause = useCallback(() => {
-    // Stop *both* engines defensively. Whichever was sounding (Web Audio when a
-    // buffer is decoded, the element during the decode window) is now stopped,
-    // so pause can never leave one engine playing after an engine switch.
     const audio = audioRef.current;
     const webWasPlaying = sourceRef.current !== null;
     if (webWasPlaying) {
-      stopWeb(true); // saves positionRef from the live Web Audio clock
+      stopWeb(true);
     }
-    // Always stop the element too — never gate this on which engine we *think*
-    // was sounding. If both somehow ran, stopping only one leaves audio playing.
     if (audio && !audio.paused) {
       if (!webWasPlaying) positionRef.current = audio.currentTime;
       audio.pause();
@@ -611,13 +515,10 @@ export function useAudio(
     elementRateRafRef.current = requestAnimationFrame(step);
   }, []);
 
-  /** Seek to an absolute time in milliseconds. */
   const seek = useCallback(
     (ms: number) => {
       if (!Number.isFinite(ms)) return;
       const audio = audioRef.current;
-      // Prefer the tracked duration, falling back to the element's own (finite)
-      // duration so a non-finite `duration` can never leave the seek unbounded.
       const max =
         Number.isFinite(duration) && duration > 0
           ? duration
@@ -647,7 +548,6 @@ export function useAudio(
 
   const setPlaybackRate = useCallback((rate: number) => {
     const clamped = Math.max(0.1, Math.min(4, rate));
-    // Re-anchor a live Web Audio source so the clock stays continuous.
     const ctx = ctxRef.current;
     const source = sourceRef.current;
     if (source && ctx) {
@@ -695,9 +595,6 @@ export function useAudio(
     [applyOutputMix],
   );
 
-  // Output latency (ms): how far the AudioContext clock runs *ahead* of what's
-  // actually audible. `outputLatency` covers the full path to the speakers
-  // (best); `baseLatency` (context buffering only) is the fallback.
   const outputLatencyMs = useCallback(() => {
     const ctx = ctxRef.current;
     if (!ctx) return 0;
@@ -708,14 +605,6 @@ export function useAudio(
     return lat * 1000;
   }, []);
 
-  // Live audible playback position (ms). Computed on demand rather than read
-  // from the value cached by the rAF clock tick, fixing two timing issues that
-  // made playtest input feel laggy and unstable:
-  //   1. The cached value is up to a frame stale and is always a *past* sample,
-  //      so a keypress between frames read an out-of-date position (jitter).
-  //   2. The raw context clock leads the speakers by the output latency, so
-  //      taps timed to the music registered systematically late — subtracting
-  //      the latency makes the clock reflect what the player actually hears.
   const getCurrentTime = useCallback(() => {
     if (bufferRef.current && sourceRef.current) {
       return webPosition() * 1000 - outputLatencyMs() * syncLivePlaybackRate();
@@ -727,7 +616,6 @@ export function useAudio(
     return currentTimeRef.current;
   }, [webPosition, outputLatencyMs, syncLivePlaybackRate]);
 
-  // Tear down the AudioContext when the hook unmounts.
   useEffect(() => {
     return () => {
       stopWeb(false);
@@ -765,18 +653,11 @@ export function useAudio(
 
 export type AudioController = ReturnType<typeof useAudio>;
 
-/**
- * Apply a playback rate to an audio element. Sets `defaultPlaybackRate` too so
- * the value survives a media reload (the resource-selection algorithm resets
- * `playbackRate` to `defaultPlaybackRate`), and disables pitch preservation so
- * the pitch drops with the tempo, matching the osu! editor.
- */
 function applyRate(audio: HTMLAudioElement | null, rate: number) {
   if (!audio) return;
   audio.defaultPlaybackRate = rate;
   audio.playbackRate = rate;
   audio.preservesPitch = false;
-  // Vendor-prefixed fallbacks for older engines.
   // @ts-expect-error non-standard
   audio.mozPreservesPitch = false;
   // @ts-expect-error non-standard

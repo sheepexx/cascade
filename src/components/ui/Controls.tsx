@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** Small labeled wrapper used across the settings panel. */
 export function Field({
   label,
   children,
@@ -66,7 +65,6 @@ export function Button({
   );
 }
 
-/** An on/off toggle switch. Drop-in replacement for an enable/disable checkbox. */
 export function Toggle({
   checked,
   onChange,
@@ -108,7 +106,6 @@ export function Toggle({
   );
 }
 
-/** A file picker styled as a button. */
 export function FileButton({
   label,
   accept,

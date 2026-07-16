@@ -78,10 +78,10 @@ describe("withoutNoteCollisions", () => {
   it("drops candidates that collide with existing or earlier-accepted notes", () => {
     const existing = [note("e", 0, 0)];
     const candidates = [
-      note("keep1", 1, 0), // ok: different column
-      note("drop1", 0, 0), // collides with existing
-      note("keep2", 1, 200), // ok
-      note("drop2", 1, 200), // collides with keep2 (already accepted)
+      note("keep1", 1, 0),
+      note("drop1", 0, 0),
+      note("keep2", 1, 200),
+      note("drop2", 1, 200),
     ];
     const kept = withoutNoteCollisions(candidates, existing).map((n) => n.id);
     expect(kept).toEqual(["keep1", "keep2"]);

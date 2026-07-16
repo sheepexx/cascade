@@ -1,19 +1,15 @@
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta } from "../types";
 import { MAX_KEYS, MIN_KEYS } from "../types";
 
-/** One validation finding, optionally scoped to a difficulty. */
 export type ValidationIssue = {
   message: string;
-  /** Difficulty name this issue belongs to, if any. */
   scope?: string;
 };
 
 export type ValidationResult = {
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
-  /** Duplicate note ids per difficulty id, for the "remove duplicates" action. */
   duplicateNoteIds: Record<string, string[]>;
-  /** Total duplicate notes across the set. */
   duplicateCount: number;
 };
 
@@ -24,7 +20,6 @@ export type ValidateArgs = {
   bgFiles: Record<string, LoadedFile>;
 };
 
-/** Resolve the audio a difficulty would export with (own, else single fallback). */
 function resolveAudio(
   d: Difficulty,
   audioFiles: Record<string, LoadedFile>,
@@ -35,7 +30,6 @@ function resolveAudio(
   return all.length === 1 ? all[0] : null;
 }
 
-/** Find notes that exactly duplicate another in the same column at the same time. */
 function findDuplicateIds(notes: ManiaNote[]): string[] {
   const seen = new Set<string>();
   const dupes: string[] = [];
@@ -47,7 +41,6 @@ function findDuplicateIds(notes: ManiaNote[]): string[] {
   return dupes;
 }
 
-/** Whether two notes in the same column overlap in time (but aren't duplicates). */
 function hasColumnOverlap(notes: ManiaNote[]): boolean {
   const byCol = new Map<number, ManiaNote[]>();
   for (const n of notes) {
@@ -61,17 +54,12 @@ function hasColumnOverlap(notes: ManiaNote[]): boolean {
       const prev = arr[i - 1];
       const cur = arr[i];
       const prevEnd = prev.endTime ?? prev.startTime;
-      // Overlap: the next note starts before the previous one's hold ends.
       if (cur.startTime < prevEnd) return true;
     }
   }
   return false;
 }
 
-/**
- * Validate the whole mapset before export. Errors must be fixed; warnings are
- * advisory and can be exported through.
- */
 export function validateProject({
   meta,
   difficulties,
@@ -83,14 +71,12 @@ export function validateProject({
   const duplicateNoteIds: Record<string, string[]> = {};
   let duplicateCount = 0;
 
-  // ---- Mapset-level metadata ----
   if (Object.keys(audioFiles).length === 0)
     errors.push({ message: "Missing audio file." });
   if (!meta.title.trim()) errors.push({ message: "Missing song title." });
   if (!meta.artist.trim()) errors.push({ message: "Missing artist." });
   if (!meta.creator.trim()) errors.push({ message: "Missing creator." });
 
-  // ---- Per-difficulty ----
   for (const d of difficulties) {
     const scope = d.name || "(unnamed)";
 
@@ -114,7 +100,6 @@ export function validateProject({
     if (reds.length === 0)
       errors.push({ message: "No red (uninherited) timing point.", scope });
 
-    // Note-level errors.
     let invalidColumn = 0;
     let invalidLong = 0;
     for (const n of d.notes) {
@@ -132,7 +117,6 @@ export function validateProject({
         scope,
       });
 
-    // ---- Warnings ----
     if (!d.backgroundFilename || !bgFiles[d.backgroundFilename])
       warnings.push({ message: "No background image.", scope });
     if (d.notes.length === 0)
