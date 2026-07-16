@@ -32,6 +32,7 @@ import { PackCreatorItem } from "./PackCreatorItem";
 import { PackCreatorValidation } from "./PackCreatorValidation";
 import { PackProjectBrowser } from "./PackProjectBrowser";
 import { FolderIcon, PackageIcon } from "./ui/StartIcons";
+import { MarqueeText } from "./ui/MarqueeText";
 import { playUiSound } from "../lib/uiSounds";
 import { useAuth } from "../lib/auth";
 
@@ -380,12 +381,6 @@ export function PackCreator({
               Combine multiple mania maps into one .osz pack
             </p>
           </div>
-          <span
-            className="ml-auto hidden shrink-0 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300 sm:block"
-            title="Multi-song sets are meant for local play and may not be suitable for official osu! submission."
-          >
-            local packs
-          </span>
         </header>
 
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-4">
@@ -485,11 +480,14 @@ export function PackCreator({
                           onClick={() => setSelectedId(item.id)}
                           className="min-w-0 flex-1 text-left"
                         >
-                          <span className="block truncate text-xs font-semibold text-slate-100">
-                            {generatePackDifficultyName(item) ||
+                          <MarqueeText
+                            text={
+                              generatePackDifficultyName(item) ||
                               item.originalTitle ||
-                              item.originalOsuFilename}
-                          </span>
+                              item.originalOsuFilename
+                            }
+                            className="text-xs font-semibold text-slate-100"
+                          />
                           <span className="block truncate text-[11px] text-slate-500">
                             {item.originalArtist} · {item.originalCreator} ·{" "}
                             {item.parsedOsu.keyCount}K
