@@ -19,6 +19,7 @@ import {
 } from "./components/menus/StartModal";
 import { MyMapsModal } from "./components/menus/MyMapsModal";
 import { PackCreator } from "./components/PackCreator";
+import { CommentIcon, UsersIcon } from "./components/ui/StartIcons";
 import { PresetBrowserModal } from "./components/menus/PresetBrowserModal";
 import { PublishPresetModal } from "./components/menus/PublishPresetModal";
 import { FeedbackModal } from "./components/menus/FeedbackModal";
@@ -3338,7 +3339,7 @@ export default function App() {
                   onClick={() => setModal("share")}
                   title="Share - invite collaborators"
                 >
-                  👥
+                  <UsersIcon className="h-4 w-4" />
                 </IconButton>
               )}
               {cloudProjectId && authUser && (
@@ -3346,7 +3347,7 @@ export default function App() {
                   onClick={() => setCommentsOpen((v) => !v)}
                   title="Comments"
                 >
-                  💬
+                  <CommentIcon className="h-4 w-4" />
                 </IconButton>
               )}
               <Menu

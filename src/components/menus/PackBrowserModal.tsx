@@ -1,5 +1,6 @@
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
+import { SampleMapsIcon } from "../ui/StartIcons";
 import type { PackSong } from "../../lib/smPackImport";
 
 type Props = {
@@ -59,7 +60,7 @@ export function PackBrowserModal({
                 className="group flex flex-col rounded-xl border border-ink-500/60 bg-ink-700/40 p-4 text-left transition hover:border-accent/70 hover:bg-ink-700"
               >
                 <div className="mb-2 flex items-center gap-2">
-                  <span className="text-lg">🎵</span>
+                  <SampleMapsIcon className="h-5 w-5 shrink-0 text-slate-400" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold text-slate-100">
                       {song.info.title || "Untitled"}

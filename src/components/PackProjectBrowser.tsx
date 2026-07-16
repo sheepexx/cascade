@@ -16,6 +16,7 @@ import {
 import { buildOsz } from "../lib/oszExport";
 import { sanitizePackFilename } from "../lib/packCreator";
 import { normalizeTimingPoints, type LoadedFile } from "../types";
+import { SampleMapsIcon } from "./ui/StartIcons";
 
 type SelectionKey = string;
 
@@ -331,8 +332,8 @@ function SelectableCard({
             className="h-full w-full object-cover transition group-hover:scale-105"
           />
         ) : (
-          <div className="grid h-full w-full place-items-center text-3xl text-slate-600">
-            🎵
+          <div className="grid h-full w-full place-items-center text-slate-600">
+            <SampleMapsIcon className="h-8 w-8" />
           </div>
         )}
         {selected && (
