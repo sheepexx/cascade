@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import type { Difficulty } from "../types";
-import { computeStarRating, starColor, starTier } from "../lib/starRating";
+import { computeStarRating, starColor, starTextOn, starTier } from "../lib/starRating";
 import { MarqueeText } from "./ui/MarqueeText";
 
 type PeerLite = {
@@ -201,7 +201,10 @@ function DiffRow({
       </div>
 
       <div className="mt-1 flex items-center justify-between pl-5">
-        <span className="text-xs font-semibold" style={{ color }}>
+        <span
+          className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+          style={{ backgroundColor: color, color: starTextOn(star) }}
+        >
           ★ {star.toFixed(2)}
         </span>
         <span className="text-[10px] text-slate-500">{starTier(star)}</span>

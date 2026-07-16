@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
-import { starColor } from "../../lib/starRating";
+import { starColor, starTextOn } from "../../lib/starRating";
 import { useAuth } from "../../lib/auth";
 import {
   listMyProjectsRich,
@@ -43,14 +43,6 @@ export type SampleMap = {
 };
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`;
-
-function textOn(rgb: string): string {
-  const m = rgb.match(/\d+/g);
-  if (!m) return "#000";
-  const [r, g, b] = m.map(Number);
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum > 0.55 ? "#000" : "#fff";
-}
 
 const MAX_CARDS = 9;
 
@@ -894,7 +886,7 @@ export function SampleMapsModal({
                     className="absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[11px] font-semibold shadow"
                     style={{
                       backgroundColor: starColor(maxStars),
-                      color: textOn(starColor(maxStars)),
+                      color: starTextOn(maxStars),
                     }}
                   >
                     ★ {maxStars.toFixed(2)}
@@ -920,7 +912,7 @@ export function SampleMapsModal({
                         className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
                         style={{
                           backgroundColor: starColor(d.stars),
-                          color: textOn(starColor(d.stars)),
+                          color: starTextOn(d.stars),
                         }}
                       >
                         {d.keyCount}K {d.stars.toFixed(1)}

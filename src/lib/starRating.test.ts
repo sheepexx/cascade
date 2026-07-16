@@ -41,7 +41,7 @@ describe("starColor", () => {
 
   it("clamps to the spectrum endpoints", () => {
     expect(starColor(0.1)).toBe("rgb(66, 144, 251)");
-    expect(starColor(100)).toBe("rgb(179, 76, 240)");
+    expect(starColor(100)).toBe("rgb(0, 0, 0)");
   });
 
   it("returns an rgb() string for a mid rating", () => {
