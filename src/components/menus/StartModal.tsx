@@ -18,10 +18,12 @@ import {
 } from "../../lib/persistence";
 import { playUiSound } from "../../lib/uiSounds";
 import {
+  ArchiveIcon,
   NewMapIcon,
   PackCreatorIcon,
   SampleMapsIcon,
   SmPackIcon,
+  TrashIcon,
 } from "../ui/StartIcons";
 
 export type SampleDifficulty = {
@@ -224,7 +226,7 @@ export function WelcomeModal({
       {firstRun && (
         <div className="mb-4 rounded-xl border border-accent/40 bg-accent/10 p-4">
           <p className="text-sm font-semibold text-slate-100">
-            👋 Welcome to Cascade, a free osu!mania editor in your browser.
+            Welcome to Cascade, a free osu!mania editor in your browser.
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-300">
             Nothing to install. The quickest way to see how it works is to load a
@@ -363,7 +365,7 @@ export function WelcomeModal({
                 actions={
                   <CardActionButton
                     label="Delete"
-                    icon="🗑"
+                    icon={<TrashIcon className="h-3.5 w-3.5" />}
                     danger
                     busy={busyId === p.id}
                     onClick={() =>
@@ -405,7 +407,7 @@ export function WelcomeModal({
                   actions={
                     <CardActionButton
                       label="Delete"
-                      icon="🗑"
+                      icon={<TrashIcon className="h-3.5 w-3.5" />}
                       danger
                       busy={busyId === p.id}
                       onClick={() =>
@@ -444,7 +446,7 @@ export function WelcomeModal({
                   actions={
                     <CardActionButton
                       label="Archive"
-                      icon="🗄"
+                      icon={<ArchiveIcon className="h-3.5 w-3.5" />}
                       busy={busyId === p.id}
                       onClick={() => archive(p.id, true)}
                     />
@@ -622,8 +624,8 @@ function ProjectCard({
               className="h-full w-full object-cover transition group-hover:scale-105"
             />
           ) : (
-            <div className="grid h-full w-full place-items-center text-3xl text-slate-600">
-              🎵
+            <div className="grid h-full w-full place-items-center text-slate-600">
+              <SampleMapsIcon className="h-8 w-8" />
             </div>
           )}
           {sourceFormat && (
@@ -671,7 +673,7 @@ function CardActionButton({
   onClick,
 }: {
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   danger?: boolean;
   busy?: boolean;
   onClick: () => void;
@@ -879,8 +881,8 @@ export function SampleMapsModal({
                       className="h-full w-full object-cover transition group-hover:scale-105"
                     />
                   ) : (
-                    <div className="grid h-full w-full place-items-center text-2xl text-slate-500">
-                      🎵
+                    <div className="grid h-full w-full place-items-center text-slate-500">
+                      <SampleMapsIcon className="h-7 w-7" />
                     </div>
                   )}
                   <img

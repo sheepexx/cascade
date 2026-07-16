@@ -30,6 +30,7 @@ import { Button, Field, TextInput, Toggle } from "./ui/Controls";
 import { PackCreatorItem } from "./PackCreatorItem";
 import { PackCreatorValidation } from "./PackCreatorValidation";
 import { PackProjectBrowser } from "./PackProjectBrowser";
+import { FolderIcon, PackageIcon } from "./ui/StartIcons";
 import { playUiSound } from "../lib/uiSounds";
 import { useAuth } from "../lib/auth";
 
@@ -397,7 +398,7 @@ export function PackCreator({
                     : "border-ink-500/70 bg-ink-800/60 hover:border-accent/50"
                 }`}
               >
-                <span className="text-xl">📦</span>
+                <PackageIcon className="h-5 w-5 text-slate-300" />
                 <span className="text-xs font-semibold text-slate-100">
                   {importing ? "Importing…" : "Import .osz"}
                 </span>
@@ -422,7 +423,7 @@ export function PackCreator({
                 disabled={importing}
                 className="flex flex-col items-center justify-center gap-1 rounded-xl border border-ink-500/70 bg-ink-800/60 px-3 py-4 text-center transition hover:border-accent/50 hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="text-xl">🗂</span>
+                <FolderIcon className="h-5 w-5 text-slate-300" />
                 <span className="text-xs font-semibold text-slate-100">
                   Browse Projects
                 </span>
