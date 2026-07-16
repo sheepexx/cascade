@@ -9,7 +9,6 @@ import {
 } from "react";
 import { setSupabaseToken } from "./supabase";
 
-/** Authenticated osu! user, as stored in `public.users`. */
 export type AuthUser = {
   id: string;
   osu_id: number;
@@ -21,16 +20,13 @@ export type AuthUser = {
 type AuthState = {
   user: AuthUser | null;
   isAdmin: boolean;
-  /** True until the first session check resolves. */
   loading: boolean;
   login: () => void;
   logout: () => Promise<void>;
-  /** Re-fetch the session + Supabase token from the Worker. */
   refresh: () => Promise<void>;
 };
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
-// Supabase tokens last 1h; refresh comfortably before that.
 const REFRESH_MS = 50 * 60 * 1000;
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -69,14 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
       });
     } catch {
-      /* ignore network errors; we clear locally regardless */
     }
     setSupabaseToken(null);
     setUser(null);
   }, []);
 
-  // Initial session check. Also strips the `?auth=ok|error` marker the Worker
-  // appends when bouncing back from the OAuth flow.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has("auth")) {
@@ -91,7 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  // Keep the Supabase token fresh while signed in, and re-check on tab focus.
   const userRef = useRef<AuthUser | null>(null);
   userRef.current = user;
   useEffect(() => {

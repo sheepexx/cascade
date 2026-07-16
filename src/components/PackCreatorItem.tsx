@@ -2,14 +2,12 @@ import type { PackItem } from "../types/packCreator";
 import { generatePackDifficultyName } from "../lib/packCreator";
 import { Field, TextInput, Toggle } from "./ui/Controls";
 
-/** Parse an OD/HP input to a number clamped to the osu! 0–10 range. */
 function clampRate(value: string): number {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
   return Math.min(10, Math.max(0, n));
 }
 
-/** Editor for one imported map (one difficulty of the final pack). */
 export function PackCreatorItem({
   item,
   onChange,
@@ -23,7 +21,6 @@ export function PackCreatorItem({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Where this map came from (read-only). */}
       <div className="rounded-lg border border-white/10 bg-ink-700/40 p-3 text-xs">
         <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
           Original map
@@ -69,9 +66,6 @@ export function PackCreatorItem({
             onChange={(e) => {
               const rate = e.target.value || undefined;
               const patch: Partial<PackItem> = { rate };
-              // Entering a rate into an empty field turns on its inclusion so
-              // the difficulty name updates as expected; editing an existing
-              // rate leaves the toggle as the user set it.
               if (rate && !item.rate) patch.includeRateInDifficultyName = true;
               onChange(patch);
             }}

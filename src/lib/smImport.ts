@@ -57,7 +57,6 @@ function extractNotesSections(raw: string): string[] {
   return sections;
 }
 
-/** Column count for a StepMania/Etterna steptype (dance-single, kb7-single…). */
 function stepTypeToKeys(steptype: string): number {
   switch (steptype.trim().replace(/:+$/, "").trim().replace(/"/g, "")) {
     case "dance-single": return 4;
@@ -71,7 +70,6 @@ function stepTypeToKeys(steptype: string): number {
   }
 }
 
-/** `.sm` steptype is the first line of the #NOTES section. */
 function detectKeys(notesSection: string): number {
   return stepTypeToKeys(notesSection.split("\n")[0] ?? "");
 }
@@ -111,7 +109,6 @@ function parseStops(str: string): StopEntry[] {
   return stops;
 }
 
-/** Convert a beat position to milliseconds given BPM changes and offset. */
 function beatToMs(
   beat: number,
   bpms: BpmEntry[],
@@ -190,8 +187,6 @@ function buildTimingPoints(
   return points;
 }
 
-/** `.sm` #NOTES: the steptype/description/difficulty/meter/radar header lines
- *  followed by measure data. Strip the header, then parse the measures. */
 function parseNotesData(
   notesSection: string,
   keys: number,
@@ -201,7 +196,6 @@ function parseNotesData(
 ): ManiaNote[] {
   const lines = toDataLines(notesSection);
 
-  // Skip the 5 header lines (steptype, description, difficulty, meter, radar)
   let skipped = 0;
   while (skipped < lines.length && skipped < 5 && lines[skipped].endsWith(":")) {
     skipped++;
@@ -210,7 +204,6 @@ function parseNotesData(
   return notesFromRows(lines.slice(skipped), keys, bpms, stops, offsetMs);
 }
 
-/** Strip comments and blank lines from a raw notes section. */
 function toDataLines(notesSection: string): string[] {
   return notesSection
     .split("\n")
@@ -221,10 +214,6 @@ function toDataLines(notesSection: string): string[] {
     .filter((l) => l.length > 0);
 }
 
-/**
- * `.ssc` #NOTES is measure data only (the chart's steptype/difficulty/meter
- * live in sibling #NOTEDATA tags), so parse the rows directly.
- */
 function parseSscNotesData(
   notesSection: string,
   keys: number,
@@ -235,7 +224,6 @@ function parseSscNotesData(
   return notesFromRows(toDataLines(notesSection), keys, bpms, stops, offsetMs);
 }
 
-/** Turn measure-data lines (no headers) into notes. */
 function notesFromRows(
   lines: string[],
   keys: number,
@@ -245,7 +233,6 @@ function notesFromRows(
 ): ManiaNote[] {
   let idx = 0;
 
-  // Group into measures separated by ',' lines
   const measures: string[][] = [];
   let current: string[] = [];
   for (; idx < lines.length; idx++) {
@@ -348,7 +335,6 @@ function notesFromRows(
     beatsAccumulated += 4;
   }
 
-  // Close any unclosed holds
   for (let col = 0; col < keys; col++) {
     if (inHold[col]) {
       notes.push({
@@ -372,11 +358,6 @@ export function isImageName(name: string): boolean {
   return /\.(png|jpe?g|gif|bmp|webp)$/i.test(name);
 }
 
-/**
- * Parse the `#NOTEDATA` chart blocks of a `.ssc` file into difficulties. Each
- * block carries its own steptype / difficulty / meter tags and may override the
- * song timing (Etterna "split timing"); the measure data lives in `#NOTES:`.
- */
 function parseSscCharts(
   raw: string,
   song: {
@@ -402,7 +383,6 @@ function parseSscCharts(
     const name =
       h["CHARTNAME"] || h["DESCRIPTION"] || h["DIFFICULTY"] || "Imported";
 
-    // Per-chart timing overrides (split timing); otherwise the song timing.
     const hasBpms = !!h["BPMS"];
     const hasOffset = h["OFFSET"] !== undefined;
     const bpms = hasBpms ? parseBpms(h["BPMS"]) : song.bpms;
@@ -441,15 +421,10 @@ function parseSscCharts(
 
 export function parseSmFile(text: string): ParsedSm {
   const raw = text.replace(/\r\n/g, "\n");
-  // Etterna's native format is .ssc: song headers first, then one #NOTEDATA
-  // block per chart. In .sm every chart is a #NOTES: section with an inline
-  // 5-line header. Detect .ssc so song headers aren't polluted by chart tags.
   const isSsc = /#NOTEDATA\s*:/i.test(raw);
   const headers = parseHeaders(isSsc ? raw.split(/#NOTEDATA\s*:/i)[0] : raw);
 
   const offsetSeconds = parseFloat(headers["OFFSET"] ?? "0");
-  // SM files natively play with a ~50ms delay compared to osu! strict timing.
-  // We apply henkan's global_timing_ms (50ms) by shifting the start time early.
   const offsetMs = (-offsetSeconds * 1000) - 50;
 
   const sampleStart = parseFloat(headers["SAMPLESTART"] ?? "0");
@@ -466,7 +441,6 @@ export function parseSmFile(text: string): ParsedSm {
     tags: headers["GENRE"] ?? "",
   };
 
-  // Collect SM-specific fields into a separate bag.
   const smMeta: SmMeta = {};
   if (headers["SUBTITLE"]) smMeta.subtitle = headers["SUBTITLE"];
   if (headers["TITLETRANSLIT"]) smMeta.titleTranslit = headers["TITLETRANSLIT"];
@@ -477,7 +451,6 @@ export function parseSmFile(text: string): ParsedSm {
   const sampleLen = parseFloat(headers["SAMPLELENGTH"] ?? "");
   if (Number.isFinite(sampleLen)) smMeta.sampleLength = sampleLen;
   if (headers["LISTNOTES"]) smMeta.listnotes = headers["LISTNOTES"];
-  // Carry genre into smMeta as well (already in SongMeta.tags).
   if (headers["GENRE"]) smMeta.genre = headers["GENRE"];
 
   const audioFilename = headers["MUSIC"] ?? null;

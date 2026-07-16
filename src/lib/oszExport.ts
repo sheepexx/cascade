@@ -29,25 +29,12 @@ export type BuildOszArgs = {
   meta: SongMeta;
   difficulties: Difficulty[];
   timingPoints: TimingPoint[];
-  /** Every audio file in the set, keyed by filename. */
   audioFiles: Record<string, LoadedFile>;
-  /** Every background image in the set, keyed by filename. */
   bgFiles?: Record<string, LoadedFile>;
-  /** Every background video in the set, keyed by filename. */
   videoFiles?: Record<string, LoadedFile>;
-  /**
-   * When set (0 < q ≤ 1), re-encode PNG background images as JPEG at this
-   * quality to shrink the archive. Undefined keeps every image byte-for-byte.
-   */
   jpegQuality?: number;
 };
 
-/**
- * Build a `.osz` archive (a plain zip) containing:
- *   - every audio file actually referenced by a difficulty (names preserved)
- *   - the background image, if provided
- *   - one `.osu` file per difficulty, each referencing its own audio
- */
 export async function buildOsz({
   meta,
   difficulties,
@@ -59,10 +46,6 @@ export async function buildOsz({
 }: BuildOszArgs): Promise<Blob> {
   const zip = new JSZip();
 
-  // Bundle every unique background image / video referenced by any difficulty.
-  // PNG backgrounds are re-encoded to JPEG when a quality is given; the name
-  // each background is written under (which may change from .png to .jpg) is
-  // remembered so the .osu can reference it.
   const bundledBgs = new Set<string>();
   const usedNames = new Set<string>();
   const bgExportName = new Map<string, string>();
@@ -96,16 +79,10 @@ export async function buildOsz({
     }
   }
 
-  // Sets often share a single song; use it for any difficulty that hasn't
-  // picked one explicitly.
   const allAudio = Object.values(audioFiles);
   const fallbackAudio = allAudio.length === 1 ? allAudio[0] : null;
   const bundled = new Set<string>();
 
-  // Trim support. The brackets are non-destructive in the editor; here they
-  // get baked in. We lazily create a single AudioContext (only when something
-  // is actually trimmed), cache decoded buffers and encoded cut files so
-  // difficulties sharing the same source + region reuse the work.
   const ctxHolder: { ctx: AudioContext | null } = { ctx: null };
   const decoded = new Map<string, Promise<AudioBuffer | null>>();
   const cutNameByKey = new Map<string, string>();
@@ -145,7 +122,6 @@ export async function buildOsz({
       let exportDiff = difficulty;
       let exportTiming = resolvedTiming;
 
-      // Only bother decoding when this difficulty actually trims the audio.
       const wantsTrim =
         (difficulty.trimStartMs ?? 0) > 0.5 ||
         difficulty.trimEndMs !== undefined;
@@ -171,8 +147,6 @@ export async function buildOsz({
         }
       }
 
-      // Bundle the verbatim audio only when this difficulty isn't using a cut.
-      // Convert WAV → preferred format; keep other formats as-is.
       if (audio && audioName === audio.name) {
         let effectiveName = audio.name;
         let effectiveBlob = audio.blob;
@@ -222,7 +196,6 @@ export async function buildOsz({
   });
 }
 
-/** Build and download the `.osz` in one step. */
 export async function downloadOsz(args: BuildOszArgs): Promise<void> {
   const blob = await buildOsz(args);
   triggerDownload(blob, setFilename(args.meta));

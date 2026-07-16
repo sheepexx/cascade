@@ -26,9 +26,6 @@ describe("computeStarRating", () => {
   });
 
   it("rates a denser jack stream harder than a sparse one over the same span", () => {
-    // Same 1000ms window, more notes packed in -> higher strain. (Comparing
-    // different spans is not meaningful: the per-section strain peaks accumulate
-    // with length, so a longer-but-sparser map can out-rate a short dense burst.)
     const dense = column(0, [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]);
     const sparse = column(0, [0, 250, 500, 750, 1000]);
     expect(computeStarRating(dense, 4)).toBeGreaterThan(
@@ -43,8 +40,8 @@ describe("starColor", () => {
   });
 
   it("clamps to the spectrum endpoints", () => {
-    expect(starColor(0.1)).toBe("rgb(66, 144, 251)"); // #4290fb
-    expect(starColor(100)).toBe("rgb(0, 0, 0)"); // #000000 cap
+    expect(starColor(0.1)).toBe("rgb(66, 144, 251)");
+    expect(starColor(100)).toBe("rgb(0, 0, 0)");
   });
 
   it("returns an rgb() string for a mid rating", () => {

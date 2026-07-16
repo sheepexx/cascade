@@ -17,47 +17,41 @@ import {
   type LocalProjectSummary,
 } from "../../lib/persistence";
 import { playUiSound } from "../../lib/uiSounds";
+import {
+  NewMapIcon,
+  PackCreatorIcon,
+  SampleMapsIcon,
+  SmPackIcon,
+} from "../ui/StartIcons";
 
-/** A single difficulty entry from the bundled maps manifest. */
 export type SampleDifficulty = {
   name: string;
   keyCount: number;
   stars: number;
 };
 
-/** One bundled map (`public/maps/manifest.json`). */
 export type SampleMap = {
   id: string;
   title: string;
   artist: string;
   creator: string;
-  /** Path to the `.osz`, relative to the site base. */
   osz: string;
-  /** Path to the banner image, relative to the site base, or `null`. */
   banner: string | null;
   difficulties: SampleDifficulty[];
 };
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 
-/** Readable text color (black/white) for a `rgb(...)` background. */
 function textOn(rgb: string): string {
   const m = rgb.match(/\d+/g);
   if (!m) return "#000";
   const [r, g, b] = m.map(Number);
-  // Perceived luminance (sRGB) - pick black on light colors, white on dark.
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return lum > 0.55 ? "#000" : "#fff";
 }
 
-/** Maximum cards rendered per section before the rest are hidden. */
 const MAX_CARDS = 9;
 
-/**
- * First-run gate. Lets the user start from a blank editor or browse the bundled
- * "try these maps" gallery, and surfaces their existing work in three sections:
- * local saves, cloud projects they own, and maps they were invited to.
- */
 export function WelcomeModal({
   open,
   onClose,
@@ -73,11 +67,8 @@ export function WelcomeModal({
   onNewMap: () => void;
   onTryMaps: () => void;
   onImportSmPack?: () => void;
-  /** Open the Pack Creator (combine multiple maps into one .osz pack). */
   onPackCreator?: () => void;
-  /** Open one of the user's cloud maps (owned or shared) by id. */
   onOpenCloudProject: (id: string) => void;
-  /** Open one of the locally saved projects from this browser. */
   onOpenLocalProject: (id: string) => void;
 }) {
   const { user, login } = useAuth();
@@ -89,22 +80,15 @@ export function WelcomeModal({
   const [localThumbs, setLocalThumbs] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  /** id of the project currently being deleted/archived (disables its buttons). */
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  /** A delete awaiting "are you sure" confirmation, or null. */
   const [confirm, setConfirm] = useState<{
     scope: "local" | "cloud";
     id: string;
     title: string;
   } | null>(null);
-  /** True until this browser has opened the start screen at least once. Drives
-   *  the one-time onboarding banner for first-time (e.g. search-referred) visitors. */
   const [firstRun, setFirstRun] = useState(false);
 
-  // Detect a first-ever visit, then immediately record it so the onboarding
-  // banner shows only once. Reads/writes are guarded, since private-mode
-  // browsers can throw on localStorage.
   useEffect(() => {
     if (!open) return;
     try {
@@ -113,16 +97,11 @@ export function WelcomeModal({
         localStorage.setItem("mania:onboarded", "1");
       }
     } catch {
-      /* storage unavailable, so just skip the banner */
     }
   }, [open]);
 
-  // Local projects (with background blobs for thumbnails).
   useEffect(() => {
     if (!open) {
-      // Reset only transient UI. Keep the loaded list: nulling it here would make
-      // the sections flip to their "Loading…" placeholder while the modal is
-      // still animating out, which reads as a stray loading flash on close.
       setConfirm(null);
       setShowArchived(false);
       return;
@@ -144,7 +123,6 @@ export function WelcomeModal({
     };
   }, [open]);
 
-  // Turn local background blobs into object URLs, revoking them on change.
   useEffect(() => {
     if (!localProjects) return;
     const made: Record<string, string> = {};
@@ -157,7 +135,6 @@ export function WelcomeModal({
     };
   }, [localProjects]);
 
-  // Cloud projects (owned + shared), with thumbnails + participant avatars.
   useEffect(() => {
     if (!open || !user) {
       setProjects(null);
@@ -177,7 +154,6 @@ export function WelcomeModal({
           const urls = await signedThumbUrls(paths);
           if (!cancelled) setCloudThumbs(urls);
         } catch {
-          /* thumbnails are best-effort; cards fall back to a placeholder */
         }
       })
       .catch((e) => {
@@ -198,7 +174,7 @@ export function WelcomeModal({
   const confirmBusy = confirm !== null && busyId === confirm.id;
 
   const cancelConfirm = () => {
-    if (busyId) return; // don't dismiss mid-delete
+    if (busyId) return;
     setConfirm(null);
   };
 
@@ -223,7 +199,6 @@ export function WelcomeModal({
     }
   };
 
-  /** Archive / un-archive an invited project for this user only. */
   const archive = (id: string, archived: boolean) =>
     void (async () => {
       setBusyId(id);
@@ -269,8 +244,8 @@ export function WelcomeModal({
           onClick={onNewMap}
           className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
         >
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-2xl transition group-hover:bg-accent/20">
-            ✚
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
+            <NewMapIcon className="h-6 w-6" />
           </span>
           <span className="text-sm font-semibold text-slate-100">New Map</span>
           <span className="text-xs text-slate-400">
@@ -282,8 +257,8 @@ export function WelcomeModal({
           onClick={onTryMaps}
           className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
         >
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-2xl transition group-hover:bg-accent/20">
-            🎶
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
+            <SampleMapsIcon className="h-6 w-6" />
           </span>
           <span className="text-sm font-semibold text-slate-100">
             Try these maps
@@ -298,8 +273,8 @@ export function WelcomeModal({
             onClick={onImportSmPack}
             className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
           >
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-2xl transition group-hover:bg-accent/20">
-              📦
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
+              <SmPackIcon className="h-6 w-6" />
             </span>
             <span className="text-sm font-semibold text-slate-100">
               Import SM pack
@@ -315,8 +290,8 @@ export function WelcomeModal({
             onClick={onPackCreator}
             className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
           >
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-2xl transition group-hover:bg-accent/20">
-              🧩
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
+              <PackCreatorIcon className="h-6 w-6" />
             </span>
             <span className="text-sm font-semibold text-slate-100">
               Pack Creator
@@ -328,7 +303,6 @@ export function WelcomeModal({
         )}
       </div>
 
-      {/* Community link */}
       <a
         href="https://discord.gg/aY2UckUxYd"
         target="_blank"
@@ -339,7 +313,6 @@ export function WelcomeModal({
         Join the Discord Server
       </a>
 
-      {/* Signed-out prompt */}
       {!user && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
           <span className="text-sm text-slate-400">
@@ -362,7 +335,6 @@ export function WelcomeModal({
       {error && <p className="mt-4 text-sm text-rose-400">{error}</p>}
       {localError && <p className="mt-4 text-sm text-rose-400">{localError}</p>}
 
-      {/* 1. Local projects (this device) */}
       <Section
         title="Local projects"
         hint="saved on this device"
@@ -405,7 +377,6 @@ export function WelcomeModal({
         )}
       </Section>
 
-      {/* 2. Cloud projects (owned) */}
       {user && (
         <Section
           title="Cloud projects"
@@ -449,7 +420,6 @@ export function WelcomeModal({
         </Section>
       )}
 
-      {/* 3. Mapping invitations (shared with you) */}
       {user && invited.length > 0 && (
         <Section
           title="Mapping invitations"
@@ -486,7 +456,6 @@ export function WelcomeModal({
         </Section>
       )}
 
-      {/* 4. Archived invitations (collapsed by default) */}
       {user && archivedShared.length > 0 && (
         <section className="mt-6">
           <button
@@ -551,7 +520,6 @@ export function WelcomeModal({
   );
 }
 
-/** Discord logo, themable via `currentColor`. Path from the official mark. */
 function DiscordIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -565,12 +533,10 @@ function DiscordIcon({ className }: { className?: string }) {
   );
 }
 
-/** "Artist · Creator", omitting empty parts. */
 function subtitleOf(artist: string, creator: string): string {
   return [artist, creator].filter(Boolean).join(" · ");
 }
 
-/** Participants other than the current user (collaborators, or the map owner). */
 function othersOf(
   participants: ProjectParticipant[],
   selfId: string,
@@ -578,7 +544,6 @@ function othersOf(
   return participants.filter((p) => p.user_id !== selfId);
 }
 
-/** A separated, titled section with an optional count and right-aligned hint. */
 function Section({
   title,
   hint,
@@ -620,8 +585,6 @@ function CardGrid({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** A project tile: background thumbnail, title/meta, participant avatars, and
- *  optional overlaid action buttons (delete / archive). */
 function ProjectCard({
   title,
   subtitle,
@@ -700,7 +663,6 @@ function ProjectCard({
   );
 }
 
-/** A small icon button overlaid on a project card (delete / archive / restore). */
 function CardActionButton({
   label,
   icon,
@@ -720,8 +682,6 @@ function CardActionButton({
       title={label}
       aria-label={label}
       disabled={busy}
-      // Suppress the global UI click sound: delete opens its own "are you sure"
-      // chime, and archive/unarchive are self-evident from the card moving.
       data-no-uisound=""
       onClick={(e) => {
         e.stopPropagation();
@@ -738,7 +698,6 @@ function CardActionButton({
   );
 }
 
-/** Small overlapping circle of participant avatars, with a "+N" overflow chip. */
 function AvatarStack({
   participants,
   max = 4,
@@ -762,7 +721,6 @@ function AvatarStack({
   );
 }
 
-/** One avatar circle, falling back to the username's initial. */
 function Avatar({ participant }: { participant: ProjectParticipant }) {
   const name = participant.username ?? "?";
   const title =
@@ -784,11 +742,6 @@ function Avatar({ participant }: { participant: ProjectParticipant }) {
   );
 }
 
-/**
- * "Are you sure?" dialog for destructive actions, rendered above the start menu.
- * It owns its Esc handling in the capture phase so dismissing the confirmation
- * doesn't also close the start menu underneath it.
- */
 function ConfirmDialog({
   open,
   title,
@@ -806,8 +759,6 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  // Chime once when the dialog opens. Keyed on `open` only, so re-renders while
-  // it's open (e.g. the Delete button flipping a busy flag) don't replay it.
   useEffect(() => {
     if (open) playUiSound("areYouSure");
   }, [open]);
@@ -855,7 +806,6 @@ function ConfirmDialog({
   );
 }
 
-/** Gallery of the bundled maps, with banner, title, mapper and star ratings. */
 export function SampleMapsModal({
   open,
   onClose,

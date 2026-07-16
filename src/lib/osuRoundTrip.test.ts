@@ -25,7 +25,7 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
   const notes: ManiaNote[] = [
     { id: "a", column: 0, startTime: 0 },
     { id: "b", column: 3, startTime: 500 },
-    { id: "c", column: 1, startTime: 1000, endTime: 1500 }, // long note
+    { id: "c", column: 1, startTime: 1000, endTime: 1500 },
   ];
 
   const difficulty: Difficulty = {

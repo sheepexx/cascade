@@ -3,11 +3,6 @@ import { createPortal } from "react-dom";
 import { useAuth } from "../../lib/auth";
 import { Button } from "../ui/Controls";
 
-/**
- * Account control for the header / start screen. Shows a "Log in with osu!"
- * button when signed out, or an avatar chip with a dropdown (My Maps, Presets,
- * Admin, Log out) when signed in.
- */
 export function AccountControl({
   onOpenMyMaps,
   onOpenPresets,
@@ -19,20 +14,17 @@ export function AccountControl({
   onOpenPresets: () => void;
   onOpenFeedback: () => void;
   onOpenAdmin: () => void;
-  /** Render a smaller chip (used in the dense header). */
   compact?: boolean;
 }) {
   const { user, isAdmin, loading, login, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  // Fixed-position coordinates for the portaled menu, anchored to the chip.
   const [pos, setPos] = useState<{ top: number; right: number }>({
     top: 0,
     right: 0,
   });
 
-  // Position the menu just under the chip, right-aligned to it.
   useLayoutEffect(() => {
     if (!open || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();

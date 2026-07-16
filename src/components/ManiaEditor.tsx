@@ -27,48 +27,20 @@ import type { Waveform } from "../hooks/useWaveform";
 import { hasNoteCollisions, withoutNoteCollisions } from "../lib/noteCollision";
 import { mirrorColumns } from "../lib/noteTools";
 
-/**
- * Canvas-based vertical mania editor.
- *
- * Coordinate model:
- *   - A fixed "playhead" line sits near the bottom of the canvas and always
- *     represents the current audio time.
- *   - Future notes are drawn above it and scroll downward as time advances.
- *   - Scroll velocity matches osu!mania: at scroll speed S the region above
- *     the playhead shows MANIA_MAX_TIME_RANGE / S milliseconds of notes, so
- *     pixels-per-ms = visibleHeight * S / MANIA_MAX_TIME_RANGE.
- *
- * Interaction:
- *   - Left click in a lane: place a note (snapped to the beat grid).
- *   - Left click + drag vertically: place a long note (hold).
- *   - Mouse wheel: scrub through time.
- */
-
-// osu!lazer mania MAX_TIME_RANGE: ms of notes visible above the hit line at
-// scroll speed 1. The visible window shrinks to ~287ms at scroll speed 40.
 const MANIA_MAX_TIME_RANGE = 11485;
 const PLAYHEAD_FROM_BOTTOM = 96;
 const NOTE_HEIGHT = 16;
 const SELECT_AUTOSCROLL_TOP_ZONE = 64;
-// Inset (px) the box-select rectangle stops short of the canvas edge, so it
-// visibly halts inside the notefield instead of hugging the very border.
 const SELECT_EDGE_INSET = 12;
 const SELECT_AUTOSCROLL_MIN_PX_PER_SEC = 280;
 const SELECT_AUTOSCROLL_MAX_PX_PER_SEC = 900;
-// How close (ms) the playhead must be to a note for that column's receptor to
-// light up to its pressed sprite, so notes visibly "hit" as they reach the line.
 const RECEPTOR_HIT_WINDOW = 90;
-// Playtest Mode: how long (ms past its hit time) a missed note keeps sliding
-// below the receptors while fading to nothing, so unhit notes visibly fall
-// *through* the line instead of blinking away at it.
 const NOTE_FALLTHROUGH_FADE_MS = 240;
 
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
-// Exponential ease rate for smooth scrolling (≈150ms to settle on a snap line).
 const SCROLL_TIME_EASE = 20;
-// osu!lazer font stack for canvas text - mirrors --font-osu / tailwind `sans`.
 const CANVAS_FONT_STACK =
   '"Torus", "Torus-Alternate", "Inter", ui-sans-serif, system-ui, sans-serif';
 
@@ -82,25 +54,15 @@ type Props = {
   getCurrentTime: () => number;
   isPlaying: boolean;
   backgroundUrl: string | null;
-  /** Background video object URL (osu! Video event). Always played muted. */
   videoUrl?: string | null;
-  /** Ms into the song at which the background video starts. Default 0. */
   videoOffsetMs?: number;
-  /** Audio playback rate, mirrored onto the background video. Default 1. */
   playbackRate?: number;
-  /** How strongly to dim the background image for note readability, 0..100. */
   dimBackground: number;
-  /** Skin assets for the active keymode, or null to use the default look. */
   skin: ManiaKeymodeSkin | null;
-  /** Multiplies the on-screen playfield / lane size. Default 1. */
   playfieldScale: number;
-  /** Width multiplier for the default long-note body. Default 1. */
   longNoteBodyScale: number;
-  /** Ease scrubbing between snap lines (still snaps) instead of jumping. */
   smoothScrolling?: boolean;
-  /** Flip the playfield so notes scroll upward (upscroll). */
   upscroll?: boolean;
-  /** Hide non-essential overlays (e.g. the KIAI label) in zen mode. */
   zenMode: boolean;
   onPlaceNote: (note: ManiaNote) => void;
   onDeleteNote: (id: string) => void;
@@ -110,68 +72,22 @@ type Props = {
   onView: (view: ViewState) => void;
   onSeek: (ms: number) => void;
   onVolumeChange: (delta: number) => void;
-  /** Additions bitmask (2/4/8) applied to newly placed notes. */
   currentHitSound: number;
-  /** Normal sample set (0=auto,1,2,3) applied to newly placed notes. */
   currentSampleSet: number;
   onCurrentHitSound: (value: number) => void;
   onCurrentSampleSet: (value: number) => void;
-  /** Publish the given copied pattern as a shared preset (opens a dialog). */
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
-  /** When set (by a changing id), load this pattern into the editor clipboard. */
   pendingClip?: { id: string; pattern: PatternNote[] } | null;
-  /** View-only (collaborator viewer role): block note placement / dragging. */
   readOnly?: boolean;
-  /** Gameplay preview: render only and block every editor interaction. */
   playtestMode?: boolean;
-  /**
-   * Playtest Mode: a live ref to the ids of long notes the player is currently
-   * holding. Held LNs stay pinned to the judgement line; every other note that
-   * passes the line unhit falls through it. A ref (read each frame by the canvas)
-   * rather than a prop so a press reflects on the very next frame — no React
-   * render delay, which would make a held LN flicker on the frame it's caught.
-   * Ignored outside playtest.
-   */
   heldLnIdsRef?: { readonly current: { has(id: string): boolean } };
-  /**
-   * Playtest Mode: a live ref to the ids of notes already consumed (hit, or a
-   * long note whose hold has ended). Read each frame so a consumed note vanishes
-   * immediately instead of lingering a frame until React state catches up.
-   * Ignored outside playtest.
-   */
   consumedIdsRef?: { readonly current: { has(id: string): boolean } };
-  /**
-   * Playtest Mode: synchronous set of columns whose key the player is currently
-   * holding. Drives the receptor "pressed" glow from real input instead of from
-   * notes passing the line. Read as a ref (not state) so the glow lights the
-   * instant a key goes down, with no React-commit delay. Ignored outside
-   * playtest.
-   */
   pressedColumnsRef?: { readonly current: { has(column: number): boolean } };
-  /**
-   * Playtest Mode: "hit position" offset in pixels. Shifts the falling notes
-   * down by this amount so they meet the player below the receptors, without
-   * moving the receptors. Visual only (judgement stays audio-timed) and never
-   * applied in the editor.
-   */
   hitPositionOffset?: number;
-  /**
-   * Decoded song waveform to overlay on the hit lane (editor and playtest),
-   * or null/undefined to hide it. Lets audio peaks be lined up visually with
-   * the notes when dialing in an offset.
-   */
   waveformOverlay?: Waveform | null;
-  /** Toggle the waveform-overlay app setting (bound to W in the editor). */
   onToggleWaveformOverlay?: () => void;
-  /**
-   * Playtest Mode: the miss-window (ms) for the active OD. A fallen-through note
-   * stays fully opaque until it's this far past its time, then fades — so notes
-   * never dim while they're still hittable. Ignored outside playtest.
-   */
   missWindowMs?: number;
-  /** Hide the on-canvas hint overlays (used by the read-only reference view). */
   hideHints?: boolean;
-  /** Editor bookmarks (ms) to draw as lines in the playfield. */
   bookmarks?: number[];
 };
 
@@ -188,25 +104,16 @@ type SelectionDragState = {
   currentX: number;
   currentY: number;
   currentTime: number;
-  // Raw (un-clamped) pointer Y. currentY is pinned to the canvas inset for
-  // drawing; rawY tracks the true cursor so edge-autoscroll speed can scale with
-  // how far outside the canvas the pointer is dragged.
   rawY: number;
 };
 
-/** In-progress drag of the current selection to a new column / time. */
 type MoveDragState = {
   startX: number;
   startY: number;
-  /** Lane offset applied to every selected note (clamped to the playfield). */
   colDelta: number;
-  /** Raw time offset (ms) applied to every selected note while dragging. */
   timeDelta: number;
-  /** Becomes true once the pointer has actually moved (vs. a plain click). */
   moved: boolean;
-  /** True once the selection has moved vertically enough to edit timing. */
   timeMoved: boolean;
-  /** Original positions of the dragged notes, captured at mousedown. */
   origin: ({
     id: string;
     column: number;
@@ -215,10 +122,6 @@ type MoveDragState = {
   } & Partial<ManiaNote>)[];
 };
 
-/**
- * A clipboard entry: notes normalized so the earliest one starts at time 0.
- * Columns stay absolute so paste lands in the same lanes.
- */
 type Clip = {
   id: string;
   notes: {
@@ -234,7 +137,6 @@ type Clip = {
   }[];
 };
 
-/** Copy the optional hitsound fields off a note (for clipboard / cloning). */
 function hitsoundOf(n: {
   hitSound?: number;
   sampleSet?: number;
@@ -253,7 +155,6 @@ function hitsoundOf(n: {
   };
 }
 
-/** The whistle/finish/clap additions on a note as a short label, e.g. "WF". */
 function hitsoundLabel(hitSound: number | undefined): string {
   if (!hitSound) return "";
   let s = "";
@@ -263,7 +164,6 @@ function hitsoundLabel(hitSound: number | undefined): string {
   return s;
 }
 
-/** Draw the hitsound letters centred in a default-skin note bar. */
 function drawHitsoundLetters(
   ctx: CanvasRenderingContext2D,
   hitSound: number | undefined,
@@ -292,29 +192,22 @@ type CanvasRect = {
   h: number;
 };
 
-/** Resolved render assets for one column of the active skin keymode. */
 type ColumnRender = {
   colour: string | null;
   note: HTMLImageElement | null;
   head: HTMLImageElement | null;
   body: HTMLImageElement | null;
-  /** Cap height (in body sprite px) for a capped body; null = stretch whole. */
   bodyCapPx: number | null;
   tail: HTMLImageElement | null;
-  /** Receptor sprite (idle) drawn at the judgement line. */
   key: HTMLImageElement | null;
-  /** Receptor sprite shown while the column is being hit. */
   keyDown: HTMLImageElement | null;
 };
 
 export function ManiaEditor(props: Props) {
   const [shiftActive, setShiftActive] = useState(false);
-  // Receptors (the osu!mania "keys" at the judgement line). Toggled with R.
   const [receptorsOn, setReceptorsOn] = useState(true);
   const receptorsOnRef = useRef(true);
   receptorsOnRef.current = receptorsOn;
-  // Hitsound mode: shows the hitsound toolbar + per-note letters and enables
-  // the W/F/C editing keys. Toggled with H. Playback is unaffected by it.
   const [hitsoundMode, setHitsoundMode] = useState(false);
   const hitsoundModeRef = useRef(false);
   hitsoundModeRef.current = hitsoundMode;
@@ -325,18 +218,13 @@ export function ManiaEditor(props: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const bgFadeStartRef = useRef(0);
-  // Off-DOM muted <video> for the background video; drawn straight into the
-  // canvas each frame and kept in sync with the audio clock (see draw()).
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  // Resolved skin sprites/colours per column. Read by the rAF draw loop.
   const skinColsRef = useRef<ColumnRender[]>([]);
   const shiftActiveRef = useRef(false);
   const selectedNoteIdsRef = useRef<Set<string>>(new Set());
   const clipboardRef = useRef<Clip | null>(null);
   clipboardRef.current = clipboard;
 
-  // Load an externally-provided pattern (e.g. a preset chosen in the browser)
-  // into the clipboard so the user can paste it where they want with Ctrl+V.
   const lastPendingClipRef = useRef<string | null>(null);
   useEffect(() => {
     const pc = props.pendingClip;
@@ -347,25 +235,17 @@ export function ManiaEditor(props: Props) {
     setHistory((prev) => [clip, ...prev].slice(0, 8));
   }, [props.pendingClip]);
 
-  // Mutable mirror of props so the rAF draw loop always reads fresh values.
   const propsRef = useRef(props);
   propsRef.current = props;
-  // The time used for rendering + interaction. With smooth scrolling on it eases
-  // toward the real audio time (set each frame in updateSmoothMotion) so a scrub
-  // glides between snap lines; otherwise it tracks the clock exactly.
   const renderTimeRef = useRef(props.currentTime);
   const liveCurrentTime = useCallback(() => renderTimeRef.current, []);
   const smoothScrollSpeedRef = useRef(props.view.scrollSpeed);
-  // Eased playfield zoom, so +/- and the size slider animate instead of snapping.
   const smoothScaleRef = useRef(props.playfieldScale || 1);
   const lastMotionFrameRef = useRef(
     typeof performance !== "undefined" ? performance.now() : 0,
   );
 
   const sizeRef = useRef({ width: 800, height: 600, dpr: 1 });
-  // FPS / frame-time diagnostic HUD, shown only when the page URL has ?fps.
-  // `drawMs` is how long draw() itself takes (CPU cost); `fps` is the actual
-  // rate the rAF loop is being serviced at (i.e. what Chrome is presenting).
   const fpsHudRef = useRef({
     show:
       typeof window !== "undefined" &&
@@ -384,17 +264,12 @@ export function ManiaEditor(props: Props) {
   const selectionDragRef = useRef<SelectionDragState | null>(null);
   const moveDragRef = useRef<MoveDragState | null>(null);
   const selectionAutoscrollTimeRef = useRef<number | null>(null);
-  // True while a *mouse* box-select holds pointer capture, so the drag keeps
-  // tracking (and doesn't get cancelled) when the cursor leaves the canvas.
   const boxSelectCapturedRef = useRef(false);
-  // Touch input: every active touch/pen pointer by id (client coords), plus the
-  // two-finger scrub state (the touch replacement for the mouse wheel).
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(
     new Map(),
   );
   const scrubRef = useRef<{ time: number; lastMidY: number } | null>(null);
 
-  // ---- Selection mutation (keeps the draw-loop ref and UI count in sync) ---
   const setSelection = useCallback((ids: Set<string>) => {
     selectedNoteIdsRef.current = ids;
     setSelectionCount(ids.size);
@@ -413,7 +288,6 @@ export function ManiaEditor(props: Props) {
     moveDragRef.current = null;
   }, [props.playtestMode, setSelection]);
 
-  // ---- Clipboard: copy / cut / paste --------------------------------------
   const copySelection = useCallback((): Clip | null => {
     const { notes } = propsRef.current;
     const selected = notes.filter((n) => selectedNoteIdsRef.current.has(n.id));
@@ -446,10 +320,6 @@ export function ManiaEditor(props: Props) {
     if (copySelection()) deleteSelection();
   }, [copySelection, deleteSelection]);
 
-  // ---- Mirror: flip the selected notes left<->right (osu!mania "Mirror") ----
-  // Columns map to keyCount-1-col; ids/times/holds/hitsounds are preserved so
-  // the selection survives the move. onMoveNotes rejects the op if the flip
-  // would collide with unselected notes (same as a drag-move).
   const mirrorSelection = useCallback(() => {
     const ids = selectedNoteIdsRef.current;
     if (!ids.size) return;
@@ -482,14 +352,10 @@ export function ManiaEditor(props: Props) {
     setSelection(new Set(newNotes.map((n) => n.id)));
   }, [setSelection]);
 
-  // ---- Hitsounding: apply to the selection, or set the "current" hitsound --
-  // that newly placed notes adopt. Matches the osu!mania editor: W/F/C toggle
-  // whistle/finish/clap, and the sample-set buttons pick normal/soft/drum.
   const toggleAddition = useCallback((bit: number) => {
     const ids = selectedNoteIdsRef.current;
     if (ids.size) {
       const selected = propsRef.current.notes.filter((n) => ids.has(n.id));
-      // Toggle: clear the bit if every selected note already has it, else set it.
       const allHave = selected.every((n) => ((n.hitSound ?? 0) & bit) !== 0);
       const updated = selected.map((n) => {
         const cur = n.hitSound ?? 0;
@@ -514,7 +380,6 @@ export function ManiaEditor(props: Props) {
     }
   }, []);
 
-  // ---- Multi-selection keyboard state -------------------------------------
   useEffect(() => {
     const setShift = (active: boolean) => {
       shiftActiveRef.current = active;
@@ -536,7 +401,6 @@ export function ManiaEditor(props: Props) {
         return;
       }
       if (e.key === "Shift") setShift(true);
-      // R toggles the receptors at the judgement line (osu!mania "keys").
       if (
         e.key.toLowerCase() === "r" &&
         !e.ctrlKey &&
@@ -548,7 +412,6 @@ export function ManiaEditor(props: Props) {
         setReceptorsOn((on) => !on);
         return;
       }
-      // H toggles hitsound mode (the toolbar + per-note letters + W/F/C keys).
       if (
         e.key.toLowerCase() === "h" &&
         !e.ctrlKey &&
@@ -560,8 +423,6 @@ export function ManiaEditor(props: Props) {
         setHitsoundMode((on) => !on);
         return;
       }
-      // M mirrors the selected notes left<->right (flips columns). No-op with
-      // an empty selection, so it stays out of the way when nothing is picked.
       if (
         e.key.toLowerCase() === "m" &&
         !e.ctrlKey &&
@@ -574,8 +435,6 @@ export function ManiaEditor(props: Props) {
         mirrorSelection();
         return;
       }
-      // W / F / C toggle whistle / finish / clap on the selection (osu!mania).
-      // Only while hitsound mode is active so they don't clash with editing.
       if (
         hitsoundModeRef.current &&
         !e.ctrlKey &&
@@ -600,9 +459,6 @@ export function ManiaEditor(props: Props) {
           return;
         }
       }
-      // W toggles the waveform overlay on the hit lane. Checked after the
-      // hitsound block so that in hitsound mode W keeps meaning "whistle"
-      // (osu! convention).
       if (
         e.key.toLowerCase() === "w" &&
         !e.ctrlKey &&
@@ -664,7 +520,6 @@ export function ManiaEditor(props: Props) {
     };
   }, [copySelection, cutSelection, paste, toggleAddition, mirrorSelection]);
 
-  // ---- Background image loading -------------------------------------------
   useEffect(() => {
     if (!props.backgroundUrl) {
       bgImgRef.current = null;
@@ -681,7 +536,6 @@ export function ManiaEditor(props: Props) {
     };
   }, [props.backgroundUrl]);
 
-  // ---- Background video loading ---------------------------------------------
   useEffect(() => {
     if (!props.videoUrl) {
       videoRef.current = null;
@@ -701,14 +555,12 @@ export function ManiaEditor(props: Props) {
     };
   }, [props.videoUrl]);
 
-  // ---- Skin sprite loading -------------------------------------------------
   useEffect(() => {
     const skin = props.skin;
     if (!skin) {
       skinColsRef.current = [];
       return;
     }
-    // Seed colours synchronously; images fill in as they decode.
     const cols: ColumnRender[] = skin.columns.map((c) => ({
       colour: c.colour,
       note: null,
@@ -743,19 +595,12 @@ export function ManiaEditor(props: Props) {
     };
   }, [props.skin]);
 
-  // ---- Geometry helpers ----------------------------------------------------
   const updateSmoothMotion = useCallback(() => {
     const now = performance.now();
     const last = lastMotionFrameRef.current || now;
     const dt = Math.min(0.08, Math.max(0, (now - last) / 1000));
     lastMotionFrameRef.current = now;
 
-    // Smooth scrolling: ease the displayed time toward the real audio time so
-    // scrubbing between snap lines glides instead of jumping. During playback
-    // (or with the setting off) track the clock exactly so notes never lag the
-    // music; a large external jump still settles quickly under the easing.
-    // Runs every frame, independent of the scroll-speed easing below (which
-    // returns early once the speed has settled).
     const targetTime = propsRef.current.getCurrentTime();
     const smooth = propsRef.current.smoothScrolling !== false;
     if (!smooth || propsRef.current.isPlaying) {
@@ -771,8 +616,6 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    // Ease the playfield zoom toward its target so +/- keys and the size slider
-    // animate smoothly. Runs every frame (independent of the speed early-out).
     const targetScale = propsRef.current.playfieldScale || 1;
     const curScale = smoothScaleRef.current;
     smoothScaleRef.current =
@@ -780,7 +623,6 @@ export function ManiaEditor(props: Props) {
         ? targetScale
         : curScale + (targetScale - curScale) * (1 - Math.exp(-SCROLL_SPEED_EASE * dt));
 
-    // Scroll-speed easing (only changes when the user moves the speed slider).
     const target = propsRef.current.view.scrollSpeed;
     const current = smoothScrollSpeedRef.current;
     if (!Number.isFinite(target)) return;
@@ -794,14 +636,10 @@ export function ManiaEditor(props: Props) {
 
   const ppms = useCallback(() => {
     const scrollSpeed = smoothScrollSpeedRef.current;
-    // Height of the scrolling region above the playhead. osu!mania fits
-    // MANIA_MAX_TIME_RANGE / scrollSpeed ms of notes into this span.
     const visibleHeight = Math.max(1, sizeRef.current.height - PLAYHEAD_FROM_BOTTOM);
     return (visibleHeight * scrollSpeed) / MANIA_MAX_TIME_RANGE;
   }, []);
 
-  // The judgement line sits near the bottom (downscroll) or near the top
-  // (upscroll); notes always travel toward it as time advances.
   const playheadY = useCallback(
     () =>
       propsRef.current.upscroll
@@ -810,9 +648,6 @@ export function ManiaEditor(props: Props) {
     [],
   );
 
-  // Vertical direction of time: +1 maps future notes above the line (downscroll),
-  // -1 maps them below it (upscroll). All draw + hit-test geometry derives from
-  // these two helpers, so flipping the sign flips the whole playfield.
   const scrollDir = useCallback(() => (propsRef.current.upscroll ? -1 : 1), []);
 
   const timeToY = useCallback(
@@ -852,7 +687,6 @@ export function ManiaEditor(props: Props) {
   const laneColor = (col: number) =>
     col % 2 === 0 ? "#e9e9f0" : "#5bc0ff";
 
-  /** Note colour for a column: skin colour when loaded, else the default. */
   const noteColor = (col: number) =>
     skinColsRef.current[col]?.colour ?? laneColor(col);
 
@@ -877,8 +711,6 @@ export function ManiaEditor(props: Props) {
         const yEnd = timeToY(note.endTime);
         const headH = spriteHeight(cr?.head ?? cr?.note);
         const tailH = spriteHeight(cr?.tail);
-        // The head/tail sprites extend away from the line: upward in downscroll,
-        // downward in upscroll.
         const top = up
           ? Math.min(yStart, yEnd)
           : Math.min(yStart - headH, yEnd - tailH, yEnd);
@@ -905,10 +737,6 @@ export function ManiaEditor(props: Props) {
     [timeToY],
   );
 
-  // Notes sorted by start time (+ the longest note's duration), so the draw loop
-  // can binary-search the on-screen window instead of scanning the whole map
-  // every frame. maxDur lets us extend the lower bound so a long note that
-  // starts above the view but whose body is still on screen isn't skipped.
   const sortedNotes = useMemo(() => {
     const list = [...props.notes].sort((a, b) => a.startTime - b.startTime);
     let maxDur = 0;
@@ -923,10 +751,6 @@ export function ManiaEditor(props: Props) {
   const sortedNotesRef = useRef(sortedNotes);
   sortedNotesRef.current = sortedNotes;
 
-  // High-resolution RMS envelope (2ms buckets) for the playtest hit-lane
-  // waveform overlay. Recomputed once per song from the decoded PCM — the
-  // bottom timeline's ~1800 whole-song buckets are far too coarse to line up
-  // against individual notes.
   const overlayPeaks = useMemo(() => {
     const buffer = props.waveformOverlay?.buffer;
     if (!buffer) return null;
@@ -945,10 +769,6 @@ export function ManiaEditor(props: Props) {
       for (let j = start; j < end; j++) sumSq += channel[j] * channel[j];
       peaks[i] = Math.sqrt(sumSq / Math.max(1, end - start));
     }
-    // Moving average over ±2 buckets (a ~10ms window): a 2ms RMS window is
-    // shorter than one cycle of low bass, so raw neighbouring buckets differ
-    // wildly and the outline flickers. The average keeps the 2ms positioning
-    // but yields a stable envelope.
     const raw = Float32Array.from(peaks);
     for (let i = 0; i < count; i++) {
       const from = Math.max(0, i - 2);
@@ -957,8 +777,6 @@ export function ManiaEditor(props: Props) {
       for (let j = from; j <= to; j++) sum += raw[j];
       peaks[i] = sum / (to - from + 1);
     }
-    // Normalize against a high percentile (as the timeline waveform does) so
-    // a few loud transients don't flatten the rest of the song.
     const sorted = Float32Array.from(peaks).sort();
     const ref = sorted[Math.floor(sorted.length * 0.95)] || 1;
     if (ref > 0) {
@@ -971,7 +789,6 @@ export function ManiaEditor(props: Props) {
   const overlayPeaksRef = useRef(overlayPeaks);
   overlayPeaksRef.current = overlayPeaks;
 
-  // First index in a start-time-sorted array whose startTime >= t (lower bound).
   const firstNoteFrom = useCallback((list: ManiaNote[], t: number) => {
     let lo = 0;
     let hi = list.length;
@@ -983,7 +800,6 @@ export function ManiaEditor(props: Props) {
     return lo;
   }, []);
 
-  // ---- Drawing -------------------------------------------------------------
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -991,11 +807,6 @@ export function ManiaEditor(props: Props) {
 
     const { width, height, dpr } = sizeRef.current;
 
-    // Sync the backing store here (inside the rAF draw) instead of from the
-    // ResizeObserver. Resizing a canvas clears it, and the observer fires after
-    // this draw but before paint - doing it there would blank the playfield for
-    // the whole duration of a layout transition (e.g. toggling zen mode). Here
-    // the resize and redraw happen together, so paint always shows a fresh frame.
     const bw = Math.floor(width * dpr);
     const bh = Math.floor(height * dpr);
     if (canvas.width !== bw || canvas.height !== bh) {
@@ -1007,26 +818,20 @@ export function ManiaEditor(props: Props) {
       propsRef.current;
     const { laneWidth, playfieldWidth, originX } = laneGeometry();
     const phY = playheadY();
-    // Upscroll flips the playfield: notes rise toward a top judgement line.
     const up = propsRef.current.upscroll === true;
 
     ctx.save();
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    // Backdrop
     ctx.fillStyle = "#0f0f14";
     ctx.fillRect(0, 0, width, height);
 
-    // ---- Kiai state + beat flash ----
-    // While in kiai, the background lights up on every beat of the map's BPM:
-    // the flash peaks the instant a beat lands and decays before the next one.
     const ct = liveCurrentTime();
     const inKiai = kiaiAt(ct, timingPoints);
     let beatFlash = 0;
     if (inKiai) {
       const tp = activeTimingAt(ct, timingPoints);
-      // Pulse at half the map's BPM (one flash every two beats).
       const bl = tp ? beatLength(tp.bpm) * 2 : 0;
       if (bl > 0) {
         const phase = ((((ct - tp.time) % bl) + bl) % bl) / bl;
@@ -1034,12 +839,6 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    // ---- Background video sync ----
-    // The muted off-DOM <video> is slaved to the audio clock every frame:
-    // play/pause follows the transport, scrubbing seeks it, and drift beyond
-    // a small threshold snaps it back. Only a frame within the video's range
-    // is drawn; outside it (before the offset / past the end) the background
-    // image shows instead — matching how osu! treats map videos.
     const video = videoRef.current;
     let videoFrame: HTMLVideoElement | null = null;
     if (video && video.readyState >= 2 && video.videoWidth > 0) {
@@ -1072,7 +871,6 @@ export function ManiaEditor(props: Props) {
       if (inRange) videoFrame = video;
     }
 
-    // Optional dimmed background image / video behind the playfield
     const bg = videoFrame ?? bgImgRef.current;
     if (bg) {
       let eased = 1;
@@ -1085,9 +883,6 @@ export function ManiaEditor(props: Props) {
             : 1;
         eased = 1 - Math.pow(1 - progress, 3);
       }
-      // Draw background at full opacity, then overlay black scaled to dim %.
-      // 0% dim = no overlay (background fully visible).
-      // 100% dim = fully opaque black overlay (completely black).
       const dimT = Math.max(
         0,
         Math.min(1, (propsRef.current.dimBackground ?? 100) / 100),
@@ -1103,11 +898,9 @@ export function ManiaEditor(props: Props) {
       ctx.globalAlpha = 1;
     }
 
-    // Playfield panel
     ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.fillRect(originX, 0, playfieldWidth, height);
 
-    // Per-lane skin colour tint (subtle, so the grid stays readable).
     const skinCols = skinColsRef.current;
     if (skinCols.length) {
       ctx.globalAlpha = 0.16;
@@ -1120,7 +913,6 @@ export function ManiaEditor(props: Props) {
       ctx.globalAlpha = 1;
     }
 
-    // Lane separators
     ctx.strokeStyle = "rgba(255,255,255,0.08)";
     ctx.lineWidth = 1;
     for (let c = 0; c <= keyCount; c++) {
@@ -1131,12 +923,6 @@ export function ManiaEditor(props: Props) {
       ctx.stroke();
     }
 
-    // ---- Waveform overlay (editor + playtest) ----
-    // The song's RMS envelope drawn along the lane's time axis, under the grid
-    // and the notes, so audio peaks can be lined up visually with both. In
-    // playtest it shifts with the notes ("hit position" offset) so a note and
-    // the peak it maps should cross the receptors together — if they don't,
-    // the map's offset is off by that gap. Toggled with W.
     const overlay = overlayPeaksRef.current;
     if (overlay) {
       const inPlaytest = !!propsRef.current.playtestMode;
@@ -1146,11 +932,6 @@ export function ManiaEditor(props: Props) {
       const half = playfieldWidth / 2;
       const cx = originX + half;
       const pad = Math.abs(overlayShift) + 4;
-      // Sample points are anchored to bucket *times*, never to screen rows:
-      // fixed screen rows re-sample a different bucket every frame while
-      // scrolling, which makes the outline shimmer and change shape. Anchored
-      // in time, the polygon scrolls rigidly with the notes. The stride merges
-      // buckets so adjacent points stay ~3px apart at any scroll speed.
       const stride = Math.max(
         1,
         Math.round(3 / (overlay.bucketMs * ppms())),
@@ -1169,7 +950,6 @@ export function ManiaEditor(props: Props) {
         const ys: number[] = [];
         const widths: number[] = [];
         for (let i = lo; i <= hi; i++) {
-          // Peak over the merged window, so striding never drops a transient.
           const from = i * stride;
           const to = Math.min(overlay.peaks.length, from + stride);
           let amp = 0;
@@ -1192,15 +972,10 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    // ---- Beat / snap grid (tempo-aware) ----
-    // Under upscroll the screen top is the *earlier* time, so derive the visible
-    // window as min/max rather than assuming top=latest.
     const edgeTimeA = yToTime(0);
     const edgeTimeB = yToTime(height);
     const topTime = Math.max(edgeTimeA, edgeTimeB);
     const bottomTime = Math.min(edgeTimeA, edgeTimeB);
-    // Hidden in playtest mode: the snap grid is editor chrome with no place in
-    // actual gameplay. (topTime/bottomTime are still needed below for culling.)
     if (!propsRef.current.playtestMode) {
       const lines = gridLinesInRange(
         bottomTime,
@@ -1211,12 +986,9 @@ export function ManiaEditor(props: Props) {
       for (const line of lines) {
         const y = Math.round(timeToY(line.time)) + 0.5;
         if (y < -4 || y > height + 4) continue;
-        // Measure (bar) boundaries get a brighter, slightly heavier line.
         const color = line.barline
           ? "rgba(255,255,255,0.9)"
           : gridLineColor(line.idxInBeat, view.snapDivisor);
-        // Soft glow: a wider, faint pass under the crisp line so snap lines
-        // stay readable over backgrounds and lane tints.
         ctx.strokeStyle = color;
         ctx.globalAlpha = 0.28;
         ctx.lineWidth = line.barline ? 5 : 4;
@@ -1233,7 +1005,6 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    // ---- Red (uninherited) timing lines: BPM / offset ----
     for (const tp of redPoints(timingPoints)) {
       const y = timeToY(tp.time);
       if (y < -20 || y > height + 20) continue;
@@ -1248,7 +1019,6 @@ export function ManiaEditor(props: Props) {
       ctx.fillText(`${tp.bpm} BPM`, 6, y - 4);
     }
 
-    // ---- Green (inherited) timing lines: scroll velocity (SV) ----
     for (const tp of greenPoints(timingPoints)) {
       const y = timeToY(tp.time);
       if (y < -20 || y > height + 20) continue;
@@ -1265,7 +1035,6 @@ export function ManiaEditor(props: Props) {
       ctx.fillText(`${tp.sv}× SV`, 6, y + 12);
     }
 
-    // ---- Preview point (purple, span the canvas) ----
     if (previewTime >= 0) {
       const y = timeToY(previewTime);
       if (y >= -20 && y <= height + 20) {
@@ -1281,7 +1050,6 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    // ---- Bookmarks (amber, span the canvas) ----
     if (propsRef.current.bookmarks?.length) {
       ctx.setLineDash([6, 3]);
       for (const bm of propsRef.current.bookmarks) {
@@ -1300,9 +1068,6 @@ export function ManiaEditor(props: Props) {
       ctx.setLineDash([]);
     }
 
-    // ---- Receptors (osu!mania "keys") ----
-    // Drawn under the notes so taps/holds visibly fall into them. A column's
-    // receptor switches to its pressed sprite while a note sits on the line.
     if (receptorsOnRef.current) {
       const currentTime = liveCurrentTime();
       const intensities = new Array<number>(keyCount).fill(0);
@@ -1310,16 +1075,9 @@ export function ManiaEditor(props: Props) {
         ? propsRef.current.pressedColumnsRef
         : null;
       if (pressed) {
-        // Playtest: receptors light up from the player's own key presses, not
-        // from notes passing the line (which made them flicker on every note).
         for (let c = 0; c < keyCount; c++)
           intensities[c] = pressed.current.has(c) ? 1 : 0;
       } else {
-        // Editor preview: light a receptor while a note sits on the line, fading
-        // out across the hit window after it passes. Only notes at/just past the
-        // line matter, so binary-search that window rather than scan every note:
-        // a relevant note has start <= currentTime and end >= currentTime - hit
-        // window, so its start is no earlier than currentTime - maxDur - window.
         const { list: sorted, maxDur } = sortedNotesRef.current;
         let i = firstNoteFrom(sorted, currentTime - maxDur - RECEPTOR_HIT_WINDOW);
         for (; i < sorted.length; i++) {
@@ -1348,66 +1106,34 @@ export function ManiaEditor(props: Props) {
         const x = originX + c * laneWidth;
         const sprite = intensity > 0 ? cr?.keyDown ?? cr?.key : cr?.key;
         if (sprite) {
-          // Skinned receptors keep their sprite + a glow on hit.
           drawReceptor(ctx, sprite, x, phY, laneWidth, up);
           if (intensity > 0) {
             drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c), intensity, up);
           }
         } else if (intensity > 0) {
-          // Default look: nothing when idle, just a glowing fade when hit.
           drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c), intensity, up);
         }
       }
     }
 
-    // ---- Notes ----
-    // With receptors on, clip to the area above the judgement line so notes
-    // visibly land on the receptors and vanish at the line (like gameplay)
-    // instead of sliding past them into the receptor body; hold bodies get
-    // trimmed at the line too. With receptors off, draw the full playfield so
-    // past notes stay visible for editing.
     const clipNotes = receptorsOnRef.current;
-    // Playtest Mode draws notes unclipped so a note the player misses keeps
-    // falling *through* the receptors and off-screen, instead of vanishing at
-    // the line like the editor preview does. Held long notes are the exception:
-    // they pin to the line while held. The editor preview (not playtest) keeps
-    // clipping at the line.
     const playtest = !!propsRef.current.playtestMode;
     const heldLnIdsRef = propsRef.current.heldLnIdsRef;
     const consumedIdsRef = propsRef.current.consumedIdsRef;
     const missWindowMs = propsRef.current.missWindowMs ?? 0;
     const move = moveDragRef.current;
-    // Cull notes whose whole span lies off-screen so big maps only pay for the
-    // ~screenful of notes actually visible. topTime is the time at the top of
-    // the view, bottomTime at the bottom; a generous pixel margin (converted to
-    // ms) keeps tall sprites and long-note ends from popping at the edges.
     const cullMarginMs = 256 / ppms();
     const cullLo = bottomTime - cullMarginMs;
     const cullHi = topTime + cullMarginMs;
 
-    // "Vanish at the line" time for the receptors-on editor preview. While
-    // smooth-scrolling backwards the eased display time trails the seek target,
-    // so checking against the display time alone keeps already-passed notes
-    // hidden until the ease settles — they pop in at the end of the scroll.
-    // Taking the earlier of display time and target time makes those notes
-    // eligible immediately; the judgement-line clip then reveals them smoothly
-    // as they rise across the line. Forward scrolling and playback see
-    // min(display, target) === display, so their behavior is unchanged.
     const vanishTime = Math.min(
       liveCurrentTime(),
       propsRef.current.getCurrentTime(),
     );
 
-    // Draw a single note for the current frame. In Playtest Mode a held long
-    // note pins to the line, while a note the player missed keeps falling and
-    // fades out once it's past the miss window. The editor preview (not playtest)
-    // simply vanishes notes at the line when receptors are on.
     const paintNote = (original: ManiaNote) => {
-      // A consumed note (hit, or a long note whose hold has ended) vanishes at
-      // once — checked via the live ref so it doesn't linger a frame.
       if (playtest && consumedIdsRef?.current.has(original.id)) return;
       const selected = selectedNoteIdsRef.current.has(original.id);
-      // While dragging the selection, draw selected notes at their offset.
       const note =
         move && selected
           ? movedNoteRaw(original, move)
@@ -1421,19 +1147,11 @@ export function ManiaEditor(props: Props) {
         if (nMax < cullLo || nMin > cullHi) return;
       }
       const isLN = note.endTime !== undefined && note.endTime > note.startTime;
-      // A long note is "held" only in Playtest Mode while its id is in the live
-      // held ref; that pins it to the line until its tail arrives.
       const held = playtest && isLN && !!heldLnIdsRef?.current.has(note.id);
-      // Editor preview (receptors on, not playtest): a note vanishes once it
-      // reaches the line — a rice at its head, a long note once its whole body
-      // has passed. Playtest never culls here; missed notes fall through and are
-      // removed only when off-screen (span cull above) or fully faded below.
       if (clipNotes && !playtest) {
         const goneAt = isLN ? note.endTime! : note.startTime;
         if (vanishTime > goneAt) return;
       }
-      // Playtest: a missed note (past the line, not held) stays fully opaque
-      // while it's still hittable, then fades out once past the miss window.
       let alpha = 1;
       if (playtest && !held) {
         const sinceMiss = liveCurrentTime() - note.startTime - missWindowMs;
@@ -1445,9 +1163,6 @@ export function ManiaEditor(props: Props) {
       ctx.globalAlpha = alpha;
       const x = originX + note.column * laneWidth;
       const cr = skinCols[note.column];
-      // Default look only: notes inside a kiai section turn blue - based on the
-      // note's own time, so falling notes are already blue before the playhead
-      // reaches the section. Skinned notes keep their own colour.
       const skinColour = skinCols[note.column]?.colour ?? null;
       const noteInKiai = kiaiAt(note.startTime, timingPoints);
       const color =
@@ -1481,10 +1196,6 @@ export function ManiaEditor(props: Props) {
       if (note.endTime !== undefined && note.endTime > note.startTime) {
         const yStart = timeToY(note.startTime);
         const yEnd = timeToY(note.endTime);
-        // Pin the head to the judgement line so it stays put (like gameplay)
-        // until the body has fallen through. In Playtest Mode only an actually
-        // held LN pins (a missed one keeps its real head position and falls
-        // through); in the editor preview every LN pins while receptors are on.
         const pin = playtest ? held : clipNotes;
         const headY = pin
           ? up
@@ -1496,28 +1207,18 @@ export function ManiaEditor(props: Props) {
           headSprite && headSprite.width > 0
             ? (laneWidth - 6) * (headSprite.height / headSprite.width)
             : NOTE_HEIGHT;
-        // Hold body spans from the head's centre out to the tail end. The (round)
-        // head sprite then covers the join. `top`/`bottom` are the lower/higher
-        // screen-y of that span regardless of scroll direction.
         const top = up ? headY + headH / 2 : Math.min(yEnd, headY);
         const bottom = up ? Math.max(yEnd, headY) : headY - headH / 2;
         if (bottom > top) {
           if (cr?.body) {
             const span = Math.max(bottom - top, 1);
             const dispW = laneWidth - 8;
-            // A skin body bakes the rounded far-end cap into the top of its
-            // image. Downscroll wants that cap at the top of the span; upscroll
-            // (tail below the head) wants it at the bottom, so mirror the body
-            // vertically about the span's midline before drawing it.
             ctx.save();
             if (up) {
               ctx.translate(0, top + bottom);
               ctx.scale(1, -1);
             }
             if (cr.bodyCapPx && cr.body.width > 0) {
-              // Capped body: draw the rounded end at native scale at the far end,
-              // then stretch only the uniform fill below it down to the head.
-              // Stretching the whole (very tall) sprite would squash the cap away.
               const scale = dispW / cr.body.width;
               const capH = Math.min(cr.bodyCapPx * scale, span);
               ctx.drawImage(cr.body, 0, 0, cr.body.width, cr.bodyCapPx, x + 4, top, dispW, capH);
@@ -1535,7 +1236,6 @@ export function ManiaEditor(props: Props) {
             }
             ctx.restore();
           } else {
-            // Default hold: gray body/tail, but blue inside kiai (no skin).
             const kiaiDefault = noteInKiai && !skinColour;
             const bodyW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
             ctx.fillStyle = kiaiDefault
@@ -1550,7 +1250,6 @@ export function ManiaEditor(props: Props) {
               5,
             );
             ctx.fill();
-            // tail cap (head is drawn below, on top, at the judgement-facing end).
             if (cr?.tail) {
               drawSprite(ctx, cr.tail, x, yEnd, laneWidth, up);
             } else {
@@ -1596,10 +1295,6 @@ export function ManiaEditor(props: Props) {
       ctx.globalAlpha = 1;
     };
 
-    // Editor preview clips notes to the approach side so they vanish at the
-    // receptors. Playtest draws unclipped so a missed note falls through the
-    // line and off the bottom in one piece (held LNs are pinned to the line by
-    // paintNote, and hit notes are removed upstream so they never reach here).
     const clipAtLine = clipNotes && !playtest;
     if (clipAtLine) {
       ctx.save();
@@ -1608,24 +1303,15 @@ export function ManiaEditor(props: Props) {
       else ctx.rect(originX, 0, playfieldWidth, phY);
       ctx.clip();
     }
-    // Playtest "hit position" offset: shift the falling notes down by this many
-    // pixels so they line up below the receptors, without moving the receptors
-    // themselves (drawn earlier). Visual only — judgement is audio-timed and
-    // unaffected — and it never applies in the editor.
     const hitPosOffset = playtest ? propsRef.current.hitPositionOffset ?? 0 : 0;
     if (hitPosOffset) {
       ctx.save();
       ctx.translate(0, hitPosOffset);
     }
-    // Iterate only the notes whose span can reach the screen. While a selection
-    // is being move-dragged, the dragged notes shift in time, so fall back to a
-    // full scan (drags are brief and never the perf-critical playback path).
     if (move) {
       for (const original of notes) paintNote(original);
     } else {
       const { list: sorted, maxDur } = sortedNotesRef.current;
-      // Extend the lower bound by maxDur so an LN starting above the window but
-      // ending inside it is still drawn; paintNote does the precise per-note cull.
       let i = firstNoteFrom(sorted, cullLo - maxDur);
       for (; i < sorted.length; i++) {
         const n = sorted[i];
@@ -1636,7 +1322,6 @@ export function ManiaEditor(props: Props) {
     if (hitPosOffset) ctx.restore();
     if (clipAtLine) ctx.restore();
 
-    // ---- Active long-note drag preview ----
     const drag = dragRef.current;
     if (drag) {
       const x = originX + drag.column * laneWidth;
@@ -1650,7 +1335,6 @@ export function ManiaEditor(props: Props) {
       ctx.fill();
     }
 
-    // ---- Hover ghost note (unsnapped — follows cursor exactly) ----
     if (
       mouseRef.current.inside &&
       !propsRef.current.readOnly &&
@@ -1662,12 +1346,8 @@ export function ManiaEditor(props: Props) {
       const col = columnAtX(mouseRef.current.x);
       if (col >= 0) {
         const t = yToTime(mouseRef.current.y);
-        // Center the ghost on the cursor X so it tracks the mouse smoothly
-        // instead of jumping to the column's left edge.
         const x = mouseRef.current.x - laneWidth / 2;
         const y = timeToY(t);
-        // Always use column 0's colour/sprite so the ghost doesn't change as
-        // the cursor crosses column boundaries.
         const ghost = skinCols[0]?.note ?? null;
         if (ghost) {
           drawSprite(ctx, ghost, x, y, laneWidth, up);
@@ -1679,14 +1359,9 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    // ---- Multi-selection drag rectangle ----
     const selection = selectionDragRef.current;
     if (selection) {
       const rect = selectionScreenRect(selection);
-      // Clamp the *drawn* rectangle to a small inset so it visibly stops short
-      // of the canvas edge — including its time-anchored corner, which can
-      // otherwise scroll off-screen while dragging. Hit-testing on mouse-up uses
-      // the unclamped rect, so notes beyond the edge still get selected.
       const x0 = Math.max(SELECT_EDGE_INSET, rect.x);
       const y0 = Math.max(SELECT_EDGE_INSET, rect.y);
       const x1 = Math.min(width - SELECT_EDGE_INSET, rect.x + rect.w);
@@ -1704,7 +1379,6 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    // ---- Playhead (judgement line) ----
     ctx.strokeStyle = "#e86868";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1712,9 +1386,7 @@ export function ManiaEditor(props: Props) {
     ctx.lineTo(originX + playfieldWidth, phY);
     ctx.stroke();
 
-    // ---- Pulsing ★ KIAI ★ label, just right of the playfield bottom ----
     if (inKiai && !propsRef.current.zenMode) {
-      // Brightens on every beat (beatFlash) over a gentle idle blink.
       const blink = 0.3 + 0.2 * (0.5 + 0.5 * Math.sin(performance.now() / 280));
       const alpha = Math.min(1, blink + beatFlash * 0.6);
       const x = originX + playfieldWidth + 10;
@@ -1723,7 +1395,6 @@ export function ManiaEditor(props: Props) {
       ctx.fillStyle = "#e86868";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      // Star scales up slightly with the beat for a little sparkle.
       ctx.font = `${12 + beatFlash * 6}px ${CANVAS_FONT_STACK}`;
       ctx.fillText("★", x, phY);
       ctx.font = `bold 13px ${CANVAS_FONT_STACK}`;
@@ -1733,7 +1404,6 @@ export function ManiaEditor(props: Props) {
       ctx.restore();
     }
 
-    // ---- FPS / frame-time HUD (?fps) ----
     const hud = fpsHudRef.current;
     if (hud.show) {
       const label = `${hud.fps.toFixed(0)} fps · ${hud.drawMs.toFixed(2)} ms draw · ${notes.length} notes`;
@@ -1758,14 +1428,6 @@ export function ManiaEditor(props: Props) {
     yToTime,
   ]);
 
-  // ---- render loop ---------------------------------------------------------
-  // requestAnimationFrame is the smoothest option in a browser: the callback is
-  // frame-paced to the compositor, so each draw lines up with a vsync present
-  // (no off-cadence judder) and it runs at the display's full refresh rate —
-  // 60, 144, 360Hz, whatever the monitor does. (A faster off-vsync loop only
-  // draws frames the compositor throws away while burning a core, which makes
-  // playback *less* smooth, not more.) Motion is dt-based (see
-  // updateSmoothMotion) so it's correct at any refresh rate.
   useEffect(() => {
     let raf = 0;
     const loop = () => {
@@ -1776,7 +1438,6 @@ export function ManiaEditor(props: Props) {
         draw();
         hud.drawMs = performance.now() - t0;
         hud.frames++;
-        // Roll up the measured fps once per second.
         if (t0 - hud.windowStart >= 1000) {
           hud.fps = (hud.frames * 1000) / (t0 - hud.windowStart);
           hud.frames = 0;
@@ -1791,9 +1452,6 @@ export function ManiaEditor(props: Props) {
     return () => cancelAnimationFrame(raf);
   }, [draw, updateSmoothMotion]);
 
-  // ---- Resize handling -----------------------------------------------------
-  // Only record the container size; the rAF draw syncs the canvas backing store
-  // (see draw()), which the CSS `h-full w-full` canvas is stretched to fill.
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -1812,7 +1470,6 @@ export function ManiaEditor(props: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // ---- Pointer interaction -------------------------------------------------
   const localPoint = (e: React.MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -1824,7 +1481,6 @@ export function ManiaEditor(props: Props) {
     const col = columnAtX(x);
     if (col < 0) return null;
     const { laneWidth, originX } = laneGeometry();
-    // Search from topmost drawn (latest) so overlapping notes resolve sanely.
     for (let i = notes.length - 1; i >= 0; i--) {
       const n = notes[i];
       if (n.column !== col || n.column >= keyCount) continue;
@@ -1914,15 +1570,10 @@ export function ManiaEditor(props: Props) {
       const phY = playheadY();
       const up = propsRef.current.upscroll === true;
       const y = selection.currentY;
-      // Intensity keys off the *raw* cursor position so speed keeps ramping the
-      // further past the edge you drag, instead of pinning to the clamped box.
       const rawY = selection.rawY;
       let dir: 1 | -1 | 0 = 0;
       let intensity = 0;
 
-      // `dir` is the time direction (advance / rewind), so the screen edge that
-      // means "advance" flips with scroll direction: the top edge points to the
-      // future in downscroll, the bottom edge in upscroll.
       if (!up) {
         if (rawY < SELECT_AUTOSCROLL_TOP_ZONE) {
           dir = 1;
@@ -1978,14 +1629,12 @@ export function ManiaEditor(props: Props) {
   }, [liveCurrentTime, playheadY, ppms]);
 
   const onMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // left only
+    if (e.button !== 0) return;
     if (props.playtestMode) {
       e.preventDefault();
       return;
     }
     const { x, y } = localPoint(e);
-    // View-only collaborators may still box-select (to copy/comment) but cannot
-    // place, drag or otherwise modify notes.
     if (props.readOnly && !(e.shiftKey || shiftActiveRef.current)) return;
     if (e.shiftKey || shiftActiveRef.current) {
       e.preventDefault();
@@ -2003,7 +1652,6 @@ export function ManiaEditor(props: Props) {
       return;
     }
 
-    // Grabbing a note starts a drag-to-move of the whole selection.
     const hit = findNoteAt(x, y);
     if (hit) {
       if (e.ctrlKey || e.metaKey) {
@@ -2041,7 +1689,6 @@ export function ManiaEditor(props: Props) {
       return;
     }
 
-    // Empty space: clear any selection, then begin placing a note.
     if (selectedNoteIdsRef.current.size) setSelection(new Set());
     const col = columnAtX(x);
     if (col < 0) return;
@@ -2056,8 +1703,6 @@ export function ManiaEditor(props: Props) {
     mouseRef.current = { x, y, inside: true };
     const selection = selectionDragRef.current;
     if (selection) {
-      // Clamp the box to just inside the canvas so it visibly stops short of the
-      // editor edge instead of running off when the pointer leaves the notefield.
       const { width, height } = sizeRef.current;
       const cx = Math.max(SELECT_EDGE_INSET, Math.min(x, width - SELECT_EDGE_INSET));
       const cy = Math.max(SELECT_EDGE_INSET, Math.min(y, height - SELECT_EDGE_INSET));
@@ -2065,10 +1710,6 @@ export function ManiaEditor(props: Props) {
       selection.currentY = cy;
       selection.rawY = y;
       selection.currentTime = yToTime(cy);
-      // NB: do *not* reset the autoscroll accumulator here. Resetting on every
-      // move made hand-jitter (common while dragging off-canvas) restart the
-      // scroll from the eased/lagging clock each frame — the source of the
-      // stutter. The autoscroll loop clears it on its own once out of the zone.
       return;
     }
 
@@ -2077,8 +1718,6 @@ export function ManiaEditor(props: Props) {
       const { keyCount } = propsRef.current;
       const { laneWidth } = laneGeometry();
 
-      // Time: follow the mouse smoothly while dragging; final notes snap on
-      // mouse-up if the selection moved vertically.
       const rawDelta = yToTime(y) - yToTime(move.startY);
       if (move.timeMoved || Math.abs(y - move.startY) > 3) {
         move.timeMoved = true;
@@ -2087,7 +1726,6 @@ export function ManiaEditor(props: Props) {
         move.timeDelta = 0;
       }
 
-      // Columns: step by whole lanes, clamped so nothing leaves the playfield.
       let colDelta = Math.round((x - move.startX) / laneWidth);
       const cols = move.origin.map((o) => o.column);
       const minCol = Math.min(...cols);
@@ -2170,9 +1808,6 @@ export function ManiaEditor(props: Props) {
     mouseRef.current.inside = false;
     dragRef.current = null;
     moveDragRef.current = null;
-    // A mouse box-select holding pointer capture is intentionally *not*
-    // cancelled here — capture keeps its move/up events flowing off-canvas so
-    // the drag continues (clamped to the edge) until the button is released.
     if (!boxSelectCapturedRef.current) {
       selectionDragRef.current = null;
       selectionAutoscrollTimeRef.current = null;
@@ -2193,13 +1828,6 @@ export function ManiaEditor(props: Props) {
     }
   };
 
-  // ---- Pointer routing (mouse + touch + pen) -------------------------------
-  // A single pointer path so the notefield works with a finger, a stylus or a
-  // mouse. Mouse keeps its exact previous behavior (delegates straight to the
-  // legacy mouse handlers, no pointer capture). Touch/pen additionally gets:
-  //   • pointer capture, so a drag keeps tracking if the finger leaves the canvas
-  //   • two-finger vertical drag to scrub time (there is no wheel on touch)
-  //   • touch-action:none on the canvas so the browser never steals the gesture
   const averagePointerY = (pts: Map<number, { x: number; y: number }>) => {
     let sum = 0;
     for (const p of pts.values()) sum += p.y;
@@ -2209,16 +1837,11 @@ export function ManiaEditor(props: Props) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse") {
       onMouseDown(e);
-      // If that began a box-select, capture the pointer so the drag keeps
-      // tracking (clamped to the edge) after the cursor leaves the canvas and
-      // still commits on release outside the notefield — same mechanism the
-      // touch/pen path uses.
       if (selectionDragRef.current) {
         try {
           e.currentTarget.setPointerCapture(e.pointerId);
           boxSelectCapturedRef.current = true;
         } catch {
-          /* capture unsupported / pointer already gone */
         }
       }
       return;
@@ -2230,10 +1853,8 @@ export function ManiaEditor(props: Props) {
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      /* capture unsupported / pointer already gone */
     }
     if (pts.size >= 2) {
-      // Second finger down: abandon any single-finger edit and start scrubbing.
       dragRef.current = null;
       moveDragRef.current = null;
       selectionDragRef.current = null;
@@ -2258,8 +1879,6 @@ export function ManiaEditor(props: Props) {
       const midY = averagePointerY(pts);
       const dy = midY - scrub.lastMidY;
       scrub.lastMidY = midY;
-      // Time-per-pixel (sign encodes scroll direction); moving content with the
-      // finger keeps the point under it roughly fixed, like touch-scrolling.
       const msPerPx = yToTime(1) - yToTime(0);
       scrub.time = Math.max(0, scrub.time - msPerPx * dy);
       propsRef.current.onSeek(scrub.time);
@@ -2275,7 +1894,6 @@ export function ManiaEditor(props: Props) {
         try {
           e.currentTarget.releasePointerCapture(e.pointerId);
         } catch {
-          /* nothing to release */
         }
       }
       onMouseUp(e);
@@ -2286,10 +1904,8 @@ export function ManiaEditor(props: Props) {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
-      /* nothing to release */
     }
     if (scrubRef.current) {
-      // Lifting out of a scrub: never treat the release as a note placement.
       if (pts.size < 2) scrubRef.current = null;
       return;
     }
@@ -2298,8 +1914,6 @@ export function ManiaEditor(props: Props) {
 
   const onPointerCancel = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse") {
-      // A cancelled mouse box-select: drop the capture flag and the drag so it
-      // doesn't get stuck on-screen.
       if (boxSelectCapturedRef.current) {
         boxSelectCapturedRef.current = false;
         selectionDragRef.current = null;
@@ -2313,8 +1927,6 @@ export function ManiaEditor(props: Props) {
   };
 
   const onPointerLeave = (e: React.PointerEvent) => {
-    // Preserve the mouse "cancel drag when the cursor leaves" behavior. Touch
-    // uses pointer capture, so it keeps tracking and ignores leave.
     if (e.pointerType === "mouse") onMouseLeave();
   };
 
@@ -2342,14 +1954,9 @@ export function ManiaEditor(props: Props) {
     }
 
     if (e.altKey) {
-      // Alt + scroll => adjust volume by 5% per notch.
       props.onVolumeChange(e.deltaY < 0 ? 0.05 : -0.05);
       return;
     }
-    // Scroll up => advance in time. Step one beat-snap division per notch so the
-    // playhead always lands exactly on a snap line. Step from the true audio time
-    // (not the eased display time) so consecutive notches accumulate cleanly
-    // while smooth scrolling is still gliding toward the last target.
     const { timingPoints, view } = propsRef.current;
     const currentTime = propsRef.current.getCurrentTime();
     const dir: 1 | -1 = e.deltaY < 0 ? -1 : 1;
@@ -2361,8 +1968,6 @@ export function ManiaEditor(props: Props) {
     props.onSeek(target);
   };
 
-  // When notes are selected the toolbar reflects (and edits) those notes; with
-  // no selection it reflects the "current" hitsound applied to new notes.
   const selectedNotes =
     selectionCount > 0
       ? props.notes.filter((n) => selectedNoteIdsRef.current.has(n.id))
@@ -2377,7 +1982,7 @@ export function ManiaEditor(props: Props) {
           (n) => (n.sampleSet ?? 0) === (selectedNotes[0].sampleSet ?? 0),
         )
         ? selectedNotes[0].sampleSet ?? 0
-        : -1 // mixed selection
+        : -1
       : props.currentSampleSet;
 
   return (
@@ -2410,7 +2015,6 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {/* Receptor toggle indicator (press R) */}
       {!props.hideHints && !props.playtestMode && (
         <div
           className={`pointer-events-none absolute left-3 top-3 select-none rounded-md border px-3 py-1.5 text-xs font-medium shadow-lg transition-[opacity,transform] duration-150 ${
@@ -2423,14 +2027,12 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {/* Hitsound mode indicator (only while active; press H to toggle) */}
       {hitsoundMode && !props.playtestMode && (
         <div className="pointer-events-none absolute left-3 top-[3.25rem] select-none rounded-md border border-emerald-300/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-100 shadow-lg">
           Hitsound mode · W / F / C · press H to exit
         </div>
       )}
 
-      {/* Selection action hint */}
       {selectionCount > 0 && !props.playtestMode && (
         <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 select-none rounded-md border border-yellow-300/30 bg-ink-800/80 px-3 py-1.5 text-[11px] text-slate-200 shadow-lg">
           <span className="font-medium text-yellow-200">
@@ -2440,7 +2042,6 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {/* Clipboard preview + pasteboard history */}
       {!props.playtestMode && (clipboard || history.length > 0) && (
         <div className="absolute right-3 top-14 w-44 select-none rounded-lg border border-ink-600 bg-ink-800/90 p-2 text-xs text-slate-300 shadow-xl backdrop-blur">
           <div className="mb-1.5 flex items-center justify-between">
@@ -2518,7 +2119,6 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {/* Hitsound toolbar - W whistle · F finish · C clap, plus sample set. */}
       {hitsoundMode && !props.zenMode && (
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/90 px-2.5 py-1.5 text-xs text-slate-200 shadow-xl backdrop-blur">
           <span className="font-medium text-slate-300">Hitsound</span>
@@ -2572,7 +2172,6 @@ export function ManiaEditor(props: Props) {
   );
 }
 
-/** A single whistle/finish/clap toggle button in the hitsound toolbar. */
 function HitsoundAddBtn({
   label,
   title,
@@ -2601,7 +2200,6 @@ function HitsoundAddBtn({
 
 type ClipPreviewSize = "small" | "normal" | "large";
 
-/** Tiny SVG thumbnail of a clipboard entry: lanes across, time vertical. */
 function ClipPreview({
   clip,
   keyCount,
@@ -2620,7 +2218,7 @@ function ClipPreview({
     ...clip.notes.map((n) => n.endTime ?? n.startTime),
   );
   const ty = (t: number) => h - pad - (t / maxTime) * (h - 2 * pad);
-  const riceH = size === "large" ? 6 : 3; // rice-note thickness
+  const riceH = size === "large" ? 6 : 3;
   return (
     <svg
       width={w}
@@ -2662,11 +2260,6 @@ function ClipPreview({
   );
 }
 
-/**
- * A clipboard thumbnail that reveals a larger, easier-to-read copy of itself to
- * its left while hovered. Used in the pasteboard list where the inline previews
- * are intentionally tiny.
- */
 function ClipThumb({
   clip,
   keyCount,
@@ -2683,7 +2276,6 @@ function ClipThumb({
         keyCount={keyCount}
         size={small ? "small" : "normal"}
       />
-      {/* Enlarged hover preview, anchored to the left of the thumbnail. */}
       <span className="pointer-events-none absolute right-full top-1/2 z-30 mr-2 -translate-y-1/2 rounded-md border border-ink-500 bg-ink-900/95 p-2 opacity-0 shadow-2xl transition-opacity duration-150 group-hover/clip:opacity-100">
         <ClipPreview clip={clip} keyCount={keyCount} size="large" />
       </span>
@@ -2691,7 +2283,6 @@ function ClipThumb({
   );
 }
 
-// ---- Small canvas utilities ------------------------------------------------
 function normalizeRect(x1: number, y1: number, x2: number, y2: number): CanvasRect {
   const x = Math.min(x1, x2);
   const y = Math.min(y1, y2);
@@ -2730,10 +2321,6 @@ function roundRect(
   ctx.closePath();
 }
 
-/**
- * Draw a note sprite centred vertically on `centerY`, fitted to the lane width
- * with its aspect ratio preserved (matching how osu! scales mania notes).
- */
 function drawSprite(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -2745,8 +2332,6 @@ function drawSprite(
   const w = laneWidth - 6;
   const h = img.width > 0 ? img.height * (w / img.width) : NOTE_HEIGHT;
   if (flip) {
-    // Upscroll: anchor the note's top edge on its snap line and mirror the
-    // sprite vertically so its leading edge / cap faces the (top) judgement line.
     ctx.save();
     ctx.translate(0, bottomY + h);
     ctx.scale(1, -1);
@@ -2754,18 +2339,9 @@ function drawSprite(
     ctx.restore();
     return;
   }
-  // Anchor the note's bottom edge on its snap line so it sits on the line
-  // rather than straddling it.
   ctx.drawImage(img, x + 3, bottomY - h, w, h);
 }
 
-/**
- * Lowest non-transparent row (in image pixels) of a sprite, cached per image so
- * the pixel scan runs only once. Used to ignore transparent padding below a
- * receptor's artwork so its visible bottom - not the image's bottom - can be
- * placed on the judgement line. Returns img.height if the bounds can't be read
- * (e.g. a tainted canvas).
- */
 const opaqueBottomCache = new WeakMap<HTMLImageElement, number>();
 function opaqueBottom(img: HTMLImageElement): number {
   const cached = opaqueBottomCache.get(img);
@@ -2800,12 +2376,6 @@ function opaqueBottom(img: HTMLImageElement): number {
   return bottom;
 }
 
-/**
- * Draw a receptor (the osu!mania "key") for one column. The sprite's visible
- * bottom edge (ignoring transparent padding) rests on the judgement line, scaled
- * to lane width with aspect preserved, so a falling note - also bottom-anchored
- * on the line - lands directly on the receptor.
- */
 function drawReceptor(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -2816,12 +2386,8 @@ function drawReceptor(
 ) {
   if (img.width <= 0 || img.height <= 0) return;
   const s = laneWidth / img.width;
-  // Offset upward so the artwork's opaque bottom - not the padded image bottom -
-  // lands exactly on the line.
   const dy = lineY - opaqueBottom(img) * s;
   if (up) {
-    // Upscroll: mirror the receptor about the (top) judgement line so its
-    // opaque edge stays on the line and the key extends downward into the stage.
     ctx.save();
     ctx.translate(0, lineY * 2);
     ctx.scale(1, -1);
@@ -2832,11 +2398,6 @@ function drawReceptor(
   ctx.drawImage(img, x, dy, laneWidth, img.height * s);
 }
 
-/**
- * Additive lane-coloured glow over the receptor, brightest at the judgement
- * line and fading toward the stage floor. Drawn whenever a note is on the line
- * so the receptor always reads as "hit", regardless of the active skin.
- */
 function drawReceptorGlow(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -2847,8 +2408,6 @@ function drawReceptorGlow(
   intensity = 1,
   up = false,
 ) {
-  // The glow spreads from the line toward the stage floor — below the line in
-  // downscroll, above it (toward the screen top) in upscroll.
   const h = up ? lineY : canvasHeight - lineY;
   if (h <= 0 || intensity <= 0) return;
   const farY = up ? lineY - h : lineY + h;

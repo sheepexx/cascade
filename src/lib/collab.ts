@@ -1,11 +1,5 @@
 import { supabase } from "./supabase";
 
-/**
- * Collaborator management for cloud projects. Owners invite osu! users by
- * username (via the `add_collaborator` RPC) and grant Editor or Viewer roles.
- * Visibility/edit rights are enforced by RLS (see migration 0003).
- */
-
 export type CollabRole = "editor" | "viewer";
 
 export type Collaborator = {
@@ -16,7 +10,6 @@ export type Collaborator = {
   osu_id: number | null;
 };
 
-/** List a project's collaborators (owner/admin only, per RLS). */
 export async function listCollaborators(
   projectId: string,
 ): Promise<Collaborator[]> {
@@ -43,7 +36,6 @@ export async function listCollaborators(
   });
 }
 
-/** Invite a user by osu! username. Throws with a readable message on failure. */
 export async function addCollaborator(
   projectId: string,
   username: string,
@@ -82,10 +74,6 @@ export async function removeCollaborator(
   if (error) throw new Error(error.message);
 }
 
-/**
- * The signed-in user's role on a project, or null if none.
- * Owner → 'owner'; otherwise the collaborator role; else null.
- */
 export type AccessRole = "owner" | CollabRole | null;
 
 export async function myAccess(

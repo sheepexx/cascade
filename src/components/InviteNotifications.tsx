@@ -1,22 +1,12 @@
 import { Button } from "./ui/Controls";
 
-/** A pending "you've been invited to a map" notification. */
 export type InviteNotice = {
-  /** The invited project's id (also used as the notice key). */
   projectId: string;
-  /** Map title. */
   title: string;
-  /** Who invited you (the map owner), if known. */
   who: string | null;
-  /** Inviter avatar URL, if known. */
   avatar: string | null;
 };
 
-/**
- * Global, always-on-top stack of mapping-invitation notifications. Rendered at
- * the app root so it shows wherever the user is. Each card animates in and
- * offers Join (open the map) or Ignore (dismiss).
- */
 export function InviteNotifications({
   notices,
   onJoin,

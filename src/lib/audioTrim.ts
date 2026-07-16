@@ -1,19 +1,6 @@
-/**
- * Destructive trim helpers used at **export time**.
- *
- * In the editor the trim/fade brackets are a non-destructive *playback region*
- * (see `useAudio`/`BottomTimeline`). When a map is exported to `.osz`, however,
- * the brackets are baked in: the audio is physically cut to the region (with
- * the fade in/out applied), every time value is shifted so the start bracket
- * becomes time 0, and notes outside the region are dropped.
- *
- * Nothing here mutates the in-editor project — every function returns new data.
- */
-
 import { getMp3Encoder } from "./lameEncoder";
 import type { Difficulty, ManiaNote, TimingPoint } from "../types";
 
-/** A baked trim region, all values in milliseconds. */
 export type BakedRegion = {
   startMs: number;
   endMs: number;
@@ -21,11 +8,6 @@ export type BakedRegion = {
   fadeOutMs: number;
 };
 
-/**
- * Resolve a difficulty's effective trim region against the real audio
- * duration. Returns `null` when there's nothing worth cutting (the region
- * spans the whole song), so the caller can fall back to the verbatim audio.
- */
 export function effectiveRegion(
   difficulty: Difficulty,
   durationMs: number,
@@ -45,24 +27,18 @@ export function effectiveRegion(
   };
 }
 
-/** Decode an audio blob to an `AudioBuffer`, reusing a shared context. */
 export async function decodeAudioBlob(
   blob: Blob,
   ctx: BaseAudioContext,
 ): Promise<AudioBuffer | null> {
   try {
     const bytes = await blob.arrayBuffer();
-    // decodeAudioData may detach the buffer; hand it a private copy.
     return await ctx.decodeAudioData(bytes.slice(0));
   } catch {
     return null;
   }
 }
 
-/**
- * Cut an `AudioBuffer` to `[startMs, endMs)` and apply linear fade in/out,
- * returning the trimmed channel data (per-channel `Float32Array`s).
- */
 function sliceAndFade(buffer: AudioBuffer, region: BakedRegion): Float32Array[] {
   const sr = buffer.sampleRate;
   const startSample = Math.max(0, Math.floor((region.startMs / 1000) * sr));
@@ -88,7 +64,6 @@ function sliceAndFade(buffer: AudioBuffer, region: BakedRegion): Float32Array[] 
   return channels;
 }
 
-/** Convert float samples to 16-bit PCM Int16Array. */
 function floatToInt16(channels: Float32Array[]): Int16Array[] {
   return channels.map((ch) => {
     const out = new Int16Array(ch.length);
@@ -101,7 +76,6 @@ function floatToInt16(channels: Float32Array[]): Int16Array[] {
   });
 }
 
-/** Encode per-channel float samples to a 16-bit PCM WAV blob. */
 function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
   const numCh = Math.max(1, channels.length);
   const numFrames = channels[0]?.length ?? 0;
@@ -128,13 +102,13 @@ function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
   writeU32(36 + dataSize);
   writeStr("WAVE");
   writeStr("fmt ");
-  writeU32(16); // PCM fmt chunk size
-  writeU16(1); // audio format: PCM
+  writeU32(16);
+  writeU16(1);
   writeU16(numCh);
   writeU32(sampleRate);
-  writeU32(sampleRate * blockAlign); // byte rate
+  writeU32(sampleRate * blockAlign);
   writeU16(blockAlign);
-  writeU16(16); // bits per sample
+  writeU16(16);
   writeStr("data");
   writeU32(dataSize);
 
@@ -149,7 +123,6 @@ function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
   return new Blob([ab], { type: "audio/wav" });
 }
 
-/** Try MP3 encoding; return null on failure so callers can fall back. */
 function tryEncodeMp3(channels: Float32Array[], sampleRate: number): Blob | null {
   const numCh = Math.max(1, channels.length);
   const numFrames = channels[0]?.length ?? 0;
@@ -180,10 +153,6 @@ function tryEncodeMp3(channels: Float32Array[], sampleRate: number): Blob | null
   return new Blob(mp3Data as BlobPart[], { type: "audio/mpeg" });
 }
 
-/**
- * Simple linear-interpolation resampler. Used to re-encode at a supported
- * sample rate when the original rate causes the MP3 encoder to fail.
- */
 function resampleChannels(
   data: Float32Array[],
   fromRate: number,
@@ -206,7 +175,6 @@ function resampleChannels(
   });
 }
 
-/** Try MP3 at the given sample rate; on failure retry at 44100; then WAV. */
 function encodeBest(channels: Float32Array[], sampleRate: number): EncodedAudio {
   const tryAt = (rate: number): Blob | null => {
     try {
@@ -226,16 +194,13 @@ function encodeBest(channels: Float32Array[], sampleRate: number): EncodedAudio 
 
 export type EncodedAudio = {
   blob: Blob;
-  /** File extension (without dot) matching the actual format — "mp3" or "wav". */
   ext: "mp3" | "wav";
 };
 
-/** Slice + fade + encode in one step. Prefers MP3 (attempts resample to 44100 on failure), then WAV. */
 export function renderTrimmedAudio(buffer: AudioBuffer, region: BakedRegion): EncodedAudio {
   return encodeBest(sliceAndFade(buffer, region), buffer.sampleRate);
 }
 
-/** Re-encode an AudioBuffer without trimming. Prefers MP3 (attempts resample to 44100 on failure), then WAV. */
 export function convertAudio(buffer: AudioBuffer): EncodedAudio {
   const channels: Float32Array[] = [];
   for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
@@ -244,7 +209,6 @@ export function convertAudio(buffer: AudioBuffer): EncodedAudio {
   return encodeBest(channels, buffer.sampleRate);
 }
 
-/** Shift every timing point's time so `shiftMs` becomes the new time 0. */
 export function shiftTimingPoints(
   points: TimingPoint[],
   shiftMs: number,
@@ -253,16 +217,6 @@ export function shiftTimingPoints(
   return points.map((p) => ({ ...p, time: p.time - shiftMs }));
 }
 
-/**
- * Bake a trim region into a difficulty's map data:
- *   - drop notes whose start is outside `[startMs, endMs]`
- *   - clamp long-note ends to the region end
- *   - shift every remaining time so `startMs` becomes 0
- *   - shift/clamp preview time and bookmarks
- *   - clear the trim/fade fields (they're now baked into the audio)
- *
- * Returns a new difficulty; the input is untouched.
- */
 export function cutDifficulty(
   difficulty: Difficulty,
   startMs: number,
@@ -294,7 +248,6 @@ export function cutDifficulty(
     notes,
     previewTime,
     bookmarks: bookmarks && bookmarks.length ? bookmarks : undefined,
-    // The video offset is relative to the audio start, which just moved.
     videoOffsetMs:
       difficulty.videoFilename !== undefined
         ? (difficulty.videoOffsetMs ?? 0) - startMs
@@ -306,11 +259,6 @@ export function cutDifficulty(
   };
 }
 
-/**
- * Build a cut audio filename derived from the original name,
- * guaranteed not to collide with anything already in `taken`.
- * @param ext File extension without dot (e.g. "mp3" or "wav").
- */
 export function cutAudioName(originalName: string, taken: Set<string>, ext: string): string {
   const dot = originalName.lastIndexOf(".");
   const base = dot > 0 ? originalName.slice(0, dot) : originalName;
@@ -323,12 +271,10 @@ export function cutAudioName(originalName: string, taken: Set<string>, ext: stri
   return name;
 }
 
-/** Check if a filename has a `.wav` extension (case-insensitive). */
 export function isWav(name: string): boolean {
   return /\.wav$/i.test(name);
 }
 
-/** Replace `.wav` extension with `.mp3`, or return the name unchanged. */
 export function toMp3Name(name: string): string {
   return name.replace(/\.wav$/i, ".mp3");
 }

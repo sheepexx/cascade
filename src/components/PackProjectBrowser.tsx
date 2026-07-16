@@ -17,7 +17,6 @@ import { buildOsz } from "../lib/oszExport";
 import { sanitizePackFilename } from "../lib/packCreator";
 import { normalizeTimingPoints, type LoadedFile } from "../types";
 
-/** `local:<id>` / `cloud:<id>` selection keys. */
 type SelectionKey = string;
 
 function toRegistry(
@@ -28,7 +27,6 @@ function toRegistry(
   return out;
 }
 
-/** Package a saved local project as an in-memory .osz (reuses the exporter). */
 async function localProjectToFile(id: string): Promise<File> {
   const saved = await loadProject(id);
   if (!saved) throw new Error("That local project could not be loaded.");
@@ -63,7 +61,6 @@ async function localProjectToFile(id: string): Promise<File> {
   );
 }
 
-/** Package one of the user's cloud projects as an in-memory .osz. */
 async function cloudProjectToFile(id: string): Promise<File> {
   const proj = await loadProjectCloud(id);
   const blob = await buildOsz({
@@ -82,11 +79,6 @@ async function cloudProjectToFile(id: string): Promise<File> {
   );
 }
 
-/**
- * Multi-select browser over the user's local and cloud projects for the Pack
- * Creator. Selected projects are packaged through the normal .osz exporter and
- * handed back as Files, so the pack import path stays identical to file import.
- */
 export function PackProjectBrowser({
   open,
   onClose,
@@ -94,7 +86,6 @@ export function PackProjectBrowser({
 }: {
   open: boolean;
   onClose: () => void;
-  /** Receives the selected projects packaged as .osz Files. */
   onAdd: (files: File[]) => Promise<void> | void;
 }) {
   const { user, login } = useAuth();
@@ -106,7 +97,6 @@ export function PackProjectBrowser({
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load the local list whenever the browser opens.
   useEffect(() => {
     if (!open) {
       setSelected(new Set());
@@ -127,7 +117,6 @@ export function PackProjectBrowser({
     };
   }, [open]);
 
-  // Object URLs for local thumbnails.
   useEffect(() => {
     if (!localProjects) return;
     const made: Record<string, string> = {};
@@ -137,7 +126,6 @@ export function PackProjectBrowser({
     return () => Object.values(made).forEach((u) => URL.revokeObjectURL(u));
   }, [localProjects]);
 
-  // Cloud list (when logged in).
   useEffect(() => {
     if (!open || !user) {
       setCloudProjects(null);
@@ -155,7 +143,6 @@ export function PackProjectBrowser({
           );
           if (!cancelled) setCloudThumbs(urls);
         } catch {
-          /* thumbnails are best-effort */
         }
       })
       .catch(() => {
@@ -306,7 +293,6 @@ function BrowserSection({
   );
 }
 
-/** A project tile that toggles selection; selected shows a green tint + badge. */
 function SelectableCard({
   selected,
   title,

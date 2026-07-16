@@ -29,11 +29,6 @@ import {
 
 type Tab = "stats" | "presets" | "users" | "projects" | "feedback";
 
-/**
- * Full-screen admin overlay. Only rendered for admins; every action is
- * additionally enforced by RLS server-side. No router is used in this app, so
- * this opens over the editor rather than at a /admin route.
- */
 export function AdminPanel({
   open,
   onClose,
@@ -91,8 +86,6 @@ function useAsyncError() {
   }, []);
   return { error, setError, wrap };
 }
-
-// ---- Stats -----------------------------------------------------------------
 
 function StatsTab() {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -163,8 +156,6 @@ function StatCard({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
-
-// ---- Presets moderation ----------------------------------------------------
 
 type PresetAdminFilter = PresetStatus | "private";
 
@@ -286,8 +277,6 @@ function PresetsTab() {
   );
 }
 
-// ---- Users -----------------------------------------------------------------
-
 function UsersTab() {
   const { user } = useAuth();
   const [users, setUsers] = useState<AdminUser[] | null>(null);
@@ -382,8 +371,6 @@ function formatLastSignedIn(value: string | null): string {
   if (!value) return "Not tracked yet";
   return new Date(value).toLocaleString();
 }
-
-// ---- Projects --------------------------------------------------------------
 
 function ProjectsTab() {
   const [projects, setProjects] = useState<AdminProject[] | null>(null);
@@ -529,8 +516,6 @@ function formatBytes(bytes: number): string {
   }
   return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
-
-// ---- Feedback --------------------------------------------------------------
 
 function FeedbackTab() {
   const [items, setItems] = useState<Feedback[] | null>(null);

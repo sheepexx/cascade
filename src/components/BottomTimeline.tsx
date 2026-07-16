@@ -4,36 +4,23 @@ import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
 import { kiaiRanges } from "../lib/timing";
 
-/**
- * Song-wide navigation strip at the bottom of the editor.
- *
- *  - Renders a clean waveform of the whole song.
- *  - Click or drag anywhere to seek to that part of the song.
- *  - Yellow dots above the waveform show note density: each x-bucket stacks
- *    more dots the more notes are mapped around that time.
- */
-
 const HEIGHT = 96;
-const AVATAR_R = 9; // collaborator avatar radius (in the top band)
-const AVATAR_Y = 11; // collaborator avatar center y
-const WAVE_TOP = 34; // waveform band starts here
+const AVATAR_R = 9;
+const AVATAR_Y = 11;
+const WAVE_TOP = 34;
 const WAVE_H = HEIGHT - WAVE_TOP - 6;
-const DOT_BAND_H = WAVE_TOP - 6; // density dots live above the waveform
+const DOT_BAND_H = WAVE_TOP - 6;
 const DENSITY_BUCKETS = 240;
 const MAX_DOTS = 6;
 const MAIN_REVEAL_MS = 300;
 const WAVEFORM_REVEAL_DELAY_MS = MAIN_REVEAL_MS;
 const WAVEFORM_REVEAL_MS = 700;
 
-/** Geometry of the trim brackets + fade envelope, in canvas (CSS) pixels. */
 type TrimGeom = {
-  /** Start / end bracket x. */
   sx: number;
   ex: number;
-  /** Top of the fade-in / fade-out ramp (also the fade dot x). */
   fadeInX: number;
   fadeOutX: number;
-  /** Envelope y at gain 1 (top) and gain 0 (bottom). */
   envTop: number;
   envBot: number;
 };
@@ -56,7 +43,6 @@ function trimGeometry(
   const foPx = Math.min(regionW, ((fadeOut ?? 0) / duration) * width);
   let midL = sx + fiPx;
   let midR = ex - foPx;
-  // If the two ramps would cross, meet them at the midpoint (a single peak).
   if (midL > midR) {
     const m = (midL + midR) / 2;
     midL = m;
@@ -77,46 +63,34 @@ type Props = {
   notes: ManiaNote[];
   timingPoints: TimingPoint[];
   previewTime: number;
-  /** Audio duration in ms (from the audio element). */
   duration: number;
   currentTime: number;
   getCurrentTime: () => number;
   onSeek: (ms: number) => void;
-  /** Waveform amplitude multiplier (adjusted by scrolling over the timeline). */
   sensitivity: number;
   onSensitivity: (value: number) => void;
   revealWaveform: boolean;
-  /** Collaborators' current positions, drawn as colored lines + avatars. */
   peers?: {
     color: string;
     playheadMs?: number;
     username: string;
     avatar?: string | null;
   }[];
-  /** Comment anchors, drawn as markers above the waveform. */
   comments?: {
     time_ms: number;
     resolved: boolean;
     body?: string;
     author?: string | null;
   }[];
-  /** Click a comment marker (top band) → seek there + open the comments panel. */
   onCommentClick?: (timeMs: number) => void;
-  /** Editor bookmarks (ms) for the active difficulty, drawn as indigo flags. */
   bookmarks?: number[];
-  /** Right-click menu actions (omitted for viewers → no menu). The ms is the
-   *  song time under the cursor. */
   onSetPreviewPoint?: (ms: number) => void;
   onAddBookmark?: (ms: number) => void;
   onRemoveBookmark?: (ms: number) => void;
-  /** Playback-region trim brackets (ms). Undefined ends default to the song
-   *  boundaries (start 0, end = duration). */
   trimStart?: number;
   trimEnd?: number;
-  /** Fade-in / fade-out lengths (ms) drawn as ramps inside the region. */
   fadeIn?: number;
   fadeOut?: number;
-  /** Drag handlers for the brackets / fade dots (omitted for viewers). */
   onSetTrimStart?: (ms: number) => void;
   onSetTrimEnd?: (ms: number) => void;
   onSetFadeIn?: (ms: number) => void;
@@ -159,21 +133,14 @@ export function BottomTimeline({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const sizeRef = useRef({ width: 800, dpr: 1 });
   const draggingRef = useRef(false);
-  // Which trim handle is currently grabbed (null = none). Drives the
-  // window-level mousemove so a drag keeps tracking outside the canvas.
   const trimDragRef = useRef<
     "start" | "end" | "fadeIn" | "fadeOut" | null
   >(null);
-  // Hover state for the trim handles, so they can highlight on approach.
   const trimHoverRef = useRef<
     "start" | "end" | "fadeIn" | "fadeOut" | null
   >(null);
   const waveformRevealStartRef = useRef(0);
   const revealedWaveformRef = useRef<Waveform | null>(null);
-  // Offscreen cache of the expensive, mostly-static timeline layer (background,
-  // per-pixel waveform, per-note density, timing/bookmark/preview marks). It's
-  // re-rendered only when its inputs change; per frame we just blit it and draw
-  // the moving playhead/peers on top — so playback no longer rebuilds it 360×/s.
   const staticLayerRef = useRef<HTMLCanvasElement | null>(null);
   const staticSigRef = useRef<{
     width: number;
@@ -187,9 +154,7 @@ export function BottomTimeline({
     bookmarks: unknown;
     previewTime: number;
   } | null>(null);
-  // Cache of decoded avatar images (osu! pfps), keyed by URL, for canvas draws.
   const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  // Tooltip shown when hovering a comment marker (author + body).
   const [tip, setTip] = useState<{
     x: number;
     author: string;
@@ -197,9 +162,6 @@ export function BottomTimeline({
     resolved: boolean;
   } | null>(null);
   const tipKeyRef = useRef<number | null>(null);
-  // Popover shown when hovering a collaborator's avatar (enlarged pfp + name).
-  // Positioned in viewport coords (fixed) so it escapes the timeline's
-  // overflow-hidden / max-height wrapper instead of being clipped.
   const [peerTip, setPeerTip] = useState<{
     screenX: number;
     anchorTop: number;
@@ -209,7 +171,6 @@ export function BottomTimeline({
   } | null>(null);
   const peerTipKeyRef = useRef<string | null>(null);
 
-  // Right-click context menu (set preview point / offset / bookmark at a time).
   const [menu, setMenu] = useState<{
     x: number;
     y: number;
@@ -256,8 +217,6 @@ export function BottomTimeline({
     fadeOut,
   };
 
-  // Latest trim drag handlers, read by the window-level drag listener without
-  // re-subscribing it every render.
   const trimHandlersRef = useRef({
     onSetTrimStart,
     onSetTrimEnd,
@@ -312,8 +271,6 @@ export function BottomTimeline({
 
     const midY = WAVE_TOP + WAVE_H / 2;
 
-    // Reveal animation width (the waveform wipes in once on load). Only this and
-    // the cache's other inputs decide whether the static layer must re-render.
     let revealWidth = width;
     if (waveform) {
       const elapsed =
@@ -328,7 +285,6 @@ export function BottomTimeline({
       revealWidth = width * (1 - Math.pow(1 - progress, 3));
     }
 
-    // ---- Static layer (cached) ----
     const prev = staticSigRef.current;
     const staticDirty =
       !prev ||
@@ -360,11 +316,9 @@ export function BottomTimeline({
         sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         sctx.clearRect(0, 0, width, HEIGHT);
 
-        // Background
         sctx.fillStyle = "#16161d";
         sctx.fillRect(0, 0, width, HEIGHT);
 
-        // ---- Waveform ----
         if (waveform) {
           const { peaks } = waveform;
           sctx.save();
@@ -384,13 +338,11 @@ export function BottomTimeline({
           sctx.fillRect(0, midY - 1, width, 2);
         }
 
-        // ---- Note density dots ----
         if (duration > 0 && notes.length > 0) {
           const counts = new Array<number>(DENSITY_BUCKETS).fill(0);
           for (const n of notes) {
             const b = Math.floor((n.startTime / duration) * DENSITY_BUCKETS);
             if (b >= 0 && b < DENSITY_BUCKETS) counts[b]++;
-            // Long notes also contribute at their end.
             if (n.endTime !== undefined) {
               const be = Math.floor((n.endTime / duration) * DENSITY_BUCKETS);
               if (be >= 0 && be < DENSITY_BUCKETS && be !== b) counts[be]++;
@@ -399,7 +351,6 @@ export function BottomTimeline({
           let peak = 1;
           for (const c of counts) if (c > peak) peak = c;
 
-          // Dots inside a kiai section are drawn pink instead of yellow.
           const kiais = kiaiRanges(timingPoints, duration);
           const inKiai = (t: number) =>
             kiais.some((k) => t >= k.start && t < k.end);
@@ -424,7 +375,6 @@ export function BottomTimeline({
           }
         }
 
-        // ---- Timing point markers: red (uninherited) + green (inherited SV) ----
         if (duration > 0) {
           for (const tp of timingPoints) {
             if (tp.time < 0 || tp.time > duration) continue;
@@ -444,7 +394,6 @@ export function BottomTimeline({
           }
         }
 
-        // ---- Bookmarks (indigo flags over the waveform) ----
         if (duration > 0 && bookmarks?.length) {
           for (const b of bookmarks) {
             if (b < 0 || b > duration) continue;
@@ -457,7 +406,6 @@ export function BottomTimeline({
             sctx.lineTo(bx, HEIGHT);
             sctx.stroke();
             sctx.globalAlpha = 1;
-            // Small downward flag at the top of the waveform band.
             sctx.fillStyle = "#818cf8";
             sctx.beginPath();
             sctx.moveTo(bx - 4, WAVE_TOP);
@@ -468,7 +416,6 @@ export function BottomTimeline({
           }
         }
 
-        // ---- Preview point marker (purple tick) ----
         if (duration > 0 && previewTime >= 0 && previewTime <= duration) {
           const px = (previewTime / duration) * width;
           sctx.fillStyle = "#c084fc";
@@ -499,14 +446,12 @@ export function BottomTimeline({
       ctx.drawImage(staticLayerRef.current, 0, 0, width, HEIGHT);
     }
 
-    // ---- Played region tint ----
     if (duration > 0) {
       const currentTime = getCurrentTime();
       const px = (currentTime / duration) * width;
       ctx.fillStyle = "rgba(255,93,177,0.10)";
       ctx.fillRect(0, WAVE_TOP, px, WAVE_H);
 
-      // Playhead
       ctx.strokeStyle = "#e86868";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -515,7 +460,6 @@ export function BottomTimeline({
       ctx.stroke();
     }
 
-    // ---- Trim region: red brackets + draggable fade envelope ----
     const trim = trimGeometry(
       duration,
       width,
@@ -527,13 +471,10 @@ export function BottomTimeline({
     if (trim) {
       const { sx, ex, fadeInX, fadeOutX, envTop, envBot } = trim;
 
-      // Dim the cut-away regions outside the brackets so the kept region pops.
       ctx.fillStyle = "rgba(8,9,14,0.58)";
       if (sx > 0.5) ctx.fillRect(0, WAVE_TOP, sx, WAVE_H);
       if (ex < width - 0.5) ctx.fillRect(ex, WAVE_TOP, width - ex, WAVE_H);
 
-      // Volume envelope: gain ramps 0 → 1 over the fade-in, holds, then 1 → 0
-      // over the fade-out. Filled translucent, with a crisp top edge.
       ctx.beginPath();
       ctx.moveTo(sx, envBot);
       ctx.lineTo(fadeInX, envTop);
@@ -554,7 +495,6 @@ export function BottomTimeline({
       const hover = trimHoverRef.current;
       const drag = trimDragRef.current;
 
-      // Brackets — bold red verticals with a grab tab pointing into the region.
       const drawBracket = (x: number, side: "start" | "end") => {
         const active = hover === side || drag === side;
         ctx.fillStyle = active ? "#ff7a7a" : "#ff4d4d";
@@ -571,7 +511,6 @@ export function BottomTimeline({
       drawBracket(sx, "start");
       drawBracket(ex, "end");
 
-      // Fade dots — draggable circles at the top of each ramp.
       const drawDot = (x: number, side: "fadeIn" | "fadeOut") => {
         const active = hover === side || drag === side;
         ctx.beginPath();
@@ -586,13 +525,11 @@ export function BottomTimeline({
       drawDot(fadeOutX, "fadeOut");
     }
 
-    // ---- Comment markers (clickable pins above the waveform) ----
     if (duration > 0 && comments?.length) {
       for (const c of comments) {
         if (c.time_ms < 0 || c.time_ms > duration) continue;
         const cx = (c.time_ms / duration) * width;
         const col = c.resolved ? "rgba(148,163,184,0.6)" : "#fbbf24";
-        // Faint stem down through the strip so the anchor time is obvious.
         ctx.strokeStyle = col;
         ctx.globalAlpha = c.resolved ? 0.3 : 0.55;
         ctx.lineWidth = 1;
@@ -601,7 +538,6 @@ export function BottomTimeline({
         ctx.lineTo(cx, HEIGHT);
         ctx.stroke();
         ctx.globalAlpha = 1;
-        // Pin: rounded head + pointer.
         ctx.fillStyle = col;
         ctx.beginPath();
         ctx.arc(cx, 7, 5, 0, Math.PI * 2);
@@ -612,7 +548,6 @@ export function BottomTimeline({
         ctx.lineTo(cx, 14.5);
         ctx.closePath();
         ctx.fill();
-        // Dark dot in the head so it reads as a comment.
         ctx.fillStyle = "#0b0b10";
         ctx.beginPath();
         ctx.arc(cx, 7, 1.4, 0, Math.PI * 2);
@@ -620,16 +555,14 @@ export function BottomTimeline({
       }
     }
 
-    // ---- Collaborator position lines + avatars ----
     if (duration > 0 && peers?.length) {
       const cache = avatarCacheRef.current;
-      const AR = AVATAR_R; // avatar radius
-      const AY = AVATAR_Y; // avatar center y (top band, above the waveform)
+      const AR = AVATAR_R;
+      const AY = AVATAR_Y;
       for (const p of peers) {
         if (p.playheadMs === undefined) continue;
         const cx = (p.playheadMs / duration) * width;
 
-        // Vertical position line.
         ctx.strokeStyle = p.color;
         ctx.globalAlpha = 0.85;
         ctx.lineWidth = 1.5;
@@ -639,7 +572,6 @@ export function BottomTimeline({
         ctx.stroke();
         ctx.globalAlpha = 1;
 
-        // osu! avatar disc at the top of the line (falls back to an initial).
         let img: HTMLImageElement | undefined;
         if (p.avatar) {
           img = cache.get(p.avatar);
@@ -669,7 +601,6 @@ export function BottomTimeline({
           ctx.textBaseline = "alphabetic";
         }
         ctx.restore();
-        // Colored ring around the avatar.
         ctx.beginPath();
         ctx.arc(cx, AY, AR, 0, Math.PI * 2);
         ctx.lineWidth = 2;
@@ -681,7 +612,6 @@ export function BottomTimeline({
     ctx.restore();
   }, []);
 
-  // rAF loop so the playhead tracks playback smoothly.
   useEffect(() => {
     let raf = 0;
     const loop = () => {
@@ -692,7 +622,6 @@ export function BottomTimeline({
     return () => cancelAnimationFrame(raf);
   }, [draw]);
 
-  // Resize
   useEffect(() => {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
@@ -712,7 +641,6 @@ export function BottomTimeline({
     return () => ro.disconnect();
   }, []);
 
-  // ---- Seeking ----
   const seekFromEvent = useCallback(
     (clientX: number) => {
       const canvas = canvasRef.current;
@@ -725,8 +653,6 @@ export function BottomTimeline({
     [onSeek],
   );
 
-  // Hit-test the trim handles. Fade dots win over brackets (they sit on top),
-  // and brackets only register within the waveform band.
   const hitTrimHandle = useCallback(
     (clientX: number, clientY: number): typeof trimDragRef.current => {
       const canvas = canvasRef.current;
@@ -758,7 +684,6 @@ export function BottomTimeline({
     [],
   );
 
-  // Apply a drag of the grabbed trim handle to the song time under the cursor.
   const applyTrimDrag = useCallback(
     (handle: NonNullable<typeof trimDragRef.current>, clientX: number) => {
       const canvas = canvasRef.current;
@@ -781,8 +706,7 @@ export function BottomTimeline({
     !!onSetTrimStart || !!onSetTrimEnd || !!onSetFadeIn || !!onSetFadeOut;
 
   const onMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // left-click only (right-click → context menu)
-    // Trim brackets / fade dots take priority over seeking when grabbed.
+    if (e.button !== 0) return;
     if (hasTrimHandlers) {
       const handle = hitTrimHandle(e.clientX, e.clientY);
       if (handle) {
@@ -791,8 +715,6 @@ export function BottomTimeline({
         return;
       }
     }
-    // A click in the top band on a comment pin opens that comment instead of
-    // seeking (the rest of the strip still scrubs as before).
     const canvas = canvasRef.current;
     if (canvas && onCommentClick && duration > 0 && comments?.length) {
       const rect = canvas.getBoundingClientRect();
@@ -821,17 +743,15 @@ export function BottomTimeline({
 
   const hasMenuActions = !!onSetPreviewPoint || !!onAddBookmark;
 
-  // Right-click → context menu at the cursor for the song time under it.
   const onCanvasContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!hasMenuActions) return; // viewers: no actions, no menu
+    if (!hasMenuActions) return;
     const canvas = canvasRef.current;
     const { duration, bookmarks } = propsRef.current;
     if (!canvas || !(duration > 0)) return;
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const ms = Math.max(0, Math.min(1, mx / rect.width)) * duration;
-    // If they right-clicked on/near a bookmark, offer to remove that one.
     let bookmark: number | null = null;
     let bestDist = 6;
     for (const b of bookmarks ?? []) {
@@ -845,7 +765,6 @@ export function BottomTimeline({
     setMenu({ x: e.clientX, y: e.clientY, ms, bookmark });
   };
 
-  // Close the context menu on Escape.
   useEffect(() => {
     if (!menu) return;
     const onKey = (e: KeyboardEvent) => {
@@ -868,8 +787,6 @@ export function BottomTimeline({
     }
   };
 
-  // Hover the top band → enlarge a collaborator's avatar, or show a comment pin's
-  // author + text. A peer avatar takes precedence over a comment pin underneath.
   const onCanvasMove = (e: React.MouseEvent) => {
     if (draggingRef.current || trimDragRef.current) return;
     const canvas = canvasRef.current;
@@ -883,7 +800,6 @@ export function BottomTimeline({
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
-    // Trim handles: highlight on hover and switch the cursor to signal a drag.
     if (hasTrimHandlers) {
       const handle = hitTrimHandle(e.clientX, e.clientY);
       if (trimHoverRef.current !== handle) trimHoverRef.current = handle;
@@ -897,7 +813,6 @@ export function BottomTimeline({
       canvas.style.cursor = "";
     }
 
-    // Collaborator avatars (top band).
     if (peers?.length) {
       let hit: { username: string; avatar: string | null; color: string; cx: number } | null = null;
       let bestDist = (AVATAR_R + 3) ** 2;
@@ -929,7 +844,6 @@ export function BottomTimeline({
     }
     clearPeerTip();
 
-    // Comment pins (top band).
     let best: { time_ms: number; cx: number } | null = null;
     let bestDist = 8;
     if (comments?.length && my <= 18) {
@@ -943,7 +857,7 @@ export function BottomTimeline({
       }
     }
     if (best) {
-      if (tipKeyRef.current === best.time_ms) return; // unchanged
+      if (tipKeyRef.current === best.time_ms) return;
       const c = comments!.find((x) => x.time_ms === best!.time_ms);
       tipKeyRef.current = best.time_ms;
       setTip({
@@ -960,8 +874,6 @@ export function BottomTimeline({
   const clearTip = () => {
     clearCommentTip();
     clearPeerTip();
-    // Drop any trim-handle highlight when the cursor leaves the strip (unless a
-    // drag is in progress, which the window listener owns).
     if (!trimDragRef.current && trimHoverRef.current !== null) {
       trimHoverRef.current = null;
       const canvas = canvasRef.current;
@@ -969,15 +881,13 @@ export function BottomTimeline({
     }
   };
 
-  // Scroll over the timeline to adjust waveform sensitivity.
-  // Native listener with passive:false so we can stop the page from scrolling.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const { sensitivity, onSensitivity } = propsRef.current;
-      const dir = e.deltaY < 0 ? 1 : -1; // scroll up = more sensitive
+      const dir = e.deltaY < 0 ? 1 : -1;
       const next = Math.round(
         Math.max(
           SENS_MIN,
@@ -1027,7 +937,6 @@ export function BottomTimeline({
         onMouseLeave={clearTip}
         onContextMenu={onCanvasContextMenu}
       />
-      {/* Comment hover tooltip */}
       {tip && (
         <div
           className="pointer-events-none absolute z-20 w-56 -translate-x-1/2 rounded-lg border border-ink-500/70 bg-ink-900/95 px-2.5 py-1.5 shadow-xl"
@@ -1052,9 +961,6 @@ export function BottomTimeline({
           </div>
         </div>
       )}
-      {/* Collaborator avatar hover popover (enlarged pfp + username). Portaled to
-          <body> so `fixed` is viewport-relative — the timeline's translate-y
-          ancestor would otherwise clip it via the overflow-hidden wrapper. */}
       {peerTip &&
         createPortal(
         <div
@@ -1087,15 +993,10 @@ export function BottomTimeline({
           document.body,
         )}
 
-      {/* Sensitivity hint - appears on hover */}
       <div className="pointer-events-none absolute right-2 top-1.5 select-none rounded bg-ink-900/70 px-2 py-0.5 text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
         waveform {sensitivity.toFixed(1)}× · scroll to adjust
       </div>
 
-      {/* Right-click context menu. Portaled to <body> so `fixed` positioning is
-          relative to the viewport — an ancestor `transform` (the timeline's
-          translate-y) would otherwise make it a containing block and the
-          overflow-hidden wrapper would clip the menu out of view. */}
       {menu &&
         createPortal(
         <div
@@ -1174,7 +1075,6 @@ function MenuItem({
   );
 }
 
-/** mm:ss.mmm for the context-menu header. */
 function formatTimestamp(ms: number): string {
   const total = Math.max(0, Math.round(ms));
   const m = Math.floor(total / 60000);

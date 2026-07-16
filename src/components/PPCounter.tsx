@@ -12,15 +12,6 @@ type Props = {
   onPlaybackRateChange: (rate: number) => void;
 };
 
-/**
- * Live performance-points readout for the active difficulty, paired with the
- * playback-speed selector.
- *
- * The pp pill shows the maximum pp the map awards - i.e. a perfect (SS),
- * no-mod play - recomputed from the current notes. The speed selector slows
- * (or restores) the song playback rate. Floats in the bottom-right corner of
- * the editor, just above the song timeline. See {@link maniaMaxPP}.
- */
 export function PPCounter({
   notes,
   keyCount,
@@ -34,7 +25,6 @@ export function PPCounter({
 
   return (
     <div className="absolute bottom-3 right-3 flex select-none items-center gap-2 transition-opacity duration-300">
-      {/* Playback speed (song slows down too) */}
       <div className="flex items-center gap-1.5 rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 shadow-xl shadow-black/25 backdrop-blur-xl">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">
           Speed
@@ -56,7 +46,6 @@ export function PPCounter({
         </div>
       </div>
 
-      {/* Max pp readout */}
       <div className="pointer-events-none rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 text-right shadow-xl shadow-black/25 backdrop-blur-xl">
         <div className="flex items-baseline gap-1.5">
           <span className="text-base font-bold leading-none tabular-nums text-slate-100">

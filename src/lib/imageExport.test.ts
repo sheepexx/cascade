@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import JSZip from "jszip";
 
-// The real pngToJpeg needs a browser canvas (unavailable under the test
-// runner); mock it so the export logic — dropping the PNG, adding the JPEG and
-// rewriting the .osu reference — can be exercised. Uint8Array is used for blob
-// contents throughout because JSZip can serialise it in any environment.
 vi.mock("./imageConvert", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./imageConvert")>();
   return {
@@ -25,7 +21,6 @@ import { DEFAULT_PACK_METADATA, DEFAULT_PACK_SETTINGS } from "../types/packCreat
 import type { PackAsset, PackItem } from "../types/packCreator";
 import { makeDifficulty, type Difficulty } from "../types";
 
-/** A blob JSZip can read in the node/jsdom test runner. */
 function bytes(s: string): Blob {
   return new Uint8Array([...s].map((c) => c.charCodeAt(0))) as unknown as Blob;
 }
@@ -190,8 +185,6 @@ describe("PNG background conversion on export", () => {
   });
 
   it("pack: two difficulties in one archive share a background — converted once", async () => {
-    // Both difficulties reference the same bg.png from the same source archive,
-    // so they share the one asset array (as importOszForPack produces).
     const assets: PackAsset[] = [
       { id: "au", name: "audio.mp3", blob: bytes("a"), size: 1, hash: "h1", referenced: true },
       { id: "bgp", name: "bg.png", blob: bytes("pngdata"), size: 7, hash: "h2", referenced: true },
@@ -210,7 +203,6 @@ describe("PNG background conversion on export", () => {
 
     const { names, osus } = await loadZip(blob);
     const images = names.filter((n) => /\.(png|jpg)$/i.test(n));
-    // Exactly one background image, the JPEG — no leftover PNG, no bg_2.jpg.
     expect(images).toEqual(["bg.jpg"]);
     for (const osu of osus) {
       expect(osu).toContain('"bg.jpg"');

@@ -37,10 +37,8 @@ const selectClass =
   "w-full rounded-lg bg-ink-700/65 border border-white/10 px-3 py-2 text-sm text-slate-100 " +
   "outline-none shadow-inner shadow-black/10 backdrop-blur-sm transition focus:border-accent/70";
 
-/** How long the exit animation runs; matches .modal-*-out in index.css. */
 const EXIT_MS = 220;
 
-/** A titled panel, matching the site's card look. */
 function Panel({
   title,
   badge,
@@ -66,11 +64,6 @@ function Panel({
   );
 }
 
-/**
- * Pack Creator: a dedicated full-screen tool (opened from the start menu) that
- * combines several imported .osz maps into one exported .osz song pack. Fully
- * separate from the editor state, so the open project is never touched.
- */
 export function PackCreator({
   open,
   onClose,
@@ -78,7 +71,6 @@ export function PackCreator({
 }: {
   open: boolean;
   onClose: () => void;
-  /** When set, re-encode PNG backgrounds as JPEG at this quality on export. */
   jpegQuality?: number;
 }) {
   const { user } = useAuth();
@@ -86,11 +78,8 @@ export function PackCreator({
   const [settings, setSettings] = useState<PackCreatorSettings>(
     DEFAULT_PACK_SETTINGS,
   );
-  // Raw text of the Tags input. Binding the input to tags.join(" ") would
-  // strip the trailing space on every keystroke and make spaces untypable.
   const [tagsText, setTagsText] = useState("");
   const [items, setItems] = useState<PackItem[]>([]);
-  /** Non-mania difficulties found during import, excluded unless included. */
   const [excluded, setExcluded] = useState<PackItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -104,7 +93,6 @@ export function PackCreator({
   const [browseOpen, setBrowseOpen] = useState(false);
   const dragDepthRef = useRef(0);
 
-  // Mount/unmount with the same enter/exit animation as the site's modals.
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   useEffect(() => {
@@ -122,15 +110,11 @@ export function PackCreator({
     return () => window.clearTimeout(id);
   }, [open, mounted]);
 
-  // Prefill the pack creator with the logged-in osu! username. Only fills an
-  // empty field, so anything the user typed is never overwritten.
   useEffect(() => {
     if (!open || !user?.username) return;
     setMetadata((m) => (m.creator.trim() ? m : { ...m, creator: user.username }));
   }, [open, user]);
 
-  // Close with Esc (capture, so the editor underneath never sees it). While
-  // the project browser modal is open, Esc belongs to the modal instead.
   useEffect(() => {
     if (!open || browseOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -143,9 +127,6 @@ export function PackCreator({
     return () => window.removeEventListener("keydown", onKey, true);
   }, [open, browseOpen, onClose]);
 
-  // Import a batch of osu! archives. `sourceLabel` overrides the "From" text —
-  // used for StepMania/Etterna songs that were repackaged to .osz so the item
-  // still shows its original .sm/.ssc name instead of the temporary .osz.
   const importInputs = useCallback(
     async (inputs: { file: File; sourceLabel?: string }[]) => {
       if (!inputs.length) return;
@@ -274,12 +255,6 @@ export function PackCreator({
     )}) [${sanitizePackFilename(PLACEHOLDER_VERSION)}].osu`;
   }, [metadata, placeholderItem]);
 
-  /**
-   * Handle a drop of osu! archives and/or StepMania/Etterna sources. osu!
-   * `.osz`/`.zip` files go straight to the importer; dropped folders and SM
-   * `.zip` packs are scanned and each song repackaged to an in-memory `.osz`
-   * first, so everything funnels through the same importOszForPack path.
-   */
   const importDropped = useCallback(
     async (entries: FileSystemEntry[], files: File[]) => {
       const hasFolder = entries.some((en) => en.isDirectory);
@@ -309,10 +284,10 @@ export function PackCreator({
                   sourceLabel: song.info.sourceSmName,
                 });
               }
-              continue; // handled as an SM pack
+              continue;
             }
           }
-          if (/\.(osz|zip)$/i.test(file.name)) inputs.push({ file }); // osu!
+          if (/\.(osz|zip)$/i.test(file.name)) inputs.push({ file });
         }
         if (inputs.length) await importInputs(inputs);
         else
@@ -332,9 +307,6 @@ export function PackCreator({
     [importFiles, importInputs],
   );
 
-  // Keep drops inside the tool: the app-level handler would import into the
-  // editor instead. stopPropagation on every drag event prevents that. Folder
-  // entries must be captured synchronously, before the handler awaits anything.
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -383,7 +355,6 @@ export function PackCreator({
           closing ? "modal-panel-out" : "modal-panel-in"
         }`}
       >
-        {/* ── Header ── */}
         <header className="flex items-center gap-3 border-b border-white/10 bg-ink-800/80 px-4 py-2.5">
           <Button variant="ghost" onClick={onClose} className="shrink-0">
             ← Back
@@ -412,15 +383,11 @@ export function PackCreator({
           </Button>
         </header>
 
-        {/* ── Columns ── */}
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-4">
-          {/* 1 · Maps */}
           <section className="flex w-[330px] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-2">
               <label
                 onClick={(e) => {
-                  // Labels aren't covered by the global button click sound;
-                  // skip the synthetic click forwarded to the hidden input.
                   if (!(e.target instanceof HTMLInputElement))
                     playUiSound("click");
                 }}
@@ -567,7 +534,6 @@ export function PackCreator({
             )}
           </section>
 
-          {/* 2 · Pack settings */}
           <section className="flex w-[330px] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
             <Panel title="Pack settings">
               <div className="flex flex-col gap-3">
@@ -825,7 +791,6 @@ export function PackCreator({
             </Panel>
           </section>
 
-          {/* 3 · Selected map + validation */}
           <section className="flex min-w-[340px] flex-1 flex-col gap-3 overflow-y-auto pr-1">
             <Panel title="Selected map">
               {selected ? (

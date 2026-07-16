@@ -1,17 +1,6 @@
 import { supabase } from "./supabase";
 import { patternHash, type PatternNote } from "./patterns";
 
-/**
- * Pattern preset storage on Supabase. Presets are reusable note snippets that
- * users insert into the editor. Anyone can publish one (it lands as `pending`);
- * admins approve/reject them via the admin UI. RLS enforces visibility:
- * non-admins only see `approved` presets plus their own.
- *
- * Author display (username + osu_id) is denormalised onto each row so the
- * browser can show who submitted it and link to their osu! profile without
- * reading the users table (RLS blocks reading other users' rows).
- */
-
 export type PresetStatus = "pending" | "approved" | "rejected";
 
 export type Preset = {
@@ -29,7 +18,6 @@ export type Preset = {
   created_at: string;
 };
 
-/** Raised when a pattern identical to an existing live preset is submitted. */
 export class DuplicatePresetError extends Error {
   constructor() {
     super("This exact pattern has already been submitted.");
@@ -41,7 +29,6 @@ const COLUMNS =
   "id,author,author_username,author_osu_id,name,key_count,description," +
   "pattern,tags,is_public,status,created_at";
 
-/** Approved presets, optionally filtered to a key count. */
 export async function listPresets(opts?: {
   keyCount?: number;
   ownerId?: string | null;
@@ -113,7 +100,6 @@ async function insertPreset(input: {
     status: input.status,
   });
   if (error) {
-    // 23505 = unique_violation on presets_pattern_hash_uniq → duplicate pattern.
     if (error.code === "23505") throw new DuplicatePresetError();
     throw new Error(error.message);
   }
@@ -124,9 +110,6 @@ export async function deletePreset(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// ---- Admin -----------------------------------------------------------------
-
-/** Every preset with the given status (admin only, enforced by RLS). */
 export async function listPresetsByStatus(
   status: PresetStatus,
 ): Promise<Preset[]> {
@@ -140,7 +123,6 @@ export async function listPresetsByStatus(
   return (data ?? []) as unknown as Preset[];
 }
 
-/** Private account presets saved by users (admin only, enforced by RLS). */
 export async function listPrivatePresets(): Promise<Preset[]> {
   const { data, error } = await supabase
     .from("presets")

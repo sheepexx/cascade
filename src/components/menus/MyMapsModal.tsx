@@ -9,10 +9,6 @@ import {
 } from "../../lib/cloud";
 import { playUiSound } from "../../lib/uiSounds";
 
-/**
- * Browser for the signed-in user's cloud-saved projects. Lets them open one
- * back into the editor (assets are downloaded by the caller) or delete it.
- */
 export function MyMapsModal({
   open,
   onClose,

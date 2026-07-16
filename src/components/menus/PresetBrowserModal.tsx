@@ -6,11 +6,6 @@ import { listPresets, type Preset } from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
 import { useAuth } from "../../lib/auth";
 
-/**
- * Browse approved pattern presets and copy one to the editor clipboard (paste
- * with Ctrl+V where you want it). Search matches name, author, tags and key
- * count; the toggle widens the listing to every key count.
- */
 export function PresetBrowserModal({
   open,
   onClose,
@@ -20,7 +15,6 @@ export function PresetBrowserModal({
   open: boolean;
   onClose: () => void;
   activeKeyCount: number;
-  /** Copy this pattern into the editor clipboard. */
   onCopy: (pattern: PatternNote[]) => void;
 }) {
   const [presets, setPresets] = useState<Preset[] | null>(null);
@@ -52,8 +46,6 @@ export function PresetBrowserModal({
     };
   }, [open, allKeys, activeKeyCount, user?.id]);
 
-  // Client-side search: every space-separated term must appear somewhere in the
-  // preset's name, author, tags or "<n>k" key label.
   const filtered = useMemo(() => {
     if (!presets) return null;
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);

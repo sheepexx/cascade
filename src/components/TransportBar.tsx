@@ -11,7 +11,6 @@ type Props = {
   audio: AudioController;
   view: ViewState;
   onView: (v: ViewState) => void;
-  /** Hitsound volume (perceived slider position 0..1). */
   hitsoundVolume: number;
   onHitsoundVolume: (value: number) => void;
 };
@@ -29,7 +28,6 @@ export function TransportBar({
     <div className="flex items-center gap-4 border-b border-white/10 bg-ink-800/55 px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl">
       <div className="flex-1" />
 
-      {/* Timestamp display */}
       <button
         onClick={() => {
           const timestamp = formatTime(currentTime);
@@ -44,7 +42,6 @@ export function TransportBar({
       </button>
 
       <div className="flex-1 flex items-center justify-end gap-4">
-        {/* Volume (↑↓ keys or Alt+scroll) */}
         <label className="flex items-center gap-2 text-xs text-slate-400">
           Vol
           <input
@@ -61,7 +58,6 @@ export function TransportBar({
           </span>
         </label>
 
-        {/* Hitsound volume */}
         <label className="flex items-center gap-2 text-xs text-slate-400">
           Hit
           <input
@@ -79,7 +75,6 @@ export function TransportBar({
           </span>
         </label>
 
-        {/* Snap divisor */}
         <label className="flex items-center gap-2 text-xs text-slate-400">
           Snap
           <select
@@ -100,7 +95,6 @@ export function TransportBar({
           </select>
         </label>
 
-        {/* Scroll speed (osu!mania, 1–40) */}
         <label className="flex items-center gap-2 text-xs text-slate-400">
           Scroll speed
           <input

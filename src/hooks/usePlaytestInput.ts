@@ -13,25 +13,17 @@ export function usePlaytestInput({
   onRestart,
 }: {
   active: boolean;
-  /** Paused (pause menu open): swallow lane input, but keep Esc / quick-restart. */
   paused: boolean;
   keyCount: number;
   keybinds: PlaytestKeybinds;
-  /** KeyboardEvent.code that instantly restarts the run ("" disables it). */
   quickRestartCode: string;
   onPress: (column: number) => void;
   onRelease: (column: number) => void;
-  /** Escape: toggle the pause menu. */
   onPause: () => void;
   onRestart: () => void;
 }) {
   const [heldCodes, setHeldCodes] = useState<Set<string>>(() => new Set());
-  // Source-of-truth for which keys are down, mutated synchronously in the event
-  // handlers. `heldCodes` state just mirrors it for the on-screen key display.
   const heldRef = useRef<Set<string>>(new Set());
-  // Synchronous set of held *columns*, mutated in the same handlers. The canvas
-  // render loop reads this directly so receptor glow lights the instant a key
-  // goes down — with zero React-commit / one-frame delay.
   const pressedColumnsRef = useRef<Set<number>>(new Set());
 
   const codeToColumn = useMemo(() => {
@@ -43,9 +35,6 @@ export function usePlaytestInput({
     return map;
   }, [keybinds, keyCount]);
 
-  // The callbacks (and `paused`) change identity on most renders because they
-  // close over the live audio clock. Keep them in a ref so the listener effect
-  // can depend only on stable values and subscribe once per run.
   const handlers = useRef({ onPress, onRelease, onPause, onRestart, paused });
   handlers.current = { onPress, onRelease, onPause, onRestart, paused };
 
@@ -63,15 +52,12 @@ export function usePlaytestInput({
 
     const down = (e: KeyboardEvent) => {
       const h = handlers.current;
-      // Escape opens / closes the pause menu — works whether or not we're paused.
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopImmediatePropagation();
         h.onPause();
         return;
       }
-      // The configurable quick-restart key restarts instantly, including from
-      // the pause menu.
       if (quickRestartCode && e.code === quickRestartCode) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -81,16 +67,12 @@ export function usePlaytestInput({
 
       const column = codeToColumn.get(e.code);
       if (column === undefined) return;
-      // Swallow mapped keys even while paused so they don't scroll/scrub behind
-      // the menu, but don't let them register as hits.
       e.preventDefault();
       e.stopImmediatePropagation();
       if (h.paused || e.repeat || heldRef.current.has(e.code)) return;
       heldRef.current.add(e.code);
       pressedColumnsRef.current.add(column);
       syncHeld();
-      // Called OUTSIDE any setState updater — onPress itself calls setState, and
-      // doing that from inside an updater (under StrictMode) drops the update.
       h.onPress(column);
     };
 
@@ -102,8 +84,6 @@ export function usePlaytestInput({
       e.stopImmediatePropagation();
       if (!heldRef.current.has(e.code)) return;
       heldRef.current.delete(e.code);
-      // Only clear the column glow if no other held key still maps to it
-      // (a lane can have more than one bound key).
       let stillHeld = false;
       for (const code of heldRef.current) {
         if (codeToColumn.get(code) === column) {

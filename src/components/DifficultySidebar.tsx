@@ -2,7 +2,6 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import type { Difficulty } from "../types";
 import { computeStarRating, starColor, starTier } from "../lib/starRating";
 
-/** A collaborator's presence, enough to badge the difficulty they're editing. */
 type PeerLite = {
   id: string;
   username: string;
@@ -19,7 +18,6 @@ type Props = {
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
-  /** Live collaborators; each is shown on the difficulty they're working on. */
   peers?: PeerLite[];
 };
 
@@ -33,7 +31,6 @@ export function DifficultySidebar({
   onRename,
   peers,
 }: Props) {
-  // Compute star ratings once and sort easiest → hardest.
   const sorted = useMemo(
     () =>
       difficulties
@@ -109,7 +106,6 @@ function DiffRow({
   const [draft, setDraft] = useState(difficulty.name);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus + select the text when entering edit mode (Windows Explorer style).
   useEffect(() => {
     if (editing) {
       inputRef.current?.focus();
@@ -143,7 +139,6 @@ function DiffRow({
       }`}
     >
       <div className="flex items-center gap-2">
-        {/* Star color dot */}
         <span
           className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/30"
           style={{ backgroundColor: color }}
@@ -212,7 +207,6 @@ function DiffRow({
         <span className="text-[10px] text-slate-500">{starTier(star)}</span>
       </div>
 
-      {/* Row actions */}
       <div className="mt-1.5 flex items-center gap-2 pl-5">
         <button
           onClick={(e) => {
@@ -229,8 +223,6 @@ function DiffRow({
               e.stopPropagation();
               onDelete();
             }}
-            // Opens the "are you sure" modal (which has its own chime); skip the
-            // general UI click so the two sounds don't overlap.
             data-no-uisound=""
             className="text-[10px] text-slate-400 hover:text-red-300"
           >

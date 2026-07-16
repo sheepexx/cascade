@@ -18,10 +18,8 @@ type Props = {
   onClose: () => void;
   timingPoints: TimingPoint[];
   onTimingPoints: (points: TimingPoint[]) => void;
-  /** Live playback state (primitives so the modal can be memoized). */
   isPlaying: boolean;
   playbackRate: number;
-  /** Pull the live song time without re-rendering this modal every frame. */
   getCurrentTime: () => number;
   onToggle: () => void;
   onSetPlaybackRate: (rate: number) => void;
@@ -30,13 +28,8 @@ type Props = {
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
 const OFFSET_NUDGES = [-10, -5, -1, 1, 5, 10] as const;
 const SV_PRESETS = [0.5, 0.75, 1, 1.5, 2] as const;
-/** Min taps before the detected BPM/offset auto-applies to the timing. */
 const TAP_MIN = 3;
 
-// Memoized so it doesn't re-render on every playback frame (the App re-renders
-// ~60×/s to advance the clock). Without this the whole modal — and the timing
-// list of controlled inputs — reconciles each frame, which is what made the
-// background preview stutter while this modal was open.
 export const TimingModal = memo(function TimingModal({
   open,
   onClose,
@@ -51,14 +44,10 @@ export const TimingModal = memo(function TimingModal({
   const { tap, reset, bpm, offset, count } = useTapTempo(getCurrentTime);
   const [metronomeOn, setMetronomeOn] = useState(true);
   const [tapApplied, setTapApplied] = useState(false);
-  // Which beat of the bar is currently sounding (0 = downbeat), plus the meter
-  // in force, bumped every tick so the indicator boxes light up one-by-one in
-  // sync with the click.
   const [beat, setBeat] = useState<{ index: number; meter: number; n: number } | null>(
     null,
   );
 
-  // Metronome preview clicks the beat while the song plays (only while open).
   useMetronome(
     getCurrentTime,
     isPlaying,
@@ -70,13 +59,10 @@ export const TimingModal = memo(function TimingModal({
     },
   );
 
-  // Clear the lit box when playback stops or the metronome is off.
   useEffect(() => {
     if (!isPlaying || !metronomeOn) setBeat(null);
   }, [isPlaying, metronomeOn]);
 
-  // Space toggles playback while the Timing modal is open (the global Space
-  // hotkey is suppressed whenever a modal is open). Ignore it while typing.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -98,8 +84,6 @@ export const TimingModal = memo(function TimingModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onToggle]);
 
-  // Tap the beat with the keyboard (T), the way you'd tap along in osu! — so you
-  // can keep your eyes on the song instead of aiming at a button.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -123,8 +107,6 @@ export const TimingModal = memo(function TimingModal({
   const points = sortedPoints(timingPoints);
   const reds = points.filter((p) => p.uninherited);
   const firstRed = reds[0] ?? null;
-  // Box count follows the meter the metronome is actually clicking; fall back to
-  // the first red point's meter when stopped.
   const meter = Math.max(
     1,
     Math.round(beat?.meter ?? firstRed?.meter ?? 4),
@@ -136,7 +118,6 @@ export const TimingModal = memo(function TimingModal({
     );
 
   const remove = (id: string) => {
-    // Always keep at least one red point (the offset).
     const p = timingPoints.find((x) => x.id === id);
     if (p?.uninherited && reds.length <= 1) return;
     onTimingPoints(timingPoints.filter((x) => x.id !== id));
@@ -187,16 +168,11 @@ export const TimingModal = memo(function TimingModal({
     update(firstRed.id, { time: Math.round(firstRed.time + delta) });
   };
 
-  // Apply detected BPM + offset to the red point active at the tap region (or
-  // the first red point). Setting the offset gives the grid the right phase so
-  // beat lines fall on the actual beats.
   const applyTap = (targetBpm: number, targetOffset: number) => {
     const time = Math.round(targetOffset);
     const target = [...reds].reverse().find((p) => p.time <= time) ?? firstRed;
     if (target) update(target.id, { bpm: targetBpm, time });
   };
-  // Latest applyTap, read by the debounced auto-apply effect without making it a
-  // dependency (which would reset the debounce timer on unrelated re-renders).
   const applyTapRef = useRef(applyTap);
   applyTapRef.current = applyTap;
 
@@ -205,8 +181,6 @@ export const TimingModal = memo(function TimingModal({
     setTapApplied(false);
   };
 
-  // Auto-apply once you stop tapping (osu!-style live timing): no separate
-  // "apply" step. Commits a single update ~0.5 s after the last tap.
   useEffect(() => {
     if (bpm === null || offset === null || count < TAP_MIN) return;
     const id = window.setTimeout(() => {
@@ -219,7 +193,6 @@ export const TimingModal = memo(function TimingModal({
   return (
     <Modal open={open} onClose={onClose} title="Timing" width="max-w-2xl">
       <div className="flex flex-col gap-6">
-        {/* Playback speed + metronome */}
         <section className="flex flex-nowrap items-center gap-4 rounded-xl border border-ink-600 bg-ink-700/40 p-3">
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">Playback</span>
@@ -249,8 +222,6 @@ export const TimingModal = memo(function TimingModal({
             Metronome
           </div>
 
-          {/* Beat indicator: one box per beat in the bar, lit in sync with the
-              click. Downbeat flashes white, the off-beats flash orange. */}
           <div className="flex items-center gap-1.5">
             {Array.from({ length: meter }).map((_, i) => {
               const active = beat?.index === i;
@@ -284,7 +255,6 @@ export const TimingModal = memo(function TimingModal({
           </button>
         </section>
 
-        {/* Offset workflow */}
         <section className="flex flex-col gap-2 rounded-xl border border-ink-600 bg-ink-700/40 p-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -313,7 +283,6 @@ export const TimingModal = memo(function TimingModal({
           </div>
         </section>
 
-        {/* Timing point list */}
         <section className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -349,7 +318,6 @@ export const TimingModal = memo(function TimingModal({
           </div>
         </section>
 
-        {/* Tap to the beat */}
         <section className="rounded-xl border border-ink-600 bg-ink-700/40 p-4">
           <h3 className="mb-1 text-sm font-semibold text-slate-200">
             Click to the beat
@@ -370,7 +338,6 @@ export const TimingModal = memo(function TimingModal({
               data-no-uisound=""
               className="relative grid h-24 w-24 shrink-0 select-none place-items-center overflow-visible rounded-full bg-accent text-sm font-semibold text-white transition active:scale-95 active:bg-accent-soft"
             >
-              {/* One-shot ring on each tap (also covers keyboard taps). */}
               {count > 0 && (
                 <span
                   key={count}

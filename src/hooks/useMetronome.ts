@@ -2,15 +2,6 @@ import { useEffect, useRef } from "react";
 import type { TimingPoint } from "../types";
 import { activeTimingAt, beatLength, redPoints } from "../lib/timing";
 
-/**
- * A beat metronome that ticks while the song plays.
- *
- * It watches the audio playback clock (in song-time milliseconds) and emits a
- * short click whenever the playhead crosses a beat line of the active red timing
- * point. Downbeats (the first beat of each measure, per the point's meter) get a
- * higher-pitched accent. Detection works in song-time, so it stays correct at
- * reduced playback speeds.
- */
 export function useMetronome(
   getCurrentTime: () => number,
   isPlaying: boolean,
@@ -21,9 +12,6 @@ export function useMetronome(
   const ctxRef = useRef<AudioContext | null>(null);
   const lastBeatRef = useRef<number | null>(null);
 
-  // Keep the latest values on refs so the rAF loop reads fresh data. The clock
-  // is pulled through a getter, so the component using this hook doesn't have to
-  // re-render every frame just to feed it the current time.
   const stateRef = useRef({ getCurrentTime, isPlaying, timingPoints, enabled, onBeat });
   stateRef.current = { getCurrentTime, isPlaying, timingPoints, enabled, onBeat };
 
@@ -87,7 +75,6 @@ export function useMetronome(
     return () => cancelAnimationFrame(raf);
   }, [enabled]);
 
-  // Release the audio context when the component using the hook unmounts.
   useEffect(() => {
     return () => {
       void ctxRef.current?.close();

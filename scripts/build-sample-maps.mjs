@@ -1,14 +1,3 @@
-// One-off build helper: bundles a curated set of `.osz` maps into the app so
-// the "Try these maps" gallery can offer them. For each archive it:
-//   - copies the `.osz` into `public/maps/`
-//   - extracts the background image of the first mania difficulty as a banner
-//   - reads Title / Artist / Creator and per-difficulty key count + star rating
-//   - writes a `public/maps/manifest.json` the app fetches at runtime
-//
-// Re-run with:  node scripts/build-sample-maps.mjs "C:\\path\\to\\maps"
-//
-// Star-rating + column math are ported from src/lib/starRating.ts and
-// src/lib/osuExport.ts so the precomputed values match the in-app calculator.
 
 import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { join, basename, extname } from "node:path";
@@ -18,8 +7,6 @@ import JSZip from "jszip";
 const SOURCE_DIR = process.argv[2] ?? "C:\\Users\\noahe\\Downloads\\maps";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const OUT_DIR = join(ROOT, "public", "maps");
-
-// ---- Minimal .osu parsing (mania) ----------------------------------------
 
 function splitSections(text) {
   const sections = {};
@@ -108,8 +95,6 @@ function parseOsu(text) {
     notes,
   };
 }
-
-// ---- Star rating (port of src/lib/starRating.ts) -------------------------
 
 const SECTION_MS = 400;
 const INDIVIDUAL_DECAY_BASE = 0.125;
@@ -228,8 +213,6 @@ function computeStarRating(notes, keyCount) {
   return difficulty * DIFFICULTY_MULTIPLIER;
 }
 
-// ---- Helpers --------------------------------------------------------------
-
 function slugify(name) {
   return name
     .toLowerCase()
@@ -250,8 +233,6 @@ function findEntry(zip, name) {
   });
   return found;
 }
-
-// ---- Main -----------------------------------------------------------------
 
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
@@ -278,7 +259,7 @@ async function main() {
     for (const path of osuPaths) {
       const text = await zip.file(path).async("string");
       const parsed = parseOsu(text);
-      if (parsed.mode !== 3) continue; // mania only
+      if (parsed.mode !== 3) continue;
       diffs.push(parsed);
     }
     if (diffs.length === 0) {
@@ -290,7 +271,6 @@ async function main() {
     const oszName = `${slug}.osz`;
     await writeFile(join(OUT_DIR, oszName), buf);
 
-    // Banner from the first difficulty that declares a background.
     let bannerName = null;
     const withBg = diffs.find((d) => d.background) ?? diffs[0];
     if (withBg.background) {

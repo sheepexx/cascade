@@ -1,6 +1,5 @@
 import type { PackValidationResult } from "../types/packCreator";
 
-/** Errors (blocking) and warnings (advisory) for the Pack Creator. */
 export function PackCreatorValidation({
   result,
 }: {

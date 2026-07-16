@@ -1,20 +1,4 @@
 #!/usr/bin/env node
-//
-// Copy every object in the Storage bucket (default: "maps") from a hosted
-// Supabase project to the self-hosted Supabase on the VPS.
-//
-// Objects are re-uploaded through the Storage API at their EXACT original paths
-// (`<projectId>/<sha>.<ext>`), which both preserves the storage_path values that
-// public.project_assets rows point at AND regenerates the destination
-// storage.objects rows — so the storage schema never needs a SQL dump.
-//
-// Idempotent: uploads use upsert, and --skip-existing avoids re-copying objects
-// already present on the destination. Re-run safely after a failure.
-//
-// Run (Node >= 20.6 for --env-file; otherwise export the vars yourself):
-//   node --env-file=scripts/migrate/.env scripts/migrate/copy-storage.mjs
-//   node --env-file=scripts/migrate/.env scripts/migrate/copy-storage.mjs --dry-run
-//   node --env-file=scripts/migrate/.env scripts/migrate/copy-storage.mjs --skip-existing
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -62,9 +46,6 @@ function guessType(name, fallback) {
   return (ext && MIME[ext]) || fallback || "application/octet-stream";
 }
 
-/** All object paths in BUCKET, read straight from storage.objects (service role
- *  bypasses RLS). Falls back to distinct project_assets.storage_path if the
- *  storage schema isn't exposed to PostgREST. */
 async function listObjectNames(client, label) {
   try {
     const names = [];

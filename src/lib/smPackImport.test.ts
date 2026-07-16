@@ -22,9 +22,6 @@ const SSC = `#TITLE:Zip Song;
 ;
 `;
 
-// JSZip can't re-read a jsdom File/Blob under the test runner, but it reads a
-// Uint8Array in any environment; scanPackFromZip just forwards it to loadAsync,
-// so pass the raw bytes (cast to File for the signature).
 async function makeZip(
   files: Record<string, string | Uint8Array>,
 ): Promise<File> {
@@ -93,7 +90,6 @@ describe("scanPackFromZip", () => {
         audioFilename: "song.ogg",
         backgroundFilename: "bg.png",
       },
-      // Uint8Array blobs so JSZip can serialise them under the test runner.
       audioBlobs: { "song.ogg": new Uint8Array([1, 2, 3]) as unknown as Blob },
       bgBlobs: { "bg.png": new Uint8Array([4, 5, 6]) as unknown as Blob },
     };
@@ -101,7 +97,6 @@ describe("scanPackFromZip", () => {
     const osz = await packSongToOszFile(song);
     expect(osz.name).toBe("Zip Song.osz");
 
-    // Round-trip through the actual pack importer.
     const buf = await osz.arrayBuffer();
     const res = await importOszForPack(buf as unknown as File);
     expect(res.items).toHaveLength(1);

@@ -10,16 +10,12 @@ import type {
 
 const ORDER: ManiaJudgement[] = ["max", "300", "200", "100", "50", "miss"];
 
-// Hit-error (unstable-rate) bar geometry, in px.
 const ERROR_BAR_WIDTH = 280;
 const ERROR_BAR_HEIGHT = 22;
 const ERROR_TICK_HEIGHT = 15;
-// How long (ms) a hit's tick lingers on the bar before it has fully faded out.
 const ERROR_TICK_FADE_MS = 2400;
-// Newest hits to consider when drawing ticks (older ones have faded anyway).
 const ERROR_MAX_TICKS = 56;
 
-/** Judgement → colour for the error-bar zones and ticks (osu!-style). */
 function errorColor(judgement: ManiaJudgement): string {
   if (judgement === "max" || judgement === "300") return "#5bc0ff";
   if (judgement === "200" || judgement === "100") return "#6fcf5f";
@@ -261,13 +257,6 @@ function ResultStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-/**
- * osu!-style hit-error / unstable-rate bar. Each recent hit is a vertical tick
- * placed by how early (left) or late (right) it was, coloured by judgement and
- * fading with age. Nested colour zones mark the OD judgement windows, a centre
- * line marks perfect timing, and a small arrow tracks the running average so a
- * consistent early/late bias is easy to spot.
- */
 function ErrorBar({
   windows,
   results,
@@ -282,7 +271,6 @@ function ErrorBar({
   const toX = (err: number) =>
     half + Math.max(-1, Math.min(1, err / extent)) * half;
 
-  // Recent hits → fading ticks; their average drives the indicator arrow.
   const ticks: { x: number; color: string; opacity: number }[] = [];
   let sum = 0;
   for (const r of results.slice(-ERROR_MAX_TICKS)) {

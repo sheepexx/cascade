@@ -5,20 +5,12 @@ import { Button } from "../ui/Controls";
 type Props = {
   open: boolean;
   result: ValidationResult | null;
-  /** What the user was exporting, e.g. ".osz" - used in the footer label. */
   target: string;
   onClose: () => void;
-  /** Proceed with the export (only enabled when there are no errors). */
   onProceed: () => void;
-  /** Strip duplicate notes from every difficulty. */
   onRemoveDuplicates: () => void;
 };
 
-/**
- * Pre-export check: lists blocking errors and advisory warnings. Export is only
- * allowed once there are no errors; warnings can be exported through. Duplicate
- * notes can be removed in place from here.
- */
 export function ExportValidationModal({
   open,
   result,

@@ -18,11 +18,6 @@ export type MenuItem =
     }
   | { separator: true };
 
-/**
- * Compact dropdown menu. Renders its list in a portal anchored under the
- * trigger so it escapes the header's `overflow-hidden` and stacks above the
- * editor (same approach as the account menu).
- */
 export function Menu({
   label,
   items,

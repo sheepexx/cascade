@@ -27,7 +27,6 @@ export type PlaytestState = {
   combo: number;
   maxCombo: number;
   accuracy: number;
-  /** Unstable rate: 10x the standard deviation (ms) of hit errors. */
   unstableRate: number;
   judgements: JudgementCounts;
   hitResults: HitResult[];
@@ -43,25 +42,6 @@ export const EMPTY_JUDGEMENT_COUNTS: JudgementCounts = {
   miss: 0,
 };
 
-/**
- * osu!mania (stable) hit windows, in milliseconds, as a half-window each side of
- * a note's exact time. These are the canonical osu!mania stable values, derived
- * straight from the map's Overall Difficulty (OD):
- *
- *   300g (MAX): 16.5            (a fixed, OD-independent "perfect" window)
- *   300       : 64  - 3 * OD
- *   200       : 97  - 3 * OD
- *   100       : 127 - 3 * OD
- *   50        : 151 - 3 * OD
- *   miss      : 188 - 3 * OD    (hit-but-too-late cutoff; beyond this a press
- *                                doesn't register against the note at all)
- *
- * Higher OD tightens every window except 300g, so the same input is judged more
- * harshly on a harder map — exactly as the player set it in the difficulty.
- *
- * Keeping the formula here makes later tuning explicit and avoids burying
- * judgement timing in input code.
- */
 export function maniaJudgementWindows(od: number): JudgementWindows {
   const clamped = Math.max(0, Math.min(10, od));
   return {
@@ -74,12 +54,6 @@ export function maniaJudgementWindows(od: number): JudgementWindows {
   };
 }
 
-/**
- * osu!mania (stable) long-note *release* windows. Letting go of a hold is harder
- * to time than a tap, so stable widens every tail window to 1.5x the normal hit
- * window. The head is still judged on the normal {@link maniaJudgementWindows};
- * only the release (tail) uses these.
- */
 export const RELEASE_WINDOW_SCALE = 1.5;
 
 export function maniaReleaseWindows(od: number): JudgementWindows {
