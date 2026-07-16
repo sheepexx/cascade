@@ -142,11 +142,12 @@ const SPECTRUM: Stop[] = [
   { star: 4.2, color: hex("#ff8068") },
   { star: 4.9, color: hex("#ff4e6f") },
   { star: 5.8, color: hex("#c645b8") },
-  { star: 6.6, color: hex("#6563de") },
-  { star: 6.7, color: hex("#f6d54c") },
-  { star: 9.0, color: hex("#ff8c3a") },
-  { star: 11.0, color: hex("#ff4757") },
-  { star: 13.0, color: hex("#b34cf0") },
+  { star: 6.7, color: hex("#6563de") },
+  { star: 7.7, color: hex("#2d2be0") },
+  { star: 9.0, color: hex("#442ad4") },
+  { star: 9.6, color: hex("#8a2fc8") },
+  { star: 10.2, color: hex("#c437ae") },
+  { star: 10.8, color: hex("#f04d9b") },
 ];
 
 function hex(h: string): [number, number, number] {
