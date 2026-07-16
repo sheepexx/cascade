@@ -184,7 +184,7 @@ describe("PNG background conversion on export", () => {
     expect(osu).not.toContain("bg.png");
   });
 
-  it("pack: two difficulties in one archive share a background — converted once", async () => {
+  it("pack: two difficulties in one archive share a background - converted once", async () => {
     const assets: PackAsset[] = [
       { id: "au", name: "audio.mp3", blob: bytes("a"), size: 1, hash: "h1", referenced: true },
       { id: "bgp", name: "bg.png", blob: bytes("pngdata"), size: 7, hash: "h2", referenced: true },
@@ -210,7 +210,7 @@ describe("PNG background conversion on export", () => {
     }
   });
 
-  it("pack: multiple maps — every PNG background is converted, none left behind", async () => {
+  it("pack: multiple maps - every PNG background is converted, none left behind", async () => {
     const items = [
       makePackItem({
         id: "i1", version: "Map1", archive: "srcA", bg: "bg.png",

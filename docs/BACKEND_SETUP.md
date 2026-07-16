@@ -2,9 +2,9 @@
 
 The editor is a static SPA on Vercel. Auth + storage are added via:
 
-- **Cloudflare Worker** (`worker/`) — handles osu! OAuth, holds secrets, mints a
+- **Cloudflare Worker** (`worker/`) - handles osu! OAuth, holds secrets, mints a
   Supabase JWT. Already deployed at `https://mania-editor.noahcraft01.workers.dev/`.
-- **Supabase** — Postgres (data) + Storage (audio/bg) + Realtime (future co-op).
+- **Supabase** - Postgres (data) + Storage (audio/bg) + Realtime (future co-op).
 
 There is **no Supabase Auth user**. The Worker mints a Supabase-compatible JWT whose
 `sub` is a row id in `public.users`; Row-Level Security reads it as `auth.uid()`.
@@ -45,7 +45,7 @@ npx wrangler deploy
 ## 3. Configure the SPA (Vercel)
 
 Set these **Environment Variables** in the Vercel project (and `.env.local` for local
-dev — see [`.env.example`](../.env.example)):
+dev - see [`.env.example`](../.env.example)):
 
 ```
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
@@ -63,7 +63,7 @@ Log in once via the app (creates your `users` row), then in the Supabase SQL edi
 update public.users set is_admin = true where osu_id = <your osu! id>;
 ```
 
-Reload the app — an **Admin** entry appears in the account menu.
+Reload the app - an **Admin** entry appears in the account menu.
 
 ## How it fits together
 
@@ -80,7 +80,7 @@ Reload the app — an **Admin** entry appears in the account menu.
 > are different sites, so the session cookie is `SameSite=None; Secure`. Browsers with
 > third-party-cookie blocking (Safari, Brave, strict modes) may drop it. If that
 > becomes a problem, switch the Worker to return the token to JS (localStorage) instead
-> of a cookie — same endpoints, only the transport changes.
+> of a cookie - same endpoints, only the transport changes.
 
 ## Future: real-time co-op
 

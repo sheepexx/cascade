@@ -2,7 +2,7 @@
 
 Moves your **data** (Postgres rows + Storage objects) from the hosted Supabase
 project to the self-hosted Supabase running on the VPS. It does **not** create
-schema — apply `supabase/migrations/*.sql` on the VPS first, which builds the
+schema - apply `supabase/migrations/*.sql` on the VPS first, which builds the
 tables, RLS, functions, the `maps` bucket, and realtime.
 
 These scripts only touch data, so they're safe to re-run.
@@ -16,7 +16,7 @@ These scripts only touch data, so they're safe to re-run.
 - Node >= 20.6 (for `--env-file`) with this repo's `node_modules` installed
   (the storage script imports `@supabase/supabase-js`).
 - `cp scripts/migrate/.env.example scripts/migrate/.env` and fill it in.
-  **Do not commit `.env`** — it holds service-role keys and DB passwords
+  **Do not commit `.env`** - it holds service-role keys and DB passwords
   (already gitignored).
 
 ## Order of operations
@@ -44,8 +44,8 @@ paths are preserved on both sides).
 
 ## Flags (copy-storage.mjs)
 
-- `--dry-run` — list what would be copied, transfer nothing.
-- `--skip-existing` — skip objects already on the destination (fast re-runs /
+- `--dry-run` - list what would be copied, transfer nothing.
+- `--skip-existing` - skip objects already on the destination (fast re-runs /
   resume after a partial failure). Exit code is non-zero if any object failed.
 
 ## After migrating

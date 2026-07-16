@@ -213,7 +213,7 @@ export function useCollab(opts: {
           startJoinSync();
         } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") {
           console.warn(
-            `[collab] channel ${s} for project:${projectId} — reconnecting`,
+            `[collab] channel ${s} for project:${projectId} - reconnecting`,
             err ?? "",
           );
           void supabase.removeChannel(ch);

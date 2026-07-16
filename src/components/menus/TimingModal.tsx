@@ -323,7 +323,7 @@ export const TimingModal = memo(function TimingModal({
             Click to the beat
           </h3>
           <p className="mb-4 text-xs text-slate-400">
-            Play the song, then tap every beat — click the pad or press{" "}
+            Play the song, then tap every beat - click the pad or press{" "}
             <kbd className="rounded bg-ink-600 px-1 py-0.5 text-[10px] text-slate-300">
               T
             </kbd>
@@ -349,7 +349,7 @@ export const TimingModal = memo(function TimingModal({
 
             <div className="flex-1">
               <div className="font-mono text-3xl text-slate-100">
-                {bpm !== null ? bpm.toFixed(2) : "—"}
+                {bpm !== null ? bpm.toFixed(2) : "-"}
                 <span className="ml-1 text-sm text-slate-500">BPM</span>
               </div>
               <div className="mt-1 text-xs text-slate-500">

@@ -168,7 +168,7 @@ export function PresetBrowserModal({
                   </Button>
                   {p.key_count > activeKeyCount && (
                     <p className="mt-1 text-[10px] text-amber-400/80">
-                      Made for {p.key_count}K — columns past {activeKeyCount} are
+                      Made for {p.key_count}K - columns past {activeKeyCount} are
                       dropped on paste.
                     </p>
                   )}

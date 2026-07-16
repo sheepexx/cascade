@@ -4,9 +4,9 @@
 # Supabase on the VPS. Schema-free: it dumps only `public` table *data* and loads
 # it into a destination DB that already has the schema (apply supabase/migrations
 # there FIRST). The app's identities live entirely in public.users (no auth.users
-# FK — see supabase/migrations/0001_init.sql), so public-only is complete.
+# FK - see supabase/migrations/0001_init.sql), so public-only is complete.
 #
-# Storage objects are NOT handled here — run copy-storage.mjs for the maps bucket.
+# Storage objects are NOT handled here - run copy-storage.mjs for the maps bucket.
 #
 # Usage:
 #   1. Apply supabase/migrations/*.sql to the VPS Postgres (creates tables, RLS,

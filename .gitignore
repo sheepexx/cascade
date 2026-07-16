@@ -12,7 +12,7 @@ dist-ssr
 # Migration secrets (service-role keys, DB passwords)
 scripts/migrate/.env
 
-# Proprietary Torus (osu!lazer) font — drop your own licensed .woff2 files in
+# Proprietary Torus (osu!lazer) font - drop your own licensed .woff2 files in
 # public/fonts/ for local dev/builds, but never commit them (that would
 # redistribute a paid font). They still build into dist/ and ship from there.
 # See public/fonts/README.md. If THIS repo is private and you'd rather Vercel's

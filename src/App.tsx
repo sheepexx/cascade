@@ -2862,7 +2862,7 @@ export default function App() {
         } else {
           setCloudError(
             "Save rejected by the database. Your token looks valid but Supabase " +
-              "isn't accepting it — the Worker's SUPABASE_JWT_SECRET must match " +
+              "isn't accepting it - the Worker's SUPABASE_JWT_SECRET must match " +
               "this project's JWT secret (and the legacy JWT secret must stay enabled).",
           );
           console.error(
@@ -3336,7 +3336,7 @@ export default function App() {
               {cloudProjectId && authUser && cloudOwnerId === authUser.id && (
                 <IconButton
                   onClick={() => setModal("share")}
-                  title="Share — invite collaborators"
+                  title="Share - invite collaborators"
                 >
                   👥
                 </IconButton>
@@ -3397,10 +3397,10 @@ export default function App() {
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-ink-700/42 px-2 py-1 text-[11px] font-medium shadow-sm backdrop-blur-xl"
               title={
                 collab.status === "connected"
-                  ? "Live — edits sync in realtime"
+                  ? "Live - edits sync in realtime"
                   : collab.status === "connecting"
                     ? "Connecting to the live session…"
-                    : "Live sync offline — check Realtime is enabled"
+                    : "Live sync offline - check Realtime is enabled"
               }
             >
               <span

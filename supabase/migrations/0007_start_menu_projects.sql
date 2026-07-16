@@ -3,7 +3,7 @@
 -- Returns, in one round trip, every project the caller can view (owned, shared,
 -- or admin) plus a background thumbnail path and the participants' avatars
 -- (owner + collaborators). SECURITY DEFINER so it can read avatars from
--- public.users, which RLS otherwise restricts to self/admin — exactly the data
+-- public.users, which RLS otherwise restricts to self/admin - exactly the data
 -- the upgraded start menu needs to render thumbnails and collaborator faces.
 
 create or replace function public.list_my_projects()
