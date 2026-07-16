@@ -16,6 +16,7 @@ import {
   buildPack,
   generatePackDifficultyName,
   importOszForPack,
+  packOszFilename,
   sanitizePackFilename,
   validatePack,
 } from "../lib/packCreator";
@@ -39,6 +40,17 @@ const selectClass =
   "outline-none shadow-inner shadow-black/10 backdrop-blur-sm transition focus:border-accent/70";
 
 const EXIT_MS = 220;
+
+function StepHeader({ n, label }: { n: number; label: string }) {
+  return (
+    <div className="mb-2.5 flex items-center gap-2.5 px-0.5">
+      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-bold text-accent-soft">
+        {n}
+      </span>
+      <h3 className="text-sm font-semibold text-slate-100">{label}</h3>
+    </div>
+  );
+}
 
 function Panel({
   title,
@@ -329,7 +341,7 @@ export function PackCreator({
 
   return (
     <div
-      className={`fixed inset-0 z-40 flex flex-col bg-ink-900/85 backdrop-blur-xl ${
+      className={`fixed inset-0 z-40 flex flex-col bg-ink-900 ${
         closing ? "pointer-events-none modal-backdrop-out" : "modal-backdrop-in"
       }`}
       onDragEnter={(e) => {
@@ -374,18 +386,12 @@ export function PackCreator({
           >
             local packs
           </span>
-          <Button
-            variant="accent"
-            onClick={() => void exportPack()}
-            disabled={exporting || importing || items.length === 0}
-            className="shrink-0"
-          >
-            {exporting ? "Exporting…" : "Export .osz"}
-          </Button>
         </header>
 
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-4">
-          <section className="flex w-[330px] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+          <section className="flex min-h-0 w-[330px] shrink-0 flex-col">
+            <StepHeader n={1} label="Add maps" />
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
             <div className="grid grid-cols-2 gap-2">
               <label
                 onClick={(e) => {
@@ -533,10 +539,13 @@ export function PackCreator({
                 </ul>
               </Panel>
             )}
+            </div>
           </section>
 
-          <section className="flex w-[330px] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
-            <Panel title="Pack settings">
+          <section className="flex min-h-0 w-[330px] shrink-0 flex-col">
+            <StepHeader n={2} label="Set up the pack" />
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
+            <Panel title="Basics">
               <div className="flex flex-col gap-3">
                 <Field label="Pack title">
                   <TextInput
@@ -790,9 +799,12 @@ export function PackCreator({
                 </p>
               )}
             </Panel>
+            </div>
           </section>
 
-          <section className="flex min-w-[340px] flex-1 flex-col gap-3 overflow-y-auto pr-1">
+          <section className="flex min-h-0 min-w-[340px] flex-1 flex-col">
+            <StepHeader n={3} label="Review & export" />
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
             <Panel title="Selected map">
               {selected ? (
                 <PackCreatorItem
@@ -802,26 +814,50 @@ export function PackCreator({
                 />
               ) : (
                 <p className="text-xs text-slate-500">
-                  Select an imported map on the left to edit its difficulty
-                  naming.
+                  {items.length === 0
+                    ? "Add some maps in step 1, then review each one here."
+                    : "Select a map in step 1 to review its difficulty naming."}
                 </p>
               )}
             </Panel>
 
-            <Panel
-              title="Validation"
-              right={
-                <Button
-                  onClick={runValidation}
-                  disabled={importing}
-                  className="px-2.5 py-1 text-xs"
-                >
-                  Validate Pack
-                </Button>
-              }
-            >
+            <Panel title="Validation">
               <PackCreatorValidation result={validation} />
             </Panel>
+            </div>
+
+            <div className="mt-3 shrink-0 rounded-xl border border-white/10 bg-ink-800 p-3.5">
+              <div className="mb-2.5 flex items-baseline justify-between gap-3 text-xs">
+                <span className="shrink-0 font-medium text-slate-300">
+                  {items.length} map{items.length === 1 ? "" : "s"}
+                  {settings.placeholderEnabled && items.length > 0
+                    ? " + thumbnail"
+                    : ""}
+                </span>
+                <span
+                  className="truncate text-slate-500"
+                  title={packOszFilename(metadata)}
+                >
+                  {items.length > 0 ? packOszFilename(metadata) : ""}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={runValidation}
+                  disabled={importing || items.length === 0}
+                >
+                  Validate
+                </Button>
+                <Button
+                  variant="accent"
+                  className="flex-1"
+                  onClick={() => void exportPack()}
+                  disabled={exporting || importing || items.length === 0}
+                >
+                  {exporting ? "Exporting…" : "Export .osz"}
+                </Button>
+              </div>
+            </div>
           </section>
         </div>
       </div>
