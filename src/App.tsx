@@ -4356,15 +4356,11 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
             Drop audio anywhere to start mapping
           </h2>
           <p className="mb-4 text-sm text-slate-500">
-            Drag an <code className="text-slate-400">.mp3</code>,{" "}
-            <code className="text-slate-400">.ogg</code>, an image background, or
-            a whole <code className="text-slate-400">.osz</code> onto this window.
-            Set BPM in <span className="text-slate-300">Timing</span>, then click
-            the lanes to place notes. Press{" "}
+            Or press Enter and pick a sample map.{" "}
             <kbd className="rounded bg-ink-700 px-1.5 py-0.5 text-[11px] text-slate-300">
               Space
             </kbd>{" "}
-            to play / pause.
+            plays, clicks place notes.
           </p>
           <Button variant="accent" onClick={onEnter}>
             Enter
