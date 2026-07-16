@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import type { Difficulty } from "../types";
 import { computeStarRating, starColor, starTier } from "../lib/starRating";
+import { MarqueeText } from "./ui/MarqueeText";
 
 type PeerLite = {
   id: string;
@@ -160,16 +161,15 @@ function DiffRow({
             className="min-w-0 flex-1 rounded border border-accent/70 bg-ink-800 px-1 py-0.5 text-sm font-medium text-slate-100 outline-none"
           />
         ) : (
-          <span
+          <MarqueeText
+            text={difficulty.name || "Unnamed"}
             onDoubleClick={(e) => {
               e.stopPropagation();
               startEditing();
             }}
             title="Double-click to rename"
-            className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100"
-          >
-            {difficulty.name || "Unnamed"}
-          </span>
+            className="min-w-0 flex-1 text-sm font-medium text-slate-100"
+          />
         )}
         {difficulty.sourceFormat && (
           <img
