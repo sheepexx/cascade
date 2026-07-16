@@ -69,6 +69,4 @@ that part. Without the env vars the app simply runs with accounts disabled.
 ## Credits
 
 Made by [sheepex_](https://osu.ppy.sh/u/sheepex_), with contributions from
-[kaanreal](https://github.com/kaanreal). The UI font is Torus (the osu!lazer
-font), which is proprietary and not included in the repo; see
-[public/fonts/README.md](public/fonts/README.md).
+[kaanreal](https://github.com/kaanreal).

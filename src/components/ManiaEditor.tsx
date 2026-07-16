@@ -42,7 +42,7 @@ const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
 const SCROLL_TIME_EASE = 20;
 const CANVAS_FONT_STACK =
-  '"Torus", "Torus-Alternate", "Inter", ui-sans-serif, system-ui, sans-serif';
+  '"Quicksand", "Inter", ui-sans-serif, system-ui, sans-serif';
 
 type Props = {
   notes: ManiaNote[];
