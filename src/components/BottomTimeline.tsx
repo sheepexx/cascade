@@ -11,7 +11,6 @@ const WAVE_TOP = 34;
 const WAVE_H = HEIGHT - WAVE_TOP - 6;
 const DOT_BAND_H = WAVE_TOP - 6;
 const DENSITY_BUCKETS = 240;
-const MAX_DOTS = 6;
 const MAIN_REVEAL_MS = 300;
 const WAVEFORM_REVEAL_DELAY_MS = MAIN_REVEAL_MS;
 const WAVEFORM_REVEAL_MS = 700;
@@ -355,23 +354,24 @@ export function BottomTimeline({
           const inKiai = (t: number) =>
             kiais.some((k) => t >= k.start && t < k.end);
 
+          // NPS area graph: bar per bucket, height scaled to the busiest bucket,
+          // tinted red inside kiai and yellow elsewhere.
           const bw2 = width / DENSITY_BUCKETS;
-          const dotR = 1.6;
-          const gap = Math.max(2.4, DOT_BAND_H / MAX_DOTS);
+          const baseY = DOT_BAND_H - 1;
+          const usableH = DOT_BAND_H - 3;
           for (let i = 0; i < DENSITY_BUCKETS; i++) {
             const c = counts[i];
             if (c === 0) continue;
             const bucketTime = ((i + 0.5) / DENSITY_BUCKETS) * duration;
-            sctx.fillStyle = inKiai(bucketTime) ? "#e86868" : "#ffd23f";
-            const dots = Math.max(1, Math.round((c / peak) * MAX_DOTS));
-            const cx = i * bw2 + bw2 / 2;
-            for (let d = 0; d < dots; d++) {
-              const cy = DOT_BAND_H - 2 - d * gap;
-              if (cy < 2) break;
-              sctx.beginPath();
-              sctx.arc(cx, cy, dotR, 0, Math.PI * 2);
-              sctx.fill();
-            }
+            const kiai = inKiai(bucketTime);
+            const h = Math.max(1.5, (c / peak) * usableH);
+            const x0 = i * bw2;
+            const barW = Math.max(1, bw2 - 0.3);
+            const grad = sctx.createLinearGradient(0, baseY - h, 0, baseY);
+            grad.addColorStop(0, kiai ? "#ff7a7a" : "#ffe066");
+            grad.addColorStop(1, kiai ? "rgba(232,104,104,0.25)" : "rgba(255,210,63,0.22)");
+            sctx.fillStyle = grad;
+            sctx.fillRect(x0, baseY - h, barW, h);
           }
         }
 

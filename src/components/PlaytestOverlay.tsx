@@ -64,6 +64,11 @@ export function PlaytestOverlay({
             {state.accuracy.toFixed(2)}%
           </div>
         )}
+        {(settings.rate ?? 1) !== 1 && (
+          <div className="rounded-full border border-accent/40 bg-accent/20 px-2.5 py-0.5 text-xs font-semibold text-accent-soft shadow-lg backdrop-blur">
+            {(settings.rate ?? 1)}× rate
+          </div>
+        )}
       </div>
 
       {settings.showJudgements && latest && (
@@ -152,7 +157,14 @@ export function PlaytestOverlay({
       {ended && (
         <div className="pointer-events-auto absolute inset-0 grid place-items-center bg-ink-900/45 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-800/92 p-5 text-center shadow-2xl">
-            <h2 className="text-lg font-semibold text-slate-100">Results</h2>
+            <h2 className="text-lg font-semibold text-slate-100">
+              Results
+              {(settings.rate ?? 1) !== 1 && (
+                <span className="ml-2 align-middle text-xs font-semibold text-accent-soft">
+                  {(settings.rate ?? 1)}× rate
+                </span>
+              )}
+            </h2>
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
               <ResultStat label="Accuracy" value={`${state.accuracy.toFixed(2)}%`} />
               <ResultStat label="Max combo" value={String(state.maxCombo)} />

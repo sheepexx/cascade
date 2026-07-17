@@ -5,6 +5,8 @@ import {
   judgeHitError,
   emptyJudgementCounts,
   RELEASE_WINDOW_SCALE,
+  scaleWindows,
+  clampPlaytestRate,
 } from "./playtestJudgements";
 
 describe("maniaJudgementWindows", () => {
@@ -76,5 +78,28 @@ describe("emptyJudgementCounts", () => {
     expect(a).toEqual({ max: 0, "300": 0, "200": 0, "100": 0, "50": 0, miss: 0 });
     a.max = 5;
     expect(emptyJudgementCounts().max).toBe(0);
+  });
+});
+
+describe("scaleWindows / clampPlaytestRate", () => {
+  it("widens windows proportionally with the rate", () => {
+    const base = maniaJudgementWindows(8);
+    const fast = scaleWindows(base, 1.5);
+    expect(fast.max).toBeCloseTo(base.max * 1.5);
+    expect(fast.miss).toBeCloseTo(base.miss * 1.5);
+  });
+
+  it("returns the same windows at 1x", () => {
+    const base = maniaJudgementWindows(5);
+    expect(scaleWindows(base, 1)).toBe(base);
+  });
+
+  it("clamps the rate to the supported range", () => {
+    expect(clampPlaytestRate(0.1)).toBe(0.75);
+    expect(clampPlaytestRate(5)).toBe(2);
+    expect(clampPlaytestRate(NaN)).toBe(1);
+    const base = maniaJudgementWindows(8);
+    // out-of-range rate is clamped before scaling
+    expect(scaleWindows(base, 10).max).toBeCloseTo(base.max * 2);
   });
 });

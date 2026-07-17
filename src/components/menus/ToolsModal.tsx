@@ -1,6 +1,14 @@
+import { useEffect, useState } from "react";
 import type { SnapDivisor } from "../../types";
 import { Modal } from "../ui/Modal";
 import { Button, Field, NumberInput } from "../ui/Controls";
+
+export type HitsoundSource = {
+  id: string;
+  name: string;
+  hitsoundCount: number;
+  noteCount: number;
+};
 
 type Props = {
   open: boolean;
@@ -16,6 +24,8 @@ type Props = {
   cropRemoveCount: number;
   cropClampCount: number;
   onCropToBrackets: () => void;
+  hitsoundSources: HitsoundSource[];
+  onCopyHitsounds: (sourceId: string) => void;
 };
 
 export function ToolsModal({
@@ -32,8 +42,25 @@ export function ToolsModal({
   cropRemoveCount,
   cropClampCount,
   onCropToBrackets,
+  hitsoundSources,
+  onCopyHitsounds,
 }: Props) {
   const cropTotal = cropRemoveCount + cropClampCount;
+  const [sourceId, setSourceId] = useState("");
+
+  // Keep the selection valid as difficulties come and go.
+  useEffect(() => {
+    if (hitsoundSources.length === 0) {
+      if (sourceId) setSourceId("");
+      return;
+    }
+    if (!hitsoundSources.some((s) => s.id === sourceId)) {
+      setSourceId(hitsoundSources[0].id);
+    }
+  }, [hitsoundSources, sourceId]);
+
+  const selectedSource = hitsoundSources.find((s) => s.id === sourceId) ?? null;
+
   return (
     <Modal open={open} onClose={onClose} title="Tools">
       <div className="flex flex-col gap-4">
@@ -78,6 +105,51 @@ export function ToolsModal({
           <Button variant="accent" onClick={onFullRice} disabled={holdCount === 0}>
             Apply Full RC
           </Button>
+        </div>
+
+        <div className="rounded-xl border border-ink-500/60 bg-ink-700/40 p-3">
+          <div className="mb-2 text-sm font-medium text-slate-200">
+            Copy hitsounds
+          </div>
+          <p className="mb-3 text-[11px] text-slate-500">
+            Clone hitsounds from another difficulty onto this one, matching notes
+            by time (and column where possible). Only notes at matching times are
+            touched.
+          </p>
+          {hitsoundSources.length === 0 ? (
+            <p className="text-[11px] text-slate-500">
+              Add another difficulty to copy hitsounds from.
+            </p>
+          ) : (
+            <>
+              <Field label="Source difficulty">
+                <select
+                  value={sourceId}
+                  onChange={(e) => setSourceId(e.target.value)}
+                  className="rounded-lg border border-white/10 bg-ink-700 px-2 py-2 text-sm text-slate-100 outline-none"
+                >
+                  {hitsoundSources.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.hitsoundCount} hitsounded)
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Button
+                variant="accent"
+                className="mt-3"
+                onClick={() => sourceId && onCopyHitsounds(sourceId)}
+                disabled={!selectedSource || selectedSource.hitsoundCount === 0}
+              >
+                Copy from {selectedSource?.name ?? "…"}
+              </Button>
+              {selectedSource && selectedSource.hitsoundCount === 0 && (
+                <p className="mt-2 text-[11px] text-slate-500">
+                  That difficulty has no hitsounds to copy.
+                </p>
+              )}
+            </>
+          )}
         </div>
 
         <div className="rounded-xl border border-ink-500/60 bg-ink-700/40 p-3">

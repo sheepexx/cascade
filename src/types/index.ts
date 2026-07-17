@@ -218,6 +218,7 @@ export type PlaytestOffsetMode = "visual" | "audio";
 export type PlaytestSettings = {
   scrollSpeed: number;
   zoom: number;
+  rate: number;
   backgroundDim: number;
   offsetMode: PlaytestOffsetMode;
   offsetMs: number;
@@ -307,6 +308,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   playtest: {
     scrollSpeed: 35,
     zoom: 1.5,
+    rate: 1,
     backgroundDim: 82,
     offsetMode: "visual",
     offsetMs: 0,
