@@ -241,14 +241,14 @@ function DiffRow({
       <div className="mt-1 flex items-center justify-between gap-1.5 pl-5">
         <span className="flex min-w-0 items-center gap-1.5">
           <span
-            className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+            className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold"
             style={{ backgroundColor: color, color: starTextOn(star) }}
           >
             ★ {star.toFixed(2)}
           </span>
           {msd && msd.overall > 0 && (
             <span
-              className="whitespace-nowrap rounded-full border border-white/10 bg-ink-900/70 px-2 py-0.5 text-[11px] font-bold"
+              className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-ink-900/70 px-2 py-0.5 text-[11px] font-bold"
               style={{ color: msdColor(msd.overall) }}
               title={msdTooltip(msd, difficulty.keyCount)}
             >
