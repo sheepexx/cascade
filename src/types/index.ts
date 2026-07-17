@@ -243,6 +243,7 @@ export type AppSettings = {
   dimBackground: number;
   smoothScrolling: boolean;
   showWaveform: boolean;
+  showTimingLines: boolean;
   upscroll: boolean;
   localAutosaveEnabled: boolean;
   exportPngBackgroundsAsJpeg: boolean;
@@ -296,6 +297,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   dimBackground: 82,
   smoothScrolling: true,
   showWaveform: false,
+  showTimingLines: true,
   upscroll: false,
   localAutosaveEnabled: true,
   exportPngBackgroundsAsJpeg: true,

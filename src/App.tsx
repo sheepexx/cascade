@@ -3550,6 +3550,7 @@ export default function App() {
                 playfieldScale={editorPlayfieldScale}
                 longNoteBodyScale={appSettings.longNoteBodyScale}
                 smoothScrolling={appSettings.smoothScrolling}
+                showTimingLines={appSettings.showTimingLines}
                 upscroll={appSettings.upscroll}
                 zenMode={zenMode || playtest.active}
                 onPlaceNote={placeNote}
@@ -3611,6 +3612,7 @@ export default function App() {
                       playfieldScale={appSettings.playfieldScale}
                       longNoteBodyScale={appSettings.longNoteBodyScale}
                       smoothScrolling={appSettings.smoothScrolling}
+                      showTimingLines={appSettings.showTimingLines}
                       upscroll={appSettings.upscroll}
                       zenMode={zenMode}
                       onPlaceNote={noop}
@@ -3876,6 +3878,10 @@ export default function App() {
         showWaveform={appSettings.showWaveform}
         onShowWaveform={(v) =>
           setAppSettings((s) => ({ ...s, showWaveform: v }))
+        }
+        showTimingLines={appSettings.showTimingLines}
+        onShowTimingLines={(v) =>
+          setAppSettings((s) => ({ ...s, showTimingLines: v }))
         }
         upscroll={appSettings.upscroll}
         onUpscroll={(v) => setAppSettings((s) => ({ ...s, upscroll: v }))}
