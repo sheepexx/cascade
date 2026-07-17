@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import type { Difficulty } from "../types";
 import { computeStarRating, starColor, starTextOn, starTier } from "../lib/starRating";
+import { computeMapStats } from "../lib/mapStats";
 import { useMsdRatings } from "../lib/msd/useMsd";
 import { msdColor, msdTooltip } from "../lib/msd/display";
 import type { MsdRating } from "../lib/msd/minacalc";
@@ -36,6 +37,11 @@ export function DifficultySidebar({
   peers,
 }: Props) {
   const msdRatings = useMsdRatings(difficulties);
+  const active = difficulties.find((d) => d.id === activeId) ?? null;
+  const stats = useMemo(
+    () => (active ? computeMapStats(active.notes) : null),
+    [active],
+  );
   const sorted = useMemo(
     () =>
       difficulties
@@ -82,7 +88,32 @@ export function DifficultySidebar({
           ))}
         </div>
       </div>
+
+      {stats && stats.notes > 0 && (
+        <div className="border-t border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            {active?.name || "Active"} · stats
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+            <Stat label="Notes" value={String(stats.notes)} />
+            <Stat label="LN" value={`${Math.round(stats.lnRatio * 100)}%`} />
+            <Stat label="Chords" value={`${Math.round(stats.chordRatio * 100)}%`} />
+            <Stat label="Avg NPS" value={stats.avgNps.toFixed(1)} />
+            <Stat label="Peak NPS" value={String(stats.peakNps)} />
+            <Stat label="Rice/LN" value={`${stats.rice}/${stats.holds}`} />
+          </div>
+        </div>
+      )}
     </aside>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-medium tabular-nums text-slate-200">{value}</span>
+    </div>
   );
 }
 

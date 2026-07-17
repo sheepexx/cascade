@@ -313,6 +313,36 @@ export function AppSettingsModal({
                 className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Rate</span>
+                <span className="font-medium text-slate-200">
+                  {(playtest.rate ?? 1).toFixed(2)}×
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2].map((r) => {
+                  const on = Math.abs((playtest.rate ?? 1) - r) < 0.001;
+                  return (
+                    <button
+                      key={r}
+                      onClick={() => patchPlaytest({ rate: r })}
+                      className={`rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition ${
+                        on
+                          ? "bg-accent text-white"
+                          : "bg-ink-700 text-slate-300 hover:bg-ink-600"
+                      }`}
+                    >
+                      {r}×
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Practice faster or slower. Hit windows scale with the rate, so the
+                timing precision you need stays the same as at 1×.
+              </p>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <span>Zoom</span>

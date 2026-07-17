@@ -80,7 +80,7 @@ import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
 import { usePlaytestInput } from "./hooks/usePlaytestInput";
-import { fullLongNotes, fullRiceNotes } from "./lib/noteTools";
+import { fullLongNotes, fullRiceNotes, copyHitsounds, countHitsounds } from "./lib/noteTools";
 import {
   hasNoteCollisions,
   sameNoteGeometry,
@@ -101,6 +101,8 @@ import {
   judgeHitError,
   maniaJudgementWindows,
   maniaReleaseWindows,
+  scaleWindows,
+  clampPlaytestRate,
   type HitResult,
   type PlaytestState,
 } from "./lib/playtestJudgements";
@@ -827,10 +829,22 @@ export default function App() {
     active.timingPoints?.length ? active.timingPoints : timingPoints;
   const activeSkin = skin?.keymodes[active.keyCount] ?? null;
   const playtestSettings = appSettings.playtest;
+  const playtestSettingsRef = useRef(playtestSettings);
+  playtestSettingsRef.current = playtestSettings;
+  const playtestRate = clampPlaytestRate(playtestSettings.rate);
   const playtestWindows = useMemo(
-    () => maniaJudgementWindows(active.overallDifficulty),
-    [active.overallDifficulty],
+    () => scaleWindows(maniaJudgementWindows(active.overallDifficulty), playtestRate),
+    [active.overallDifficulty, playtestRate],
   );
+  const playtestReleaseWindows = useMemo(
+    () => scaleWindows(maniaReleaseWindows(active.overallDifficulty), playtestRate),
+    [active.overallDifficulty, playtestRate],
+  );
+  // Refs so the input handlers pick up rate/OD changes without re-binding.
+  const playtestWindowsRef = useRef(playtestWindows);
+  playtestWindowsRef.current = playtestWindows;
+  const playtestReleaseWindowsRef = useRef(playtestReleaseWindows);
+  playtestReleaseWindowsRef.current = playtestReleaseWindows;
 
   const resetPlaytestRuntime = useCallback((startTime: number) => {
     const headJudged = new Set<string>();
@@ -922,7 +936,7 @@ export default function App() {
       const pt = playtestRef.current;
       if (!pt.active || pt.ended || pt.paused) return;
       const time = playtestInputTime();
-      const windows = maniaJudgementWindows(active.overallDifficulty);
+      const windows = playtestWindowsRef.current;
       const candidate = active.notes
         .filter(
           (n) =>
@@ -981,7 +995,7 @@ export default function App() {
         (n) => n.column === column,
       );
       if (!held || held.endTime === undefined) return;
-      const releaseWindows = maniaReleaseWindows(active.overallDifficulty);
+      const releaseWindows = playtestReleaseWindowsRef.current;
       const droppedEarly = time < held.endTime - releaseWindows.miss;
       playtestHeldLnRef.current.delete(held.id);
       playtestTailJudgedRef.current.add(held.id);
@@ -1012,7 +1026,7 @@ export default function App() {
       setModal(null);
       setCommentsOpen(false);
       resetPlaytestRuntime(clamped);
-      audio.setPlaybackRate(1);
+      audio.setPlaybackRate(clampPlaytestRate(playtestSettingsRef.current.rate));
       audio.seek(clamped);
       audio.play();
     },
@@ -1089,8 +1103,8 @@ export default function App() {
         consumePlaytestNote,
       } = playtestTickRef.current;
       const time = playtestInputTime();
-      const windows = maniaJudgementWindows(active.overallDifficulty);
-      const releaseWindows = maniaReleaseWindows(active.overallDifficulty);
+      const windows = playtestWindowsRef.current;
+      const releaseWindows = playtestReleaseWindowsRef.current;
       for (const note of active.notes) {
         if (playtestConsumedRef.current.has(note.id)) continue;
         if (
@@ -2057,6 +2071,34 @@ export default function App() {
       after,
     });
   }, [commitNoteOp]);
+
+  const applyCopyHitsounds = useCallback(
+    (sourceId: string) => {
+      const did = activeIdRef.current;
+      if (sourceId === did) return;
+      const diffs = difficultiesRef.current;
+      const target = diffs.find((d) => d.id === did);
+      const source = diffs.find((d) => d.id === sourceId);
+      if (!target || !source) return;
+      const { before, after } = copyHitsounds(target.notes, source.notes);
+      if (after.length === 0) return;
+      commitNoteOp({ t: "note.update", diffId: did, before, after });
+    },
+    [commitNoteOp],
+  );
+
+  const hitsoundSources = useMemo(
+    () =>
+      difficulties
+        .filter((d) => d.id !== activeId)
+        .map((d) => ({
+          id: d.id,
+          name: d.name || "(unnamed)",
+          noteCount: d.notes.length,
+          hitsoundCount: countHitsounds(d.notes),
+        })),
+    [difficulties, activeId],
+  );
 
   const applyCropToBrackets = useCallback(() => {
     const did = activeIdRef.current;
@@ -4029,6 +4071,8 @@ export default function App() {
         cropRemoveCount={cropInfo.remove}
         cropClampCount={cropInfo.clamp}
         onCropToBrackets={applyCropToBrackets}
+        hitsoundSources={hitsoundSources}
+        onCopyHitsounds={applyCopyHitsounds}
       />
       <TimingModal
         open={modal === "timing"}

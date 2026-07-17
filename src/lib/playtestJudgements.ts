@@ -54,6 +54,36 @@ export function maniaJudgementWindows(od: number): JudgementWindows {
   };
 }
 
+export const MIN_PLAYTEST_RATE = 0.75;
+export const MAX_PLAYTEST_RATE = 2;
+
+export function clampPlaytestRate(rate: number): number {
+  if (!Number.isFinite(rate)) return 1;
+  return Math.max(MIN_PLAYTEST_RATE, Math.min(MAX_PLAYTEST_RATE, rate));
+}
+
+/**
+ * Scale hit windows for a playback rate. Judging happens in song-time, so to
+ * keep the real-time precision a player needs constant (as osu! rate mods do)
+ * the song-time windows widen with the rate: at 1.5x a 50 ms real window spans
+ * 75 ms of song-time.
+ */
+export function scaleWindows(
+  windows: JudgementWindows,
+  rate: number,
+): JudgementWindows {
+  const k = clampPlaytestRate(rate);
+  if (k === 1) return windows;
+  return {
+    max: windows.max * k,
+    hit300: windows.hit300 * k,
+    hit200: windows.hit200 * k,
+    hit100: windows.hit100 * k,
+    hit50: windows.hit50 * k,
+    miss: windows.miss * k,
+  };
+}
+
 export const RELEASE_WINDOW_SCALE = 1.5;
 
 export function maniaReleaseWindows(od: number): JudgementWindows {
