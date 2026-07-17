@@ -89,6 +89,7 @@ type Props = {
   missWindowMs?: number;
   hideHints?: boolean;
   bookmarks?: number[];
+  showTimingLines?: boolean;
 };
 
 type DragState = {
@@ -1005,67 +1006,73 @@ export function ManiaEditor(props: Props) {
       }
     }
 
-    for (const tp of redPoints(timingPoints)) {
-      const y = timeToY(tp.time);
-      if (y < -20 || y > height + 20) continue;
-      ctx.strokeStyle = "#ff2d6f";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-      ctx.fillStyle = "#ff2d6f";
-      ctx.font = `11px ${CANVAS_FONT_STACK}`;
-      ctx.fillText(`${tp.bpm} BPM`, 6, y - 4);
-    }
+    const showTimingLines =
+      !propsRef.current.playtestMode &&
+      propsRef.current.showTimingLines !== false;
 
-    for (const tp of greenPoints(timingPoints)) {
-      const y = timeToY(tp.time);
-      if (y < -20 || y > height + 20) continue;
-      ctx.strokeStyle = "#2dd4bf";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([7, 4]);
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = "#2dd4bf";
-      ctx.font = `11px ${CANVAS_FONT_STACK}`;
-      ctx.fillText(`${tp.sv}× SV`, 6, y + 12);
-    }
-
-    if (previewTime >= 0) {
-      const y = timeToY(previewTime);
-      if (y >= -20 && y <= height + 20) {
-        ctx.strokeStyle = "#c084fc";
+    if (showTimingLines) {
+      for (const tp of redPoints(timingPoints)) {
+        const y = timeToY(tp.time);
+        if (y < -20 || y > height + 20) continue;
+        ctx.strokeStyle = "#ff2d6f";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
-        ctx.fillStyle = "#c084fc";
+        ctx.fillStyle = "#ff2d6f";
         ctx.font = `11px ${CANVAS_FONT_STACK}`;
-        ctx.fillText("Preview Point", 6, y - 4);
+        ctx.fillText(`${tp.bpm} BPM`, 6, y - 4);
       }
-    }
 
-    if (propsRef.current.bookmarks?.length) {
-      ctx.setLineDash([6, 3]);
-      for (const bm of propsRef.current.bookmarks) {
-        const y = timeToY(bm);
+      for (const tp of greenPoints(timingPoints)) {
+        const y = timeToY(tp.time);
         if (y < -20 || y > height + 20) continue;
-        ctx.strokeStyle = "#fbbf24";
+        ctx.strokeStyle = "#2dd4bf";
         ctx.lineWidth = 1.5;
+        ctx.setLineDash([7, 4]);
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
-        ctx.fillStyle = "#fbbf24";
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#2dd4bf";
         ctx.font = `11px ${CANVAS_FONT_STACK}`;
-        ctx.fillText("Bookmark", 6, y - 4);
+        ctx.fillText(`${tp.sv}× SV`, 6, y + 12);
       }
-      ctx.setLineDash([]);
+
+      if (previewTime >= 0) {
+        const y = timeToY(previewTime);
+        if (y >= -20 && y <= height + 20) {
+          ctx.strokeStyle = "#c084fc";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+          ctx.fillStyle = "#c084fc";
+          ctx.font = `11px ${CANVAS_FONT_STACK}`;
+          ctx.fillText("Preview Point", 6, y - 4);
+        }
+      }
+
+      if (propsRef.current.bookmarks?.length) {
+        ctx.setLineDash([6, 3]);
+        for (const bm of propsRef.current.bookmarks) {
+          const y = timeToY(bm);
+          if (y < -20 || y > height + 20) continue;
+          ctx.strokeStyle = "#fbbf24";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+          ctx.fillStyle = "#fbbf24";
+          ctx.font = `11px ${CANVAS_FONT_STACK}`;
+          ctx.fillText("Bookmark", 6, y - 4);
+        }
+        ctx.setLineDash([]);
+      }
     }
 
     if (receptorsOnRef.current) {

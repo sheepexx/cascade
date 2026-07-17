@@ -21,6 +21,8 @@ type Props = {
   onSmoothScrolling: (value: boolean) => void;
   showWaveform: boolean;
   onShowWaveform: (value: boolean) => void;
+  showTimingLines: boolean;
+  onShowTimingLines: (value: boolean) => void;
   upscroll: boolean;
   onUpscroll: (value: boolean) => void;
   playtest: PlaytestSettings;
@@ -57,6 +59,8 @@ export function AppSettingsModal({
   onSmoothScrolling,
   showWaveform,
   onShowWaveform,
+  showTimingLines,
+  onShowTimingLines,
   upscroll,
   onUpscroll,
   playtest,
@@ -172,6 +176,18 @@ export function AppSettingsModal({
                   Overlays the song&rsquo;s waveform on the lanes, in the editor
                   and in playtest, so audio peaks line up with your notes.
                   Handy for checking the offset. Toggle with W.
+                </p>
+                <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
+                  <span>Timing and bookmark lines</span>
+                  <Toggle
+                    checked={showTimingLines}
+                    onChange={onShowTimingLines}
+                    aria-label="Timing and bookmark lines"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Draws the BPM, SV, preview point, and bookmark lines across
+                  the playfield. They are always hidden during playtest.
                 </p>
               </div>
             </section>
