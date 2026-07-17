@@ -52,6 +52,29 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
     );
   }
 
+  const prepared: {
+    kind: "audio" | "bg";
+    name: string;
+    blob: Blob;
+    sha: string;
+    ext: string;
+  }[] = [];
+  for (const asset of assets) {
+    let sha: string;
+    try {
+      sha = await sha256Hex(asset.blob);
+    } catch {
+      throw new Error(
+        `Couldn't read "${asset.name}" from disk. The file may have moved ` +
+          `or changed since it was added. Re-add it and save again.`,
+      );
+    }
+    const ext = asset.name.includes(".")
+      ? asset.name.slice(asset.name.lastIndexOf(".") + 1).toLowerCase()
+      : "bin";
+    prepared.push({ ...asset, sha, ext });
+  }
+
   const row = {
     owner: ownerId,
     title: data.meta.title,
@@ -77,42 +100,48 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
     id = inserted.id as string;
   }
 
-  const assetRows: {
-    project_id: string;
-    kind: "audio" | "bg";
-    filename: string;
-    storage_path: string;
-    sha256: string;
-    bytes: number;
-  }[] = [];
+  try {
+    const assetRows: {
+      project_id: string;
+      kind: "audio" | "bg";
+      filename: string;
+      storage_path: string;
+      sha256: string;
+      bytes: number;
+    }[] = [];
 
-  for (const asset of assets) {
-    const sha = await sha256Hex(asset.blob);
-    const ext = asset.name.includes(".")
-      ? asset.name.slice(asset.name.lastIndexOf(".") + 1).toLowerCase()
-      : "bin";
-    const storagePath = `${id}/${sha}.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from(MAPS_BUCKET)
-      .upload(storagePath, asset.blob, {
-        upsert: true,
-        contentType: asset.blob.type || undefined,
+    for (const asset of prepared) {
+      const storagePath = `${id}/${asset.sha}.${asset.ext}`;
+      const { error: upErr } = await supabase.storage
+        .from(MAPS_BUCKET)
+        .upload(storagePath, asset.blob, {
+          upsert: true,
+          contentType: asset.blob.type || undefined,
+        });
+      if (upErr) throw new Error(upErr.message);
+      assetRows.push({
+        project_id: id,
+        kind: asset.kind,
+        filename: asset.name,
+        storage_path: storagePath,
+        sha256: asset.sha,
+        bytes: asset.blob.size,
       });
-    if (upErr) throw new Error(upErr.message);
-    assetRows.push({
-      project_id: id,
-      kind: asset.kind,
-      filename: asset.name,
-      storage_path: storagePath,
-      sha256: sha,
-      bytes: asset.blob.size,
-    });
-  }
+    }
 
-  await supabase.from("project_assets").delete().eq("project_id", id);
-  if (assetRows.length) {
-    const { error } = await supabase.from("project_assets").insert(assetRows);
-    if (error) throw new Error(error.message);
+    await supabase.from("project_assets").delete().eq("project_id", id);
+    if (assetRows.length) {
+      const { error } = await supabase.from("project_assets").insert(assetRows);
+      if (error) throw new Error(error.message);
+    }
+  } catch (err) {
+    if (!projectId) {
+      try {
+        await supabase.from("projects").delete().eq("id", id);
+      } catch {
+      }
+    }
+    throw err;
   }
 
   return id;
