@@ -125,32 +125,35 @@ async function handleCallback(
   });
 
   const session = await signSession(env, user.id);
-  return redirect(`${env.FRONTEND_URL}/?auth=ok`, env, [
-    cookie(STATE_COOKIE, "", { maxAge: 0 }),
-    cookie(SESSION_COOKIE, session, { maxAge: SESSION_TTL_DAYS * 86400 }),
-  ]);
+  return redirect(
+    `${env.FRONTEND_URL}/?auth=ok#session=${encodeURIComponent(session)}`,
+    env,
+    [
+      cookie(STATE_COOKIE, "", { maxAge: 0 }),
+      cookie(SESSION_COOKIE, session, { maxAge: SESSION_TTL_DAYS * 86400 }),
+    ],
+  );
 }
 
 async function handleSession(req: Request, env: Env): Promise<Response> {
-  const sessionToken = getCookie(req, SESSION_COOKIE);
-  if (!sessionToken) return json({ user: null }, 200, env);
+  const cookieToken = getCookie(req, SESSION_COOKIE);
+  const headerToken = bearerToken(req);
+  const uid =
+    (cookieToken && (await verifySession(env, cookieToken))) ||
+    (headerToken && (await verifySession(env, headerToken))) ||
+    null;
 
-  const uid = await verifySession(env, sessionToken);
-  if (!uid) {
-    return json({ user: null }, 200, env, [
-      cookie(SESSION_COOKIE, "", { maxAge: 0 }),
-    ]);
-  }
+  const clearCookies = cookieToken
+    ? [cookie(SESSION_COOKIE, "", { maxAge: 0 })]
+    : [];
+  if (!uid) return json({ user: null }, 200, env, clearCookies);
 
   const user = await fetchUser(env, uid);
-  if (!user) {
-    return json({ user: null }, 200, env, [
-      cookie(SESSION_COOKIE, "", { maxAge: 0 }),
-    ]);
-  }
+  if (!user) return json({ user: null }, 200, env, clearCookies);
 
   const supabaseToken = await mintSupabaseToken(env, user);
-  return json({ user, supabaseToken }, 200, env);
+  const sessionToken = await signSession(env, user.id);
+  return json({ user, supabaseToken, sessionToken }, 200, env);
 }
 
 function handleLogout(env: Env): Response {
@@ -234,11 +237,18 @@ async function verifySession(env: Env, token: string): Promise<string | null> {
   }
 }
 
+function bearerToken(req: Request): string | null {
+  const header = req.headers.get("Authorization");
+  if (!header?.startsWith("Bearer ")) return null;
+  const token = header.slice("Bearer ".length).trim();
+  return token || null;
+}
+
 function cors(env: Env): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": env.FRONTEND_URL,
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Credentials": "true",
     Vary: "Origin",
   };
