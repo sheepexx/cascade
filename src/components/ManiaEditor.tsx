@@ -1968,10 +1968,13 @@ export function ManiaEditor(props: Props) {
     const currentTime = propsRef.current.getCurrentTime();
     const dir: 1 | -1 = e.deltaY < 0 ? -1 : 1;
     const firstStep = stepToSnap(currentTime, timingPoints, view.snapDivisor, dir);
-    const target =
-      dir < 0 && propsRef.current.isPlaying
-        ? stepToSnap(firstStep, timingPoints, view.snapDivisor, dir)
-        : firstStep;
+    // While playing, playback keeps advancing between reading the time and the
+    // seek landing, so a single snap step gets overtaken and scrolling feels
+    // stuck. Step an extra snap in the scroll direction to compensate - for both
+    // directions, so forward and backward scrolling both work during playback.
+    const target = propsRef.current.isPlaying
+      ? stepToSnap(firstStep, timingPoints, view.snapDivisor, dir)
+      : firstStep;
     props.onSeek(target);
   };
 

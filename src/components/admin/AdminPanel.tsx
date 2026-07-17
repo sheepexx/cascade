@@ -27,7 +27,7 @@ import {
   type FeedbackStatus,
 } from "../../lib/feedback";
 
-type Tab = "stats" | "presets" | "users" | "projects" | "feedback" | "invisible";
+type Tab = "stats" | "presets" | "users" | "projects" | "feedback" | "settings";
 
 export function AdminPanel({
   open,
@@ -51,7 +51,7 @@ export function AdminPanel({
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-semibold text-slate-100">Admin</h1>
           <nav className="flex items-center gap-1">
-            {(["stats", "presets", "users", "projects", "feedback", "invisible"] as Tab[]).map((t) => (
+            {(["stats", "presets", "users", "projects", "feedback", "settings"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -74,8 +74,8 @@ export function AdminPanel({
         {tab === "users" && <UsersTab />}
         {tab === "projects" && <ProjectsTab />}
         {tab === "feedback" && <FeedbackTab />}
-        {tab === "invisible" && (
-          <InvisibleTab invisible={invisible} onToggle={onToggleInvisible} />
+        {tab === "settings" && (
+          <SettingsTab invisible={invisible} onToggle={onToggleInvisible} />
         )}
       </div>
     </div>
@@ -524,7 +524,7 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
-function InvisibleTab({
+function SettingsTab({
   invisible,
   onToggle,
 }: {
