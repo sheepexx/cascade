@@ -12,6 +12,14 @@ import { TimingModal } from "./components/menus/TimingModal";
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
 import { ToolsModal } from "./components/menus/ToolsModal";
 import { ExportValidationModal } from "./components/menus/ExportValidationModal";
+import { AiModModal } from "./components/menus/AiModModal";
+import {
+  runAiMod,
+  resnapNotes,
+  countUnsnapped,
+  type AiModReport,
+  type AiModIssue,
+} from "./lib/aimod";
 import {
   WelcomeModal,
   SampleMapsModal,
@@ -154,6 +162,7 @@ type ModalId =
   | "timing"
   | "difficulty"
   | "tools"
+  | "aimod"
   | "info"
   | "myMaps"
   | "presets"
@@ -1693,6 +1702,68 @@ export default function App() {
     },
     [patchDifficulty],
   );
+
+  const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
+
+  const runAiModCheck = useCallback(() => {
+    setAiModReport(
+      runAiMod({
+        meta: metaRef.current,
+        difficulties: difficultiesRef.current,
+        audioFiles,
+        bgFiles,
+        audioDurationMs: durationRef.current
+          ? Math.round(durationRef.current)
+          : undefined,
+      }),
+    );
+  }, [audioFiles, bgFiles]);
+
+  const openAiMod = useCallback(() => {
+    runAiModCheck();
+    setModal("aimod");
+  }, [runAiModCheck]);
+
+  const aiModUnsnapped = useMemo(() => {
+    const d = difficulties.find((x) => x.id === activeId);
+    if (!d) return 0;
+    const pts = d.timingPoints?.length ? d.timingPoints : [];
+    return countUnsnapped(d.notes, pts);
+  }, [difficulties, activeId]);
+
+  const handleAiModJump = useCallback(
+    (issue: AiModIssue) => {
+      if (issue.diffId && issue.diffId !== activeIdRef.current)
+        setActiveId(issue.diffId);
+      if (issue.time !== undefined) audio.seek(Math.max(0, issue.time));
+    },
+    [audio],
+  );
+
+  const handleResnap = useCallback(() => {
+    const id = activeIdRef.current;
+    const d = difficultiesRef.current.find((x) => x.id === id);
+    if (!d) return;
+    const pts = d.timingPoints?.length ? d.timingPoints : [];
+    const { notes, moved } = resnapNotes(d.notes, pts);
+    if (moved > 0) {
+      patchDifficulty(id, { notes });
+      // Re-run against the updated notes so the panel reflects the fix.
+      setAiModReport(
+        runAiMod({
+          meta: metaRef.current,
+          difficulties: difficultiesRef.current.map((x) =>
+            x.id === id ? { ...x, notes } : x,
+          ),
+          audioFiles,
+          bgFiles,
+          audioDurationMs: durationRef.current
+            ? Math.round(durationRef.current)
+            : undefined,
+        }),
+      );
+    }
+  }, [patchDifficulty, audioFiles, bgFiles]);
 
   const addBookmark = useCallback(
     (ms: number) => {
@@ -3312,6 +3383,7 @@ export default function App() {
                 Difficulty
               </MenuButton>
               <MenuButton onClick={() => setModal("tools")}>Tools</MenuButton>
+              <MenuButton onClick={openAiMod}>AiMod</MenuButton>
               <MenuButton onClick={() => setModal("presets")}>
                 Presets
               </MenuButton>
@@ -4032,6 +4104,17 @@ export default function App() {
           run?.();
         }}
         onRemoveDuplicates={removeDuplicates}
+      />
+
+      <AiModModal
+        open={modal === "aimod"}
+        onClose={close}
+        report={aiModReport}
+        activeDiffName={active.name || "(unnamed)"}
+        onRefresh={runAiModCheck}
+        onJump={handleAiModJump}
+        unsnappedCount={aiModUnsnapped}
+        onResnap={handleResnap}
       />
 
       <InfoModal open={modal === "info"} onClose={close} />
