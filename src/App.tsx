@@ -300,6 +300,24 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragDepthRef = useRef(0);
+  const [invisibleMode, setInvisibleMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("mania:invisible") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleInvisibleMode = useCallback(() => {
+    setInvisibleMode((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem("mania:invisible", next ? "1" : "0");
+      } catch {
+        // ignore storage failures (private mode etc.)
+      }
+      return next;
+    });
+  }, []);
   const [modal, setModal] = useState<ModalId>(null);
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
@@ -493,6 +511,7 @@ export default function App() {
   const collab = useCollab({
     projectId: cloudProjectId,
     enabled: liveEnabled,
+    invisible: invisibleMode,
     me: authUser
       ? { id: authUser.id, username: authUser.username, avatar: authUser.avatar_url }
       : null,
@@ -3369,7 +3388,7 @@ export default function App() {
           <div
             className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
               hasProject
-                ? "max-w-[36rem] translate-x-0 opacity-100"
+                ? "max-w-[44rem] translate-x-0 opacity-100"
                 : "pointer-events-none max-w-0 -translate-x-3 opacity-0"
             }`}
             aria-hidden={!hasProject}
@@ -4119,7 +4138,12 @@ export default function App() {
 
       <InfoModal open={modal === "info"} onClose={close} />
 
-      <AdminPanel open={modal === "admin"} onClose={close} />
+      <AdminPanel
+        open={modal === "admin"}
+        onClose={close}
+        invisible={invisibleMode}
+        onToggleInvisible={toggleInvisibleMode}
+      />
 
       <ShareModal
         open={modal === "share"}

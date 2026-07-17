@@ -56,6 +56,7 @@ export function colorForId(id: string): string {
 export function useCollab(opts: {
   projectId: string | null;
   enabled: boolean;
+  invisible?: boolean;
   me: Me | null;
   onRemoteOp: (op: CollabOp) => void;
   onRefresh: () => void;
@@ -82,6 +83,7 @@ export function useCollab(opts: {
   onNoticeRef.current = opts.onNotice;
 
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const invisibleRef = useRef(!!opts.invisible);
   const presenceRef = useRef<PresenceFields>({});
   const meRef = useRef<Me | null>(me);
   meRef.current = me;
@@ -112,7 +114,7 @@ export function useCollab(opts: {
 
     const broadcastPresence = () => {
       const m = meRef.current;
-      if (!m) return;
+      if (!m || invisibleRef.current) return;
       lastPresenceSendRef.current = Date.now();
       restBroadcast(projectId, "presence", {
         id: m.id,
@@ -240,7 +242,7 @@ export function useCollab(opts: {
 
     return () => {
       disposed = true;
-      restBroadcast(projectId, "presence.leave", { id: me.id });
+      if (!invisibleRef.current) restBroadcast(projectId, "presence.leave", { id: me.id });
       window.clearInterval(heartbeat);
       window.clearInterval(pruner);
       if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
@@ -253,6 +255,27 @@ export function useCollab(opts: {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, enabled, me?.id]);
+
+  // React to toggling invisibility mid-session: leave the peer list when going
+  // invisible, re-announce our presence when coming back.
+  useEffect(() => {
+    const wasInvisible = invisibleRef.current;
+    invisibleRef.current = !!opts.invisible;
+    const m = meRef.current;
+    if (!projectId || !m) return;
+    if (opts.invisible && !wasInvisible) {
+      restBroadcast(projectId, "presence.leave", { id: m.id });
+    } else if (!opts.invisible && wasInvisible && channelRef.current) {
+      lastPresenceSendRef.current = Date.now();
+      restBroadcast(projectId, "presence", {
+        id: m.id,
+        username: m.username,
+        avatar: m.avatar,
+        color: colorForId(m.id),
+        ...presenceRef.current,
+      });
+    }
+  }, [opts.invisible, projectId]);
 
   const sendOp = (op: CollabOp) => {
     if (!projectId) return;
@@ -273,7 +296,7 @@ export function useCollab(opts: {
       fields.activeDiffId !== undefined && fields.activeDiffId !== prev.activeDiffId;
     presenceRef.current = { ...prev, ...fields };
     const m = meRef.current;
-    if (!projectId || !m) return;
+    if (!projectId || !m || invisibleRef.current) return;
     if (diffChanged || Date.now() - lastPresenceSendRef.current > 900) {
       lastPresenceSendRef.current = Date.now();
       restBroadcast(projectId, "presence", {
