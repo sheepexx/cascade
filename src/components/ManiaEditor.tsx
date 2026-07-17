@@ -1113,7 +1113,14 @@ export function ManiaEditor(props: Props) {
         const x = originX + c * laneWidth;
         const sprite = intensity > 0 ? cr?.keyDown ?? cr?.key : cr?.key;
         if (sprite) {
-          drawReceptor(ctx, sprite, x, phY, laneWidth, up);
+          // Pass the note's half-height so a note-shaped receptor can wrap the
+          // note instead of sitting under it (see drawReceptor).
+          const noteImg = cr?.note ?? cr?.head ?? null;
+          const noteH =
+            noteImg && noteImg.width > 0
+              ? (laneWidth - 6) * (noteImg.height / noteImg.width)
+              : NOTE_HEIGHT;
+          drawReceptor(ctx, sprite, x, phY, laneWidth, up, noteH / 2);
           if (intensity > 0) {
             drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c), intensity, up);
           }
@@ -2352,20 +2359,29 @@ function drawSprite(
   ctx.drawImage(img, x + 3, bottomY - h, w, h);
 }
 
-const opaqueBottomCache = new WeakMap<HTMLImageElement, number>();
-function opaqueBottom(img: HTMLImageElement): number {
-  const cached = opaqueBottomCache.get(img);
-  if (cached !== undefined) return cached;
+const opaqueBoundsCache = new WeakMap<
+  HTMLImageElement,
+  { top: number; bottom: number }
+>();
+// Bounding rows of the non-transparent content, so receptors with lots of empty
+// canvas padding (common in arrow / note-shaped receptor skins) can be aligned
+// by their visible centre rather than the raw image edges.
+function opaqueBounds(img: HTMLImageElement): { top: number; bottom: number } {
+  const cached = opaqueBoundsCache.get(img);
+  if (cached) return cached;
+  let top = 0;
   let bottom = img.height;
   try {
     const c = document.createElement("canvas");
     c.width = img.width;
     c.height = img.height;
-    const cx = c.getContext("2d");
+    const cx = c.getContext("2d", { willReadFrequently: true });
     if (cx) {
       cx.drawImage(img, 0, 0);
       const { data } = cx.getImageData(0, 0, img.width, img.height);
-      for (let y = img.height - 1; y >= 0; y--) {
+      let first = -1;
+      let last = -1;
+      for (let y = 0; y < img.height; y++) {
         let opaque = false;
         for (let x = 0; x < img.width; x++) {
           if (data[(y * img.width + x) * 4 + 3] > 8) {
@@ -2374,16 +2390,22 @@ function opaqueBottom(img: HTMLImageElement): number {
           }
         }
         if (opaque) {
-          bottom = y + 1;
-          break;
+          if (first < 0) first = y;
+          last = y;
         }
+      }
+      if (first >= 0) {
+        top = first;
+        bottom = last + 1;
       }
     }
   } catch {
+    top = 0;
     bottom = img.height;
   }
-  opaqueBottomCache.set(img, bottom);
-  return bottom;
+  const result = { top, bottom };
+  opaqueBoundsCache.set(img, result);
+  return result;
 }
 
 function drawReceptor(
@@ -2393,19 +2415,33 @@ function drawReceptor(
   lineY: number,
   laneWidth: number,
   up = false,
+  // Half the note's display height. A note-shaped receptor (taller than the
+  // note, e.g. an arrow/ring that the note falls into) is centred on where the
+  // note's centre lands at the hit line, matching osu!. Shorter/flat key images
+  // keep the old "opaque bottom on the hit line" placement, so ordinary key
+  // skins render exactly as before.
+  noteHalf = NOTE_HEIGHT / 2,
 ) {
   if (img.width <= 0 || img.height <= 0) return;
   const s = laneWidth / img.width;
-  const dy = lineY - opaqueBottom(img) * s;
+  const { top, bottom } = opaqueBounds(img);
+  const opaqueCenterSrc = ((top + bottom) / 2) * s;
+  const opaqueHalf = ((bottom - top) / 2) * s;
+  // Re-centre only when the receptor is taller than the note; otherwise anchor
+  // its opaque bottom at the hit line exactly like before.
+  const useCenter = opaqueHalf > noteHalf;
+  const target = up
+    ? lineY + (useCenter ? noteHalf : opaqueHalf)
+    : lineY - (useCenter ? noteHalf : opaqueHalf);
   if (up) {
     ctx.save();
     ctx.translate(0, lineY * 2);
     ctx.scale(1, -1);
-    ctx.drawImage(img, x, dy, laneWidth, img.height * s);
+    ctx.drawImage(img, x, lineY * 2 - target - opaqueCenterSrc, laneWidth, img.height * s);
     ctx.restore();
     return;
   }
-  ctx.drawImage(img, x, dy, laneWidth, img.height * s);
+  ctx.drawImage(img, x, target - opaqueCenterSrc, laneWidth, img.height * s);
 }
 
 function drawReceptorGlow(
