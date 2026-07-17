@@ -3698,6 +3698,8 @@ export default function App() {
                 currentSampleSet={currentSampleSet}
                 onCurrentHitSound={setCurrentHitSound}
                 onCurrentSampleSet={setCurrentSampleSet}
+                hitsoundSources={hitsoundSources}
+                onCopyHitsounds={applyCopyHitsounds}
                 onPublishPattern={authUser ? handlePublishPattern : undefined}
                 pendingClip={presetToCopy}
                 readOnly={!canEdit}
@@ -4071,8 +4073,6 @@ export default function App() {
         cropRemoveCount={cropInfo.remove}
         cropClampCount={cropInfo.clamp}
         onCropToBrackets={applyCropToBrackets}
-        hitsoundSources={hitsoundSources}
-        onCopyHitsounds={applyCopyHitsounds}
       />
       <TimingModal
         open={modal === "timing"}
