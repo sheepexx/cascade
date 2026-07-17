@@ -27,14 +27,18 @@ import {
   type FeedbackStatus,
 } from "../../lib/feedback";
 
-type Tab = "stats" | "presets" | "users" | "projects" | "feedback";
+type Tab = "stats" | "presets" | "users" | "projects" | "feedback" | "invisible";
 
 export function AdminPanel({
   open,
   onClose,
+  invisible,
+  onToggleInvisible,
 }: {
   open: boolean;
   onClose: () => void;
+  invisible: boolean;
+  onToggleInvisible: () => void;
 }) {
   const { isAdmin } = useAuth();
   const [tab, setTab] = useState<Tab>("stats");
@@ -47,7 +51,7 @@ export function AdminPanel({
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-semibold text-slate-100">Admin</h1>
           <nav className="flex items-center gap-1">
-            {(["stats", "presets", "users", "projects", "feedback"] as Tab[]).map((t) => (
+            {(["stats", "presets", "users", "projects", "feedback", "invisible"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -70,6 +74,9 @@ export function AdminPanel({
         {tab === "users" && <UsersTab />}
         {tab === "projects" && <ProjectsTab />}
         {tab === "feedback" && <FeedbackTab />}
+        {tab === "invisible" && (
+          <InvisibleTab invisible={invisible} onToggle={onToggleInvisible} />
+        )}
       </div>
     </div>
   );
@@ -515,6 +522,60 @@ function formatBytes(bytes: number): string {
     unit += 1;
   }
   return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
+function InvisibleTab({
+  invisible,
+  onToggle,
+}: {
+  invisible: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="max-w-xl">
+      <section className="rounded-xl border border-ink-600 bg-ink-800 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-100">
+              Invisible mode
+            </h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Join live sessions without broadcasting your presence. Other people
+              in the map won't see your avatar, cursor or playhead, and you won't
+              show up in the peer list or trigger a “joined the session” notice.
+              You can still see everyone else and edit as normal.
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={invisible}
+            onClick={onToggle}
+            className={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition ${
+              invisible ? "bg-accent" : "bg-ink-600"
+            }`}
+          >
+            <span
+              className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
+                invisible ? "left-6" : "left-1"
+              }`}
+            />
+          </button>
+        </div>
+        <div className="mt-4 flex items-center gap-2 text-xs">
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${
+              invisible ? "bg-emerald-400" : "bg-slate-500"
+            }`}
+          />
+          <span className="text-slate-400">
+            {invisible
+              ? "You are currently invisible in live sessions."
+              : "You are visible in live sessions."}
+          </span>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function FeedbackTab() {
