@@ -28,6 +28,32 @@ type AuthState = {
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
 const REFRESH_MS = 50 * 60 * 1000;
+const SESSION_TOKEN_KEY = "mania-editor:session-token";
+
+let memorySessionToken: string | null = null;
+
+function readSessionToken(): string | null {
+  try {
+    return localStorage.getItem(SESSION_TOKEN_KEY) ?? memorySessionToken;
+  } catch {
+    return memorySessionToken;
+  }
+}
+
+function storeSessionToken(token: string | null): void {
+  memorySessionToken = token;
+  try {
+    if (token) localStorage.setItem(SESSION_TOKEN_KEY, token);
+    else localStorage.removeItem(SESSION_TOKEN_KEY);
+  } catch {
+  }
+}
+
+function adoptSessionTokenFromUrl(): void {
+  const hash = window.location.hash;
+  if (!hash.startsWith("#session=")) return;
+  storeSessionToken(decodeURIComponent(hash.slice("#session=".length)));
+}
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -37,13 +63,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
+      const stored = readSessionToken();
       const res = await fetch(`${WORKER}/auth/session`, {
         credentials: "include",
+        headers: stored ? { Authorization: `Bearer ${stored}` } : undefined,
       });
       const data = (await res.json()) as {
         user: AuthUser | null;
         supabaseToken?: string;
+        sessionToken?: string;
       };
+      if (data.user) {
+        if (data.sessionToken) storeSessionToken(data.sessionToken);
+      } else {
+        storeSessionToken(null);
+      }
       setSupabaseToken(data.user ? data.supabaseToken ?? null : null);
       setUser(data.user);
     } catch {
@@ -66,13 +100,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     } catch {
     }
+    storeSessionToken(null);
     setSupabaseToken(null);
     setUser(null);
   }, []);
 
   useEffect(() => {
+    adoptSessionTokenFromUrl();
     const params = new URLSearchParams(window.location.search);
-    if (params.has("auth")) {
+    if (params.has("auth") || window.location.hash.startsWith("#session=")) {
       params.delete("auth");
       const qs = params.toString();
       window.history.replaceState(

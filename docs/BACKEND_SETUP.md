@@ -77,10 +77,13 @@ Reload the app - an **Admin** entry appears in the account menu.
   approves it in the Admin panel; approved presets show in the Preset browser for all.
 
 > **Cross-site cookie caveat:** the app (`*.vercel.app`) and Worker (`*.workers.dev`)
-> are different sites, so the session cookie is `SameSite=None; Secure`. Browsers with
-> third-party-cookie blocking (Safari, Brave, strict modes) may drop it. If that
-> becomes a problem, switch the Worker to return the token to JS (localStorage) instead
-> of a cookie - same endpoints, only the transport changes.
+> are different sites, so the session cookie is `SameSite=None; Secure` and browsers
+> with third-party-cookie blocking (Safari, Brave, strict modes) drop it. The login
+> flow therefore also hands the session JWT to the SPA: the OAuth callback appends it
+> as a `#session=` URL fragment, the SPA stores it in localStorage and sends it as an
+> `Authorization: Bearer` header to `/auth/session`, which accepts either transport
+> and returns a rotated `sessionToken` on every call. The cookie remains as a
+> fallback for browsers that still allow it.
 
 ## Future: real-time co-op
 
