@@ -1,6 +1,9 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import type { Difficulty } from "../types";
 import { computeStarRating, starColor, starTextOn, starTier } from "../lib/starRating";
+import { useMsdRatings } from "../lib/msd/useMsd";
+import { msdColor, msdTooltip } from "../lib/msd/display";
+import type { MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
 
 type PeerLite = {
@@ -32,6 +35,7 @@ export function DifficultySidebar({
   onRename,
   peers,
 }: Props) {
+  const msdRatings = useMsdRatings(difficulties);
   const sorted = useMemo(
     () =>
       difficulties
@@ -66,6 +70,7 @@ export function DifficultySidebar({
               key={d.id}
               difficulty={d}
               star={star}
+              msd={msdRatings[d.id] ?? null}
               active={d.id === activeId}
               canDelete={difficulties.length > 1}
               peersHere={peers?.filter((p) => p.activeDiffId === d.id) ?? []}
@@ -84,6 +89,7 @@ export function DifficultySidebar({
 function DiffRow({
   difficulty,
   star,
+  msd,
   active,
   canDelete,
   peersHere,
@@ -94,6 +100,7 @@ function DiffRow({
 }: {
   difficulty: Difficulty;
   star: number;
+  msd: MsdRating | null;
   active: boolean;
   canDelete: boolean;
   peersHere: PeerLite[];
@@ -200,14 +207,27 @@ function DiffRow({
         <span className="text-[10px] text-slate-500">{difficulty.keyCount}K</span>
       </div>
 
-      <div className="mt-1 flex items-center justify-between pl-5">
-        <span
-          className="rounded-full px-2 py-0.5 text-[11px] font-bold"
-          style={{ backgroundColor: color, color: starTextOn(star) }}
-        >
-          ★ {star.toFixed(2)}
+      <div className="mt-1 flex items-center justify-between gap-1.5 pl-5">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span
+            className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+            style={{ backgroundColor: color, color: starTextOn(star) }}
+          >
+            ★ {star.toFixed(2)}
+          </span>
+          {msd && msd.overall > 0 && (
+            <span
+              className="whitespace-nowrap rounded-full border border-white/10 bg-ink-900/70 px-2 py-0.5 text-[11px] font-bold"
+              style={{ color: msdColor(msd.overall) }}
+              title={msdTooltip(msd, difficulty.keyCount)}
+            >
+              {msd.overall.toFixed(2)} MSD
+            </span>
+          )}
         </span>
-        <span className="text-[10px] text-slate-500">{starTier(star)}</span>
+        <span className="truncate text-[10px] text-slate-500">
+          {starTier(star)}
+        </span>
       </div>
 
       <div className="mt-1.5 flex items-center gap-2 pl-5">
