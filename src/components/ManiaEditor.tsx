@@ -1113,14 +1113,20 @@ export function ManiaEditor(props: Props) {
         const x = originX + c * laneWidth;
         const sprite = intensity > 0 ? cr?.keyDown ?? cr?.key : cr?.key;
         if (sprite) {
-          // Pass the note's half-height so a note-shaped receptor can wrap the
-          // note instead of sitting under it (see drawReceptor).
+          // Pass the note's opaque display box so a note-shaped receptor can be
+          // fitted to (and centred on) the note instead of stretching (see
+          // drawReceptor).
           const noteImg = cr?.note ?? cr?.head ?? null;
-          const noteH =
-            noteImg && noteImg.width > 0
-              ? (laneWidth - 6) * (noteImg.height / noteImg.width)
-              : NOTE_HEIGHT;
-          drawReceptor(ctx, sprite, x, phY, laneWidth, up, noteH / 2);
+          let noteBox: { w: number; h: number } | null = null;
+          if (noteImg && noteImg.width > 0) {
+            const nb = opaqueBounds(noteImg);
+            const ns = (laneWidth - 6) / noteImg.width;
+            noteBox = {
+              w: (nb.right - nb.left) * ns,
+              h: (nb.bottom - nb.top) * ns,
+            };
+          }
+          drawReceptor(ctx, sprite, x, phY, laneWidth, up, noteBox);
           if (intensity > 0) {
             drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c), intensity, up);
           }
@@ -2359,18 +2365,15 @@ function drawSprite(
   ctx.drawImage(img, x + 3, bottomY - h, w, h);
 }
 
-const opaqueBoundsCache = new WeakMap<
-  HTMLImageElement,
-  { top: number; bottom: number }
->();
-// Bounding rows of the non-transparent content, so receptors with lots of empty
-// canvas padding (common in arrow / note-shaped receptor skins) can be aligned
-// by their visible centre rather than the raw image edges.
-function opaqueBounds(img: HTMLImageElement): { top: number; bottom: number } {
+type OpaqueBounds = { left: number; top: number; right: number; bottom: number };
+const opaqueBoundsCache = new WeakMap<HTMLImageElement, OpaqueBounds>();
+// Bounding box of the non-transparent content, so receptors with lots of empty
+// canvas padding (common in arrow / note-shaped receptor skins) can be sized and
+// aligned by their visible pixels rather than the raw image edges.
+function opaqueBounds(img: HTMLImageElement): OpaqueBounds {
   const cached = opaqueBoundsCache.get(img);
   if (cached) return cached;
-  let top = 0;
-  let bottom = img.height;
+  let result: OpaqueBounds = { left: 0, top: 0, right: img.width, bottom: img.height };
   try {
     const c = document.createElement("canvas");
     c.width = img.width;
@@ -2379,31 +2382,27 @@ function opaqueBounds(img: HTMLImageElement): { top: number; bottom: number } {
     if (cx) {
       cx.drawImage(img, 0, 0);
       const { data } = cx.getImageData(0, 0, img.width, img.height);
-      let first = -1;
-      let last = -1;
+      let left = img.width;
+      let right = 0;
+      let top = img.height;
+      let bottom = 0;
+      let any = false;
       for (let y = 0; y < img.height; y++) {
-        let opaque = false;
         for (let x = 0; x < img.width; x++) {
           if (data[(y * img.width + x) * 4 + 3] > 8) {
-            opaque = true;
-            break;
+            any = true;
+            if (x < left) left = x;
+            if (x > right) right = x;
+            if (y < top) top = y;
+            if (y > bottom) bottom = y;
           }
         }
-        if (opaque) {
-          if (first < 0) first = y;
-          last = y;
-        }
       }
-      if (first >= 0) {
-        top = first;
-        bottom = last + 1;
-      }
+      if (any) result = { left, top, right: right + 1, bottom: bottom + 1 };
     }
   } catch {
-    top = 0;
-    bottom = img.height;
+    // keep full-image fallback
   }
-  const result = { top, bottom };
   opaqueBoundsCache.set(img, result);
   return result;
 }
@@ -2415,33 +2414,53 @@ function drawReceptor(
   lineY: number,
   laneWidth: number,
   up = false,
-  // Half the note's display height. A note-shaped receptor (taller than the
-  // note, e.g. an arrow/ring that the note falls into) is centred on where the
-  // note's centre lands at the hit line, matching osu!. Shorter/flat key images
-  // keep the old "opaque bottom on the hit line" placement, so ordinary key
-  // skins render exactly as before.
-  noteHalf = NOTE_HEIGHT / 2,
+  // The note's opaque display box (width/height in canvas px). A note-shaped
+  // receptor - one whose visible pixels are much taller than the note, e.g. an
+  // arrow or ring the note falls into - is fitted to this box and centred on the
+  // note, matching how osu! renders it (a tall oval ring becomes a round ring the
+  // size of the note). Normal/flat key images keep the old "opaque bottom on the
+  // hit line" placement, so ordinary skins render exactly as before.
+  noteBox?: { w: number; h: number } | null,
 ) {
   if (img.width <= 0 || img.height <= 0) return;
   const s = laneWidth / img.width;
-  const { top, bottom } = opaqueBounds(img);
-  const opaqueCenterSrc = ((top + bottom) / 2) * s;
-  const opaqueHalf = ((bottom - top) / 2) * s;
-  // Re-centre only when the receptor is taller than the note; otherwise anchor
-  // its opaque bottom at the hit line exactly like before.
-  const useCenter = opaqueHalf > noteHalf;
-  const target = up
-    ? lineY + (useCenter ? noteHalf : opaqueHalf)
-    : lineY - (useCenter ? noteHalf : opaqueHalf);
+  const b = opaqueBounds(img);
+  const opaqueDisplayH = (b.bottom - b.top) * s;
+
+  if (noteBox && noteBox.h > 0 && opaqueDisplayH > noteBox.h * 1.15) {
+    const srcW = b.right - b.left;
+    const srcH = b.bottom - b.top;
+    const cx = x + laneWidth / 2;
+    const cy = up ? lineY + noteBox.h / 2 : lineY - noteBox.h / 2;
+    if (up) {
+      ctx.save();
+      ctx.translate(0, lineY * 2);
+      ctx.scale(1, -1);
+      ctx.drawImage(
+        img, b.left, b.top, srcW, srcH,
+        cx - noteBox.w / 2, lineY * 2 - (cy + noteBox.h / 2), noteBox.w, noteBox.h,
+      );
+      ctx.restore();
+    } else {
+      ctx.drawImage(
+        img, b.left, b.top, srcW, srcH,
+        cx - noteBox.w / 2, cy - noteBox.h / 2, noteBox.w, noteBox.h,
+      );
+    }
+    return;
+  }
+
+  // Default: aspect-preserving, opaque bottom anchored on the hit line.
+  const dy = lineY - b.bottom * s;
   if (up) {
     ctx.save();
     ctx.translate(0, lineY * 2);
     ctx.scale(1, -1);
-    ctx.drawImage(img, x, lineY * 2 - target - opaqueCenterSrc, laneWidth, img.height * s);
+    ctx.drawImage(img, x, dy, laneWidth, img.height * s);
     ctx.restore();
     return;
   }
-  ctx.drawImage(img, x, target - opaqueCenterSrc, laneWidth, img.height * s);
+  ctx.drawImage(img, x, dy, laneWidth, img.height * s);
 }
 
 function drawReceptorGlow(
