@@ -26,6 +26,14 @@ import type { PatternNote } from "../lib/patterns";
 import type { Waveform } from "../hooks/useWaveform";
 import { hasNoteCollisions, withoutNoteCollisions } from "../lib/noteCollision";
 import { mirrorColumns } from "../lib/noteTools";
+import { Menu } from "./ui/Menu";
+
+export type HitsoundSource = {
+  id: string;
+  name: string;
+  hitsoundCount: number;
+  noteCount: number;
+};
 
 const MANIA_MAX_TIME_RANGE = 11485;
 const PLAYHEAD_FROM_BOTTOM = 96;
@@ -76,6 +84,8 @@ type Props = {
   currentSampleSet: number;
   onCurrentHitSound: (value: number) => void;
   onCurrentSampleSet: (value: number) => void;
+  hitsoundSources?: HitsoundSource[];
+  onCopyHitsounds?: (sourceId: string) => void;
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
   pendingClip?: { id: string; pattern: PatternNote[] } | null;
   readOnly?: boolean;
@@ -212,9 +222,27 @@ export function ManiaEditor(props: Props) {
   const [hitsoundMode, setHitsoundMode] = useState(false);
   const hitsoundModeRef = useRef(false);
   hitsoundModeRef.current = hitsoundMode;
+  // Keep the hitsound bar mounted through its slide-down exit.
+  const [hitsoundBarMounted, setHitsoundBarMounted] = useState(false);
+  const [hitsoundBarClosing, setHitsoundBarClosing] = useState(false);
   const [selectionCount, setSelectionCount] = useState(0);
   const [clipboard, setClipboard] = useState<Clip | null>(null);
   const [history, setHistory] = useState<Clip[]>([]);
+
+  useEffect(() => {
+    if (hitsoundMode) {
+      setHitsoundBarMounted(true);
+      setHitsoundBarClosing(false);
+      return;
+    }
+    if (!hitsoundBarMounted) return;
+    setHitsoundBarClosing(true);
+    const id = window.setTimeout(() => {
+      setHitsoundBarMounted(false);
+      setHitsoundBarClosing(false);
+    }, 200);
+    return () => window.clearTimeout(id);
+  }, [hitsoundMode, hitsoundBarMounted]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
@@ -2050,12 +2078,6 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {hitsoundMode && !props.playtestMode && (
-        <div className="pointer-events-none absolute left-3 top-[3.25rem] select-none rounded-md border border-emerald-300/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-100 shadow-lg">
-          Hitsound mode · W / F / C · press H to exit
-        </div>
-      )}
-
       {selectionCount > 0 && !props.playtestMode && (
         <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 select-none rounded-md border border-yellow-300/30 bg-ink-800/80 px-3 py-1.5 text-[11px] text-slate-200 shadow-lg">
           <span className="font-medium text-yellow-200">
@@ -2142,8 +2164,12 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {hitsoundMode && !props.zenMode && (
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/90 px-2.5 py-1.5 text-xs text-slate-200 shadow-xl backdrop-blur">
+      {hitsoundBarMounted && !props.zenMode && (
+        <div
+          className={`absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/90 px-2.5 py-1.5 text-xs text-slate-200 shadow-xl backdrop-blur ${
+            hitsoundBarClosing ? "hitsound-bar-out" : "hitsound-bar-in"
+          }`}
+        >
           <span className="font-medium text-slate-300">Hitsound</span>
           <div className="flex gap-1">
             {SAMPLE_SET_NAMES.map((name, s) => (
@@ -2189,6 +2215,26 @@ export function ManiaEditor(props: Props) {
               ? `→ ${selectionCount} selected`
               : "→ new notes"}
           </span>
+          {props.onCopyHitsounds && (props.hitsoundSources?.length ?? 0) > 0 && (
+            <>
+              <span className="text-slate-600">·</span>
+              <Menu
+                label="Copy from"
+                className="!rounded !bg-ink-700 !px-2 !py-0.5 !text-xs hover:!bg-ink-600"
+                items={(props.hitsoundSources ?? []).map((s) => ({
+                  label: `${s.name} (${s.hitsoundCount} hitsounded)`,
+                  disabled: s.hitsoundCount === 0,
+                  onClick: () => props.onCopyHitsounds?.(s.id),
+                  title:
+                    s.hitsoundCount === 0
+                      ? "This difficulty has no hitsounds"
+                      : `Copy hitsounds from ${s.name} onto this difficulty`,
+                }))}
+              />
+            </>
+          )}
+          <span className="text-slate-600">·</span>
+          <span className="text-[10px] text-slate-500">press H to exit</span>
         </div>
       )}
     </div>
