@@ -81,6 +81,7 @@ import {
 import { downloadOsu } from "./lib/osuExport";
 import { downloadOsz } from "./lib/oszExport";
 import { importOsz } from "./lib/osuImport";
+import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
 import { importOsk } from "./lib/skinImport";
 import { parseSmFile } from "./lib/smImport";
 import { PackBrowserModal } from "./components/menus/PackBrowserModal";
@@ -188,6 +189,22 @@ function newLocalProjectId(): string {
       ? crypto.randomUUID()
       : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   return `local-${random}`;
+}
+
+async function loadFile(file: File): Promise<LoadedFile> {
+  const blob = await snapshotBlob(file);
+  return { name: file.name, url: URL.createObjectURL(blob), blob };
+}
+
+function describeSaveError(err: unknown): string | null {
+  if (!(err instanceof Error)) return null;
+  if (err.name === "QuotaExceededError") {
+    return "browser storage is full";
+  }
+  if (err.name === "AbortError" || err.name === "NotReadableError") {
+    return "a source file changed on disk, re-add your audio/background files";
+  }
+  return err.message || err.name || null;
 }
 
 type PlaytestRuntimeState = PlaytestState & { ended: boolean; paused: boolean };
@@ -299,6 +316,7 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<
     null | "saving" | "saved" | "error"
   >(null);
+  const [saveErrorDetail, setSaveErrorDetail] = useState<string | null>(null);
   const [localProjectId, setLocalProjectId] = useState(newLocalProjectId);
   const [exportCheck, setExportCheck] = useState<{
     result: ValidationResult;
@@ -1189,56 +1207,53 @@ export default function App() {
     ? playtestSettings.zoom
     : appSettings.playfieldScale;
 
-  const loadFile = (file: File): LoadedFile => ({
-    name: file.name,
-    url: URL.createObjectURL(file),
-    blob: file,
-  });
-
   const onAudioFile = useCallback(
     (file: File) => {
-      const loaded = loadFile(file);
       setProjectStarted(true);
-      setAudioFiles((prev) => {
-        const existing = prev[loaded.name];
-        if (existing) URL.revokeObjectURL(existing.url);
-        return { ...prev, [loaded.name]: loaded };
+      void loadFile(file).then((loaded) => {
+        setAudioFiles((prev) => {
+          const existing = prev[loaded.name];
+          if (existing) URL.revokeObjectURL(existing.url);
+          return { ...prev, [loaded.name]: loaded };
+        });
+        markStructural();
+        announceAssetChange("changed the audio");
+        setDifficulties((prev) =>
+          prev.map((d) =>
+            d.id === activeId || !d.audioFilename
+              ? { ...d, audioFilename: loaded.name }
+              : d,
+          ),
+        );
       });
-      markStructural();
-      announceAssetChange("changed the audio");
-      setDifficulties((prev) =>
-        prev.map((d) =>
-          d.id === activeId || !d.audioFilename
-            ? { ...d, audioFilename: loaded.name }
-            : d,
-        ),
-      );
     },
     [activeId, markStructural, announceAssetChange],
   );
 
   const onBackgroundFile = useCallback((file: File) => {
-    const loaded = loadFile(file);
     setProjectStarted(true);
-    setBgFiles((prev) => {
-      if (prev[loaded.name]) URL.revokeObjectURL(prev[loaded.name].url);
-      return { ...prev, [loaded.name]: loaded };
+    void loadFile(file).then((loaded) => {
+      setBgFiles((prev) => {
+        if (prev[loaded.name]) URL.revokeObjectURL(prev[loaded.name].url);
+        return { ...prev, [loaded.name]: loaded };
+      });
+      setPendingBgName(loaded.name);
+      setAskBgScope(true);
     });
-    setPendingBgName(loaded.name);
-    setAskBgScope(true);
   }, []);
 
   const onVideoFile = useCallback((file: File) => {
-    const loaded = loadFile(file);
     setProjectStarted(true);
-    setVideoFiles((prev) => {
-      if (prev[loaded.name]) URL.revokeObjectURL(prev[loaded.name].url);
-      return { ...prev, [loaded.name]: loaded };
+    void loadFile(file).then((loaded) => {
+      setVideoFiles((prev) => {
+        if (prev[loaded.name]) URL.revokeObjectURL(prev[loaded.name].url);
+        return { ...prev, [loaded.name]: loaded };
+      });
+      markStructural();
+      setDifficulties((prev) =>
+        prev.map((d) => ({ ...d, videoFilename: loaded.name })),
+      );
     });
-    markStructural();
-    setDifficulties((prev) =>
-      prev.map((d) => ({ ...d, videoFilename: loaded.name })),
-    );
   }, [markStructural]);
 
   const onClearVideo = useCallback(() => {
@@ -1335,10 +1350,11 @@ export default function App() {
     ) => {
       setSkinError(null);
       try {
-        const loaded = await importOsk(blob, fileName);
+        const snapshot = await snapshotBlob(blob);
+        const loaded = await importOsk(snapshot, fileName);
         applyLoadedSkin(loaded, target);
         if (saveToLibrary) {
-          await saveSkinToLibrary({ name: fileName, blob });
+          await saveSkinToLibrary({ name: fileName, blob: snapshot });
           await refreshSkinLibrary();
         }
       } catch (err) {
@@ -1536,59 +1552,63 @@ export default function App() {
 
   const importPackSong = useCallback(
     (song: PackSong) => {
-      setAudioFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return Object.fromEntries(
-          Object.entries(song.audioBlobs).map(([name, blob]) => [
-            name,
-            { name, url: URL.createObjectURL(blob), blob },
-          ]),
+      void (async () => {
+        const audioBlobs = await snapshotBlobMap(song.audioBlobs);
+        const bgBlobs = await snapshotBlobMap(song.bgBlobs);
+        setAudioFiles((prev) => {
+          Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+          return Object.fromEntries(
+            Object.entries(audioBlobs).map(([name, blob]) => [
+              name,
+              { name, url: URL.createObjectURL(blob), blob },
+            ]),
+          );
+        });
+        setBgFiles((prev) => {
+          Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+          return Object.fromEntries(
+            Object.entries(bgBlobs).map(([name, blob]) => [
+              name,
+              { name, url: URL.createObjectURL(blob), blob },
+            ]),
+          );
+        });
+        setVideoFiles((prev) => {
+          Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+          return {};
+        });
+        setCloudProjectId(null);
+        setCloudOwnerId(null);
+        setMyRole(null);
+        setReferenceId(null);
+        setProjectStarted(true);
+        setMeta(song.parsed.meta);
+        setTimingPoints(
+          song.parsed.timingPoints.length
+            ? normalizeTimingPoints(song.parsed.timingPoints)
+            : defaultTimingPoints(),
         );
-      });
-      setBgFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return Object.fromEntries(
-          Object.entries(song.bgBlobs).map(([name, blob]) => [
-            name,
-            { name, url: URL.createObjectURL(blob), blob },
-          ]),
+        const audioKeys = Object.keys(audioBlobs);
+        const bgKeys = Object.keys(bgBlobs);
+        const smAudioFilename = song.parsed.audioFilename ?? (audioKeys.length > 0 ? audioKeys[0] : undefined);
+        const smBgFilename = song.parsed.backgroundFilename ?? (bgKeys.length > 0 ? bgKeys[0] : undefined);
+        const diffs = (song.parsed.difficulties.length
+          ? song.parsed.difficulties
+          : [makeDifficulty()]
+        ).map((d) => ({
+          ...d,
+          audioFilename: d.audioFilename || smAudioFilename || undefined,
+          backgroundFilename: d.backgroundFilename || smBgFilename || undefined,
+          timingPoints: normalizeTimingPoints(d.timingPoints),
+        }));
+        setDifficulties(diffs);
+        setActiveId(diffs[0].id);
+        setModal(null);
+        setLocalProjectId(newLocalProjectId());
+        void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
+          () => {},
         );
-      });
-      setVideoFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return {};
-      });
-      setCloudProjectId(null);
-      setCloudOwnerId(null);
-      setMyRole(null);
-      setReferenceId(null);
-      setProjectStarted(true);
-      setMeta(song.parsed.meta);
-      setTimingPoints(
-        song.parsed.timingPoints.length
-          ? normalizeTimingPoints(song.parsed.timingPoints)
-          : defaultTimingPoints(),
-      );
-      const audioKeys = Object.keys(song.audioBlobs);
-      const bgKeys = Object.keys(song.bgBlobs);
-      const smAudioFilename = song.parsed.audioFilename ?? (audioKeys.length > 0 ? audioKeys[0] : undefined);
-      const smBgFilename = song.parsed.backgroundFilename ?? (bgKeys.length > 0 ? bgKeys[0] : undefined);
-      const diffs = (song.parsed.difficulties.length
-        ? song.parsed.difficulties
-        : [makeDifficulty()]
-      ).map((d) => ({
-        ...d,
-        audioFilename: d.audioFilename || smAudioFilename || undefined,
-        backgroundFilename: d.backgroundFilename || smBgFilename || undefined,
-        timingPoints: normalizeTimingPoints(d.timingPoints),
-      }));
-      setDifficulties(diffs);
-      setActiveId(diffs[0].id);
-      setModal(null);
-      setLocalProjectId(newLocalProjectId());
-      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
-        () => {},
-      );
+      })();
     },
     [],
   );
@@ -2774,8 +2794,10 @@ export default function App() {
     if (!silent) setSaveStatus("saving");
     try {
       await saveProject(buildSavedProject(), localProjectId);
+      setSaveErrorDetail(null);
       if (!silent) setSaveStatus("saved");
-    } catch {
+    } catch (err) {
+      setSaveErrorDetail(describeSaveError(err));
       setSaveStatus("error");
     }
   }, [buildSavedProject, localProjectId]);
@@ -4060,7 +4082,9 @@ export default function App() {
         >
           {saveStatus === "saved"
             ? "Progress saved locally"
-            : "Couldn't save progress"}
+            : saveErrorDetail
+              ? `Couldn't save progress (${saveErrorDetail})`
+              : "Couldn't save progress"}
         </div>
       )}
 
