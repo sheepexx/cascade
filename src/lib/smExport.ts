@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta, TimingPoint } from "../types";
 import { makeRedPoint } from "../types";
 import { sortedPoints, redPoints } from "./timing";
+import { CASCADE_WATERMARK } from "./osuExport";
 import {
   convertAudio,
   cutAudioName,
@@ -247,6 +248,7 @@ export function buildSmFile({
 
   const sm = difficulties[0]?.smMeta ?? {};
 
+  lines.push(CASCADE_WATERMARK);
   lines.push(`#TITLE:${escape(meta.title)};`);
   lines.push(`#SUBTITLE:${escape(sm.subtitle ?? "")};`);
   lines.push(`#ARTIST:${escape(meta.artist)};`);
