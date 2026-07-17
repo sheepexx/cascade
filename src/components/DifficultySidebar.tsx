@@ -246,7 +246,7 @@ function DiffRow({
           >
             ★ {star.toFixed(2)}
           </span>
-          {msd && msd.overall > 0 && (
+          {difficulty.keyCount === 4 && msd && msd.overall > 0 && (
             <span
               className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-ink-900/70 px-2 py-0.5 text-[11px] font-bold"
               style={{ color: msdColor(msd.overall) }}
