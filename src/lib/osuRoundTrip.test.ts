@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { Difficulty, ManiaNote, SongMeta } from "../types";
 import { makeDifficulty, makeRedPoint, makeGreenPoint } from "../types";
-import { buildOsuFile, columnToX, xToColumn } from "./osuExport";
+import {
+  CASCADE_WATERMARK,
+  buildOsuFile,
+  columnToX,
+  tagsWithCascade,
+  xToColumn,
+} from "./osuExport";
 import { parseOsuFile } from "./osuImport";
 
 describe("columnToX / xToColumn", () => {
@@ -52,8 +58,15 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
   });
   const parsed = parseOsuFile(text);
 
-  it("preserves song metadata", () => {
-    expect(parsed.meta).toEqual(meta);
+  it("preserves song metadata and appends the Cascade tag", () => {
+    expect(parsed.meta).toEqual({ ...meta, tags: "foo bar Cascade" });
+  });
+
+  it("starts with the format header followed by the Cascade watermark", () => {
+    const [first, second] = text.split("\n");
+    expect(first).toBe("osu file format v14");
+    expect(second).toBe(CASCADE_WATERMARK);
+    expect(second.startsWith("//")).toBe(true);
   });
 
   it("preserves difficulty settings", () => {
@@ -91,6 +104,13 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
       { column: 3, startTime: 500, endTime: undefined },
       { column: 1, startTime: 1000, endTime: 1500 },
     ]);
+  });
+
+  it("does not duplicate the Cascade tag on re-export", () => {
+    expect(tagsWithCascade("foo bar Cascade")).toBe("foo bar Cascade");
+    expect(tagsWithCascade("cascade foo")).toBe("cascade foo");
+    expect(tagsWithCascade("")).toBe("Cascade");
+    expect(tagsWithCascade(undefined)).toBe("Cascade");
   });
 
   it("round-trips the red point BPM and green point SV", () => {

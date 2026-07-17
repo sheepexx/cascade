@@ -37,6 +37,15 @@ function formatHitObject(note: ManiaNote, keyCount: number): string {
   return `${x},${y},${time},1,${hitSound},${sample}`;
 }
 
+export const CASCADE_WATERMARK =
+  "// Made with Cascade - https://cascade.sheepex.net";
+
+export function tagsWithCascade(tags: string | undefined): string {
+  const list = (tags ?? "").split(/\s+/).filter(Boolean);
+  if (!list.some((t) => t.toLowerCase() === "cascade")) list.push("Cascade");
+  return list.join(" ");
+}
+
 export type BuildOsuArgs = {
   meta: SongMeta;
   difficulty: Difficulty;
@@ -104,6 +113,7 @@ export function buildOsuFile({
 
   const lines = [
     "osu file format v14",
+    CASCADE_WATERMARK,
     "",
     "[General]",
     `AudioFilename: ${audioFilename}`,
@@ -134,7 +144,7 @@ export function buildOsuFile({
     `Creator:${meta.creator}`,
     `Version:${difficulty.name}`,
     "Source:",
-    `Tags:${meta.tags ?? ""}`,
+    `Tags:${tagsWithCascade(meta.tags)}`,
     "BeatmapID:0",
     "BeatmapSetID:-1",
     "",
