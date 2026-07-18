@@ -282,6 +282,9 @@ export function createRateDifficulty(
     name,
     audioRate: composedRate,
     preservePitch: preservePitch ? true : undefined,
+    // A new difficulty is unsubmitted; sharing the source's id would collide
+    // with it inside the beatmapset.
+    beatmapId: undefined,
     notes: applyRateToNotes(source.notes, rate),
     timingPoints: applyRateToTimingPoints(source.timingPoints, rate),
     previewTime:

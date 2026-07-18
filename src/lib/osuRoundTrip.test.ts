@@ -62,6 +62,69 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
     expect(parsed.meta).toEqual({ ...meta, tags: "foo bar Cascade" });
   });
 
+  it("keeps the map attached to its uploaded set", () => {
+    // Exporting 0/-1 detaches the map from its submission, so osu! treats an
+    // update as a brand-new beatmapset.
+    const submitted = buildOsuFile({
+      meta: { ...meta, beatmapSetId: 2587938 },
+      difficulty: { ...difficulty, beatmapId: 5773504 },
+      timingPoints,
+      audioFilename: "audio.mp3",
+    });
+    expect(submitted).toContain("BeatmapSetID:2587938");
+    expect(submitted).toContain("BeatmapID:5773504");
+
+    const back = parseOsuFile(submitted);
+    expect(back.meta.beatmapSetId).toBe(2587938);
+    expect(back.difficulty.beatmapId).toBe(5773504);
+  });
+
+  it("marks an unsubmitted map as new", () => {
+    expect(text).toContain("BeatmapSetID:-1");
+    expect(text).toContain("BeatmapID:0");
+    expect(parsed.meta.beatmapSetId).toBeUndefined();
+    expect(parsed.difficulty.beatmapId).toBeUndefined();
+  });
+
+  it("preserves original-script title and artist", () => {
+    const jp = buildOsuFile({
+      meta: {
+        ...meta,
+        titleUnicode: "エナジー＊ドリン娘☆ふぇいんちゃん！",
+        artistUnicode: "かめりあ feat. ななひら",
+      },
+      difficulty,
+      timingPoints,
+      audioFilename: "audio.mp3",
+    });
+    expect(jp).toContain("TitleUnicode:エナジー＊ドリン娘☆ふぇいんちゃん！");
+    expect(jp).toContain("ArtistUnicode:かめりあ feat. ななひら");
+    // Romanised fields stay romanised.
+    expect(jp).toContain("Title:Test Song");
+
+    const back = parseOsuFile(jp);
+    expect(back.meta.titleUnicode).toBe("エナジー＊ドリン娘☆ふぇいんちゃん！");
+    expect(back.meta.artistUnicode).toBe("かめりあ feat. ななひら");
+    expect(back.meta.title).toBe("Test Song");
+  });
+
+  it("falls back to the romanised name when there is no unicode title", () => {
+    expect(text).toContain("TitleUnicode:Test Song");
+    expect(text).toContain("ArtistUnicode:Test Artist");
+  });
+
+  it("preserves the difficulty's default sample set", () => {
+    const soft = buildOsuFile({
+      meta,
+      difficulty: { ...difficulty, sampleSet: "Soft" },
+      timingPoints,
+      audioFilename: "audio.mp3",
+    });
+    expect(soft).toContain("SampleSet: Soft");
+    expect(parseOsuFile(soft).difficulty.sampleSet).toBe("Soft");
+    expect(text).toContain("SampleSet: Normal");
+  });
+
   it("starts with the format header followed by the Cascade watermark", () => {
     const [first, second] = text.split("\n");
     expect(first).toBe("osu file format v14");
