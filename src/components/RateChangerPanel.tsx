@@ -191,7 +191,9 @@ export function RateChangerPanel({
               setInvalid(null);
             }}
             onBlur={() => {
-              if (parseRateInput(rateDraft) === null) {
+              // Commit on blur, not just Enter: clicking straight to Create
+              // after typing a rate must use the rate that's on screen.
+              if (commitRateDraft() === null) {
                 setRateDraft(formatRateDisplay(rate));
                 setInvalid(null);
               }
