@@ -13,6 +13,7 @@ import {
   stepToSnap,
   gridLinesInRange,
   formatTime,
+  parseTimestamp,
 } from "./timing";
 
 describe("beatLength", () => {
@@ -154,5 +155,42 @@ describe("formatTime", () => {
     expect(formatTime(0)).toBe("0:00.000");
     expect(formatTime(61500)).toBe("1:01.500");
     expect(formatTime(-1500)).toBe("-0:01.500");
+  });
+});
+
+describe("parseTimestamp", () => {
+  it("parses osu-style mm:ss:ms and mm:ss.ms", () => {
+    expect(parseTimestamp("01:23:456")).toBe(83456);
+    expect(parseTimestamp("1:23.456")).toBe(83456);
+  });
+
+  it("parses minutes and seconds without millis", () => {
+    expect(parseTimestamp("2:05")).toBe(125000);
+    expect(parseTimestamp("0:00")).toBe(0);
+  });
+
+  it("reads short milli parts as a fraction of a second", () => {
+    expect(parseTimestamp("1:23.4")).toBe(83400);
+    expect(parseTimestamp("1:23.45")).toBe(83450);
+  });
+
+  it("parses a raw millisecond count", () => {
+    expect(parseTimestamp("83456")).toBe(83456);
+  });
+
+  it("ignores trailing osu editor selections", () => {
+    expect(parseTimestamp("01:23:456 (1|2,3|4) - ")).toBe(83456);
+    expect(parseTimestamp("01:23:456(1)")).toBe(83456);
+  });
+
+  it("round-trips formatTime output", () => {
+    expect(parseTimestamp(formatTime(83456))).toBe(83456);
+  });
+
+  it("rejects nonsense", () => {
+    expect(parseTimestamp("")).toBeNull();
+    expect(parseTimestamp("hello")).toBeNull();
+    expect(parseTimestamp("1:75")).toBeNull();
+    expect(parseTimestamp("1:23:456:7")).toBeNull();
   });
 });

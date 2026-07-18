@@ -1229,6 +1229,8 @@ export default function App() {
     timingPoints[0]?.bpm !== 120 ||
     !hasDefaultDifficulty;
   const showChrome = hasProject && !zenMode && !playtest.active;
+  const showChromeRef = useRef(showChrome);
+  showChromeRef.current = showChrome;
   const playtestVisualOffset =
     playtest.active && playtestSettings.offsetMode === "visual"
       ? playtestSettings.offsetMs
@@ -3324,6 +3326,8 @@ export default function App() {
 
   }, []);
 
+  const [jumpToTimeOpen, setJumpToTimeOpen] = useState(false);
+
   const undoRef = useRef(undo);
   undoRef.current = undo;
   const redoRef = useRef(redo);
@@ -3359,6 +3363,9 @@ export default function App() {
       } else if (key === "y") {
         e.preventDefault();
         redoRef.current();
+      } else if (key === "g") {
+        e.preventDefault();
+        if (showChromeRef.current) setJumpToTimeOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -3704,6 +3711,8 @@ export default function App() {
               onHitsoundVolume={(v) =>
                 setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
               }
+              jumpOpen={jumpToTimeOpen}
+              onJumpOpenChange={setJumpToTimeOpen}
             />
           </div>
           <div className="relative min-h-0 flex-1">
@@ -4131,6 +4140,8 @@ export default function App() {
         getCurrentTime={getCurrentTime}
         onToggle={audio.toggle}
         onSetPlaybackRate={audio.setPlaybackRate}
+        audioBuffer={waveform?.buffer ?? null}
+        timeScale={activeRate}
       />
       <DifficultyModal
         open={modal === "difficulty"}
