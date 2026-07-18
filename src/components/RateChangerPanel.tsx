@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Difficulty } from "../types";
 import {
   RATE_MAX,
@@ -9,12 +9,18 @@ import {
   formatRate,
   formatRateDisplay,
   isNeutralRate,
+  parseBpmInput,
   parseRateInput,
   quantizeRate,
+  rateForBpm,
+  type RateCreateOptions,
 } from "../lib/rateChange";
 import { Toggle } from "./ui/Controls";
 
 const EXIT_MS = 180;
+
+const showBpmValue = (bpm: number): string =>
+  bpm > 0 ? String(Math.round(bpm * 100) / 100) : "";
 
 type Props = {
   open: boolean;
@@ -22,7 +28,7 @@ type Props = {
   existingNames: string[];
   durationMs: number | null;
   canEdit: boolean;
-  onCreate: (rate: number, onlyRateAsName: boolean) => void;
+  onCreate: (options: RateCreateOptions) => void;
   onClose: () => void;
 };
 
@@ -38,10 +44,13 @@ export function RateChangerPanel({
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   const [rate, setRate] = useState(1);
-  const [draft, setDraft] = useState("1.00");
-  const [invalid, setInvalid] = useState(false);
+  const [rateDraft, setRateDraft] = useState("1.00");
+  const [bpmDraft, setBpmDraft] = useState("");
+  const [invalid, setInvalid] = useState<"rate" | "bpm" | null>(null);
   const [onlyRateAsName, setOnlyRateAsName] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showBpm, setShowBpm] = useState(true);
+  const [preservePitch, setPreservePitch] = useState(false);
+  const rateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -57,15 +66,6 @@ export function RateChangerPanel({
     }, EXIT_MS);
     return () => window.clearTimeout(id);
   }, [open, mounted]);
-
-  // Re-sync the text field whenever the panel is reopened, so a half-typed
-  // value never survives a close.
-  useEffect(() => {
-    if (!open) return;
-    setDraft(formatRateDisplay(rate));
-    setInvalid(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -84,37 +84,68 @@ export function RateChangerPanel({
         ? describeRateChange(difficulty, {
             rate,
             onlyRateAsName,
+            showBpm,
             existingNames,
             durationMs,
           })
         : null,
-    [difficulty, rate, onlyRateAsName, existingNames, durationMs],
+    [difficulty, rate, onlyRateAsName, showBpm, existingNames, durationMs],
   );
+  const baseBpm = preview?.baseBpm ?? 0;
 
+  // Rate is the single source of truth; both fields are written from it, so a
+  // half-typed value never survives a commit, a reopen or a difficulty switch.
   const commitRate = (next: number) => {
     const q = quantizeRate(next);
     setRate(q);
-    setDraft(formatRateDisplay(q));
-    setInvalid(false);
+    setRateDraft(formatRateDisplay(q));
+    setBpmDraft(showBpmValue(baseBpm * q));
+    setInvalid(null);
   };
 
-  const commitDraft = (): number | null => {
-    const parsed = parseRateInput(draft);
+  useEffect(() => {
+    if (!open) return;
+    setRateDraft(formatRateDisplay(rate));
+    setBpmDraft(showBpmValue(baseBpm * rate));
+    setInvalid(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, baseBpm]);
+
+  const commitRateDraft = (): number | null => {
+    const parsed = parseRateInput(rateDraft);
     if (parsed === null) {
-      setInvalid(true);
+      setInvalid("rate");
       return null;
     }
     commitRate(parsed);
     return parsed;
   };
 
+  const commitBpmDraft = (): number | null => {
+    const parsed = parseBpmInput(bpmDraft);
+    const next = parsed === null ? null : rateForBpm(baseBpm, parsed);
+    if (next === null) {
+      setInvalid("bpm");
+      return null;
+    }
+    commitRate(next);
+    return next;
+  };
+
   const neutral = isNeutralRate(rate);
-  const disabled = !difficulty || !canEdit || neutral || invalid;
+  const disabled = !difficulty || !canEdit || neutral || invalid !== null;
 
   const create = (value = rate) => {
-    if (!difficulty || !canEdit || isNeutralRate(value) || invalid) return;
-    onCreate(value, onlyRateAsName);
+    if (!difficulty || !canEdit || isNeutralRate(value) || invalid !== null) return;
+    onCreate({ rate: value, onlyRateAsName, showBpm, preservePitch });
   };
+
+  const fieldClass = (bad: boolean) =>
+    `min-w-0 rounded-lg border bg-ink-700/65 px-2 py-1.5 text-sm tabular-nums text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition focus:ring-1 disabled:cursor-not-allowed disabled:opacity-40 ${
+      bad
+        ? "border-red-400/70 focus:border-red-400/70 focus:ring-red-400/40"
+        : "border-white/10 focus:border-accent/70 focus:ring-accent/40"
+    }`;
 
   if (!mounted) return null;
 
@@ -146,45 +177,79 @@ export function RateChangerPanel({
           className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
         />
 
-        <div className="mt-2.5 flex items-center gap-2">
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <span className="text-sm font-medium text-slate-500">×</span>
           <input
-            ref={inputRef}
-            value={draft}
+            ref={rateInputRef}
+            value={rateDraft}
             inputMode="decimal"
             disabled={!canEdit}
             aria-label="Rate value"
-            aria-invalid={invalid}
+            aria-invalid={invalid === "rate"}
             onChange={(e) => {
-              setDraft(e.target.value);
-              setInvalid(false);
+              setRateDraft(e.target.value);
+              setInvalid(null);
             }}
             onBlur={() => {
-              if (parseRateInput(draft) === null) setDraft(formatRateDisplay(rate));
-              setInvalid(false);
+              if (parseRateInput(rateDraft) === null) {
+                setRateDraft(formatRateDisplay(rate));
+                setInvalid(null);
+              }
             }}
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === "Enter") {
-                const parsed = commitDraft();
-                if (parsed !== null) create(parsed);
+                const next = commitRateDraft();
+                if (next !== null) create(next);
               } else if (e.key === "Escape") {
-                setDraft(formatRateDisplay(rate));
-                setInvalid(false);
-                inputRef.current?.blur();
+                setRateDraft(formatRateDisplay(rate));
+                setInvalid(null);
+                rateInputRef.current?.blur();
               }
             }}
-            className={`w-20 rounded-lg border bg-ink-700/65 px-2 py-1.5 text-sm tabular-nums text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition focus:ring-1 disabled:cursor-not-allowed disabled:opacity-40 ${
-              invalid
-                ? "border-red-400/70 focus:border-red-400/70 focus:ring-red-400/40"
-                : "border-white/10 focus:border-accent/70 focus:ring-accent/40"
-            }`}
+            className={`w-[4.25rem] ${fieldClass(invalid === "rate")}`}
           />
-          <span className="min-w-0 flex-1 text-[10px] leading-tight text-slate-500">
-            {invalid
-              ? `Enter a rate between ${formatRate(RATE_MIN)} and ${formatRate(RATE_MAX)}.`
-              : "Enter to create"}
-          </span>
+          <input
+            value={bpmDraft}
+            inputMode="decimal"
+            disabled={!canEdit || baseBpm <= 0}
+            aria-label="Target BPM"
+            aria-invalid={invalid === "bpm"}
+            onChange={(e) => {
+              setBpmDraft(e.target.value);
+              setInvalid(null);
+            }}
+            onBlur={() => {
+              if (commitBpmDraft() === null) {
+                setBpmDraft(showBpmValue(baseBpm * rate));
+                setInvalid(null);
+              }
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") {
+                const next = commitBpmDraft();
+                if (next !== null) create(next);
+              } else if (e.key === "Escape") {
+                setBpmDraft(showBpmValue(baseBpm * rate));
+                setInvalid(null);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            className={`flex-1 ${fieldClass(invalid === "bpm")}`}
+          />
+          <span className="text-[10px] font-medium text-slate-500">BPM</span>
         </div>
+
+        {invalid && (
+          <p className="mt-1.5 text-[10px] leading-tight text-red-300/90">
+            {invalid === "rate"
+              ? `Enter a rate between ${formatRate(RATE_MIN)} and ${formatRate(RATE_MAX)}.`
+              : `Enter a BPM between ${Math.round(baseBpm * RATE_MIN)} and ${Math.round(
+                  baseBpm * RATE_MAX,
+                )}.`}
+          </p>
+        )}
 
         <div className="mt-2.5 grid grid-cols-4 gap-1">
           {RATE_PRESETS.map((preset) => {
@@ -207,18 +272,27 @@ export function RateChangerPanel({
           })}
         </div>
 
-        <label className="mt-2.5 flex cursor-pointer items-center justify-between gap-2">
-          <span className="min-w-0 text-[11px] leading-tight text-slate-400">
-            Only use the rate as the difficulty name
-          </span>
-          <Toggle
-            size="sm"
+        <div className="mt-2.5 flex flex-col gap-1.5">
+          <ToggleRow
+            label="Only use the rate as the name"
             checked={onlyRateAsName}
             disabled={!canEdit}
             onChange={setOnlyRateAsName}
-            aria-label="Only use the rate as the difficulty name"
           />
-        </label>
+          <ToggleRow
+            label="Show BPM in the name"
+            checked={showBpm}
+            disabled={!canEdit}
+            onChange={setShowBpm}
+          />
+          <ToggleRow
+            label="Preserve pitch"
+            title="Time-stretch instead of resampling, so speed changes without the pitch shifting."
+            checked={preservePitch}
+            disabled={!canEdit}
+            onChange={setPreservePitch}
+          />
+        </div>
 
         {preview && (
           <div className="mt-2.5 flex flex-col gap-1 rounded-lg border border-white/10 bg-ink-900/45 px-2.5 py-2 text-[11px]">
@@ -261,6 +335,38 @@ export function RateChangerPanel({
   );
 }
 
+function ToggleRow({
+  label,
+  title,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  title?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label
+      className="flex cursor-pointer items-center justify-between gap-2"
+      title={title}
+    >
+      <span className="min-w-0 text-[11px] leading-tight text-slate-400">
+        {label}
+      </span>
+      <Toggle
+        size="sm"
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+        aria-label={label}
+      />
+    </label>
+  );
+}
+
 function PreviewRow({
   label,
   from,
@@ -269,7 +375,7 @@ function PreviewRow({
   label: string;
   from: string;
   to: string;
-}) {
+}): ReactNode {
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-slate-500">{label}</span>

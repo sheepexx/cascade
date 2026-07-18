@@ -37,7 +37,7 @@ describe("validateProject — rate difficulties on .sm export", () => {
     const warning = result.warnings.find((w) => w.message.includes("skipped"));
     expect(warning).toBeDefined();
     expect(warning?.message).toContain("1 rate difficulty");
-    expect(warning?.scope).toBe("Insane x1.2");
+    expect(warning?.scope).toBe("Insane x1.2 (144 BPM)");
     expect(result.errors).toHaveLength(0);
   });
 

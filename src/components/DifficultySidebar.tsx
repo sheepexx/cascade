@@ -7,6 +7,7 @@ import { msdColor, msdTooltip } from "../lib/msd/display";
 import type { MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
 import { RateChangerPanel } from "./RateChangerPanel";
+import type { RateCreateOptions } from "../lib/rateChange";
 
 type PeerLite = {
   id: string;
@@ -24,7 +25,7 @@ type Props = {
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
-  onCreateRate: (rate: number, onlyRateAsName: boolean) => void;
+  onCreateRate: (options: RateCreateOptions) => void;
   canEdit: boolean;
   songDurationMs: number | null;
   peers?: PeerLite[];
@@ -101,8 +102,8 @@ export function DifficultySidebar({
         existingNames={existingNames}
         durationMs={songDurationMs}
         canEdit={canEdit}
-        onCreate={(rate, onlyRateAsName) => {
-          onCreateRate(rate, onlyRateAsName);
+        onCreate={(options) => {
+          onCreateRate(options);
           setRateOpen(false);
         }}
         onClose={() => setRateOpen(false)}

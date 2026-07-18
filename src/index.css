@@ -223,7 +223,7 @@ textarea {
   transition: max-height 180ms cubic-bezier(0.55, 0, 1, 0.45);
 }
 .rate-panel-reveal[data-open="true"] {
-  max-height: 30rem;
+  max-height: 34rem;
   transition: max-height 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
