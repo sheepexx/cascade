@@ -12,17 +12,20 @@ import {
   triggerDownload,
 } from "./osuExport";
 import {
+  bakedAudioName,
   convertAudio,
   cutAudioName,
   cutDifficulty,
   decodeAudioBlob,
   effectiveRegion,
   isWav,
-  renderTrimmedAudio,
+  regionToAudioTime,
+  renderRatedAudio,
   shiftTimingPoints,
   toMp3Name,
   type BakedRegion,
 } from "./audioTrim";
+import { difficultyRate, formatRate, isNeutralRate } from "./rateChange";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 
 export type BuildOszArgs = {
@@ -125,25 +128,43 @@ export async function buildOsz({
       const wantsTrim =
         (difficulty.trimStartMs ?? 0) > 0.5 ||
         difficulty.trimEndMs !== undefined;
+      // Note times are already rate-shifted, so the audio has to be baked to
+      // match — otherwise the exported map plays out of sync outside Cascade.
+      const rate = difficultyRate(difficulty);
+      const wantsRate = !isNeutralRate(rate);
 
-      if (audio && wantsTrim) {
+      if (audio && (wantsTrim || wantsRate)) {
         const buffer = await getDecoded(audio);
-        const region: BakedRegion | null = buffer
-          ? effectiveRegion(difficulty, buffer.duration * 1000)
-          : null;
-        if (buffer && region) {
-          const key = `${audio.name}|${region.startMs}|${region.endMs}|${region.fadeInMs}|${region.fadeOutMs}`;
-          let cutName = cutNameByKey.get(key);
-          if (!cutName) {
-            const encoded = renderTrimmedAudio(buffer, region);
-            cutName = cutAudioName(audio.name, bundled, encoded.ext);
-            zip.file(cutName, encoded.blob);
-            bundled.add(cutName);
-            cutNameByKey.set(key, cutName);
+        // Trim bounds are map times; the buffer is in audio time.
+        const region: BakedRegion | null =
+          buffer && wantsTrim
+            ? effectiveRegion(difficulty, (buffer.duration * 1000) / rate)
+            : null;
+        if (buffer && (region || wantsRate)) {
+          const shape = region
+            ? `${region.startMs}|${region.endMs}|${region.fadeInMs}|${region.fadeOutMs}`
+            : "full";
+          const key = `${audio.name}|${rate}|${shape}`;
+          let bakedName = cutNameByKey.get(key);
+          if (!bakedName) {
+            // At rate 1 this is exactly the old trim-only render.
+            const encoded = renderRatedAudio(
+              buffer,
+              rate,
+              region ? regionToAudioTime(region, rate) : null,
+            );
+            bakedName = wantsRate
+              ? bakedAudioName(audio.name, bundled, encoded.ext, `x${formatRate(rate)}`)
+              : cutAudioName(audio.name, bundled, encoded.ext);
+            zip.file(bakedName, encoded.blob);
+            bundled.add(bakedName);
+            cutNameByKey.set(key, bakedName);
           }
-          audioName = cutName;
-          exportDiff = cutDifficulty(difficulty, region.startMs, region.endMs);
-          exportTiming = shiftTimingPoints(resolvedTiming, region.startMs);
+          audioName = bakedName;
+          if (region) {
+            exportDiff = cutDifficulty(difficulty, region.startMs, region.endMs);
+            exportTiming = shiftTimingPoints(resolvedTiming, region.startMs);
+          }
         }
       }
 

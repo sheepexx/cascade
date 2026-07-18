@@ -34,6 +34,10 @@ import { FeedbackModal } from "./components/menus/FeedbackModal";
 import { ShareModal } from "./components/menus/ShareModal";
 import { CommentsSidebar } from "./components/CommentsSidebar";
 import { PlaytestOverlay } from "./components/PlaytestOverlay";
+import {
+  createRateDifficulty as makeRateDifficulty,
+  difficultyRate,
+} from "./lib/rateChange";
 import type { Comment } from "./lib/comments";
 import {
   saveProjectCloud,
@@ -619,6 +623,9 @@ export default function App() {
   }, [active.audioFilename, audioFiles]);
 
   const waveform = useWaveform(audioFile?.blob ?? null);
+  // Rate difficulties keep the original audio file and are played faster or
+  // slower; the hook re-scales the whole timeline around that.
+  const activeRate = difficultyRate(active);
   const audio = useAudio(
     audioFile?.url ?? null,
     waveform ? waveform.duration * 1000 : null,
@@ -629,6 +636,7 @@ export default function App() {
       fadeInMs: active.fadeInMs,
       fadeOutMs: active.fadeOutMs,
     },
+    activeRate,
   );
   const currentTimeRef = useRef(audio.getCurrentTime());
   currentTimeRef.current = audio.getCurrentTime();
@@ -1905,6 +1913,31 @@ export default function App() {
     setActiveId(diff.id);
   }, [difficulties, activeId, timingPoints, markStructural]);
 
+  /**
+   * Builds a rate-shifted copy of the active difficulty. The source is left
+   * untouched; the copy carries its own audioRate so the editor plays the
+   * shared audio file at that rate. Picked up by the snapshot history like any
+   * other structural change, so it undoes/redoes for free.
+   */
+  const createRateDifficulty = useCallback(
+    (rate: number, onlyRateAsName: boolean) => {
+      if (!canEditRef.current) return;
+      const source = difficultiesRef.current.find(
+        (d) => d.id === activeIdRef.current,
+      );
+      if (!source) return;
+      const rated = makeRateDifficulty(source, {
+        rate,
+        onlyRateAsName,
+        existingNames: difficultiesRef.current.map((d) => d.name),
+      });
+      markStructural();
+      setDifficulties((prev) => [...prev, rated]);
+      setActiveId(rated.id);
+    },
+    [markStructural],
+  );
+
   const duplicateDifficulty = useCallback(
     (id: string) => {
       if (!canEditRef.current) return;
@@ -2808,7 +2841,13 @@ export default function App() {
 
   const requestExport = useCallback(
     (target: string, run: () => void) => {
-      const result = validateProject({ meta, difficulties, audioFiles, bgFiles });
+      const result = validateProject({
+        meta,
+        difficulties,
+        audioFiles,
+        bgFiles,
+        target,
+      });
       if (result.errors.length > 0 || result.warnings.length > 0) {
         setExportCheck({ result, target, run });
       } else {
@@ -2880,6 +2919,7 @@ export default function App() {
       difficulties: nextDiffs,
       audioFiles,
       bgFiles,
+      target: exportCheck.target,
     });
     setExportCheck((check) => (check ? { ...check, result } : check));
   }, [exportCheck, difficulties, meta, audioFiles, bgFiles]);
@@ -3636,6 +3676,9 @@ export default function App() {
               onDuplicate={duplicateDifficulty}
               onDelete={(id) => setPendingDeleteDiffId(id)}
               onRename={(id, name) => patchDifficulty(id, { name })}
+              onCreateRate={createRateDifficulty}
+              canEdit={canEdit}
+              songDurationMs={audio.duration > 0 ? audio.duration : null}
               peers={liveEnabled ? collab.peers : undefined}
             />
           </div>
@@ -3678,6 +3721,7 @@ export default function App() {
                 videoUrl={activeVideo?.url ?? null}
                 videoOffsetMs={active.videoOffsetMs ?? 0}
                 playbackRate={audio.playbackRate}
+                timeScale={activeRate}
                 dimBackground={editorDimBackground}
                 skin={activeSkin}
                 playfieldScale={editorPlayfieldScale}

@@ -1,5 +1,6 @@
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta } from "../types";
 import { MAX_KEYS, MIN_KEYS } from "../types";
+import { isRateDifficulty } from "./rateChange";
 
 export type ValidationIssue = {
   message: string;
@@ -18,6 +19,8 @@ export type ValidateArgs = {
   difficulties: Difficulty[];
   audioFiles: Record<string, LoadedFile>;
   bgFiles: Record<string, LoadedFile>;
+  /** Export target, e.g. ".osu" / ".osz" / ".sm". Enables format-specific checks. */
+  target?: string;
 };
 
 function resolveAudio(
@@ -65,6 +68,7 @@ export function validateProject({
   difficulties,
   audioFiles,
   bgFiles,
+  target,
 }: ValidateArgs): ValidationResult {
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
@@ -73,6 +77,26 @@ export function validateProject({
 
   if (Object.keys(audioFiles).length === 0)
     errors.push({ message: "Missing audio file." });
+
+  // .sm has no per-chart audio, and Etterna applies rates in-game, so rate
+  // difficulties are skipped rather than exported out of sync.
+  if (target === ".sm") {
+    const rated = difficulties.filter(isRateDifficulty);
+    if (rated.length === difficulties.length && rated.length > 0) {
+      errors.push({
+        message:
+          "Every difficulty is a rate difficulty. Etterna applies rates in-game, " +
+          "so there would be nothing left to export — use the base difficulty instead.",
+      });
+    } else if (rated.length > 0) {
+      warnings.push({
+        message:
+          `${rated.length} rate ${rated.length === 1 ? "difficulty" : "difficulties"} ` +
+          "will be skipped — Etterna applies rates in-game.",
+        scope: rated.map((d) => d.name || "(unnamed)").join(", "),
+      });
+    }
+  }
   if (!meta.title.trim()) errors.push({ message: "Missing song title." });
   if (!meta.artist.trim()) errors.push({ message: "Missing artist." });
   if (!meta.creator.trim()) errors.push({ message: "Missing creator." });

@@ -9,6 +9,15 @@ import {
 const RATE_RAMP_SECONDS = 0.34;
 const CLOCK_UI_INTERVAL_MS = 50;
 
+const MIN_EFFECTIVE_RATE = 0.0625;
+const MAX_EFFECTIVE_RATE = 8;
+
+const clampTimeScale = (scale: number): number =>
+  !Number.isFinite(scale) || scale <= 0 ? 1 : Math.max(0.05, Math.min(16, scale));
+
+const clampEffectiveRate = (rate: number): number =>
+  Math.max(MIN_EFFECTIVE_RATE, Math.min(MAX_EFFECTIVE_RATE, rate));
+
 type RateTransition = {
   startCtxTime: number;
   startPosition: number;
@@ -41,11 +50,26 @@ const playbackCurve = (from: number, to: number): Float32Array => {
   return curve;
 };
 
+/**
+ * Plays the project audio.
+ *
+ * Internally everything is kept in *audio time* — positions within the source
+ * file. Publicly the hook speaks *map time*: `currentTime`, `duration`, `seek`,
+ * `getCurrentTime` and `region` are all divided by `timeScale`, so a difficulty
+ * written against a 1.2x rate gets a timeline that matches its own notes while
+ * the untouched source file is simply played 1.2x faster.
+ *
+ * `playbackRate` stays the *user* rate (1 = normal). The rate actually sent to
+ * the audio graph is `playbackRate * timeScale`, so transport speed, playtest
+ * rate mods and the hold-to-slow key compose with the difficulty's rate instead
+ * of fighting it.
+ */
 export function useAudio(
   src: string | null,
   knownDurationMs?: number | null,
   buffer?: AudioBuffer | null,
   region?: AudioRegion | null,
+  timeScale = 1,
 ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -82,8 +106,19 @@ export function useAudio(
     audioRef.current = el;
   }
 
-  const regionRef = useRef<AudioRegion | null>(region ?? null);
-  regionRef.current = region ?? null;
+  const scale = clampTimeScale(timeScale);
+  const timeScaleRef = useRef(scale);
+  timeScaleRef.current = scale;
+
+  const regionRef = useRef<AudioRegion | null>(null);
+  regionRef.current = scaleRegionToAudio(region ?? null, scale);
+
+  /** Rate handed to the audio graph: user rate composed with the map rate. */
+  const effectiveRate = useCallback(
+    (): number =>
+      clampEffectiveRate(playbackRateRef.current * timeScaleRef.current),
+    [],
+  );
 
   const effectivePower = useCallback(
     () => effectiveAudioPower(volumeRef.current, ambientDuckedRef.current),
@@ -183,23 +218,23 @@ export function useAudio(
 
   const rateAtCtxTime = useCallback((ctxTime: number): number => {
     const tr = rateTransitionRef.current;
-    if (!tr) return playbackRateRef.current;
+    if (!tr) return effectiveRate();
     if (tr.duration <= 0) return tr.to;
     const t = clamp01((ctxTime - tr.startCtxTime) / tr.duration);
     return tr.from + (tr.to - tr.from) * easeOutCubic(t);
-  }, []);
+  }, [effectiveRate]);
 
   const syncLivePlaybackRate = useCallback((): number => {
     const ctx = ctxRef.current;
-    return ctx ? rateAtCtxTime(ctx.currentTime) : playbackRateRef.current;
-  }, [rateAtCtxTime]);
+    return ctx ? rateAtCtxTime(ctx.currentTime) : effectiveRate();
+  }, [rateAtCtxTime, effectiveRate]);
 
   const positionAtCtxTime = useCallback((ctxTime: number): number => {
     const tr = rateTransitionRef.current;
     if (!tr) {
       return (
         startOffsetRef.current +
-        (ctxTime - startCtxTimeRef.current) * playbackRateRef.current
+        (ctxTime - startCtxTimeRef.current) * effectiveRate()
       );
     }
     if (tr.duration <= 0) {
@@ -218,7 +253,7 @@ export function useAudio(
       tr.from * tr.duration +
       (tr.to - tr.from) * tr.duration * easeOutCubicIntegral(1);
     return tr.startPosition + transitioned + tr.to * (elapsed - tr.duration);
-  }, []);
+  }, [effectiveRate]);
 
   const webPosition = useCallback((): number => {
     const ctx = ctxRef.current;
@@ -266,7 +301,7 @@ export function useAudio(
       const fiS = fadeInMs / 1000;
       const foS = fadeOutMs / 1000;
       const p = startPositionSec;
-      const rate = playbackRateRef.current || 1;
+      const rate = effectiveRate() || 1;
 
       const gainAt = (q: number): number => {
         let v = 1;
@@ -284,7 +319,7 @@ export function useAudio(
         g.linearRampToValueAtTime(gainAt(q), wall(q));
       }
     },
-    [],
+    [effectiveRate],
   );
 
   const startWeb = useCallback((): boolean => {
@@ -306,7 +341,7 @@ export function useAudio(
 
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
-    source.playbackRate.value = playbackRateRef.current;
+    source.playbackRate.value = effectiveRate();
     source.connect(fadeGainRef.current ?? filterRef.current ?? gain);
     scheduleFadeEnvelope(ctx, positionRef.current, durMs);
     source.onended = () => {
@@ -321,15 +356,15 @@ export function useAudio(
     rateTransitionRef.current = {
       startCtxTime: ctx.currentTime,
       startPosition: positionRef.current,
-      from: playbackRateRef.current,
-      to: playbackRateRef.current,
+      from: effectiveRate(),
+      to: effectiveRate(),
       duration: 0,
     };
     manualStopRef.current = false;
     source.start(0, positionRef.current);
     sourceRef.current = source;
     return true;
-  }, [duration, ensureCtx, scheduleFadeEnvelope, stopWeb]);
+  }, [duration, effectiveRate, ensureCtx, scheduleFadeEnvelope, stopWeb]);
 
   const startWebRef = useRef(startWeb);
   startWebRef.current = startWeb;
@@ -351,7 +386,7 @@ export function useAudio(
     }
     audio.src = src;
     audio.load();
-    applyRate(audio, playbackRateRef.current);
+    applyRate(audio, effectiveRate());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
@@ -516,8 +551,9 @@ export function useAudio(
   }, []);
 
   const seek = useCallback(
-    (ms: number) => {
-      if (!Number.isFinite(ms)) return;
+    (mapMs: number) => {
+      if (!Number.isFinite(mapMs)) return;
+      const ms = mapMs * timeScaleRef.current;
       const audio = audioRef.current;
       const max =
         Number.isFinite(duration) && duration > 0
@@ -546,38 +582,71 @@ export function useAudio(
     [duration, stopWeb, startWeb],
   );
 
-  const setPlaybackRate = useCallback((rate: number) => {
-    const clamped = Math.max(0.1, Math.min(4, rate));
-    const ctx = ctxRef.current;
-    const source = sourceRef.current;
-    if (source && ctx) {
-      const now = ctx.currentTime;
-      const from = rateAtCtxTime(now);
-      const startPosition = positionAtCtxTime(now);
-      positionRef.current = startPosition;
-      startOffsetRef.current = startPosition;
-      startCtxTimeRef.current = now;
-      rateTransitionRef.current = {
-        startCtxTime: now,
-        startPosition,
-        from,
-        to: clamped,
-        duration: RATE_RAMP_SECONDS,
-      };
-      source.playbackRate.cancelScheduledValues(now);
-      source.playbackRate.setValueAtTime(from, now);
-      source.playbackRate.setValueCurveAtTime(
-        playbackCurve(from, clamped),
-        now,
+  /**
+   * Moves the audio graph onto `target` (an already-composed effective rate),
+   * re-anchoring the position model so the playhead stays exact across the
+   * change. Must be called *before* the refs feeding `effectiveRate` are
+   * updated, so the ramp starts from the rate currently being played.
+   */
+  const retargetRate = useCallback(
+    (target: number, rampSeconds: number) => {
+      const ctx = ctxRef.current;
+      const source = sourceRef.current;
+      if (source && ctx) {
+        const now = ctx.currentTime;
+        const from = rateAtCtxTime(now);
+        const startPosition = positionAtCtxTime(now);
+        positionRef.current = startPosition;
+        startOffsetRef.current = startPosition;
+        startCtxTimeRef.current = now;
+        rateTransitionRef.current = {
+          startCtxTime: now,
+          startPosition,
+          from,
+          to: target,
+          duration: rampSeconds,
+        };
+        source.playbackRate.cancelScheduledValues(now);
+        source.playbackRate.setValueAtTime(from, now);
+        if (rampSeconds > 0) {
+          source.playbackRate.setValueCurveAtTime(
+            playbackCurve(from, target),
+            now,
+            rampSeconds,
+          );
+        } else {
+          source.playbackRate.setValueAtTime(target, now);
+        }
+      } else {
+        rateTransitionRef.current = null;
+      }
+      rampElementRate(target, rampSeconds);
+    },
+    [positionAtCtxTime, rampElementRate, rateAtCtxTime],
+  );
+
+  const setPlaybackRate = useCallback(
+    (rate: number) => {
+      const clamped = Math.max(0.1, Math.min(4, rate));
+      retargetRate(
+        clampEffectiveRate(clamped * timeScaleRef.current),
         RATE_RAMP_SECONDS,
       );
-    } else {
-      rateTransitionRef.current = null;
-    }
-    playbackRateRef.current = clamped;
-    rampElementRate(clamped, RATE_RAMP_SECONDS);
-    setPlaybackRateState(clamped);
-  }, [positionAtCtxTime, rampElementRate, rateAtCtxTime]);
+      playbackRateRef.current = clamped;
+      setPlaybackRateState(clamped);
+    },
+    [retargetRate],
+  );
+
+  // Switching to a difficulty with a different rate re-targets the live audio
+  // immediately: the position model is in audio time, so the playhead holds the
+  // same musical moment while map time re-scales around it.
+  const appliedScaleRef = useRef(scale);
+  useEffect(() => {
+    if (appliedScaleRef.current === scale) return;
+    retargetRate(clampEffectiveRate(playbackRateRef.current * scale), 0);
+    appliedScaleRef.current = scale;
+  }, [scale, retargetRate]);
 
   const setVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
@@ -606,14 +675,17 @@ export function useAudio(
   }, []);
 
   const getCurrentTime = useCallback(() => {
-    if (bufferRef.current && sourceRef.current) {
-      return webPosition() * 1000 - outputLatencyMs() * syncLivePlaybackRate();
-    }
-    const audio = audioRef.current;
-    if (!bufferRef.current && audio && !audio.paused) {
-      return audio.currentTime * 1000;
-    }
-    return currentTimeRef.current;
+    const audioMs = (() => {
+      if (bufferRef.current && sourceRef.current) {
+        return webPosition() * 1000 - outputLatencyMs() * syncLivePlaybackRate();
+      }
+      const audio = audioRef.current;
+      if (!bufferRef.current && audio && !audio.paused) {
+        return audio.currentTime * 1000;
+      }
+      return currentTimeRef.current;
+    })();
+    return audioMs / timeScaleRef.current;
   }, [webPosition, outputLatencyMs, syncLivePlaybackRate]);
 
   useEffect(() => {
@@ -636,10 +708,14 @@ export function useAudio(
 
   return {
     isPlaying,
-    currentTime,
-    duration,
+    // Map time: the rate-adjusted timeline the editor and its notes live on.
+    currentTime: currentTime / scale,
+    duration: duration / scale,
     volume,
     playbackRate,
+    timeScale: scale,
+    /** Rate the source file is actually played at, for video/visual sync. */
+    effectiveRate: clampEffectiveRate(playbackRate * scale),
     getCurrentTime,
     play,
     pause,
@@ -652,6 +728,20 @@ export function useAudio(
 }
 
 export type AudioController = ReturnType<typeof useAudio>;
+
+function scaleRegionToAudio(
+  region: AudioRegion | null,
+  scale: number,
+): AudioRegion | null {
+  if (!region || scale === 1) return region;
+  const at = (ms: number | undefined) => (ms === undefined ? undefined : ms * scale);
+  return {
+    startMs: at(region.startMs),
+    endMs: at(region.endMs),
+    fadeInMs: at(region.fadeInMs),
+    fadeOutMs: at(region.fadeOutMs),
+  };
+}
 
 function applyRate(audio: HTMLAudioElement | null, rate: number) {
   if (!audio) return;

@@ -141,6 +141,13 @@ export type Difficulty = {
   smMeta?: SmMeta;
   name: string;
   audioFilename?: string;
+  /**
+   * Playback rate this difficulty's timing is written against, relative to the
+   * source audio file. All times on this difficulty live in "map time"
+   * (audioMs / audioRate); the editor plays the shared audio file this much
+   * faster so notes stay in sync. Undefined or 1 means unchanged.
+   */
+  audioRate?: number;
   backgroundFilename?: string;
   videoFilename?: string;
   videoOffsetMs?: number;

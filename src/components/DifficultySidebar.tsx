@@ -6,6 +6,7 @@ import { useMsdRatings } from "../lib/msd/useMsd";
 import { msdColor, msdTooltip } from "../lib/msd/display";
 import type { MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
+import { RateChangerPanel } from "./RateChangerPanel";
 
 type PeerLite = {
   id: string;
@@ -23,6 +24,9 @@ type Props = {
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
+  onCreateRate: (rate: number, onlyRateAsName: boolean) => void;
+  canEdit: boolean;
+  songDurationMs: number | null;
   peers?: PeerLite[];
 };
 
@@ -34,8 +38,12 @@ export function DifficultySidebar({
   onDuplicate,
   onDelete,
   onRename,
+  onCreateRate,
+  canEdit,
+  songDurationMs,
   peers,
 }: Props) {
+  const [rateOpen, setRateOpen] = useState(false);
   const msdRatings = useMsdRatings(difficulties);
   const active = difficulties.find((d) => d.id === activeId) ?? null;
   const stats = useMemo(
@@ -52,6 +60,10 @@ export function DifficultySidebar({
         .sort((a, b) => a.star - b.star),
     [difficulties],
   );
+  const existingNames = useMemo(
+    () => difficulties.map((d) => d.name),
+    [difficulties],
+  );
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-white/10 bg-ink-800/45 shadow-[10px_0_30px_rgba(0,0,0,0.12)] backdrop-blur-xl">
@@ -60,14 +72,41 @@ export function DifficultySidebar({
           Difficulties
           <span className="ml-1.5 text-slate-500">{difficulties.length}</span>
         </h2>
-        <button
-          onClick={onAdd}
-          className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-600/70 text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85"
-          title="Add difficulty"
-        >
-          +
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setRateOpen((v) => !v)}
+            aria-expanded={rateOpen}
+            className={`grid h-6 w-6 place-items-center rounded-md border shadow-sm backdrop-blur-sm transition ${
+              rateOpen
+                ? "border-accent/70 bg-accent/20 text-slate-100"
+                : "border-white/10 bg-ink-600/70 text-slate-200 hover:bg-ink-500/85"
+            }`}
+            title="Rate changer"
+          >
+            <RateIcon />
+          </button>
+          <button
+            onClick={onAdd}
+            className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-600/70 text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85"
+            title="Add difficulty"
+          >
+            +
+          </button>
+        </div>
       </div>
+
+      <RateChangerPanel
+        open={rateOpen}
+        difficulty={active}
+        existingNames={existingNames}
+        durationMs={songDurationMs}
+        canEdit={canEdit}
+        onCreate={(rate, onlyRateAsName) => {
+          onCreateRate(rate, onlyRateAsName);
+          setRateOpen(false);
+        }}
+        onClose={() => setRateOpen(false)}
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         <div className="flex flex-col gap-1.5">
@@ -105,6 +144,24 @@ export function DifficultySidebar({
         </div>
       )}
     </aside>
+  );
+}
+
+function RateIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 17.5a9 9 0 1 1 16 0" />
+      <path d="M12 17.5 16 11" />
+    </svg>
   );
 }
 

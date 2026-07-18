@@ -15,6 +15,7 @@ import {
   toMp3Name,
   type BakedRegion,
 } from "./audioTrim";
+import { isRateDifficulty } from "./rateChange";
 
 export type BuildSmArgs = {
   meta: SongMeta;
@@ -346,7 +347,16 @@ export type BuildSmzArgs = {
   bgFiles?: Record<string, LoadedFile>;
 };
 
-export async function buildSmZip(args: BuildSmzArgs): Promise<Blob> {
+export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
+  // Etterna applies rates in-game, so a baked rate chart is redundant there —
+  // and an .sm song folder carries a single audio file that a rate chart would
+  // be out of sync with. Export the base charts and let the player use the
+  // in-game rate mod.
+  const args: BuildSmzArgs = {
+    ...rawArgs,
+    difficulties: rawArgs.difficulties.filter((d) => !isRateDifficulty(d)),
+  };
+
   const zip = new JSZip();
 
   for (const diff of args.difficulties) {
