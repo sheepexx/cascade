@@ -395,24 +395,40 @@ export function BottomTimeline({
         }
 
         if (duration > 0 && bookmarks?.length) {
+          // Amber, matching the bookmark lines in the editor lane and staying
+          // clear of the pink timing points these used to disappear into. Maps
+          // can carry dozens of bookmarks, so the line stays inside the
+          // waveform band and the locator tab goes in the gap above it — the
+          // one strip nothing else draws in, which keeps them scannable as a
+          // row without burying the NPS graph.
           for (const b of bookmarks) {
             if (b < 0 || b > duration) continue;
             const bx = (b / duration) * width;
-            sctx.strokeStyle = "#818cf8";
-            sctx.globalAlpha = 0.5;
-            sctx.lineWidth = 1;
+
+            // The line is a position guide, deliberately soft so a map with
+            // dozens of bookmarks doesn't bury its own waveform.
+            sctx.globalAlpha = 0.6;
+            sctx.strokeStyle = "#fbbf24";
+            sctx.lineWidth = 1.5;
             sctx.beginPath();
             sctx.moveTo(bx, WAVE_TOP);
             sctx.lineTo(bx, HEIGHT);
             sctx.stroke();
             sctx.globalAlpha = 1;
-            sctx.fillStyle = "#818cf8";
+
+            // The marker does the work: full strength, in the gap above the
+            // waveform that nothing else draws in, and pointed so it reads as
+            // a marker rather than another density bar.
+            sctx.fillStyle = "#fbbf24";
+            sctx.strokeStyle = "rgba(0,0,0,0.55)";
+            sctx.lineWidth = 1;
             sctx.beginPath();
-            sctx.moveTo(bx - 4, WAVE_TOP);
-            sctx.lineTo(bx + 4, WAVE_TOP);
-            sctx.lineTo(bx, WAVE_TOP + 5);
+            sctx.moveTo(bx - 3.5, DOT_BAND_H);
+            sctx.lineTo(bx + 3.5, DOT_BAND_H);
+            sctx.lineTo(bx, WAVE_TOP);
             sctx.closePath();
             sctx.fill();
+            sctx.stroke();
           }
         }
 
