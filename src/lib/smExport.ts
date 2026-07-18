@@ -15,6 +15,7 @@ import {
   toMp3Name,
   type BakedRegion,
 } from "./audioTrim";
+import { loadMp3Encoder } from "./lameEncoder";
 import { isRateDifficulty } from "./rateChange";
 
 export type BuildSmArgs = {
@@ -356,6 +357,12 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
     ...rawArgs,
     difficulties: rawArgs.difficulties.filter((d) => !isRateDifficulty(d)),
   };
+
+  // Bring up the MP3 encoder before any audio is baked; without it every
+  // re-encode falls back to WAV.
+  await loadMp3Encoder().catch((err: unknown) => {
+    console.error("MP3 encoder unavailable, audio will be exported as WAV:", err);
+  });
 
   const zip = new JSZip();
 

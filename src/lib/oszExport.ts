@@ -25,6 +25,7 @@ import {
   toMp3Name,
   type BakedRegion,
 } from "./audioTrim";
+import { loadMp3Encoder } from "./lameEncoder";
 import { difficultyRate, formatRate, isNeutralRate } from "./rateChange";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 
@@ -47,6 +48,12 @@ export async function buildOsz({
   videoFiles,
   jpegQuality,
 }: BuildOszArgs): Promise<Blob> {
+  // Bring up the MP3 encoder before any audio is baked; without it every
+  // re-encode falls back to WAV.
+  await loadMp3Encoder().catch((err: unknown) => {
+    console.error("MP3 encoder unavailable, audio will be exported as WAV:", err);
+  });
+
   const zip = new JSZip();
 
   const bundledBgs = new Set<string>();
