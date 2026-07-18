@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { ManiaNote } from "../types";
-import { mirrorColumns, copyHitsounds, countHitsounds } from "./noteTools";
+import {
+  mirrorColumns,
+  copyHitsounds,
+  countHitsounds,
+  reverseTime,
+  scaleTime,
+  shuffleColumns,
+} from "./noteTools";
 
 function note(
   id: string,
@@ -54,6 +61,113 @@ describe("mirrorColumns", () => {
     const notes = [note("a", 0, 100)];
     mirrorColumns(notes, 4);
     expect(notes[0].column).toBe(0);
+  });
+});
+
+describe("reverseTime", () => {
+  it("makes the last note first inside the same span", () => {
+    const out = reverseTime([note("a", 0, 100), note("b", 1, 500)]);
+    const byId = Object.fromEntries(out.map((n) => [n.id, n]));
+    expect(byId.a.startTime).toBe(500);
+    expect(byId.b.startTime).toBe(100);
+  });
+
+  it("keeps long note lengths and reflects around the tail", () => {
+    // LN 100-400 plus a rice at 600: span is 100..600.
+    const out = reverseTime([note("ln", 0, 100, 400), note("r", 1, 600)]);
+    const byId = Object.fromEntries(out.map((n) => [n.id, n]));
+    expect(byId.r.startTime).toBe(100);
+    // The LN's old end (400) reflects to 100 + (600 - 400) = 300.
+    expect(byId.ln.startTime).toBe(300);
+    expect(byId.ln.endTime).toBe(600);
+  });
+
+  it("is its own inverse", () => {
+    const notes = [note("a", 0, 100), note("b", 2, 350, 700), note("c", 1, 900)];
+    const twice = reverseTime(reverseTime(notes));
+    expect(twice.map((n) => [n.startTime, n.endTime])).toEqual(
+      notes.map((n) => [n.startTime, n.endTime]),
+    );
+  });
+
+  it("leaves a single note alone", () => {
+    const notes = [note("a", 2, 123)];
+    expect(reverseTime(notes)).toBe(notes);
+  });
+});
+
+describe("scaleTime", () => {
+  it("doubles gaps from the first note", () => {
+    const out = scaleTime([note("a", 0, 100), note("b", 1, 200)], 2);
+    expect(out.map((n) => n.startTime)).toEqual([100, 300]);
+  });
+
+  it("halves gaps and scales hold ends", () => {
+    const out = scaleTime([note("a", 0, 100, 300), note("b", 1, 500)], 0.5);
+    const byId = Object.fromEntries(out.map((n) => [n.id, n]));
+    expect(byId.a.startTime).toBe(100);
+    expect(byId.a.endTime).toBe(200);
+    expect(byId.b.startTime).toBe(300);
+  });
+
+  it("ignores nonsense factors", () => {
+    const notes = [note("a", 0, 100), note("b", 1, 200)];
+    expect(scaleTime(notes, 0)).toBe(notes);
+    expect(scaleTime(notes, 1)).toBe(notes);
+  });
+});
+
+describe("shuffleColumns", () => {
+  it("keeps times and chord sizes, changes only columns", () => {
+    const notes = [
+      note("a", 0, 0),
+      note("b", 1, 0),
+      note("c", 2, 500),
+      note("d", 3, 1000),
+    ];
+    const out = shuffleColumns(notes, 4, () => 0.99);
+    expect(out).toHaveLength(4);
+    const chord = out.filter((n) => n.startTime === 0);
+    expect(chord).toHaveLength(2);
+    expect(new Set(chord.map((n) => n.column)).size).toBe(2);
+    for (const n of out) {
+      expect(n.column).toBeGreaterThanOrEqual(0);
+      expect(n.column).toBeLessThan(4);
+    }
+  });
+
+  it("never drops a note into a column a long note still occupies", () => {
+    // LN in some column 0..3 spanning 0-1000; rice notes at 250/500/750.
+    for (let seed = 0; seed < 20; seed++) {
+      let s = seed + 1;
+      const rng = () => {
+        // Tiny LCG so each run is deterministic but different.
+        s = (s * 48271) % 2147483647;
+        return s / 2147483647;
+      };
+      const out = shuffleColumns(
+        [note("ln", 0, 0, 1000), note("a", 1, 250), note("b", 2, 500)],
+        4,
+        rng,
+      );
+      const ln = out.find((n) => n.id === "ln")!;
+      for (const n of out) {
+        if (n.id === "ln") continue;
+        expect(n.column).not.toBe(ln.column);
+      }
+    }
+  });
+
+  it("keeps a chord as-is when there is no room to re-deal", () => {
+    // 4 simultaneous notes in 4K: only one possible set of columns.
+    const notes = [
+      note("a", 0, 0),
+      note("b", 1, 0),
+      note("c", 2, 0),
+      note("d", 3, 0),
+    ];
+    const out = shuffleColumns(notes, 4, () => 0.5);
+    expect(new Set(out.map((n) => n.column))).toEqual(new Set([0, 1, 2, 3]));
   });
 });
 

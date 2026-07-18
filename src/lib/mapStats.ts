@@ -16,6 +16,14 @@ export type MapStats = {
   avgNps: number;
   /** Span from the first note to the last note end, in ms. */
   spanMs: number;
+  /** Notes per column, indexed by column. */
+  columnCounts: number[];
+  /**
+   * Fraction of hand-assigned notes on the left hand (0-1). The middle column
+   * of odd layouts belongs to neither hand and is excluded. 0.5 when nothing
+   * is assignable.
+   */
+  handBalance: number;
 };
 
 const EMPTY: MapStats = {
@@ -28,16 +36,24 @@ const EMPTY: MapStats = {
   peakNps: 0,
   avgNps: 0,
   spanMs: 0,
+  columnCounts: [],
+  handBalance: 0.5,
 };
 
-export function computeMapStats(notes: ManiaNote[]): MapStats {
-  if (notes.length === 0) return EMPTY;
+export function computeMapStats(notes: ManiaNote[], keyCount = 0): MapStats {
+  if (notes.length === 0)
+    return keyCount > 0
+      ? { ...EMPTY, columnCounts: new Array(keyCount).fill(0) }
+      : EMPTY;
 
   let holds = 0;
   let minStart = Infinity;
   let maxEnd = -Infinity;
   const perTime = new Map<number, number>();
   const starts: number[] = [];
+  let columns = Math.max(0, Math.floor(keyCount));
+  for (const n of notes) columns = Math.max(columns, n.column + 1);
+  const columnCounts = new Array<number>(columns).fill(0);
 
   for (const n of notes) {
     if (n.endTime !== undefined && n.endTime > n.startTime) holds++;
@@ -46,6 +62,15 @@ export function computeMapStats(notes: ManiaNote[]): MapStats {
     if (end > maxEnd) maxEnd = end;
     perTime.set(n.startTime, (perTime.get(n.startTime) ?? 0) + 1);
     starts.push(n.startTime);
+    if (n.column >= 0) columnCounts[n.column]++;
+  }
+
+  let leftNotes = 0;
+  let handNotes = 0;
+  for (let c = 0; c < columns; c++) {
+    if (2 * c + 1 === columns) continue; // middle column of an odd layout
+    handNotes += columnCounts[c];
+    if (2 * c + 1 < columns) leftNotes += columnCounts[c];
   }
 
   let chords = 0;
@@ -80,5 +105,7 @@ export function computeMapStats(notes: ManiaNote[]): MapStats {
     peakNps: peak,
     avgNps: spanSec > 0 ? notes.length / spanSec : 0,
     spanMs,
+    columnCounts,
+    handBalance: handNotes > 0 ? leftNotes / handNotes : 0.5,
   };
 }

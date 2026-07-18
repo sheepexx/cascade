@@ -10,6 +10,7 @@ import {
 import { useTapTempo } from "../../hooks/useTapTempo";
 import { useMetronome } from "../../hooks/useMetronome";
 import { formatTime, sortedPoints } from "../../lib/timing";
+import { detectBpmFromBuffer, type BpmDetection } from "../../lib/bpmDetect";
 import { Modal } from "../ui/Modal";
 import { Button, NumberInput, Toggle } from "../ui/Controls";
 
@@ -23,6 +24,9 @@ type Props = {
   getCurrentTime: () => number;
   onToggle: () => void;
   onSetPlaybackRate: (rate: number) => void;
+  audioBuffer: AudioBuffer | null;
+  /** Rate of the active difficulty; detection runs in audio-file time. */
+  timeScale: number;
 };
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
@@ -40,10 +44,22 @@ export const TimingModal = memo(function TimingModal({
   getCurrentTime,
   onToggle,
   onSetPlaybackRate,
+  audioBuffer,
+  timeScale,
 }: Props) {
   const { tap, reset, bpm, offset, count } = useTapTempo(getCurrentTime);
   const [metronomeOn, setMetronomeOn] = useState(true);
   const [tapApplied, setTapApplied] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [detection, setDetection] = useState<BpmDetection | "failed" | null>(
+    null,
+  );
+  const [detectApplied, setDetectApplied] = useState(false);
+
+  useEffect(() => {
+    setDetection(null);
+    setDetectApplied(false);
+  }, [audioBuffer, timeScale]);
   const [beat, setBeat] = useState<{ index: number; meter: number; n: number } | null>(
     null,
   );
@@ -181,6 +197,41 @@ export const TimingModal = memo(function TimingModal({
     setTapApplied(false);
   };
 
+  const runDetect = () => {
+    if (!audioBuffer || detecting) return;
+    setDetecting(true);
+    setDetection(null);
+    setDetectApplied(false);
+    // Detection scans the whole file on the main thread; let the button's
+    // "Listening..." state paint before blocking.
+    window.setTimeout(() => {
+      let result: BpmDetection | "failed" = "failed";
+      try {
+        const raw = detectBpmFromBuffer(audioBuffer);
+        if (raw) {
+          // Detection runs in audio-file time; a rate-changed difficulty
+          // hears the song timeScale× faster, so its BPM scales up and its
+          // offsets shrink by the same factor.
+          result = {
+            bpm: Math.round(raw.bpm * timeScale * 1000) / 1000,
+            offsetMs: Math.round(raw.offsetMs / timeScale),
+            confidence: raw.confidence,
+          };
+        }
+      } catch {
+        result = "failed";
+      }
+      setDetection(result);
+      setDetecting(false);
+    }, 30);
+  };
+
+  const applyDetection = () => {
+    if (detection === null || detection === "failed") return;
+    applyTap(detection.bpm, detection.offsetMs);
+    setDetectApplied(true);
+  };
+
   useEffect(() => {
     if (bpm === null || offset === null || count < TAP_MIN) return;
     const id = window.setTimeout(() => {
@@ -315,6 +366,66 @@ export const TimingModal = memo(function TimingModal({
                 onMove={() => moveToPlayhead(p.id)}
               />
             ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-ink-600 bg-ink-700/40 p-4">
+          <h3 className="mb-1 text-sm font-semibold text-slate-200">
+            Auto-detect from audio
+          </h3>
+          <p className="mb-3 text-xs text-slate-400">
+            Scans the song for a steady beat and estimates BPM and offset. Works
+            best on music with a clear rhythm; double-check the result against
+            the metronome.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="accent"
+              onClick={runDetect}
+              disabled={!audioBuffer || detecting}
+            >
+              {detecting ? "Listening..." : "Detect BPM"}
+            </Button>
+            {!audioBuffer && (
+              <span className="text-xs text-slate-500">
+                Load an audio file first.
+              </span>
+            )}
+            {detection === "failed" && (
+              <span className="text-xs text-rose-300">
+                Couldn't find a steady beat in this audio.
+              </span>
+            )}
+            {detection !== null && detection !== "failed" && (
+              <>
+                <span className="font-mono text-sm text-slate-100">
+                  {detection.bpm} BPM · offset {detection.offsetMs} ms
+                </span>
+                <span
+                  className={`text-[11px] ${
+                    detection.confidence >= 0.5
+                      ? "text-emerald-400"
+                      : detection.confidence >= 0.3
+                        ? "text-amber-300"
+                        : "text-rose-300"
+                  }`}
+                >
+                  {detection.confidence >= 0.5
+                    ? "confident"
+                    : detection.confidence >= 0.3
+                      ? "plausible"
+                      : "uncertain"}
+                </span>
+                <Button variant="primary" onClick={applyDetection}>
+                  Apply
+                </Button>
+                {detectApplied && (
+                  <span className="text-xs font-medium text-emerald-400">
+                    ✓ Applied to timing
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </section>
 

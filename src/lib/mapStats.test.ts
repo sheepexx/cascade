@@ -57,4 +57,42 @@ describe("computeMapStats", () => {
     expect(s.avgNps).toBeCloseTo(1.5);
     expect(s.spanMs).toBe(2000);
   });
+
+  it("counts notes per column, padding to the key count", () => {
+    const s = computeMapStats(
+      [n("a", 0, 0), n("b", 0, 100), n("c", 2, 200)],
+      4,
+    );
+    expect(s.columnCounts).toEqual([2, 0, 1, 0]);
+  });
+
+  it("sizes columns from the notes when key count is unknown", () => {
+    const s = computeMapStats([n("a", 3, 0)]);
+    expect(s.columnCounts).toEqual([0, 0, 0, 1]);
+  });
+
+  it("computes hand balance over left vs right halves", () => {
+    // 4K: columns 0-1 left, 2-3 right. 3 left, 1 right.
+    const s = computeMapStats(
+      [n("a", 0, 0), n("b", 1, 100), n("c", 0, 200), n("d", 3, 300)],
+      4,
+    );
+    expect(s.handBalance).toBeCloseTo(3 / 4);
+  });
+
+  it("excludes the middle column of odd layouts from hand balance", () => {
+    // 5K: column 2 is the middle. Only columns 0 and 3 count: 1 left, 1 right.
+    const s = computeMapStats(
+      [n("a", 2, 0), n("b", 2, 100), n("c", 0, 200), n("d", 3, 300)],
+      5,
+    );
+    expect(s.handBalance).toBeCloseTo(0.5);
+    expect(s.columnCounts).toEqual([1, 0, 2, 1, 0]);
+  });
+
+  it("keeps hand balance neutral for an empty map with a key count", () => {
+    const s = computeMapStats([], 7);
+    expect(s.columnCounts).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(s.handBalance).toBe(0.5);
+  });
 });

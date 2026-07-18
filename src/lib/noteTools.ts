@@ -49,6 +49,98 @@ export function mirrorColumns(
   return notes.map((n) => ({ ...n, column: keyCount - 1 - n.column }));
 }
 
+function noteEnd(n: ManiaNote): number {
+  return n.endTime !== undefined && n.endTime > n.startTime
+    ? n.endTime
+    : n.startTime;
+}
+
+/**
+ * Reflect the notes in time within their own span: the last note becomes the
+ * first. Long notes keep their length (a reversed LN starts where its tail
+ * used to end). Columns are untouched.
+ */
+export function reverseTime(notes: ManiaNote[]): ManiaNote[] {
+  if (notes.length < 2) return notes;
+  const minStart = Math.min(...notes.map((n) => n.startTime));
+  const maxEnd = Math.max(...notes.map(noteEnd));
+  return notes.map((n) => {
+    const start = minStart + (maxEnd - noteEnd(n));
+    const dur = noteEnd(n) - n.startTime;
+    return {
+      ...n,
+      startTime: Math.round(start),
+      endTime: dur > 0 ? Math.round(start + dur) : undefined,
+    };
+  });
+}
+
+/**
+ * Scale the notes' times by `factor` around the earliest selected note, so
+ * 0.5 packs a 1/2 pattern into 1/4 and 2 stretches it the other way.
+ */
+export function scaleTime(notes: ManiaNote[], factor: number): ManiaNote[] {
+  if (notes.length < 2 || factor <= 0 || factor === 1) return notes;
+  const anchor = Math.min(...notes.map((n) => n.startTime));
+  return notes.map((n) => ({
+    ...n,
+    startTime: Math.round(anchor + (n.startTime - anchor) * factor),
+    endTime:
+      n.endTime !== undefined
+        ? Math.round(anchor + (n.endTime - anchor) * factor)
+        : undefined,
+  }));
+}
+
+/**
+ * Re-deal every chord onto random columns. Chord sizes and all times are
+ * preserved, and columns still occupied by an earlier long note are never
+ * reused. Chords that cannot fit (more notes than free columns) keep their
+ * original columns.
+ */
+export function shuffleColumns(
+  notes: ManiaNote[],
+  keyCount: number,
+  random: () => number = Math.random,
+): ManiaNote[] {
+  const chords = new Map<number, ManiaNote[]>();
+  for (const n of notes) {
+    const key = Math.round(n.startTime);
+    const arr = chords.get(key);
+    if (arr) arr.push(n);
+    else chords.set(key, [n]);
+  }
+  const times = [...chords.keys()].sort((a, b) => a - b);
+  const busyUntil = new Array<number>(keyCount).fill(-Infinity);
+  const out: ManiaNote[] = [];
+  for (const t of times) {
+    const chord = chords.get(t)!;
+    const free: number[] = [];
+    for (let c = 0; c < keyCount; c++) {
+      if (busyUntil[c] <= t) free.push(c);
+    }
+    if (free.length < chord.length) {
+      // Not enough room to re-deal; keep this chord as-is.
+      for (const n of chord) {
+        busyUntil[n.column] = Math.max(busyUntil[n.column], noteEnd(n) + 1);
+        out.push(n);
+      }
+      continue;
+    }
+    // Fisher-Yates the free columns, then hand them out in order.
+    for (let i = free.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [free[i], free[j]] = [free[j], free[i]];
+    }
+    chord.forEach((n, i) => {
+      const column = free[i];
+      busyUntil[column] = Math.max(busyUntil[column], noteEnd(n) + 1);
+      out.push({ ...n, column });
+    });
+  }
+  return out;
+}
+
 type HitsoundFields = Pick<
   ManiaNote,
   "hitSound" | "sampleSet" | "additionSet" | "sampleIndex" | "sampleVolume" | "sampleFile"

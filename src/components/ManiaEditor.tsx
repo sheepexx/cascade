@@ -24,8 +24,17 @@ import {
 } from "../lib/timing";
 import type { PatternNote } from "../lib/patterns";
 import type { Waveform } from "../hooks/useWaveform";
-import { hasNoteCollisions, withoutNoteCollisions } from "../lib/noteCollision";
-import { mirrorColumns } from "../lib/noteTools";
+import {
+  hasNoteCollision,
+  hasNoteCollisions,
+  withoutNoteCollisions,
+} from "../lib/noteCollision";
+import {
+  mirrorColumns,
+  reverseTime,
+  scaleTime,
+  shuffleColumns,
+} from "../lib/noteTools";
 import { Menu } from "./ui/Menu";
 
 export type HitsoundSource = {
@@ -364,6 +373,90 @@ export function ManiaEditor(props: Props) {
     propsRef.current.onMoveNotes(mirrorColumns(selected, keyCount));
   }, []);
 
+  /**
+   * Run a transform over the selected notes and commit it, unless the result
+   * would leave the playfield or land on an unselected note. Returns whether
+   * the transform was committed.
+   */
+  const transformSelection = useCallback(
+    (
+      transform: (selected: ManiaNote[], keyCount: number) => ManiaNote[],
+    ): boolean => {
+      const ids = selectedNoteIdsRef.current;
+      if (!ids.size) return false;
+      const { notes, keyCount } = propsRef.current;
+      const selected = notes.filter((n) => ids.has(n.id));
+      if (!selected.length) return false;
+      const moved = transform(selected, keyCount);
+      if (moved === selected) return false;
+      if (
+        moved.some(
+          (n) => n.startTime < 0 || n.column < 0 || n.column >= keyCount,
+        )
+      ) {
+        return false;
+      }
+      const others = notes.filter((n) => !ids.has(n.id));
+      if (
+        hasNoteCollisions(moved) ||
+        moved.some((n) => hasNoteCollision(n, others))
+      ) {
+        return false;
+      }
+      propsRef.current.onMoveNotes(moved);
+      return true;
+    },
+    [],
+  );
+
+  const reverseSelection = useCallback(() => {
+    transformSelection((selected) => reverseTime(selected));
+  }, [transformSelection]);
+
+  const scaleSelection = useCallback(
+    (factor: number) => {
+      transformSelection((selected) => scaleTime(selected, factor));
+    },
+    [transformSelection],
+  );
+
+  const shuffleSelection = useCallback(() => {
+    // A shuffle can land on unselected notes; just re-roll a few times.
+    for (let attempt = 0; attempt < 10; attempt++) {
+      if (transformSelection((sel, keyCount) => shuffleColumns(sel, keyCount))) {
+        return;
+      }
+    }
+  }, [transformSelection]);
+
+  const nudgeSelection = useCallback(
+    (dir: "earlier" | "later" | "left" | "right") => {
+      transformSelection((selected) => {
+        if (dir === "left" || dir === "right") {
+          const d = dir === "left" ? -1 : 1;
+          return selected.map((n) => ({ ...n, column: n.column + d }));
+        }
+        const { timingPoints, view } = propsRef.current;
+        const sign = dir === "later" ? 1 : -1;
+        return selected.map((n) => {
+          const start = stepToSnap(
+            n.startTime,
+            timingPoints,
+            view.snapDivisor,
+            sign,
+          );
+          const delta = start - n.startTime;
+          return {
+            ...n,
+            startTime: start,
+            endTime: n.endTime !== undefined ? n.endTime + delta : undefined,
+          };
+        });
+      });
+    },
+    [transformSelection],
+  );
+
   const paste = useCallback(() => {
     const clip = clipboardRef.current;
     if (!clip) return;
@@ -514,6 +607,43 @@ export function ManiaEditor(props: Props) {
         deleteSelection();
         return;
       }
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !isTyping(e.target) &&
+        selectedNoteIdsRef.current.size
+      ) {
+        const k = e.key.toLowerCase();
+        if (k === "f") {
+          e.preventDefault();
+          reverseSelection();
+          return;
+        }
+        if (k === "s") {
+          e.preventDefault();
+          shuffleSelection();
+          return;
+        }
+        if (e.key === "[" || e.key === "]") {
+          e.preventDefault();
+          scaleSelection(e.key === "[" ? 0.5 : 2);
+          return;
+        }
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          e.preventDefault();
+          nudgeSelection(e.key === "ArrowLeft" ? "left" : "right");
+          return;
+        }
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          // Arrows follow the screen: up moves notes later in downscroll.
+          const up = e.key === "ArrowUp";
+          const later = propsRef.current.upscroll ? !up : up;
+          nudgeSelection(later ? "later" : "earlier");
+          return;
+        }
+      }
       if (!(e.ctrlKey || e.metaKey) || isTyping(e.target)) return;
       const key = e.key.toLowerCase();
       if (key === "c") {
@@ -553,7 +683,17 @@ export function ManiaEditor(props: Props) {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [copySelection, cutSelection, paste, toggleAddition, mirrorSelection]);
+  }, [
+    copySelection,
+    cutSelection,
+    paste,
+    toggleAddition,
+    mirrorSelection,
+    reverseSelection,
+    scaleSelection,
+    shuffleSelection,
+    nudgeSelection,
+  ]);
 
   useEffect(() => {
     if (!props.backgroundUrl) {
@@ -2091,7 +2231,7 @@ export function ManiaEditor(props: Props) {
           <span className="font-medium text-yellow-200">
             {selectionCount} selected
           </span>{" "}
-          · Delete/right-click remove · Ctrl+click multi · drag to move · Ctrl+A all · Ctrl+C copy · Ctrl+X cut
+          · Delete remove · drag to move · arrows nudge · M mirror · F reverse · S shuffle · [ ] half/double time · Ctrl+C/X/V
         </div>
       )}
 

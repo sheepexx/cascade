@@ -232,3 +232,23 @@ export function formatTime(ms: number): string {
     .toString()
     .padStart(3, "0")}`;
 }
+
+/**
+ * Parse a user-entered timestamp into ms. Accepts osu-style `mm:ss:ms` and
+ * `mm:ss.ms`, plain `m:ss`, and a raw millisecond count. Short millisecond
+ * parts are read as a leading fraction of a second (`1:23.4` = 1:23.400).
+ * Anything after the timestamp is ignored, so osu editor copies like
+ * `01:23:456 (1|2)` paste straight in.
+ */
+export function parseTimestamp(input: string): number | null {
+  const text = input.trim();
+  if (!text) return null;
+  if (/^\d+$/.test(text)) return Number(text);
+  const m = text.match(/^(\d+):(\d{1,2})(?:[:.](\d{1,3}))?(?:[\s(]|$)/);
+  if (!m) return null;
+  const minutes = Number(m[1]);
+  const seconds = Number(m[2]);
+  if (seconds >= 60) return null;
+  const millis = m[3] ? Number(m[3].padEnd(3, "0")) : 0;
+  return minutes * 60000 + seconds * 1000 + millis;
+}

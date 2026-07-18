@@ -48,7 +48,7 @@ export function DifficultySidebar({
   const msdRatings = useMsdRatings(difficulties);
   const active = difficulties.find((d) => d.id === activeId) ?? null;
   const stats = useMemo(
-    () => (active ? computeMapStats(active.notes) : null),
+    () => (active ? computeMapStats(active.notes, active.keyCount) : null),
     [active],
   );
   const sorted = useMemo(
@@ -142,6 +142,10 @@ export function DifficultySidebar({
             <Stat label="Peak NPS" value={String(stats.peakNps)} />
             <Stat label="Rice/LN" value={`${stats.rice}/${stats.holds}`} />
           </div>
+          <ColumnHistogram
+            counts={stats.columnCounts}
+            handBalance={stats.handBalance}
+          />
         </div>
       )}
     </aside>
@@ -163,6 +167,50 @@ function RateIcon() {
       <path d="M4 17.5a9 9 0 1 1 16 0" />
       <path d="M12 17.5 16 11" />
     </svg>
+  );
+}
+
+function ColumnHistogram({
+  counts,
+  handBalance,
+}: {
+  counts: number[];
+  handBalance: number;
+}) {
+  const max = Math.max(...counts, 1);
+  const leftPct = Math.round(handBalance * 100);
+  return (
+    <div className="mt-2.5">
+      <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500">
+        <span>Columns</span>
+        <span
+          className="tabular-nums"
+          title="Share of notes on the left vs right hand"
+        >
+          L {leftPct}% · R {100 - leftPct}%
+        </span>
+      </div>
+      <div className="flex h-9 items-end gap-1">
+        {counts.map((count, i) => (
+          <div
+            key={i}
+            className="group/bar relative flex-1 rounded-t-sm bg-accent/60 transition hover:bg-accent"
+            style={{ height: `${Math.max(4, (count / max) * 100)}%` }}
+            title={`Column ${i + 1}: ${count} note${count === 1 ? "" : "s"}`}
+          />
+        ))}
+      </div>
+      <div className="mt-0.5 flex gap-1">
+        {counts.map((count, i) => (
+          <span
+            key={i}
+            className="flex-1 text-center text-[9px] tabular-nums text-slate-500"
+          >
+            {count}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
