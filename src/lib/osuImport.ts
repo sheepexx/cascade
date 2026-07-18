@@ -99,12 +99,24 @@ export function parseOsuFile(text: string): ParsedOsu {
     Math.min(MAX_KEYS, Math.round(num(diff["CircleSize"], 4))),
   );
 
+  const setId = Math.round(Number(meta["BeatmapSetID"]));
+  const title = meta["Title"] ?? meta["TitleUnicode"] ?? "Untitled";
+  const artist = meta["Artist"] ?? meta["ArtistUnicode"] ?? "Unknown Artist";
+  // Only kept when it carries something the romanised field doesn't, so a
+  // round-trip doesn't accumulate duplicate metadata. Losing these would
+  // overwrite the original-script title and orphan the map from its upload.
+  const titleUnicode = meta["TitleUnicode"];
+  const artistUnicode = meta["ArtistUnicode"];
   const songMeta: SongMeta = {
-    title: meta["Title"] ?? meta["TitleUnicode"] ?? "Untitled",
-    artist: meta["Artist"] ?? meta["ArtistUnicode"] ?? "Unknown Artist",
+    title,
+    artist,
     creator: meta["Creator"] ?? "Mapper",
     tags: meta["Tags"] ?? "",
+    ...(titleUnicode && titleUnicode !== title ? { titleUnicode } : {}),
+    ...(artistUnicode && artistUnicode !== artist ? { artistUnicode } : {}),
+    ...(Number.isFinite(setId) && setId > 0 ? { beatmapSetId: setId } : {}),
   };
+  const beatmapId = Math.round(Number(meta["BeatmapID"]));
 
   const bookmarks = (editor["Bookmarks"] ?? "")
     .split(",")
@@ -211,6 +223,8 @@ export function parseOsuFile(text: string): ParsedOsu {
     overallDifficulty: num(diff["OverallDifficulty"], 7),
     previewTime: Math.round(num(general["PreviewTime"], -1)),
     bookmarks: bookmarks.length ? bookmarks : undefined,
+    ...(Number.isFinite(beatmapId) && beatmapId > 0 ? { beatmapId } : {}),
+    ...(general["SampleSet"] ? { sampleSet: general["SampleSet"] } : {}),
     timingPoints,
     notes,
   };

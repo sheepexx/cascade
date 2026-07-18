@@ -121,6 +121,17 @@ export type SongMeta = {
   artist: string;
   creator: string;
   tags?: string;
+  /**
+   * Original-script metadata. Kept separate from the romanised title/artist so
+   * a round-trip through Cascade doesn't overwrite it — osu! stores both.
+   */
+  titleUnicode?: string;
+  artistUnicode?: string;
+  /**
+   * Identifies the uploaded beatmapset. Preserved so an exported map still
+   * updates the existing submission instead of looking like a brand-new one.
+   */
+  beatmapSetId?: number;
 };
 
 export type SmMeta = {
@@ -160,6 +171,10 @@ export type Difficulty = {
   keyCount: number;
   hpDrainRate: number;
   overallDifficulty: number;
+  /** Identifies this difficulty within an uploaded set; 0 when unsubmitted. */
+  beatmapId?: number;
+  /** [General] SampleSet — the difficulty's default hitsound bank. */
+  sampleSet?: string;
   previewTime: number;
   bookmarks?: number[];
   trimStartMs?: number;

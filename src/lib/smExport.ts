@@ -397,7 +397,9 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
       (window as unknown as { webkitAudioContext?: typeof AudioContext })
         .webkitAudioContext;
     if (!AC) return null;
-    ctxHolder.ctx = new AC();
+    // Pin to 44.1kHz rather than inheriting the device's output rate, which
+    // would resample the source (and make exports differ between machines).
+    ctxHolder.ctx = new AC({ sampleRate: 44100 });
     return ctxHolder.ctx;
   };
 

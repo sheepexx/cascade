@@ -217,6 +217,12 @@ describe("createRateDifficulty", () => {
     ).toBe("x1.2 (2)");
   });
 
+  it("does not inherit the source's beatmap id", () => {
+    // Two difficulties sharing a BeatmapID collide inside the uploaded set.
+    const source = { ...baseDifficulty(), beatmapId: 5773504 };
+    expect(createRateDifficulty(source, { rate: 1.2 }).beatmapId).toBeUndefined();
+  });
+
   it("records the pitch choice only when preserving", () => {
     expect(createRateDifficulty(baseDifficulty(), { rate: 1.2 }).preservePitch).toBeUndefined();
     expect(

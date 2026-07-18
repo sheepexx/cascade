@@ -1950,6 +1950,8 @@ export default function App() {
           ...src,
           id: uid("diff"),
           name: `${src.name} (copy)`,
+          // Unsubmitted copy: reusing the source's id would collide with it.
+          beatmapId: undefined,
           timingPoints: src.timingPoints.map((p) => ({ ...p, id: uid("tp") })),
           notes: src.notes.map((n) => ({ ...n, id: uid("n") })),
         };
