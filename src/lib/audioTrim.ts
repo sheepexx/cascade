@@ -201,12 +201,54 @@ export function renderTrimmedAudio(buffer: AudioBuffer, region: BakedRegion): En
   return encodeBest(sliceAndFade(buffer, region), buffer.sampleRate);
 }
 
-export function convertAudio(buffer: AudioBuffer): EncodedAudio {
+function bufferChannels(buffer: AudioBuffer): Float32Array[] {
   const channels: Float32Array[] = [];
   for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
     channels.push(buffer.getChannelData(ch));
   }
-  return encodeBest(channels, buffer.sampleRate);
+  return channels;
+}
+
+export function convertAudio(buffer: AudioBuffer): EncodedAudio {
+  return encodeBest(bufferChannels(buffer), buffer.sampleRate);
+}
+
+/**
+ * Resamples so the audio plays `rate` times faster while keeping the original
+ * sample rate — the same speed-and-pitch shift the editor applies live, baked
+ * in so exported maps stay in sync outside Cascade.
+ */
+function resampleForRate(
+  channels: Float32Array[],
+  sampleRate: number,
+  rate: number,
+): Float32Array[] {
+  if (Math.abs(rate - 1) < 1e-6) return channels;
+  return resampleChannels(channels, sampleRate, sampleRate / rate);
+}
+
+/** Trim (optional) then rate-shift, in that order — regions are in audio time. */
+export function renderRatedAudio(
+  buffer: AudioBuffer,
+  rate: number,
+  region: BakedRegion | null,
+): EncodedAudio {
+  const channels = region ? sliceAndFade(buffer, region) : bufferChannels(buffer);
+  return encodeBest(
+    resampleForRate(channels, buffer.sampleRate, rate),
+    buffer.sampleRate,
+  );
+}
+
+/** Converts a map-time region into the audio-time one used for slicing. */
+export function regionToAudioTime(region: BakedRegion, rate: number): BakedRegion {
+  if (rate === 1) return region;
+  return {
+    startMs: region.startMs * rate,
+    endMs: region.endMs * rate,
+    fadeInMs: region.fadeInMs * rate,
+    fadeOutMs: region.fadeOutMs * rate,
+  };
 }
 
 export function shiftTimingPoints(
@@ -260,12 +302,21 @@ export function cutDifficulty(
 }
 
 export function cutAudioName(originalName: string, taken: Set<string>, ext: string): string {
+  return bakedAudioName(originalName, taken, ext, "cut");
+}
+
+export function bakedAudioName(
+  originalName: string,
+  taken: Set<string>,
+  ext: string,
+  suffix: string,
+): string {
   const dot = originalName.lastIndexOf(".");
   const base = dot > 0 ? originalName.slice(0, dot) : originalName;
-  let name = `${base}_cut.${ext}`;
+  let name = `${base}_${suffix}.${ext}`;
   let i = 2;
   while (taken.has(name)) {
-    name = `${base}_cut${i}.${ext}`;
+    name = `${base}_${suffix}${i}.${ext}`;
     i++;
   }
   return name;

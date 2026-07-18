@@ -65,6 +65,12 @@ type Props = {
   videoUrl?: string | null;
   videoOffsetMs?: number;
   playbackRate?: number;
+  /**
+   * Rate this difficulty's times are written against. Editor times are map
+   * times, so anything measured against the raw audio file (waveform buckets,
+   * video position) has to be converted through this.
+   */
+  timeScale?: number;
   dimBackground: number;
   skin: ManiaKeymodeSkin | null;
   playfieldScale: number;
@@ -871,8 +877,11 @@ export function ManiaEditor(props: Props) {
     const video = videoRef.current;
     let videoFrame: HTMLVideoElement | null = null;
     if (video && video.readyState >= 2 && video.videoWidth > 0) {
-      const targetSec = (ct - (propsRef.current.videoOffsetMs ?? 0)) / 1000;
-      const rate = propsRef.current.playbackRate ?? 1;
+      // Map time -> real seconds inside the video file.
+      const scale = propsRef.current.timeScale ?? 1;
+      const targetSec =
+        ((ct - (propsRef.current.videoOffsetMs ?? 0)) * scale) / 1000;
+      const rate = (propsRef.current.playbackRate ?? 1) * scale;
       if (video.playbackRate !== rate) video.playbackRate = rate;
       const inRange =
         targetSec >= 0 &&
@@ -961,11 +970,10 @@ export function ManiaEditor(props: Props) {
       const half = playfieldWidth / 2;
       const cx = originX + half;
       const pad = Math.abs(overlayShift) + 4;
-      const stride = Math.max(
-        1,
-        Math.round(3 / (overlay.bucketMs * ppms())),
-      );
-      const strideMs = overlay.bucketMs * stride;
+      // Buckets are measured in audio time; the lane is drawn in map time.
+      const bucketMs = overlay.bucketMs / (propsRef.current.timeScale ?? 1);
+      const stride = Math.max(1, Math.round(3 / (bucketMs * ppms())));
+      const strideMs = bucketMs * stride;
       const tA = yToTime(-pad);
       const tB = yToTime(height + pad);
       const lo = Math.max(0, Math.floor(Math.min(tA, tB) / strideMs));
