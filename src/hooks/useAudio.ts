@@ -70,6 +70,7 @@ export function useAudio(
   buffer?: AudioBuffer | null,
   region?: AudioRegion | null,
   timeScale = 1,
+  preservePitch = false,
 ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -109,6 +110,18 @@ export function useAudio(
   const scale = clampTimeScale(timeScale);
   const timeScaleRef = useRef(scale);
   timeScaleRef.current = scale;
+
+  // AudioBufferSourceNode.playbackRate has no pitch correction, so preserving
+  // pitch means handing playback to the media element, which time-stretches
+  // natively. Costs output-latency compensation; see `webAudioActive`.
+  const preservePitchRef = useRef(preservePitch);
+  preservePitchRef.current = preservePitch;
+
+  /** Whether the buffer-source engine (rather than the element) drives playback. */
+  const webAudioActive = useCallback(
+    (): boolean => bufferRef.current !== null && !preservePitchRef.current,
+    [],
+  );
 
   const regionRef = useRef<AudioRegion | null>(null);
   regionRef.current = scaleRegionToAudio(region ?? null, scale);
@@ -386,7 +399,7 @@ export function useAudio(
     }
     audio.src = src;
     audio.load();
-    applyRate(audio, effectiveRate());
+    applyRate(audio, effectiveRate(), preservePitchRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
@@ -396,7 +409,7 @@ export function useAudio(
     hasKnownDurationRef.current = true;
     setDuration(buffer.duration * 1000);
     const audio = audioRef.current;
-    if (audio && !audio.paused) {
+    if (audio && !audio.paused && !preservePitchRef.current) {
       positionRef.current = audio.currentTime;
       audio.pause();
       if (startWebRef.current()) setIsPlaying(true);
@@ -421,10 +434,10 @@ export function useAudio(
     };
     const onEnded = () => setIsPlaying(false);
     const onPause = () => {
-      if (!bufferRef.current) setIsPlaying(false);
+      if (!webAudioActive()) setIsPlaying(false);
     };
     const onPlay = () => {
-      if (!bufferRef.current) setIsPlaying(true);
+      if (!webAudioActive()) setIsPlaying(true);
     };
 
     audio.addEventListener("loadedmetadata", onLoaded);
@@ -439,14 +452,14 @@ export function useAudio(
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("play", onPlay);
     };
-  }, []);
+  }, [webAudioActive]);
 
   useEffect(() => {
     const audio = audioRef.current;
 
     const tick = () => {
       let next = currentTimeRef.current;
-      if (bufferRef.current) {
+      if (webAudioActive()) {
         next = webPosition() * 1000;
       } else if (audio) {
         next = audio.currentTime * 1000;
@@ -458,7 +471,7 @@ export function useAudio(
         positionRef.current = next / 1000;
         currentTimeRef.current = next;
         setCurrentTime(next);
-        if (bufferRef.current) {
+        if (webAudioActive()) {
           stopWeb(false);
         } else if (audio && !audio.paused) {
           audio.pause();
@@ -482,7 +495,7 @@ export function useAudio(
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [isPlaying, webPosition, stopWeb]);
+  }, [isPlaying, webPosition, stopWeb, webAudioActive]);
 
   const play = useCallback(() => {
     const region = regionRef.current;
@@ -498,14 +511,19 @@ export function useAudio(
         if (a) a.currentTime = startMs / 1000;
       }
     }
-    if (bufferRef.current) {
+    if (webAudioActive()) {
       const audio = audioRef.current;
       if (audio && !audio.paused) audio.pause();
       if (startWeb()) setIsPlaying(true);
       return;
     }
-    audioRef.current?.play().catch(() => {});
-  }, [startWeb]);
+    const audio = audioRef.current;
+    if (audio) {
+      applyRate(audio, effectiveRate(), preservePitchRef.current);
+      audio.currentTime = positionRef.current;
+      void audio.play().catch(() => {});
+    }
+  }, [startWeb, webAudioActive, effectiveRate]);
 
   const pause = useCallback(() => {
     const audio = audioRef.current;
@@ -539,11 +557,15 @@ export function useAudio(
     const start = performance.now();
     const step = (now: number) => {
       const t = clamp01((now - start) / duration);
-      applyRate(audio, from + (target - from) * easeOutCubic(t));
+      applyRate(
+        audio,
+        from + (target - from) * easeOutCubic(t),
+        preservePitchRef.current,
+      );
       if (t < 1) {
         elementRateRafRef.current = requestAnimationFrame(step);
       } else {
-        applyRate(audio, target);
+        applyRate(audio, target, preservePitchRef.current);
         elementRateRafRef.current = null;
       }
     };
@@ -564,7 +586,7 @@ export function useAudio(
       const clamped = Math.max(0, Math.min(ms, max));
       if (!Number.isFinite(clamped)) return;
 
-      if (bufferRef.current) {
+      if (webAudioActive()) {
         const wasPlaying = sourceRef.current !== null;
         stopWeb(false);
         positionRef.current = clamped / 1000;
@@ -573,13 +595,14 @@ export function useAudio(
         if (wasPlaying) startWeb();
         return;
       }
+      positionRef.current = clamped / 1000;
       if (audio) {
         audio.currentTime = clamped / 1000;
         currentTimeRef.current = clamped;
         setCurrentTime(clamped);
       }
     },
-    [duration, stopWeb, startWeb],
+    [duration, stopWeb, startWeb, webAudioActive],
   );
 
   /**
@@ -648,6 +671,35 @@ export function useAudio(
     appliedScaleRef.current = scale;
   }, [scale, retargetRate]);
 
+  // Flipping pitch preservation swaps playback engines. Hand the playhead over
+  // at its current position so the switch is inaudible in timing terms.
+  const appliedPitchRef = useRef(preservePitch);
+  useEffect(() => {
+    if (appliedPitchRef.current === preservePitch) return;
+    appliedPitchRef.current = preservePitch;
+
+    const audio = audioRef.current;
+    const wasPlaying =
+      sourceRef.current !== null || (audio !== null && !audio.paused);
+    if (sourceRef.current) stopWeb(true);
+    else if (audio && !audio.paused) {
+      positionRef.current = audio.currentTime;
+      audio.pause();
+    }
+
+    if (audio) applyRate(audio, effectiveRate(), preservePitch);
+    if (!wasPlaying) return;
+
+    if (preservePitch) {
+      if (audio) {
+        audio.currentTime = positionRef.current;
+        void audio.play().catch(() => {});
+      }
+    } else if (startWebRef.current()) {
+      setIsPlaying(true);
+    }
+  }, [preservePitch, stopWeb, effectiveRate]);
+
   const setVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
     volumeRef.current = clamped;
@@ -676,17 +728,17 @@ export function useAudio(
 
   const getCurrentTime = useCallback(() => {
     const audioMs = (() => {
-      if (bufferRef.current && sourceRef.current) {
+      if (webAudioActive() && sourceRef.current) {
         return webPosition() * 1000 - outputLatencyMs() * syncLivePlaybackRate();
       }
       const audio = audioRef.current;
-      if (!bufferRef.current && audio && !audio.paused) {
+      if (!webAudioActive() && audio && !audio.paused) {
         return audio.currentTime * 1000;
       }
       return currentTimeRef.current;
     })();
     return audioMs / timeScaleRef.current;
-  }, [webPosition, outputLatencyMs, syncLivePlaybackRate]);
+  }, [webPosition, outputLatencyMs, syncLivePlaybackRate, webAudioActive]);
 
   useEffect(() => {
     return () => {
@@ -743,13 +795,17 @@ function scaleRegionToAudio(
   };
 }
 
-function applyRate(audio: HTMLAudioElement | null, rate: number) {
+function applyRate(
+  audio: HTMLAudioElement | null,
+  rate: number,
+  preservePitch = false,
+) {
   if (!audio) return;
   audio.defaultPlaybackRate = rate;
   audio.playbackRate = rate;
-  audio.preservesPitch = false;
+  audio.preservesPitch = preservePitch;
   // @ts-expect-error non-standard
-  audio.mozPreservesPitch = false;
+  audio.mozPreservesPitch = preservePitch;
   // @ts-expect-error non-standard
-  audio.webkitPreservesPitch = false;
+  audio.webkitPreservesPitch = preservePitch;
 }

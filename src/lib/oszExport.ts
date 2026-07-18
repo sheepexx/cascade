@@ -132,6 +132,7 @@ export async function buildOsz({
       // match — otherwise the exported map plays out of sync outside Cascade.
       const rate = difficultyRate(difficulty);
       const wantsRate = !isNeutralRate(rate);
+      const preservePitch = difficulty.preservePitch === true;
 
       if (audio && (wantsTrim || wantsRate)) {
         const buffer = await getDecoded(audio);
@@ -144,7 +145,7 @@ export async function buildOsz({
           const shape = region
             ? `${region.startMs}|${region.endMs}|${region.fadeInMs}|${region.fadeOutMs}`
             : "full";
-          const key = `${audio.name}|${rate}|${shape}`;
+          const key = `${audio.name}|${rate}|${preservePitch}|${shape}`;
           let bakedName = cutNameByKey.get(key);
           if (!bakedName) {
             // At rate 1 this is exactly the old trim-only render.
@@ -152,9 +153,15 @@ export async function buildOsz({
               buffer,
               rate,
               region ? regionToAudioTime(region, rate) : null,
+              preservePitch,
             );
             bakedName = wantsRate
-              ? bakedAudioName(audio.name, bundled, encoded.ext, `x${formatRate(rate)}`)
+              ? bakedAudioName(
+                  audio.name,
+                  bundled,
+                  encoded.ext,
+                  preservePitch ? `x${formatRate(rate)}-pitch` : `x${formatRate(rate)}`,
+                )
               : cutAudioName(audio.name, bundled, encoded.ext);
             zip.file(bakedName, encoded.blob);
             bundled.add(bakedName);

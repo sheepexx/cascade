@@ -1,5 +1,5 @@
 import { uid, type Difficulty, type ManiaNote, type TimingPoint } from "../types";
-import { redPoints } from "./timing";
+import { beatLength, redPoints } from "./timing";
 
 export const RATE_MIN = 0.5;
 export const RATE_MAX = 2;
@@ -16,11 +16,12 @@ export function clampRate(rate: number): number {
 }
 
 /**
- * Snap a rate onto the 0.05 grid and kill binary float noise, so values like
- * 1.0500000000000003 never reach the beatmap model.
+ * Kills binary float noise so values like 1.0500000000000003 never reach the
+ * beatmap model. Deliberately finer than the slider's 0.05 step: entering a
+ * target BPM produces whatever rate hits it exactly.
  */
 export function quantizeRate(rate: number): number {
-  return Math.round(clampRate(rate) * 100) / 100;
+  return Math.round(clampRate(rate) * 10000) / 10000;
 }
 
 export function isNeutralRate(rate: number): boolean {
@@ -46,9 +47,19 @@ export function formatRate(rate: number): string {
   return String(quantizeRate(rate));
 }
 
-/** Padded form used in the panel readout: 1.2 -> "1.20". */
+/** Padded form used in the panel readout: 1.2 -> "1.20", 0.6318 -> "0.6318". */
 export function formatRateDisplay(rate: number): string {
-  return quantizeRate(rate).toFixed(2);
+  const q = quantizeRate(rate);
+  const padded = q.toFixed(2);
+  return Number(padded) === q ? padded : String(q);
+}
+
+/** Parses a BPM field. Returns null for anything unusable. */
+export function parseBpmInput(raw: string): number | null {
+  const text = raw.trim().replace(/bpm$/i, "").trim();
+  if (!text) return null;
+  const n = Number(text);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /** "3:30" — song-length style, distinct from timing.formatTime's ms precision. */
@@ -136,15 +147,78 @@ export function applyRateToTimingPoints(
   }));
 }
 
+export type RateNameOptions = {
+  onlyRateAsName?: boolean;
+  /** Pre-formatted BPM to append, e.g. "361" or "120-240". Omit for none. */
+  bpmLabel?: string | null;
+};
+
 export function rateDifficultyName(
   baseName: string,
   rate: number,
-  onlyRateAsName: boolean,
+  { onlyRateAsName = false, bpmLabel }: RateNameOptions = {},
 ): string {
-  const suffix = `x${formatRate(rate)}`;
+  const suffix = bpmLabel
+    ? `x${formatRate(rate)} (${bpmLabel} BPM)`
+    : `x${formatRate(rate)}`;
   if (onlyRateAsName) return suffix;
   const base = baseName.trim();
   return base ? `${base} ${suffix}` : suffix;
+}
+
+/**
+ * The BPM a map reads as: the one governing the most playing time, so a short
+ * intro or outro section can't hijack the label. Falls back to the first red
+ * point when there's nothing to weigh sections against.
+ */
+export function dominantBpm(
+  points: TimingPoint[],
+  durationMs?: number | null,
+): number {
+  const reds = redPoints(points);
+  if (!reds.length) return 0;
+  if (reds.length === 1) return reds[0].bpm;
+
+  const last = reds[reds.length - 1];
+  const end =
+    typeof durationMs === "number" && durationMs > last.time
+      ? durationMs
+      : last.time + beatLength(last.bpm) * 4;
+
+  const spans = new Map<number, number>();
+  for (let i = 0; i < reds.length; i++) {
+    const stop = i + 1 < reds.length ? reds[i + 1].time : end;
+    const span = Math.max(0, stop - reds[i].time);
+    spans.set(reds[i].bpm, (spans.get(reds[i].bpm) ?? 0) + span);
+  }
+
+  let best = reds[0].bpm;
+  let bestSpan = -1;
+  for (const [bpm, span] of spans) {
+    if (span > bestSpan) {
+      bestSpan = span;
+      best = bpm;
+    }
+  }
+  return best;
+}
+
+/** The rate that turns `baseBpm` into `targetBpm`, or null if out of range. */
+export function rateForBpm(baseBpm: number, targetBpm: number): number | null {
+  if (!Number.isFinite(baseBpm) || baseBpm <= 0) return null;
+  if (!Number.isFinite(targetBpm) || targetBpm <= 0) return null;
+  const rate = targetBpm / baseBpm;
+  if (rate < RATE_MIN - RATE_EPSILON || rate > RATE_MAX + RATE_EPSILON) return null;
+  return quantizeRate(rate);
+}
+
+/** BPM (or BPM range) a map ends up at, formatted for a difficulty name. */
+export function scaledBpmLabel(points: TimingPoint[], rate: number): string {
+  const range = bpmRange(points);
+  if (!range) return "";
+  const lo = Math.round(range.min * rate);
+  const hi = Math.round(range.max * rate);
+  return range.varies && lo !== hi ? `${lo}-${hi}` : String(lo);
 }
 
 /** "Insane x1.2" -> "Insane x1.2 (2)" when the name is already taken. */
@@ -162,8 +236,15 @@ export function uniqueDifficultyName(
 export type RateDifficultyOptions = {
   rate: number;
   onlyRateAsName?: boolean;
+  /** Append the resulting BPM to the name. */
+  showBpm?: boolean;
+  /** Time-stretch instead of resampling, keeping the original pitch. */
+  preservePitch?: boolean;
   existingNames?: Iterable<string>;
 };
+
+/** What the panel decides; the caller supplies the source and existing names. */
+export type RateCreateOptions = Omit<RateDifficultyOptions, "existingNames">;
 
 /**
  * Builds a rate-shifted copy of `source`. The source is never mutated: notes,
@@ -173,11 +254,20 @@ export type RateDifficultyOptions = {
  */
 export function createRateDifficulty(
   source: Difficulty,
-  { rate: requestedRate, onlyRateAsName = false, existingNames = [] }: RateDifficultyOptions,
+  {
+    rate: requestedRate,
+    onlyRateAsName = false,
+    showBpm = true,
+    preservePitch = false,
+    existingNames = [],
+  }: RateDifficultyOptions,
 ): Difficulty {
   const rate = quantizeRate(requestedRate);
   const name = uniqueDifficultyName(
-    rateDifficultyName(source.name, rate, onlyRateAsName),
+    rateDifficultyName(source.name, rate, {
+      onlyRateAsName,
+      bpmLabel: showBpm ? scaledBpmLabel(source.timingPoints, rate) : null,
+    }),
     existingNames,
   );
 
@@ -191,6 +281,7 @@ export function createRateDifficulty(
     id: uid("diff"),
     name,
     audioRate: composedRate,
+    preservePitch: preservePitch ? true : undefined,
     notes: applyRateToNotes(source.notes, rate),
     timingPoints: applyRateToTimingPoints(source.timingPoints, rate),
     previewTime:
@@ -244,6 +335,9 @@ export type RatePreview = {
   bpmAfter: string;
   lengthBefore: string | null;
   lengthAfter: string | null;
+  /** BPM the editable field shows: the dominant section, scaled. */
+  targetBpm: number;
+  baseBpm: number;
 };
 
 /** Everything the panel needs to describe the pending change, UI-free. */
@@ -258,16 +352,25 @@ export function describeRateChange(
     : null;
   const duration = options.durationMs;
   const hasDuration = typeof duration === "number" && duration > 0;
+  const baseBpm = dominantBpm(source.timingPoints, duration);
 
   return {
     rate,
     name: uniqueDifficultyName(
-      rateDifficultyName(source.name, rate, options.onlyRateAsName ?? false),
+      rateDifficultyName(source.name, rate, {
+        onlyRateAsName: options.onlyRateAsName,
+        bpmLabel:
+          (options.showBpm ?? true)
+            ? scaledBpmLabel(source.timingPoints, rate)
+            : null,
+      }),
       options.existingNames ?? [],
     ),
     bpmBefore: formatBpmRange(before),
     bpmAfter: formatBpmRange(after),
     lengthBefore: hasDuration ? formatSongLength(duration) : null,
     lengthAfter: hasDuration ? formatSongLength(scaledDuration(duration, rate)) : null,
+    baseBpm,
+    targetBpm: baseBpm * rate,
   };
 }

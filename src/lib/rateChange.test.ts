@@ -11,11 +11,15 @@ import {
   applyRateToTimingPoints,
   createRateDifficulty,
   describeRateChange,
+  dominantBpm,
   formatRate,
   isRateDifficulty,
+  parseBpmInput,
   parseRateInput,
   quantizeRate,
   rateDifficultyName,
+  rateForBpm,
+  scaledBpmLabel,
   scaledDuration,
   toAudioTime,
   toMapTime,
@@ -164,33 +168,131 @@ describe("createRateDifficulty", () => {
     expect(twice.notes[0].startTime).toBe(667);
   });
 
+  it("includes the resulting BPM in the name by default", () => {
+    // Source is 100 BPM, so 1.2x lands on 120.
+    expect(createRateDifficulty(baseDifficulty(), { rate: 1.2 }).name).toBe(
+      "Insane x1.2 (120 BPM)",
+    );
+  });
+
   it("names the copy after the source and rate", () => {
-    const rated = createRateDifficulty(baseDifficulty(), { rate: 1.2 });
+    const rated = createRateDifficulty(baseDifficulty(), {
+      rate: 1.2,
+      showBpm: false,
+    });
     expect(rated.name).toBe("Insane x1.2");
   });
 
   it("uses only the rate as the name when asked", () => {
-    const rated = createRateDifficulty(baseDifficulty(), {
-      rate: 1.2,
-      onlyRateAsName: true,
-    });
-    expect(rated.name).toBe("x1.2");
+    expect(
+      createRateDifficulty(baseDifficulty(), {
+        rate: 1.2,
+        onlyRateAsName: true,
+        showBpm: false,
+      }).name,
+    ).toBe("x1.2");
+    expect(
+      createRateDifficulty(baseDifficulty(), { rate: 1.2, onlyRateAsName: true }).name,
+    ).toBe("x1.2 (120 BPM)");
   });
 
   it("numbers duplicate names automatically", () => {
     const source = baseDifficulty();
     const taken = ["Insane", "Insane x1.2", "Insane x1.2 (2)"];
 
-    expect(createRateDifficulty(source, { rate: 1.2, existingNames: taken }).name).toBe(
-      "Insane x1.2 (3)",
-    );
+    expect(
+      createRateDifficulty(source, {
+        rate: 1.2,
+        showBpm: false,
+        existingNames: taken,
+      }).name,
+    ).toBe("Insane x1.2 (3)");
     expect(
       createRateDifficulty(source, {
         rate: 1.2,
         onlyRateAsName: true,
+        showBpm: false,
         existingNames: ["x1.2"],
       }).name,
     ).toBe("x1.2 (2)");
+  });
+
+  it("records the pitch choice only when preserving", () => {
+    expect(createRateDifficulty(baseDifficulty(), { rate: 1.2 }).preservePitch).toBeUndefined();
+    expect(
+      createRateDifficulty(baseDifficulty(), { rate: 1.2, preservePitch: true })
+        .preservePitch,
+    ).toBe(true);
+  });
+});
+
+describe("BPM entry", () => {
+  it("finds the rate that reaches a target BPM", () => {
+    expect(rateForBpm(120, 144)).toBeCloseTo(1.2, 6);
+    expect(rateForBpm(120, 90)).toBeCloseTo(0.75, 6);
+    expect(rateForBpm(120, 120)).toBe(1);
+  });
+
+  it("rejects targets outside the rate range", () => {
+    expect(rateForBpm(120, 30)).toBeNull(); // 0.25x
+    expect(rateForBpm(120, 400)).toBeNull(); // 3.33x
+    expect(rateForBpm(0, 144)).toBeNull();
+    expect(rateForBpm(120, 0)).toBeNull();
+  });
+
+  it("keeps enough precision to hit an awkward BPM exactly", () => {
+    const rate = rateForBpm(300.727, 190);
+    expect(rate).not.toBeNull();
+    expect(300.727 * (rate as number)).toBeCloseTo(190, 1);
+  });
+
+  it("parses plain and suffixed BPM input", () => {
+    expect(parseBpmInput("144")).toBe(144);
+    expect(parseBpmInput(" 144 bpm ")).toBe(144);
+    expect(parseBpmInput("174.5")).toBe(174.5);
+    expect(parseBpmInput("abc")).toBeNull();
+    expect(parseBpmInput("-5")).toBeNull();
+    expect(parseBpmInput("")).toBeNull();
+  });
+});
+
+describe("dominantBpm", () => {
+  it("returns the only BPM of a single-section map", () => {
+    expect(dominantBpm([makeRedPoint(0, 175)], 200000)).toBe(175);
+  });
+
+  it("picks the BPM that governs the most time, not the first", () => {
+    const points = [
+      makeRedPoint(0, 90), // 0-10s   -> 10s
+      makeRedPoint(10000, 180), // 10-120s -> 110s
+      makeRedPoint(120000, 90), // 120-130s -> 10s (folds into 90's total)
+    ];
+    expect(dominantBpm(points, 130000)).toBe(180);
+  });
+
+  it("sums sections that share a BPM", () => {
+    const points = [
+      makeRedPoint(0, 150), // 60s
+      makeRedPoint(60000, 200), // 20s
+      makeRedPoint(80000, 150), // 20s -> 150 totals 80s
+    ];
+    expect(dominantBpm(points, 100000)).toBe(150);
+  });
+
+  it("copes with a missing duration", () => {
+    expect(dominantBpm([makeRedPoint(0, 120), makeRedPoint(60000, 140)], null)).toBe(120);
+  });
+});
+
+describe("scaledBpmLabel", () => {
+  it("rounds a single BPM", () => {
+    expect(scaledBpmLabel([makeRedPoint(0, 300.727)], 1.2)).toBe("361");
+  });
+
+  it("renders a range for multi-BPM maps", () => {
+    expect(
+      scaledBpmLabel([makeRedPoint(0, 100), makeRedPoint(1000, 200)], 1.2),
+    ).toBe("120-240");
   });
 });
 
@@ -216,9 +318,19 @@ describe("naming helpers", () => {
   });
 
   it("builds names from a base and a rate", () => {
-    expect(rateDifficultyName("Insane", 1.2, false)).toBe("Insane x1.2");
-    expect(rateDifficultyName("Insane", 1.2, true)).toBe("x1.2");
-    expect(rateDifficultyName("  ", 1.2, false)).toBe("x1.2");
+    expect(rateDifficultyName("Insane", 1.2)).toBe("Insane x1.2");
+    expect(rateDifficultyName("Insane", 1.2, { onlyRateAsName: true })).toBe("x1.2");
+    expect(rateDifficultyName("  ", 1.2)).toBe("x1.2");
+  });
+
+  it("appends a BPM label when one is supplied", () => {
+    expect(rateDifficultyName("Insane", 1.2, { bpmLabel: "144" })).toBe(
+      "Insane x1.2 (144 BPM)",
+    );
+    expect(
+      rateDifficultyName("Insane", 1.2, { onlyRateAsName: true, bpmLabel: "144" }),
+    ).toBe("x1.2 (144 BPM)");
+    expect(rateDifficultyName("Insane", 1.2, { bpmLabel: "" })).toBe("Insane x1.2");
   });
 
   it("only numbers names that actually collide", () => {
@@ -293,11 +405,22 @@ describe("describeRateChange", () => {
       durationMs: 210000,
     });
 
-    expect(preview.name).toBe("Insane x1.2");
+    expect(preview.name).toBe("Insane x1.2 (120 BPM)");
     expect(preview.bpmBefore).toBe("100");
     expect(preview.bpmAfter).toBe("120");
     expect(preview.lengthBefore).toBe("3:30");
     expect(preview.lengthAfter).toBe("2:55");
+    expect(preview.baseBpm).toBe(100);
+    expect(preview.targetBpm).toBeCloseTo(120, 6);
+  });
+
+  it("drops the BPM from the name when the option is off", () => {
+    const preview = describeRateChange(baseDifficulty(), {
+      rate: 1.2,
+      showBpm: false,
+      durationMs: 210000,
+    });
+    expect(preview.name).toBe("Insane x1.2");
   });
 
   it("shows a BPM range for multi-BPM maps", () => {

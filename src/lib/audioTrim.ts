@@ -227,17 +227,97 @@ function resampleForRate(
   return resampleChannels(channels, sampleRate, sampleRate / rate);
 }
 
+/**
+ * WSOLA time stretch: changes duration by `rate` while keeping pitch, by
+ * overlap-adding windowed grains and nudging each grain to wherever it best
+ * correlates with the previous one (which is what stops the phasiness plain
+ * OLA produces).
+ */
+function timeStretch(
+  channels: Float32Array[],
+  sampleRate: number,
+  rate: number,
+): Float32Array[] {
+  if (Math.abs(rate - 1) < 1e-6) return channels;
+
+  const frame = Math.max(256, Math.round(sampleRate * 0.046)); // ~46ms grains
+  const synthesisHop = Math.floor(frame / 4);
+  const analysisHop = synthesisHop * rate;
+  const search = Math.min(Math.floor(synthesisHop / 2), Math.floor(sampleRate * 0.005));
+
+  const inLength = channels[0]?.length ?? 0;
+  if (inLength < frame * 2) return resampleForRate(channels, sampleRate, rate);
+  const outLength = Math.max(1, Math.round(inLength / rate));
+
+  const window = new Float32Array(frame);
+  for (let i = 0; i < frame; i++) {
+    window[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (frame - 1));
+  }
+
+  // Correlation is measured on channel 0 and the same offset applied to all,
+  // so the stereo image stays intact.
+  const guide = channels[0];
+  const outputs = channels.map(() => new Float32Array(outLength));
+  const overlap = new Float32Array(outLength);
+  const tail = new Float32Array(synthesisHop);
+
+  let analysis = 0;
+  for (let out = 0; out + frame <= outLength; out += synthesisHop) {
+    let offset = 0;
+    if (out > 0 && search > 0) {
+      let best = -Infinity;
+      for (let delta = -search; delta <= search; delta++) {
+        const start = Math.round(analysis) + delta;
+        if (start < 0 || start + synthesisHop > inLength) continue;
+        let corr = 0;
+        for (let i = 0; i < synthesisHop; i += 2) corr += guide[start + i] * tail[i];
+        if (corr > best) {
+          best = corr;
+          offset = delta;
+        }
+      }
+    }
+
+    const start = Math.max(0, Math.min(inLength - frame, Math.round(analysis) + offset));
+    for (let ch = 0; ch < channels.length; ch++) {
+      const src = channels[ch];
+      const dst = outputs[ch];
+      for (let i = 0; i < frame; i++) dst[out + i] += src[start + i] * window[i];
+    }
+    for (let i = 0; i < frame; i++) overlap[out + i] += window[i];
+    for (let i = 0; i < synthesisHop; i++) {
+      tail[i] = guide[Math.min(inLength - 1, start + synthesisHop + i)];
+    }
+
+    analysis += analysisHop;
+  }
+
+  // Hann windows at a quarter-frame hop sum to ~2 in steady state. Flooring the
+  // divisor at 1 leaves the head and tail as a natural one-frame fade instead
+  // of dividing by ~0 and firing off a spike.
+  for (const dst of outputs) {
+    for (let i = 0; i < outLength; i++) dst[i] /= Math.max(overlap[i], 1);
+  }
+
+  // Grains that don't line up perfectly cancel a little, so the stretch lands
+  // roughly 2dB below the source. Deliberately not gain-matched: WSOLA also
+  // produces occasional over-unity peaks, and scaling to fit those under 0dB
+  // costs far more level than the cancellation does. Encoding clamps them.
+  return outputs;
+}
+
 /** Trim (optional) then rate-shift, in that order — regions are in audio time. */
 export function renderRatedAudio(
   buffer: AudioBuffer,
   rate: number,
   region: BakedRegion | null,
+  preservePitch = false,
 ): EncodedAudio {
   const channels = region ? sliceAndFade(buffer, region) : bufferChannels(buffer);
-  return encodeBest(
-    resampleForRate(channels, buffer.sampleRate, rate),
-    buffer.sampleRate,
-  );
+  const shifted = preservePitch
+    ? timeStretch(channels, buffer.sampleRate, rate)
+    : resampleForRate(channels, buffer.sampleRate, rate);
+  return encodeBest(shifted, buffer.sampleRate);
 }
 
 /** Converts a map-time region into the audio-time one used for slicing. */

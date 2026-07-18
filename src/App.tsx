@@ -37,6 +37,7 @@ import { PlaytestOverlay } from "./components/PlaytestOverlay";
 import {
   createRateDifficulty as makeRateDifficulty,
   difficultyRate,
+  type RateCreateOptions,
 } from "./lib/rateChange";
 import type { Comment } from "./lib/comments";
 import {
@@ -637,6 +638,7 @@ export default function App() {
       fadeOutMs: active.fadeOutMs,
     },
     activeRate,
+    active.preservePitch === true,
   );
   const currentTimeRef = useRef(audio.getCurrentTime());
   currentTimeRef.current = audio.getCurrentTime();
@@ -1920,15 +1922,14 @@ export default function App() {
    * other structural change, so it undoes/redoes for free.
    */
   const createRateDifficulty = useCallback(
-    (rate: number, onlyRateAsName: boolean) => {
+    (options: RateCreateOptions) => {
       if (!canEditRef.current) return;
       const source = difficultiesRef.current.find(
         (d) => d.id === activeIdRef.current,
       );
       if (!source) return;
       const rated = makeRateDifficulty(source, {
-        rate,
-        onlyRateAsName,
+        ...options,
         existingNames: difficultiesRef.current.map((d) => d.name),
       });
       markStructural();

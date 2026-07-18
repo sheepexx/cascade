@@ -148,6 +148,12 @@ export type Difficulty = {
    * faster so notes stay in sync. Undefined or 1 means unchanged.
    */
   audioRate?: number;
+  /**
+   * Time-stretch the audio instead of resampling it, so the rate change keeps
+   * the original pitch. Undefined/false matches osu!'s DT/HT, where pitch
+   * shifts with speed.
+   */
+  preservePitch?: boolean;
   backgroundFilename?: string;
   videoFilename?: string;
   videoOffsetMs?: number;
