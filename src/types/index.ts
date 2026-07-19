@@ -276,12 +276,16 @@ export type AppSettings = {
   showWaveform: boolean;
   showTimingLines: boolean;
   upscroll: boolean;
+  svPreviewPlayback: boolean;
   localAutosaveEnabled: boolean;
   exportPngBackgroundsAsJpeg: boolean;
   exportJpegQuality: number;
   uiSoundsEnabled: boolean;
   uiSoundVolume: number;
   playtest: PlaytestSettings;
+  /** Rebindable editor shortcuts (KeyboardEvent.code per action); defaults
+   * are filled in by normalizeEditorKeybinds at load time. */
+  editorKeybinds: Record<string, string>;
 };
 
 export type ManiaColumnSkin = {
@@ -330,6 +334,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showWaveform: false,
   showTimingLines: true,
   upscroll: false,
+  svPreviewPlayback: true,
   localAutosaveEnabled: true,
   exportPngBackgroundsAsJpeg: true,
   exportJpegQuality: 0.9,
@@ -353,6 +358,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     keybinds: {},
     quickRestartKey: "Backquote",
   },
+  editorKeybinds: {},
 };
 
 export const MIN_KEYS = 1;
