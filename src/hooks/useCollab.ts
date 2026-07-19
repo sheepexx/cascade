@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase, getSupabaseToken } from "../lib/supabase";
 import type { CollabOp } from "../lib/ops";
+import {
+  aggregatePresencePeers,
+  type PresencePeer,
+  type TrackedPresence,
+} from "../lib/collabPresence";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -22,16 +27,7 @@ function restBroadcast(projectId: string, event: string, payload: unknown): void
   }).catch(() => {});
 }
 
-export type Peer = {
-  id: string;
-  username: string;
-  avatar: string | null;
-  color: string;
-  activeDiffId?: string;
-  playheadMs?: number;
-  cursorTimeMs?: number;
-  cursorColumn?: number;
-};
+export type Peer = PresencePeer;
 
 export type CollabStatus = "idle" | "connecting" | "connected" | "error";
 
@@ -42,10 +38,17 @@ type PresenceFields = {
   cursorColumn?: number;
 };
 
+export type AssetChange = {
+  event: "INSERT" | "UPDATE" | "DELETE";
+  filename: string | null;
+  kind: "audio" | "bg" | null;
+  sha256: string | null;
+};
+
 type Me = { id: string; username: string; avatar: string | null };
 
-const HEARTBEAT_MS = 3000;
-const PEER_TTL_MS = 9000;
+const PRESENCE_SEND_MS = 800;
+const LEAVE_GRACE_MS = 12_000;
 
 export function colorForId(id: string): string {
   let h = 0;
@@ -60,7 +63,7 @@ export function useCollab(opts: {
   me: Me | null;
   onRemoteOp: (op: CollabOp) => void;
   onRefresh: () => void;
-  onSyncRequest: () => void;
+  onAssetChange?: (change: AssetChange) => void;
   onPeerJoin?: (peer: Peer) => void;
   onPeerLeave?: (peer: Peer) => void;
   onNotice?: (notice: { text: string; avatar: string | null }) => void;
@@ -73,8 +76,8 @@ export function useCollab(opts: {
   onRemoteOpRef.current = opts.onRemoteOp;
   const onRefreshRef = useRef(opts.onRefresh);
   onRefreshRef.current = opts.onRefresh;
-  const onSyncRequestRef = useRef(opts.onSyncRequest);
-  onSyncRequestRef.current = opts.onSyncRequest;
+  const onAssetChangeRef = useRef(opts.onAssetChange);
+  onAssetChangeRef.current = opts.onAssetChange;
   const onPeerJoinRef = useRef(opts.onPeerJoin);
   onPeerJoinRef.current = opts.onPeerJoin;
   const onPeerLeaveRef = useRef(opts.onPeerLeave);
@@ -83,67 +86,111 @@ export function useCollab(opts: {
   onNoticeRef.current = opts.onNotice;
 
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const statusRef = useRef<CollabStatus>("idle");
+  const sessionIdRef = useRef(crypto.randomUUID());
   const invisibleRef = useRef(!!opts.invisible);
   const presenceRef = useRef<PresenceFields>({});
   const meRef = useRef<Me | null>(me);
   meRef.current = me;
-  const peersRef = useRef<Map<string, Peer & { lastSeen: number }>>(new Map());
-  const readyAtRef = useRef(0);
+  const peersRef = useRef<Map<string, Peer>>(new Map());
   const lastPresenceSendRef = useRef(0);
+
+  const updateStatus = (next: CollabStatus) => {
+    statusRef.current = next;
+    setStatus(next);
+  };
 
   useEffect(() => {
     if (!enabled || !projectId || !me) {
-      setStatus("idle");
+      updateStatus("idle");
       setPeers([]);
       peersRef.current.clear();
       return;
     }
-    setStatus("connecting");
+
+    updateStatus("connecting");
     peersRef.current.clear();
     setPeers([]);
     const myColor = colorForId(me.id);
 
     let disposed = false;
     let channel: RealtimeChannel | null = null;
+    let syncChannel: RealtimeChannel | null = null;
     let reconnectTimer: number | undefined;
     let attempt = 0;
-    let gotJoinDoc = false;
-    const joinSyncTimers: number[] = [];
+    let presenceInitialized = false;
+    const leaveTimers = new Map<string, number>();
 
     const publishPeers = () => setPeers([...peersRef.current.values()]);
+    const clearLeaveTimer = (id: string) => {
+      const timer = leaveTimers.get(id);
+      if (timer !== undefined) window.clearTimeout(timer);
+      leaveTimers.delete(id);
+    };
+    const scheduleLeave = (peer: Peer) => {
+      if (leaveTimers.has(peer.id)) return;
+      leaveTimers.set(
+        peer.id,
+        window.setTimeout(() => {
+          leaveTimers.delete(peer.id);
+          const current = peersRef.current.get(peer.id);
+          if (!current || current !== peer) return;
+          peersRef.current.delete(peer.id);
+          publishPeers();
+          onPeerLeaveRef.current?.(peer);
+        }, LEAVE_GRACE_MS),
+      );
+    };
 
-    const broadcastPresence = () => {
-      const m = meRef.current;
-      if (!m || invisibleRef.current) return;
-      lastPresenceSendRef.current = Date.now();
-      restBroadcast(projectId, "presence", {
-        id: m.id,
-        username: m.username,
-        avatar: m.avatar,
+    const presencePayload = (): TrackedPresence | null => {
+      const currentMe = meRef.current;
+      if (!currentMe) return null;
+      return {
+        id: currentMe.id,
+        username: currentMe.username,
+        avatar: currentMe.avatar,
         color: myColor,
+        sessionId: sessionIdRef.current,
+        updatedAt: Date.now(),
         ...presenceRef.current,
-      });
+      };
     };
+    const shouldTrack = () =>
+      !disposed &&
+      !invisibleRef.current &&
+      document.visibilityState === "visible" &&
+      statusRef.current === "connected";
+    const trackPresence = (force = false) => {
+      const activeChannel = channelRef.current;
+      const payload = presencePayload();
+      if (!activeChannel || !payload || !shouldTrack()) return;
+      if (!force && Date.now() - lastPresenceSendRef.current < PRESENCE_SEND_MS) return;
+      lastPresenceSendRef.current = Date.now();
+      void activeChannel.track(payload);
+    };
+    const syncPresence = (ch: RealtimeChannel) => {
+      const next = aggregatePresencePeers(ch.presenceState<TrackedPresence>(), me.id);
+      const current = peersRef.current;
 
-    const requestSync = () => {
-      if (disposed || gotJoinDoc) return;
-      restBroadcast(projectId, "sync.request", { _from: me.id });
-    };
-    const startJoinSync = () => {
-      gotJoinDoc = false;
-      joinSyncTimers.forEach((t) => window.clearTimeout(t));
-      joinSyncTimers.length = 0;
-      requestSync();
-      for (const delay of [1000, 2500, 5000]) {
-        joinSyncTimers.push(window.setTimeout(requestSync, delay));
+      for (const [id, peer] of next) {
+        clearLeaveTimer(id);
+        const isNew = !current.has(id);
+        current.set(id, peer);
+        if (presenceInitialized && isNew) onPeerJoinRef.current?.(peer);
       }
+      for (const [id, peer] of current) {
+        if (!next.has(id)) scheduleLeave(peer);
+      }
+
+      presenceInitialized = true;
+      publishPeers();
     };
 
     const scheduleReconnect = () => {
       if (disposed || reconnectTimer !== undefined) return;
-      const delay = Math.min(1000 * 2 ** attempt, 15000);
+      const delay = Math.min(1000 * 2 ** attempt, 15_000);
       attempt += 1;
-      setStatus(attempt >= 5 ? "error" : "connecting");
+      updateStatus(attempt >= 5 ? "error" : "connecting");
       reconnectTimer = window.setTimeout(() => {
         reconnectTimer = undefined;
         connect();
@@ -152,9 +199,13 @@ export function useCollab(opts: {
 
     const connect = () => {
       if (disposed) return;
-      setStatus("connecting");
+      updateStatus("connecting");
       const ch = supabase.channel(`project:${projectId}`, {
-        config: { private: true, broadcast: { self: false } },
+        config: {
+          private: true,
+          broadcast: { self: false, ack: true },
+          presence: { key: sessionIdRef.current },
+        },
       });
       channel = ch;
       channelRef.current = ch;
@@ -166,34 +217,7 @@ export function useCollab(opts: {
       });
       ch.on("broadcast", { event: "doc.bump" }, ({ payload }) => {
         if ((payload as { _from?: string })?._from === meRef.current?.id) return;
-        gotJoinDoc = true;
         onRefreshRef.current();
-      });
-      ch.on("broadcast", { event: "sync.request" }, ({ payload }) => {
-        if ((payload as { _from?: string })?._from === meRef.current?.id) return;
-        onSyncRequestRef.current();
-      });
-      ch.on("broadcast", { event: "presence" }, ({ payload }) => {
-        const p = payload as Peer;
-        if (!p?.id || p.id === meRef.current?.id) return;
-        const map = peersRef.current;
-        const isNew = !map.has(p.id);
-        map.set(p.id, { ...p, lastSeen: Date.now() });
-        publishPeers();
-        if (isNew) {
-          broadcastPresence();
-          requestSync();
-          if (Date.now() >= readyAtRef.current) onPeerJoinRef.current?.(p);
-        }
-      });
-      ch.on("broadcast", { event: "presence.leave" }, ({ payload }) => {
-        const id = (payload as { id?: string })?.id;
-        if (!id) return;
-        const peer = peersRef.current.get(id);
-        if (peer && peersRef.current.delete(id)) {
-          publishPeers();
-          onPeerLeaveRef.current?.(peer);
-        }
       });
       ch.on("broadcast", { event: "notice" }, ({ payload }) => {
         const p = payload as {
@@ -204,108 +228,200 @@ export function useCollab(opts: {
         if (!p?.text || p._from === meRef.current?.id) return;
         onNoticeRef.current?.({ text: p.text, avatar: p.avatar ?? null });
       });
-
-      ch.subscribe((s, err) => {
+      ch.on("presence", { event: "sync" }, () => syncPresence(ch));
+      ch.subscribe((nextStatus, err) => {
         if (disposed || channel !== ch) return;
-        if (s === "SUBSCRIBED") {
+        if (nextStatus === "SUBSCRIBED") {
           attempt = 0;
-          setStatus("connected");
-          readyAtRef.current = Date.now() + 1500;
-          broadcastPresence();
-          startJoinSync();
-        } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") {
+          updateStatus("connected");
+          trackPresence(true);
+          onRefreshRef.current();
+        } else if (
+          nextStatus === "CHANNEL_ERROR" ||
+          nextStatus === "TIMED_OUT" ||
+          nextStatus === "CLOSED"
+        ) {
           console.warn(
-            `[collab] channel ${s} for project:${projectId} - reconnecting`,
+            `[collab] channel ${nextStatus} for project:${projectId} - reconnecting`,
             err ?? "",
           );
+          channel = null;
+          if (channelRef.current === ch) channelRef.current = null;
           void supabase.removeChannel(ch);
           scheduleReconnect();
         }
       });
     };
 
-    connect();
-
-    const heartbeat = window.setInterval(broadcastPresence, HEARTBEAT_MS);
-    const pruner = window.setInterval(() => {
-      const now = Date.now();
-      let changed = false;
-      for (const [id, peer] of peersRef.current) {
-        if (now - peer.lastSeen > PEER_TTL_MS) {
-          peersRef.current.delete(id);
-          onPeerLeaveRef.current?.(peer);
-          changed = true;
+    const connectDurableSync = () => {
+      const ch = supabase
+        .channel(`project-sync:${projectId}`, {
+          config: { private: true },
+        })
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "projects",
+            filter: `id=eq.${projectId}`,
+          },
+          () => onRefreshRef.current(),
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "project_assets",
+            filter: `project_id=eq.${projectId}`,
+          },
+          (payload) => {
+            const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as Record<
+              string,
+              unknown
+            >;
+            const kind = row.kind === "audio" || row.kind === "bg" ? row.kind : null;
+            onAssetChangeRef.current?.({
+              event: payload.eventType,
+              filename: typeof row.filename === "string" ? row.filename : null,
+              kind,
+              sha256: typeof row.sha256 === "string" ? row.sha256 : null,
+            });
+          },
+        );
+      syncChannel = ch;
+      ch.subscribe((nextStatus, err) => {
+        if (disposed || syncChannel !== ch) return;
+        if (
+          nextStatus === "CHANNEL_ERROR" ||
+          nextStatus === "TIMED_OUT"
+        ) {
+          console.warn(
+            `[collab] durable sync ${nextStatus} for project:${projectId}`,
+            err ?? "",
+          );
         }
+      });
+    };
+
+    const onVisibilityChange = () => {
+      const activeChannel = channelRef.current;
+      if (!activeChannel || statusRef.current !== "connected") return;
+      if (document.visibilityState === "visible" && !invisibleRef.current) {
+        trackPresence(true);
+      } else {
+        void activeChannel.untrack();
       }
-      if (changed) publishPeers();
-    }, HEARTBEAT_MS);
+    };
+
+    connect();
+    connectDurableSync();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    const activePeers = peersRef.current;
 
     return () => {
       disposed = true;
-      if (!invisibleRef.current) restBroadcast(projectId, "presence.leave", { id: me.id });
-      window.clearInterval(heartbeat);
-      window.clearInterval(pruner);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
-      joinSyncTimers.forEach((t) => window.clearTimeout(t));
+      for (const timer of leaveTimers.values()) window.clearTimeout(timer);
+      leaveTimers.clear();
+      const activeChannel = channel;
+      const activeSyncChannel = syncChannel;
+      channel = null;
+      syncChannel = null;
       channelRef.current = null;
-      if (channel) void supabase.removeChannel(channel);
-      peersRef.current.clear();
-      setStatus("idle");
+      if (activeChannel) {
+        void activeChannel.untrack();
+        void supabase.removeChannel(activeChannel);
+      }
+      if (activeSyncChannel) void supabase.removeChannel(activeSyncChannel);
+      activePeers.clear();
+      updateStatus("idle");
       setPeers([]);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, enabled, me?.id]);
 
-  // React to toggling invisibility mid-session: leave the peer list when going
-  // invisible, re-announce our presence when coming back.
   useEffect(() => {
     const wasInvisible = invisibleRef.current;
     invisibleRef.current = !!opts.invisible;
-    const m = meRef.current;
-    if (!projectId || !m) return;
+    const activeChannel = channelRef.current;
+    if (!activeChannel || statusRef.current !== "connected") return;
     if (opts.invisible && !wasInvisible) {
-      restBroadcast(projectId, "presence.leave", { id: m.id });
-    } else if (!opts.invisible && wasInvisible && channelRef.current) {
+      void activeChannel.untrack();
+    } else if (!opts.invisible && wasInvisible && document.visibilityState === "visible") {
+      const currentMe = meRef.current;
+      if (!currentMe) return;
       lastPresenceSendRef.current = Date.now();
-      restBroadcast(projectId, "presence", {
-        id: m.id,
-        username: m.username,
-        avatar: m.avatar,
-        color: colorForId(m.id),
+      void activeChannel.track({
+        id: currentMe.id,
+        username: currentMe.username,
+        avatar: currentMe.avatar,
+        color: colorForId(currentMe.id),
+        sessionId: sessionIdRef.current,
+        updatedAt: Date.now(),
         ...presenceRef.current,
-      });
+      } satisfies TrackedPresence);
     }
   }, [opts.invisible, projectId]);
 
-  const sendOp = (op: CollabOp) => {
+  const sendBroadcast = (event: string, payload: unknown) => {
     if (!projectId) return;
-    restBroadcast(projectId, "op", { ...op, _from: meRef.current?.id });
+    const activeChannel = channelRef.current;
+    if (!activeChannel || statusRef.current !== "connected") {
+      restBroadcast(projectId, event, payload);
+      return;
+    }
+    void activeChannel
+      .send({ type: "broadcast", event, payload })
+      .then((result) => {
+        if (result !== "ok") restBroadcast(projectId, event, payload);
+      })
+      .catch(() => restBroadcast(projectId, event, payload));
+  };
+  const sendOp = (op: CollabOp) => {
+    sendBroadcast("op", { ...op, _from: meRef.current?.id });
   };
   const sendRefresh = () => {
-    if (!projectId) return;
-    restBroadcast(projectId, "doc.bump", { _from: meRef.current?.id });
+    sendBroadcast("doc.bump", { _from: meRef.current?.id });
   };
   const sendNotice = (text: string) => {
-    const m = meRef.current;
-    if (!projectId || !m) return;
-    restBroadcast(projectId, "notice", { text, avatar: m.avatar, _from: m.id });
+    const currentMe = meRef.current;
+    if (!currentMe) return;
+    sendBroadcast("notice", {
+      text,
+      avatar: currentMe.avatar,
+      _from: currentMe.id,
+    });
   };
   const updatePresence = (fields: PresenceFields) => {
-    const prev = presenceRef.current;
+    const previous = presenceRef.current;
     const diffChanged =
-      fields.activeDiffId !== undefined && fields.activeDiffId !== prev.activeDiffId;
-    presenceRef.current = { ...prev, ...fields };
-    const m = meRef.current;
-    if (!projectId || !m || invisibleRef.current) return;
-    if (diffChanged || Date.now() - lastPresenceSendRef.current > 900) {
+      fields.activeDiffId !== undefined && fields.activeDiffId !== previous.activeDiffId;
+    presenceRef.current = { ...previous, ...fields };
+    const activeChannel = channelRef.current;
+    const currentMe = meRef.current;
+    if (
+      !activeChannel ||
+      !currentMe ||
+      invisibleRef.current ||
+      document.visibilityState !== "visible" ||
+      statusRef.current !== "connected"
+    ) {
+      return;
+    }
+    if (diffChanged || Date.now() - lastPresenceSendRef.current >= PRESENCE_SEND_MS) {
       lastPresenceSendRef.current = Date.now();
-      restBroadcast(projectId, "presence", {
-        id: m.id,
-        username: m.username,
-        avatar: m.avatar,
-        color: colorForId(m.id),
+      void activeChannel.track({
+        id: currentMe.id,
+        username: currentMe.username,
+        avatar: currentMe.avatar,
+        color: colorForId(currentMe.id),
+        sessionId: sessionIdRef.current,
+        updatedAt: Date.now(),
         ...presenceRef.current,
-      });
+      } satisfies TrackedPresence);
     }
   };
 
