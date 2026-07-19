@@ -4648,6 +4648,7 @@ export default function App() {
               waveform={waveform}
               notes={active.notes}
               timingPoints={activeTimingPoints}
+              svBpmScroll={appSettings.bpmAffectsScroll}
               previewTime={active.previewTime}
               duration={audio.duration}
               currentTime={audio.currentTime}
@@ -4905,6 +4906,7 @@ export default function App() {
         getCurrentTime={getCurrentTime}
         selectionRange={selectionRange}
         readOnly={!canEdit}
+        bpmScroll={appSettings.bpmAffectsScroll}
       />
       <DifficultyModal
         open={modal === "difficulty"}

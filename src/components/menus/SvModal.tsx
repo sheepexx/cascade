@@ -10,13 +10,16 @@ import { effectiveSvAt, formatTime } from "../../lib/timing";
 import {
   SV_EASINGS,
   applySvToRange,
+  buildSvMap,
   constantSv,
+  effectiveRateAt,
   greensInRange,
   rampSv,
   removeGreensInRange,
   stutterLowSv,
   stutterSv,
   type SvEasing,
+  type SvMap,
 } from "../../lib/sv";
 import { Modal } from "../ui/Modal";
 import { Button, Field, NumberInput, Toggle } from "../ui/Controls";
@@ -29,6 +32,8 @@ type Props = {
   getCurrentTime: () => number;
   selectionRange: { start: number; end: number; count: number } | null;
   readOnly?: boolean;
+  /** Mirrors the editor setting so the preview plots the real scroll rate. */
+  bpmScroll?: boolean;
 };
 
 type Tab = "constant" | "ramp" | "stutter" | "remove";
@@ -72,6 +77,7 @@ export function SvModal({
   getCurrentTime,
   selectionRange,
   readOnly,
+  bpmScroll = false,
 }: Props) {
   const [tab, setTab] = useState<Tab>("constant");
   const [rangeStart, setRangeStart] = useState(0);
@@ -217,18 +223,40 @@ export function SvModal({
     const t0 = rangeStart - pad;
     const t1 = rangeEnd + pad;
     const xOf = (t: number) => ((t - t0) / (t1 - t0)) * cssWidth;
+
+    // Plot the scroll rate the editor actually scrolls at, which folds in BPM
+    // when that setting is on. Plotting raw SV would draw a flat line for a
+    // BPM-gimmick map whose scroll is anything but flat.
+    const opts = { bpmScroll };
+    const beforeMap = buildSvMap(timingPoints, opts);
+    const afterMap = buildSvMap(result, opts);
+    const SAMPLES = 220;
+    const sampleAt = (map: SvMap, i: number) =>
+      effectiveRateAt(map, t0 + ((t1 - t0) * i) / SAMPLES);
+
+    // Fit the axis to the data (always including 1x) so a gentle 0.9-1.1 ramp
+    // is readable instead of squashed flat against the middle.
+    let lo = 1;
+    let hi = 1;
+    for (let i = 0; i <= SAMPLES; i++) {
+      for (const v of [sampleAt(beforeMap, i), sampleAt(afterMap, i)]) {
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+    }
+    lo = Math.max(MIN_SV, lo / 1.35);
+    hi = Math.min(100, hi * 1.35);
+    const lgLo = Math.log10(lo);
+    const lgHi = Math.log10(hi);
+    const span = Math.max(0.15, lgHi - lgLo);
     const yOf = (v: number) => {
-      const lg = Math.log10(Math.max(MIN_SV, Math.min(MAX_SV, v)));
-      // log10 range: [-2, 1] -> bottom..top with 6px margins.
-      return cssHeight - 6 - ((lg + 2) / 3) * (cssHeight - 12);
+      const lg = Math.log10(Math.max(MIN_SV, Math.min(100, v)));
+      return cssHeight - 6 - ((lg - lgLo) / span) * (cssHeight - 12);
     };
 
-    // Reference lines at 0.5x / 1x / 2x.
-    for (const [v, label] of [
-      [0.5, "0.5×"],
-      [1, "1×"],
-      [2, "2×"],
-    ] as const) {
+    // Reference lines, only those inside the fitted range.
+    for (const v of [0.25, 0.5, 1, 2, 4, 8]) {
+      if (v < lo || v > hi) continue;
       const y = yOf(v);
       ctx.strokeStyle =
         v === 1 ? "rgba(148,163,184,0.4)" : "rgba(148,163,184,0.15)";
@@ -239,7 +267,7 @@ export function SvModal({
       ctx.stroke();
       ctx.fillStyle = "rgba(148,163,184,0.6)";
       ctx.font = "9px ui-sans-serif, system-ui";
-      ctx.fillText(label, 4, y - 2);
+      ctx.fillText(`${v}×`, 4, y - 2);
     }
 
     // Range bounds.
@@ -253,19 +281,18 @@ export function SvModal({
     }
     ctx.setLineDash([]);
 
-    const drawCurve = (points: TimingPoint[], style: string, width: number) => {
+    const drawCurve = (map: SvMap, style: string, width: number) => {
       ctx.strokeStyle = style;
       ctx.lineWidth = width;
       ctx.beginPath();
-      const samples = 220;
       let prevY: number | null = null;
-      for (let i = 0; i <= samples; i++) {
-        const t = t0 + ((t1 - t0) * i) / samples;
-        const y = yOf(effectiveSvAt(t, points));
+      for (let i = 0; i <= SAMPLES; i++) {
+        const t = t0 + ((t1 - t0) * i) / SAMPLES;
+        const y = yOf(effectiveRateAt(map, t));
         const x = xOf(t);
         if (prevY === null) ctx.moveTo(x, y);
         else {
-          // Step-style: SV holds until the next point.
+          // Step-style: the rate holds until the next point.
           ctx.lineTo(x, prevY);
           ctx.lineTo(x, y);
         }
@@ -274,9 +301,9 @@ export function SvModal({
       ctx.stroke();
     };
 
-    drawCurve(timingPoints, "rgba(148,163,184,0.55)", 1);
-    drawCurve(result, "rgba(45,212,191,0.95)", 1.5);
-  }, [open, rangeValid, rangeStart, rangeEnd, timingPoints, result]);
+    drawCurve(beforeMap, "rgba(148,163,184,0.55)", 1);
+    drawCurve(afterMap, "rgba(45,212,191,0.95)", 1.5);
+  }, [open, rangeValid, rangeStart, rangeEnd, timingPoints, result, bpmScroll]);
 
   const apply = () => {
     if (!rangeValid || readOnly) return;
@@ -528,7 +555,7 @@ export function SvModal({
 
         <div className="rounded-xl border border-ink-500/60 bg-ink-800/60 p-2">
           <canvas ref={canvasRef} className="block h-[120px] w-full" />
-          <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
             <span className="inline-flex items-center gap-1">
               <span className="inline-block h-0.5 w-4 bg-slate-400/60" />
               current
@@ -536,6 +563,9 @@ export function SvModal({
             <span className="inline-flex items-center gap-1">
               <span className="inline-block h-0.5 w-4 bg-teal-400" />
               after apply
+            </span>
+            <span className="text-slate-600">
+              scroll rate {bpmScroll ? "including BPM" : "from SV only"}
             </span>
           </div>
         </div>

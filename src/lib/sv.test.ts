@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { MIN_SV, makeGreenPoint, makeRedPoint } from "../types";
+import { effectiveSvAt } from "./timing";
 import {
   applySvToRange,
   buildSvMap,
   constantSv,
   dominantBpm,
+  effectiveRateAt,
   easeProgress,
   greensInRange,
   hasSv,
@@ -201,6 +203,43 @@ describe("BPM-driven scroll (osu!mania semantics)", () => {
     expect(sv).not.toBe(bpm);
     expect(buildSvMap(points)).toBe(sv);
     expect(buildSvMap(points, { bpmScroll: true, baseBpm: 100 })).toBe(bpm);
+  });
+});
+
+describe("effectiveRateAt", () => {
+  it("is 1 before the first change and on an identity map", () => {
+    expect(effectiveRateAt(buildSvMap([]), 500)).toBe(1);
+    const map = buildSvMap([makeRedPoint(0, 120), makeGreenPoint(1000, 3)]);
+    expect(effectiveRateAt(map, 0)).toBe(1);
+    expect(effectiveRateAt(map, 999)).toBe(1);
+    expect(effectiveRateAt(map, 1000)).toBe(3);
+  });
+
+  it("matches the slope of the position map", () => {
+    const points = [
+      makeRedPoint(0, 100),
+      makeGreenPoint(1000, 2.5),
+      makeRedPoint(3000, 200),
+    ];
+    for (const opts of [{}, { bpmScroll: true, baseBpm: 100 }]) {
+      const map = buildSvMap(points, opts);
+      for (const t of [500, 1500, 2900, 3500]) {
+        const slope = svPositionAt(map, t + 1) - svPositionAt(map, t);
+        expect(effectiveRateAt(map, t)).toBeCloseTo(slope, 6);
+      }
+    }
+  });
+
+  it("reports the combined BPM and SV rate", () => {
+    const points = [
+      makeRedPoint(0, 100),
+      makeRedPoint(2000, 200),
+      makeGreenPoint(2000, 1.5),
+    ];
+    const map = buildSvMap(points, { bpmScroll: true, baseBpm: 100 });
+    // SV-only would say 1.5; the real scroll is 200/100 * 1.5 = 3.
+    expect(effectiveSvAt(2500, points)).toBe(1.5);
+    expect(effectiveRateAt(map, 2500)).toBeCloseTo(3);
   });
 });
 
