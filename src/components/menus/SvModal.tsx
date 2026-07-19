@@ -7,6 +7,7 @@ import {
   type TimingPoint,
 } from "../../types";
 import { effectiveSvAt, formatTime } from "../../lib/timing";
+import { bookmarkLabel, sortedBookmarks } from "../../lib/bookmarks";
 import {
   SV_EASINGS,
   applySvToRange,
@@ -34,6 +35,8 @@ type Props = {
   readOnly?: boolean;
   /** Mirrors the editor setting so the preview plots the real scroll rate. */
   bpmScroll?: boolean;
+  bookmarks?: number[];
+  bookmarkLabels?: Record<string, string>;
 };
 
 type Tab = "constant" | "ramp" | "stutter" | "remove";
@@ -78,6 +81,8 @@ export function SvModal({
   selectionRange,
   readOnly,
   bpmScroll = false,
+  bookmarks,
+  bookmarkLabels,
 }: Props) {
   const [tab, setTab] = useState<Tab>("constant");
   const [rangeStart, setRangeStart] = useState(0);
@@ -311,6 +316,46 @@ export function SvModal({
     setApplied(true);
   };
 
+  const bookmarkOptions = useMemo(
+    () =>
+      sortedBookmarks(bookmarks).map((ms) => ({
+        ms,
+        label: bookmarkLabel(bookmarkLabels, ms),
+      })),
+    [bookmarks, bookmarkLabels],
+  );
+
+  /** "0:12.345" plus the bookmark name when the time lands on one. */
+  const timeHint = (ms: number) => {
+    const hit = bookmarkOptions.find((b) => Math.round(b.ms) === Math.round(ms));
+    return hit?.label ? `${formatTime(ms)} · ${hit.label}` : formatTime(ms);
+  };
+
+  const bookmarkPicker = (onPick: (ms: number) => void, id: string) =>
+    bookmarkOptions.length > 0 && (
+      <select
+        aria-label={`Set ${id} from a bookmark`}
+        title="Set from a bookmark"
+        value=""
+        onChange={(e) => {
+          if (e.target.value === "") return;
+          onPick(Number(e.target.value));
+          setApplied(false);
+          e.target.value = "";
+        }}
+        className="w-9 shrink-0 rounded-lg border border-white/10 bg-ink-700/65 px-1 text-center text-sm text-slate-300 outline-none transition hover:border-accent/50 focus:border-accent/70"
+      >
+        <option value="">🔖</option>
+        {/* Names repeat often, so every entry carries its timestamp. */}
+        {bookmarkOptions.map(({ ms, label }) => (
+          <option key={ms} value={ms}>
+            {formatTime(ms)}
+            {label ? ` - ${label}` : ""}
+          </option>
+        ))}
+      </select>
+    );
+
   const svField = (
     label: string,
     value: number,
@@ -366,7 +411,7 @@ export function SvModal({
         <p className="text-[11px] text-slate-500">{TAB_HELP[tab]}</p>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="From (ms)" hint={formatTime(rangeStart)}>
+          <Field label="From (ms)" hint={timeHint(rangeStart)}>
             <div className="flex gap-2">
               <NumberInput
                 min={0}
@@ -388,9 +433,10 @@ export function SvModal({
               >
                 ⌖
               </Button>
+              {bookmarkPicker((ms) => setRangeStart(Math.round(ms)), "from")}
             </div>
           </Field>
-          <Field label="To (ms)" hint={formatTime(Math.max(rangeEnd, 0))}>
+          <Field label="To (ms)" hint={timeHint(Math.max(rangeEnd, 0))}>
             <div className="flex gap-2">
               <NumberInput
                 min={0}
@@ -412,6 +458,7 @@ export function SvModal({
               >
                 ⌖
               </Button>
+              {bookmarkPicker((ms) => setRangeEnd(Math.round(ms)), "to")}
             </div>
           </Field>
         </div>

@@ -4907,6 +4907,8 @@ export default function App() {
         selectionRange={selectionRange}
         readOnly={!canEdit}
         bpmScroll={appSettings.bpmAffectsScroll}
+        bookmarks={active.bookmarks}
+        bookmarkLabels={active.bookmarkLabels}
       />
       <DifficultyModal
         open={modal === "difficulty"}
@@ -5383,7 +5385,7 @@ function InfoModal({
           <InfoRow keys="Ctrl/Cmd + wheel" text="Change snap divisor without zooming the page." />
           <InfoRow keys="Bottom timeline click/drag" text="Seek through the song." />
           <InfoRow keys="Timeline wheel" text="Adjust waveform sensitivity." />
-          <InfoRow keys="Timestamp" text="Click the time display to copy the current timestamp." />
+          <InfoRow keys="Timestamp" text="Click the ms half of the time display to copy milliseconds, the mm:ss.ms half to copy the timestamp." />
           {row("addBookmark", "Add a bookmark at the playhead.")}
           {row("prevBookmark", "Jump to the previous bookmark.")}
           {row("nextBookmark", "Jump to the next bookmark.")}
