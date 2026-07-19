@@ -1,4 +1,5 @@
 import { uid, type Difficulty, type ManiaNote, type TimingPoint } from "../types";
+import { remapBookmarkLabels } from "./bookmarks";
 import { beatLength, redPoints } from "./timing";
 
 export const RATE_MIN = 0.5;
@@ -292,6 +293,11 @@ export function createRateDifficulty(
     bookmarks: source.bookmarks
       ? source.bookmarks.map((b) => scaleMs(b, rate))
       : undefined,
+    bookmarkLabels: remapBookmarkLabels(
+      source.bookmarks,
+      source.bookmarkLabels,
+      (ms) => scaleMs(ms, rate),
+    ),
     trimStartMs: scaleOptionalMs(source.trimStartMs, rate),
     trimEndMs: scaleOptionalMs(source.trimEndMs, rate),
     fadeInMs: scaleOptionalMs(source.fadeInMs, rate),

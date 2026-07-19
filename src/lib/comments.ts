@@ -59,6 +59,16 @@ export async function resolveComment(
   if (error) throw new Error(error.message);
 }
 
+export async function updateComment(id: string, body: string): Promise<void> {
+  const text = body.trim();
+  if (!text) throw new Error("Comment cannot be empty.");
+  const { error } = await supabase
+    .from("comments")
+    .update({ body: text })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
 export async function deleteComment(id: string): Promise<void> {
   const { error } = await supabase.from("comments").delete().eq("id", id);
   if (error) throw new Error(error.message);

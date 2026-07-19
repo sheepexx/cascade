@@ -177,6 +177,8 @@ export type Difficulty = {
   sampleSet?: string;
   previewTime: number;
   bookmarks?: number[];
+  /** Cascade-only labels keyed by the rounded bookmark timestamp. */
+  bookmarkLabels?: Record<string, string>;
   trimStartMs?: number;
   trimEndMs?: number;
   fadeInMs?: number;

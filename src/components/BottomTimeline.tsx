@@ -3,6 +3,10 @@ import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
 import { kiaiRanges } from "../lib/timing";
+import {
+  bookmarkLabel,
+  type BookmarkLoopRange,
+} from "../lib/bookmarks";
 
 const HEIGHT = 96;
 const AVATAR_R = 9;
@@ -83,9 +87,19 @@ type Props = {
   }[];
   onCommentClick?: (timeMs: number) => void;
   bookmarks?: number[];
+  bookmarkLabels?: Record<string, string>;
+  loopRange?: BookmarkLoopRange | null;
+  loopEnabled?: boolean;
   onSetPreviewPoint?: (ms: number) => void;
-  onAddBookmark?: (ms: number) => void;
+  onAddBookmark?: (ms: number, label?: string) => void;
+  onRenameBookmark?: (ms: number, label: string) => void;
   onRemoveBookmark?: (ms: number) => void;
+  onPreviousBookmark?: () => void;
+  onNextBookmark?: () => void;
+  onSetLoopStart?: (ms: number) => void;
+  onSetLoopEnd?: (ms: number) => void;
+  onToggleLoop?: () => void;
+  onClearLoop?: () => void;
   trimStart?: number;
   trimEnd?: number;
   fadeIn?: number;
@@ -116,9 +130,19 @@ export function BottomTimeline({
   comments,
   onCommentClick,
   bookmarks,
+  bookmarkLabels,
+  loopRange,
+  loopEnabled,
   onSetPreviewPoint,
   onAddBookmark,
+  onRenameBookmark,
   onRemoveBookmark,
+  onPreviousBookmark,
+  onNextBookmark,
+  onSetLoopStart,
+  onSetLoopEnd,
+  onToggleLoop,
+  onClearLoop,
   trimStart,
   trimEnd,
   fadeIn,
@@ -161,6 +185,12 @@ export function BottomTimeline({
     resolved: boolean;
   } | null>(null);
   const tipKeyRef = useRef<number | null>(null);
+  const [bookmarkTip, setBookmarkTip] = useState<{
+    x: number;
+    timeMs: number;
+    label: string;
+  } | null>(null);
+  const bookmarkTipKeyRef = useRef<number | null>(null);
   const [peerTip, setPeerTip] = useState<{
     screenX: number;
     anchorTop: number;
@@ -176,6 +206,7 @@ export function BottomTimeline({
     ms: number;
     bookmark: number | null;
   } | null>(null);
+  const [bookmarkDraft, setBookmarkDraft] = useState("");
 
   const propsRef = useRef({
     waveform,
@@ -191,6 +222,9 @@ export function BottomTimeline({
     peers,
     comments,
     bookmarks,
+    bookmarkLabels,
+    loopRange,
+    loopEnabled,
     trimStart,
     trimEnd,
     fadeIn,
@@ -210,6 +244,9 @@ export function BottomTimeline({
     peers,
     comments,
     bookmarks,
+    bookmarkLabels,
+    loopRange,
+    loopEnabled,
     trimStart,
     trimEnd,
     fadeIn,
@@ -258,6 +295,8 @@ export function BottomTimeline({
       peers,
       comments,
       bookmarks,
+      loopRange,
+      loopEnabled,
       trimStart,
       trimEnd,
       fadeIn,
@@ -460,6 +499,20 @@ export function BottomTimeline({
 
     if (staticLayerRef.current) {
       ctx.drawImage(staticLayerRef.current, 0, 0, width, HEIGHT);
+    }
+
+    if (duration > 0 && loopRange && loopRange.endMs > loopRange.startMs) {
+      const sx = (loopRange.startMs / duration) * width;
+      const ex = (loopRange.endMs / duration) * width;
+      ctx.fillStyle = loopEnabled
+        ? "rgba(45,212,191,0.14)"
+        : "rgba(148,163,184,0.08)";
+      ctx.fillRect(sx, WAVE_TOP, Math.max(1, ex - sx), WAVE_H);
+      ctx.strokeStyle = loopEnabled
+        ? "rgba(45,212,191,0.95)"
+        : "rgba(148,163,184,0.6)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(sx, WAVE_TOP + 0.75, Math.max(1, ex - sx), WAVE_H - 1.5);
     }
 
     if (duration > 0) {
@@ -778,6 +831,9 @@ export function BottomTimeline({
         bookmark = b;
       }
     }
+    setBookmarkDraft(
+      bookmark === null ? "" : bookmarkLabel(bookmarkLabels, bookmark),
+    );
     setMenu({ x: e.clientX, y: e.clientY, ms, bookmark });
   };
 
@@ -796,6 +852,12 @@ export function BottomTimeline({
       setTip(null);
     }
   };
+  const clearBookmarkTip = () => {
+    if (bookmarkTipKeyRef.current !== null) {
+      bookmarkTipKeyRef.current = null;
+      setBookmarkTip(null);
+    }
+  };
   const clearPeerTip = () => {
     if (peerTipKeyRef.current !== null) {
       peerTipKeyRef.current = null;
@@ -806,10 +868,12 @@ export function BottomTimeline({
   const onCanvasMove = (e: React.MouseEvent) => {
     if (draggingRef.current || trimDragRef.current) return;
     const canvas = canvasRef.current;
-    const { duration, comments, peers } = propsRef.current;
+    const { duration, comments, peers, bookmarks, bookmarkLabels } =
+      propsRef.current;
     if (!canvas || !(duration > 0)) {
       clearPeerTip();
       clearCommentTip();
+      clearBookmarkTip();
       return;
     }
     const rect = canvas.getBoundingClientRect();
@@ -824,6 +888,7 @@ export function BottomTimeline({
           handle === "start" || handle === "end" ? "ew-resize" : "grab";
         clearPeerTip();
         clearCommentTip();
+        clearBookmarkTip();
         return;
       }
       canvas.style.cursor = "";
@@ -845,6 +910,7 @@ export function BottomTimeline({
       }
       if (hit) {
         clearCommentTip();
+        clearBookmarkTip();
         if (peerTipKeyRef.current !== hit.username) {
           peerTipKeyRef.current = hit.username;
           setPeerTip({
@@ -859,6 +925,36 @@ export function BottomTimeline({
       }
     }
     clearPeerTip();
+
+    let bookmarkHit: { timeMs: number; cx: number } | null = null;
+    let bookmarkDist = 8;
+    if (
+      bookmarks?.length &&
+      my >= DOT_BAND_H - 7 &&
+      my <= WAVE_TOP + 9
+    ) {
+      for (const timeMs of bookmarks) {
+        const cx = (timeMs / duration) * rect.width;
+        const distance = Math.abs(cx - mx);
+        if (distance <= bookmarkDist) {
+          bookmarkDist = distance;
+          bookmarkHit = { timeMs, cx };
+        }
+      }
+    }
+    if (bookmarkHit) {
+      clearCommentTip();
+      if (bookmarkTipKeyRef.current !== bookmarkHit.timeMs) {
+        bookmarkTipKeyRef.current = bookmarkHit.timeMs;
+        setBookmarkTip({
+          x: bookmarkHit.cx,
+          timeMs: bookmarkHit.timeMs,
+          label: bookmarkLabel(bookmarkLabels, bookmarkHit.timeMs),
+        });
+      }
+      return;
+    }
+    clearBookmarkTip();
 
     let best: { time_ms: number; cx: number } | null = null;
     let bestDist = 8;
@@ -889,6 +985,7 @@ export function BottomTimeline({
 
   const clearTip = () => {
     clearCommentTip();
+    clearBookmarkTip();
     clearPeerTip();
     if (!trimDragRef.current && trimHoverRef.current !== null) {
       trimHoverRef.current = null;
@@ -977,6 +1074,25 @@ export function BottomTimeline({
           </div>
         </div>
       )}
+      {bookmarkTip && (
+        <div
+          className="pointer-events-none absolute z-20 -translate-x-1/2 rounded-md border border-amber-300/30 bg-ink-900/95 px-2 py-1 text-[11px] text-slate-200 shadow-xl"
+          style={{
+            left: Math.min(
+              sizeRef.current.width - 70,
+              Math.max(70, bookmarkTip.x),
+            ),
+            top: 39,
+          }}
+        >
+          <span className="font-medium text-amber-300">
+            {bookmarkTip.label || "Bookmark"}
+          </span>{" "}
+          <span className="font-mono text-slate-500">
+            {formatTimestamp(bookmarkTip.timeMs)}
+          </span>
+        </div>
+      )}
       {peerTip &&
         createPortal(
         <div
@@ -1013,6 +1129,60 @@ export function BottomTimeline({
         waveform {sensitivity.toFixed(1)}× · scroll to adjust
       </div>
 
+      {!!bookmarks?.length && (
+        <div className="absolute bottom-1.5 left-2 z-10 flex items-center gap-0.5 rounded-md border border-white/10 bg-ink-900/85 p-0.5 text-[10px] shadow-lg backdrop-blur">
+          <button
+            type="button"
+            onClick={onPreviousBookmark}
+            disabled={!onPreviousBookmark}
+            className="rounded px-1.5 py-1 text-amber-300 hover:bg-white/10 disabled:opacity-40"
+            title="Previous bookmark (Page Up)"
+          >
+            ‹ ⚑
+          </button>
+          <button
+            type="button"
+            onClick={onNextBookmark}
+            disabled={!onNextBookmark}
+            className="rounded px-1.5 py-1 text-amber-300 hover:bg-white/10 disabled:opacity-40"
+            title="Next bookmark (Page Down)"
+          >
+            ⚑ ›
+          </button>
+          {onToggleLoop && (
+            <button
+              type="button"
+              onClick={onToggleLoop}
+              disabled={bookmarks.length < 2}
+              className={`rounded px-1.5 py-1 font-medium transition disabled:opacity-40 ${
+                loopEnabled
+                  ? "bg-teal-400 text-ink-900"
+                  : "text-slate-300 hover:bg-white/10"
+              }`}
+              title={
+                loopRange
+                  ? `${loopEnabled ? "Disable" : "Enable"} bookmark loop (${formatTimestamp(
+                      loopRange.startMs,
+                    )}–${formatTimestamp(loopRange.endMs)})`
+                  : "Loop between the bookmarks around the playhead"
+              }
+            >
+              ↻ Loop
+            </button>
+          )}
+          {loopRange && onClearLoop && (
+            <button
+              type="button"
+              onClick={onClearLoop}
+              className="rounded px-1 py-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
+              title="Clear loop range"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
+
       {menu &&
         createPortal(
         <div
@@ -1027,7 +1197,7 @@ export function BottomTimeline({
             className="absolute min-w-[12rem] overflow-hidden rounded-lg border border-ink-500/70 bg-ink-900/95 py-1 text-sm text-slate-200 shadow-2xl backdrop-blur"
             style={{
               left: Math.min(menu.x, window.innerWidth - 208),
-              top: Math.min(menu.y, window.innerHeight - 132),
+              top: Math.min(menu.y, window.innerHeight - 292),
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -1044,8 +1214,72 @@ export function BottomTimeline({
                 <span className="text-purple-300">◆</span> Set preview point
               </MenuItem>
             )}
-            {menu.bookmark !== null
-              ? onRemoveBookmark && (
+            {((menu.bookmark === null && onAddBookmark) ||
+              (menu.bookmark !== null && onRenameBookmark)) && (
+                <div className="border-t border-white/10 px-2 py-2">
+                  <label className="mb-1 block text-[10px] text-slate-500">
+                    {menu.bookmark === null
+                      ? "Bookmark name (optional)"
+                      : "Bookmark name"}
+                  </label>
+                  <div className="flex gap-1">
+                    <input
+                      autoFocus
+                      value={bookmarkDraft}
+                      maxLength={80}
+                      onChange={(e) => setBookmarkDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        if (menu.bookmark === null) {
+                          onAddBookmark?.(menu.ms, bookmarkDraft);
+                        } else {
+                          onRenameBookmark?.(menu.bookmark, bookmarkDraft);
+                        }
+                        setMenu(null);
+                      }}
+                      placeholder="e.g. chorus"
+                      className="min-w-0 flex-1 rounded border border-ink-500 bg-ink-700 px-2 py-1 text-xs text-slate-100 outline-none focus:border-accent/70"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (menu.bookmark === null) {
+                          onAddBookmark?.(menu.ms, bookmarkDraft);
+                        } else {
+                          onRenameBookmark?.(menu.bookmark, bookmarkDraft);
+                        }
+                        setMenu(null);
+                      }}
+                      className="rounded bg-accent px-2 text-[10px] font-medium text-ink-900"
+                    >
+                      {menu.bookmark === null ? "Add" : "Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            {menu.bookmark !== null && (
+              <>
+                {onSetLoopStart && (
+                  <MenuItem
+                    onClick={() => {
+                      onSetLoopStart(menu.bookmark!);
+                      setMenu(null);
+                    }}
+                  >
+                    <span className="text-teal-300">[</span> Use as loop start
+                  </MenuItem>
+                )}
+                {onSetLoopEnd && (
+                  <MenuItem
+                    onClick={() => {
+                      onSetLoopEnd(menu.bookmark!);
+                      setMenu(null);
+                    }}
+                  >
+                    <span className="text-teal-300">]</span> Use as loop end
+                  </MenuItem>
+                )}
+                {onRemoveBookmark && (
                   <MenuItem
                     onClick={() => {
                       onRemoveBookmark(menu.bookmark!);
@@ -1054,17 +1288,9 @@ export function BottomTimeline({
                   >
                     <span className="text-indigo-300">⚑</span> Remove bookmark
                   </MenuItem>
-                )
-              : onAddBookmark && (
-                  <MenuItem
-                    onClick={() => {
-                      onAddBookmark(menu.ms);
-                      setMenu(null);
-                    }}
-                  >
-                    <span className="text-indigo-300">⚑</span> New bookmark
-                  </MenuItem>
                 )}
+              </>
+            )}
           </div>
         </div>,
           document.body,
