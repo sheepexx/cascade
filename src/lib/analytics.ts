@@ -4,7 +4,17 @@ export type AnalyticsEventType =
   | "export_osu"
   | "export_osz"
   | "export_sm"
-  | "local_project_created";
+  | "local_project_created"
+  | "import_osz"
+  | "import_sm"
+  | "beatmap_import_by_id"
+  | "playtest_started"
+  | "sv_applied"
+  | "rate_change_export"
+  | "pack_export"
+  | "preset_published"
+  | "skin_imported"
+  | "collab_joined";
 
 type BrowserInfo = {
   browser: string;

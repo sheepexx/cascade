@@ -66,6 +66,19 @@ export async function deleteProjectAdmin(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+export type AdminEventStat = {
+  event_type: string;
+  last_7d: number;
+  last_30d: number;
+  total: number;
+};
+
+export async function adminEventStats(): Promise<AdminEventStat[]> {
+  const { data, error } = await supabase.rpc("admin_event_stats");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AdminEventStat[];
+}
+
 export async function getAdminStats(): Promise<AdminStats> {
   const [
     usersResult,
