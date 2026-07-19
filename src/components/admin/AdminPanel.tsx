@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "../ui/Controls";
+import { Button, TextInput } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
 import { useAuth } from "../../lib/auth";
 import {
@@ -26,8 +26,16 @@ import {
   type Feedback,
   type FeedbackStatus,
 } from "../../lib/feedback";
+import { publishAppUpdate } from "../../lib/notifications";
 
-type Tab = "stats" | "presets" | "users" | "projects" | "feedback" | "settings";
+type Tab =
+  | "stats"
+  | "presets"
+  | "users"
+  | "projects"
+  | "feedback"
+  | "notifications"
+  | "settings";
 
 export function AdminPanel({
   open,
@@ -51,7 +59,15 @@ export function AdminPanel({
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-semibold text-slate-100">Admin</h1>
           <nav className="flex items-center gap-1">
-            {(["stats", "presets", "users", "projects", "feedback", "settings"] as Tab[]).map((t) => (
+            {([
+              "stats",
+              "presets",
+              "users",
+              "projects",
+              "feedback",
+              "notifications",
+              "settings",
+            ] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -74,6 +90,7 @@ export function AdminPanel({
         {tab === "users" && <UsersTab />}
         {tab === "projects" && <ProjectsTab />}
         {tab === "feedback" && <FeedbackTab />}
+        {tab === "notifications" && <NotificationsTab />}
         {tab === "settings" && (
           <SettingsTab invisible={invisible} onToggle={onToggleInvisible} />
         )}
@@ -658,6 +675,133 @@ function FeedbackTab() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function NotificationsTab() {
+  const [title, setTitle] = useState(`Cascade v${__APP_VERSION__}`);
+  const [body, setBody] = useState("");
+  const [version, setVersion] = useState(__APP_VERSION__);
+  const [actionUrl, setActionUrl] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const publish = async () => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("A title is required.");
+      return;
+    }
+    if (
+      !window.confirm(
+        "Send this update to every Cascade account? It will appear as unread in each notification inbox.",
+      )
+    ) {
+      return;
+    }
+    setPublishing(true);
+    setError(null);
+    setResult(null);
+    try {
+      const recipients = await publishAppUpdate({
+        title: trimmedTitle,
+        body,
+        version,
+        actionUrl,
+      });
+      setResult(
+        `Published to ${recipients} ${recipients === 1 ? "account" : "accounts"}.`,
+      );
+    } catch (publishError) {
+      setError(
+        publishError instanceof Error
+          ? publishError.message
+          : "Couldn't publish the update.",
+      );
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl">
+      <section className="rounded-xl border border-ink-600 bg-ink-800 p-5">
+        <h2 className="text-sm font-semibold text-slate-100">
+          Publish app update
+        </h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Sends a durable inbox notice to every account. Reusing a version
+          updates that version's existing notice instead of creating duplicates.
+        </p>
+
+        <div className="mt-5 grid gap-4">
+          <label className="grid gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Title
+            </span>
+            <TextInput
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Cascade update"
+              maxLength={120}
+            />
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Message
+            </span>
+            <textarea
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              placeholder="What's new?"
+              rows={5}
+              maxLength={2000}
+              className="resize-y rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none shadow-inner shadow-black/10 transition placeholder:text-slate-600 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+            />
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Version / unique key
+              </span>
+              <TextInput
+                value={version}
+                onChange={(event) => setVersion(event.target.value)}
+                placeholder="1.2.123"
+                maxLength={80}
+              />
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Optional link
+              </span>
+              <TextInput
+                type="url"
+                value={actionUrl}
+                onChange={(event) => setActionUrl(event.target.value)}
+                placeholder="https://..."
+              />
+            </label>
+          </div>
+        </div>
+
+        {error && <p className="mt-4 text-sm text-rose-300">{error}</p>}
+        {result && <p className="mt-4 text-sm text-emerald-300">{result}</p>}
+
+        <div className="mt-5 flex justify-end">
+          <Button
+            variant="accent"
+            disabled={publishing || !title.trim()}
+            onClick={() => void publish()}
+          >
+            {publishing ? "Publishing…" : "Publish update"}
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

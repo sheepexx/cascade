@@ -2,6 +2,7 @@ import { Button } from "./ui/Controls";
 import { TimedNotification } from "./ui/TimedNotification";
 
 export type InviteNotice = {
+  notificationId?: string;
   projectId: string;
   title: string;
   who: string | null;
