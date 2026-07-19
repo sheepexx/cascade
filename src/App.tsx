@@ -145,6 +145,7 @@ import {
   MIN_SCROLL_SPEED,
   defaultTimingPoints,
   makeDifficulty,
+  makeRedPoint,
   normalizeTimingPoints,
   uid,
   type AppSettings,
@@ -159,6 +160,9 @@ import {
   type TimingPoint,
   type ViewState,
 } from "./types";
+import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
+import { sortedPoints } from "./lib/timing";
+import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
 
 type ModalId =
   | "welcome"
@@ -837,6 +841,25 @@ export default function App() {
 
   const activeTimingPoints =
     active.timingPoints?.length ? active.timingPoints : timingPoints;
+
+  const [autoTimeOpen, setAutoTimeOpen] = useState(false);
+  const [autoTimeStatus, setAutoTimeStatus] = useState<AutoTimeStatus>("idle");
+  const [autoTimeResult, setAutoTimeResult] = useState<BpmDetection | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (
+      !autoTimeOpen ||
+      (autoTimeStatus !== "done" && autoTimeStatus !== "failed")
+    )
+      return;
+    const id = window.setTimeout(
+      () => setAutoTimeOpen(false),
+      autoTimeStatus === "done" ? 4000 : 6000,
+    );
+    return () => window.clearTimeout(id);
+  }, [autoTimeOpen, autoTimeStatus]);
   const activeSkin = skin?.keymodes[active.keyCount] ?? null;
   const playtestSettings = appSettings.playtest;
   const playtestSettingsRef = useRef(playtestSettings);
@@ -1740,6 +1763,38 @@ export default function App() {
     (points: TimingPoint[]) => patchDifficulty(activeIdRef.current, { timingPoints: points }),
     [patchDifficulty],
   );
+
+  const runAutoTime = useCallback(() => {
+    const buffer = waveform?.buffer;
+    if (!buffer) return;
+    setAutoTimeStatus("detecting");
+    const points = activeTimingPoints;
+    const rate = activeRate;
+    // Let the "Listening..." state paint before detection blocks the thread.
+    window.setTimeout(() => {
+      const raw = detectBpmFromBuffer(buffer);
+      if (!raw) {
+        setAutoTimeStatus("failed");
+        return;
+      }
+      // Detection runs in audio-file time; a rate-changed difficulty hears
+      // the song rate× faster, so its BPM scales up and offsets shrink.
+      const bpm = Math.round(raw.bpm * rate * 1000) / 1000;
+      const offsetMs = Math.round(raw.offsetMs / rate);
+      const reds = sortedPoints(points).filter((p) => p.uninherited);
+      const target =
+        [...reds].reverse().find((p) => p.time <= offsetMs) ?? reds[0];
+      applyTimingPoints(
+        target
+          ? points.map((p) =>
+              p.id === target.id ? { ...p, bpm, time: offsetMs } : p,
+            )
+          : [...points, makeRedPoint(offsetMs, bpm)],
+      );
+      setAutoTimeResult({ bpm, offsetMs, confidence: raw.confidence });
+      setAutoTimeStatus("done");
+    }, 30);
+  }, [waveform, activeRate, activeTimingPoints, applyTimingPoints]);
 
   const setPreviewPoint = useCallback(
     (ms: number) => {
@@ -2764,7 +2819,12 @@ export default function App() {
         return;
       }
       const audioF = files.find(isAudioFile);
-      if (audioF) onAudioFile(audioF);
+      if (audioF) {
+        onAudioFile(audioF);
+        setAutoTimeOpen(true);
+        setAutoTimeStatus("idle");
+        setAutoTimeResult(null);
+      }
       const image = files.find(isImageFile);
       if (image) onBackgroundFile(image);
       const videoF = files.find(isVideoFile);
@@ -4129,6 +4189,15 @@ export default function App() {
         cropRemoveCount={cropInfo.remove}
         cropClampCount={cropInfo.clamp}
         onCropToBrackets={applyCropToBrackets}
+      />
+      <AutoTimePrompt
+        open={autoTimeOpen}
+        status={autoTimeStatus}
+        ready={!!waveform?.buffer}
+        fileName={audioFile?.name ?? null}
+        result={autoTimeResult}
+        onRun={runAutoTime}
+        onDismiss={() => setAutoTimeOpen(false)}
       />
       <TimingModal
         open={modal === "timing"}

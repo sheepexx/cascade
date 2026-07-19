@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Onset-based BPM and offset estimation.
  *
  * The audio is reduced to an RMS energy envelope (~86 frames/sec) and onsets
@@ -8,8 +8,14 @@
  * non-integer beat periods are not penalized. Doubling a tempo can never lose
  * mass, so a faster candidate only wins when its extra grid points land on
  * real onsets by a clear margin — that keeps the beat level from collapsing
- * to its half. The offset is the winning comb phase, shifted forward to the
- * first audible onset so the red line lands where the music starts.
+ * to its half.
+ *
+ * The offset (beat phase) is chosen on a *low-passed* copy of the onsets when
+ * the track has any low end: the musical downbeat almost always carries the
+ * kick/bass, while louder hats or claps often sit on off-beat subdivisions.
+ * Without the bass weighting those tracks time to a 1/4 line. The offset is
+ * then shifted forward to the first audible onset so the red line lands where
+ * the music starts.
  *
  * Everything works in *audio file time*; callers dealing with rate-changed
  * difficulties convert through their time scale.
@@ -25,6 +31,10 @@ const PHASE_STEP = 0.5;
 const FASTER_MARGIN = 1.05;
 /** Detected tempi this close to an integer snap to it (real songs mostly are). */
 const INTEGER_SNAP = 0.25;
+/** Boxcar low-pass cutoff for the phase (downbeat) envelope. */
+const LP_CUTOFF_HZ = 180;
+/** Bass onsets drive the phase only when they carry this share of the mass. */
+const BASS_MIN_RATIO = 0.05;
 
 export type BpmDetection = {
   bpm: number;
@@ -50,15 +60,8 @@ export function detectBpmFromBuffer(buffer: AudioBuffer): BpmDetection | null {
   return detectBpmFromChannel(mono, buffer.sampleRate);
 }
 
-export function detectBpmFromChannel(
-  data: Float32Array,
-  sampleRate: number,
-): BpmDetection | null {
-  if (data.length < sampleRate * 4) return null; // need a few seconds
-
-  // RMS energy envelope.
-  const frames = Math.floor((data.length - WIN) / HOP) + 1;
-  if (frames < 64) return null;
+/** Half-wave rectified flux of the RMS energy envelope. */
+function rmsFluxOnsets(data: Float32Array, frames: number): Float32Array {
   const env = new Float32Array(frames);
   for (let i = 0; i < frames; i++) {
     const start = i * HOP;
@@ -69,35 +72,49 @@ export function detectBpmFromChannel(
     }
     env[i] = Math.sqrt(sumSq / WIN);
   }
-
-  // Onset strength: half-wave rectified energy flux.
   const onsets = new Float32Array(frames);
-  let totalOnset = 0;
   for (let i = 1; i < frames; i++) {
     onsets[i] = Math.max(0, env[i] - env[i - 1]);
-    totalOnset += onsets[i];
   }
+  return onsets;
+}
+
+export function detectBpmFromChannel(
+  data: Float32Array,
+  sampleRate: number,
+): BpmDetection | null {
+  if (data.length < sampleRate * 4) return null; // need a few seconds
+
+  const frames = Math.floor((data.length - WIN) / HOP) + 1;
+  if (frames < 64) return null;
+
+  const onsets = rmsFluxOnsets(data, frames);
+  let totalOnset = 0;
+  for (let i = 0; i < frames; i++) totalOnset += onsets[i];
   if (totalOnset <= 0) return null;
 
   const framesPerSec = sampleRate / HOP;
 
-  const onsetAt = (f: number): number => {
+  const sampleAt = (arr: Float32Array, f: number): number => {
     const lo = Math.floor(f);
     if (lo < 0 || lo >= frames) return 0;
-    const a = onsets[lo];
-    const b = lo + 1 < frames ? onsets[lo + 1] : 0;
+    const a = arr[lo];
+    const b = lo + 1 < frames ? arr[lo + 1] : 0;
     const t = f - lo;
     return a * (1 - t) + b * t;
   };
 
   // Onset mass caught by a beat grid at this tempo, at its best phase.
-  const comb = (bpm: number): { sum: number; phaseFrames: number } => {
+  const comb = (
+    bpm: number,
+    arr: Float32Array,
+  ): { sum: number; phaseFrames: number } => {
     const beatFrames = (60 / bpm) * framesPerSec;
     let bestSum = 0;
     let bestPhase = 0;
     for (let phase = 0; phase < beatFrames; phase += PHASE_STEP) {
       let sum = 0;
-      for (let f = phase; f < frames; f += beatFrames) sum += onsetAt(f);
+      for (let f = phase; f < frames; f += beatFrames) sum += sampleAt(arr, f);
       if (sum > bestSum) {
         bestSum = sum;
         bestPhase = phase;
@@ -113,7 +130,7 @@ export function detectBpmFromChannel(
   let bestSum = 0;
   let sumTotal = 0;
   for (let b = MIN_BPM; b <= MAX_BPM; b++) {
-    const s = comb(b).sum;
+    const s = comb(b, onsets).sum;
     sums[b - MIN_BPM] = s;
     sumTotal += s;
     if (s > bestSum * FASTER_MARGIN) {
@@ -140,7 +157,23 @@ export function detectBpmFromChannel(
   if (Math.abs(bpm - rounded) <= INTEGER_SNAP) bpm = rounded;
   else bpm = Math.round(bpm * 1000) / 1000;
 
-  const { phaseFrames } = comb(bpm);
+  // Phase from the low-passed onsets when the track has low end, so the
+  // offset locks to the kick/bass downbeat instead of off-beat hats.
+  const box = Math.max(1, Math.round(sampleRate / LP_CUTOFF_HZ));
+  const low = new Float32Array(data.length);
+  let acc = 0;
+  for (let s = 0; s < data.length; s++) {
+    acc += data[s];
+    if (s >= box) acc -= data[s - box];
+    low[s] = acc / box;
+  }
+  const bassOnsets = rmsFluxOnsets(low, frames);
+  let bassTotal = 0;
+  for (let f = 0; f < frames; f++) bassTotal += bassOnsets[f];
+  const phaseOnsets =
+    bassTotal > totalOnset * BASS_MIN_RATIO ? bassOnsets : onsets;
+
+  const { phaseFrames } = comb(bpm, phaseOnsets);
   const frameToMs = (frame: number): number =>
     ((frame * HOP + WIN / 2) / sampleRate) * 1000;
   const beatMs = 60000 / bpm;

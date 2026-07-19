@@ -324,6 +324,23 @@ textarea {
   animation: loader-logo-pulse 1700ms ease-in-out infinite;
 }
 
+@keyframes autotime-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px) scale(0.94);
+  }
+  60% {
+    transform: translateX(-50%) translateY(-3px) scale(1.01);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+.autotime-in {
+  animation: autotime-in 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @keyframes scroll-dir-in-up {
   from {
     opacity: 0;
@@ -398,6 +415,7 @@ textarea {
   .rate-panel-in,
   .rate-panel-out,
   .tap-ring,
+  .autotime-in,
   .loader-fade-in,
   .loader-content-in,
   .scroll-dir-in-up,
