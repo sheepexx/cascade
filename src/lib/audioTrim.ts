@@ -1,5 +1,6 @@
 import { getMp3Encoder } from "./lameEncoder";
 import type { Difficulty, ManiaNote, TimingPoint } from "../types";
+import { remapBookmarkLabels } from "./bookmarks";
 
 export type BakedRegion = {
   startMs: number;
@@ -364,12 +365,20 @@ export function cutDifficulty(
   const bookmarks = difficulty.bookmarks
     ?.filter((b) => b >= startMs && b <= endMs)
     .map((b) => b - startMs);
+  const keptBookmarks = difficulty.bookmarks?.filter(
+    (b) => b >= startMs && b <= endMs,
+  );
 
   return {
     ...difficulty,
     notes,
     previewTime,
     bookmarks: bookmarks && bookmarks.length ? bookmarks : undefined,
+    bookmarkLabels: remapBookmarkLabels(
+      keptBookmarks,
+      difficulty.bookmarkLabels,
+      (ms) => ms - startMs,
+    ),
     videoOffsetMs:
       difficulty.videoFilename !== undefined
         ? (difficulty.videoOffsetMs ?? 0) - startMs

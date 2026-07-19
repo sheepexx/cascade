@@ -31,6 +31,7 @@ export type AudioRegion = {
   endMs?: number;
   fadeInMs?: number;
   fadeOutMs?: number;
+  loop?: boolean;
 };
 
 const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
@@ -467,6 +468,21 @@ export function useAudio(
 
       const endMs = regionRef.current?.endMs;
       if (endMs != null && next >= endMs) {
+        const region = regionRef.current;
+        if (region?.loop) {
+          next = Math.max(0, region.startMs ?? 0);
+          positionRef.current = next / 1000;
+          currentTimeRef.current = next;
+          setCurrentTime(next);
+          if (webAudioActive()) {
+            stopWeb(false);
+            startWebRef.current();
+          } else if (audio) {
+            audio.currentTime = next / 1000;
+          }
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
         next = endMs;
         positionRef.current = next / 1000;
         currentTimeRef.current = next;
@@ -792,6 +808,7 @@ function scaleRegionToAudio(
     endMs: at(region.endMs),
     fadeInMs: at(region.fadeInMs),
     fadeOutMs: at(region.fadeOutMs),
+    loop: region.loop,
   };
 }
 
