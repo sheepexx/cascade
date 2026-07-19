@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
 import { kiaiRanges } from "../lib/timing";
-import { hasSv } from "../lib/sv";
+import { buildSvMap, hasSv } from "../lib/sv";
 import {
   bookmarkLabel,
   type BookmarkLoopRange,
@@ -88,6 +88,8 @@ type Props = {
   }[];
   onCommentClick?: (timeMs: number) => void;
   bookmarks?: number[];
+  /** Include BPM in the scroll-rate lane, matching the editor setting. */
+  svBpmScroll?: boolean;
   bookmarkLabels?: Record<string, string>;
   loopRange?: BookmarkLoopRange | null;
   loopEnabled?: boolean;
@@ -131,6 +133,7 @@ export function BottomTimeline({
   comments,
   onCommentClick,
   bookmarks,
+  svBpmScroll,
   bookmarkLabels,
   loopRange,
   loopEnabled,
@@ -177,6 +180,7 @@ export function BottomTimeline({
     duration: number;
     bookmarks: unknown;
     previewTime: number;
+    svBpmScroll: boolean | undefined;
   } | null>(null);
   const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [tip, setTip] = useState<{
@@ -336,7 +340,8 @@ export function BottomTimeline({
       prev.timingPoints !== timingPoints ||
       prev.duration !== duration ||
       prev.bookmarks !== bookmarks ||
-      prev.previewTime !== previewTime;
+      prev.previewTime !== previewTime ||
+      prev.svBpmScroll !== svBpmScroll;
 
     if (staticDirty) {
       let sc = staticLayerRef.current;
@@ -434,38 +439,33 @@ export function BottomTimeline({
           }
         }
 
-        if (duration > 0 && hasSv(timingPoints)) {
-          // Stepped SV curve along the bottom of the wave band: log-scaled so
-          // 0.5x dips read as clearly as 4x spikes. Exact segments (one per SV
-          // change), not samples, so brief stutters stay visible.
-          const events = [...timingPoints]
-            .filter((p) => p.time <= duration)
-            .sort(
-              (a, b) =>
-                a.time - b.time ||
-                (a.uninherited === b.uninherited ? 0 : a.uninherited ? -1 : 1),
-            );
+        if (duration > 0 && hasSv(timingPoints, { bpmScroll: svBpmScroll })) {
+          // Stepped scroll-rate curve along the bottom of the wave band,
+          // log-scaled so 0.5x dips read as clearly as 4x spikes. Drawn from
+          // the same map the editor scrolls by, so BPM gimmicks show up here
+          // too. One vertex per rate change rather than per sample, so brief
+          // stutters stay visible.
+          const segments = buildSvMap(timingPoints, {
+            bpmScroll: svBpmScroll,
+          }).segments;
           const svBase = WAVE_TOP + WAVE_H - 1;
           const svH = WAVE_H * 0.45;
           const yOfSv = (sv: number) =>
             svBase -
-            ((Math.log10(Math.max(0.01, Math.min(10, sv))) + 2) / 3) * svH;
+            ((Math.log10(Math.max(0.01, Math.min(100, sv))) + 2) / 4) * svH;
           const xOf = (t: number) => (Math.max(0, t) / duration) * width;
           sctx.strokeStyle = "rgba(45,212,191,0.75)";
           sctx.lineWidth = 1;
           sctx.beginPath();
-          let sv = 1;
           let lastX = 0;
           let lastY = yOfSv(1);
           sctx.moveTo(0, lastY);
-          for (const p of events) {
-            const next = p.uninherited ? 1 : p.sv;
-            if (next === sv) continue;
-            const x = xOf(p.time);
-            const y = yOfSv(next);
+          for (const seg of segments) {
+            if (seg.time > duration) break;
+            const x = xOf(seg.time);
+            const y = yOfSv(seg.sv);
             sctx.lineTo(x, lastY);
             sctx.lineTo(x, y);
-            sv = next;
             lastX = x;
             lastY = y;
           }
@@ -534,6 +534,7 @@ export function BottomTimeline({
         duration,
         bookmarks,
         previewTime,
+        svBpmScroll,
       };
     }
 

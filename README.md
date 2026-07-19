@@ -23,11 +23,22 @@ does the osu! OAuth.
   bar
 - Realtime co-op mapping with live cursors, comments and owner/editor/viewer
   roles
-- Timing tools: tap tempo, metronome, red/green points, SV presets
+- Import beatmaps straight from osu! by pasting a beatmapset link, a `/b/`
+  link or a bare set ID
+- Timing tools: tap tempo, metronome, red/green points, kiai and volume
+- SV editor that generates constant, ramp and stutter scroll velocity over a
+  range, with a live curve preview
 - Real osu! hitsounds, `.osk` skin support, star rating and a max-pp readout
 - Background images and videos, waveform timeline, non-destructive audio
   trimming with fades
 - Pattern presets you can publish and reuse across maps
+- Rebindable editor shortcuts, edited from the info button in the bottom-left
+  corner
+
+Scroll velocity is previewed the way osu!mania plays it, so BPM changes speed
+up the scroll and BPM gimmick maps (freezes, teleports) look right in the
+editor and in playtest. There is a setting to switch to Quaver style constant
+scroll where only SV matters.
 
 Scroll speed is intentionally never written to exported files. It only
 changes the editor preview, since mania players pick their own speed in
@@ -50,6 +61,10 @@ that part. Without the env vars the app simply runs with accounts disabled.
 
 ## Shortcuts
 
+Single-key shortcuts are the defaults and can all be rebound: open the info
+button in the bottom-left corner, click a key and press a new one. The Ctrl
+combos are fixed.
+
 | Key | Action |
 | --- | --- |
 | Mouse wheel | Scrub time |
@@ -59,12 +74,16 @@ that part. Without the env vars the app simply runs with accounts disabled.
 | Ctrl+Z / Ctrl+Y | Undo / redo |
 | Ctrl+S | Save locally |
 | Space | Play / pause |
+| Hold S | Ease playback to 25% |
 | F5 | Playtest |
+| F3 / F4 | Scroll speed down / up |
+| B, Page Up / Down | Add bookmark, jump between bookmarks |
 | H | Hitsound edit mode |
-| T | Tap tempo |
 | R | Receptors |
 | Tab | Zen mode |
 | W | Waveform overlay |
+| M / F / S | Mirror, reverse or shuffle the selection |
+| T | Tap tempo, while the Timing window is open |
 
 ## Credits
 

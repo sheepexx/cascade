@@ -151,6 +151,19 @@ export function buildSvMap(
   return map;
 }
 
+/**
+ * The scroll rate in effect at `t`: the slope of the position map, which is
+ * what actually moves notes. Unlike `effectiveSvAt` this includes the BPM
+ * contribution when the map was built with `bpmScroll`, so previews can plot
+ * the same thing the renderer scrolls.
+ */
+export function effectiveRateAt(map: SvMap, t: number): number {
+  const { segments } = map;
+  if (!segments.length) return 1;
+  const i = segmentIndexForTime(segments, t);
+  return i < 0 ? 1 : segments[i].sv;
+}
+
 /** True when the map would actually warp scroll under these options. */
 export function hasSv(
   points: TimingPoint[],
