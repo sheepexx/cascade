@@ -861,32 +861,35 @@ export function PackCreator({
                   onClick={() => void exportPack()}
                   disabled={exporting || importing || items.length === 0}
                 >
-                  {exporting && exportProgress
-                    ? `Exporting… ${Math.round(exportProgress.ratio * 100)}%`
-                    : exporting
-                      ? "Exporting…"
-                      : "Export .osz"}
+                  {exporting ? (
+                    <span className="tabular-nums">
+                      Exporting…{" "}
+                      {Math.round((exportProgress?.ratio ?? 0) * 100)}%
+                    </span>
+                  ) : (
+                    "Export .osz"
+                  )}
                 </Button>
               </div>
-              {exportProgress && (
+              {exporting && (
                 <div className="mt-2 flex flex-col gap-1">
                   <div
                     className="h-1 w-full overflow-hidden rounded-full bg-white/10"
                     role="progressbar"
-                    aria-valuenow={Math.round(exportProgress.ratio * 100)}
+                    aria-valuenow={Math.round((exportProgress?.ratio ?? 0) * 100)}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={exportProgress.label}
+                    aria-label={exportProgress?.label ?? "Exporting"}
                   >
                     <div
                       className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
                       style={{
-                        width: `${Math.round(exportProgress.ratio * 100)}%`,
+                        width: `${Math.round((exportProgress?.ratio ?? 0) * 100)}%`,
                       }}
                     />
                   </div>
-                  <p className="truncate text-[11px] text-slate-300/40">
-                    {exportProgress.label}
+                  <p className="h-4 truncate text-[11px] leading-4 text-slate-300/40">
+                    {exportProgress?.label ?? ""}
                   </p>
                 </div>
               )}

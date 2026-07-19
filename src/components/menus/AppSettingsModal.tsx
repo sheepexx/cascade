@@ -113,7 +113,9 @@ export function AppSettingsModal({
 
   return (
     <Modal open={open} onClose={onClose} title="Settings">
-      <div className="flex flex-col gap-5">
+      {/* Floor the height so switching between a long tab (Playtest) and a
+          short one (Audio) doesn't collapse the dialog. */}
+      <div className="flex min-h-[min(30rem,60vh)] flex-col gap-5">
         <div className="flex gap-1 rounded-xl border border-white/10 bg-ink-700/40 p-1">
           {TABS.map((t) => (
             <button

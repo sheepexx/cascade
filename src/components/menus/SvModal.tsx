@@ -306,7 +306,9 @@ export function SvModal({
 
   return (
     <Modal open={open} onClose={onClose} title="SV editor" width="max-w-2xl">
-      <div className="flex flex-col gap-4">
+      {/* Generators have different control counts; floor the height so the
+          preview and Apply button stay put when switching tabs. */}
+      <div className="flex min-h-[min(34rem,66vh)] flex-col gap-4">
         <p className="text-[11px] text-slate-500">
           Scroll velocity (SV) changes how fast notes travel without touching
           their timing. Preview follows time-based scroll (like Quaver); turn on
