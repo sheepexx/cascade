@@ -59,11 +59,74 @@ function syncopatedTrack(bpm: number, offsetMs: number, seconds: number): Float3
   return data;
 }
 
+function noisyClickTrack(
+  bpm: number,
+  offsetMs: number,
+  seconds: number,
+): Float32Array {
+  const data = clickTrack(bpm, offsetMs, seconds);
+  let state = 0x12345678;
+  for (let i = 0; i < data.length; i++) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    data[i] += ((state / 0xffffffff) * 2 - 1) * 0.035;
+  }
+  return data;
+}
+
+function droppedBeatTrack(
+  bpm: number,
+  offsetMs: number,
+  seconds: number,
+): Float32Array {
+  const data = new Float32Array(Math.floor(SR * seconds));
+  const beatSamples = (60 / bpm) * SR;
+  let beat = 0;
+  for (
+    let start = (offsetMs / 1000) * SR;
+    start < data.length - 600;
+    start += beatSamples, beat++
+  ) {
+    if (beat % 7 === 3 || beat % 11 === 5) continue;
+    const s = Math.round(start);
+    const amp = beat % 4 === 0 ? 1 : beat % 2 === 0 ? 0.45 : 0.65;
+    for (let i = 0; i < 500; i++) {
+      data[s + i] += amp * Math.sin(i * 0.9) * Math.exp(-i / 90);
+    }
+  }
+  return data;
+}
+
 describe("detectBpmFromChannel", () => {
   it("finds an integer BPM from a plain click track", () => {
     const result = detectBpmFromChannel(clickTrack(170, 500, 25), SR);
     expect(result).not.toBeNull();
     expect(result!.bpm).toBe(170);
+  });
+
+  it.each([72.5, 128.2, 174.5, 199.75, 222.3])(
+    "keeps a decimal tempo of %s BPM instead of snapping to an integer",
+    (expectedBpm) => {
+      const result = detectBpmFromChannel(clickTrack(expectedBpm, 420, 35), SR);
+      expect(result).not.toBeNull();
+      expect(Math.abs(result!.bpm - expectedBpm)).toBeLessThanOrEqual(0.1);
+      const beat = 60000 / expectedBpm;
+      const missBy = Math.abs(
+        ((((result!.offsetMs - 420) % beat) + beat + beat / 2) % beat) - beat / 2,
+      );
+      expect(missBy).toBeLessThanOrEqual(30);
+    },
+  );
+
+  it("keeps a fractional tempo under steady background noise", () => {
+    const result = detectBpmFromChannel(noisyClickTrack(156.4, 280, 30), SR);
+    expect(result).not.toBeNull();
+    expect(Math.abs(result!.bpm - 156.4)).toBeLessThanOrEqual(0.1);
+  });
+
+  it("keeps the tempo when some beats are missing or differently accented", () => {
+    const result = detectBpmFromChannel(droppedBeatTrack(142.7, 360, 35), SR);
+    expect(result).not.toBeNull();
+    expect(Math.abs(result!.bpm - 142.7)).toBeLessThanOrEqual(0.1);
   });
 
   it("puts the offset on the click, modulo nothing", () => {
