@@ -329,7 +329,7 @@ function SelectableCard({
             src={thumbUrl}
             alt=""
             loading="lazy"
-            className="h-full w-full object-cover transition group-hover:scale-105"
+            className="h-full w-full object-cover"
           />
         ) : (
           <div className="grid h-full w-full place-items-center text-slate-600">
