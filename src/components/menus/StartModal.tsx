@@ -674,7 +674,7 @@ function ProjectCard({
               src={thumbUrl}
               alt=""
               loading="lazy"
-              className="h-full w-full object-cover transition group-hover:scale-105"
+              className="h-full w-full object-cover"
             />
           ) : (
             <div className="grid h-full w-full place-items-center text-slate-600">
@@ -931,7 +931,7 @@ export function SampleMapsModal({
                       src={asset(map.banner)}
                       alt=""
                       loading="lazy"
-                      className="h-full w-full object-cover transition group-hover:scale-105"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
                     <div className="grid h-full w-full place-items-center text-slate-500">
