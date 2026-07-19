@@ -277,6 +277,7 @@ export type AppSettings = {
   showTimingLines: boolean;
   upscroll: boolean;
   svPreviewPlayback: boolean;
+  bpmAffectsScroll: boolean;
   localAutosaveEnabled: boolean;
   exportPngBackgroundsAsJpeg: boolean;
   exportJpegQuality: number;
@@ -335,6 +336,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showTimingLines: true,
   upscroll: false,
   svPreviewPlayback: true,
+  bpmAffectsScroll: true,
   localAutosaveEnabled: true,
   exportPngBackgroundsAsJpeg: true,
   exportJpegQuality: 0.9,

@@ -27,6 +27,8 @@ type Props = {
   onUpscroll: (value: boolean) => void;
   svPreviewPlayback: boolean;
   onSvPreviewPlayback: (value: boolean) => void;
+  bpmAffectsScroll: boolean;
+  onBpmAffectsScroll: (value: boolean) => void;
   playtest: PlaytestSettings;
   onPlaytest: (value: PlaytestSettings) => void;
   localAutosaveEnabled: boolean;
@@ -67,6 +69,8 @@ export function AppSettingsModal({
   onUpscroll,
   svPreviewPlayback,
   onSvPreviewPlayback,
+  bpmAffectsScroll,
+  onBpmAffectsScroll,
   playtest,
   onPlaytest,
   localAutosaveEnabled,
@@ -224,6 +228,19 @@ export function AppSettingsModal({
                 Warps the scroll by your green SV points during editor playback,
                 the way players will see it. Playtest always applies SV. While
                 paused the editor stays linear so placing notes is predictable.
+              </p>
+              <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
+                <span>BPM affects scroll speed</span>
+                <Toggle
+                  checked={bpmAffectsScroll}
+                  onChange={onBpmAffectsScroll}
+                  aria-label="BPM affects scroll speed"
+                />
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                Matches osu!mania: red points scroll faster at higher BPM, so
+                BPM-gimmick maps (freezes, teleports) preview correctly. Turn
+                off for Quaver-style constant scroll where only SV matters.
               </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
                 <span>Scroll direction</span>

@@ -123,6 +123,8 @@ type Props = {
   showTimingLines?: boolean;
   /** Warp scroll by green-point SV (playtest, or editor playback preview). */
   svPreview?: boolean;
+  /** Also scale scroll with BPM, the way osu!mania stable does. */
+  svBpmScroll?: boolean;
   /** Reports the time span of the current note selection (for the SV modal). */
   onSelectionRange?: (
     range: { start: number; end: number; count: number } | null,
@@ -307,6 +309,13 @@ export function ManiaEditor(props: Props) {
   // timeToY/yToTime would otherwise pay a second binary search per call.
   const svBlendRef = useRef(0);
   const svAnchorPosRef = useRef(0);
+  const svMap = useCallback(
+    () =>
+      buildSvMap(propsRef.current.timingPoints, {
+        bpmScroll: propsRef.current.svBpmScroll !== false,
+      }),
+    [],
+  );
 
   const sizeRef = useRef({ width: 800, height: 600, dpr: 1 });
   const fpsHudRef = useRef({
@@ -825,7 +834,7 @@ export function ManiaEditor(props: Props) {
           (targetBlend - curBlend) * (1 - Math.exp(-SCROLL_SPEED_EASE * dt));
     if (svBlendRef.current > 0) {
       svAnchorPosRef.current = svPositionAt(
-        buildSvMap(propsRef.current.timingPoints),
+        svMap(),
         renderTimeRef.current,
         svBlendRef.current,
       );
@@ -864,13 +873,14 @@ export function ManiaEditor(props: Props) {
       if (blend <= 0) {
         return playheadY() - scrollDir() * (t - liveCurrentTime()) * ppms();
       }
-      const map = buildSvMap(propsRef.current.timingPoints);
       return (
         playheadY() -
-        scrollDir() * (svPositionAt(map, t, blend) - svAnchorPosRef.current) * ppms()
+        scrollDir() *
+          (svPositionAt(svMap(), t, blend) - svAnchorPosRef.current) *
+          ppms()
       );
     },
-    [liveCurrentTime, playheadY, ppms, scrollDir],
+    [liveCurrentTime, playheadY, ppms, scrollDir, svMap],
   );
 
   const yToTime = useCallback(
@@ -881,12 +891,11 @@ export function ManiaEditor(props: Props) {
       }
       // Exact inverse of timeToY — placement and box-select stay usable while
       // playback is warped.
-      const map = buildSvMap(propsRef.current.timingPoints);
       const pos =
         svAnchorPosRef.current + (scrollDir() * (playheadY() - y)) / ppms();
-      return svTimeAt(map, pos, blend);
+      return svTimeAt(svMap(), pos, blend);
     },
-    [liveCurrentTime, playheadY, ppms, scrollDir],
+    [liveCurrentTime, playheadY, ppms, scrollDir, svMap],
   );
 
   const laneGeometry = useCallback(() => {

@@ -29,7 +29,29 @@ export type SvMap = {
 };
 
 const IDENTITY: SvMap = { segments: [] };
-const mapCache = new WeakMap<TimingPoint[], SvMap>();
+const mapCache = new WeakMap<TimingPoint[], Map<string, SvMap>>();
+
+/**
+ * osu!mania stable scrolls faster at higher BPM, so mappers build effects out
+ * of red points as often as green ones (freezes via a huge beat length,
+ * teleports via a tiny one). With `bpmScroll` on, the rate is
+ * `sv * bpm / baseBpm`, matching the game; off, it is Quaver-style pure SV.
+ */
+export type SvMapOptions = {
+  bpmScroll?: boolean;
+  /** Reference BPM that scrolls at 1x; defaults to the map's dominant BPM. */
+  baseBpm?: number;
+};
+
+// Rates stay strictly positive (invertibility) and bounded (a 10000 BPM
+// teleport point must not produce absurd geometry).
+const MIN_RATE = MIN_SV;
+const MAX_RATE = 100;
+
+// BPMs outside this range are gimmick points (stops, teleports), never the
+// song's real tempo, so they are ignored when picking the reference BPM.
+const MUSICAL_BPM_MIN = 30;
+const MUSICAL_BPM_MAX = 400;
 
 /** Red points reset SV; a green at the same timestamp wins (osu semantics). */
 function svEventOrder(a: TimingPoint, b: TimingPoint): number {
@@ -38,39 +60,103 @@ function svEventOrder(a: TimingPoint, b: TimingPoint): number {
   return a.uninherited ? -1 : 1;
 }
 
-export function buildSvMap(points: TimingPoint[]): SvMap {
-  const hit = mapCache.get(points);
+/**
+ * The BPM the map spends most of its time at - what osu! shows as "the" BPM
+ * and what mappers set their scroll speed against. Gimmick points are filtered
+ * out first so a map full of freezes still resolves to its musical tempo.
+ */
+export function dominantBpm(points: TimingPoint[]): number {
+  const reds = points
+    .filter((p) => p.uninherited && p.bpm > 0)
+    .sort((a, b) => a.time - b.time);
+  if (!reds.length) return 120;
+  const durations = new Map<number, number>();
+  for (let i = 0; i < reds.length; i++) {
+    const bpm = reds[i].bpm;
+    if (bpm < MUSICAL_BPM_MIN || bpm > MUSICAL_BPM_MAX) continue;
+    const span = Math.max(0, (reds[i + 1]?.time ?? reds[i].time) - reds[i].time);
+    durations.set(bpm, (durations.get(bpm) ?? 0) + span);
+  }
+  let best = 0;
+  let bestSpan = -1;
+  for (const [bpm, span] of durations) {
+    if (span > bestSpan) {
+      best = bpm;
+      bestSpan = span;
+    }
+  }
+  if (best) return best;
+  // Every point is a gimmick (or all spans are zero): fall back to the first
+  // musical BPM, else the first red.
+  const musical = reds.find(
+    (p) => p.bpm >= MUSICAL_BPM_MIN && p.bpm <= MUSICAL_BPM_MAX,
+  );
+  return musical?.bpm ?? reds[0].bpm;
+}
+
+export function buildSvMap(
+  points: TimingPoint[],
+  options: SvMapOptions = {},
+): SvMap {
+  const bpmScroll = options.bpmScroll === true;
+  const base =
+    bpmScroll
+      ? options.baseBpm && options.baseBpm > 0
+        ? options.baseBpm
+        : dominantBpm(points)
+      : 0;
+  const cacheKey = bpmScroll ? `bpm:${base}` : "sv";
+  let byMode = mapCache.get(points);
+  const hit = byMode?.get(cacheKey);
   if (hit) return hit;
 
   const events = [...points].sort(svEventOrder);
   const segments: SvSegment[] = [];
   let sv = 1;
-  let anySv = false;
+  let bpm = base || 120;
+  let rate = 1;
+  let warped = false;
   for (const p of events) {
-    const next = p.uninherited ? 1 : clampSv(p.sv);
-    if (next !== 1) anySv = true;
+    if (p.uninherited) {
+      sv = 1;
+      if (p.bpm > 0) bpm = p.bpm;
+    } else {
+      sv = clampSv(p.sv);
+    }
+    const next = Math.max(
+      MIN_RATE,
+      Math.min(MAX_RATE, bpmScroll ? (sv * bpm) / base : sv),
+    );
+    if (next !== 1) warped = true;
     const last = segments[segments.length - 1];
     if (last && last.time === p.time) {
       last.sv = next;
-      sv = next;
+      rate = next;
       continue;
     }
-    if (next === sv) continue;
+    if (next === rate) continue;
     const pos = last
       ? last.pos + (p.time - last.time) * last.sv
       : p.time; // identity anchor: pos === t before the first rate change
     segments.push({ time: p.time, sv: next, pos });
-    sv = next;
+    rate = next;
   }
 
-  const map = anySv && segments.length ? { segments } : IDENTITY;
-  mapCache.set(points, map);
+  const map = warped && segments.length ? { segments } : IDENTITY;
+  if (!byMode) {
+    byMode = new Map();
+    mapCache.set(points, byMode);
+  }
+  byMode.set(cacheKey, map);
   return map;
 }
 
-/** True when the map would actually warp scroll (any effective SV ≠ 1). */
-export function hasSv(points: TimingPoint[]): boolean {
-  return buildSvMap(points).segments.length > 0;
+/** True when the map would actually warp scroll under these options. */
+export function hasSv(
+  points: TimingPoint[],
+  options: SvMapOptions = {},
+): boolean {
+  return buildSvMap(points, options).segments.length > 0;
 }
 
 function segmentIndexForTime(segments: SvSegment[], t: number): number {
