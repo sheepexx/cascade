@@ -5,11 +5,16 @@ import {
   applySvToRange,
   buildSvMap,
   EASING_HANDLES,
+  clampCurveHandles,
   constantSv,
   cubicBezierEase,
+  curveSv,
+  defaultSvCurve,
   dominantBpm,
   effectiveRateAt,
+  svCurveValueAt,
   type BezierHandles,
+  type SvKeyframe,
   easeProgress,
   greensInRange,
   hasSv,
@@ -310,6 +315,91 @@ describe("cubicBezierEase", () => {
     const wild: BezierHandles = { x1: -3, y1: 0, x2: 4, y2: 1 };
     const mid = cubicBezierEase(wild, 0.5);
     expect(Number.isFinite(mid)).toBe(true);
+  });
+});
+
+describe("keyframe curves", () => {
+  const reds = [makeRedPoint(0, 120)];
+
+  it("passes exactly through every keyframe", () => {
+    const kfs: SvKeyframe[] = [
+      { x: 0, sv: 1, in: { x: 0, y: 0 }, out: { x: 0.2, y: 0.5 } },
+      { x: 0.4, sv: 2.5, in: { x: -0.1, y: 0 }, out: { x: 0.1, y: -0.4 } },
+      { x: 1, sv: 0.5, in: { x: -0.3, y: 0.2 }, out: { x: 0, y: 0 } },
+    ];
+    expect(svCurveValueAt(kfs, 0)).toBeCloseTo(1, 6);
+    expect(svCurveValueAt(kfs, 0.4)).toBeCloseTo(2.5, 4);
+    expect(svCurveValueAt(kfs, 1)).toBeCloseTo(0.5, 6);
+  });
+
+  it("clamps outside the range to the end keyframes", () => {
+    const kfs = defaultSvCurve(1, 3);
+    expect(svCurveValueAt(kfs, -5)).toBeCloseTo(1, 6);
+    expect(svCurveValueAt(kfs, 9)).toBeCloseTo(3, 6);
+  });
+
+  it("stays a function of time when handles are dragged past the segment", () => {
+    // Wildly overreaching handles: clamping must keep one value per x.
+    const kfs: SvKeyframe[] = [
+      { x: 0, sv: 1, in: { x: 0, y: 0 }, out: { x: 5, y: 3 } },
+      { x: 1, sv: 2, in: { x: -5, y: -3 }, out: { x: 0, y: 0 } },
+    ];
+    for (let x = 0; x <= 1; x += 0.01) {
+      const v = svCurveValueAt(kfs, x);
+      expect(Number.isFinite(v)).toBe(true);
+    }
+    const clamped = clampCurveHandles(kfs);
+    expect(clamped[0].out.x).toBeLessThanOrEqual(1);
+    expect(clamped[0].out.x).toBeGreaterThanOrEqual(0);
+    expect(clamped[1].in.x).toBeGreaterThanOrEqual(-1);
+    expect(clamped[1].in.x).toBeLessThanOrEqual(0);
+  });
+
+  it("sorts keyframes given out of order", () => {
+    const kfs: SvKeyframe[] = [
+      { x: 1, sv: 3, in: { x: 0, y: 0 }, out: { x: 0, y: 0 } },
+      { x: 0, sv: 1, in: { x: 0, y: 0 }, out: { x: 0, y: 0 } },
+    ];
+    expect(svCurveValueAt(kfs, 0)).toBeCloseTo(1, 6);
+    expect(svCurveValueAt(kfs, 1)).toBeCloseTo(3, 6);
+  });
+
+  it("holds a flat value between equal keyframes", () => {
+    const kfs = defaultSvCurve(1.5, 1.5);
+    for (const x of [0, 0.3, 0.7, 1]) {
+      expect(svCurveValueAt(kfs, x)).toBeCloseTo(1.5, 6);
+    }
+  });
+
+  it("matches the old ramp path for a two-keyframe curve", () => {
+    // Guards the rampSv rewrite: bezier ramps now route through curveSv.
+    const handles = EASING_HANDLES.quadIn;
+    const viaRamp = rampSv(reds, 0, 2000, 1, 3, handles, 2);
+    const viaCurve = curveSv(reds, 0, 2000, defaultSvCurve(1, 3, handles), 2);
+    expect(viaCurve.map((p) => p.time)).toEqual(viaRamp.map((p) => p.time));
+    viaCurve.forEach((p, i) => {
+      expect(p.sv).toBeCloseTo(viaRamp[i].sv, 6);
+    });
+  });
+
+  it("curveSv follows density and BPM changes", () => {
+    const points = [makeRedPoint(0, 120), makeRedPoint(500, 240)];
+    const out = curveSv(points, 0, 1000, defaultSvCurve(1, 2), 1);
+    expect(out.map((p) => p.time)).toEqual([0, 500, 750]);
+    expect(out.every((p) => !p.uninherited)).toBe(true);
+  });
+
+  it("clamps overshoot into the legal SV range", () => {
+    const kfs: SvKeyframe[] = [
+      { x: 0, sv: 1, in: { x: 0, y: 0 }, out: { x: 0.5, y: 400 } },
+      { x: 1, sv: 1, in: { x: -0.5, y: 400 }, out: { x: 0, y: 0 } },
+    ];
+    const out = curveSv(reds, 0, 1000, kfs, 2);
+    expect(out.length).toBeGreaterThan(0);
+    for (const p of out) {
+      expect(p.sv).toBeGreaterThanOrEqual(MIN_SV);
+      expect(p.sv).toBeLessThanOrEqual(10);
+    }
   });
 });
 

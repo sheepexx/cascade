@@ -13,18 +13,20 @@ import {
   SV_EASINGS,
   applySvToRange,
   buildSvMap,
+  clampCurveHandles,
   constantSv,
+  curveSv,
+  defaultSvCurve,
   effectiveRateAt,
-  type BezierHandles,
   greensInRange,
-  rampSv,
   removeGreensInRange,
   stutterLowSv,
   stutterSv,
   type SvEasing,
+  type SvKeyframe,
   type SvMap,
 } from "../../lib/sv";
-import { BezierEditor } from "../ui/BezierEditor";
+import { CurveEditor } from "../ui/CurveEditor";
 import { Modal } from "../ui/Modal";
 import { Button, Field, NumberInput, Toggle } from "../ui/Controls";
 
@@ -42,11 +44,11 @@ type Props = {
   bookmarkLabels?: Record<string, string>;
 };
 
-type Tab = "constant" | "ramp" | "stutter" | "remove";
+type Tab = "constant" | "curve" | "stutter" | "remove";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "constant", label: "Constant" },
-  { id: "ramp", label: "Ramp" },
+  { id: "curve", label: "Curve" },
   { id: "stutter", label: "Stutter" },
   { id: "remove", label: "Remove" },
 ];
@@ -69,7 +71,8 @@ const EASING_LABELS: Record<SvEasing, string> = {
 const TAB_HELP: Record<Tab, string> = {
   constant:
     "Holds one scroll speed across the range. 2× makes notes travel twice as fast; 0.5× crawls.",
-  ramp: "Glides the scroll speed from one value to another across the range. Pick a curve to shape how quickly it changes.",
+  curve:
+    "Shapes the scroll speed across the range. Drag the keyframes and their handles, double-click the line to add one, Delete to remove.",
   stutter:
     "Bursts fast at the start of each cycle, then slows to compensate, so the chart never drifts out of place. A classic jump-scroll effect.",
   remove: "Deletes every SV point inside the range, returning it to 1× scroll.",
@@ -91,11 +94,10 @@ export function SvModal({
   const [rangeStart, setRangeStart] = useState(0);
   const [rangeEnd, setRangeEnd] = useState(2000);
   const [sv, setSv] = useState(2);
-  const [svStart, setSvStart] = useState(1);
-  const [svEnd, setSvEnd] = useState(2);
-  const [easing, setEasing] = useState<BezierHandles>(
-    EASING_HANDLES.sineInOut,
+  const [keyframes, setKeyframes] = useState<SvKeyframe[]>(() =>
+    defaultSvCurve(1, 2, EASING_HANDLES.sineInOut),
   );
+  const [selectedKf, setSelectedKf] = useState(0);
   const [density, setDensity] = useState(4);
   const [peakSv, setPeakSv] = useState(1.5);
   const [peakPercent, setPeakPercent] = useState(50);
@@ -131,14 +133,12 @@ export function SvModal({
     switch (tab) {
       case "constant":
         return constantSv(rangeStart, clampSv(sv));
-      case "ramp":
-        return rampSv(
+      case "curve":
+        return curveSv(
           timingPoints,
           rangeStart,
           rangeEnd,
-          clampSv(svStart),
-          clampSv(svEnd),
-          easing,
+          keyframes,
           density,
         );
       case "stutter":
@@ -160,9 +160,7 @@ export function SvModal({
     rangeStart,
     rangeEnd,
     sv,
-    svStart,
-    svEnd,
-    easing,
+    keyframes,
     density,
     peakSv,
     peakPercent,
@@ -179,8 +177,10 @@ export function SvModal({
       endPoints.push(
         makeGreenPoint(rangeEnd, effectiveSvAt(rangeEnd, timingPoints)),
       );
-    } else if (tab === "ramp") {
-      endPoints.push(makeGreenPoint(rangeEnd, clampSv(svEnd)));
+    } else if (tab === "curve") {
+      endPoints.push(
+        makeGreenPoint(rangeEnd, clampSv(keyframes[keyframes.length - 1].sv)),
+      );
     } else if (tab === "stutter") {
       endPoints.push(makeGreenPoint(rangeEnd, 1));
     }
@@ -195,7 +195,7 @@ export function SvModal({
     rangeStart,
     rangeEnd,
     restoreAtEnd,
-    svEnd,
+    keyframes,
     generated,
   ]);
 
@@ -330,22 +330,44 @@ export function SvModal({
     [bookmarks, bookmarkLabels],
   );
 
-  /** Which preset the handles currently sit on, if any, so the picker can
-   *  show "Custom curve" once they have been dragged off one. */
+  const rangeSpan = Math.max(1, rangeEnd - rangeStart);
+  const safeSelectedKf = Math.min(
+    Math.max(0, selectedKf),
+    keyframes.length - 1,
+  );
+  const selectedKfValue = keyframes[safeSelectedKf] ?? keyframes[0];
+  const isEdgeKf =
+    safeSelectedKf === 0 || safeSelectedKf === keyframes.length - 1;
+
+  const patchSelectedKf = (patch: Partial<SvKeyframe>) => {
+    setKeyframes((kfs) =>
+      clampCurveHandles(
+        kfs.map((kf, i) => (i === safeSelectedKf ? { ...kf, ...patch } : kf)),
+      ),
+    );
+    setApplied(false);
+  };
+
+  /** Which preset the curve currently matches, if any, so the picker can show
+   *  "Custom curve" once keyframes have been added or dragged off one. */
   const matchedPreset = useMemo(() => {
-    const near = (a: number, b: number) => Math.abs(a - b) < 0.005;
+    if (keyframes.length !== 2) return null;
+    const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
+    const [a, b] = keyframes;
+    const dy = b.sv - a.sv;
+    if (Math.abs(dy) < 1e-6) return null;
     return (
       SV_EASINGS.find((id) => {
         const h = EASING_HANDLES[id];
         return (
-          near(h.x1, easing.x1) &&
-          near(h.y1, easing.y1) &&
-          near(h.x2, easing.x2) &&
-          near(h.y2, easing.y2)
+          near(h.x1, a.out.x) &&
+          near(h.y1 * dy, a.out.y) &&
+          near(h.x2 - 1, b.in.x) &&
+          near((h.y2 - 1) * dy, b.in.y)
         );
       }) ?? null
     );
-  }, [easing]);
+  }, [keyframes]);
 
   /** "0:12.345" plus the bookmark name when the time lands on one. */
   const timeHint = (ms: number) => {
@@ -515,34 +537,88 @@ export function SvModal({
           </div>
         )}
 
-        {tab === "ramp" && (
+        {tab === "curve" && (
           <>
-            <div className="grid grid-cols-2 gap-3">
-              {svField("Start SV ×", svStart, setSvStart)}
-              {svField("End SV ×", svEnd, setSvEnd)}
+            <CurveEditor
+              keyframes={keyframes}
+              onChange={(kfs) => {
+                setKeyframes(kfs);
+                setApplied(false);
+              }}
+              selected={Math.min(selectedKf, keyframes.length - 1)}
+              onSelect={setSelectedKf}
+              disabled={!!readOnly}
+            />
+
+            <div className="grid grid-cols-[1fr,1fr,auto] items-end gap-3">
+              <Field label="Keyframe time (ms)">
+                <NumberInput
+                  min={rangeStart}
+                  max={rangeEnd}
+                  step={1}
+                  disabled={isEdgeKf}
+                  value={Math.round(rangeStart + selectedKfValue.x * rangeSpan)}
+                  onChange={(e) => {
+                    const ms = Number(e.target.value);
+                    if (!Number.isFinite(ms) || rangeSpan <= 0) return;
+                    patchSelectedKf({
+                      x: (ms - rangeStart) / rangeSpan,
+                    });
+                  }}
+                />
+              </Field>
+              <Field label="Keyframe SV ×">
+                <NumberInput
+                  min={MIN_SV}
+                  max={MAX_SV}
+                  step={0.1}
+                  value={Number(selectedKfValue.sv.toFixed(3))}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (Number.isFinite(v)) patchSelectedKf({ sv: clampSv(v) });
+                  }}
+                />
+              </Field>
+              <Button
+                disabled={isEdgeKf || !!readOnly}
+                title={
+                  isEdgeKf
+                    ? "The first and last keyframes cannot be removed"
+                    : "Remove this keyframe"
+                }
+                onClick={() => {
+                  setKeyframes((kfs) =>
+                    kfs.filter((_, i) => i !== safeSelectedKf),
+                  );
+                  setSelectedKf(Math.max(0, safeSelectedKf - 1));
+                  setApplied(false);
+                }}
+              >
+                Remove
+              </Button>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <Field
-                label="Curve"
-                hint="Drag the two handles, or start from a preset."
+                label="Segment shape"
+                hint="Applies a preset to the whole curve."
               >
-                <BezierEditor
-                  value={easing}
-                  onChange={(v) => {
-                    setEasing(v);
-                    setApplied(false);
-                  }}
-                  disabled={!!readOnly}
-                />
                 <select
                   value={matchedPreset ?? ""}
                   onChange={(e) => {
                     const preset = e.target.value as SvEasing;
                     if (!preset) return;
-                    setEasing(EASING_HANDLES[preset]);
+                    setKeyframes((kfs) =>
+                      defaultSvCurve(
+                        kfs[0].sv,
+                        kfs[kfs.length - 1].sv,
+                        EASING_HANDLES[preset],
+                      ),
+                    );
+                    setSelectedKf(0);
                     setApplied(false);
                   }}
-                  className="mt-2 rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none focus:border-accent/70"
+                  className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none focus:border-accent/70"
                 >
                   {!matchedPreset && <option value="">Custom curve</option>}
                   {SV_EASINGS.map((id) => (

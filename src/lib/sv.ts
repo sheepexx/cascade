@@ -320,6 +320,133 @@ export function cubicBezierEase(h: BezierHandles, x: number): number {
   return bezierAxis(t, h.y1, h.y2);
 }
 
+// ---------------------------------------------------------------------------
+// Multi-keyframe curves, the After Effects value-graph model: keyframes carry
+// real SV values and each pair is joined by a cubic bezier shaped by the
+// outgoing handle of the left keyframe and the incoming handle of the right.
+// ---------------------------------------------------------------------------
+
+export type SvKeyframe = {
+  /** Position across the edited range, 0-1. */
+  x: number;
+  /** SV multiplier at this keyframe. */
+  sv: number;
+  /** Handle offsets in curve space (x is a fraction of the range). */
+  in: { x: number; y: number };
+  out: { x: number; y: number };
+};
+
+/** The two-keyframe curve equivalent to a plain ramp. */
+export function defaultSvCurve(
+  svStart: number,
+  svEnd: number,
+  handles: BezierHandles = EASING_HANDLES.sineInOut,
+): SvKeyframe[] {
+  const dy = svEnd - svStart;
+  return [
+    {
+      x: 0,
+      sv: svStart,
+      in: { x: 0, y: 0 },
+      out: { x: handles.x1, y: handles.y1 * dy },
+    },
+    {
+      x: 1,
+      sv: svEnd,
+      in: { x: handles.x2 - 1, y: (handles.y2 - 1) * dy },
+      out: { x: 0, y: 0 },
+    },
+  ];
+}
+
+/**
+ * Sort by time and clamp every control point inside its own segment. Without
+ * this a dragged handle can push the curve back on itself, which would make it
+ * multi-valued in time and break the solve below.
+ */
+export function clampCurveHandles(kfs: SvKeyframe[]): SvKeyframe[] {
+  const sorted = [...kfs].sort((a, b) => a.x - b.x);
+  return sorted.map((kf, i) => {
+    const prevGap = i > 0 ? kf.x - sorted[i - 1].x : 0;
+    const nextGap = i < sorted.length - 1 ? sorted[i + 1].x - kf.x : 0;
+    return {
+      ...kf,
+      in: { x: Math.max(-prevGap, Math.min(0, kf.in.x)), y: kf.in.y },
+      out: { x: Math.max(0, Math.min(nextGap, kf.out.x)), y: kf.out.y },
+    };
+  });
+}
+
+function bezier1d(t: number, p0: number, p1: number, p2: number, p3: number) {
+  const mt = 1 - t;
+  return (
+    mt * mt * mt * p0 +
+    3 * mt * mt * t * p1 +
+    3 * mt * t * t * p2 +
+    t * t * t * p3
+  );
+}
+
+/**
+ * SV value at position `x` (0-1 across the range). Segment control points are
+ * clamped inside the segment, so Bx is monotonic and bisection converges;
+ * Newton would stall on the flat segments steep handles produce.
+ */
+export function svCurveValueAt(kfs: SvKeyframe[], x: number): number {
+  if (!kfs.length) return 1;
+  const curve = clampCurveHandles(kfs);
+  if (curve.length === 1) return curve[0].sv;
+  const target = clamp01(x);
+  if (target <= curve[0].x) return curve[0].sv;
+  const last = curve[curve.length - 1];
+  if (target >= last.x) return last.sv;
+
+  let i = 0;
+  while (i < curve.length - 2 && curve[i + 1].x <= target) i++;
+  const a = curve[i];
+  const b = curve[i + 1];
+  const width = b.x - a.x;
+  if (width <= 0) return b.sv;
+
+  const x1 = a.x + a.out.x;
+  const x2 = b.x + b.in.x;
+  let lo = 0;
+  let hi = 1;
+  let t = (target - a.x) / width;
+  for (let k = 0; k < 40; k++) {
+    t = (lo + hi) / 2;
+    if (bezier1d(t, a.x, x1, x2, b.x) < target) lo = t;
+    else hi = t;
+  }
+  return bezier1d(t, a.sv, a.sv + a.out.y, b.sv + b.in.y, b.sv);
+}
+
+/**
+ * Green points following a keyframe curve across [start, end), one per
+ * 1/`density` beat so spacing stays even through BPM changes.
+ */
+export function curveSv(
+  points: TimingPoint[],
+  start: number,
+  end: number,
+  kfs: SvKeyframe[],
+  density: number,
+): TimingPoint[] {
+  if (!(end > start) || !(density > 0) || !kfs.length) return [];
+  const curve = clampCurveHandles(kfs);
+  const out: TimingPoint[] = [];
+  const span = end - start;
+  let t = start;
+  let guard = 0;
+  while (t < end - 0.5 && guard < 5000) {
+    out.push(makeGreenPoint(t, svCurveValueAt(curve, (t - start) / span)));
+    const interval = beatLength(activeTimingAt(t, points)?.bpm ?? 120) / density;
+    t += Math.max(1, interval);
+    guard += 1;
+  }
+  return out;
+}
+
 export function easeProgress(easing: SvEasing, x: number): number {
   const t = Math.max(0, Math.min(1, x));
   switch (easing) {
@@ -367,16 +494,23 @@ export function rampSv(
   density: number,
 ): TimingPoint[] {
   if (!(end > start) || !(density > 0)) return [];
-  const ease = (x: number) =>
-    isBezierHandles(easing)
-      ? cubicBezierEase(easing, x)
-      : easeProgress(easing, x);
+  // Named easings keep their exact closed-form maths; bezier handles route
+  // through the shared two-keyframe curve path.
+  if (isBezierHandles(easing)) {
+    return curveSv(
+      points,
+      start,
+      end,
+      defaultSvCurve(svStart, svEnd, easing),
+      density,
+    );
+  }
   const out: TimingPoint[] = [];
   const span = end - start;
   let t = start;
   let guard = 0;
   while (t < end - 0.5 && guard < 5000) {
-    const progress = ease((t - start) / span);
+    const progress = easeProgress(easing, (t - start) / span);
     out.push(makeGreenPoint(t, svStart + (svEnd - svStart) * progress));
     const interval = beatLength(activeTimingAt(t, points)?.bpm ?? 120) / density;
     t += Math.max(1, interval);
