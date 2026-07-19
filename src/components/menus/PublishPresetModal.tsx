@@ -3,6 +3,7 @@ import { Modal } from "../ui/Modal";
 import { Button, Field, TextInput } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
 import { useAuth } from "../../lib/auth";
+import { logAnalyticsEvent } from "../../lib/analytics";
 import {
   publishPreset,
   savePrivatePreset,
@@ -58,8 +59,12 @@ export function PublishPresetModal({
           .map((t) => t.trim())
           .filter(Boolean),
       };
-      if (visibility === "public") await publishPreset(input);
-      else await savePrivatePreset(input);
+      if (visibility === "public") {
+        await publishPreset(input);
+        void logAnalyticsEvent("preset_published", user.id).catch(() => {});
+      } else {
+        await savePrivatePreset(input);
+      }
       setStatus("done");
     } catch (err) {
       setError(

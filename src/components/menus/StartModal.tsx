@@ -55,6 +55,8 @@ export function WelcomeModal({
   onPackCreator,
   onOpenCloudProject,
   onOpenLocalProject,
+  accountsEnabled = true,
+  onImportFromOsu,
 }: {
   open: boolean;
   onClose: () => void;
@@ -64,8 +66,31 @@ export function WelcomeModal({
   onPackCreator?: () => void;
   onOpenCloudProject: (id: string) => void;
   onOpenLocalProject: (id: string) => void;
+  /** Feature flag: hides the osu! login prompt when accounts are killed. */
+  accountsEnabled?: boolean;
+  /** Present when beatmap import is enabled and a worker is configured. */
+  onImportFromOsu?: (input: string) => Promise<void>;
 }) {
   const { user, login } = useAuth();
+  const [osuLink, setOsuLink] = useState("");
+  const [osuImporting, setOsuImporting] = useState(false);
+  const [osuImportError, setOsuImportError] = useState<string | null>(null);
+
+  const runOsuImport = async () => {
+    if (!onImportFromOsu || osuImporting || !osuLink.trim()) return;
+    setOsuImporting(true);
+    setOsuImportError(null);
+    try {
+      await onImportFromOsu(osuLink);
+      setOsuLink("");
+    } catch (e) {
+      setOsuImportError(
+        e instanceof Error ? e.message : "Import failed - try again.",
+      );
+    } finally {
+      setOsuImporting(false);
+    }
+  };
   const [projects, setProjects] = useState<CloudProjectRich[] | null>(null);
   const [localProjects, setLocalProjects] = useState<
     LocalProjectSummary[] | null
@@ -297,6 +322,42 @@ export function WelcomeModal({
         )}
       </div>
 
+      {onImportFromOsu && (
+        <div className="mt-3 rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={osuLink}
+              onChange={(e) => {
+                setOsuLink(e.target.value);
+                setOsuImportError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void runOsuImport();
+              }}
+              placeholder="osu! beatmap link or beatmapset ID…"
+              disabled={osuImporting}
+              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-accent/70 focus:ring-1 focus:ring-accent/40 disabled:opacity-50"
+            />
+            <Button
+              variant="accent"
+              disabled={osuImporting || !osuLink.trim()}
+              onClick={() => void runOsuImport()}
+              className="whitespace-nowrap"
+            >
+              {osuImporting ? "Downloading…" : "Import from osu!"}
+            </Button>
+          </div>
+          <p className="mt-1.5 text-[11px] text-slate-500">
+            Downloads the mapset from a community mirror and opens it here.
+            Works with beatmapsets/… links, /b/ links, or a bare set ID.
+          </p>
+          {osuImportError && (
+            <p className="mt-1 text-xs text-rose-400">{osuImportError}</p>
+          )}
+        </div>
+      )}
+
       <a
         href="https://discord.gg/aY2UckUxYd"
         target="_blank"
@@ -307,7 +368,7 @@ export function WelcomeModal({
         Join the Discord Server
       </a>
 
-      {!user && (
+      {!user && accountsEnabled && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
           <span className="text-sm text-slate-400">
             Log in with osu! to see your saved maps and mapping invitations.{" "}
