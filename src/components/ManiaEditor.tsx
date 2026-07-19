@@ -2227,11 +2227,62 @@ export function ManiaEditor(props: Props) {
       )}
 
       {selectionCount > 0 && !props.playtestMode && (
-        <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 select-none rounded-md border border-yellow-300/30 bg-ink-800/80 px-3 py-1.5 text-[11px] text-slate-200 shadow-lg">
+        <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 select-none items-center gap-1 rounded-lg border border-yellow-300/30 bg-ink-800/92 p-1 text-[11px] text-slate-200 shadow-xl backdrop-blur">
           <span className="font-medium text-yellow-200">
             {selectionCount} selected
-          </span>{" "}
-          · Delete remove · drag to move · arrows nudge · M mirror · F reverse · S shuffle · [ ] half/double time · Ctrl+C/X/V
+          </span>
+          <span className="mx-0.5 h-4 w-px bg-white/10" />
+          <SelectionActionButton
+            label="←"
+            title="Move one lane left (Left Arrow)"
+            onClick={() => nudgeSelection("left")}
+          />
+          <SelectionActionButton
+            label="−t"
+            title="Move one snap earlier (Up/Down Arrow follows scroll direction)"
+            onClick={() => nudgeSelection("earlier")}
+          />
+          <SelectionActionButton
+            label="+t"
+            title="Move one snap later (Up/Down Arrow follows scroll direction)"
+            onClick={() => nudgeSelection("later")}
+          />
+          <SelectionActionButton
+            label="→"
+            title="Move one lane right (Right Arrow)"
+            onClick={() => nudgeSelection("right")}
+          />
+          <SelectionActionButton
+            label="Mirror"
+            title="Mirror columns (M)"
+            onClick={mirrorSelection}
+          />
+          <SelectionActionButton
+            label="Reverse"
+            title="Reverse timing (F)"
+            onClick={reverseSelection}
+          />
+          <SelectionActionButton
+            label="Shuffle"
+            title="Shuffle columns (S)"
+            onClick={shuffleSelection}
+          />
+          <SelectionActionButton
+            label="½"
+            title="Halve pattern timing ([)"
+            onClick={() => scaleSelection(0.5)}
+          />
+          <SelectionActionButton
+            label="2×"
+            title="Double pattern timing (])"
+            onClick={() => scaleSelection(2)}
+          />
+          <SelectionActionButton
+            label="Delete"
+            title="Delete selection (Delete)"
+            danger
+            onClick={deleteSelection}
+          />
         </div>
       )}
 
@@ -2474,6 +2525,33 @@ function ClipPreview({
         );
       })}
     </svg>
+  );
+}
+
+function SelectionActionButton({
+  label,
+  title,
+  danger = false,
+  onClick,
+}: {
+  label: string;
+  title: string;
+  danger?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={`rounded px-1.5 py-1 text-[10px] font-medium transition ${
+        danger
+          ? "text-rose-300 hover:bg-rose-500/15 hover:text-rose-200"
+          : "text-slate-300 hover:bg-white/10 hover:text-white"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 

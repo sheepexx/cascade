@@ -163,6 +163,12 @@ import {
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
 import { sortedPoints } from "./lib/timing";
 import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
+import {
+  bookmarkInDirection,
+  bookmarkKey,
+  loopAroundTime,
+  sortedBookmarks,
+} from "./lib/bookmarks";
 
 type ModalId =
   | "welcome"
@@ -188,6 +194,13 @@ type DocSnapshot = {
   meta: SongMeta;
   timingPoints: TimingPoint[];
   difficulties: Difficulty[];
+};
+
+type BookmarkLoopState = {
+  diffId: string;
+  startMs: number;
+  endMs: number;
+  enabled: boolean;
 };
 
 function decodeJwtClaims(
@@ -381,9 +394,19 @@ export default function App() {
 
   const [myRole, setMyRole] = useState<AccessRole>(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentUnreadCount, setCommentUnreadCount] = useState(0);
+  const [bookmarkLoop, setBookmarkLoop] = useState<BookmarkLoopState | null>(
+    null,
+  );
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [commentMarkers, setCommentMarkers] = useState<
-    { time_ms: number; resolved: boolean; body: string; author: string }[]
+    {
+      time_ms: number;
+      resolved: boolean;
+      body: string;
+      author: string;
+      difficulty_id: string | null;
+    }[]
   >([]);
   const [peerNotice, setPeerNotice] = useState<{
     key: number;
@@ -393,6 +416,12 @@ export default function App() {
   const peerNoticeTimer = useRef<number | undefined>(undefined);
   const active =
     difficulties.find((d) => d.id === activeId) ?? difficulties[0];
+  const activeCommentMarkers = useMemo(
+    () => commentMarkers.filter((c) => c.difficulty_id === active.id),
+    [commentMarkers, active.id],
+  );
+  const activeBookmarkLoop =
+    bookmarkLoop?.diffId === active.id ? bookmarkLoop : null;
   const [playtest, setPlaytest] = useState<PlaytestRuntimeState>(
     initialPlaytestState,
   );
@@ -635,18 +664,43 @@ export default function App() {
     audioFile?.url ?? null,
     waveform ? waveform.duration * 1000 : null,
     waveform?.buffer ?? null,
-    {
-      startMs: active.trimStartMs,
-      endMs: active.trimEndMs,
-      fadeInMs: active.fadeInMs,
-      fadeOutMs: active.fadeOutMs,
-    },
+    activeBookmarkLoop?.enabled
+      ? {
+          startMs: activeBookmarkLoop.startMs,
+          endMs: activeBookmarkLoop.endMs,
+          loop: true,
+        }
+      : {
+          startMs: active.trimStartMs,
+          endMs: active.trimEndMs,
+          fadeInMs: active.fadeInMs,
+          fadeOutMs: active.fadeOutMs,
+        },
     activeRate,
     active.preservePitch === true,
   );
   const currentTimeRef = useRef(audio.getCurrentTime());
   currentTimeRef.current = audio.getCurrentTime();
   const getCurrentTime = audio.getCurrentTime;
+  const seekAudio = audio.seek;
+
+  useEffect(() => {
+    if (!activeBookmarkLoop?.enabled) return;
+    const current = getCurrentTime();
+    if (
+      current < activeBookmarkLoop.startMs ||
+      current >= activeBookmarkLoop.endMs
+    ) {
+      seekAudio(activeBookmarkLoop.startMs);
+    }
+  }, [
+    activeBookmarkLoop?.enabled,
+    activeBookmarkLoop?.startMs,
+    activeBookmarkLoop?.endMs,
+    getCurrentTime,
+    seekAudio,
+  ]);
+
   const durationRef = useRef(audio.duration);
   durationRef.current = audio.duration;
   const modalAtmosphereOpen =
@@ -1866,17 +1920,52 @@ export default function App() {
   }, [patchDifficulty, audioFiles, bgFiles]);
 
   const addBookmark = useCallback(
-    (ms: number) => {
+    (ms: number, label?: string) => {
       if (!canEditRef.current) return;
       const t = Math.round(ms);
       if (!(t >= 0)) return;
+      const name = label?.trim().slice(0, 80) ?? "";
       markStructural();
       setDifficulties((prev) =>
         prev.map((d) => {
           if (d.id !== activeIdRef.current) return d;
           const existing = d.bookmarks ?? [];
-          if (existing.some((b) => Math.abs(b - t) <= 5)) return d;
-          return { ...d, bookmarks: [...existing, t].sort((a, b) => a - b) };
+          const nearby = existing.find((b) => Math.abs(b - t) <= 5);
+          if (nearby !== undefined && !name) return d;
+          const time = nearby ?? t;
+          const nextBookmarks = nearby
+            ? existing
+            : [...existing, time].sort((a, b) => a - b);
+          const nextLabels = { ...(d.bookmarkLabels ?? {}) };
+          if (name) nextLabels[bookmarkKey(time)] = name;
+          return {
+            ...d,
+            bookmarks: nextBookmarks,
+            bookmarkLabels: Object.keys(nextLabels).length
+              ? nextLabels
+              : undefined,
+          };
+        }),
+      );
+    },
+    [markStructural],
+  );
+
+  const renameBookmark = useCallback(
+    (ms: number, label: string) => {
+      if (!canEditRef.current) return;
+      const name = label.trim().slice(0, 80);
+      markStructural();
+      setDifficulties((prev) =>
+        prev.map((d) => {
+          if (d.id !== activeIdRef.current || !d.bookmarks?.includes(ms)) return d;
+          const labels = { ...(d.bookmarkLabels ?? {}) };
+          if (name) labels[bookmarkKey(ms)] = name;
+          else delete labels[bookmarkKey(ms)];
+          return {
+            ...d,
+            bookmarkLabels: Object.keys(labels).length ? labels : undefined,
+          };
         }),
       );
     },
@@ -1892,14 +1981,102 @@ export default function App() {
           if (d.id !== activeIdRef.current) return d;
           const existing = d.bookmarks ?? [];
           const next = existing.filter((b) => b !== ms);
-          return next.length === existing.length
-            ? d
-            : { ...d, bookmarks: next.length ? next : undefined };
+          if (next.length === existing.length) return d;
+          const labels = { ...(d.bookmarkLabels ?? {}) };
+          delete labels[bookmarkKey(ms)];
+          return {
+            ...d,
+            bookmarks: next.length ? next : undefined,
+            bookmarkLabels: Object.keys(labels).length ? labels : undefined,
+          };
         }),
+      );
+      setBookmarkLoop((loop) =>
+        loop?.diffId === activeIdRef.current &&
+        (loop.startMs === ms || loop.endMs === ms)
+          ? null
+          : loop,
       );
     },
     [markStructural],
   );
+
+  const seekBookmark = useCallback(
+    (direction: "previous" | "next") => {
+      const d = difficultiesRef.current.find(
+        (item) => item.id === activeIdRef.current,
+      );
+      const target = bookmarkInDirection(
+        d?.bookmarks,
+        currentTimeRef.current,
+        direction,
+      );
+      if (target !== null) audio.seek(target);
+    },
+    [audio],
+  );
+
+  const setBookmarkLoopStart = useCallback((ms: number) => {
+    const d = difficultiesRef.current.find(
+      (item) => item.id === activeIdRef.current,
+    );
+    const after = sortedBookmarks(d?.bookmarks).find((value) => value > ms);
+    setBookmarkLoop((loop) => {
+      const end =
+        loop?.diffId === activeIdRef.current && loop.endMs > ms
+          ? loop.endMs
+          : after;
+      if (end === undefined) return loop;
+      return {
+        diffId: activeIdRef.current,
+        startMs: ms,
+        endMs: end,
+        enabled: loop?.diffId === activeIdRef.current && loop.enabled,
+      };
+    });
+  }, []);
+
+  const setBookmarkLoopEnd = useCallback((ms: number) => {
+    const d = difficultiesRef.current.find(
+      (item) => item.id === activeIdRef.current,
+    );
+    const prior = sortedBookmarks(d?.bookmarks).filter((value) => value < ms);
+    const before = prior[prior.length - 1];
+    setBookmarkLoop((loop) => {
+      const start =
+        loop?.diffId === activeIdRef.current && loop.startMs < ms
+          ? loop.startMs
+          : before;
+      if (start === undefined) return loop;
+      return {
+        diffId: activeIdRef.current,
+        startMs: start,
+        endMs: ms,
+        enabled: loop?.diffId === activeIdRef.current && loop.enabled,
+      };
+    });
+  }, []);
+
+  const toggleBookmarkLoop = useCallback(() => {
+    setBookmarkLoop((loop) => {
+      if (loop?.diffId === activeIdRef.current) {
+        return { ...loop, enabled: !loop.enabled };
+      }
+      const d = difficultiesRef.current.find(
+        (item) => item.id === activeIdRef.current,
+      );
+      const range = loopAroundTime(d?.bookmarks, currentTimeRef.current);
+      return range
+        ? { diffId: activeIdRef.current, ...range, enabled: true }
+        : loop;
+    });
+  }, []);
+
+  const clearBookmarkLoop = useCallback(() => {
+    setBookmarkLoop((loop) =>
+      loop?.diffId === activeIdRef.current ? null : loop,
+    );
+  }, []);
 
   const setTrimStart = useCallback(
     (ms: number) => {
@@ -2590,6 +2767,8 @@ export default function App() {
       const isDown = e.key === "ArrowDown";
       const isF3 = e.key === "F3";
       const isF4 = e.key === "F4";
+      const isPreviousBookmark = e.key === "PageUp";
+      const isNextBookmark = e.key === "PageDown";
       const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
       const isZoomIn =
         noMod && (e.key === "+" || e.key === "=" || e.code === "NumpadAdd");
@@ -2605,6 +2784,8 @@ export default function App() {
         !isDown &&
         !isF3 &&
         !isF4 &&
+        !isPreviousBookmark &&
+        !isNextBookmark &&
         !isZoomIn &&
         !isZoomOut &&
         !isSlow &&
@@ -2624,6 +2805,8 @@ export default function App() {
       e.preventDefault();
       blurActiveControl();
       if (isTab) setZenMode((z) => !z);
+      else if (isPreviousBookmark) seekBookmark("previous");
+      else if (isNextBookmark) seekBookmark("next");
       else if (isBookmark) {
         if (!e.repeat) addBookmark(Math.round(currentTimeRef.current));
       } else if (isSpace) audio.toggle();
@@ -2673,7 +2856,7 @@ export default function App() {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [audio, askBgScope, addBookmark]);
+  }, [audio, askBgScope, addBookmark, seekBookmark]);
 
   useEffect(() => {
     const onBareAlt = (e: KeyboardEvent) => {
@@ -3610,9 +3793,18 @@ export default function App() {
               {cloudProjectId && authUser && (
                 <IconButton
                   onClick={() => setCommentsOpen((v) => !v)}
-                  title="Comments"
+                  title={
+                    commentUnreadCount
+                      ? `Comments (${commentUnreadCount} unread)`
+                      : "Comments"
+                  }
                 >
                   <CommentIcon className="h-4 w-4" />
+                  {commentUnreadCount > 0 && (
+                    <span className="absolute right-0 top-0 grid min-h-3 min-w-3 place-items-center rounded-full bg-accent px-0.5 text-[8px] font-bold leading-3 text-ink-900">
+                      {commentUnreadCount > 9 ? "9+" : commentUnreadCount}
+                    </span>
+                  )}
                 </IconButton>
               )}
               <Menu
@@ -3961,6 +4153,10 @@ export default function App() {
                 }}
                 currentTimeMs={audio.currentTime}
                 activeDiffId={active.id}
+                difficulties={difficulties.map((d) => ({
+                  id: d.id,
+                  name: d.name,
+                }))}
                 onSeek={audio.seek}
                 canModerate={myRole === "owner" || myRole === "editor"}
                 ownerId={cloudOwnerId}
@@ -3973,9 +4169,11 @@ export default function App() {
                         resolved: x.resolved,
                         body: x.body,
                         author: x.author_username ?? "Mapper",
+                        difficulty_id: x.difficulty_id,
                       })),
                   )
                 }
+                onUnreadCountChange={setCommentUnreadCount}
               />
             )}
           </div>
@@ -4003,15 +4201,25 @@ export default function App() {
               }
               revealWaveform={hasProject}
               peers={collab.peers}
-              comments={commentMarkers}
+              comments={activeCommentMarkers}
               onCommentClick={(ms) => {
                 audio.seek(ms);
                 setCommentsOpen(true);
               }}
               bookmarks={active.bookmarks}
+              bookmarkLabels={active.bookmarkLabels}
+              loopRange={activeBookmarkLoop}
+              loopEnabled={activeBookmarkLoop?.enabled}
               onSetPreviewPoint={canEdit ? setPreviewPoint : undefined}
               onAddBookmark={canEdit ? addBookmark : undefined}
+              onRenameBookmark={canEdit ? renameBookmark : undefined}
               onRemoveBookmark={canEdit ? removeBookmark : undefined}
+              onPreviousBookmark={() => seekBookmark("previous")}
+              onNextBookmark={() => seekBookmark("next")}
+              onSetLoopStart={setBookmarkLoopStart}
+              onSetLoopEnd={setBookmarkLoopEnd}
+              onToggleLoop={toggleBookmarkLoop}
+              onClearLoop={clearBookmarkLoop}
               trimStart={active.trimStartMs}
               trimEnd={active.trimEndMs}
               fadeIn={active.fadeInMs}
@@ -4515,7 +4723,7 @@ function IconButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="grid h-8 w-8 place-items-center rounded-md text-base text-slate-300 transition hover:bg-white/10 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+      className="relative grid h-8 w-8 place-items-center rounded-md text-base text-slate-300 transition hover:bg-white/10 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
     >
       {children}
     </button>
@@ -4562,6 +4770,8 @@ function InfoModal({
           <InfoRow keys="Ctrl/Cmd + X" text="Cut selected notes." />
           <InfoRow keys="Ctrl/Cmd + V" text="Paste copied notes at the snapped playhead time." />
           <InfoRow keys="M" text="Mirror selected notes left↔right (flip columns)." />
+          <InfoRow keys="F / S" text="Reverse or shuffle selected notes." />
+          <InfoRow keys="[ / ]" text="Halve or double the selected pattern's timing." />
           <InfoRow keys="Delete / Backspace" text="Delete selected notes." />
         </InfoSection>
 
@@ -4571,6 +4781,9 @@ function InfoModal({
           <InfoRow keys="Bottom timeline click/drag" text="Seek through the song." />
           <InfoRow keys="Timeline wheel" text="Adjust waveform sensitivity." />
           <InfoRow keys="Timestamp" text="Click the time display to copy the current timestamp." />
+          <InfoRow keys="B" text="Add a bookmark at the playhead." />
+          <InfoRow keys="Page Up / Down" text="Jump to the previous or next bookmark." />
+          <InfoRow keys="Timeline bookmark controls" text="Name bookmarks and loop between two markers." />
         </InfoSection>
 
         <InfoSection title="Grid and display">
