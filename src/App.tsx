@@ -187,6 +187,7 @@ import {
   loadCachedFlags,
   type FeatureFlags,
 } from "./lib/featureFlags";
+import { parseOsuBeatmapLink } from "./lib/osuLinks";
 import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
 import {
   bookmarkInDirection,
@@ -1665,7 +1666,10 @@ export default function App() {
     setHitsoundSkinSource("visual");
   }, []);
 
-  const importMapFile = useCallback(async (file: File) => {
+  const importMapFile = useCallback(async (
+    file: File,
+    preferredBeatmapId?: number,
+  ) => {
     importStartedRef.current = true;
     setImportError(null);
     setImportingMap(true);
@@ -1699,7 +1703,10 @@ export default function App() {
         : [makeDifficulty()]
       ).map((d) => ({ ...d, timingPoints: normalizeTimingPoints(d.timingPoints) }));
       setDifficulties(diffs);
-      setActiveId(diffs[0].id);
+      const preferred = preferredBeatmapId
+        ? diffs.find((d) => d.beatmapId === preferredBeatmapId)
+        : undefined;
+      setActiveId((preferred ?? diffs[0]).id);
       setPendingImport(null);
       setModal(null);
       setLocalProjectId(newLocalProjectId());
@@ -1748,6 +1755,57 @@ export default function App() {
       requestImportMap(file);
     },
     [requestImportMap],
+  );
+
+  const importFromOsu = useCallback(
+    async (input: string) => {
+      const worker = import.meta.env.VITE_WORKER_URL;
+      if (!worker) {
+        throw new Error("Beatmap import isn't configured on this deployment.");
+      }
+      const parsed = parseOsuBeatmapLink(input);
+      if (!parsed) {
+        throw new Error("Paste an osu! beatmap link or a beatmapset ID.");
+      }
+      if (
+        hasProjectContent &&
+        !window.confirm(
+          "Importing replaces your current unsaved map. Continue?",
+        )
+      ) {
+        return;
+      }
+      let setId = parsed.setId;
+      if (!setId && parsed.beatmapId) {
+        const lookup = await fetch(`${worker}/mirror/beatmap/${parsed.beatmapId}`);
+        if (!lookup.ok) {
+          throw new Error("Couldn't find that beatmap on the mirrors.");
+        }
+        const data = (await lookup.json()) as { setId?: number };
+        setId = data.setId;
+      }
+      if (!setId) {
+        throw new Error("Paste an osu! beatmap link or a beatmapset ID.");
+      }
+      const res = await fetch(`${worker}/mirror/${setId}`);
+      if (!res.ok) {
+        throw new Error(
+          res.status === 404
+            ? "That beatmapset isn't available on the mirrors."
+            : "The beatmap mirrors are unavailable right now - try again in a minute.",
+        );
+      }
+      const blob = await res.blob();
+      const file = new File([blob], `${setId}.osz`, {
+        type: "application/octet-stream",
+      });
+      await importMapFile(file, parsed.beatmapId);
+      void logAnalyticsEvent(
+        "beatmap_import_by_id",
+        authUserRef.current?.id,
+      ).catch(() => {});
+    },
+    [hasProjectContent, importMapFile],
   );
 
   const importSmFile = useCallback(async (file: File) => {
@@ -4565,6 +4623,11 @@ export default function App() {
         open={modal === "welcome"}
         onClose={close}
         accountsEnabled={featureFlags.cloud_accounts}
+        onImportFromOsu={
+          featureFlags.beatmap_import && import.meta.env.VITE_WORKER_URL
+            ? importFromOsu
+            : undefined
+        }
         onNewMap={() => handleNew(hasProjectContent)}
         onTryMaps={() => setModal("sampleMaps")}
         onImportSmPack={onImportSmPack}
