@@ -4,6 +4,7 @@ import {
   listComments,
   addComment,
   resolveComment,
+  updateComment,
   deleteComment,
   subscribeComments,
   type Comment,
@@ -18,6 +19,23 @@ function fmt(ms: number): string {
   return `${sign}${m}:${String(s).padStart(2, "0")}:${String(milli).padStart(3, "0")}`;
 }
 
+function readLocal(key: string): string {
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeLocal(key: string, value: string): void {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // Comments still work when private-mode storage is unavailable.
+  }
+}
+
 export function CommentsSidebar({
   open,
   onClose,
@@ -25,10 +43,12 @@ export function CommentsSidebar({
   me,
   currentTimeMs,
   activeDiffId,
+  difficulties,
   onSeek,
   canModerate,
   ownerId,
   onCommentsChange,
+  onUnreadCountChange,
 }: {
   open: boolean;
   onClose: () => void;
@@ -36,15 +56,30 @@ export function CommentsSidebar({
   me: { id: string; username: string; osu_id: number };
   currentTimeMs: number;
   activeDiffId: string;
+  difficulties: { id: string; name: string }[];
   onSeek: (ms: number) => void;
   canModerate: boolean;
   ownerId: string | null;
   onCommentsChange?: (comments: Comment[]) => void;
+  onUnreadCountChange?: (count: number) => void;
 }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
   const [hideResolved, setHideResolved] = useState(false);
+  const [scope, setScope] = useState<"active" | "all">("active");
+  const [seenAt, setSeenAt] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const seenKey = `cascade:comments-seen:${projectId}`;
+  const draftKey = `cascade:comment-draft:${projectId}:${activeDiffId}`;
+
+  useEffect(() => {
+    setSeenAt(readLocal(seenKey));
+  }, [seenKey]);
+
+  useEffect(() => {
+    setBody(readLocal(draftKey));
+  }, [draftKey]);
 
   const reload = () =>
     listComments(projectId)
@@ -74,12 +109,48 @@ export function CommentsSidebar({
       repliesByParent.set(c.parent_id, arr);
     }
     return roots
+      .filter((r) => scope === "all" || r.difficulty_id === activeDiffId)
       .filter((r) => !hideResolved || !r.resolved)
-      .map((root) => ({ root, replies: repliesByParent.get(root.id) ?? [] }));
-  }, [comments, hideResolved]);
+      .map((root) => ({
+        root,
+        replies: repliesByParent.get(root.id) ?? [],
+      }));
+  }, [comments, hideResolved, scope, activeDiffId]);
 
-  const post = async (text: string, parentId: string | null, timeMs: number) => {
-    if (!text.trim()) return;
+  const unreadIds = useMemo(
+    () =>
+      new Set(
+        comments
+          .filter((c) => c.author !== me.id && (!seenAt || c.created_at > seenAt))
+          .map((c) => c.id),
+      ),
+    [comments, me.id, seenAt],
+  );
+
+  useEffect(() => {
+    onUnreadCountChange?.(unreadIds.size);
+  }, [onUnreadCountChange, unreadIds]);
+
+  useEffect(() => {
+    if (!open || !unreadIds.size || !comments.length) return;
+    const id = window.setTimeout(() => {
+      const latest = comments.reduce(
+        (value, c) => (c.created_at > value ? c.created_at : value),
+        "",
+      );
+      if (!latest) return;
+      writeLocal(seenKey, latest);
+      setSeenAt(latest);
+    }, 1200);
+    return () => window.clearTimeout(id);
+  }, [open, unreadIds, comments, seenKey]);
+
+  const post = async (
+    text: string,
+    parentId: string | null,
+    timeMs: number,
+  ): Promise<boolean> => {
+    if (!text.trim()) return false;
     setError(null);
     try {
       await addComment({
@@ -92,13 +163,28 @@ export function CommentsSidebar({
         difficultyId: activeDiffId,
         parentId,
       });
-      reload();
+      await reload();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to post.");
+      return false;
+    }
+  };
+
+  const edit = async (id: string, text: string): Promise<boolean> => {
+    try {
+      setError(null);
+      await updateComment(id, text);
+      await reload();
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to edit.");
+      return false;
     }
   };
 
   const canModify = (c: Comment) => canModerate || c.author === me.id;
+  const canEditComment = (c: Comment) => c.author === me.id;
 
   return (
     <div
@@ -106,9 +192,40 @@ export function CommentsSidebar({
         open ? "" : "hidden"
       }`}
     >
-      <header className="flex items-center justify-between border-b border-ink-600 px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-100">Comments</h2>
-        <div className="flex items-center gap-2">
+      <header className="border-b border-ink-600 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+            Comments
+            {unreadIds.size > 0 && (
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold text-ink-900">
+                {unreadIds.size}
+              </span>
+            )}
+          </h2>
+          <button
+            onClick={onClose}
+            className="grid h-6 w-6 place-items-center rounded text-slate-400 hover:bg-ink-600 hover:text-slate-200"
+            aria-label="Close comments"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="flex rounded-md border border-ink-600 bg-ink-700/60 p-0.5 text-[10px]">
+            {(["active", "all"] as const).map((value) => (
+              <button
+                key={value}
+                onClick={() => setScope(value)}
+                className={`rounded px-2 py-1 transition ${
+                  scope === value
+                    ? "bg-accent text-ink-900"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {value === "active" ? "This difficulty" : "All"}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
             <Toggle
               size="sm"
@@ -118,31 +235,45 @@ export function CommentsSidebar({
             />
             Hide resolved
           </div>
-          <button
-            onClick={onClose}
-            className="grid h-6 w-6 place-items-center rounded text-slate-400 hover:bg-ink-600 hover:text-slate-200"
-          >
-            ✕
-          </button>
         </div>
       </header>
 
       <div className="border-b border-ink-600 p-3">
         <textarea
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setBody(value);
+            writeLocal(draftKey, value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              void post(body, null, currentTimeMs).then((posted) => {
+                if (posted) {
+                  writeLocal(draftKey, "");
+                  setBody("");
+                }
+              });
+            }
+          }}
           placeholder="Add a comment…"
           rows={2}
           className="w-full resize-none rounded-lg border border-ink-500/60 bg-ink-700 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-accent/70"
         />
         <div className="mt-1.5 flex items-center justify-between">
           <span className="text-[11px] text-slate-500">
-            at {fmt(currentTimeMs)}
+            at {fmt(currentTimeMs)} · Ctrl+Enter
           </span>
           <Button
             variant="accent"
             onClick={() =>
-              void post(body, null, currentTimeMs).then(() => setBody(""))
+              void post(body, null, currentTimeMs).then((posted) => {
+                if (posted) {
+                  writeLocal(draftKey, "");
+                  setBody("");
+                }
+              })
             }
             disabled={!body.trim()}
           >
@@ -155,7 +286,11 @@ export function CommentsSidebar({
 
       <div className="flex-1 overflow-y-auto p-3">
         {threads.length === 0 && (
-          <p className="text-sm text-slate-500">No comments yet.</p>
+          <p className="text-sm text-slate-500">
+            {scope === "active"
+              ? "No comments on this difficulty."
+              : "No comments yet."}
+          </p>
         )}
         <div className="flex flex-col gap-3">
           {threads.map(({ root, replies }) => (
@@ -164,8 +299,17 @@ export function CommentsSidebar({
               root={root}
               replies={replies}
               ownerId={ownerId}
+              difficultyName={
+                difficulties.find((d) => d.id === root.difficulty_id)?.name ??
+                "Project"
+              }
+              showDifficulty={scope === "all"}
+              unread={
+                unreadIds.has(root.id) || replies.some((r) => unreadIds.has(r.id))
+              }
               onSeek={onSeek}
               onReply={(text) => post(text, root.id, root.time_ms)}
+              onEdit={edit}
               onResolve={(v) =>
                 void resolveComment(root.id, v)
                   .then(reload)
@@ -177,6 +321,7 @@ export function CommentsSidebar({
                   .catch(() => setError("Couldn't delete."))
               }
               canModify={canModify}
+              canEditComment={canEditComment}
             />
           ))}
         </div>
@@ -189,37 +334,65 @@ function CommentThread({
   root,
   replies,
   ownerId,
+  difficultyName,
+  showDifficulty,
+  unread,
   onSeek,
   onReply,
+  onEdit,
   onResolve,
   onDelete,
   canModify,
+  canEditComment,
 }: {
   root: Comment;
   replies: Comment[];
   ownerId: string | null;
+  difficultyName: string;
+  showDifficulty: boolean;
+  unread: boolean;
   onSeek: (ms: number) => void;
-  onReply: (text: string) => Promise<void> | void;
+  onReply: (text: string) => Promise<boolean>;
+  onEdit: (id: string, text: string) => Promise<boolean>;
   onResolve: (resolved: boolean) => void;
   onDelete: (id: string) => void;
   canModify: (c: Comment) => boolean;
+  canEditComment: (c: Comment) => boolean;
 }) {
   const [reply, setReply] = useState("");
   return (
     <div
-      className={`rounded-lg border p-2 ${
+      className={`relative rounded-lg border p-2 ${
         root.resolved
           ? "border-ink-700 bg-ink-800/40 opacity-70"
-          : "border-ink-600 bg-ink-700/40"
+          : unread
+            ? "border-accent/60 bg-accent/[0.06]"
+            : "border-ink-600 bg-ink-700/40"
       }`}
     >
+      {unread && (
+        <span
+          className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-ink-800 bg-accent"
+          title="Unread activity"
+        />
+      )}
       <div className="flex items-center justify-between">
-        <button
-          onClick={() => onSeek(root.time_ms)}
-          className="font-mono text-[11px] text-accent hover:underline"
-        >
-          {fmt(root.time_ms)}
-        </button>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <button
+            onClick={() => onSeek(root.time_ms)}
+            className="shrink-0 font-mono text-[11px] text-accent hover:underline"
+          >
+            {fmt(root.time_ms)}
+          </button>
+          {showDifficulty && (
+            <span
+              className="truncate rounded bg-ink-600/80 px-1.5 py-0.5 text-[9px] text-slate-300"
+              title={difficultyName}
+            >
+              {difficultyName}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           {canModify(root) && (
             <button
@@ -239,10 +412,20 @@ function CommentThread({
           )}
         </div>
       </div>
-      <CommentBody c={root} ownerId={ownerId} />
+      <CommentBody
+        c={root}
+        ownerId={ownerId}
+        canEdit={canEditComment(root)}
+        onEdit={onEdit}
+      />
       {replies.map((r) => (
         <div key={r.id} className="mt-1.5 border-l-2 border-ink-600 pl-2">
-          <CommentBody c={r} ownerId={ownerId} />
+          <CommentBody
+            c={r}
+            ownerId={ownerId}
+            canEdit={canEditComment(r)}
+            onEdit={onEdit}
+          />
           {canModify(r) && (
             <button
               onClick={() => onDelete(r.id)}
@@ -259,7 +442,9 @@ function CommentThread({
           onChange={(e) => setReply(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && reply.trim()) {
-              void Promise.resolve(onReply(reply)).then(() => setReply(""));
+              void onReply(reply).then((posted) => {
+                if (posted) setReply("");
+              });
             }
           }}
           placeholder="Reply…"
@@ -270,8 +455,32 @@ function CommentThread({
   );
 }
 
-function CommentBody({ c, ownerId }: { c: Comment; ownerId: string | null }) {
+function CommentBody({
+  c,
+  ownerId,
+  canEdit,
+  onEdit,
+}: {
+  c: Comment;
+  ownerId: string | null;
+  canEdit: boolean;
+  onEdit: (id: string, text: string) => Promise<boolean>;
+}) {
   const isHost = !!ownerId && c.author === ownerId;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(c.body);
+
+  useEffect(() => {
+    if (!editing) setDraft(c.body);
+  }, [c.body, editing]);
+
+  const save = () => {
+    if (!draft.trim()) return;
+    void onEdit(c.id, draft).then((saved) => {
+      if (saved) setEditing(false);
+    });
+  };
+
   return (
     <div className="mt-1">
       <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300">
@@ -292,10 +501,56 @@ function CommentBody({ c, ownerId }: { c: Comment; ownerId: string | null }) {
             Host
           </span>
         )}
+        {canEdit && !editing && (
+          <button
+            onClick={() => setEditing(true)}
+            className="ml-auto text-[9px] font-normal text-slate-500 hover:text-slate-300"
+          >
+            edit
+          </button>
+        )}
       </div>
-      <div className="whitespace-pre-wrap break-words text-sm text-slate-200">
-        {c.body}
-      </div>
+      {editing ? (
+        <div className="mt-1">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                save();
+              } else if (e.key === "Escape") {
+                setDraft(c.body);
+                setEditing(false);
+              }
+            }}
+            rows={2}
+            className="w-full resize-none rounded border border-ink-500/60 bg-ink-700 px-2 py-1 text-xs text-slate-100 outline-none focus:border-accent/70"
+          />
+          <div className="mt-1 flex justify-end gap-1">
+            <button
+              onClick={() => {
+                setDraft(c.body);
+                setEditing(false);
+              }}
+              className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 hover:bg-ink-600"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={save}
+              disabled={!draft.trim()}
+              className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-ink-900 disabled:opacity-40"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="whitespace-pre-wrap break-words text-sm text-slate-200">
+          {c.body}
+        </div>
+      )}
     </div>
   );
 }
