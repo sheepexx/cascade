@@ -9,11 +9,13 @@ import {
 import { effectiveSvAt, formatTime } from "../../lib/timing";
 import { bookmarkLabel, sortedBookmarks } from "../../lib/bookmarks";
 import {
+  EASING_HANDLES,
   SV_EASINGS,
   applySvToRange,
   buildSvMap,
   constantSv,
   effectiveRateAt,
+  type BezierHandles,
   greensInRange,
   rampSv,
   removeGreensInRange,
@@ -22,6 +24,7 @@ import {
   type SvEasing,
   type SvMap,
 } from "../../lib/sv";
+import { BezierEditor } from "../ui/BezierEditor";
 import { Modal } from "../ui/Modal";
 import { Button, Field, NumberInput, Toggle } from "../ui/Controls";
 
@@ -90,7 +93,9 @@ export function SvModal({
   const [sv, setSv] = useState(2);
   const [svStart, setSvStart] = useState(1);
   const [svEnd, setSvEnd] = useState(2);
-  const [easing, setEasing] = useState<SvEasing>("linear");
+  const [easing, setEasing] = useState<BezierHandles>(
+    EASING_HANDLES.sineInOut,
+  );
   const [density, setDensity] = useState(4);
   const [peakSv, setPeakSv] = useState(1.5);
   const [peakPercent, setPeakPercent] = useState(50);
@@ -325,6 +330,23 @@ export function SvModal({
     [bookmarks, bookmarkLabels],
   );
 
+  /** Which preset the handles currently sit on, if any, so the picker can
+   *  show "Custom curve" once they have been dragged off one. */
+  const matchedPreset = useMemo(() => {
+    const near = (a: number, b: number) => Math.abs(a - b) < 0.005;
+    return (
+      SV_EASINGS.find((id) => {
+        const h = EASING_HANDLES[id];
+        return (
+          near(h.x1, easing.x1) &&
+          near(h.y1, easing.y1) &&
+          near(h.x2, easing.x2) &&
+          near(h.y2, easing.y2)
+        );
+      }) ?? null
+    );
+  }, [easing]);
+
   /** "0:12.345" plus the bookmark name when the time lands on one. */
   const timeHint = (ms: number) => {
     const hit = bookmarkOptions.find((b) => Math.round(b.ms) === Math.round(ms));
@@ -500,15 +522,29 @@ export function SvModal({
               {svField("End SV ×", svEnd, setSvEnd)}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Curve">
-                <select
+              <Field
+                label="Curve"
+                hint="Drag the two handles, or start from a preset."
+              >
+                <BezierEditor
                   value={easing}
-                  onChange={(e) => {
-                    setEasing(e.target.value as SvEasing);
+                  onChange={(v) => {
+                    setEasing(v);
                     setApplied(false);
                   }}
-                  className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none focus:border-accent/70"
+                  disabled={!!readOnly}
+                />
+                <select
+                  value={matchedPreset ?? ""}
+                  onChange={(e) => {
+                    const preset = e.target.value as SvEasing;
+                    if (!preset) return;
+                    setEasing(EASING_HANDLES[preset]);
+                    setApplied(false);
+                  }}
+                  className="mt-2 rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none focus:border-accent/70"
                 >
+                  {!matchedPreset && <option value="">Custom curve</option>}
                   {SV_EASINGS.map((id) => (
                     <option key={id} value={id}>
                       {EASING_LABELS[id]}

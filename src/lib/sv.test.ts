@@ -4,9 +4,12 @@ import { effectiveSvAt } from "./timing";
 import {
   applySvToRange,
   buildSvMap,
+  EASING_HANDLES,
   constantSv,
+  cubicBezierEase,
   dominantBpm,
   effectiveRateAt,
+  type BezierHandles,
   easeProgress,
   greensInRange,
   hasSv,
@@ -260,6 +263,53 @@ describe("easeProgress", () => {
       expect(easeProgress(easing, 0)).toBeCloseTo(0, 9);
       expect(easeProgress(easing, 1)).toBeCloseTo(1, 9);
     }
+  });
+});
+
+describe("cubicBezierEase", () => {
+  const linear: BezierHandles = { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 };
+
+  it("pins the endpoints", () => {
+    for (const h of Object.values(EASING_HANDLES)) {
+      expect(cubicBezierEase(h, 0)).toBe(0);
+      expect(cubicBezierEase(h, 1)).toBe(1);
+    }
+  });
+
+  it("reproduces a straight line", () => {
+    for (const x of [0.1, 0.25, 0.5, 0.75, 0.9]) {
+      expect(cubicBezierEase(linear, x)).toBeCloseTo(x, 4);
+    }
+  });
+
+  it("eases in below the diagonal and out above it", () => {
+    expect(cubicBezierEase(EASING_HANDLES.quadIn, 0.5)).toBeLessThan(0.5);
+    expect(cubicBezierEase(EASING_HANDLES.quadOut, 0.5)).toBeGreaterThan(0.5);
+  });
+
+  it("tracks the named easings it approximates", () => {
+    for (const name of ["quadIn", "quadOut", "sineInOut"] as const) {
+      for (const x of [0.25, 0.5, 0.75]) {
+        expect(cubicBezierEase(EASING_HANDLES[name], x)).toBeCloseTo(
+          easeProgress(name, x),
+          1,
+        );
+      }
+    }
+  });
+
+  it("allows overshoot above 1 without breaking the solve", () => {
+    const overshoot: BezierHandles = { x1: 0.3, y1: 1.6, x2: 0.6, y2: 1.6 };
+    expect(cubicBezierEase(overshoot, 0.5)).toBeGreaterThan(1);
+    expect(cubicBezierEase(overshoot, 1)).toBe(1);
+  });
+
+  it("clamps x input and out-of-range control points", () => {
+    expect(cubicBezierEase(linear, -2)).toBe(0);
+    expect(cubicBezierEase(linear, 5)).toBe(1);
+    const wild: BezierHandles = { x1: -3, y1: 0, x2: 4, y2: 1 };
+    const mid = cubicBezierEase(wild, 0.5);
+    expect(Number.isFinite(mid)).toBe(true);
   });
 });
 
