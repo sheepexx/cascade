@@ -261,6 +261,65 @@ export const SV_EASINGS: SvEasing[] = [
   "expoInOut",
 ];
 
+/**
+ * A CSS-style cubic bezier easing: the curve runs from (0,0) to (1,1) and the
+ * two control points shape it. x stays in [0,1] so the curve is a function of
+ * progress; y may overshoot for elastic-looking effects.
+ */
+export type BezierHandles = { x1: number; y1: number; x2: number; y2: number };
+
+/** Standard approximations, used to seed the handle editor from a preset. */
+export const EASING_HANDLES: Record<SvEasing, BezierHandles> = {
+  linear: { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 },
+  sineIn: { x1: 0.12, y1: 0, x2: 0.39, y2: 0 },
+  sineOut: { x1: 0.61, y1: 1, x2: 0.88, y2: 1 },
+  sineInOut: { x1: 0.37, y1: 0, x2: 0.63, y2: 1 },
+  quadIn: { x1: 0.11, y1: 0, x2: 0.5, y2: 0 },
+  quadOut: { x1: 0.5, y1: 1, x2: 0.89, y2: 1 },
+  quadInOut: { x1: 0.45, y1: 0, x2: 0.55, y2: 1 },
+  expoIn: { x1: 0.7, y1: 0, x2: 0.84, y2: 0 },
+  expoOut: { x1: 0.16, y1: 1, x2: 0.3, y2: 1 },
+  expoInOut: { x1: 0.87, y1: 0, x2: 0.13, y2: 1 },
+};
+
+export function isBezierHandles(
+  easing: SvEasing | BezierHandles,
+): easing is BezierHandles {
+  return typeof easing !== "string";
+}
+
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) return 0;
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+function bezierAxis(t: number, a1: number, a2: number): number {
+  const mt = 1 - t;
+  return 3 * mt * mt * t * a1 + 3 * mt * t * t * a2 + t * t * t;
+}
+
+/**
+ * Evaluate the curve at progress `x`. Bx is monotonic once the control x
+ * values are clamped to [0,1], so a bisection solve for t is exact enough and
+ * cannot diverge the way Newton can on flat segments.
+ */
+export function cubicBezierEase(h: BezierHandles, x: number): number {
+  const target = clamp01(x);
+  if (target <= 0) return 0;
+  if (target >= 1) return 1;
+  const x1 = clamp01(h.x1);
+  const x2 = clamp01(h.x2);
+  let lo = 0;
+  let hi = 1;
+  let t = target;
+  for (let i = 0; i < 40; i++) {
+    t = (lo + hi) / 2;
+    if (bezierAxis(t, x1, x2) < target) lo = t;
+    else hi = t;
+  }
+  return bezierAxis(t, h.y1, h.y2);
+}
+
 export function easeProgress(easing: SvEasing, x: number): number {
   const t = Math.max(0, Math.min(1, x));
   switch (easing) {
@@ -304,16 +363,20 @@ export function rampSv(
   end: number,
   svStart: number,
   svEnd: number,
-  easing: SvEasing,
+  easing: SvEasing | BezierHandles,
   density: number,
 ): TimingPoint[] {
   if (!(end > start) || !(density > 0)) return [];
+  const ease = (x: number) =>
+    isBezierHandles(easing)
+      ? cubicBezierEase(easing, x)
+      : easeProgress(easing, x);
   const out: TimingPoint[] = [];
   const span = end - start;
   let t = start;
   let guard = 0;
   while (t < end - 0.5 && guard < 5000) {
-    const progress = easeProgress(easing, (t - start) / span);
+    const progress = ease((t - start) / span);
     out.push(makeGreenPoint(t, svStart + (svEnd - svStart) * progress));
     const interval = beatLength(activeTimingAt(t, points)?.bpm ?? 120) / density;
     t += Math.max(1, interval);
