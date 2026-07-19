@@ -25,6 +25,8 @@ type Props = {
   onShowTimingLines: (value: boolean) => void;
   upscroll: boolean;
   onUpscroll: (value: boolean) => void;
+  svPreviewPlayback: boolean;
+  onSvPreviewPlayback: (value: boolean) => void;
   playtest: PlaytestSettings;
   onPlaytest: (value: PlaytestSettings) => void;
   localAutosaveEnabled: boolean;
@@ -63,6 +65,8 @@ export function AppSettingsModal({
   onShowTimingLines,
   upscroll,
   onUpscroll,
+  svPreviewPlayback,
+  onSvPreviewPlayback,
   playtest,
   onPlaytest,
   localAutosaveEnabled,
@@ -207,6 +211,19 @@ export function AppSettingsModal({
               <p className="mt-2 text-[11px] text-slate-500">
                 Glides the playfield between snap lines instead of jumping. Still
                 snaps to the grid - only the motion is animated.
+              </p>
+              <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
+                <span>Preview SV while playing</span>
+                <Toggle
+                  checked={svPreviewPlayback}
+                  onChange={onSvPreviewPlayback}
+                  aria-label="Preview SV while playing"
+                />
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                Warps the scroll by your green SV points during editor playback,
+                the way players will see it. Playtest always applies SV. While
+                paused the editor stays linear so placing notes is predictable.
               </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
                 <span>Scroll direction</span>
