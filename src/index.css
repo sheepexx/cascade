@@ -145,21 +145,6 @@ textarea {
   transform-origin: bottom center;
 }
 
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 10px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0) scale(1);
-  }
-}
-
-.toast-in {
-  animation: toast-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 @keyframes hitsound-bar-in {
   from {
     opacity: 0;
@@ -227,31 +212,141 @@ textarea {
   transition: max-height 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes notif-in {
+@keyframes notification-stack-in {
   from {
     opacity: 0;
-    transform: translateX(24px) scale(0.96);
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes notification-stack-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+}
+@keyframes notification-top-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+@keyframes notification-bottom-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+@keyframes notification-bottom-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, 18px) scale(0.97);
+  }
+}
+@keyframes notification-top-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -18px) scale(0.97);
+  }
+}
+@keyframes notification-right-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(0.97);
   }
   to {
     opacity: 1;
     transform: translateX(0) scale(1);
   }
 }
-@keyframes notif-out {
+@keyframes notification-right-out {
   from {
     opacity: 1;
     transform: translateX(0) scale(1);
   }
   to {
     opacity: 0;
-    transform: translateX(24px) scale(0.96);
+    transform: translateX(28px) scale(0.97);
   }
 }
-.notif-in {
-  animation: notif-in 260ms cubic-bezier(0.16, 1, 0.3, 1);
+
+.notification-shell[data-placement="stack"][data-state="in"] {
+  animation: notification-stack-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.notif-out {
-  animation: notif-out 200ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+.notification-shell[data-placement="stack"][data-state="out"] {
+  animation: notification-stack-out 220ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+.notification-shell[data-placement="top-center"][data-state="in"] {
+  animation: notification-top-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.notification-shell[data-placement="bottom-center"][data-state="in"] {
+  animation: notification-bottom-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.notification-shell[data-placement="bottom-center"][data-state="out"] {
+  animation: notification-bottom-out 220ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+.notification-shell[data-placement="top-center"][data-state="out"] {
+  animation: notification-top-out 220ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+.notification-shell[data-placement="right"][data-state="in"] {
+  animation: notification-right-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.notification-shell[data-placement="right"][data-state="out"] {
+  animation: notification-right-out 220ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+
+@keyframes notification-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+@keyframes notification-progress-indeterminate {
+  0% {
+    transform: translateX(-100%) scaleX(0.35);
+  }
+  50% {
+    transform: translateX(60%) scaleX(0.7);
+  }
+  100% {
+    transform: translateX(220%) scaleX(0.35);
+  }
+}
+.notification-progress {
+  transform-origin: left center;
+  animation: notification-progress var(--notification-duration) linear forwards;
+}
+.notification-progress-indeterminate {
+  transform-origin: left center;
+  animation: notification-progress-indeterminate 1.25s ease-in-out infinite;
+}
+.notification-shell:hover .notification-progress {
+  animation-play-state: paused;
 }
 
 @keyframes tap-ring {
@@ -324,23 +419,6 @@ textarea {
   animation: loader-logo-pulse 1700ms ease-in-out infinite;
 }
 
-@keyframes autotime-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(16px) scale(0.94);
-  }
-  60% {
-    transform: translateX(-50%) translateY(-3px) scale(1.01);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-  }
-}
-.autotime-in {
-  animation: autotime-in 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
 @keyframes scroll-dir-in-up {
   from {
     opacity: 0;
@@ -409,13 +487,10 @@ textarea {
   .modal-panel-in,
   .modal-panel-out,
   .pfp-pop-in,
-  .toast-in,
-  .notif-in,
-  .notif-out,
+  .notification-shell,
   .rate-panel-in,
   .rate-panel-out,
   .tap-ring,
-  .autotime-in,
   .loader-fade-in,
   .loader-content-in,
   .scroll-dir-in-up,
@@ -431,4 +506,3 @@ textarea {
     transition-duration: 1ms;
   }
 }
-

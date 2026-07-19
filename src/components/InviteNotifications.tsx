@@ -1,4 +1,5 @@
 import { Button } from "./ui/Controls";
+import { TimedNotification } from "./ui/TimedNotification";
 
 export type InviteNotice = {
   projectId: string;
@@ -20,10 +21,17 @@ export function InviteNotifications({
   return (
     <div className="fixed right-4 top-4 z-[70] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
       {notices.map((n) => (
-        <div
+        <TimedNotification
           key={n.projectId}
-          className="notif-in flex flex-col gap-3 rounded-xl border border-white/10 bg-ink-800/95 p-3 shadow-2xl backdrop-blur-2xl"
+          durationMs={10000}
+          placement="right"
+          resetKey={n.projectId}
+          onDismiss={() => onIgnore(n)}
+          progressClassName="bg-accent"
+          className="flex flex-col gap-3 rounded-xl border border-white/10 bg-ink-800/95 p-3 pb-4 shadow-2xl backdrop-blur-2xl"
         >
+          {({ dismiss }) => (
+            <>
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-ink-700 text-sm">
               {n.avatar ? (
@@ -47,14 +55,16 @@ export function InviteNotifications({
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => onIgnore(n)}>
+            <Button variant="ghost" onClick={() => dismiss()}>
               Ignore
             </Button>
-            <Button variant="accent" onClick={() => onJoin(n)}>
+            <Button variant="accent" onClick={() => dismiss(() => onJoin(n))}>
               Join
             </Button>
           </div>
-        </div>
+            </>
+          )}
+        </TimedNotification>
       ))}
     </div>
   );
