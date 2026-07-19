@@ -4362,10 +4362,13 @@ export default function App() {
                 showTimingLines={appSettings.showTimingLines}
                 upscroll={appSettings.upscroll}
                 svPreview={
-                  hasSv(activeTimingPoints) &&
+                  hasSv(activeTimingPoints, {
+                    bpmScroll: appSettings.bpmAffectsScroll,
+                  }) &&
                   (playtest.active ||
                     (appSettings.svPreviewPlayback && audio.isPlaying))
                 }
+                svBpmScroll={appSettings.bpmAffectsScroll}
                 onSelectionRange={setSelectionRange}
                 editorKeybinds={editorKeybinds}
                 zenMode={zenMode || playtest.active}
@@ -4437,10 +4440,13 @@ export default function App() {
                       showTimingLines={appSettings.showTimingLines}
                       upscroll={appSettings.upscroll}
                       svPreview={
-                        hasSv(referenceTimingPoints) &&
+                        hasSv(referenceTimingPoints, {
+                          bpmScroll: appSettings.bpmAffectsScroll,
+                        }) &&
                         appSettings.svPreviewPlayback &&
                         audio.isPlaying
                       }
+                      svBpmScroll={appSettings.bpmAffectsScroll}
                       zenMode={zenMode}
                       onPlaceNote={noop}
                       onDeleteNote={noop}
@@ -4737,6 +4743,10 @@ export default function App() {
         svPreviewPlayback={appSettings.svPreviewPlayback}
         onSvPreviewPlayback={(v) =>
           setAppSettings((s) => ({ ...s, svPreviewPlayback: v }))
+        }
+        bpmAffectsScroll={appSettings.bpmAffectsScroll}
+        onBpmAffectsScroll={(v) =>
+          setAppSettings((s) => ({ ...s, bpmAffectsScroll: v }))
         }
         playtest={appSettings.playtest}
         onPlaytest={(v) => setAppSettings((s) => ({ ...s, playtest: v }))}

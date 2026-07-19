@@ -4,6 +4,7 @@ import {
   applySvToRange,
   buildSvMap,
   constantSv,
+  dominantBpm,
   easeProgress,
   greensInRange,
   hasSv,
@@ -115,6 +116,91 @@ describe("svTimeAt round-trip", () => {
       expect(pos).toBeGreaterThan(prev);
       prev = pos;
     }
+  });
+});
+
+describe("dominantBpm", () => {
+  it("picks the BPM the map spends the most time at", () => {
+    const points = [
+      makeRedPoint(0, 140),
+      makeRedPoint(10000, 122.5),
+      makeRedPoint(100000, 140),
+    ];
+    // 122.5 spans 90s, 140 spans 10s (the trailing point has no span).
+    expect(dominantBpm(points)).toBe(122.5);
+  });
+
+  it("ignores freeze/teleport gimmick points", () => {
+    // polyriddim-style: near-zero and huge BPMs used as scroll effects.
+    const points = [
+      makeRedPoint(0, 140),
+      makeRedPoint(1000, 0.001),
+      makeRedPoint(60000, 10000),
+      makeRedPoint(60001, 0.001),
+    ];
+    expect(dominantBpm(points)).toBe(140);
+  });
+
+  it("falls back sensibly with no musical BPM at all", () => {
+    expect(dominantBpm([makeRedPoint(0, 0.001)])).toBe(0.001);
+    expect(dominantBpm([])).toBe(120);
+  });
+});
+
+describe("BPM-driven scroll (osu!mania semantics)", () => {
+  const points = [
+    makeRedPoint(0, 100),
+    makeRedPoint(10000, 200), // double tempo -> double scroll
+  ];
+
+  it("ignores BPM by default (Quaver-style)", () => {
+    expect(buildSvMap(points).segments).toHaveLength(0);
+    expect(hasSv(points)).toBe(false);
+  });
+
+  it("scales the rate by bpm / dominant bpm", () => {
+    const map = buildSvMap(points, { bpmScroll: true, baseBpm: 100 });
+    expect(hasSv(points, { bpmScroll: true, baseBpm: 100 })).toBe(true);
+    // 1x until 10000, then 2x.
+    expect(svPositionAt(map, 10000)).toBe(10000);
+    expect(svPositionAt(map, 11000)).toBe(12000);
+  });
+
+  it("multiplies SV and BPM together", () => {
+    const withSv = [...points, makeGreenPoint(10000, 1.5)];
+    const map = buildSvMap(withSv, { bpmScroll: true, baseBpm: 100 });
+    // 200bpm (2x) * 1.5sv = 3x
+    expect(svPositionAt(map, 11000) - svPositionAt(map, 10000)).toBeCloseTo(
+      3000,
+    );
+  });
+
+  it("stays invertible through freezes and teleports", () => {
+    // A polyriddim-style stop/jump pair.
+    const gimmick = [
+      makeRedPoint(0, 140),
+      makeRedPoint(5000, 0.001), // freeze
+      makeRedPoint(5100, 10000), // teleport
+      makeRedPoint(5101, 140),
+    ];
+    const opts = { bpmScroll: true };
+    const map = buildSvMap(gimmick, opts);
+    expect(hasSv(gimmick, opts)).toBe(true);
+    let prev = -Infinity;
+    for (let t = -500; t <= 8000; t += 13) {
+      const pos = svPositionAt(map, t);
+      expect(pos).toBeGreaterThan(prev);
+      expect(svTimeAt(map, pos)).toBeCloseTo(t, 6);
+      prev = pos;
+    }
+  });
+
+  it("caches per mode rather than colliding", () => {
+    const sv = buildSvMap(points);
+    const bpm = buildSvMap(points, { bpmScroll: true, baseBpm: 100 });
+    expect(sv).not.toBe(bpm);
+    expect(buildSvMap(points)).toBe(sv);
+    expect(buildSvMap(points, { bpmScroll: true, baseBpm: 100 })).toBe(bpm);
   });
 });
 
