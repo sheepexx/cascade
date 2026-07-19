@@ -36,6 +36,7 @@ import { MarqueeText } from "./ui/MarqueeText";
 import { playUiSound } from "../lib/uiSounds";
 import { useAuth } from "../lib/auth";
 import { logAnalyticsEvent } from "../lib/analytics";
+import type { ProgressReport } from "../lib/progress";
 
 const selectClass =
   "w-full rounded-lg bg-ink-700/65 border border-white/10 px-3 py-2 text-sm text-slate-100 " +
@@ -99,6 +100,9 @@ export function PackCreator({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<ProgressReport | null>(
+    null,
+  );
   const [importProblems, setImportProblems] = useState<string[]>([]);
   const [validation, setValidation] = useState<PackValidationResult | null>(
     null,
@@ -234,12 +238,14 @@ export function PackCreator({
     const result = runValidation();
     if (result.errors.length > 0) return;
     setExporting(true);
+    setExportProgress({ ratio: 0, label: "Collecting song assets" });
     try {
       const { blob, filename } = await buildPack({
         metadata,
         items,
         settings,
         jpegQuality,
+        onProgress: setExportProgress,
       });
       triggerDownload(blob, filename);
       playUiSound("mapExportDone");
@@ -253,8 +259,9 @@ export function PackCreator({
       });
     } finally {
       setExporting(false);
+      setExportProgress(null);
     }
-  }, [runValidation, metadata, items, settings, jpegQuality]);
+  }, [runValidation, metadata, items, settings, jpegQuality, user?.id]);
 
   const selected = items.find((it) => it.id === selectedId) ?? null;
   const placeholderItem =
@@ -854,9 +861,35 @@ export function PackCreator({
                   onClick={() => void exportPack()}
                   disabled={exporting || importing || items.length === 0}
                 >
-                  {exporting ? "Exporting…" : "Export .osz"}
+                  {exporting && exportProgress
+                    ? `Exporting… ${Math.round(exportProgress.ratio * 100)}%`
+                    : exporting
+                      ? "Exporting…"
+                      : "Export .osz"}
                 </Button>
               </div>
+              {exportProgress && (
+                <div className="mt-2 flex flex-col gap-1">
+                  <div
+                    className="h-1 w-full overflow-hidden rounded-full bg-white/10"
+                    role="progressbar"
+                    aria-valuenow={Math.round(exportProgress.ratio * 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={exportProgress.label}
+                  >
+                    <div
+                      className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+                      style={{
+                        width: `${Math.round(exportProgress.ratio * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="truncate text-[11px] text-slate-300/40">
+                    {exportProgress.label}
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         </div>

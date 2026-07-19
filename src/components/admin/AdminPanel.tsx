@@ -887,8 +887,9 @@ function NotificationsTab() {
           Publish app update
         </h2>
         <p className="mt-1 text-sm text-slate-400">
-          Sends a durable inbox notice to every account. Reusing a version
-          updates that version's existing notice instead of creating duplicates.
+          Sends a durable inbox notice to every account, shown as coming from
+          you. Reusing a version updates that version's existing notice instead
+          of creating duplicates.
         </p>
 
         <div className="mt-5 grid gap-4">
