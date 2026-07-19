@@ -283,6 +283,9 @@ export type AppSettings = {
   uiSoundsEnabled: boolean;
   uiSoundVolume: number;
   playtest: PlaytestSettings;
+  /** Rebindable editor shortcuts (KeyboardEvent.code per action); defaults
+   * are filled in by normalizeEditorKeybinds at load time. */
+  editorKeybinds: Record<string, string>;
 };
 
 export type ManiaColumnSkin = {
@@ -355,6 +358,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     keybinds: {},
     quickRestartKey: "Backquote",
   },
+  editorKeybinds: {},
 };
 
 export const MIN_KEYS = 1;

@@ -23,6 +23,11 @@ import {
   stepToSnap,
 } from "../lib/timing";
 import { buildSvMap, svPositionAt, svTimeAt } from "../lib/sv";
+import {
+  DEFAULT_EDITOR_KEYBINDS,
+  matchesBind,
+  type EditorKeybinds,
+} from "../lib/editorKeybinds";
 import type { PatternNote } from "../lib/patterns";
 import type { Waveform } from "../hooks/useWaveform";
 import {
@@ -122,6 +127,8 @@ type Props = {
   onSelectionRange?: (
     range: { start: number; end: number; count: number } | null,
   ) => void;
+  /** Remappable notefield shortcuts; falls back to the defaults. */
+  editorKeybinds?: EditorKeybinds;
 };
 
 type DragState = {
@@ -558,11 +565,12 @@ export function ManiaEditor(props: Props) {
         return;
       }
       if (e.key === "Shift") setShift(true);
+      const binds =
+        propsRef.current.editorKeybinds ?? DEFAULT_EDITOR_KEYBINDS;
+      const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
       if (
-        e.key.toLowerCase() === "r" &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
+        matchesBind(e.code, binds.toggleReceptors) &&
+        noMod &&
         !isTyping(e.target)
       ) {
         e.preventDefault();
@@ -570,10 +578,8 @@ export function ManiaEditor(props: Props) {
         return;
       }
       if (
-        e.key.toLowerCase() === "h" &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
+        matchesBind(e.code, binds.hitsoundMode) &&
+        noMod &&
         !isTyping(e.target)
       ) {
         e.preventDefault();
@@ -581,10 +587,8 @@ export function ManiaEditor(props: Props) {
         return;
       }
       if (
-        e.key.toLowerCase() === "m" &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
+        matchesBind(e.code, binds.mirrorSelection) &&
+        noMod &&
         !isTyping(e.target) &&
         selectedNoteIdsRef.current.size
       ) {
@@ -592,35 +596,26 @@ export function ManiaEditor(props: Props) {
         mirrorSelection();
         return;
       }
-      if (
-        hitsoundModeRef.current &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
-        !isTyping(e.target)
-      ) {
-        const k = e.key.toLowerCase();
-        if (k === "w") {
+      if (hitsoundModeRef.current && noMod && !isTyping(e.target)) {
+        if (matchesBind(e.code, binds.whistleAdd)) {
           e.preventDefault();
           toggleAddition(HITSOUND_WHISTLE);
           return;
         }
-        if (k === "f") {
+        if (matchesBind(e.code, binds.finishAdd)) {
           e.preventDefault();
           toggleAddition(HITSOUND_FINISH);
           return;
         }
-        if (k === "c") {
+        if (matchesBind(e.code, binds.clapAdd)) {
           e.preventDefault();
           toggleAddition(HITSOUND_CLAP);
           return;
         }
       }
       if (
-        e.key.toLowerCase() === "w" &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
+        matchesBind(e.code, binds.waveformOverlay) &&
+        noMod &&
         !isTyping(e.target)
       ) {
         e.preventDefault();
@@ -636,27 +631,21 @@ export function ManiaEditor(props: Props) {
         deleteSelection();
         return;
       }
-      if (
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
-        !isTyping(e.target) &&
-        selectedNoteIdsRef.current.size
-      ) {
-        const k = e.key.toLowerCase();
-        if (k === "f") {
+      if (noMod && !isTyping(e.target) && selectedNoteIdsRef.current.size) {
+        if (matchesBind(e.code, binds.reverseSelection)) {
           e.preventDefault();
           reverseSelection();
           return;
         }
-        if (k === "s") {
+        if (matchesBind(e.code, binds.shuffleSelection)) {
           e.preventDefault();
           shuffleSelection();
           return;
         }
-        if (e.key === "[" || e.key === "]") {
+        const scaleHalf = matchesBind(e.code, binds.scaleHalf);
+        if (scaleHalf || matchesBind(e.code, binds.scaleDouble)) {
           e.preventDefault();
-          scaleSelection(e.key === "[" ? 0.5 : 2);
+          scaleSelection(scaleHalf ? 0.5 : 2);
           return;
         }
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {

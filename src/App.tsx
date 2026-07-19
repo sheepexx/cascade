@@ -173,6 +173,15 @@ import {
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
 import { sortedPoints } from "./lib/timing";
 import { hasSv } from "./lib/sv";
+import {
+  DEFAULT_EDITOR_KEYBINDS,
+  editorKeyLabel,
+  editorKeybindConflicts,
+  matchesBind,
+  normalizeEditorKeybinds,
+  type EditorAction,
+  type EditorKeybinds,
+} from "./lib/editorKeybinds";
 import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
 import {
   bookmarkInDirection,
@@ -1313,7 +1322,8 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "F5") return;
+      if (!matchesBind(e.code, editorKeybindsRef.current.playtestToggle))
+        return;
       e.preventDefault();
       if (playtestRef.current.active) exitPlaytest();
       else if (!modalRef.current) startPlaytest(audio.getCurrentTime());
@@ -2819,12 +2829,16 @@ export default function App() {
   hasAudioRef.current = !!audioFile;
   const modalRef = useRef<ModalId>(null);
   modalRef.current = modal;
+  const editorKeybinds = useMemo(
+    () => normalizeEditorKeybinds(appSettings.editorKeybinds),
+    [appSettings.editorKeybinds],
+  );
+  const editorKeybindsRef = useRef(editorKeybinds);
+  editorKeybindsRef.current = editorKeybinds;
   const projectStartedRef = useRef(false);
   projectStartedRef.current = projectStarted;
   const slowHeldRef = useRef(false);
   useEffect(() => {
-    const isSlowKey = (e: KeyboardEvent) =>
-      e.key.toLowerCase() === "s" && !e.ctrlKey && !e.metaKey && !e.altKey;
     const shouldIgnoreHotkey = (e: KeyboardEvent) => {
       if (playtestRef.current.active) return true;
       if (!projectStartedRef.current) return true;
@@ -2833,22 +2847,21 @@ export default function App() {
       return (e.target as HTMLInputElement).type !== "range";
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      const isSpace = e.code === "Space" || e.key === " ";
-      const isTab = e.key === "Tab";
-      const isUp = e.key === "ArrowUp";
-      const isDown = e.key === "ArrowDown";
-      const isF3 = e.key === "F3";
-      const isF4 = e.key === "F4";
-      const isPreviousBookmark = e.key === "PageUp";
-      const isNextBookmark = e.key === "PageDown";
+      const binds = editorKeybindsRef.current;
       const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
-      const isZoomIn =
-        noMod && (e.key === "+" || e.key === "=" || e.code === "NumpadAdd");
-      const isZoomOut =
-        noMod && (e.key === "-" || e.key === "_" || e.code === "NumpadSubtract");
-      const isSlow = isSlowKey(e);
-      const isBookmark =
-        e.key.toLowerCase() === "b" && !e.ctrlKey && !e.metaKey && !e.altKey;
+      const is = (action: EditorAction) => matchesBind(e.code, binds[action]);
+      const isSpace = is("playPause");
+      const isTab = is("zenMode");
+      const isUp = is("volumeUp");
+      const isDown = is("volumeDown");
+      const isF3 = is("scrollSpeedDown");
+      const isF4 = is("scrollSpeedUp");
+      const isPreviousBookmark = is("prevBookmark");
+      const isNextBookmark = is("nextBookmark");
+      const isZoomIn = noMod && is("zoomIn");
+      const isZoomOut = noMod && is("zoomOut");
+      const isSlow = noMod && is("slowMo");
+      const isBookmark = noMod && is("addBookmark");
       if (
         !isSpace &&
         !isTab &&
@@ -2910,7 +2923,11 @@ export default function App() {
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      if (!isSlowKey(e) || !slowHeldRef.current) return;
+      if (
+        !matchesBind(e.code, editorKeybindsRef.current.slowMo) ||
+        !slowHeldRef.current
+      )
+        return;
       slowHeldRef.current = false;
       e.preventDefault();
       audio.setPlaybackRate(1);
@@ -4236,6 +4253,7 @@ export default function App() {
                     (appSettings.svPreviewPlayback && audio.isPlaying))
                 }
                 onSelectionRange={setSelectionRange}
+                editorKeybinds={editorKeybinds}
                 zenMode={zenMode || playtest.active}
                 onPlaceNote={placeNote}
                 onDeleteNote={deleteNote}
@@ -4776,7 +4794,14 @@ export default function App() {
         onResnap={handleResnap}
       />
 
-      <InfoModal open={modal === "info"} onClose={close} />
+      <InfoModal
+        open={modal === "info"}
+        onClose={close}
+        keybinds={editorKeybinds}
+        onKeybinds={(kb) =>
+          setAppSettings((s) => ({ ...s, editorKeybinds: kb }))
+        }
+      />
 
       <AdminPanel
         open={modal === "admin"}
@@ -5019,10 +5044,37 @@ function IconButton({
 function InfoModal({
   open,
   onClose,
+  keybinds,
+  onKeybinds,
 }: {
   open: boolean;
   onClose: () => void;
+  keybinds: EditorKeybinds;
+  onKeybinds: (keybinds: EditorKeybinds) => void;
 }) {
+  const [capturing, setCapturing] = useState<EditorAction | null>(null);
+  useEffect(() => {
+    if (!open) setCapturing(null);
+  }, [open]);
+  const bind = (action: EditorAction, code: string | null) => {
+    onKeybinds({
+      ...keybinds,
+      [action]: code ?? DEFAULT_EDITOR_KEYBINDS[action],
+    });
+  };
+  const conflicts = editorKeybindConflicts(keybinds);
+  const customized = (Object.keys(DEFAULT_EDITOR_KEYBINDS) as EditorAction[])
+    .some((a) => keybinds[a] !== DEFAULT_EDITOR_KEYBINDS[a]);
+  const row = (action: EditorAction, text: string) => (
+    <KeybindRow
+      action={action}
+      text={text}
+      keybinds={keybinds}
+      capturing={capturing}
+      onCapture={setCapturing}
+      onBind={bind}
+    />
+  );
   return (
     <Modal
       open={open}
@@ -5030,12 +5082,33 @@ function InfoModal({
       title="Shortcuts and functions"
       width="max-w-3xl"
     >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 bg-ink-700/35 px-3 py-2">
+        <p className="text-[11px] text-slate-400">
+          Highlighted keys are editable: click one, then press the new key.
+          Backspace restores the default, Esc cancels.
+        </p>
+        <button
+          type="button"
+          disabled={!customized}
+          onClick={() => onKeybinds({ ...DEFAULT_EDITOR_KEYBINDS })}
+          className="rounded-lg border border-white/10 bg-ink-700/60 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Reset all
+        </button>
+        {conflicts.length > 0 && (
+          <p className="w-full text-[11px] text-amber-300">
+            {conflicts.join(" · ")}
+          </p>
+        )}
+      </div>
       <div className="grid gap-5 text-sm text-slate-300 md:grid-cols-2">
         <InfoSection title="Playback">
-          <InfoRow keys="Space" text="Play or pause the song." />
-          <InfoRow keys="Hold S" text="Ease playback to 25%; release for 100%." />
-          <InfoRow keys="Tab" text="Toggle zen mode and hide editor chrome." />
-          <InfoRow keys="Arrow Up / Down" text="Raise or lower volume by 5%." />
+          {row("playPause", "Play or pause the song.")}
+          {row("slowMo", "Hold to ease playback to 25%; release for 100%.")}
+          {row("zenMode", "Toggle zen mode and hide editor chrome.")}
+          {row("volumeUp", "Raise volume by 5%.")}
+          {row("volumeDown", "Lower volume by 5%.")}
+          {row("playtestToggle", "Enter or leave playtest mode.")}
           <InfoRow keys="Alt + wheel" text="Change volume over the notefield." />
           <InfoRow keys="Speed buttons" text="Set playback rate to 25%, 50%, 75% or 100%." />
         </InfoSection>
@@ -5055,9 +5128,11 @@ function InfoModal({
           <InfoRow keys="Ctrl/Cmd + C" text="Copy selected notes." />
           <InfoRow keys="Ctrl/Cmd + X" text="Cut selected notes." />
           <InfoRow keys="Ctrl/Cmd + V" text="Paste copied notes at the snapped playhead time." />
-          <InfoRow keys="M" text="Mirror selected notes left↔right (flip columns)." />
-          <InfoRow keys="F / S" text="Reverse or shuffle selected notes." />
-          <InfoRow keys="[ / ]" text="Halve or double the selected pattern's timing." />
+          {row("mirrorSelection", "Mirror selected notes left↔right (flip columns).")}
+          {row("reverseSelection", "Reverse the selected notes in time.")}
+          {row("shuffleSelection", "Shuffle selected notes into random columns.")}
+          {row("scaleHalf", "Halve the selected pattern's timing.")}
+          {row("scaleDouble", "Double the selected pattern's timing.")}
           <InfoRow keys="Delete / Backspace" text="Delete selected notes." />
         </InfoSection>
 
@@ -5067,24 +5142,30 @@ function InfoModal({
           <InfoRow keys="Bottom timeline click/drag" text="Seek through the song." />
           <InfoRow keys="Timeline wheel" text="Adjust waveform sensitivity." />
           <InfoRow keys="Timestamp" text="Click the time display to copy the current timestamp." />
-          <InfoRow keys="B" text="Add a bookmark at the playhead." />
-          <InfoRow keys="Page Up / Down" text="Jump to the previous or next bookmark." />
+          {row("addBookmark", "Add a bookmark at the playhead.")}
+          {row("prevBookmark", "Jump to the previous bookmark.")}
+          {row("nextBookmark", "Jump to the next bookmark.")}
           <InfoRow keys="Timeline bookmark controls" text="Name bookmarks and loop between two markers." />
         </InfoSection>
 
         <InfoSection title="Grid and display">
           <InfoRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/16." />
-          <InfoRow keys="F3 / F4" text="Decrease or increase visual note scroll speed." />
+          {row("scrollSpeedDown", "Decrease visual note scroll speed.")}
+          {row("scrollSpeedUp", "Increase visual note scroll speed.")}
+          {row("zoomIn", "Grow the playfield.")}
+          {row("zoomOut", "Shrink the playfield.")}
           <InfoRow keys="Scroll speed" text="Change visual note scroll speed. This is not exported." />
-          <InfoRow keys="R" text="Toggle receptors on or off." />
-          <InfoRow keys="W" text="Toggle the waveform overlay on the hit lane (outside hitsound mode)." />
+          {row("toggleReceptors", "Toggle receptors on or off.")}
+          {row("waveformOverlay", "Toggle the waveform overlay on the hit lane (outside hitsound mode).")}
           <InfoRow keys="PP counter" text="Shows max SS no-mod pp for the active difficulty." />
           <InfoRow keys="Kiai" text="Kiai timing sections tint notes during preview." />
         </InfoSection>
 
         <InfoSection title="Hitsounds">
-          <InfoRow keys="H" text="Toggle hitsound mode: shows the toolbar and per-note letters." />
-          <InfoRow keys="W / F / C" text="In hitsound mode, add whistle / finish / clap to the selection." />
+          {row("hitsoundMode", "Toggle hitsound mode: shows the toolbar and per-note letters.")}
+          {row("whistleAdd", "In hitsound mode, add whistle to the selection.")}
+          {row("finishAdd", "In hitsound mode, add finish to the selection.")}
+          {row("clapAdd", "In hitsound mode, add clap to the selection.")}
           <InfoRow keys="Sample set" text="Pick Auto, Normal, Soft or Drum for selected or new notes." />
           <InfoRow keys="W F C labels" text="Letters on a note show its applied additions." />
           <InfoRow keys="Playback" text="The map's hitsounds always play, even outside hitsound mode." />
@@ -5102,6 +5183,7 @@ function InfoModal({
         <InfoSection title="Menus">
           <InfoRow keys="Map Settings" text="Import .osz, set audio, background and metadata." />
           <InfoRow keys="Timing" text="Edit red BPM points, green SV points, kiai, volume and tap BPM." />
+          <InfoRow keys="SV" text="Generate scroll velocity ramps, stutters and constants over a range." />
           <InfoRow keys="Difficulty" text="Set name, key count, HP and OD for the active difficulty." />
           <InfoRow keys="Tools" text="Apply Full LN or convert holds back to rice notes." />
           <InfoRow keys="Skin" text="Apply presets, upload .osk skins or clear the current skin." />
@@ -5142,6 +5224,58 @@ function InfoRow({ keys, text }: { keys: string; text: string }) {
       <div className="font-mono text-[11px] font-semibold text-slate-100">
         {keys}
       </div>
+      <div className="text-slate-400">{text}</div>
+    </div>
+  );
+}
+
+function KeybindRow({
+  action,
+  text,
+  keybinds,
+  capturing,
+  onCapture,
+  onBind,
+}: {
+  action: EditorAction;
+  text: string;
+  keybinds: EditorKeybinds;
+  capturing: EditorAction | null;
+  onCapture: (action: EditorAction | null) => void;
+  onBind: (action: EditorAction, code: string | null) => void;
+}) {
+  const isCapturing = capturing === action;
+  return (
+    <div className="grid grid-cols-[8.5rem,1fr] items-center gap-3 text-xs leading-5">
+      <button
+        type="button"
+        onClick={() => onCapture(isCapturing ? null : action)}
+        onKeyDown={(e) => {
+          if (!isCapturing) return;
+          e.preventDefault();
+          // Keep Escape from also closing the modal while capturing.
+          e.stopPropagation();
+          if (e.key === "Escape") onCapture(null);
+          else if (e.key === "Backspace" || e.key === "Delete") {
+            onBind(action, null);
+            onCapture(null);
+          } else {
+            onBind(action, e.code);
+            onCapture(null);
+          }
+        }}
+        onBlur={() => {
+          if (isCapturing) onCapture(null);
+        }}
+        className={`justify-self-start rounded-md border px-1.5 py-0.5 text-left font-mono text-[11px] font-semibold transition ${
+          isCapturing
+            ? "border-accent/80 bg-accent/20 text-slate-100"
+            : "border-white/10 bg-ink-700/60 text-slate-100 hover:border-accent/50"
+        }`}
+        title="Click to rebind"
+      >
+        {isCapturing ? "Press key" : editorKeyLabel(keybinds[action])}
+      </button>
       <div className="text-slate-400">{text}</div>
     </div>
   );
