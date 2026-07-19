@@ -188,6 +188,13 @@ import {
   type FeatureFlags,
 } from "./lib/featureFlags";
 import { parseOsuBeatmapLink } from "./lib/osuLinks";
+import {
+  formatBytes,
+  readBlobWithProgress,
+  scopedProgress,
+  type ProgressFn,
+  type ProgressReport,
+} from "./lib/progress";
 import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
 import {
   bookmarkInDirection,
@@ -418,6 +425,14 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const [importingMap, setImportingMap] = useState(false);
+  // Long jobs report a 0-1 ratio plus a label so the loader can say what it is
+  // actually doing instead of spinning indefinitely.
+  const [importProgress, setImportProgress] = useState<ProgressReport | null>(
+    null,
+  );
+  const [exportProgress, setExportProgress] = useState<ProgressReport | null>(
+    null,
+  );
   const [scannedPackSongs, setScannedPackSongs] = useState<PackSong[]>([]);
   const [scanningPack, setScanningPack] = useState(false);
   const [packError, setPackError] = useState<string | null>(null);
@@ -1669,12 +1684,16 @@ export default function App() {
   const importMapFile = useCallback(async (
     file: File,
     preferredBeatmapId?: number,
+    // Set when the archive arrived from a download that already used part of
+    // the bar, so unzipping continues rather than restarting at zero.
+    onProgress: ProgressFn = setImportProgress,
   ) => {
     importStartedRef.current = true;
     setImportError(null);
     setImportingMap(true);
+    onProgress({ ratio: 0, label: "Reading the archive" });
     try {
-      const map = await importOsz(file);
+      const map = await importOsz(file, onProgress);
       setCloudProjectId(null);
       setCloudOwnerId(null);
       setMyRole(null);
@@ -1722,6 +1741,7 @@ export default function App() {
       );
     } finally {
       setImportingMap(false);
+      setImportProgress(null);
     }
   }, []);
 
@@ -1775,31 +1795,54 @@ export default function App() {
       ) {
         return;
       }
-      let setId = parsed.setId;
-      if (!setId && parsed.beatmapId) {
-        const lookup = await fetch(`${worker}/mirror/beatmap/${parsed.beatmapId}`);
-        if (!lookup.ok) {
-          throw new Error("Couldn't find that beatmap on the mirrors.");
+      setImportingMap(true);
+      setImportProgress({ ratio: 0, label: "Looking up the beatmap" });
+      try {
+        let setId = parsed.setId;
+        if (!setId && parsed.beatmapId) {
+          const lookup = await fetch(
+            `${worker}/mirror/beatmap/${parsed.beatmapId}`,
+          );
+          if (!lookup.ok) {
+            throw new Error("Couldn't find that beatmap on the mirrors.");
+          }
+          const data = (await lookup.json()) as { setId?: number };
+          setId = data.setId;
         }
-        const data = (await lookup.json()) as { setId?: number };
-        setId = data.setId;
-      }
-      if (!setId) {
-        throw new Error("Paste an osu! beatmap link or a beatmapset ID.");
-      }
-      const res = await fetch(`${worker}/mirror/${setId}`);
-      if (!res.ok) {
-        throw new Error(
-          res.status === 404
-            ? "That beatmapset isn't available on the mirrors."
-            : "The beatmap mirrors are unavailable right now - try again in a minute.",
+        if (!setId) {
+          throw new Error("Paste an osu! beatmap link or a beatmapset ID.");
+        }
+        setImportProgress({ ratio: 0, label: "Contacting the mirrors" });
+        const res = await fetch(`${worker}/mirror/${setId}`);
+        if (!res.ok) {
+          throw new Error(
+            res.status === 404
+              ? "That beatmapset isn't available on the mirrors."
+              : "The beatmap mirrors are unavailable right now - try again in a minute.",
+          );
+        }
+        const blob = await readBlobWithProgress(res, (loaded, total) => {
+          // The download is roughly the first third of the wait; unzipping and
+          // decoding assets is the rest, and importOsz reports that itself.
+          setImportProgress({
+            ratio: total ? (loaded / total) * 0.35 : 0.1,
+            label: total
+              ? `Downloading ${formatBytes(loaded)} of ${formatBytes(total)}`
+              : `Downloading ${formatBytes(loaded)}`,
+          });
+        });
+        const file = new File([blob], `${setId}.osz`, {
+          type: "application/octet-stream",
+        });
+        await importMapFile(
+          file,
+          parsed.beatmapId,
+          scopedProgress(setImportProgress, 0.35, 1),
         );
+      } finally {
+        setImportingMap(false);
+        setImportProgress(null);
       }
-      const blob = await res.blob();
-      const file = new File([blob], `${setId}.osz`, {
-        type: "application/octet-stream",
-      });
-      await importMapFile(file, parsed.beatmapId);
       void logAnalyticsEvent(
         "beatmap_import_by_id",
         authUserRef.current?.id,
@@ -3253,6 +3296,7 @@ export default function App() {
   const doExportOsz = useCallback(async () => {
     if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
+    setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
     try {
       await downloadOsz({
         meta,
@@ -3264,11 +3308,13 @@ export default function App() {
         jpegQuality: appSettings.exportPngBackgroundsAsJpeg
           ? appSettings.exportJpegQuality
           : undefined,
+        onProgress: setExportProgress,
       });
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
     } finally {
       setExporting(false);
+      setExportProgress(null);
     }
   }, [
     audioFiles,
@@ -4034,9 +4080,31 @@ export default function App() {
               />
             ))}
           </div>
-          <p className="loader-content-in text-sm font-medium tracking-wide text-slate-300">
-            Loading map…
-          </p>
+          <div className="loader-content-in flex w-64 flex-col items-center gap-2">
+            <p className="text-sm font-medium tracking-wide text-slate-300">
+              Loading map…
+            </p>
+            {importProgress && (
+              <>
+                <div
+                  className="h-1 w-full overflow-hidden rounded-full bg-white/10"
+                  role="progressbar"
+                  aria-valuenow={Math.round(importProgress.ratio * 100)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={importProgress.label}
+                >
+                  <div
+                    className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+                    style={{ width: `${Math.round(importProgress.ratio * 100)}%` }}
+                  />
+                </div>
+                <p className="max-w-full truncate text-[11px] text-slate-300/40">
+                  {importProgress.label}
+                </p>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -5024,9 +5092,42 @@ export default function App() {
           className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-lg border border-white/10 bg-ink-800/95 px-4 py-2 pb-3 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
         >
           <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
-          {cloudSaveStatus === "saving"
-            ? "Saving to your account…"
-            : "Exporting map…"}
+          {cloudSaveStatus === "saving" ? (
+            "Saving to your account…"
+          ) : (
+            <span className="flex min-w-[13rem] flex-col gap-1">
+              <span className="flex items-baseline justify-between gap-3">
+                <span>Exporting map…</span>
+                {exportProgress && (
+                  <span className="font-mono text-[11px] text-slate-300/40">
+                    {Math.round(exportProgress.ratio * 100)}%
+                  </span>
+                )}
+              </span>
+              {exportProgress && (
+                <>
+                  <span
+                    className="block h-1 w-full overflow-hidden rounded-full bg-white/10"
+                    role="progressbar"
+                    aria-valuenow={Math.round(exportProgress.ratio * 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={exportProgress.label}
+                  >
+                    <span
+                      className="block h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+                      style={{
+                        width: `${Math.round(exportProgress.ratio * 100)}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="truncate text-[11px] text-slate-300/40">
+                    {exportProgress.label}
+                  </span>
+                </>
+              )}
+            </span>
+          )}
         </TimedNotification>
 
         {(cloudSaveStatus === "saved" || cloudSaveStatus === "error") && (

@@ -243,10 +243,13 @@ function NotificationRow({
         </div>
         <div className="mt-2 flex items-center justify-between gap-2">
           <span
-            className="text-[10px] text-slate-500"
+            className="min-w-0 truncate text-[10px] text-slate-500"
             title={new Date(notification.created_at).toLocaleString()}
           >
             {formatRelativeTime(notification.created_at)}
+            {notification.kind !== "invite" && notification.actor_username && (
+              <> · from {notification.actor_username}</>
+            )}
           </span>
           <div className="flex items-center gap-1">
             {!notification.read_at && (
@@ -279,7 +282,9 @@ function NotificationAvatar({
 }: {
   notification: InboxNotification;
 }) {
-  if (notification.kind === "invite" && notification.actor_avatar_url) {
+  // Invites and admin announcements both snapshot the sender, so either can
+  // show a real avatar; system notices fall back to the glyph.
+  if (notification.actor_avatar_url && notification.kind !== "system") {
     return (
       <img
         src={notification.actor_avatar_url}

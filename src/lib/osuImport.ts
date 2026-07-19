@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { ProgressSplitter, type ProgressFn } from "./progress";
 import type {
   Difficulty,
   LoadedFile,
@@ -287,8 +288,17 @@ function mimeForVideo(name: string): string {
   return "video/mp4";
 }
 
-export async function importOsz(blob: Blob): Promise<ImportedMap> {
+export async function importOsz(
+  blob: Blob,
+  onProgress?: ProgressFn,
+): Promise<ImportedMap> {
+  // Unpacking the archive and decoding the audio/video assets are the slow
+  // parts; parsing the .osu text is cheap.
+  const progress = new ProgressSplitter([3, 2, 6, 2, 3], onProgress);
+
+  progress.phase("Reading the archive");
   const zip = await JSZip.loadAsync(blob);
+  progress.advance();
 
   const osuPaths: string[] = [];
   zip.forEach((path) => {
@@ -301,37 +311,58 @@ export async function importOsz(blob: Blob): Promise<ImportedMap> {
 
   const parsed: ParsedOsu[] = [];
   for (const path of osuPaths) {
+    progress.phase(
+      `Reading difficulties (${parsed.length + 1}/${osuPaths.length})`,
+      parsed.length / osuPaths.length,
+    );
     const text = await zip.file(path)!.async("string");
     if (/^\s*Mode\s*:\s*3\s*$/m.test(text)) parsed.push(parseOsuFile(text));
   }
   if (parsed.length === 0) {
     throw new Error("No osu!mania (Mode 3) difficulties found in the archive.");
   }
+  progress.advance();
 
   const first = parsed[0];
 
   const audioFiles: Record<string, LoadedFile> = {};
-  for (const name of new Set(parsed.map((p) => p.audioFilename))) {
+  const audioNames = [...new Set(parsed.map((p) => p.audioFilename))];
+  let audioIndex = 0;
+  for (const name of audioNames) {
+    progress.phase(
+      name ? `Loading audio - ${name}` : "Loading audio",
+      audioIndex++ / Math.max(1, audioNames.length),
+    );
     if (!name || audioFiles[name]) continue;
     const loaded = await toLoadedFile(findEntry(zip, name), mimeForAudio(name));
     if (loaded) audioFiles[name] = loaded;
   }
+  progress.advance();
 
   const backgroundFiles: Record<string, LoadedFile> = {};
+  progress.phase("Loading backgrounds");
   for (const name of new Set(parsed.map((p) => p.backgroundFilename))) {
     if (!name || backgroundFiles[name]) continue;
     const entry = findEntry(zip, name);
     const loaded = await toLoadedFile(entry, mimeForImage(name));
     if (loaded) backgroundFiles[name] = loaded;
   }
+  progress.advance();
 
   const videoFiles: Record<string, LoadedFile> = {};
-  for (const name of new Set(parsed.map((p) => p.videoFilename))) {
+  const videoNames = [...new Set(parsed.map((p) => p.videoFilename))];
+  let videoIndex = 0;
+  for (const name of videoNames) {
+    progress.phase(
+      name ? `Loading video - ${name}` : "Finishing up",
+      videoIndex++ / Math.max(1, videoNames.length),
+    );
     if (!name || videoFiles[name]) continue;
     const entry = findEntry(zip, name);
     const loaded = await toLoadedFile(entry, mimeForVideo(name));
     if (loaded) videoFiles[name] = loaded;
   }
+  progress.done("Opening the map");
 
   const difficulties = parsed.map((p) => ({
     ...p.difficulty,

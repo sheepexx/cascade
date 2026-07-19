@@ -13,6 +13,7 @@ import {
   type ParsedOsuFile,
 } from "../types/packCreator";
 import { parseOsuFile } from "./osuImport";
+import { ProgressSplitter, type ProgressFn } from "./progress";
 import { buildOsuFile } from "./osuExport";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 
@@ -620,6 +621,7 @@ export type BuildPackArgs = {
   items: PackItem[];
   settings: PackCreatorSettings;
   jpegQuality?: number;
+  onProgress?: ProgressFn;
 };
 
 export async function buildPack({
@@ -627,13 +629,22 @@ export async function buildPack({
   items,
   settings,
   jpegQuality,
+  onProgress,
 }: BuildPackArgs): Promise<{ blob: Blob; filename: string }> {
+  // Packs are mostly bytes: collecting assets and zipping them dwarfs the
+  // .osu rewriting.
+  const progress = new ProgressSplitter([3, 1, 8], onProgress);
+
+  progress.phase("Collecting song assets");
   const zip = new JSZip();
   const { files, renamesByArchive } = resolveAssetCollisions(items);
   if (typeof jpegQuality === "number" && jpegQuality > 0) {
+    progress.phase("Converting backgrounds", 0.5);
     await convertPackBackgroundsToJpeg(files, renamesByArchive, items, jpegQuality);
   }
   for (const f of files) zip.file(f.name, f.blob);
+  progress.advance();
+  progress.phase("Writing difficulties");
 
   const takenOsuNames = new Set<string>();
   for (const item of items) {
@@ -682,10 +693,24 @@ export async function buildPack({
     }
   }
 
-  const blob = await zip.generateAsync({
-    type: "blob",
-    compression: "DEFLATE",
-    compressionOptions: { level: 6 },
-  });
+  progress.advance();
+  progress.phase("Compressing the pack");
+
+  const blob = await zip.generateAsync(
+    {
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    },
+    (update) => {
+      progress.phase(
+        update.currentFile
+          ? `Compressing ${update.currentFile}`
+          : "Compressing the pack",
+        (update.percent ?? 0) / 100,
+      );
+    },
+  );
+  progress.done("Pack ready");
   return { blob, filename: packOszFilename(metadata) };
 }

@@ -26,6 +26,7 @@ import {
   type BakedRegion,
 } from "./audioTrim";
 import { loadMp3Encoder } from "./lameEncoder";
+import { ProgressSplitter, type ProgressFn } from "./progress";
 import { difficultyRate, formatRate, isNeutralRate } from "./rateChange";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 
@@ -37,6 +38,7 @@ export type BuildOszArgs = {
   bgFiles?: Record<string, LoadedFile>;
   videoFiles?: Record<string, LoadedFile>;
   jpegQuality?: number;
+  onProgress?: ProgressFn;
 };
 
 export async function buildOsz({
@@ -47,12 +49,19 @@ export async function buildOsz({
   bgFiles,
   videoFiles,
   jpegQuality,
+  onProgress,
 }: BuildOszArgs): Promise<Blob> {
+  // Audio work and zip compression dominate the wall clock; images and the
+  // .osu text are near-instant by comparison.
+  const progress = new ProgressSplitter([1, 2, 10, 6], onProgress);
+
+  progress.phase("Starting up the audio encoder");
   // Bring up the MP3 encoder before any audio is baked; without it every
   // re-encode falls back to WAV.
   await loadMp3Encoder().catch((err: unknown) => {
     console.error("MP3 encoder unavailable, audio will be exported as WAV:", err);
   });
+  progress.advance();
 
   const zip = new JSZip();
 
@@ -60,7 +69,12 @@ export async function buildOsz({
   const usedNames = new Set<string>();
   const bgExportName = new Map<string, string>();
   const convert = typeof jpegQuality === "number" && jpegQuality > 0;
+  let bgIndex = 0;
   for (const difficulty of difficulties) {
+    progress.phase(
+      "Bundling images and video",
+      bgIndex++ / Math.max(1, difficulties.length),
+    );
     if (difficulty.backgroundFilename && bgFiles?.[difficulty.backgroundFilename]) {
       const bg = bgFiles[difficulty.backgroundFilename];
       if (!bundledBgs.has(bg.name)) {
@@ -120,8 +134,16 @@ export async function buildOsz({
     return pr;
   };
 
+  progress.advance();
+
   try {
+    let diffIndex = 0;
     for (const difficulty of difficulties) {
+      const within = diffIndex++ / Math.max(1, difficulties.length);
+      progress.phase(
+        `Preparing ${difficulty.name || "difficulty"} (${diffIndex}/${difficulties.length})`,
+        within,
+      );
       const audio =
         (difficulty.audioFilename && audioFiles[difficulty.audioFilename]) ||
         fallbackAudio;
@@ -157,6 +179,10 @@ export async function buildOsz({
           const key = `${audio.name}|${rate}|${preservePitch}|${shape}`;
           let bakedName = cutNameByKey.get(key);
           if (!bakedName) {
+            progress.phase(
+              `Encoding audio - ${audio.name}`,
+              (diffIndex - 0.5) / Math.max(1, difficulties.length),
+            );
             // At rate 1 this is exactly the old trim-only render.
             const encoded = renderRatedAudio(
               buffer,
@@ -188,6 +214,10 @@ export async function buildOsz({
         let effectiveName = audio.name;
         let effectiveBlob = audio.blob;
         if (isWav(audio.name)) {
+          progress.phase(
+            `Converting audio - ${audio.name}`,
+            (diffIndex - 0.5) / Math.max(1, difficulties.length),
+          );
           const ctx = ensureCtx();
           if (ctx) {
             const buffer = await decodeAudioBlob(audio.blob, ctx);
@@ -226,11 +256,26 @@ export async function buildOsz({
     ctxHolder.ctx?.close().catch(() => {});
   }
 
-  return zip.generateAsync({
-    type: "blob",
-    compression: "DEFLATE",
-    compressionOptions: { level: 6 },
-  });
+  progress.advance();
+  progress.phase("Compressing the .osz");
+
+  const blob = await zip.generateAsync(
+    {
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    },
+    (update) => {
+      progress.phase(
+        update.currentFile
+          ? `Compressing ${update.currentFile}`
+          : "Compressing the .osz",
+        (update.percent ?? 0) / 100,
+      );
+    },
+  );
+  progress.done("Export ready");
+  return blob;
 }
 
 export async function downloadOsz(args: BuildOszArgs): Promise<void> {
