@@ -84,13 +84,7 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
   };
 
   let id = projectId;
-  if (id) {
-    const { error } = await supabase
-      .from("projects")
-      .update(row)
-      .eq("id", id);
-    if (error) throw new Error(error.message);
-  } else {
+  if (!id) {
     const { data: inserted, error } = await supabase
       .from("projects")
       .insert(row)
@@ -132,6 +126,17 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
     await supabase.from("project_assets").delete().eq("project_id", id);
     if (assetRows.length) {
       const { error } = await supabase.from("project_assets").insert(assetRows);
+      if (error) throw new Error(error.message);
+    }
+
+    // For an existing collaborative project, publish the assets first and the
+    // chart reference last. Peers can never observe a new filename before its
+    // blob and project_assets row are ready to download.
+    if (projectId) {
+      const { error } = await supabase
+        .from("projects")
+        .update(row)
+        .eq("id", id);
       if (error) throw new Error(error.message);
     }
   } catch (err) {
@@ -290,6 +295,7 @@ export async function publishProjectAsset(
     .from("project_assets")
     .delete()
     .eq("project_id", projectId)
+    .eq("kind", kind)
     .eq("filename", asset.name);
   const { error } = await supabase.from("project_assets").insert({
     project_id: projectId,

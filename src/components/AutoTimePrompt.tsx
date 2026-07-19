@@ -1,5 +1,6 @@
 import type { BpmDetection } from "../lib/bpmDetect";
 import { Button } from "./ui/Controls";
+import { TimedNotification } from "./ui/TimedNotification";
 
 export type AutoTimeStatus = "idle" | "detecting" | "done" | "failed";
 
@@ -25,8 +26,6 @@ export function AutoTimePrompt({
   onRun,
   onDismiss,
 }: Props) {
-  if (!open) return null;
-
   const confidenceLabel =
     result === null
       ? ""
@@ -37,8 +36,26 @@ export function AutoTimePrompt({
           : "uncertain";
 
   return (
-    <div className="autotime-in fixed bottom-24 left-1/2 z-50">
-      <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-ink-800/90 py-4 pl-5 pr-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
+    <TimedNotification
+      open={open}
+      durationMs={
+        status === "done" ? 4000 : status === "failed" ? 6000 : null
+      }
+      onDismiss={onDismiss}
+      resetKey={fileName}
+      placement="bottom-center"
+      showProgress={status !== "idle"}
+      progressClassName={
+        status === "done"
+          ? "bg-emerald-400"
+          : status === "failed"
+            ? "bg-slate-400"
+            : "bg-accent"
+      }
+      className="fixed bottom-24 left-1/2 z-50 flex items-center gap-4 rounded-2xl border border-white/10 bg-ink-800/90 py-4 pb-5 pl-5 pr-4 shadow-2xl shadow-black/40 backdrop-blur-xl"
+    >
+      {({ dismiss }) => (
+        <>
         <div className="flex h-7 items-end gap-[3px]" aria-hidden>
           {BAR_HEIGHTS.map((h, i) => (
             <span
@@ -108,16 +125,17 @@ export function AutoTimePrompt({
                     ? "Auto-time"
                     : "Decoding..."}
               </Button>
-              <Button onClick={onDismiss} disabled={status === "detecting"}>
+              <Button onClick={() => dismiss()} disabled={status === "detecting"}>
                 Not now
               </Button>
             </>
           )}
           {(status === "done" || status === "failed") && (
-            <Button onClick={onDismiss}>Close</Button>
+            <Button onClick={() => dismiss()}>Close</Button>
           )}
         </div>
-      </div>
-    </div>
+        </>
+      )}
+    </TimedNotification>
   );
 }
