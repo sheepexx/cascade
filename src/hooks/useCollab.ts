@@ -255,7 +255,9 @@ export function useCollab(opts: {
 
     const connectDurableSync = () => {
       const ch = supabase
-        .channel(`project-sync:${projectId}`)
+        .channel(`project-sync:${projectId}`, {
+          config: { private: true },
+        })
         .on(
           "postgres_changes",
           {
