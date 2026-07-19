@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
 import { kiaiRanges } from "../lib/timing";
+import { hasSv } from "../lib/sv";
 import {
   bookmarkLabel,
   type BookmarkLoopRange,
@@ -431,6 +432,45 @@ export function BottomTimeline({
               sctx.fillRect(tx, WAVE_TOP + WAVE_H * 0.4, 1.2, WAVE_H * 0.6);
             }
           }
+        }
+
+        if (duration > 0 && hasSv(timingPoints)) {
+          // Stepped SV curve along the bottom of the wave band: log-scaled so
+          // 0.5x dips read as clearly as 4x spikes. Exact segments (one per SV
+          // change), not samples, so brief stutters stay visible.
+          const events = [...timingPoints]
+            .filter((p) => p.time <= duration)
+            .sort(
+              (a, b) =>
+                a.time - b.time ||
+                (a.uninherited === b.uninherited ? 0 : a.uninherited ? -1 : 1),
+            );
+          const svBase = WAVE_TOP + WAVE_H - 1;
+          const svH = WAVE_H * 0.45;
+          const yOfSv = (sv: number) =>
+            svBase -
+            ((Math.log10(Math.max(0.01, Math.min(10, sv))) + 2) / 3) * svH;
+          const xOf = (t: number) => (Math.max(0, t) / duration) * width;
+          sctx.strokeStyle = "rgba(45,212,191,0.75)";
+          sctx.lineWidth = 1;
+          sctx.beginPath();
+          let sv = 1;
+          let lastX = 0;
+          let lastY = yOfSv(1);
+          sctx.moveTo(0, lastY);
+          for (const p of events) {
+            const next = p.uninherited ? 1 : p.sv;
+            if (next === sv) continue;
+            const x = xOf(p.time);
+            const y = yOfSv(next);
+            sctx.lineTo(x, lastY);
+            sctx.lineTo(x, y);
+            sv = next;
+            lastX = x;
+            lastY = y;
+          }
+          if (lastX < width) sctx.lineTo(width, lastY);
+          sctx.stroke();
         }
 
         if (duration > 0 && bookmarks?.length) {

@@ -9,6 +9,7 @@ import { AppSettingsModal } from "./components/menus/AppSettingsModal";
 import { SkinModal } from "./components/menus/SkinModal";
 import { DifficultyModal } from "./components/menus/DifficultyModal";
 import { TimingModal } from "./components/menus/TimingModal";
+import { SvModal } from "./components/menus/SvModal";
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
 import { ToolsModal } from "./components/menus/ToolsModal";
 import { ExportValidationModal } from "./components/menus/ExportValidationModal";
@@ -171,6 +172,7 @@ import {
 } from "./types";
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
 import { sortedPoints } from "./lib/timing";
+import { hasSv } from "./lib/sv";
 import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
 import {
   bookmarkInDirection,
@@ -186,6 +188,7 @@ type ModalId =
   | "settings"
   | "skin"
   | "timing"
+  | "sv"
   | "difficulty"
   | "tools"
   | "aimod"
@@ -352,6 +355,11 @@ export default function App() {
     });
   }, []);
   const [modal, setModal] = useState<ModalId>(null);
+  const [selectionRange, setSelectionRange] = useState<{
+    start: number;
+    end: number;
+    count: number;
+  } | null>(null);
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const [pendingDeleteDiffId, setPendingDeleteDiffId] = useState<string | null>(
@@ -3949,6 +3957,7 @@ export default function App() {
                 Map Settings
               </MenuButton>
               <MenuButton onClick={() => setModal("timing")}>Timing</MenuButton>
+              <MenuButton onClick={() => setModal("sv")}>SV</MenuButton>
               <MenuButton onClick={() => setModal("difficulty")}>
                 Difficulty
               </MenuButton>
@@ -4221,6 +4230,12 @@ export default function App() {
                 smoothScrolling={appSettings.smoothScrolling}
                 showTimingLines={appSettings.showTimingLines}
                 upscroll={appSettings.upscroll}
+                svPreview={
+                  hasSv(activeTimingPoints) &&
+                  (playtest.active ||
+                    (appSettings.svPreviewPlayback && audio.isPlaying))
+                }
+                onSelectionRange={setSelectionRange}
                 zenMode={zenMode || playtest.active}
                 onPlaceNote={placeNote}
                 onDeleteNote={deleteNote}
@@ -4285,6 +4300,11 @@ export default function App() {
                       smoothScrolling={appSettings.smoothScrolling}
                       showTimingLines={appSettings.showTimingLines}
                       upscroll={appSettings.upscroll}
+                      svPreview={
+                        hasSv(referenceTimingPoints) &&
+                        appSettings.svPreviewPlayback &&
+                        audio.isPlaying
+                      }
                       zenMode={zenMode}
                       onPlaceNote={noop}
                       onDeleteNote={noop}
@@ -4572,6 +4592,10 @@ export default function App() {
         }
         upscroll={appSettings.upscroll}
         onUpscroll={(v) => setAppSettings((s) => ({ ...s, upscroll: v }))}
+        svPreviewPlayback={appSettings.svPreviewPlayback}
+        onSvPreviewPlayback={(v) =>
+          setAppSettings((s) => ({ ...s, svPreviewPlayback: v }))
+        }
         playtest={appSettings.playtest}
         onPlaytest={(v) => setAppSettings((s) => ({ ...s, playtest: v }))}
         localAutosaveEnabled={appSettings.localAutosaveEnabled}
@@ -4647,6 +4671,15 @@ export default function App() {
         onSetPlaybackRate={audio.setPlaybackRate}
         audioBuffer={waveform?.buffer ?? null}
         timeScale={activeRate}
+      />
+      <SvModal
+        open={modal === "sv"}
+        onClose={close}
+        timingPoints={activeTimingPoints}
+        onTimingPoints={applyTimingPoints}
+        getCurrentTime={getCurrentTime}
+        selectionRange={selectionRange}
+        readOnly={!canEdit}
       />
       <DifficultyModal
         open={modal === "difficulty"}

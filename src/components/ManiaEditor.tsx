@@ -22,6 +22,7 @@ import {
   snapTime,
   stepToSnap,
 } from "../lib/timing";
+import { buildSvMap, svPositionAt, svTimeAt } from "../lib/sv";
 import type { PatternNote } from "../lib/patterns";
 import type { Waveform } from "../hooks/useWaveform";
 import {
@@ -115,6 +116,12 @@ type Props = {
   hideHints?: boolean;
   bookmarks?: number[];
   showTimingLines?: boolean;
+  /** Warp scroll by green-point SV (playtest, or editor playback preview). */
+  svPreview?: boolean;
+  /** Reports the time span of the current note selection (for the SV modal). */
+  onSelectionRange?: (
+    range: { start: number; end: number; count: number } | null,
+  ) => void;
 };
 
 type DragState = {
@@ -288,6 +295,11 @@ export function ManiaEditor(props: Props) {
   const lastMotionFrameRef = useRef(
     typeof performance !== "undefined" ? performance.now() : 0,
   );
+  // SV warp eases in/out so toggling playback never snaps note positions.
+  // The anchor (scroll position of the playhead) is computed once per frame;
+  // timeToY/yToTime would otherwise pay a second binary search per call.
+  const svBlendRef = useRef(0);
+  const svAnchorPosRef = useRef(0);
 
   const sizeRef = useRef({ width: 800, height: 600, dpr: 1 });
   const fpsHudRef = useRef({
@@ -317,6 +329,23 @@ export function ManiaEditor(props: Props) {
   const setSelection = useCallback((ids: Set<string>) => {
     selectedNoteIdsRef.current = ids;
     setSelectionCount(ids.size);
+    const report = propsRef.current.onSelectionRange;
+    if (!report) return;
+    if (!ids.size) {
+      report(null);
+      return;
+    }
+    let start = Infinity;
+    let end = -Infinity;
+    for (const n of propsRef.current.notes) {
+      if (!ids.has(n.id)) continue;
+      if (n.startTime < start) start = n.startTime;
+      const tail = n.endTime ?? n.startTime;
+      if (tail > end) end = tail;
+    }
+    report(
+      Number.isFinite(start) ? { start, end, count: ids.size } : null,
+    );
   }, []);
 
   useEffect(() => {
@@ -798,6 +827,21 @@ export function ManiaEditor(props: Props) {
         ? targetScale
         : curScale + (targetScale - curScale) * (1 - Math.exp(-SCROLL_SPEED_EASE * dt));
 
+    const targetBlend = propsRef.current.svPreview ? 1 : 0;
+    const curBlend = svBlendRef.current;
+    svBlendRef.current =
+      Math.abs(targetBlend - curBlend) < 0.005
+        ? targetBlend
+        : curBlend +
+          (targetBlend - curBlend) * (1 - Math.exp(-SCROLL_SPEED_EASE * dt));
+    if (svBlendRef.current > 0) {
+      svAnchorPosRef.current = svPositionAt(
+        buildSvMap(propsRef.current.timingPoints),
+        renderTimeRef.current,
+        svBlendRef.current,
+      );
+    }
+
     const target = propsRef.current.view.scrollSpeed;
     const current = smoothScrollSpeedRef.current;
     if (!Number.isFinite(target)) return;
@@ -826,13 +870,33 @@ export function ManiaEditor(props: Props) {
   const scrollDir = useCallback(() => (propsRef.current.upscroll ? -1 : 1), []);
 
   const timeToY = useCallback(
-    (t: number) =>
-      playheadY() - scrollDir() * (t - liveCurrentTime()) * ppms(),
+    (t: number) => {
+      const blend = svBlendRef.current;
+      if (blend <= 0) {
+        return playheadY() - scrollDir() * (t - liveCurrentTime()) * ppms();
+      }
+      const map = buildSvMap(propsRef.current.timingPoints);
+      return (
+        playheadY() -
+        scrollDir() * (svPositionAt(map, t, blend) - svAnchorPosRef.current) * ppms()
+      );
+    },
     [liveCurrentTime, playheadY, ppms, scrollDir],
   );
 
   const yToTime = useCallback(
-    (y: number) => liveCurrentTime() + (scrollDir() * (playheadY() - y)) / ppms(),
+    (y: number) => {
+      const blend = svBlendRef.current;
+      if (blend <= 0) {
+        return liveCurrentTime() + (scrollDir() * (playheadY() - y)) / ppms();
+      }
+      // Exact inverse of timeToY — placement and box-select stay usable while
+      // playback is warped.
+      const map = buildSvMap(propsRef.current.timingPoints);
+      const pos =
+        svAnchorPosRef.current + (scrollDir() * (playheadY() - y)) / ppms();
+      return svTimeAt(map, pos, blend);
+    },
     [liveCurrentTime, playheadY, ppms, scrollDir],
   );
 
@@ -1153,7 +1217,12 @@ export function ManiaEditor(props: Props) {
     const edgeTimeB = yToTime(height);
     const topTime = Math.max(edgeTimeA, edgeTimeB);
     const bottomTime = Math.min(edgeTimeA, edgeTimeB);
-    if (!propsRef.current.playtestMode) {
+    // A near-frozen SV region (0.01x) inflates the visible time window up to
+    // 100x; skip grid lines rather than stroke thousands of them per frame.
+    const gridOverload =
+      svBlendRef.current > 0.001 &&
+      topTime - bottomTime > (4 * height) / ppms();
+    if (!propsRef.current.playtestMode && !gridOverload) {
       const lines = gridLinesInRange(
         bottomTime,
         topTime,
@@ -1318,9 +1387,12 @@ export function ManiaEditor(props: Props) {
     const consumedIdsRef = propsRef.current.consumedIdsRef;
     const missWindowMs = propsRef.current.missWindowMs ?? 0;
     const move = moveDragRef.current;
-    const cullMarginMs = 256 / ppms();
-    const cullLo = bottomTime - cullMarginMs;
-    const cullHi = topTime + cullMarginMs;
+    // Derive the cull margin through yToTime so it stays 256px wide even when
+    // SV compresses or stretches time near the screen edges.
+    const cullEdgeA = yToTime(-256);
+    const cullEdgeB = yToTime(height + 256);
+    const cullLo = Math.min(cullEdgeA, cullEdgeB);
+    const cullHi = Math.max(cullEdgeA, cullEdgeB);
 
     const vanishTime = Math.min(
       liveCurrentTime(),
@@ -2075,7 +2147,8 @@ export function ManiaEditor(props: Props) {
       const midY = averagePointerY(pts);
       const dy = midY - scrub.lastMidY;
       scrub.lastMidY = midY;
-      const msPerPx = yToTime(1) - yToTime(0);
+      // Deliberately time-domain (ignores SV warp) so scrub speed is steady.
+      const msPerPx = -scrollDir() / ppms();
       scrub.time = Math.max(0, scrub.time - msPerPx * dy);
       propsRef.current.onSeek(scrub.time);
       return;

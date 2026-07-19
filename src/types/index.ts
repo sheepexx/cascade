@@ -276,6 +276,7 @@ export type AppSettings = {
   showWaveform: boolean;
   showTimingLines: boolean;
   upscroll: boolean;
+  svPreviewPlayback: boolean;
   localAutosaveEnabled: boolean;
   exportPngBackgroundsAsJpeg: boolean;
   exportJpegQuality: number;
@@ -330,6 +331,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showWaveform: false,
   showTimingLines: true,
   upscroll: false,
+  svPreviewPlayback: true,
   localAutosaveEnabled: true,
   exportPngBackgroundsAsJpeg: true,
   exportJpegQuality: 0.9,
