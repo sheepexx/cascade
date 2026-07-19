@@ -30,6 +30,29 @@ export function TransportBar({
   const { currentTime, volume, setVolume } = audio;
   const [jumpDraft, setJumpDraft] = useState("");
   const [jumpInvalid, setJumpInvalid] = useState(false);
+  const [copied, setCopied] = useState<"ms" | "timestamp" | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+    },
+    [],
+  );
+
+  const copyValue = (text: string, which: "ms" | "timestamp") => {
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        setCopied(which);
+        if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = window.setTimeout(() => setCopied(null), 1000);
+      },
+      () => {
+        // Clipboard can be blocked by permissions; leave the label alone
+        // rather than claiming a copy that did not happen.
+      },
+    );
+  };
   const jumpInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -82,18 +105,30 @@ export function TransportBar({
           title="Jump to time — Enter to go, Esc to cancel"
         />
       ) : (
-        <button
-          onClick={() => {
-            const timestamp = formatTime(currentTime);
-            navigator.clipboard.writeText(timestamp);
-          }}
-          className="cursor-pointer rounded border border-white/5 bg-ink-900/55 px-2 py-1 font-mono text-xs text-slate-300 shadow-inner shadow-black/10 backdrop-blur transition-colors hover:bg-white/10 hover:text-slate-100"
-          title="Click to copy timestamp"
-        >
-          <span className="text-slate-100">{Math.round(currentTime)} ms</span>
-          <span className="mx-1 text-slate-500">/</span>
-          <span className="text-slate-500">{formatTime(currentTime)}</span>
-        </button>
+        // Each half copies what it shows: the raw millisecond count for
+        // pasting into tools that take numbers, the mm:ss.ms timestamp for
+        // pasting into osu! or chat.
+        <span className="flex items-center rounded border border-white/5 bg-ink-900/55 font-mono text-xs shadow-inner shadow-black/10 backdrop-blur">
+          <button
+            onClick={() => copyValue(String(Math.round(currentTime)), "ms")}
+            className={`cursor-pointer rounded-l py-1 pl-2 pr-1 transition-colors hover:bg-white/10 ${
+              copied === "ms" ? "text-accent" : "text-slate-100"
+            }`}
+            title="Click to copy the time in milliseconds"
+          >
+            {Math.round(currentTime)} ms
+          </button>
+          <span className="text-slate-500">/</span>
+          <button
+            onClick={() => copyValue(formatTime(currentTime), "timestamp")}
+            className={`cursor-pointer rounded-r py-1 pl-1 pr-2 transition-colors hover:bg-white/10 hover:text-slate-100 ${
+              copied === "timestamp" ? "text-accent" : "text-slate-500"
+            }`}
+            title="Click to copy the timestamp"
+          >
+            {formatTime(currentTime)}
+          </button>
+        </span>
       )}
       {!jumpOpen && (
         <button
