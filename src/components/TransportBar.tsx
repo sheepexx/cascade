@@ -36,10 +36,10 @@ export function TransportBar({
     if (!jumpOpen) return;
     setJumpDraft(formatTime(audio.getCurrentTime()));
     setJumpInvalid(false);
-    // Focus after the input renders.
+    // Focus after the input renders; selection happens in onFocus so the
+    // prefill is overtypeable however focus arrives.
     const raf = requestAnimationFrame(() => {
       jumpInputRef.current?.focus();
-      jumpInputRef.current?.select();
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,6 +73,7 @@ export function TransportBar({
             else if (e.key === "Escape") onJumpOpenChange(false);
           }}
           onBlur={() => onJumpOpenChange(false)}
+          onFocus={(e) => e.currentTarget.select()}
           placeholder="mm:ss.ms"
           spellCheck={false}
           className={`w-36 rounded border bg-ink-900/80 px-2 py-1 font-mono text-xs text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur transition-colors ${
