@@ -55,6 +55,7 @@ export function WelcomeModal({
   onPackCreator,
   onOpenCloudProject,
   onOpenLocalProject,
+  accountsEnabled = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -64,6 +65,8 @@ export function WelcomeModal({
   onPackCreator?: () => void;
   onOpenCloudProject: (id: string) => void;
   onOpenLocalProject: (id: string) => void;
+  /** Feature flag: hides the osu! login prompt when accounts are killed. */
+  accountsEnabled?: boolean;
 }) {
   const { user, login } = useAuth();
   const [projects, setProjects] = useState<CloudProjectRich[] | null>(null);
@@ -307,7 +310,7 @@ export function WelcomeModal({
         Join the Discord Server
       </a>
 
-      {!user && (
+      {!user && accountsEnabled && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
           <span className="text-sm text-slate-400">
             Log in with osu! to see your saved maps and mapping invitations.{" "}

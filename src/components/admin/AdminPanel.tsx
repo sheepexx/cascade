@@ -27,6 +27,12 @@ import {
   type FeedbackStatus,
 } from "../../lib/feedback";
 import { publishAppUpdate } from "../../lib/notifications";
+import {
+  FEATURE_FLAG_INFO,
+  listFeatureFlags,
+  setFeatureFlag,
+  type FeatureFlagRow,
+} from "../../lib/featureFlags";
 
 type Tab =
   | "stats"
@@ -541,6 +547,102 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
+function FeatureFlagsSection() {
+  const [rows, setRows] = useState<FeatureFlagRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  const load = async () => {
+    try {
+      setRows(await listFeatureFlags());
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't load feature flags.");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const toggle = async (row: FeatureFlagRow) => {
+    if (busyKey) return;
+    if (
+      row.enabled &&
+      !window.confirm(
+        `Disable "${row.key}" for every user right now? Open editors react within seconds.`,
+      )
+    ) {
+      return;
+    }
+    setBusyKey(row.key);
+    try {
+      await setFeatureFlag(row.key, !row.enabled);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't update the flag.");
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const labelFor = (key: string) =>
+    FEATURE_FLAG_INFO.find((f) => f.key === key)?.label ?? key;
+
+  return (
+    <section className="rounded-xl border border-ink-600 bg-ink-800 p-5">
+      <h2 className="text-sm font-semibold text-slate-100">Feature flags</h2>
+      <p className="mt-1 text-sm text-slate-400">
+        Kill switches for every user, no redeploy needed. Clients fail open: if
+        this table is unreachable, everything stays enabled.
+      </p>
+      {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+      {!rows && !error && (
+        <p className="mt-3 text-sm text-slate-500">Loading…</p>
+      )}
+      <div className="mt-4 flex flex-col gap-3">
+        {rows?.map((row) => (
+          <div
+            key={row.key}
+            className="flex items-start justify-between gap-4 rounded-lg border border-ink-600/70 bg-ink-700/30 p-3"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-100">
+                  {labelFor(row.key)}
+                </span>
+                <code className="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                  {row.key}
+                </code>
+              </div>
+              {row.description && (
+                <p className="mt-0.5 text-xs text-slate-400">
+                  {row.description}
+                </p>
+              )}
+            </div>
+            <button
+              role="switch"
+              aria-checked={row.enabled}
+              disabled={busyKey === row.key}
+              onClick={() => void toggle(row)}
+              className={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${
+                row.enabled ? "bg-accent" : "bg-ink-600"
+              }`}
+            >
+              <span
+                className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
+                  row.enabled ? "left-6" : "left-1"
+                }`}
+              />
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function SettingsTab({
   invisible,
   onToggle,
@@ -549,7 +651,8 @@ function SettingsTab({
   onToggle: () => void;
 }) {
   return (
-    <div className="max-w-xl">
+    <div className="flex max-w-xl flex-col gap-5">
+      <FeatureFlagsSection />
       <section className="rounded-xl border border-ink-600 bg-ink-800 p-5">
         <div className="flex items-start justify-between gap-4">
           <div>

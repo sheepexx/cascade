@@ -182,6 +182,11 @@ import {
   type EditorAction,
   type EditorKeybinds,
 } from "./lib/editorKeybinds";
+import {
+  fetchFeatureFlags,
+  loadCachedFlags,
+  type FeatureFlags,
+} from "./lib/featureFlags";
 import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
 import {
   bookmarkInDirection,
@@ -369,6 +374,33 @@ export default function App() {
     end: number;
     count: number;
   } | null>(null);
+  // Admin kill switches; cached copy renders instantly, then the fetch and a
+  // realtime subscription keep it current. Fails open (see lib/featureFlags).
+  const [featureFlags, setFeatureFlags] =
+    useState<FeatureFlags>(loadCachedFlags);
+  const featureFlagsRef = useRef(featureFlags);
+  featureFlagsRef.current = featureFlags;
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      void fetchFeatureFlags().then((flags) => {
+        if (!cancelled) setFeatureFlags(flags);
+      });
+    };
+    refresh();
+    const ch = supabase
+      .channel("feature-flags")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "feature_flags" },
+        refresh,
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(ch);
+    };
+  }, []);
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const [pendingDeleteDiffId, setPendingDeleteDiffId] = useState<string | null>(
@@ -1326,7 +1358,8 @@ export default function App() {
         return;
       e.preventDefault();
       if (playtestRef.current.active) exitPlaytest();
-      else if (!modalRef.current) startPlaytest(audio.getCurrentTime());
+      else if (!modalRef.current && featureFlagsRef.current.playtest)
+        startPlaytest(audio.getCurrentTime());
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
@@ -3974,7 +4007,9 @@ export default function App() {
                 Map Settings
               </MenuButton>
               <MenuButton onClick={() => setModal("timing")}>Timing</MenuButton>
-              <MenuButton onClick={() => setModal("sv")}>SV</MenuButton>
+              {featureFlags.sv_tools && (
+                <MenuButton onClick={() => setModal("sv")}>SV</MenuButton>
+              )}
               <MenuButton onClick={() => setModal("difficulty")}>
                 Difficulty
               </MenuButton>
@@ -4024,14 +4059,17 @@ export default function App() {
                   View only
                 </span>
               )}
-              {cloudProjectId && authUser && cloudOwnerId === authUser.id && (
-                <IconButton
-                  onClick={() => setModal("share")}
-                  title="Share - invite collaborators"
-                >
-                  <UsersIcon className="h-4 w-4" />
-                </IconButton>
-              )}
+              {cloudProjectId &&
+                authUser &&
+                cloudOwnerId === authUser.id &&
+                featureFlags.collab && (
+                  <IconButton
+                    onClick={() => setModal("share")}
+                    title="Share - invite collaborators"
+                  >
+                    <UsersIcon className="h-4 w-4" />
+                  </IconButton>
+                )}
               {cloudProjectId && authUser && (
                 <IconButton
                   onClick={() => setCommentsOpen((v) => !v)}
@@ -4269,7 +4307,11 @@ export default function App() {
                 onCurrentSampleSet={setCurrentSampleSet}
                 hitsoundSources={hitsoundSources}
                 onCopyHitsounds={applyCopyHitsounds}
-                onPublishPattern={authUser ? handlePublishPattern : undefined}
+                onPublishPattern={
+                  authUser && featureFlags.preset_publishing
+                    ? handlePublishPattern
+                    : undefined
+                }
                 pendingClip={presetToCopy}
                 readOnly={!canEdit}
                 playtestMode={playtest.active}
@@ -4504,6 +4546,7 @@ export default function App() {
       <WelcomeModal
         open={modal === "welcome"}
         onClose={close}
+        accountsEnabled={featureFlags.cloud_accounts}
         onNewMap={() => handleNew(hasProjectContent)}
         onTryMaps={() => setModal("sampleMaps")}
         onImportSmPack={onImportSmPack}
@@ -4691,7 +4734,7 @@ export default function App() {
         timeScale={activeRate}
       />
       <SvModal
-        open={modal === "sv"}
+        open={modal === "sv" && featureFlags.sv_tools}
         onClose={close}
         timingPoints={activeTimingPoints}
         onTimingPoints={applyTimingPoints}
