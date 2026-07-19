@@ -35,6 +35,7 @@ import { FolderIcon, PackageIcon } from "./ui/StartIcons";
 import { MarqueeText } from "./ui/MarqueeText";
 import { playUiSound } from "../lib/uiSounds";
 import { useAuth } from "../lib/auth";
+import { logAnalyticsEvent } from "../lib/analytics";
 
 const selectClass =
   "w-full rounded-lg bg-ink-700/65 border border-white/10 px-3 py-2 text-sm text-slate-100 " +
@@ -242,6 +243,7 @@ export function PackCreator({
       });
       triggerDownload(blob, filename);
       playUiSound("mapExportDone");
+      void logAnalyticsEvent("pack_export", user?.id).catch(() => {});
     } catch (err) {
       setValidation({
         errors: [

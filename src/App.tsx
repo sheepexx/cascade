@@ -1225,6 +1225,9 @@ export default function App() {
       const clamped = Math.max(0, Math.min(startTime, audio.duration || startTime));
       setModal(null);
       setCommentsOpen(false);
+      void logAnalyticsEvent("playtest_started", authUserRef.current?.id).catch(
+        () => {},
+      );
       resetPlaytestRuntime(clamped);
       audio.setPlaybackRate(clampPlaytestRate(playtestSettingsRef.current.rate));
       audio.seek(clamped);
@@ -1569,6 +1572,9 @@ export default function App() {
 
   const applyLoadedSkin = useCallback(
     (loaded: LoadedSkin, target: "visual" | "hitsound") => {
+      void logAnalyticsEvent("skin_imported", authUserRef.current?.id).catch(
+        () => {},
+      );
       if (target === "hitsound") {
         setHitsoundSkin((prev) => {
           if (prev && prev !== skin) prev.objectUrls.forEach(URL.revokeObjectURL);
@@ -1700,6 +1706,9 @@ export default function App() {
       void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
         () => {},
       );
+      void logAnalyticsEvent("import_osz", authUserRef.current?.id).catch(
+        () => {},
+      );
     } catch (err) {
       setImportError(
         err instanceof Error ? err.message : "Failed to import .osz file.",
@@ -1748,6 +1757,9 @@ export default function App() {
     try {
       const text = await file.text();
       const map = parseSmFile(text);
+      void logAnalyticsEvent("import_sm", authUserRef.current?.id).catch(
+        () => {},
+      );
       setCloudProjectId(null);
       setCloudOwnerId(null);
       setMyRole(null);
@@ -2284,6 +2296,9 @@ export default function App() {
       markStructural();
       setDifficulties((prev) => [...prev, rated]);
       setActiveId(rated.id);
+      void logAnalyticsEvent("rate_change_export", authUserRef.current?.id).catch(
+        () => {},
+      );
     },
     [markStructural],
   );
@@ -3464,6 +3479,9 @@ export default function App() {
     setImportingMap(true);
     try {
       const proj = await loadProjectCloud(id);
+      void logAnalyticsEvent("collab_joined", authUserRef.current?.id).catch(
+        () => {},
+      );
       importStartedRef.current = true;
       applyingHistoryRef.current = true;
       undoStackRef.current = [];
@@ -4737,7 +4755,12 @@ export default function App() {
         open={modal === "sv" && featureFlags.sv_tools}
         onClose={close}
         timingPoints={activeTimingPoints}
-        onTimingPoints={applyTimingPoints}
+        onTimingPoints={(points) => {
+          applyTimingPoints(points);
+          void logAnalyticsEvent("sv_applied", authUserRef.current?.id).catch(
+            () => {},
+          );
+        }}
         getCurrentTime={getCurrentTime}
         selectionRange={selectionRange}
         readOnly={!canEdit}

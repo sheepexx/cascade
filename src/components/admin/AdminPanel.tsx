@@ -11,11 +11,13 @@ import {
   type PresetStatus,
 } from "../../lib/presets";
 import {
+  adminEventStats,
   getAdminStats,
   listAllUsers,
   setUserAdmin,
   listAllProjects,
   deleteProjectAdmin,
+  type AdminEventStat,
   type AdminStats,
   type AdminUser,
   type AdminProject,
@@ -119,16 +121,22 @@ function useAsyncError() {
 
 function StatsTab() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [events, setEvents] = useState<AdminEventStat[] | null>(null);
   const { error, setError } = useAsyncError();
 
   useEffect(() => {
     setStats(null);
+    setEvents(null);
     setError(null);
     getAdminStats()
       .then(setStats)
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Failed to load stats."),
       );
+    // Requires migration 0014; fail quietly so the rest of the tab loads.
+    adminEventStats()
+      .then(setEvents)
+      .catch(() => setEvents([]));
   }, [setError]);
 
   return (
@@ -148,6 +156,50 @@ function StatsTab() {
               value={stats.localProjectsCreated}
             />
           </div>
+          <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Feature usage
+            </h2>
+            {!events && <p className="text-sm text-slate-500">Loading...</p>}
+            {events && events.length === 0 && (
+              <p className="text-sm text-slate-500">
+                No events yet (or migration 0014 isn't applied).
+              </p>
+            )}
+            {events && events.length > 0 && (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="pb-2 font-medium">Event</th>
+                    <th className="pb-2 text-right font-medium">7 days</th>
+                    <th className="pb-2 text-right font-medium">30 days</th>
+                    <th className="pb-2 text-right font-medium">All time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map((row) => (
+                    <tr
+                      key={row.event_type}
+                      className="border-t border-ink-600/60"
+                    >
+                      <td className="py-1.5 font-mono text-xs text-slate-200">
+                        {row.event_type}
+                      </td>
+                      <td className="py-1.5 text-right font-mono text-xs text-slate-400">
+                        {row.last_7d}
+                      </td>
+                      <td className="py-1.5 text-right font-mono text-xs text-slate-400">
+                        {row.last_30d}
+                      </td>
+                      <td className="py-1.5 text-right font-mono text-xs text-slate-300">
+                        {row.total}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
           <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Browser
