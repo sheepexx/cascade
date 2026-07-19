@@ -69,6 +69,7 @@ import { TimedNotification } from "./components/ui/TimedNotification";
 import { Menu } from "./components/ui/Menu";
 import { Modal } from "./components/ui/Modal";
 import { AccountControl } from "./components/auth/LoginButton";
+import { NotificationInbox } from "./components/NotificationInbox";
 import { AdminPanel } from "./components/admin/AdminPanel";
 import {
   InviteNotifications,
@@ -81,6 +82,13 @@ import {
   setUiSoundVolume,
 } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
+import {
+  dismissNotification,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type InboxNotification,
+} from "./lib/notifications";
 import { logAnalyticsEvent } from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
@@ -382,6 +390,11 @@ export default function App() {
   >(null);
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [invites, setInvites] = useState<InviteNotice[]>([]);
+  const [notifications, setNotifications] = useState<InboxNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(
+    null,
+  );
   const [autoSave, setAutoSave] = useState<"idle" | "saving" | "saved">("idle");
   const [publishPattern, setPublishPattern] = useState<PatternNote[] | null>(
     null,
@@ -448,6 +461,7 @@ export default function App() {
   authUserRef.current = authUser;
   const cloudProjectIdRef = useRef(cloudProjectId);
   cloudProjectIdRef.current = cloudProjectId;
+  const inviteNoticeProjectsRef = useRef<Set<string>>(new Set());
 
   const liveEnabled = !!cloudProjectId && !!authUser;
   const canEdit =
@@ -3488,19 +3502,43 @@ export default function App() {
     }
   }, []);
 
-  const addInviteNotice = useCallback(async (projectId: string) => {
+  const addInviteNotice = useCallback(async (
+    projectId: string,
+    notificationId?: string,
+  ) => {
     if (projectId === cloudProjectIdRef.current) return;
+    if (inviteNoticeProjectsRef.current.has(projectId)) {
+      if (notificationId) {
+        setInvites((prev) =>
+          prev.map((notice) =>
+            notice.projectId === projectId && !notice.notificationId
+              ? { ...notice, notificationId }
+              : notice,
+          ),
+        );
+      }
+      return;
+    }
+    inviteNoticeProjectsRef.current.add(projectId);
     try {
       const rows = await listMyProjectsRich();
       const proj = rows.find((r) => r.id === projectId);
-      if (!proj) return;
+      if (!proj) {
+        inviteNoticeProjectsRef.current.delete(projectId);
+        return;
+      }
       const owner = proj.participants.find((x) => x.role === "owner");
       setInvites((prev) =>
         prev.some((n) => n.projectId === projectId)
-          ? prev
+          ? prev.map((notice) =>
+              notice.projectId === projectId && !notice.notificationId
+                ? { ...notice, notificationId }
+                : notice,
+            )
           : [
               ...prev,
               {
+                notificationId,
                 projectId,
                 title: proj.title || "Untitled",
                 who: owner?.username ?? null,
@@ -3510,12 +3548,37 @@ export default function App() {
       );
       playUiSound("invite");
     } catch {
+      inviteNoticeProjectsRef.current.delete(projectId);
+    }
+  }, []);
+
+  const refreshNotifications = useCallback(async () => {
+    const userId = authUserRef.current?.id;
+    if (!userId) {
+      setNotifications([]);
+      setNotificationsLoading(false);
+      setNotificationsError(null);
+      return;
+    }
+    setNotificationsLoading(true);
+    try {
+      const rows = await listNotifications();
+      if (authUserRef.current?.id !== userId) return;
+      setNotifications(rows);
+      setNotificationsError(null);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error ? error.message : "Couldn't load notifications.",
+      );
+    } finally {
+      setNotificationsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!authUser) {
       setInvites([]);
+      inviteNoticeProjectsRef.current.clear();
       return;
     }
     const ch = supabase
@@ -3539,16 +3602,126 @@ export default function App() {
     };
   }, [authUser, addInviteNotice]);
 
+  useEffect(() => {
+    if (!authUser) {
+      setNotifications([]);
+      setNotificationsError(null);
+      setNotificationsLoading(false);
+      return;
+    }
+
+    void refreshNotifications();
+    const channel = supabase
+      .channel(`notification-inbox:${authUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient=eq.${authUser.id}`,
+        },
+        (payload) => {
+          void refreshNotifications();
+          if (payload.eventType !== "INSERT") return;
+          const notification = payload.new as Partial<InboxNotification>;
+          if (
+            notification.kind === "invite" &&
+            notification.project_id &&
+            notification.id
+          ) {
+            void addInviteNotice(notification.project_id, notification.id);
+          }
+        },
+      )
+      .subscribe();
+
+    const refreshOnFocus = () => void refreshNotifications();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshNotifications();
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      void supabase.removeChannel(channel);
+    };
+  }, [authUser, addInviteNotice, refreshNotifications]);
+
+  const markInboxNotificationRead = useCallback(
+    (id: string) => {
+      const readAt = new Date().toISOString();
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, read_at: item.read_at ?? readAt } : item,
+        ),
+      );
+      void markNotificationRead(id).catch(() => refreshNotifications());
+    },
+    [refreshNotifications],
+  );
+
+  const markInboxAllRead = useCallback(() => {
+    const readAt = new Date().toISOString();
+    setNotifications((prev) =>
+      prev.map((item) => ({ ...item, read_at: item.read_at ?? readAt })),
+    );
+    void markAllNotificationsRead().catch(() => refreshNotifications());
+  }, [refreshNotifications]);
+
+  const dismissInboxNotification = useCallback(
+    (id: string) => {
+      const notification = notifications.find((item) => item.id === id);
+      setNotifications((prev) => prev.filter((item) => item.id !== id));
+      if (notification?.project_id) {
+        inviteNoticeProjectsRef.current.delete(notification.project_id);
+        setInvites((prev) =>
+          prev.filter((item) => item.projectId !== notification.project_id),
+        );
+      }
+      void dismissNotification(id).catch(() => refreshNotifications());
+    },
+    [notifications, refreshNotifications],
+  );
+
   const joinInvite = useCallback(
     (n: InviteNotice) => {
       setInvites((prev) => prev.filter((x) => x.projectId !== n.projectId));
+      inviteNoticeProjectsRef.current.delete(n.projectId);
+      const notificationId =
+        n.notificationId ??
+        notifications.find(
+          (item) =>
+            item.kind === "invite" && item.project_id === n.projectId,
+        )?.id;
+      if (notificationId) markInboxNotificationRead(notificationId);
       void loadCloudProject(n.projectId);
     },
-    [loadCloudProject],
+    [loadCloudProject, markInboxNotificationRead, notifications],
   );
   const ignoreInvite = useCallback((n: InviteNotice) => {
     setInvites((prev) => prev.filter((x) => x.projectId !== n.projectId));
+    inviteNoticeProjectsRef.current.delete(n.projectId);
   }, []);
+
+  const openInboxNotification = useCallback(
+    (notification: InboxNotification) => {
+      markInboxNotificationRead(notification.id);
+      if (notification.kind === "invite" && notification.project_id) {
+        inviteNoticeProjectsRef.current.delete(notification.project_id);
+        setInvites((prev) =>
+          prev.filter((item) => item.projectId !== notification.project_id),
+        );
+        void loadCloudProject(notification.project_id);
+        return;
+      }
+      if (notification.action_url) {
+        window.open(notification.action_url, "_blank", "noopener,noreferrer");
+      }
+    },
+    [loadCloudProject, markInboxNotificationRead],
+  );
 
   const handlePublishPattern = useCallback(
     (pattern: PatternNote[], keyCount: number) => {
@@ -3954,6 +4127,18 @@ export default function App() {
                 </span>
               ))}
             </div>
+          )}
+          {authUser && (
+            <NotificationInbox
+              notifications={notifications}
+              loading={notificationsLoading}
+              error={notificationsError}
+              onRefresh={refreshNotifications}
+              onOpen={openInboxNotification}
+              onMarkRead={markInboxNotificationRead}
+              onMarkAllRead={markInboxAllRead}
+              onDismiss={dismissInboxNotification}
+            />
           )}
           <AccountControl
             compact
