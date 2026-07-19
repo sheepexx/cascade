@@ -34,6 +34,16 @@ export default {
     }
 
     try {
+      // Parameterized mirror routes can't be switch cases.
+      const download = url.pathname.match(/^\/mirror\/(\d{1,10})$/);
+      if (download && req.method === "GET") {
+        return await handleMirrorDownload(download[1], env);
+      }
+      const lookup = url.pathname.match(/^\/mirror\/beatmap\/(\d{1,10})$/);
+      if (lookup && req.method === "GET") {
+        return await handleBeatmapLookup(lookup[1], env);
+      }
+
       switch (url.pathname) {
         case "/auth/osu/login":
           return await handleLogin(env);
@@ -52,6 +62,81 @@ export default {
     }
   },
 };
+
+// Beatmap mirror proxy. The mirrors have inconsistent CORS, so the SPA
+// fetches through here; the worker tries each in order. A single mirror's 404
+// is not authoritative (they each miss some sets), so the chain always runs
+// to the end before reporting not-found.
+const OSZ_MIRRORS = [
+  (id: string) => `https://catboy.best/d/${id}`,
+  (id: string) => `https://api.nerinyan.moe/d/${id}`,
+  (id: string) => `https://osu.direct/api/d/${id}`,
+];
+
+const BEATMAP_LOOKUPS = [
+  (id: string) => `https://catboy.best/api/v2/b/${id}`,
+  (id: string) => `https://osu.direct/api/v2/b/${id}`,
+];
+
+async function handleMirrorDownload(
+  setId: string,
+  env: Env,
+): Promise<Response> {
+  let sawNotFound = false;
+  for (const mirrorUrl of OSZ_MIRRORS) {
+    try {
+      const res = await fetch(mirrorUrl(setId), {
+        redirect: "follow",
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (res.ok && res.body) {
+        const headers = new Headers(cors(env));
+        headers.set("Content-Type", "application/octet-stream");
+        headers.set(
+          "Content-Disposition",
+          `attachment; filename="${setId}.osz"`,
+        );
+        const length = res.headers.get("content-length");
+        if (length) headers.set("Content-Length", length);
+        headers.set("Cache-Control", "public, max-age=3600");
+        return new Response(res.body, { status: 200, headers });
+      }
+      if (res.status === 404) sawNotFound = true;
+    } catch {
+      // Timeout or network failure - try the next mirror.
+    }
+  }
+  return json(
+    { error: sawNotFound ? "beatmapset not found" : "all mirrors failed" },
+    sawNotFound ? 404 : 502,
+    env,
+  );
+}
+
+async function handleBeatmapLookup(
+  beatmapId: string,
+  env: Env,
+): Promise<Response> {
+  for (const lookupUrl of BEATMAP_LOOKUPS) {
+    try {
+      const res = await fetch(lookupUrl(beatmapId), {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        beatmapset_id?: unknown;
+        set?: { id?: unknown };
+      };
+      const setId = data.beatmapset_id ?? data.set?.id;
+      if (typeof setId === "number" && Number.isFinite(setId)) {
+        return json({ setId, beatmapId: Number(beatmapId) }, 200, env);
+      }
+    } catch {
+      // Try the next lookup source.
+    }
+  }
+  return json({ error: "beatmap not found" }, 404, env);
+}
 
 async function handleLogin(env: Env): Promise<Response> {
   const state = crypto.randomUUID();
