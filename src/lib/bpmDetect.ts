@@ -25,12 +25,14 @@ const HOP = 512;
 const WIN = 1024;
 const MIN_BPM = 60;
 const MAX_BPM = 240;
+/** Fine enough to avoid visible drift from common fractional tempos. */
+const BPM_STEP = 0.1;
 /** Comb phase search granularity, in envelope frames (~5.8 ms at 44.1 kHz). */
 const PHASE_STEP = 0.5;
 /** A faster tempo must beat the reigning candidate by this factor to win. */
 const FASTER_MARGIN = 1.05;
-/** Detected tempi this close to an integer snap to it (real songs mostly are). */
-const INTEGER_SNAP = 0.25;
+/** Only remove tiny numerical noise; legitimate decimal BPMs must survive. */
+const INTEGER_SNAP = 0.035;
 /** Boxcar low-pass cutoff for the phase (downbeat) envelope. */
 const LP_CUTOFF_HZ = 180;
 /** Bass onsets drive the phase only when they carry this share of the mass. */
@@ -108,49 +110,77 @@ export function detectBpmFromChannel(
   const comb = (
     bpm: number,
     arr: Float32Array,
-  ): { sum: number; phaseFrames: number } => {
+  ): { sum: number; score: number; phaseFrames: number } => {
     const beatFrames = (60 / bpm) * framesPerSec;
     let bestSum = 0;
+    let bestScore = 0;
     let bestPhase = 0;
     for (let phase = 0; phase < beatFrames; phase += PHASE_STEP) {
       let sum = 0;
-      for (let f = phase; f < frames; f += beatFrames) sum += sampleAt(arr, f);
-      if (sum > bestSum) {
+      let count = 0;
+      for (let f = phase; f < frames; f += beatFrames) {
+        sum += sampleAt(arr, f);
+        count += 1;
+      }
+      // Raw mass alone lets an unnecessarily fast subdivision win simply
+      // because its shorter period offers more phase choices. Normalizing by
+      // sqrt(grid points) still rewards real extra onsets while penalizing
+      // empty intermediate beats.
+      const score = count > 0 ? sum / Math.sqrt(count) : 0;
+      if (score > bestScore) {
         bestSum = sum;
+        bestScore = score;
         bestPhase = phase;
       }
     }
-    return { sum: bestSum, phaseFrames: bestPhase };
+    return { sum: bestSum, score: bestScore, phaseFrames: bestPhase };
   };
 
-  // Candidates ascend, so a faster tempo (evaluated later) has to earn its
-  // extra grid points; on a near-tie the slower beat level keeps the crown.
-  const sums = new Float32Array(MAX_BPM - MIN_BPM + 1);
-  let bestBpm = 0;
-  let bestSum = 0;
+  // Search fractional BPMs across the full range. The old integer-only scan
+  // could miss the real peak entirely and select a rational alias such as
+  // 3/4 of the tempo. Only compare local peaks when choosing the beat level;
+  // otherwise the margin would pin the result to the rising edge of a peak.
+  const candidateCount = Math.round((MAX_BPM - MIN_BPM) / BPM_STEP) + 1;
+  const sums = new Float32Array(candidateCount);
   let sumTotal = 0;
-  for (let b = MIN_BPM; b <= MAX_BPM; b++) {
-    const s = comb(b, onsets).sum;
-    sums[b - MIN_BPM] = s;
+  for (let i = 0; i < candidateCount; i++) {
+    const b = MIN_BPM + i * BPM_STEP;
+    const s = comb(b, onsets).score;
+    sums[i] = s;
     sumTotal += s;
-    if (s > bestSum * FASTER_MARGIN) {
-      bestSum = s;
-      bestBpm = b;
+  }
+
+  const peaks: number[] = [];
+  for (let i = 0; i < sums.length; i++) {
+    const left = i > 0 ? sums[i - 1] : -Infinity;
+    const right = i + 1 < sums.length ? sums[i + 1] : -Infinity;
+    if (sums[i] >= left && sums[i] >= right && (sums[i] > left || sums[i] > right))
+      peaks.push(i);
+  }
+  if (!peaks.length) return null;
+
+  // Peaks ascend by BPM, so a faster beat level has to add meaningful onset
+  // evidence. Near-tied subdivisions keep the slower, steadier interpretation.
+  let bestIndex = peaks[0];
+  let bestSum = sums[bestIndex];
+  for (const i of peaks.slice(1)) {
+    if (sums[i] > bestSum * FASTER_MARGIN) {
+      bestIndex = i;
+      bestSum = sums[i];
     }
   }
   if (bestSum <= 0) return null;
 
-  // Parabolic refinement across neighboring integer candidates.
-  let bpm = bestBpm;
-  const i = bestBpm - MIN_BPM;
-  if (i > 0 && i < sums.length - 1) {
-    const s0 = sums[i - 1];
-    const s1 = sums[i];
-    const s2 = sums[i + 1];
+  // Sub-step parabolic refinement around the selected fractional peak.
+  let bpm = MIN_BPM + bestIndex * BPM_STEP;
+  if (bestIndex > 0 && bestIndex < sums.length - 1) {
+    const s0 = sums[bestIndex - 1];
+    const s1 = sums[bestIndex];
+    const s2 = sums[bestIndex + 1];
     const denom = s0 - 2 * s1 + s2;
     if (Math.abs(denom) > 1e-9) {
       const shift = (0.5 * (s0 - s2)) / denom;
-      if (Math.abs(shift) <= 1) bpm += shift;
+      if (Math.abs(shift) <= 1) bpm += shift * BPM_STEP;
     }
   }
   const rounded = Math.round(bpm);
@@ -197,11 +227,20 @@ export function detectBpmFromChannel(
   }
   offsetMs = Math.round(offsetMs);
 
-  // Contrast of the winner against the average candidate.
+  // Contrast against the strongest distinct tempo peak. This deliberately
+  // reports low confidence when half/double BPM are genuinely ambiguous,
+  // instead of looking confident merely because most candidates scored badly.
+  let runnerUp = 0;
+  for (const i of peaks) {
+    if (Math.abs(i - bestIndex) <= Math.ceil(1 / BPM_STEP)) continue;
+    runnerUp = Math.max(runnerUp, sums[i]);
+  }
   const mean = sumTotal / sums.length;
+  const contrast = bestSum > 0 ? (bestSum - runnerUp) / bestSum : 0;
+  const averageContrast = mean > 0 ? (bestSum - mean) / bestSum : 0;
   const confidence = Math.max(
     0,
-    Math.min(1, mean > 0 ? (bestSum - mean) / bestSum : 0),
+    Math.min(1, contrast * 0.75 + averageContrast * 0.25),
   );
 
   return { bpm, offsetMs, confidence };
