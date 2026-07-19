@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png?v=2" />
+    <link rel="canonical" href="https://cascade.sheepex.net/osu-mania-sv-editor" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>osu!mania SV Editor: Scroll Velocity Made Visual | Cascade</title>
+    <meta
+      name="description"
+      content="Free online SV editor for osu!mania: generate constant, ramp and stutter scroll velocity over any range, see the curve before you apply it, and watch SV and BPM gimmicks play back live in the editor and in playtest."
+    />
+    <meta
+      name="keywords"
+      content="osu mania SV, osu!mania SV, SV editor, scroll velocity editor, osu mania scroll velocity, mania SV generator, stutter SV, teleport SV, SV ramp, green line editor, osu mania green lines, BPM gimmick map, osu mania timing points, quaver SV, SV plugin"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:title" content="Edit osu!mania scroll velocity in your browser" />
+    <meta property="og:description" content="Generate SV ramps, stutters and freezes over any range, preview the curve, and see it scroll live before you export." />
+    <meta property="og:url" content="https://cascade.sheepex.net/osu-mania-sv-editor" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to add scroll velocity (SV) to an osu!mania map",
+        "description": "Generate and preview osu!mania scroll velocity effects in your browser with Cascade's SV editor.",
+        "totalTime": "PT3M",
+        "tool": { "@type": "HowToTool", "name": "Cascade SV editor" },
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Open the SV editor",
+            "text": "Load your map in Cascade and choose SV in the top menu, next to Timing."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Pick the range",
+            "text": "Select the notes you want the effect to cover and the range fills in automatically, or type start and end times and set them from the playhead."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Choose an effect",
+            "text": "Constant holds one speed, Ramp glides between two speeds along an easing curve, and Stutter bursts fast then slows to compensate."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Check the preview",
+            "text": "The graph draws your current SV in grey and the result in teal, so you can see the shape before committing."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Apply and playtest",
+            "text": "Apply the SV, press play to watch the scroll warp, then press F5 to playtest it exactly as players will see it. Ctrl+Z undoes the whole range."
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/logo.png?v=2" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Edit osu!mania scroll velocity in your browser</h1>
+      <p>
+        <strong>Scroll velocity</strong> (SV) changes how fast notes travel
+        without moving them in time. It is how mania charts get freezes,
+        jumps and speed-ups, and traditionally you place green timing points
+        by hand and guess at the result. Cascade's <strong>SV editor</strong>
+        generates the points for you, draws the curve before you commit, and
+        plays the effect back live in the editor and in playtest.
+      </p>
+      <a class="cta" href="/">Open the SV editor</a>
+
+      <h2>How it works</h2>
+      <ol>
+        <li>Open your map in <a href="/">Cascade</a> and choose <em>SV</em> in the top menu, next to Timing.</li>
+        <li>Select the notes the effect should cover — the range fills in from your selection — or type start and end times and set them from the playhead.</li>
+        <li>Pick a generator: <strong>Constant</strong>, <strong>Ramp</strong>, <strong>Stutter</strong> or <strong>Remove</strong>.</li>
+        <li>Watch the preview graph: your current SV is drawn in grey, the result in teal.</li>
+        <li>Apply, press play to see the scroll warp, then <code>F5</code> to playtest it. <code>Ctrl+Z</code> undoes the whole range at once.</li>
+      </ol>
+
+      <h2>The generators</h2>
+      <ul>
+        <li><strong>Constant</strong> holds one speed across the range. 2x makes notes travel twice as fast, 0.5x crawls.</li>
+        <li><strong>Ramp</strong> glides from one speed to another along an easing curve — linear, sine, quad or exponential, each in, out or in-out — so a build-up can accelerate the way the music does.</li>
+        <li><strong>Stutter</strong> bursts fast at the start of every beat then slows to compensate, so the chart never drifts out of position. Cascade computes the compensating speed for you and warns when a peak is too strong to fully cancel out.</li>
+        <li><strong>Remove</strong> clears every SV point in the range and returns it to 1x.</li>
+      </ul>
+
+      <h2>BPM gimmicks work too</h2>
+      <p>
+        osu!mania scrolls faster at higher BPM, so a lot of charts build their
+        effects out of <em>red</em> lines rather than green ones: a huge beat
+        length freezes the field, a tiny one teleports it. Cascade previews
+        those exactly like the game does, picking your map's real tempo as the
+        reference so a chart full of freezes still scrolls normally in its
+        musical sections. If you would rather see Quaver-style constant scroll
+        where only SV matters, turn off <em>BPM affects scroll speed</em> in
+        Settings.
+      </p>
+
+      <p class="note">
+        Scroll speed and SV are different things. Your editor scroll speed is a
+        personal preview setting and is never written to the exported file,
+        because mania players pick their own speed in game. SV is part of the
+        chart and does export.
+      </p>
+
+      <h2>Why preview matters</h2>
+      <p>
+        Hand-placing green lines means exporting, loading the map in the game,
+        seeing the effect for the first time, and going back to adjust the
+        numbers. Because Cascade renders the same scroll model the game uses,
+        the preview and the playtest already show you the finished effect, so
+        the loop takes seconds instead of a round trip. When the chart plays
+        the way you want it, export a <code>.osu</code> or <code>.osz</code>,
+        or keep working with a
+        <a href="/osu-mania-pack-creator">song pack</a> or a
+        <a href="/osu-to-stepmania">StepMania / Etterna conversion</a>.
+      </p>
+
+      <footer>
+        <p>
+          More: <a href="/">Cascade, the online osu!mania editor</a> ·
+          <a href="/how-to-make-an-osu-mania-map">How to make an osu!mania map</a> ·
+          <a href="/osu-to-stepmania">Convert osu!mania to StepMania / Etterna</a> ·
+          <a href="/osu-mania-map-viewer">Preview osu!mania maps online</a> ·
+          <a href="/osu-mania-pack-creator">Combine maps into one pack</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

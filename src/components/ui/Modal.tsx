@@ -53,7 +53,11 @@ export function Modal({
 
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center bg-ink-900/72 p-4 backdrop-blur-md ${
+      // Anchored near the top rather than vertically centred: centring makes
+      // the whole panel slide every time its content grows or shrinks (tab
+      // switches, async content), which reads as the dialog jumping around.
+      // Pinning the top edge means only the bottom edge ever moves.
+      className={`fixed inset-0 flex items-start justify-center overflow-y-auto bg-ink-900/72 p-4 pt-[max(1rem,8vh)] backdrop-blur-md ${
         closing
           ? "pointer-events-none z-40 modal-backdrop-out"
           : "z-50 modal-backdrop-in"
@@ -63,7 +67,7 @@ export function Modal({
       }}
     >
       <div
-        className={`flex max-h-[85vh] w-full ${width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] ${
+        className={`flex max-h-[84vh] w-full ${width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] ${
           closing ? "modal-panel-out" : "modal-panel-in"
         }`}
       >

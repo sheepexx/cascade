@@ -4084,26 +4084,26 @@ export default function App() {
             <p className="text-sm font-medium tracking-wide text-slate-300">
               Loading map…
             </p>
-            {importProgress && (
-              <>
-                <div
-                  className="h-1 w-full overflow-hidden rounded-full bg-white/10"
-                  role="progressbar"
-                  aria-valuenow={Math.round(importProgress.ratio * 100)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={importProgress.label}
-                >
-                  <div
-                    className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
-                    style={{ width: `${Math.round(importProgress.ratio * 100)}%` }}
-                  />
-                </div>
-                <p className="max-w-full truncate text-[11px] text-slate-300/40">
-                  {importProgress.label}
-                </p>
-              </>
-            )}
+            <div
+              className="h-1 w-full overflow-hidden rounded-full bg-white/10"
+              role="progressbar"
+              aria-valuenow={Math.round((importProgress?.ratio ?? 0) * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={importProgress?.label ?? "Loading map"}
+            >
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+                style={{
+                  width: `${Math.round((importProgress?.ratio ?? 0) * 100)}%`,
+                }}
+              />
+            </div>
+            {/* Fixed-height line: labels change on every phase and a
+                collapsing paragraph would shift the loader. */}
+            <p className="h-4 w-full truncate text-center text-[11px] leading-4 text-slate-300/40">
+              {importProgress?.label ?? ""}
+            </p>
           </div>
         </div>
       )}
@@ -5095,37 +5095,37 @@ export default function App() {
           {cloudSaveStatus === "saving" ? (
             "Saving to your account…"
           ) : (
-            <span className="flex min-w-[13rem] flex-col gap-1">
+            // Fixed width: the phase labels vary wildly in length ("Compressing
+            // the .osz" vs "Encoding audio - very long filename.mp3") and a
+            // shrink-to-fit toast would resize on every report.
+            <span className="flex w-[17rem] flex-col gap-1">
               <span className="flex items-baseline justify-between gap-3">
                 <span>Exporting map…</span>
-                {exportProgress && (
-                  <span className="font-mono text-[11px] text-slate-300/40">
-                    {Math.round(exportProgress.ratio * 100)}%
-                  </span>
-                )}
+                <span className="shrink-0 font-mono text-[11px] tabular-nums text-slate-300/40">
+                  {exportProgress
+                    ? `${Math.round(exportProgress.ratio * 100)}%`
+                    : ""}
+                </span>
               </span>
-              {exportProgress && (
-                <>
-                  <span
-                    className="block h-1 w-full overflow-hidden rounded-full bg-white/10"
-                    role="progressbar"
-                    aria-valuenow={Math.round(exportProgress.ratio * 100)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={exportProgress.label}
-                  >
-                    <span
-                      className="block h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
-                      style={{
-                        width: `${Math.round(exportProgress.ratio * 100)}%`,
-                      }}
-                    />
-                  </span>
-                  <span className="truncate text-[11px] text-slate-300/40">
-                    {exportProgress.label}
-                  </span>
-                </>
-              )}
+              <span
+                className="block h-1 w-full overflow-hidden rounded-full bg-white/10"
+                role="progressbar"
+                aria-valuenow={Math.round((exportProgress?.ratio ?? 0) * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={exportProgress?.label ?? "Exporting"}
+              >
+                <span
+                  className="block h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+                  style={{
+                    width: `${Math.round((exportProgress?.ratio ?? 0) * 100)}%`,
+                  }}
+                />
+              </span>
+              {/* Reserve the line so the toast keeps its height between phases. */}
+              <span className="block h-4 truncate text-[11px] leading-4 text-slate-300/40">
+                {exportProgress?.label ?? ""}
+              </span>
             </span>
           )}
         </TimedNotification>
