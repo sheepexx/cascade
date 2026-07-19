@@ -4,7 +4,7 @@ The editor is a static SPA on Vercel. Auth + storage are added via:
 
 - **Cloudflare Worker** (`worker/`) - handles osu! OAuth, holds secrets, mints a
   Supabase JWT. Already deployed at `https://mania-editor.noahcraft01.workers.dev/`.
-- **Supabase** - Postgres (data) + Storage (audio/bg) + Realtime (future co-op).
+- **Supabase** - Postgres (data) + Storage (audio/bg) + Realtime collaboration.
 
 There is **no Supabase Auth user**. The Worker mints a Supabase-compatible JWT whose
 `sub` is a row id in `public.users`; Row-Level Security reads it as `auth.uid()`.
@@ -12,10 +12,10 @@ There is **no Supabase Auth user**. The Worker mints a Supabase-compatible JWT w
 ## 1. Create the Supabase project
 
 1. Create a free project at supabase.com.
-2. Open the **SQL editor**, paste the contents of
-   [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql), run it.
-   This creates the tables, RLS policies, the `is_admin()` helper, and the private
-   `maps` storage bucket.
+2. Apply every file in [`supabase/migrations`](../supabase/migrations) in numeric
+   order (with the Supabase CLI, or by pasting each file into the SQL editor).
+   These create the tables, RLS policies, private `maps` bucket, collaboration
+   channel authorization, and Realtime publications.
 3. Collect these from **Project Settings**:
    - `Project URL` → `SUPABASE_URL` / `VITE_SUPABASE_URL`
    - `anon` key (API) → `VITE_SUPABASE_ANON_KEY`
@@ -85,9 +85,16 @@ Reload the app - an **Admin** entry appears in the account menu.
 > and returns a rotated `sessionToken` on every call. The cookie remains as a
 > fallback for browsers that still allow it.
 
-## Future: real-time co-op
+## Realtime collaboration checks
 
-The schema (`projects.id`) + Supabase Realtime (broadcast of note ops + presence) is the
-intended path. The current single-snapshot `data` + undo model will need op-based
-merging (CRDT or an authoritative server) before two editors can share one document. No
-schema change is required to begin.
+Collaboration uses private `project:<uuid>` channels for low-latency operations and
+Supabase Presence, plus Postgres Changes on `projects` and `project_assets` as a
+durable reconnect/fallback path. Existing projects must apply
+[`0011_collab_durable_sync.sql`](../supabase/migrations/0011_collab_durable_sync.sql).
+Its verification query must return both `projects` and `project_assets`.
+
+If a channel stays offline, re-run
+[`0004_realtime_enable.sql`](../supabase/migrations/0004_realtime_enable.sql) and
+confirm its four verification rows as well. In **Realtime Settings**, disable
+**Allow public access** so the private-channel RLS policies are enforced. No presence
+table is needed; presence is ephemeral channel state.

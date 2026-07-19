@@ -52,7 +52,7 @@ import {
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
 import { supabase, getSupabaseToken } from "./lib/supabase";
-import { useCollab } from "./hooks/useCollab";
+import { useCollab, type AssetChange } from "./hooks/useCollab";
 import {
   applyNoteOp,
   applyOp,
@@ -65,6 +65,7 @@ import {
 import { myAccess, type AccessRole } from "./lib/collab";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
+import { TimedNotification } from "./components/ui/TimedNotification";
 import { Menu } from "./components/ui/Menu";
 import { Modal } from "./components/ui/Modal";
 import { AccountControl } from "./components/auth/LoginButton";
@@ -413,7 +414,6 @@ export default function App() {
     text: string;
     avatar: string | null;
   } | null>(null);
-  const peerNoticeTimer = useRef<number | undefined>(undefined);
   const active =
     difficulties.find((d) => d.id === activeId) ?? difficulties[0];
   const activeCommentMarkers = useMemo(
@@ -466,8 +466,14 @@ export default function App() {
   const diffOpTimerRef = useRef<number | null>(null);
   const pendingDocSyncRef = useRef(false);
   const collabRef = useRef<ReturnType<typeof useCollab> | null>(null);
-  const publishedAssetsRef = useRef<Set<string>>(new Set());
+  const publishedAssetBlobsRef = useRef<Map<string, Blob>>(new Map());
+  const assetPublishPromiseRef = useRef<Promise<void>>(Promise.resolve());
+  const cloudSavePromiseRef = useRef<Promise<void>>(Promise.resolve());
+  const [assetPublishTick, setAssetPublishTick] = useState(0);
   const [assetSyncTick, setAssetSyncTick] = useState(0);
+  const assetAttemptsRef = useRef<Map<string, number>>(new Map());
+  const forcedAssetReloadsRef = useRef<Set<string>>(new Set());
+  const cloudRefreshIdRef = useRef(0);
   const pendingSeekRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -505,8 +511,21 @@ export default function App() {
   const refreshFromCloud = useCallback(() => {
     const pid = cloudProjectIdRef.current;
     if (!pid) return;
+    const refreshId = ++cloudRefreshIdRef.current;
     void loadProjectChartCloud(pid)
       .then((data) => {
+        if (refreshId !== cloudRefreshIdRef.current) return;
+        const localChart = JSON.stringify({
+          meta: metaRef.current,
+          timingPoints: timingPointsRef.current,
+          difficulties: difficultiesRef.current,
+        });
+        const remoteChart = JSON.stringify({
+          meta: data.meta,
+          timingPoints: data.timingPoints,
+          difficulties: data.difficulties,
+        });
+        if (localChart === remoteChart) return;
         applyingRemoteRef.current = true;
         setMeta(data.meta);
         setTimingPoints(normalizeTimingPoints(data.timingPoints));
@@ -524,28 +543,8 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  const handleSyncRequest = useCallback(() => {
-    const pid = cloudProjectIdRef.current;
-    if (!pid || !canEditRef.current) return;
-    void saveProjectDataCloud(pid, {
-      meta: metaRef.current,
-      timingPoints: timingPointsRef.current,
-      difficulties: difficultiesRef.current,
-      activeId: activeIdRef.current,
-      view,
-      bgScope,
-    })
-      .then(() => collabRef.current?.sendRefresh())
-      .catch(() => {});
-  }, [view, bgScope]);
-
   const showPeerNotice = useCallback((text: string, avatar: string | null) => {
     setPeerNotice({ key: Date.now(), text, avatar });
-    window.clearTimeout(peerNoticeTimer.current);
-    peerNoticeTimer.current = window.setTimeout(
-      () => setPeerNotice(null),
-      3500,
-    );
   }, []);
 
   const collab = useCollab({
@@ -557,7 +556,13 @@ export default function App() {
       : null,
     onRemoteOp: applyRemoteOp,
     onRefresh: refreshFromCloud,
-    onSyncRequest: handleSyncRequest,
+    onAssetChange: useCallback((change: AssetChange) => {
+      if (change.filename) {
+        forcedAssetReloadsRef.current.add(change.filename);
+        assetAttemptsRef.current.delete(change.filename);
+      }
+      setAssetSyncTick((tick) => tick + 1);
+    }, []),
     onPeerJoin: useCallback(
       (p: { username: string; avatar: string | null }) =>
         showPeerNotice(`${p.username} joined the session`, p.avatar),
@@ -575,6 +580,19 @@ export default function App() {
     ),
   });
   collabRef.current = collab;
+
+  const queueCloudSave = useCallback(
+    (projectId: string, data: Parameters<typeof saveProjectDataCloud>[1]) => {
+      const save = async () => {
+        await assetPublishPromiseRef.current;
+        await saveProjectDataCloud(projectId, data);
+      };
+      const queued = cloudSavePromiseRef.current.catch(() => {}).then(save);
+      cloudSavePromiseRef.current = queued;
+      return queued;
+    },
+    [],
+  );
 
   const commitNoteOp = useCallback((op: NoteOp) => {
     if (!canEditRef.current) return;
@@ -770,7 +788,7 @@ export default function App() {
     window.clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => {
       setAutoSave("saving");
-      saveProjectDataCloud(cloudProjectId, {
+      void queueCloudSave(cloudProjectId, {
         meta: metaRef.current,
         timingPoints: timingPointsRef.current,
         difficulties: difficultiesRef.current,
@@ -783,49 +801,78 @@ export default function App() {
     }, 1500);
     return () => window.clearTimeout(autoSaveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudProjectId, canEdit, difficulties, meta, timingPoints]);
+  }, [cloudProjectId, canEdit, difficulties, meta, timingPoints, assetPublishTick]);
 
   useEffect(() => {
     if (!cloudProjectId || !liveEnabled || !canEdit) return;
     const pending: { kind: "audio" | "bg"; file: LoadedFile }[] = [];
     for (const f of Object.values(audioFiles))
-      if (!publishedAssetsRef.current.has(`audio:${f.name}`))
+      if (publishedAssetBlobsRef.current.get(`audio:${f.name}`) !== f.blob)
         pending.push({ kind: "audio", file: f });
     for (const f of Object.values(bgFiles))
-      if (!publishedAssetsRef.current.has(`bg:${f.name}`))
+      if (publishedAssetBlobsRef.current.get(`bg:${f.name}`) !== f.blob)
         pending.push({ kind: "bg", file: f });
     if (!pending.length) return;
 
-    let cancelled = false;
-    void (async () => {
+    const publish = async () => {
       for (const { kind, file } of pending) {
-        if (cancelled) return;
-        try {
-          await publishProjectAsset(cloudProjectId, kind, {
-            name: file.name,
-            blob: file.blob,
-          });
-          publishedAssetsRef.current.add(`${kind}:${file.name}`);
-        } catch {
+        const key = `${kind}:${file.name}`;
+        if (publishedAssetBlobsRef.current.get(key) === file.blob) continue;
+        let published = false;
+        let lastError: unknown;
+        for (let attempt = 0; attempt < 3 && !published; attempt += 1) {
+          try {
+            await publishProjectAsset(cloudProjectId, kind, {
+              name: file.name,
+              blob: file.blob,
+            });
+            publishedAssetBlobsRef.current.set(key, file.blob);
+            published = true;
+          } catch (error) {
+            lastError = error;
+            if (attempt < 2)
+              await new Promise((resolve) =>
+                window.setTimeout(resolve, 500 * 2 ** attempt),
+              );
+          }
         }
+        if (!published) throw lastError;
       }
-    })();
+    };
+    const queued = assetPublishPromiseRef.current.catch(() => {}).then(publish);
+    assetPublishPromiseRef.current = queued;
+    let retryTimer: number | undefined;
+    let cancelled = false;
+    void queued.catch(() => {
+      if (cancelled) return;
+      retryTimer = window.setTimeout(
+        () => setAssetPublishTick((tick) => tick + 1),
+        1500,
+      );
+    });
     return () => {
       cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
-  }, [cloudProjectId, liveEnabled, canEdit, audioFiles, bgFiles]);
+  }, [cloudProjectId, liveEnabled, canEdit, audioFiles, bgFiles, assetPublishTick]);
 
-  const assetAttemptsRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     if (!cloudProjectId || !liveEnabled) return;
     const ATTEMPT_CAP = 20;
     const wanted = new Set<string>();
+    const referenced = new Set<string>();
     for (const d of difficulties) {
-      if (d.audioFilename && !audioFiles[d.audioFilename])
-        wanted.add(d.audioFilename);
-      if (d.backgroundFilename && !bgFiles[d.backgroundFilename])
-        wanted.add(d.backgroundFilename);
+      if (d.audioFilename) {
+        referenced.add(d.audioFilename);
+        if (!audioFiles[d.audioFilename]) wanted.add(d.audioFilename);
+      }
+      if (d.backgroundFilename) {
+        referenced.add(d.backgroundFilename);
+        if (!bgFiles[d.backgroundFilename]) wanted.add(d.backgroundFilename);
+      }
     }
+    for (const name of forcedAssetReloadsRef.current)
+      if (referenced.has(name)) wanted.add(name);
     const attempts = assetAttemptsRef.current;
     for (const name of [...attempts.keys()])
       if (!wanted.has(name)) attempts.delete(name);
@@ -855,13 +902,28 @@ export default function App() {
           };
           if (a.kind === "audio") newAudio[a.name] = lf;
           else newBg[a.name] = lf;
-          publishedAssetsRef.current.add(`${a.kind}:${a.name}`);
+          publishedAssetBlobsRef.current.set(`${a.kind}:${a.name}`, a.blob);
+          forcedAssetReloadsRef.current.delete(a.name);
           attempts.delete(a.name);
         }
-        if (Object.keys(newAudio).length)
-          setAudioFiles((prev) => ({ ...newAudio, ...prev }));
-        if (Object.keys(newBg).length)
-          setBgFiles((prev) => ({ ...newBg, ...prev }));
+        if (Object.keys(newAudio).length) {
+          setAudioFiles((prev) => {
+            for (const [name, file] of Object.entries(newAudio)) {
+              const old = prev[name];
+              if (old && old.blob !== file.blob) URL.revokeObjectURL(old.url);
+            }
+            return { ...prev, ...newAudio };
+          });
+        }
+        if (Object.keys(newBg).length) {
+          setBgFiles((prev) => {
+            for (const [name, file] of Object.entries(newBg)) {
+              const old = prev[name];
+              if (old && old.blob !== file.blob) URL.revokeObjectURL(old.url);
+            }
+            return { ...prev, ...newBg };
+          });
+        }
       }
       const anyRetryable = todo.some(
         (n) =>
@@ -902,18 +964,6 @@ export default function App() {
     null,
   );
 
-  useEffect(() => {
-    if (
-      !autoTimeOpen ||
-      (autoTimeStatus !== "done" && autoTimeStatus !== "failed")
-    )
-      return;
-    const id = window.setTimeout(
-      () => setAutoTimeOpen(false),
-      autoTimeStatus === "done" ? 4000 : 6000,
-    );
-    return () => window.clearTimeout(id);
-  }, [autoTimeOpen, autoTimeStatus]);
   const activeSkin = skin?.keymodes[active.keyCount] ?? null;
   const playtestSettings = appSettings.playtest;
   const playtestSettingsRef = useRef(playtestSettings);
@@ -2467,7 +2517,7 @@ export default function App() {
     pendingDocSyncRef.current = false;
     const pid = cloudProjectIdRef.current;
     if (!pid || !canEditRef.current) return;
-    void saveProjectDataCloud(pid, {
+    void queueCloudSave(pid, {
       meta,
       timingPoints,
       difficulties,
@@ -3237,12 +3287,6 @@ export default function App() {
     handleSave,
   ]);
 
-  useEffect(() => {
-    if (saveStatus !== "saved" && saveStatus !== "error") return;
-    const id = window.setTimeout(() => setSaveStatus(null), 2000);
-    return () => window.clearTimeout(id);
-  }, [saveStatus]);
-
   const handleCloudSave = useCallback(async () => {
     if (!authUser) return;
     setCloudSaveStatus("saving");
@@ -3266,6 +3310,7 @@ export default function App() {
     }
 
     try {
+      await cloudSavePromiseRef.current.catch(() => {});
       const id = await saveProjectCloud({
         ownerId: authUser.id,
         projectId: cloudProjectId,
@@ -3279,9 +3324,13 @@ export default function App() {
           blob: f.blob,
         })),
       });
-      publishedAssetsRef.current = new Set([
-        ...Object.values(audioFiles).map((f) => `audio:${f.name}`),
-        ...Object.values(bgFiles).map((f) => `bg:${f.name}`),
+      publishedAssetBlobsRef.current = new Map([
+        ...Object.values(audioFiles).map(
+          (f) => [`audio:${f.name}`, f.blob] as const,
+        ),
+        ...Object.values(bgFiles).map(
+          (f) => [`bg:${f.name}`, f.blob] as const,
+        ),
       ]);
       setCloudProjectId(id);
       setCloudOwnerId(authUser.id);
@@ -3337,12 +3386,6 @@ export default function App() {
     bgFiles,
   ]);
 
-  useEffect(() => {
-    if (cloudSaveStatus !== "saved" && cloudSaveStatus !== "error") return;
-    const id = window.setTimeout(() => setCloudSaveStatus(null), 2000);
-    return () => window.clearTimeout(id);
-  }, [cloudSaveStatus]);
-
   const loadCloudProject = useCallback(async (id: string) => {
     setCloudError(null);
     setModal(null);
@@ -3353,9 +3396,9 @@ export default function App() {
       applyingHistoryRef.current = true;
       undoStackRef.current = [];
       redoStackRef.current = [];
-      publishedAssetsRef.current = new Set([
-        ...proj.audio.map((a) => `audio:${a.name}`),
-        ...proj.bg.map((b) => `bg:${b.name}`),
+      publishedAssetBlobsRef.current = new Map([
+        ...proj.audio.map((a) => [`audio:${a.name}`, a.blob] as const),
+        ...proj.bg.map((b) => [`bg:${b.name}`, b.blob] as const),
       ]);
       assetAttemptsRef.current.clear();
 
@@ -4545,9 +4588,13 @@ export default function App() {
       />
 
       {peerNotice && (
-        <div
-          key={peerNotice.key}
-          className="toast-in fixed left-1/2 top-16 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-ink-800/90 py-1.5 pl-1.5 pr-4 text-sm text-slate-100 shadow-2xl backdrop-blur-2xl"
+        <TimedNotification
+          durationMs={3500}
+          onDismiss={() => setPeerNotice(null)}
+          resetKey={peerNotice.key}
+          placement="top-center"
+          progressClassName="bg-accent"
+          className="fixed left-1/2 top-16 z-[60] flex items-center gap-2 rounded-full border border-white/10 bg-ink-800/90 py-1.5 pb-2.5 pl-1.5 pr-4 text-sm text-slate-100 shadow-2xl backdrop-blur-2xl"
         >
           <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-ink-700/70 text-[10px] font-semibold">
             {peerNotice.avatar ? (
@@ -4561,71 +4608,92 @@ export default function App() {
             )}
           </span>
           {peerNotice.text}
-        </div>
+        </TimedNotification>
       )}
 
-      {(saveStatus === "saved" || saveStatus === "error") && (
-        <div
-          className={`toast-in fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg ${
-            saveStatus === "saved"
-              ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
-              : "border-red-500/40 bg-red-950/90 text-red-200"
-          }`}
+      <div className="pointer-events-none fixed bottom-28 left-1/2 z-[65] flex w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 flex-col items-center gap-2">
+        {(saveStatus === "saved" || saveStatus === "error") && (
+          <TimedNotification
+            durationMs={saveStatus === "saved" ? 3000 : 5500}
+            onDismiss={() => setSaveStatus(null)}
+            resetKey={`${saveStatus}:${saveErrorDetail ?? ""}`}
+            progressClassName={
+              saveStatus === "saved" ? "bg-emerald-400" : "bg-red-400"
+            }
+            className={`pointer-events-auto max-w-full rounded-lg border px-4 py-2 pb-3 text-sm shadow-lg ${
+              saveStatus === "saved"
+                ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
+                : "border-red-500/40 bg-red-950/90 text-red-200"
+            }`}
+          >
+            {saveStatus === "saved"
+              ? "Progress saved locally"
+              : saveErrorDetail
+                ? `Couldn't save progress (${saveErrorDetail})`
+                : "Couldn't save progress"}
+          </TimedNotification>
+        )}
+
+        <TimedNotification
+          open={cloudSaveStatus === "saving" || exporting}
+          durationMs={null}
+          resetKey={cloudSaveStatus === "saving" ? "cloud-save" : "export"}
+          progressClassName="bg-accent"
+          className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-lg border border-white/10 bg-ink-800/95 px-4 py-2 pb-3 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
         >
-          {saveStatus === "saved"
-            ? "Progress saved locally"
-            : saveErrorDetail
-              ? `Couldn't save progress (${saveErrorDetail})`
-              : "Couldn't save progress"}
-        </div>
-      )}
-
-      {(cloudSaveStatus === "saving" || exporting) && (
-        <div className="toast-in fixed bottom-28 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-lg border border-white/10 bg-ink-800/95 px-4 py-2 text-sm text-slate-200 shadow-lg backdrop-blur-xl">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
+          <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
           {cloudSaveStatus === "saving"
             ? "Saving to your account…"
             : "Exporting map…"}
-        </div>
-      )}
+        </TimedNotification>
 
-      {(cloudSaveStatus === "saved" || cloudSaveStatus === "error") && (
-        <div
-          className={`toast-in fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg ${
-            cloudSaveStatus === "saved"
-              ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
-              : "border-red-500/40 bg-red-950/90 text-red-200"
-          }`}
+        {(cloudSaveStatus === "saved" || cloudSaveStatus === "error") && (
+          <TimedNotification
+            durationMs={cloudSaveStatus === "saved" ? 3000 : 6500}
+            onDismiss={() => {
+              if (cloudSaveStatus === "error") setCloudError(null);
+              setCloudSaveStatus(null);
+            }}
+            resetKey={`${cloudSaveStatus}:${cloudError ?? ""}`}
+            progressClassName={
+              cloudSaveStatus === "saved" ? "bg-emerald-400" : "bg-red-400"
+            }
+            className={`pointer-events-auto max-w-full rounded-lg border px-4 py-2 pb-3 text-sm shadow-lg ${
+              cloudSaveStatus === "saved"
+                ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
+                : "border-red-500/40 bg-red-950/90 text-red-200"
+            }`}
+          >
+            {cloudSaveStatus === "saved"
+              ? "Saved to your account"
+              : cloudError ?? "Couldn't save to your account"}
+          </TimedNotification>
+        )}
+
+        <TimedNotification
+          open={!!cloudError && cloudSaveStatus !== "error"}
+          durationMs={6500}
+          onDismiss={() => setCloudError(null)}
+          resetKey={cloudError}
+          progressClassName="bg-red-400"
+          showClose
+          className="pointer-events-auto max-w-full rounded-lg border border-red-500/40 bg-red-950/90 py-2 pb-3 pl-4 pr-9 text-sm text-red-200 shadow-lg"
         >
-          {cloudSaveStatus === "saved"
-            ? "Saved to your account"
-            : cloudError ?? "Couldn't save to your account"}
-        </div>
-      )}
+          {cloudError ?? ""}
+        </TimedNotification>
 
-      {cloudError && cloudSaveStatus !== "error" && (
-        <div className="toast-in fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 text-sm text-red-200 shadow-lg">
-          {cloudError}
-          <button
-            onClick={() => setCloudError(null)}
-            className="ml-3 text-red-300 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {importError && (
-        <div className="toast-in fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 text-sm text-red-200 shadow-lg">
-          {importError}
-          <button
-            onClick={() => setImportError(null)}
-            className="ml-3 text-red-300 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+        <TimedNotification
+          open={!!importError}
+          durationMs={6500}
+          onDismiss={() => setImportError(null)}
+          resetKey={importError}
+          progressClassName="bg-red-400"
+          showClose
+          className="pointer-events-auto max-w-full rounded-lg border border-red-500/40 bg-red-950/90 py-2 pb-3 pl-4 pr-9 text-sm text-red-200 shadow-lg"
+        >
+          {importError ?? ""}
+        </TimedNotification>
+      </div>
 
       <InviteNotifications
         notices={invites}
