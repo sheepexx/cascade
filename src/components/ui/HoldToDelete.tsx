@@ -102,7 +102,9 @@ export function HoldToDelete({
       onKeyUp={(e) => {
         if (e.key === "Enter" || e.key === " ") cancel();
       }}
-      className={`relative touch-none select-none overflow-hidden ${className}`}
+      className={`relative touch-none select-none overflow-hidden ${
+        holding ? "hold-charging" : ""
+      } ${className}`}
     >
       <span
         aria-hidden="true"
@@ -110,8 +112,16 @@ export function HoldToDelete({
           holding ? "" : "transition-[width] duration-200 ease-out"
         }`}
         style={{ width: `${progress * 100}%` }}
-      />
-      <span className="relative z-10 flex items-center justify-center gap-1">
+      >
+        {holding && (
+          <span className="hold-shine absolute inset-y-0 right-0 w-[3px] bg-white shadow-[0_0_12px_3px_rgba(255,255,255,0.85)]" />
+        )}
+      </span>
+      <span
+        className={`relative z-10 flex items-center justify-center gap-1 ${
+          holding ? "drop-shadow-[0_0_6px_rgba(0,0,0,0.55)]" : ""
+        }`}
+      >
         {children}
       </span>
     </button>
