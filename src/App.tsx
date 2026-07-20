@@ -69,6 +69,7 @@ import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
 import { Menu } from "./components/ui/Menu";
 import { Modal } from "./components/ui/Modal";
+import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
 import { NotificationInbox } from "./components/NotificationInbox";
 import { AdminPanel } from "./components/admin/AdminPanel";
@@ -411,6 +412,9 @@ export default function App() {
   }, []);
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
+  const [pendingDeleteDiffIds, setPendingDeleteDiffIds] = useState<
+    string[] | null
+  >(null);
   const [projectStarted, setProjectStarted] = useState(false);
   const [zenMode, setZenMode] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
@@ -802,7 +806,8 @@ export default function App() {
     askBgScope ||
     pendingImport !== null ||
     exportCheck !== null ||
-    showHomeConfirm;
+    showHomeConfirm ||
+    pendingDeleteDiffIds !== null;
   const modalAtmosphereActive = modalAtmosphereOpen && audio.isPlaying;
   const effectiveHitsounds = useMemo(() => {
     if (hitsoundSkinSource === "default") return null;
@@ -4371,7 +4376,7 @@ export default function App() {
               onSelect={setActiveId}
               onAdd={addDifficulty}
               onDuplicate={duplicateDifficulty}
-              onDelete={deleteDifficulties}
+              onDelete={(ids) => setPendingDeleteDiffIds(ids)}
               onRename={(id, name) => patchDifficulty(id, { name })}
               onCreateRate={createRateDifficulty}
               canEdit={canEdit}
@@ -5213,6 +5218,27 @@ export default function App() {
         </p>
       </Modal>
 
+      <HoldConfirmDialog
+        open={pendingDeleteDiffIds !== null}
+        title={
+          pendingDeleteDiffIds && pendingDeleteDiffIds.length > 1
+            ? "Delete difficulties?"
+            : "Delete difficulty?"
+        }
+        message={(() => {
+          const ids = pendingDeleteDiffIds ?? [];
+          if (ids.length > 1)
+            return `${ids.length} difficulties and all their notes will be removed. This can't be undone.`;
+          const d = difficulties.find((x) => x.id === ids[0]);
+          const name = d?.name?.trim() || "This difficulty";
+          return `“${name}” and all its notes will be removed. This can't be undone.`;
+        })()}
+        onConfirm={() => {
+          if (pendingDeleteDiffIds) deleteDifficulties(pendingDeleteDiffIds);
+          setPendingDeleteDiffIds(null);
+        }}
+        onCancel={() => setPendingDeleteDiffIds(null)}
+      />
     </div>
   );
 }
@@ -5411,7 +5437,7 @@ function InfoModal({
           <InfoRow keys="Ctrl + Click" text="Select several difficulties to delete at once." />
           <InfoRow keys="+" text="Add a new difficulty." />
           <InfoRow keys="Duplicate" text="Copy a difficulty with its notes and timing." />
-          <InfoRow keys="Hold Delete" text="Hold the Delete button to remove a difficulty (or all selected)." />
+          <InfoRow keys="Delete" text="Remove a difficulty (or all selected); hold to confirm in the dialog." />
         </InfoSection>
       </div>
     </Modal>

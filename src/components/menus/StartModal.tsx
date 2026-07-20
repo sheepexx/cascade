@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
-import { HoldToDelete } from "../ui/HoldToDelete";
+import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { starColor, starTextOn } from "../../lib/starRating";
 import { useAuth } from "../../lib/auth";
 import {
@@ -102,6 +102,10 @@ export function WelcomeModal({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirm, setConfirm] = useState<{
+    scope: "local" | "cloud";
+    ids: string[];
+  } | null>(null);
   const [firstRun, setFirstRun] = useState(false);
 
   useEffect(() => {
@@ -118,6 +122,7 @@ export function WelcomeModal({
   useEffect(() => {
     if (!open) {
       setSelected(new Set());
+      setConfirm(null);
       setShowArchived(false);
       return;
     }
@@ -433,7 +438,7 @@ export function WelcomeModal({
                     : onOpenLocalProject(p.id)
                 }
                 actions={
-                  <HoldDeleteAction
+                  <DeleteAction
                     count={
                       selected.has(keyOf("local", p.id))
                         ? deleteTargets("local", p.id).length
@@ -441,8 +446,11 @@ export function WelcomeModal({
                     }
                     busy={busyId === p.id}
                     disabled={busyId !== null}
-                    onConfirm={() =>
-                      void deleteProjects("local", deleteTargets("local", p.id))
+                    onClick={() =>
+                      setConfirm({
+                        scope: "local",
+                        ids: deleteTargets("local", p.id),
+                      })
                     }
                   />
                 }
@@ -483,7 +491,7 @@ export function WelcomeModal({
                       : onOpenCloudProject(p.id)
                   }
                   actions={
-                    <HoldDeleteAction
+                    <DeleteAction
                       count={
                         selected.has(keyOf("cloud", p.id))
                           ? deleteTargets("cloud", p.id).length
@@ -491,11 +499,11 @@ export function WelcomeModal({
                       }
                       busy={busyId === p.id}
                       disabled={busyId !== null}
-                      onConfirm={() =>
-                        void deleteProjects(
-                          "cloud",
-                          deleteTargets("cloud", p.id),
-                        )
+                      onClick={() =>
+                        setConfirm({
+                          scope: "cloud",
+                          ids: deleteTargets("cloud", p.id),
+                        })
                       }
                     />
                   }
@@ -585,6 +593,32 @@ export function WelcomeModal({
         </section>
       )}
       </Modal>
+
+      <HoldConfirmDialog
+        open={confirm !== null}
+        title={
+          confirm && confirm.ids.length > 1
+            ? "Delete projects?"
+            : "Delete project?"
+        }
+        message={
+          confirm
+            ? (confirm.ids.length > 1
+                ? `${confirm.ids.length} projects will be permanently deleted. `
+                : "This project will be permanently deleted. ") +
+              (confirm.scope === "local"
+                ? confirm.ids.length > 1
+                  ? "This removes the copies saved in this browser."
+                  : "This removes the copy saved in this browser."
+                : "This can't be undone.")
+            : ""
+        }
+        onConfirm={() => {
+          if (confirm) void deleteProjects(confirm.scope, confirm.ids);
+          setConfirm(null);
+        }}
+        onCancel={() => setConfirm(null)}
+      />
     </>
   );
 }
@@ -819,23 +853,28 @@ function Avatar({ participant }: { participant: ProjectParticipant }) {
   );
 }
 
-function HoldDeleteAction({
+function DeleteAction({
   count,
   busy,
   disabled,
-  onConfirm,
+  onClick,
 }: {
   count: number;
   busy?: boolean;
   disabled?: boolean;
-  onConfirm: () => void;
+  onClick: () => void;
 }) {
   return (
-    <HoldToDelete
-      onConfirm={onConfirm}
+    <button
+      type="button"
+      title={count > 1 ? `Delete ${count} projects` : "Delete"}
+      aria-label={count > 1 ? `Delete ${count} projects` : "Delete"}
       disabled={disabled}
-      title={count > 1 ? `Hold to delete ${count} projects` : "Hold to delete"}
-      fillClassName="bg-rose-600/70"
+      data-no-uisound=""
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className="grid h-7 w-7 place-items-center rounded-lg bg-ink-900/75 text-sm text-slate-200 shadow backdrop-blur transition hover:bg-rose-600/85 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
     >
       {busy ? (
@@ -845,7 +884,7 @@ function HoldDeleteAction({
       ) : (
         <TrashIcon className="h-3.5 w-3.5" />
       )}
-    </HoldToDelete>
+    </button>
   );
 }
 

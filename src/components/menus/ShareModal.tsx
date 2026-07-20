@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, TextInput } from "../ui/Controls";
-import { HoldToDelete } from "../ui/HoldToDelete";
+import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import {
   listCollaborators,
   addCollaborator,
@@ -25,6 +25,7 @@ export function ShareModal({
   const [role, setRole] = useState<CollabRole>("editor");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmUser, setConfirmUser] = useState<Collaborator | null>(null);
 
   const reload = () => {
     if (!projectId) return;
@@ -82,6 +83,7 @@ export function ShareModal({
     })();
 
   return (
+    <>
     <Modal open={open} title="Share & collaborate" onClose={onClose} width="max-w-lg">
       {!projectId ? (
         <p className="text-sm text-slate-400">
@@ -157,13 +159,12 @@ export function ShareModal({
                       <option value="editor">Editor</option>
                       <option value="viewer">Viewer</option>
                     </select>
-                    <HoldToDelete
-                      onConfirm={() => remove(c)}
-                      title={`Hold to remove ${c.username ?? "this user"}`}
-                      className="rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-slate-300 shadow-sm backdrop-blur-sm transition hover:bg-white/10"
+                    <Button
+                      onClick={() => setConfirmUser(c)}
+                      title={`Remove ${c.username ?? "this user"}`}
                     >
                       Remove
-                    </HoldToDelete>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -172,5 +173,23 @@ export function ShareModal({
         </div>
       )}
     </Modal>
+
+    <HoldConfirmDialog
+      open={confirmUser !== null}
+      title="Remove collaborator?"
+      message={
+        confirmUser
+          ? `${confirmUser.username ?? "This user"} will lose access to this project.`
+          : ""
+      }
+      confirmLabel="Hold to remove"
+      onConfirm={() => {
+        const c = confirmUser;
+        setConfirmUser(null);
+        if (c) remove(c);
+      }}
+      onCancel={() => setConfirmUser(null)}
+    />
+    </>
   );
 }
