@@ -86,6 +86,9 @@ export function useAudio(
   const startCtxTimeRef = useRef(0);
   const startOffsetRef = useRef(0);
   const manualStopRef = useRef(false);
+  const anchorCtxTimeRef = useRef(0);
+  const anchorPosRef = useRef(0);
+  const anchorPerfRef = useRef(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -272,10 +275,37 @@ export function useAudio(
   const webPosition = useCallback((): number => {
     const ctx = ctxRef.current;
     if (sourceRef.current && ctx) {
-      return positionAtCtxTime(ctx.currentTime);
+      const ctxTime = ctx.currentTime;
+      const now = performance.now();
+      const prevCtx = anchorCtxTimeRef.current;
+      if (
+        prevCtx === 0 ||
+        ctxTime - prevCtx > 0.05 ||
+        ctxTime < prevCtx
+      ) {
+        const pos = positionAtCtxTime(ctxTime);
+        anchorCtxTimeRef.current = ctxTime;
+        anchorPosRef.current = pos;
+        anchorPerfRef.current = now;
+        return pos;
+      }
+      if (ctxTime > prevCtx) {
+        const audioPos = positionAtCtxTime(ctxTime);
+        const wallSec = (now - anchorPerfRef.current) / 1000;
+        const predicted = anchorPosRef.current + wallSec * effectiveRate();
+        anchorPosRef.current = predicted + (audioPos - predicted) * 0.3;
+        anchorCtxTimeRef.current = ctxTime;
+        anchorPerfRef.current = now;
+      }
+      const wallSec = (now - anchorPerfRef.current) / 1000;
+      if (wallSec > 0) {
+        return anchorPosRef.current + wallSec * effectiveRate();
+      }
+      return anchorPosRef.current;
     }
+    anchorCtxTimeRef.current = 0;
     return positionRef.current;
-  }, [positionAtCtxTime]);
+  }, [positionAtCtxTime, effectiveRate]);
 
   const stopWeb = useCallback(
     (savePosition: boolean) => {
@@ -342,6 +372,7 @@ export function useAudio(
     const gain = gainRef.current;
     if (!audioBuffer || !ctx || !gain) return false;
     stopWeb(false);
+    anchorCtxTimeRef.current = 0;
 
     const durMs =
       Number.isFinite(duration) && duration > 0
