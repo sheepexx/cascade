@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Toggle } from "./ui/Controls";
-import { HoldToDelete } from "./ui/HoldToDelete";
+import { HoldConfirmDialog } from "./ui/HoldConfirmDialog";
 import {
   listComments,
   addComment,
@@ -361,6 +361,10 @@ function CommentThread({
   canEditComment: (c: Comment) => boolean;
 }) {
   const [reply, setReply] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    isReply: boolean;
+  } | null>(null);
   return (
     <div
       className={`relative rounded-lg border p-2 ${
@@ -404,13 +408,12 @@ function CommentThread({
             </button>
           )}
           {canModify(root) && (
-            <HoldToDelete
-              onConfirm={() => onDelete(root.id)}
-              title="Hold to delete this comment"
+            <button
+              onClick={() => setPendingDelete({ id: root.id, isReply: false })}
               className="rounded px-1.5 py-0.5 text-[10px] text-rose-300 hover:bg-ink-600"
             >
               Delete
-            </HoldToDelete>
+            </button>
           )}
         </div>
       </div>
@@ -429,13 +432,12 @@ function CommentThread({
             onEdit={onEdit}
           />
           {canModify(r) && (
-            <HoldToDelete
-              onConfirm={() => onDelete(r.id)}
-              title="Hold to delete this reply"
+            <button
+              onClick={() => setPendingDelete({ id: r.id, isReply: true })}
               className="rounded px-1 text-[10px] text-rose-300/80 hover:underline"
             >
               delete
-            </HoldToDelete>
+            </button>
           )}
         </div>
       ))}
@@ -454,6 +456,21 @@ function CommentThread({
           className="flex-1 rounded border border-ink-500/60 bg-ink-700 px-2 py-1 text-xs text-slate-100 outline-none focus:border-accent/70"
         />
       </div>
+
+      <HoldConfirmDialog
+        open={pendingDelete !== null}
+        title={pendingDelete?.isReply ? "Delete reply?" : "Delete comment?"}
+        message={
+          pendingDelete?.isReply
+            ? "This reply will be permanently deleted."
+            : "This comment and its replies will be permanently deleted."
+        }
+        onConfirm={() => {
+          if (pendingDelete) onDelete(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

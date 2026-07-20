@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { playUiSound } from "../../lib/uiSounds";
 
 type Props = {
   onConfirm: () => void;
@@ -39,7 +38,6 @@ export function HoldToDelete({
 
   const begin = useCallback(() => {
     if (disabled || firedRef.current || rafRef.current != null) return;
-    playUiSound("areYouSure");
     setHolding(true);
     startedRef.current = performance.now();
     const tick = (now: number) => {

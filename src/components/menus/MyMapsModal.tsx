@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
-import { HoldToDelete } from "../ui/HoldToDelete";
+import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { useAuth } from "../../lib/auth";
 import {
   listProjectsCloud,
@@ -22,9 +22,13 @@ export function MyMapsModal({
   const [maps, setMaps] = useState<CloudProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setConfirmId(null);
+      return;
+    }
     let cancelled = false;
     setMaps(null);
     setError(null);
@@ -54,6 +58,7 @@ export function MyMapsModal({
   };
 
   return (
+    <>
     <Modal open={open} title="My Maps" onClose={onClose} width="max-w-2xl">
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!maps && !error && (
@@ -98,19 +103,32 @@ export function MyMapsModal({
                 Open
               </Button>
               {user && m.owner === user.id && (
-                <HoldToDelete
-                  onConfirm={() => void handleDelete(m.id)}
+                <Button
+                  onClick={() => setConfirmId(m.id)}
                   disabled={busyId !== null}
-                  title="Hold to delete this saved map"
-                  className="rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-slate-300 shadow-sm backdrop-blur-sm transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Delete this saved map"
                 >
                   {busyId === m.id ? "…" : "Delete"}
-                </HoldToDelete>
+                </Button>
               )}
             </li>
           ))}
         </ul>
       )}
     </Modal>
+
+    <HoldConfirmDialog
+      open={confirmId !== null}
+      title="Delete saved map?"
+      message="This saved map will be permanently deleted. This can't be undone."
+      busy={busyId !== null}
+      onConfirm={() => {
+        const id = confirmId;
+        setConfirmId(null);
+        if (id) void handleDelete(id);
+      }}
+      onCancel={() => setConfirmId(null)}
+    />
+    </>
   );
 }

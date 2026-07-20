@@ -6,7 +6,6 @@ import { useMsdRatings } from "../lib/msd/useMsd";
 import { msdColor, msdTooltip } from "../lib/msd/display";
 import type { MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
-import { HoldToDelete } from "./ui/HoldToDelete";
 import { RateChangerPanel } from "./RateChangerPanel";
 import type { RateCreateOptions } from "../lib/rateChange";
 
@@ -79,8 +78,7 @@ export function DifficultySidebar({
     if (ids.length >= difficulties.length) {
       ids = ids.filter((x) => x !== activeId);
     }
-    onDelete(ids);
-    setSelected(new Set());
+    if (ids.length) onDelete(ids);
   };
   const stats = useMemo(
     () => (active ? computeMapStats(active.notes, active.keyCount) : null),
@@ -419,19 +417,23 @@ function DiffRow({
           Duplicate
         </button>
         {canDelete && (
-          <HoldToDelete
-            onConfirm={onDelete}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            data-no-uisound=""
             title={
               selected && selectionCount > 1
-                ? `Hold to delete ${selectionCount} difficulties`
-                : "Hold to delete this difficulty"
+                ? `Delete ${selectionCount} difficulties`
+                : "Delete this difficulty"
             }
             className="rounded px-1 py-0.5 text-[10px] text-slate-400 hover:text-red-300"
           >
             {selected && selectionCount > 1
               ? `Delete ${selectionCount}`
               : "Delete"}
-          </HoldToDelete>
+          </button>
         )}
       </div>
     </div>
