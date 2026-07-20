@@ -130,6 +130,81 @@ textarea {
   animation: modal-panel-out 220ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
+@keyframes confirm-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes confirm-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.78);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0) scale(1.045);
+  }
+  75% {
+    transform: translateY(0) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes confirm-pop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+.confirm-backdrop-in {
+  animation: confirm-backdrop-in 200ms ease-out;
+}
+.confirm-backdrop-out {
+  animation: modal-backdrop-out 200ms ease-in forwards;
+}
+.confirm-pop-in {
+  animation: confirm-pop-in 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.confirm-pop-out {
+  animation: confirm-pop-out 200ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@keyframes hold-charge {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 24px 3px rgba(244, 63, 94, 0.65);
+    transform: scale(1.04);
+  }
+}
+.hold-charging {
+  animation: hold-charge 560ms ease-in-out infinite;
+}
+@keyframes hold-shine {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.hold-shine {
+  animation: hold-shine 560ms ease-in-out infinite;
+}
+
 @keyframes pfp-pop-in {
   from {
     opacity: 0;
@@ -486,6 +561,12 @@ textarea {
   .modal-backdrop-out,
   .modal-panel-in,
   .modal-panel-out,
+  .confirm-backdrop-in,
+  .confirm-backdrop-out,
+  .confirm-pop-in,
+  .confirm-pop-out,
+  .hold-charging,
+  .hold-shine,
   .pfp-pop-in,
   .notification-shell,
   .rate-panel-in,
