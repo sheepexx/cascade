@@ -411,9 +411,6 @@ export default function App() {
   }, []);
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
-  const [pendingDeleteDiffId, setPendingDeleteDiffId] = useState<string | null>(
-    null,
-  );
   const [projectStarted, setProjectStarted] = useState(false);
   const [zenMode, setZenMode] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
@@ -805,8 +802,7 @@ export default function App() {
     askBgScope ||
     pendingImport !== null ||
     exportCheck !== null ||
-    showHomeConfirm ||
-    pendingDeleteDiffId !== null;
+    showHomeConfirm;
   const modalAtmosphereActive = modalAtmosphereOpen && audio.isPlaying;
   const effectiveHitsounds = useMemo(() => {
     if (hitsoundSkinSource === "default") return null;
@@ -2476,15 +2472,18 @@ export default function App() {
     );
   }, []);
 
-  const deleteDifficulty = useCallback(
-    (id: string) => {
-      if (!canEditRef.current) return;
+  const deleteDifficulties = useCallback(
+    (ids: string[]) => {
+      if (!canEditRef.current || ids.length === 0) return;
       const prev = difficultiesRef.current;
-      if (prev.length <= 1) return;
+      const remove = new Set(ids);
+      let next = prev.filter((d) => !remove.has(d.id));
+      if (next.length === 0) next = prev.slice(0, 1);
+      if (next.length === prev.length) return;
       markStructural();
-      const next = prev.filter((d) => d.id !== id);
       setDifficulties(next);
-      if (id === activeIdRef.current) setActiveId(next[0].id);
+      if (!next.some((d) => d.id === activeIdRef.current))
+        setActiveId(next[0].id);
       pruneOrphanAssets(next);
     },
     [markStructural, pruneOrphanAssets],
@@ -2911,9 +2910,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (exportCheck || pendingImport || showHomeConfirm || pendingDeleteDiffId)
+    if (exportCheck || pendingImport || showHomeConfirm)
       playUiSound("areYouSure");
-  }, [exportCheck, pendingImport, showHomeConfirm, pendingDeleteDiffId]);
+  }, [exportCheck, pendingImport, showHomeConfirm]);
 
   useEffect(() => {
     const id = window.setTimeout(() => saveViewPreferences(view), 200);
@@ -4372,7 +4371,7 @@ export default function App() {
               onSelect={setActiveId}
               onAdd={addDifficulty}
               onDuplicate={duplicateDifficulty}
-              onDelete={(id) => setPendingDeleteDiffId(id)}
+              onDelete={deleteDifficulties}
               onRename={(id, name) => patchDifficulty(id, { name })}
               onCreateRate={createRateDifficulty}
               canEdit={canEdit}
@@ -5214,33 +5213,6 @@ export default function App() {
         </p>
       </Modal>
 
-      <Modal
-        open={pendingDeleteDiffId !== null}
-        onClose={() => setPendingDeleteDiffId(null)}
-        title="Delete difficulty?"
-        footer={
-          <>
-            <Button onClick={() => setPendingDeleteDiffId(null)}>Cancel</Button>
-            <Button
-              variant="accent"
-              onClick={() => {
-                if (pendingDeleteDiffId) deleteDifficulty(pendingDeleteDiffId);
-                setPendingDeleteDiffId(null);
-              }}
-            >
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-slate-300">
-          {(() => {
-            const d = difficulties.find((x) => x.id === pendingDeleteDiffId);
-            const name = d?.name?.trim() || "This difficulty";
-            return `“${name}” and all its notes will be removed. This can't be undone.`;
-          })()}
-        </p>
-      </Modal>
     </div>
   );
 }
@@ -5436,9 +5408,10 @@ function InfoModal({
 
         <InfoSection title="Difficulty list">
           <InfoRow keys="Click difficulty" text="Switch the active difficulty." />
+          <InfoRow keys="Ctrl + Click" text="Select several difficulties to delete at once." />
           <InfoRow keys="+" text="Add a new difficulty." />
           <InfoRow keys="Duplicate" text="Copy a difficulty with its notes and timing." />
-          <InfoRow keys="Delete" text="Remove a difficulty when more than one exists." />
+          <InfoRow keys="Hold Delete" text="Hold the Delete button to remove a difficulty (or all selected)." />
         </InfoSection>
       </div>
     </Modal>

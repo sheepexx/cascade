@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, TextInput } from "../ui/Controls";
+import { HoldToDelete } from "../ui/HoldToDelete";
 import {
   listCollaborators,
   addCollaborator,
@@ -9,7 +10,6 @@ import {
   type Collaborator,
   type CollabRole,
 } from "../../lib/collab";
-import { playUiSound } from "../../lib/uiSounds";
 
 export function ShareModal({
   open,
@@ -73,8 +73,6 @@ export function ShareModal({
   const remove = (c: Collaborator) =>
     void (async () => {
       if (!projectId) return;
-      playUiSound("areYouSure");
-      if (!window.confirm(`Remove ${c.username ?? "this user"}?`)) return;
       try {
         await removeCollaborator(projectId, c.user_id);
         reload();
@@ -159,7 +157,13 @@ export function ShareModal({
                       <option value="editor">Editor</option>
                       <option value="viewer">Viewer</option>
                     </select>
-                    <Button onClick={() => remove(c)}>Remove</Button>
+                    <HoldToDelete
+                      onConfirm={() => remove(c)}
+                      title={`Hold to remove ${c.username ?? "this user"}`}
+                      className="rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-slate-300 shadow-sm backdrop-blur-sm transition hover:bg-white/10"
+                    >
+                      Remove
+                    </HoldToDelete>
                   </li>
                 ))}
               </ul>

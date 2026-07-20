@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
+import { HoldToDelete } from "../ui/HoldToDelete";
 import { useAuth } from "../../lib/auth";
 import {
   listProjectsCloud,
   deleteProjectCloud,
   type CloudProjectSummary,
 } from "../../lib/cloud";
-import { playUiSound } from "../../lib/uiSounds";
 
 export function MyMapsModal({
   open,
@@ -42,8 +42,6 @@ export function MyMapsModal({
   }, [open]);
 
   const handleDelete = async (id: string) => {
-    playUiSound("areYouSure");
-    if (!window.confirm("Delete this saved map? This can't be undone.")) return;
     setBusyId(id);
     try {
       await deleteProjectCloud(id);
@@ -100,13 +98,14 @@ export function MyMapsModal({
                 Open
               </Button>
               {user && m.owner === user.id && (
-                <Button
-                  onClick={() => void handleDelete(m.id)}
+                <HoldToDelete
+                  onConfirm={() => void handleDelete(m.id)}
                   disabled={busyId !== null}
-                  title="Delete this saved map"
+                  title="Hold to delete this saved map"
+                  className="rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-slate-300 shadow-sm backdrop-blur-sm transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {busyId === m.id ? "…" : "Delete"}
-                </Button>
+                </HoldToDelete>
               )}
             </li>
           ))}
