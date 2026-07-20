@@ -4,7 +4,7 @@ import { computeStarRating, starColor, starTextOn, starTier } from "../lib/starR
 import { computeMapStats } from "../lib/mapStats";
 import { useMsdRatings } from "../lib/msd/useMsd";
 import { msdColor, msdTooltip } from "../lib/msd/display";
-import type { MsdRating } from "../lib/msd/minacalc";
+import { msdSupportsKeyCount, type MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
 import { RateChangerPanel } from "./RateChangerPanel";
 import type { RateCreateOptions } from "../lib/rateChange";
@@ -391,7 +391,7 @@ function DiffRow({
           >
             ★ {star.toFixed(2)}
           </span>
-          {difficulty.keyCount === 4 && msd && msd.overall > 0 && (
+          {msdSupportsKeyCount(difficulty.keyCount) && msd && msd.overall > 0 && (
             <span
               className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-ink-900/70 px-2 py-0.5 text-[11px] font-bold"
               style={{ color: msdColor(msd.overall) }}
