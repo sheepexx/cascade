@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Toggle } from "./ui/Controls";
+import { HoldToDelete } from "./ui/HoldToDelete";
 import {
   listComments,
   addComment,
@@ -403,12 +404,13 @@ function CommentThread({
             </button>
           )}
           {canModify(root) && (
-            <button
-              onClick={() => onDelete(root.id)}
+            <HoldToDelete
+              onConfirm={() => onDelete(root.id)}
+              title="Hold to delete this comment"
               className="rounded px-1.5 py-0.5 text-[10px] text-rose-300 hover:bg-ink-600"
             >
               Delete
-            </button>
+            </HoldToDelete>
           )}
         </div>
       </div>
@@ -427,12 +429,13 @@ function CommentThread({
             onEdit={onEdit}
           />
           {canModify(r) && (
-            <button
-              onClick={() => onDelete(r.id)}
-              className="text-[10px] text-rose-300/80 hover:underline"
+            <HoldToDelete
+              onConfirm={() => onDelete(r.id)}
+              title="Hold to delete this reply"
+              className="rounded px-1 text-[10px] text-rose-300/80 hover:underline"
             >
               delete
-            </button>
+            </HoldToDelete>
           )}
         </div>
       ))}

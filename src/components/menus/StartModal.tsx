@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
+import { HoldToDelete } from "../ui/HoldToDelete";
 import { starColor, starTextOn } from "../../lib/starRating";
 import { useAuth } from "../../lib/auth";
 import {
@@ -16,7 +17,6 @@ import {
   clearProject,
   type LocalProjectSummary,
 } from "../../lib/persistence";
-import { playUiSound } from "../../lib/uiSounds";
 import {
   ArchiveIcon,
   NewMapIcon,
@@ -101,11 +101,7 @@ export function WelcomeModal({
   const [localError, setLocalError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [confirm, setConfirm] = useState<{
-    scope: "local" | "cloud";
-    id: string;
-    title: string;
-  } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [firstRun, setFirstRun] = useState(false);
 
   useEffect(() => {
@@ -121,7 +117,7 @@ export function WelcomeModal({
 
   useEffect(() => {
     if (!open) {
-      setConfirm(null);
+      setSelected(new Set());
       setShowArchived(false);
       return;
     }
@@ -190,32 +186,48 @@ export function WelcomeModal({
     : [];
   const invited = shared.filter((p) => !p.archived);
   const archivedShared = shared.filter((p) => p.archived);
-  const confirmBusy = confirm !== null && busyId === confirm.id;
 
-  const cancelConfirm = () => {
-    if (busyId) return;
-    setConfirm(null);
+  const keyOf = (scope: "local" | "cloud", id: string) => `${scope}:${id}`;
+
+  const toggleSelect = (scope: "local" | "cloud", id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const k = keyOf(scope, id);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+
+  const idsForScope = (scope: "local" | "cloud") =>
+    [...selected]
+      .filter((k) => k.startsWith(`${scope}:`))
+      .map((k) => k.slice(scope.length + 1));
+
+  const deleteTargets = (scope: "local" | "cloud", id: string) => {
+    const inScope = idsForScope(scope);
+    return inScope.includes(id) && inScope.length > 1 ? inScope : [id];
   };
 
-  const performDelete = async () => {
-    if (!confirm) return;
-    const { scope, id } = confirm;
-    setBusyId(id);
+  const deleteProjects = async (scope: "local" | "cloud", ids: string[]) => {
     setError(null);
-    try {
-      if (scope === "local") {
-        await clearProject(id);
-        setLocalProjects((prev) => prev?.filter((p) => p.id !== id) ?? null);
-      } else {
-        await deleteProjectCloud(id);
-        setProjects((prev) => prev?.filter((p) => p.id !== id) ?? null);
+    for (const id of ids) {
+      setBusyId(id);
+      try {
+        if (scope === "local") {
+          await clearProject(id);
+          setLocalProjects((prev) => prev?.filter((p) => p.id !== id) ?? null);
+        } else {
+          await deleteProjectCloud(id);
+          setProjects((prev) => prev?.filter((p) => p.id !== id) ?? null);
+        }
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "Couldn't delete that project.",
+        );
       }
-      setConfirm(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't delete that project.");
-    } finally {
-      setBusyId(null);
     }
+    setBusyId(null);
+    setSelected(new Set());
   };
 
   const archive = (id: string, archived: boolean) =>
@@ -414,15 +426,23 @@ export function WelcomeModal({
                 } · saved ${new Date(p.updatedAt).toLocaleDateString()}`}
                 sourceFormat={p.sourceFormat}
                 thumbUrl={localThumbs[p.id]}
-                onOpen={() => onOpenLocalProject(p.id)}
+                selected={selected.has(keyOf("local", p.id))}
+                onOpen={(additive) =>
+                  additive
+                    ? toggleSelect("local", p.id)
+                    : onOpenLocalProject(p.id)
+                }
                 actions={
-                  <CardActionButton
-                    label="Delete"
-                    icon={<TrashIcon className="h-3.5 w-3.5" />}
-                    danger
+                  <HoldDeleteAction
+                    count={
+                      selected.has(keyOf("local", p.id))
+                        ? deleteTargets("local", p.id).length
+                        : 1
+                    }
                     busy={busyId === p.id}
-                    onClick={() =>
-                      setConfirm({ scope: "local", id: p.id, title: p.title })
+                    disabled={busyId !== null}
+                    onConfirm={() =>
+                      void deleteProjects("local", deleteTargets("local", p.id))
                     }
                   />
                 }
@@ -456,15 +476,26 @@ export function WelcomeModal({
                   ).toLocaleDateString()}`}
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
                   participants={othersOf(p.participants, user.id)}
-                  onOpen={() => onOpenCloudProject(p.id)}
+                  selected={selected.has(keyOf("cloud", p.id))}
+                  onOpen={(additive) =>
+                    additive
+                      ? toggleSelect("cloud", p.id)
+                      : onOpenCloudProject(p.id)
+                  }
                   actions={
-                    <CardActionButton
-                      label="Delete"
-                      icon={<TrashIcon className="h-3.5 w-3.5" />}
-                      danger
+                    <HoldDeleteAction
+                      count={
+                        selected.has(keyOf("cloud", p.id))
+                          ? deleteTargets("cloud", p.id).length
+                          : 1
+                      }
                       busy={busyId === p.id}
-                      onClick={() =>
-                        setConfirm({ scope: "cloud", id: p.id, title: p.title })
+                      disabled={busyId !== null}
+                      onConfirm={() =>
+                        void deleteProjects(
+                          "cloud",
+                          deleteTargets("cloud", p.id),
+                        )
                       }
                     />
                   }
@@ -554,23 +585,6 @@ export function WelcomeModal({
         </section>
       )}
       </Modal>
-
-      <ConfirmDialog
-        open={confirm !== null}
-        title="Delete project?"
-        message={
-          confirm
-            ? `“${confirm.title || "Untitled"}” will be permanently deleted. ` +
-              (confirm.scope === "local"
-                ? "This removes the copy saved in this browser."
-                : "This can't be undone.")
-            : ""
-        }
-        confirmLabel="Delete"
-        busy={confirmBusy}
-        onConfirm={() => void performDelete()}
-        onCancel={cancelConfirm}
-      />
     </>
   );
 }
@@ -649,6 +663,7 @@ function ProjectCard({
   sourceFormat,
   participants,
   actions,
+  selected,
   onOpen,
 }: {
   title: string;
@@ -659,13 +674,20 @@ function ProjectCard({
   sourceFormat?: "osu" | "sm";
   participants?: ProjectParticipant[];
   actions?: React.ReactNode;
-  onOpen: () => void;
+  selected?: boolean;
+  onOpen: (additive: boolean) => void;
 }) {
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40 transition hover:border-accent/70 hover:bg-ink-700">
+    <div
+      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-ink-700/40 transition hover:bg-ink-700 ${
+        selected
+          ? "border-sky-400/80 ring-2 ring-sky-400/60"
+          : "border-ink-500/60 hover:border-accent/70"
+      }`}
+    >
       <button
         type="button"
-        onClick={onOpen}
+        onClick={(e) => onOpen(e.ctrlKey || e.metaKey)}
         className="flex flex-col text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       >
         <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-600">
@@ -797,67 +819,33 @@ function Avatar({ participant }: { participant: ProjectParticipant }) {
   );
 }
 
-function ConfirmDialog({
-  open,
-  title,
-  message,
-  confirmLabel,
+function HoldDeleteAction({
+  count,
   busy,
+  disabled,
   onConfirm,
-  onCancel,
 }: {
-  open: boolean;
-  title: string;
-  message: React.ReactNode;
-  confirmLabel: string;
+  count: number;
   busy?: boolean;
+  disabled?: boolean;
   onConfirm: () => void;
-  onCancel: () => void;
 }) {
-  useEffect(() => {
-    if (open) playUiSound("areYouSure");
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopImmediatePropagation();
-        onCancel();
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [open, onCancel]);
-
-  if (!open) return null;
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/72 p-4 backdrop-blur-md"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onCancel();
-      }}
+    <HoldToDelete
+      onConfirm={onConfirm}
+      disabled={disabled}
+      title={count > 1 ? `Hold to delete ${count} projects` : "Hold to delete"}
+      fillClassName="bg-rose-600/70"
+      className="grid h-7 w-7 place-items-center rounded-lg bg-ink-900/75 text-sm text-slate-200 shadow backdrop-blur transition hover:bg-rose-600/85 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <div className="flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)]">
-        <header className="border-b border-white/10 bg-ink-700 px-5 py-3.5">
-          <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
-        </header>
-        <div className="px-5 py-4 text-sm text-slate-300">{message}</div>
-        <footer className="flex justify-end gap-2 border-t border-white/10 bg-ink-700 px-5 py-3.5">
-          <Button variant="ghost" onClick={onCancel} disabled={busy}>
-            Cancel
-          </Button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={busy}
-            className="rounded-lg border border-rose-700/50 bg-rose-600/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? "…" : confirmLabel}
-          </button>
-        </footer>
-      </div>
-    </div>
+      {busy ? (
+        "…"
+      ) : count > 1 ? (
+        <span className="text-[11px] font-semibold tabular-nums">{count}</span>
+      ) : (
+        <TrashIcon className="h-3.5 w-3.5" />
+      )}
+    </HoldToDelete>
   );
 }
 

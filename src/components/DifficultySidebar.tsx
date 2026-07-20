@@ -6,6 +6,7 @@ import { useMsdRatings } from "../lib/msd/useMsd";
 import { msdColor, msdTooltip } from "../lib/msd/display";
 import type { MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
+import { HoldToDelete } from "./ui/HoldToDelete";
 import { RateChangerPanel } from "./RateChangerPanel";
 import type { RateCreateOptions } from "../lib/rateChange";
 
@@ -23,7 +24,7 @@ type Props = {
   onSelect: (id: string) => void;
   onAdd: () => void;
   onDuplicate: (id: string) => void;
-  onDelete: (id: string) => void;
+  onDelete: (ids: string[]) => void;
   onRename: (id: string, name: string) => void;
   onCreateRate: (options: RateCreateOptions) => void;
   canEdit: boolean;
@@ -45,8 +46,42 @@ export function DifficultySidebar({
   peers,
 }: Props) {
   const [rateOpen, setRateOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const msdRatings = useMsdRatings(difficulties);
   const active = difficulties.find((d) => d.id === activeId) ?? null;
+
+  useEffect(() => {
+    setSelected((prev) => {
+      const next = new Set(
+        [...prev].filter((id) => difficulties.some((d) => d.id === id)),
+      );
+      return next.size === prev.size ? prev : next;
+    });
+  }, [difficulties]);
+
+  const handleRowSelect = (id: string, additive: boolean) => {
+    if (additive) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    } else {
+      setSelected(new Set());
+      onSelect(id);
+    }
+  };
+
+  const handleRowDelete = (id: string) => {
+    let ids =
+      selected.has(id) && selected.size > 0 ? Array.from(selected) : [id];
+    if (ids.length >= difficulties.length) {
+      ids = ids.filter((x) => x !== activeId);
+    }
+    onDelete(ids);
+    setSelected(new Set());
+  };
   const stats = useMemo(
     () => (active ? computeMapStats(active.notes, active.keyCount) : null),
     [active],
@@ -118,11 +153,13 @@ export function DifficultySidebar({
               star={star}
               msd={msdRatings[d.id] ?? null}
               active={d.id === activeId}
+              selected={selected.has(d.id)}
+              selectionCount={selected.size}
               canDelete={difficulties.length > 1}
               peersHere={peers?.filter((p) => p.activeDiffId === d.id) ?? []}
-              onSelect={() => onSelect(d.id)}
+              onSelect={(additive) => handleRowSelect(d.id, additive)}
               onDuplicate={() => onDuplicate(d.id)}
-              onDelete={() => onDelete(d.id)}
+              onDelete={() => handleRowDelete(d.id)}
               onRename={(name) => onRename(d.id, name)}
             />
           ))}
@@ -228,6 +265,8 @@ function DiffRow({
   star,
   msd,
   active,
+  selected,
+  selectionCount,
   canDelete,
   peersHere,
   onSelect,
@@ -239,9 +278,11 @@ function DiffRow({
   star: number;
   msd: MsdRating | null;
   active: boolean;
+  selected: boolean;
+  selectionCount: number;
   canDelete: boolean;
   peersHere: PeerLite[];
-  onSelect: () => void;
+  onSelect: (additive: boolean) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
@@ -276,12 +317,12 @@ function DiffRow({
 
   return (
     <div
-      onClick={onSelect}
+      onClick={(e) => onSelect(e.ctrlKey || e.metaKey)}
       className={`group cursor-pointer rounded-lg border px-3 py-2.5 transition ${
         active
           ? "border-accent/70 bg-ink-600/72 shadow-lg shadow-black/15"
           : "border-transparent bg-ink-700/32 hover:border-white/10 hover:bg-ink-700/58"
-      }`}
+      } ${selected ? "ring-2 ring-sky-400/70" : ""}`}
     >
       <div className="flex items-center gap-2">
         <span
@@ -378,16 +419,19 @@ function DiffRow({
           Duplicate
         </button>
         {canDelete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            data-no-uisound=""
-            className="text-[10px] text-slate-400 hover:text-red-300"
+          <HoldToDelete
+            onConfirm={onDelete}
+            title={
+              selected && selectionCount > 1
+                ? `Hold to delete ${selectionCount} difficulties`
+                : "Hold to delete this difficulty"
+            }
+            className="rounded px-1 py-0.5 text-[10px] text-slate-400 hover:text-red-300"
           >
-            Delete
-          </button>
+            {selected && selectionCount > 1
+              ? `Delete ${selectionCount}`
+              : "Delete"}
+          </HoldToDelete>
         )}
       </div>
     </div>
