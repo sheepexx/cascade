@@ -73,41 +73,65 @@ export function useMsdRatings(
     {},
   );
   const cacheRef = useRef(new Map<string, CacheEntry>());
+  const timersRef = useRef(new Map<string, number>());
+  const pendingRef = useRef(new Map<string, ManiaNote[]>());
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const timers = timersRef.current;
+    return () => {
+      mountedRef.current = false;
+      for (const t of timers.values()) window.clearTimeout(t);
+      timers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const cache = cacheRef.current;
+    const timers = timersRef.current;
+    const pending = pendingRef.current;
     const liveIds = new Set(difficulties.map((d) => d.id));
-    for (const id of cache.keys()) {
+
+    for (const id of [...cache.keys()]) {
       if (!liveIds.has(id)) cache.delete(id);
     }
+    for (const id of [...timers.keys()]) {
+      if (!liveIds.has(id)) {
+        window.clearTimeout(timers.get(id)!);
+        timers.delete(id);
+      }
+    }
+    for (const id of [...pending.keys()]) {
+      if (!liveIds.has(id)) pending.delete(id);
+    }
 
-    const stale = difficulties.filter((d) => {
-      const entry = cache.get(d.id);
-      return (
-        !entry || entry.notes !== d.notes || entry.keyCount !== d.keyCount
-      );
-    });
-    if (stale.length === 0) return;
+    for (const d of difficulties) {
+      const id = d.id;
+      const entry = cache.get(id);
+      if (entry && entry.notes === d.notes && entry.keyCount === d.keyCount) {
+        continue;
+      }
+      if (pending.get(id) === d.notes) continue;
 
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      for (const d of stale) {
-        const notes = d.notes;
-        const keyCount = d.keyCount;
+      const existing = timers.get(id);
+      if (existing) window.clearTimeout(existing);
+      pending.set(id, d.notes);
+
+      const notes = d.notes;
+      const keyCount = d.keyCount;
+      const timer = window.setTimeout(() => {
+        timers.delete(id);
         void requestMsd(notes, keyCount).then((rating) => {
-          if (cancelled) return;
-          cache.set(d.id, { notes, keyCount, rating });
+          cache.set(id, { notes, keyCount, rating });
+          if (!mountedRef.current) return;
           setRatings((prev) =>
-            prev[d.id] === rating ? prev : { ...prev, [d.id]: rating },
+            prev[id] === rating ? prev : { ...prev, [id]: rating },
           );
         });
-      }
-    }, DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
+      }, DEBOUNCE_MS);
+      timers.set(id, timer);
+    }
   }, [difficulties]);
 
   return ratings;
