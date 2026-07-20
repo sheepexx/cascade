@@ -275,6 +275,7 @@ export function ManiaEditor(props: Props) {
     return () => window.clearTimeout(id);
   }, [hitsoundMode, hitsoundBarMounted]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const bgFadeStartRef = useRef(0);
@@ -1039,8 +1040,13 @@ export function ManiaEditor(props: Props) {
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!canvas) return;
+    let ctx = ctxRef.current;
+    if (!ctx || ctx.canvas !== canvas) {
+      ctx = canvas.getContext("2d");
+      ctxRef.current = ctx;
+    }
+    if (!ctx) return;
 
     const { width, height, dpr } = sizeRef.current;
 
