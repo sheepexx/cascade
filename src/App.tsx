@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ManiaEditor } from "./components/ManiaEditor";
 import { TransportBar } from "./components/TransportBar";
 import { BottomTimeline } from "./components/BottomTimeline";
@@ -27,7 +35,9 @@ import {
   type SampleMap,
 } from "./components/menus/StartModal";
 import { MyMapsModal } from "./components/menus/MyMapsModal";
-import { PackCreator } from "./components/PackCreator";
+const PackCreator = lazy(() =>
+  import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
+);
 import { CommentIcon, UsersIcon } from "./components/ui/StartIcons";
 import { PresetBrowserModal } from "./components/menus/PresetBrowserModal";
 import { PublishPresetModal } from "./components/menus/PublishPresetModal";
@@ -72,7 +82,11 @@ import { Modal } from "./components/ui/Modal";
 import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
 import { NotificationInbox } from "./components/NotificationInbox";
-import { AdminPanel } from "./components/admin/AdminPanel";
+const AdminPanel = lazy(() =>
+  import("./components/admin/AdminPanel").then((m) => ({
+    default: m.AdminPanel,
+  })),
+);
 import {
   InviteNotifications,
   type InviteNotice,
@@ -378,6 +392,8 @@ export default function App() {
     });
   }, []);
   const [modal, setModal] = useState<ModalId>(null);
+  const packCreatorEverOpenedRef = useRef(false);
+  const adminEverOpenedRef = useRef(false);
   const [selectionRange, setSelectionRange] = useState<{
     start: number;
     end: number;
@@ -4039,6 +4055,9 @@ export default function App() {
     return { trimActive, remove, clamp };
   }, [active.notes, active.trimStartMs, active.trimEndMs]);
 
+  if (packCreatorOpen) packCreatorEverOpenedRef.current = true;
+  if (modal === "admin") adminEverOpenedRef.current = true;
+
   return (
     <div
       className="relative h-full overflow-hidden bg-ink-900"
@@ -4717,18 +4736,22 @@ export default function App() {
         onOpenLocalProject={(id) => void loadLocalProject(id)}
         onOpenCloudProject={(id) => void loadCloudProject(id)}
       />
-      <PackCreator
-        jpegQuality={
-          appSettings.exportPngBackgroundsAsJpeg
-            ? appSettings.exportJpegQuality
-            : undefined
-        }
-        open={packCreatorOpen}
-        onClose={() => {
-          setPackCreatorOpen(false);
-          if (!hasProject) setModal("welcome");
-        }}
-      />
+      {packCreatorEverOpenedRef.current && (
+        <Suspense fallback={null}>
+          <PackCreator
+            jpegQuality={
+              appSettings.exportPngBackgroundsAsJpeg
+                ? appSettings.exportJpegQuality
+                : undefined
+            }
+            open={packCreatorOpen}
+            onClose={() => {
+              setPackCreatorOpen(false);
+              if (!hasProject) setModal("welcome");
+            }}
+          />
+        </Suspense>
+      )}
       <SampleMapsModal
         open={modal === "sampleMaps"}
         onClose={close}
@@ -5018,12 +5041,16 @@ export default function App() {
         }
       />
 
-      <AdminPanel
-        open={modal === "admin"}
-        onClose={close}
-        invisible={invisibleMode}
-        onToggleInvisible={toggleInvisibleMode}
-      />
+      {adminEverOpenedRef.current && (
+        <Suspense fallback={null}>
+          <AdminPanel
+            open={modal === "admin"}
+            onClose={close}
+            invisible={invisibleMode}
+            onToggleInvisible={toggleInvisibleMode}
+          />
+        </Suspense>
+      )}
 
       <ShareModal
         open={modal === "share"}

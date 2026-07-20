@@ -2,6 +2,13 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      borderRadius: {
+        md: "0.5rem",
+        lg: "0.7rem",
+        xl: "1rem",
+        "2xl": "1.35rem",
+        "3xl": "1.75rem",
+      },
       colors: {
         ink: {
           900: "#0f0f14",
