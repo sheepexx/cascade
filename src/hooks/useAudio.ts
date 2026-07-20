@@ -5,6 +5,7 @@ import {
   NORMAL_FILTER_HZ,
   effectiveAudioPower,
 } from "../lib/audioAtmosphere";
+import { createPlaybackClock } from "../lib/playbackClock";
 
 const RATE_RAMP_SECONDS = 0.34;
 const CLOCK_UI_INTERVAL_MS = 50;
@@ -86,9 +87,10 @@ export function useAudio(
   const startCtxTimeRef = useRef(0);
   const startOffsetRef = useRef(0);
   const manualStopRef = useRef(false);
-  const anchorCtxTimeRef = useRef(0);
-  const anchorPosRef = useRef(0);
-  const anchorPerfRef = useRef(0);
+  // Shared by both backends: the Web Audio context ticks once per render
+  // quantum and HTMLMediaElement.currentTime is coarser still, so the raw
+  // reading repeats for several frames at a high refresh rate.
+  const clockRef = useRef(createPlaybackClock());
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -275,37 +277,16 @@ export function useAudio(
   const webPosition = useCallback((): number => {
     const ctx = ctxRef.current;
     if (sourceRef.current && ctx) {
-      const ctxTime = ctx.currentTime;
-      const now = performance.now();
-      const prevCtx = anchorCtxTimeRef.current;
-      if (
-        prevCtx === 0 ||
-        ctxTime - prevCtx > 0.05 ||
-        ctxTime < prevCtx
-      ) {
-        const pos = positionAtCtxTime(ctxTime);
-        anchorCtxTimeRef.current = ctxTime;
-        anchorPosRef.current = pos;
-        anchorPerfRef.current = now;
-        return pos;
-      }
-      if (ctxTime > prevCtx) {
-        const audioPos = positionAtCtxTime(ctxTime);
-        const wallSec = (now - anchorPerfRef.current) / 1000;
-        const predicted = anchorPosRef.current + wallSec * effectiveRate();
-        anchorPosRef.current = predicted + (audioPos - predicted) * 0.3;
-        anchorCtxTimeRef.current = ctxTime;
-        anchorPerfRef.current = now;
-      }
-      const wallSec = (now - anchorPerfRef.current) / 1000;
-      if (wallSec > 0) {
-        return anchorPosRef.current + wallSec * effectiveRate();
-      }
-      return anchorPosRef.current;
+      return clockRef.current.read(
+        positionAtCtxTime(ctx.currentTime),
+        // Instantaneous rate, so extrapolation stays right mid rate-ramp.
+        syncLivePlaybackRate(),
+        performance.now(),
+      );
     }
-    anchorCtxTimeRef.current = 0;
+    clockRef.current.reset();
     return positionRef.current;
-  }, [positionAtCtxTime, effectiveRate]);
+  }, [positionAtCtxTime, syncLivePlaybackRate]);
 
   const stopWeb = useCallback(
     (savePosition: boolean) => {
@@ -372,7 +353,7 @@ export function useAudio(
     const gain = gainRef.current;
     if (!audioBuffer || !ctx || !gain) return false;
     stopWeb(false);
-    anchorCtxTimeRef.current = 0;
+    clockRef.current.reset();
 
     const durMs =
       Number.isFinite(duration) && duration > 0
@@ -568,11 +549,13 @@ export function useAudio(
     if (audio) {
       applyRate(audio, effectiveRate(), preservePitchRef.current);
       audio.currentTime = positionRef.current;
+      clockRef.current.reset();
       void audio.play().catch(() => {});
     }
   }, [startWeb, webAudioActive, effectiveRate]);
 
   const pause = useCallback(() => {
+    clockRef.current.reset();
     const audio = audioRef.current;
     const webWasPlaying = sourceRef.current !== null;
     if (webWasPlaying) {
@@ -632,6 +615,8 @@ export function useAudio(
             : ms;
       const clamped = Math.max(0, Math.min(ms, max));
       if (!Number.isFinite(clamped)) return;
+      // Drop the anchor so the jump is not eased across.
+      clockRef.current.reset();
 
       if (webAudioActive()) {
         const wasPlaying = sourceRef.current !== null;
@@ -780,12 +765,26 @@ export function useAudio(
       }
       const audio = audioRef.current;
       if (!webAudioActive() && audio && !audio.paused) {
-        return audio.currentTime * 1000;
+        // Preserve-pitch runs on the media element, whose currentTime holds
+        // still for many frames at a time; smooth it the same way.
+        return (
+          clockRef.current.read(
+            audio.currentTime,
+            effectiveRate(),
+            performance.now(),
+          ) * 1000
+        );
       }
       return currentTimeRef.current;
     })();
     return audioMs / timeScaleRef.current;
-  }, [webPosition, outputLatencyMs, syncLivePlaybackRate, webAudioActive]);
+  }, [
+    webPosition,
+    outputLatencyMs,
+    syncLivePlaybackRate,
+    webAudioActive,
+    effectiveRate,
+  ]);
 
   useEffect(() => {
     return () => {
