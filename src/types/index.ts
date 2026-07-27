@@ -193,7 +193,7 @@ export type LoadedFile = {
   blob: Blob;
 };
 
-export const MIN_SCROLL_SPEED = 10;
+export const MIN_SCROLL_SPEED = 3;
 export const MAX_SCROLL_SPEED = 45;
 
 export type ViewState = {
