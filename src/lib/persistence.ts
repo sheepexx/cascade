@@ -21,7 +21,9 @@ const KEY = "current";
 const SKIN_KEY = "skin";
 const HITSOUND_SKIN_KEY = "skin:hitsounds";
 const SKIN_LIBRARY_KEY = "skin:library";
-const VERSION = 1;
+const LEGACY_VERSION = 1;
+const VERSION = 2;
+export const PROJECT_VERSION = VERSION;
 
 const PREFS_KEY = "mania-editor:prefs";
 const VOLUME_KEY = "mania-editor:volume";
@@ -37,6 +39,8 @@ const projectIdFromKey = (key: IDBValidKey) => {
     ? key.slice("local:".length)
     : null;
 };
+
+const mediaKeyFor = (key: string) => `media:${key}`;
 
 export type SavedProject = {
   version: number;
@@ -73,6 +77,62 @@ export type SavedSkinBlob = {
   blob: Blob;
   savedAt?: number;
 };
+
+type MediaPayload = Pick<
+  SavedProject,
+  "audioFiles" | "audio" | "backgroundFiles" | "videoFiles" | "background" | "skin"
+>;
+
+type MediaRecord = MediaPayload & { signature: string };
+
+const MEDIA_FIELDS: (keyof MediaPayload)[] = [
+  "audioFiles",
+  "audio",
+  "backgroundFiles",
+  "videoFiles",
+  "background",
+  "skin",
+];
+
+function fileTag(file: { name: string; blob: Blob } | null | undefined) {
+  return file ? `${file.name}:${file.blob.size}:${file.blob.type}` : "-";
+}
+
+function mediaSignature(media: MediaPayload): string {
+  return MEDIA_FIELDS.map((field) => {
+    const value = media[field];
+    return Array.isArray(value) ? value.map(fileTag).join(",") : fileTag(value);
+  }).join("|");
+}
+
+function splitMedia(project: SavedProject): {
+  chart: SavedProject;
+  media: MediaPayload;
+} {
+  const chart = { ...project };
+  const media: MediaPayload = {};
+  for (const field of MEDIA_FIELDS) {
+    if (field in chart) {
+      (media as Record<string, unknown>)[field] = chart[field];
+      delete chart[field];
+    }
+  }
+  return { chart, media };
+}
+
+function mergeMedia(
+  chart: SavedProject,
+  media: MediaRecord | null | undefined,
+): SavedProject {
+  if (!media) return chart;
+  const merged = { ...chart };
+  for (const field of MEDIA_FIELDS) {
+    (merged as Record<string, unknown>)[field] = media[field];
+  }
+  return merged;
+}
+
+const lastMediaSignature = new Map<string, string>();
 
 function pickLocalBackground(project: SavedProject): Blob | undefined {
   const files = project.backgroundFiles ?? [];
@@ -160,7 +220,15 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
+let inFlight = 0;
+let closeWhenIdle = false;
+
 function releaseDb(): void {
+  if (inFlight > 0) {
+    closeWhenIdle = true;
+    return;
+  }
+  closeWhenIdle = false;
   const pending = dbPromise;
   dbPromise = null;
   void pending?.then(
@@ -170,7 +238,7 @@ function releaseDb(): void {
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("pagehide", releaseDb);
+  window.addEventListener("pagehide", () => queueMicrotask(releaseDb));
 }
 
 async function withStore<T>(
@@ -206,24 +274,57 @@ async function withStore<T>(
       throw err;
     }
   };
-  return attempt(true);
+
+  inFlight += 1;
+  try {
+    return await attempt(true);
+  } finally {
+    inFlight -= 1;
+    if (inFlight === 0 && closeWhenIdle) releaseDb();
+  }
 }
 
 export async function saveProject(
   project: SavedProject,
   localId: string = KEY,
 ): Promise<void> {
+  const key = projectKey(localId);
+  const { chart, media } = splitMedia(project);
+  const signature = mediaSignature(media);
+  const mediaUnchanged = lastMediaSignature.get(key) === signature;
+
   await withStore<void>("readwrite", (store) => {
-    store.put({ ...project, localId }, projectKey(localId));
+    store.put({ ...chart, version: VERSION, localId }, key);
+    if (!mediaUnchanged) store.put({ ...media, signature }, mediaKeyFor(key));
   });
+
+  lastMediaSignature.set(key, signature);
 }
 
 export async function loadProject(localId: string = KEY): Promise<SavedProject | null> {
+  const key = projectKey(localId);
   return withStore<SavedProject | null>("readonly", (store, resolve) => {
-    const req = store.get(projectKey(localId));
+    const req = store.get(key);
     req.onsuccess = () => {
       const value = req.result as SavedProject | undefined;
-      resolve(value && value.version === VERSION ? value : null);
+      if (!value) {
+        resolve(null);
+        return;
+      }
+      if (value.version === LEGACY_VERSION) {
+        resolve(value);
+        return;
+      }
+      if (value.version !== VERSION) {
+        resolve(null);
+        return;
+      }
+      const mediaReq = store.get(mediaKeyFor(key));
+      mediaReq.onsuccess = () => {
+        const media = (mediaReq.result as MediaRecord | undefined) ?? null;
+        if (media) lastMediaSignature.set(key, media.signature);
+        resolve(mergeMedia(value, media));
+      };
     };
   });
 }
@@ -240,28 +341,48 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
 
       const rows: LocalProjectSummary[] = [];
       let pending = projectKeys.length;
+      const done = () => {
+        pending -= 1;
+        if (pending === 0) {
+          rows.sort((a, b) => b.updatedAt - a.updatedAt);
+          resolve(rows);
+        }
+      };
+
       for (const key of projectKeys) {
         const req = store.get(key);
         req.onsuccess = () => {
           const project = req.result as SavedProject | undefined;
           const id = projectIdFromKey(key);
-          if (id && project?.version === VERSION) {
+          if (!id || !project) {
+            done();
+            return;
+          }
+          const add = (full: SavedProject) => {
             rows.push({
               id,
-              title: project.meta.title,
-              artist: project.meta.artist,
-              creator: project.meta.creator,
-              updatedAt: project.savedAt,
-              difficultyCount: project.difficulties.length,
-              sourceFormat: project.difficulties[0]?.sourceFormat,
-              backgroundBlob: pickLocalBackground(project),
+              title: full.meta.title,
+              artist: full.meta.artist,
+              creator: full.meta.creator,
+              updatedAt: full.savedAt,
+              difficultyCount: full.difficulties.length,
+              sourceFormat: full.difficulties[0]?.sourceFormat,
+              backgroundBlob: pickLocalBackground(full),
             });
+            done();
+          };
+
+          if (project.version === LEGACY_VERSION) {
+            add(project);
+            return;
           }
-          pending -= 1;
-          if (pending === 0) {
-            rows.sort((a, b) => b.updatedAt - a.updatedAt);
-            resolve(rows);
+          if (project.version !== VERSION) {
+            done();
+            return;
           }
+          const mediaReq = store.get(mediaKeyFor(key as string));
+          mediaReq.onsuccess = () =>
+            add(mergeMedia(project, mediaReq.result as MediaRecord | undefined));
         };
       }
     };
@@ -269,9 +390,12 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
 }
 
 export async function clearProject(localId: string = KEY): Promise<void> {
+  const key = projectKey(localId);
   await withStore<void>("readwrite", (store) => {
-    store.delete(projectKey(localId));
+    store.delete(key);
+    store.delete(mediaKeyFor(key));
   });
+  lastMediaSignature.delete(key);
 }
 
 export function savePreferences(prefs: AppSettings): void {
