@@ -87,116 +87,191 @@ function pickLocalBackground(project: SavedProject): Blob | undefined {
   return files[0]?.blob ?? project.background?.blob ?? undefined;
 }
 
-function openDb(): Promise<IDBDatabase> {
+const OPEN_TIMEOUT_MS = 15000;
+
+function requestDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, VERSION);
+    let req: IDBOpenDBRequest;
+    try {
+      req = indexedDB.open(DB_NAME, VERSION);
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const settle = (run: () => void) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== undefined) clearTimeout(timer);
+      run();
+    };
+
+    timer = setTimeout(() => {
+      settle(() =>
+        reject(
+          new Error(
+            "Timed out opening browser storage. Another tab with this editor may be blocking it.",
+          ),
+        ),
+      );
+    }, OPEN_TIMEOUT_MS);
+
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => settle(() => resolve(req.result));
+    req.onerror = () =>
+      settle(() => reject(req.error ?? new Error("Could not open browser storage.")));
+    req.onblocked = () =>
+      settle(() =>
+        reject(
+          new Error(
+            "Browser storage is blocked by another tab with this editor open.",
+          ),
+        ),
+      );
   });
+}
+
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+function openDb(): Promise<IDBDatabase> {
+  if (!dbPromise) {
+    dbPromise = requestDb().then(
+      (db) => {
+        db.onclose = () => {
+          dbPromise = null;
+        };
+        db.onversionchange = () => {
+          dbPromise = null;
+          db.close();
+        };
+        return db;
+      },
+      (err) => {
+        dbPromise = null;
+        throw err;
+      },
+    );
+  }
+  return dbPromise;
+}
+
+function releaseDb(): void {
+  const pending = dbPromise;
+  dbPromise = null;
+  void pending?.then(
+    (db) => db.close(),
+    () => {},
+  );
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", releaseDb);
+}
+
+async function withStore<T>(
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore, resolve: (value: T) => void) => void,
+): Promise<T> {
+  const attempt = async (retryOnClosed: boolean): Promise<T> => {
+    const db = await openDb();
+    try {
+      return await new Promise<T>((resolve, reject) => {
+        let value: T;
+        let settled = false;
+        const tx = db.transaction(STORE, mode);
+        tx.oncomplete = () => {
+          settled = true;
+          resolve(value);
+        };
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("Browser storage write failed."));
+        tx.onabort = () =>
+          reject(tx.error ?? new Error("Browser storage write was aborted."));
+        run(tx.objectStore(STORE), (v) => {
+          value = v;
+          if (settled) resolve(v);
+        });
+      });
+    } catch (err) {
+      const name = (err as Error | null)?.name;
+      if (retryOnClosed && (name === "InvalidStateError" || name === "TransactionInactiveError")) {
+        dbPromise = null;
+        return attempt(false);
+      }
+      throw err;
+    }
+  };
+  return attempt(true);
 }
 
 export async function saveProject(
   project: SavedProject,
   localId: string = KEY,
 ): Promise<void> {
-  const db = await openDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put({ ...project, localId }, projectKey(localId));
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
-  } finally {
-    db.close();
-  }
+  await withStore<void>("readwrite", (store) => {
+    store.put({ ...project, localId }, projectKey(localId));
+  });
 }
 
 export async function loadProject(localId: string = KEY): Promise<SavedProject | null> {
-  const db = await openDb();
-  try {
-    return await new Promise<SavedProject | null>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).get(projectKey(localId));
-      req.onsuccess = () => {
-        const value = req.result as SavedProject | undefined;
-        resolve(value && value.version === VERSION ? value : null);
-      };
-      req.onerror = () => reject(req.error);
-    });
-  } finally {
-    db.close();
-  }
+  return withStore<SavedProject | null>("readonly", (store, resolve) => {
+    const req = store.get(projectKey(localId));
+    req.onsuccess = () => {
+      const value = req.result as SavedProject | undefined;
+      resolve(value && value.version === VERSION ? value : null);
+    };
+  });
 }
 
 export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
-  const db = await openDb();
-  try {
-    return await new Promise<LocalProjectSummary[]>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const store = tx.objectStore(STORE);
-      const keysReq = store.getAllKeys();
-      keysReq.onerror = () => reject(keysReq.error);
-      keysReq.onsuccess = () => {
-        const keys = keysReq.result;
-        const projectKeys = keys.filter((key) => projectIdFromKey(key));
-        if (!projectKeys.length) {
-          resolve([]);
-          return;
-        }
+  return withStore<LocalProjectSummary[]>("readonly", (store, resolve) => {
+    const keysReq = store.getAllKeys();
+    keysReq.onsuccess = () => {
+      const projectKeys = keysReq.result.filter((key) => projectIdFromKey(key));
+      if (!projectKeys.length) {
+        resolve([]);
+        return;
+      }
 
-        const rows: LocalProjectSummary[] = [];
-        let pending = projectKeys.length;
-        for (const key of projectKeys) {
-          const req = store.get(key);
-          req.onerror = () => reject(req.error);
-          req.onsuccess = () => {
-            const project = req.result as SavedProject | undefined;
-            const id = projectIdFromKey(key);
-            if (id && project?.version === VERSION) {
-              rows.push({
-                id,
-                title: project.meta.title,
-                artist: project.meta.artist,
-                creator: project.meta.creator,
-                updatedAt: project.savedAt,
-                difficultyCount: project.difficulties.length,
-                sourceFormat: project.difficulties[0]?.sourceFormat,
-                backgroundBlob: pickLocalBackground(project),
-              });
-            }
-            pending -= 1;
-            if (pending === 0) {
-              rows.sort((a, b) => b.updatedAt - a.updatedAt);
-              resolve(rows);
-            }
-          };
-        }
-      };
-      tx.onerror = () => reject(tx.error);
-    });
-  } finally {
-    db.close();
-  }
+      const rows: LocalProjectSummary[] = [];
+      let pending = projectKeys.length;
+      for (const key of projectKeys) {
+        const req = store.get(key);
+        req.onsuccess = () => {
+          const project = req.result as SavedProject | undefined;
+          const id = projectIdFromKey(key);
+          if (id && project?.version === VERSION) {
+            rows.push({
+              id,
+              title: project.meta.title,
+              artist: project.meta.artist,
+              creator: project.meta.creator,
+              updatedAt: project.savedAt,
+              difficultyCount: project.difficulties.length,
+              sourceFormat: project.difficulties[0]?.sourceFormat,
+              backgroundBlob: pickLocalBackground(project),
+            });
+          }
+          pending -= 1;
+          if (pending === 0) {
+            rows.sort((a, b) => b.updatedAt - a.updatedAt);
+            resolve(rows);
+          }
+        };
+      }
+    };
+  });
 }
 
 export async function clearProject(localId: string = KEY): Promise<void> {
-  const db = await openDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(projectKey(localId));
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } finally {
-    db.close();
-  }
+  await withStore<void>("readwrite", (store) => {
+    store.delete(projectKey(localId));
+  });
 }
 
 export function savePreferences(prefs: AppSettings): void {
@@ -292,120 +367,72 @@ export function loadVolume(): number | null {
 export async function saveSkinBlob(
   skin: { name: string; blob: Blob } | null,
 ): Promise<void> {
-  const db = await openDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      const store = tx.objectStore(STORE);
-      if (skin) store.put(skin, SKIN_KEY);
-      else store.delete(SKIN_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
-  } finally {
-    db.close();
-  }
+  await withStore<void>("readwrite", (store) => {
+    if (skin) store.put(skin, SKIN_KEY);
+    else store.delete(SKIN_KEY);
+  });
 }
 
 export async function loadSkinBlob(): Promise<{
   name: string;
   blob: Blob;
 } | null> {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).get(SKIN_KEY);
+  return withStore<{ name: string; blob: Blob } | null>(
+    "readonly",
+    (store, resolve) => {
+      const req = store.get(SKIN_KEY);
       req.onsuccess = () =>
-        resolve((req.result as { name: string; blob: Blob } | undefined) ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } finally {
-    db.close();
-  }
+        resolve(
+          (req.result as { name: string; blob: Blob } | undefined) ?? null,
+        );
+    },
+  );
 }
 
 export async function saveHitsoundSkinBlob(
   skin: SavedSkinBlob | null,
 ): Promise<void> {
-  const db = await openDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      const store = tx.objectStore(STORE);
-      if (skin) store.put(skin, HITSOUND_SKIN_KEY);
-      else store.delete(HITSOUND_SKIN_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
-  } finally {
-    db.close();
-  }
+  await withStore<void>("readwrite", (store) => {
+    if (skin) store.put(skin, HITSOUND_SKIN_KEY);
+    else store.delete(HITSOUND_SKIN_KEY);
+  });
 }
 
 export async function loadHitsoundSkinBlob(): Promise<SavedSkinBlob | null> {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).get(HITSOUND_SKIN_KEY);
-      req.onsuccess = () =>
-        resolve((req.result as SavedSkinBlob | undefined) ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } finally {
-    db.close();
-  }
+  return withStore<SavedSkinBlob | null>("readonly", (store, resolve) => {
+    const req = store.get(HITSOUND_SKIN_KEY);
+    req.onsuccess = () =>
+      resolve((req.result as SavedSkinBlob | undefined) ?? null);
+  });
 }
 
 export async function saveSkinToLibrary(skin: {
   name: string;
   blob: Blob;
 }): Promise<void> {
-  const db = await openDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      const store = tx.objectStore(STORE);
-      const req = store.get(SKIN_LIBRARY_KEY);
-      req.onsuccess = () => {
-        const existing = (req.result as SavedSkinBlob[] | undefined) ?? [];
-        const now = Date.now();
-        const next = [
-          { ...skin, savedAt: now },
-          ...existing.filter((item) => item.name !== skin.name),
-        ];
-        store.put(next, SKIN_LIBRARY_KEY);
-      };
-      req.onerror = () => reject(req.error);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
-  } finally {
-    db.close();
-  }
+  await withStore<void>("readwrite", (store) => {
+    const req = store.get(SKIN_LIBRARY_KEY);
+    req.onsuccess = () => {
+      const existing = (req.result as SavedSkinBlob[] | undefined) ?? [];
+      const next = [
+        { ...skin, savedAt: Date.now() },
+        ...existing.filter((item) => item.name !== skin.name),
+      ];
+      store.put(next, SKIN_LIBRARY_KEY);
+    };
+  });
 }
 
 export async function loadSkinLibrary(): Promise<SavedSkinBlob[]> {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).get(SKIN_LIBRARY_KEY);
-      req.onsuccess = () =>
-        resolve(
-          ((req.result as SavedSkinBlob[] | undefined) ?? []).sort(
-            (a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0),
-          ),
-        );
-      req.onerror = () => reject(req.error);
-    });
-  } finally {
-    db.close();
-  }
+  return withStore<SavedSkinBlob[]>("readonly", (store, resolve) => {
+    const req = store.get(SKIN_LIBRARY_KEY);
+    req.onsuccess = () =>
+      resolve(
+        ((req.result as SavedSkinBlob[] | undefined) ?? []).sort(
+          (a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0),
+        ),
+      );
+  });
 }
 
 export function saveHitsoundSkinSource(source: HitsoundSkinSource): void {
