@@ -145,6 +145,7 @@ import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
 import {
   loadProject,
   saveProject,
+  PROJECT_VERSION,
   savePreferences,
   loadPreferences,
   saveSkinBlob,
@@ -277,6 +278,8 @@ async function loadFile(file: File): Promise<LoadedFile> {
   const blob = await snapshotBlob(file);
   return { name: file.name, url: URL.createObjectURL(blob), blob };
 }
+
+const LOCAL_AUTOSAVE_MS = 60000;
 
 function describeSaveError(err: unknown): string | null {
   if (!(err instanceof Error)) return null;
@@ -3434,7 +3437,7 @@ export default function App() {
   }, [exportCheck, difficulties, meta, audioFiles, bgFiles]);
 
   const buildSavedProject = useCallback((): SavedProject => ({
-    version: 1,
+    version: PROJECT_VERSION,
     savedAt: Date.now(),
     meta,
     timingPoints,
@@ -3489,8 +3492,23 @@ export default function App() {
     window.clearTimeout(localAutosaveTimerRef.current);
     localAutosaveTimerRef.current = window.setTimeout(() => {
       void handleSave(true);
-    }, 2500);
-    return () => window.clearTimeout(localAutosaveTimerRef.current);
+    }, LOCAL_AUTOSAVE_MS);
+
+    const flush = () => {
+      window.clearTimeout(localAutosaveTimerRef.current);
+      void handleSave(true);
+    };
+    const flushWhenHidden = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", flushWhenHidden);
+
+    return () => {
+      window.clearTimeout(localAutosaveTimerRef.current);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", flushWhenHidden);
+    };
   }, [
     projectStarted,
     appSettings.localAutosaveEnabled,

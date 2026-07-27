@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { SavedProject } from "./persistence";
 
 type OpenRequest = {
   result: unknown;
@@ -9,7 +10,9 @@ type OpenRequest = {
   onupgradeneeded: (() => void) | null;
 };
 
-function fakeDb(records: Record<string, unknown>) {
+type Req = { result: unknown; onsuccess: (() => void) | null; onerror: unknown };
+
+function fakeDb(data: Map<string, unknown>, puts: string[]) {
   return {
     objectStoreNames: { contains: () => true },
     close: vi.fn(),
@@ -22,24 +25,39 @@ function fakeDb(records: Record<string, unknown>) {
         onerror: null,
         onabort: null,
       };
-      const finish = () => {
-        queueMicrotask(() => (tx.oncomplete as (() => void) | null)?.());
+      let queued = 0;
+      const enqueue = (work: () => void) => {
+        queued += 1;
+        queueMicrotask(() => {
+          work();
+          queued -= 1;
+          if (queued === 0) {
+            queueMicrotask(() => (tx.oncomplete as (() => void) | null)?.());
+          }
+        });
       };
       tx.objectStore = () => ({
         get: (key: string) => {
-          const req: Record<string, unknown> = {
-            result: records[key],
-            onsuccess: null,
-            onerror: null,
-          };
-          queueMicrotask(() => {
-            (req.onsuccess as (() => void) | null)?.();
-            finish();
+          const req: Req = { result: undefined, onsuccess: null, onerror: null };
+          enqueue(() => {
+            req.result = data.get(key);
+            req.onsuccess?.();
           });
           return req;
         },
-        put: vi.fn(finish),
-        delete: vi.fn(finish),
+        getAllKeys: () => {
+          const req: Req = { result: [], onsuccess: null, onerror: null };
+          enqueue(() => {
+            req.result = [...data.keys()];
+            req.onsuccess?.();
+          });
+          return req;
+        },
+        put: (value: unknown, key: string) => {
+          puts.push(key);
+          enqueue(() => data.set(key, value));
+        },
+        delete: (key: string) => enqueue(() => data.delete(key)),
       });
       return tx;
     },
@@ -63,9 +81,37 @@ function installIdb(handle: (req: OpenRequest) => void) {
   return open;
 }
 
+function installStore(initial: Record<string, unknown> = {}) {
+  const data = new Map<string, unknown>(Object.entries(initial));
+  const puts: string[] = [];
+  const db = fakeDb(data, puts);
+  const open = installIdb((req) => {
+    req.result = db;
+    req.onsuccess?.();
+  });
+  return { data, puts, open };
+}
+
 async function freshPersistence() {
   vi.resetModules();
   return import("./persistence");
+}
+
+const bytes = (n: number) => new Blob([new Uint8Array(n)]);
+
+function project(overrides: Partial<SavedProject> = {}): SavedProject {
+  return {
+    version: 2,
+    savedAt: 1,
+    meta: { title: "t", artist: "a", creator: "c" },
+    timingPoints: [],
+    difficulties: [{ id: "d1" }],
+    activeId: "d1",
+    view: {},
+    appSettings: {},
+    bgScope: "difficulty",
+    ...overrides,
+  } as unknown as SavedProject;
 }
 
 afterEach(() => {
@@ -100,11 +146,7 @@ describe("openDb", () => {
   });
 
   it("reuses one connection across operations", async () => {
-    const db = fakeDb({ current: { version: 1, meta: {} } });
-    const open = installIdb((req) => {
-      req.result = db;
-      req.onsuccess?.();
-    });
+    const { open } = installStore();
     const { loadProject } = await freshPersistence();
     await loadProject();
     await loadProject();
@@ -114,7 +156,8 @@ describe("openDb", () => {
 
   it("reopens after a failed open instead of caching the failure", async () => {
     let firstCall = true;
-    const db = fakeDb({ current: { version: 1, meta: {} } });
+    const data = new Map<string, unknown>();
+    const db = fakeDb(data, []);
     const open = installIdb((req) => {
       if (firstCall) {
         firstCall = false;
@@ -126,7 +169,152 @@ describe("openDb", () => {
     });
     const { loadProject } = await freshPersistence();
     await expect(loadProject()).rejects.toThrow(/blocked/i);
-    await expect(loadProject()).resolves.toEqual({ version: 1, meta: {} });
+    await expect(loadProject()).resolves.toBeNull();
     expect(open).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("project media records", () => {
+  it("keeps media out of the chart record", async () => {
+    const { data } = installStore();
+    const { saveProject } = await freshPersistence();
+    const audio = bytes(64);
+
+    await saveProject(project({ audioFiles: [{ name: "a.mp3", blob: audio }] }));
+
+    const chart = data.get("current") as Record<string, unknown>;
+    const media = data.get("media:current") as Record<string, unknown>;
+    expect(chart.audioFiles).toBeUndefined();
+    expect(chart.meta).toEqual({ title: "t", artist: "a", creator: "c" });
+    expect(media.audioFiles).toEqual([{ name: "a.mp3", blob: audio }]);
+  });
+
+  it("rewrites only the chart record when media is unchanged", async () => {
+    const { puts } = installStore();
+    const { saveProject } = await freshPersistence();
+    const files = [{ name: "a.mp3", blob: bytes(64) }];
+
+    await saveProject(project({ audioFiles: files }));
+    await saveProject(project({ audioFiles: files, savedAt: 2 }));
+    await saveProject(project({ audioFiles: files, savedAt: 3 }));
+
+    expect(puts.filter((k) => k === "current")).toHaveLength(3);
+    expect(puts.filter((k) => k === "media:current")).toHaveLength(1);
+  });
+
+  it("rewrites media when a file changes", async () => {
+    const { puts } = installStore();
+    const { saveProject } = await freshPersistence();
+
+    await saveProject(project({ audioFiles: [{ name: "a.mp3", blob: bytes(64) }] }));
+    await saveProject(project({ audioFiles: [{ name: "a.mp3", blob: bytes(99) }] }));
+
+    expect(puts.filter((k) => k === "media:current")).toHaveLength(2);
+  });
+
+  it("round-trips media through save and load", async () => {
+    installStore();
+    const { saveProject, loadProject } = await freshPersistence();
+    const audio = bytes(64);
+    const bg = bytes(8);
+
+    await saveProject(
+      project({
+        audioFiles: [{ name: "a.mp3", blob: audio }],
+        backgroundFiles: [{ name: "bg.png", blob: bg }],
+      }),
+    );
+    const loaded = await loadProject();
+
+    expect(loaded?.audioFiles).toEqual([{ name: "a.mp3", blob: audio }]);
+    expect(loaded?.backgroundFiles).toEqual([{ name: "bg.png", blob: bg }]);
+  });
+
+  it("does not rewrite media on the first save after a reload", async () => {
+    const store = installStore();
+    const first = await freshPersistence();
+    const files = [{ name: "a.mp3", blob: bytes(64) }];
+    await first.saveProject(project({ audioFiles: files }));
+
+    store.puts.length = 0;
+    const reloaded = await freshPersistence();
+    const loaded = await reloaded.loadProject();
+    await reloaded.saveProject({ ...loaded!, savedAt: 9 });
+
+    expect(store.puts).toEqual(["current"]);
+  });
+
+  it("still loads legacy records that inline their media", async () => {
+    const audio = bytes(32);
+    installStore({
+      current: {
+        ...project({ audioFiles: [{ name: "old.mp3", blob: audio }] }),
+        version: 1,
+      },
+    });
+    const { loadProject } = await freshPersistence();
+
+    const loaded = await loadProject();
+    expect(loaded?.version).toBe(1);
+    expect(loaded?.audioFiles).toEqual([{ name: "old.mp3", blob: audio }]);
+  });
+
+  it("migrates a legacy record to split form on the next save", async () => {
+    const { data } = installStore({
+      current: {
+        ...project({ audioFiles: [{ name: "old.mp3", blob: bytes(32) }] }),
+        version: 1,
+      },
+    });
+    const { loadProject, saveProject } = await freshPersistence();
+
+    const loaded = await loadProject();
+    await saveProject(loaded!);
+
+    const chart = data.get("current") as Record<string, unknown>;
+    expect(chart.version).toBe(2);
+    expect(chart.audioFiles).toBeUndefined();
+    expect(data.has("media:current")).toBe(true);
+  });
+
+  it("lists projects with a background pulled from the media record", async () => {
+    installStore();
+    const { saveProject, listLocalProjects } = await freshPersistence();
+    const bg = bytes(8);
+
+    await saveProject(
+      project({ backgroundFiles: [{ name: "bg.png", blob: bg }] }),
+      "abc",
+    );
+    const rows = await listLocalProjects();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe("abc");
+    expect(rows[0].backgroundBlob).toBe(bg);
+  });
+
+  it("clears both records for a project", async () => {
+    const { data } = installStore();
+    const { saveProject, clearProject } = await freshPersistence();
+
+    await saveProject(project({ audioFiles: [{ name: "a.mp3", blob: bytes(4) }] }));
+    expect(data.has("media:current")).toBe(true);
+
+    await clearProject();
+    expect(data.has("current")).toBe(false);
+    expect(data.has("media:current")).toBe(false);
+  });
+
+  it("rewrites media after a clear so the next save is self-contained", async () => {
+    const { puts } = installStore();
+    const { saveProject, clearProject } = await freshPersistence();
+    const files = [{ name: "a.mp3", blob: bytes(4) }];
+
+    await saveProject(project({ audioFiles: files }));
+    await clearProject();
+    puts.length = 0;
+    await saveProject(project({ audioFiles: files }));
+
+    expect(puts).toContain("media:current");
   });
 });
