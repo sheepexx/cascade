@@ -212,6 +212,7 @@ import {
   type ProgressReport,
 } from "./lib/progress";
 import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
+import { useMountedModals } from "./hooks/useMountedModals";
 import {
   bookmarkInDirection,
   bookmarkKey,
@@ -395,6 +396,7 @@ export default function App() {
     });
   }, []);
   const [modal, setModal] = useState<ModalId>(null);
+  const modalMounted = useMountedModals(modal);
   const packCreatorEverOpenedRef = useRef(false);
   const adminEverOpenedRef = useRef(false);
   const [selectionRange, setSelectionRange] = useState<{
@@ -4735,25 +4737,27 @@ export default function App() {
 
       </div>
 
-      <WelcomeModal
-        open={modal === "welcome"}
-        onClose={close}
-        accountsEnabled={featureFlags.cloud_accounts}
-        onImportFromOsu={
-          featureFlags.beatmap_import && import.meta.env.VITE_WORKER_URL
-            ? importFromOsu
-            : undefined
-        }
-        onNewMap={() => handleNew(hasProjectContent)}
-        onTryMaps={() => setModal("sampleMaps")}
-        onImportSmPack={onImportSmPack}
-        onPackCreator={() => {
-          setModal(null);
-          setPackCreatorOpen(true);
-        }}
-        onOpenLocalProject={(id) => void loadLocalProject(id)}
-        onOpenCloudProject={(id) => void loadCloudProject(id)}
-      />
+      {modalMounted("welcome") && (
+        <WelcomeModal
+          open={modal === "welcome"}
+          onClose={close}
+          accountsEnabled={featureFlags.cloud_accounts}
+          onImportFromOsu={
+            featureFlags.beatmap_import && import.meta.env.VITE_WORKER_URL
+              ? importFromOsu
+              : undefined
+          }
+          onNewMap={() => handleNew(hasProjectContent)}
+          onTryMaps={() => setModal("sampleMaps")}
+          onImportSmPack={onImportSmPack}
+          onPackCreator={() => {
+            setModal(null);
+            setPackCreatorOpen(true);
+          }}
+          onOpenLocalProject={(id) => void loadLocalProject(id)}
+          onOpenCloudProject={(id) => void loadCloudProject(id)}
+        />
+      )}
       {packCreatorEverOpenedRef.current && (
         <Suspense fallback={null}>
           <PackCreator
@@ -4770,152 +4774,170 @@ export default function App() {
           />
         </Suspense>
       )}
-      <SampleMapsModal
-        open={modal === "sampleMaps"}
-        onClose={close}
-        onBack={() => setModal("welcome")}
-        onSelect={loadSampleMap}
-      />
-      <MyMapsModal
-        open={modal === "myMaps"}
-        onClose={close}
-        onSelect={(id) => void loadCloudProject(id)}
-      />
-      <PresetBrowserModal
-        open={modal === "presets"}
-        onClose={close}
-        activeKeyCount={active.keyCount}
-        onCopy={copyPresetToClipboard}
-      />
-      <PublishPresetModal
-        open={modal === "publishPreset"}
-        onClose={close}
-        pattern={publishPattern}
-        keyCount={publishKeyCount}
-      />
-      <FeedbackModal open={modal === "feedback"} onClose={close} />
-      <SettingsModal
-        open={modal === "mapSettings"}
-        onClose={close}
-        meta={meta}
-        onMeta={updateMeta}
-        audio={audioFile}
-        background={activeBg}
-        bgScope={bgScope}
-        onBgScope={setBgScope}
-        onAudioFile={onAudioFile}
-        onBackgroundFile={onBackgroundFile}
-        onClearBackground={onClearBackground}
-        video={activeVideo}
-        videoOffsetMs={active.videoOffsetMs ?? 0}
-        onVideoFile={onVideoFile}
-        onClearVideo={onClearVideo}
-        onVideoOffsetMs={onVideoOffsetMs}
-        onImportOsz={(f) => void importArchive(f)}
-        onImportSm={requestImportSm}
-        onImportSmPack={onImportSmPack}
-        activeDiff={active}
-        onSmMeta={(sm) => patchDifficulty(active.id, { smMeta: sm })}
-      />
-      <AppSettingsModal
-        open={modal === "settings"}
-        onClose={close}
-        playfieldScale={appSettings.playfieldScale}
-        onPlayfieldScale={(v) =>
-          setAppSettings((s) => ({ ...s, playfieldScale: v }))
-        }
-        longNoteBodyScale={appSettings.longNoteBodyScale}
-        onLongNoteBodyScale={(v) =>
-          setAppSettings((s) => ({ ...s, longNoteBodyScale: v }))
-        }
-        hitsoundsEnabled={appSettings.hitsoundsEnabled}
-        onHitsoundsEnabled={(v) =>
-          setAppSettings((s) => ({ ...s, hitsoundsEnabled: v }))
-        }
-        hitsoundVolume={appSettings.hitsoundVolume}
-        onHitsoundVolume={(v) =>
-          setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
-        }
-        dimBackground={appSettings.dimBackground}
-        onDimBackground={(v) =>
-          setAppSettings((s) => ({ ...s, dimBackground: v }))
-        }
-        smoothScrolling={appSettings.smoothScrolling}
-        onSmoothScrolling={(v) =>
-          setAppSettings((s) => ({ ...s, smoothScrolling: v }))
-        }
-        showWaveform={appSettings.showWaveform}
-        onShowWaveform={(v) =>
-          setAppSettings((s) => ({ ...s, showWaveform: v }))
-        }
-        showTimingLines={appSettings.showTimingLines}
-        onShowTimingLines={(v) =>
-          setAppSettings((s) => ({ ...s, showTimingLines: v }))
-        }
-        upscroll={appSettings.upscroll}
-        onUpscroll={(v) => setAppSettings((s) => ({ ...s, upscroll: v }))}
-        svPreviewPlayback={appSettings.svPreviewPlayback}
-        onSvPreviewPlayback={(v) =>
-          setAppSettings((s) => ({ ...s, svPreviewPlayback: v }))
-        }
-        bpmAffectsScroll={appSettings.bpmAffectsScroll}
-        onBpmAffectsScroll={(v) =>
-          setAppSettings((s) => ({ ...s, bpmAffectsScroll: v }))
-        }
-        playtest={appSettings.playtest}
-        onPlaytest={(v) => setAppSettings((s) => ({ ...s, playtest: v }))}
-        localAutosaveEnabled={appSettings.localAutosaveEnabled}
-        onLocalAutosaveEnabled={(v) =>
-          setAppSettings((s) => ({ ...s, localAutosaveEnabled: v }))
-        }
-        exportPngBackgroundsAsJpeg={appSettings.exportPngBackgroundsAsJpeg}
-        onExportPngBackgroundsAsJpeg={(v) =>
-          setAppSettings((s) => ({ ...s, exportPngBackgroundsAsJpeg: v }))
-        }
-        exportJpegQuality={appSettings.exportJpegQuality}
-        onExportJpegQuality={(v) =>
-          setAppSettings((s) => ({ ...s, exportJpegQuality: v }))
-        }
-        uiSoundsEnabled={appSettings.uiSoundsEnabled}
-        onUiSoundsEnabled={(v) =>
-          setAppSettings((s) => ({ ...s, uiSoundsEnabled: v }))
-        }
-        uiSoundVolume={appSettings.uiSoundVolume}
-        onUiSoundVolume={(v) =>
-          setAppSettings((s) => ({ ...s, uiSoundVolume: v }))
-        }
-      />
-      <SkinModal
-        open={modal === "skin"}
-        onClose={close}
-        skin={skin}
-        hitsoundSource={hitsoundSkinSource}
-        hitsoundSkin={hitsoundSkin}
-        savedSkins={skinLibrary}
-        activeKeyCount={active.keyCount}
-        onApplyPreset={onApplyPresetSkin}
-        onApplySavedSkin={onApplyLocalSkin}
-        onSkinFile={onSkinFile}
-        onClearSkin={onClearSkin}
-        onUseDefaultHitsounds={onUseDefaultHitsounds}
-        onUseVisualHitsounds={onUseVisualHitsounds}
-        error={skinError}
-      />
-      <ToolsModal
-        open={modal === "tools"}
-        onClose={close}
-        snapDivisor={view.snapDivisor}
-        riceCount={active.notes.length - holds}
-        holdCount={holds}
-        lnTicks={lnTicks}
-        onLnTicks={setLnTicks}
-        onFullLong={applyFullLong}
-        onFullRice={applyFullRice}
-        trimActive={cropInfo.trimActive}
-        cropRemoveCount={cropInfo.remove}
-        cropClampCount={cropInfo.clamp}
-        onCropToBrackets={applyCropToBrackets}
-      />
+      {modalMounted("sampleMaps") && (
+        <SampleMapsModal
+          open={modal === "sampleMaps"}
+          onClose={close}
+          onBack={() => setModal("welcome")}
+          onSelect={loadSampleMap}
+        />
+      )}
+      {modalMounted("myMaps") && (
+        <MyMapsModal
+          open={modal === "myMaps"}
+          onClose={close}
+          onSelect={(id) => void loadCloudProject(id)}
+        />
+      )}
+      {modalMounted("presets") && (
+        <PresetBrowserModal
+          open={modal === "presets"}
+          onClose={close}
+          activeKeyCount={active.keyCount}
+          onCopy={copyPresetToClipboard}
+        />
+      )}
+      {modalMounted("publishPreset") && (
+        <PublishPresetModal
+          open={modal === "publishPreset"}
+          onClose={close}
+          pattern={publishPattern}
+          keyCount={publishKeyCount}
+        />
+      )}
+      {modalMounted("feedback") && (
+        <FeedbackModal open={modal === "feedback"} onClose={close} />
+      )}
+      {modalMounted("mapSettings") && (
+        <SettingsModal
+          open={modal === "mapSettings"}
+          onClose={close}
+          meta={meta}
+          onMeta={updateMeta}
+          audio={audioFile}
+          background={activeBg}
+          bgScope={bgScope}
+          onBgScope={setBgScope}
+          onAudioFile={onAudioFile}
+          onBackgroundFile={onBackgroundFile}
+          onClearBackground={onClearBackground}
+          video={activeVideo}
+          videoOffsetMs={active.videoOffsetMs ?? 0}
+          onVideoFile={onVideoFile}
+          onClearVideo={onClearVideo}
+          onVideoOffsetMs={onVideoOffsetMs}
+          onImportOsz={(f) => void importArchive(f)}
+          onImportSm={requestImportSm}
+          onImportSmPack={onImportSmPack}
+          activeDiff={active}
+          onSmMeta={(sm) => patchDifficulty(active.id, { smMeta: sm })}
+        />
+      )}
+      {modalMounted("settings") && (
+        <AppSettingsModal
+          open={modal === "settings"}
+          onClose={close}
+          playfieldScale={appSettings.playfieldScale}
+          onPlayfieldScale={(v) =>
+            setAppSettings((s) => ({ ...s, playfieldScale: v }))
+          }
+          longNoteBodyScale={appSettings.longNoteBodyScale}
+          onLongNoteBodyScale={(v) =>
+            setAppSettings((s) => ({ ...s, longNoteBodyScale: v }))
+          }
+          hitsoundsEnabled={appSettings.hitsoundsEnabled}
+          onHitsoundsEnabled={(v) =>
+            setAppSettings((s) => ({ ...s, hitsoundsEnabled: v }))
+          }
+          hitsoundVolume={appSettings.hitsoundVolume}
+          onHitsoundVolume={(v) =>
+            setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
+          }
+          dimBackground={appSettings.dimBackground}
+          onDimBackground={(v) =>
+            setAppSettings((s) => ({ ...s, dimBackground: v }))
+          }
+          smoothScrolling={appSettings.smoothScrolling}
+          onSmoothScrolling={(v) =>
+            setAppSettings((s) => ({ ...s, smoothScrolling: v }))
+          }
+          showWaveform={appSettings.showWaveform}
+          onShowWaveform={(v) =>
+            setAppSettings((s) => ({ ...s, showWaveform: v }))
+          }
+          showTimingLines={appSettings.showTimingLines}
+          onShowTimingLines={(v) =>
+            setAppSettings((s) => ({ ...s, showTimingLines: v }))
+          }
+          upscroll={appSettings.upscroll}
+          onUpscroll={(v) => setAppSettings((s) => ({ ...s, upscroll: v }))}
+          svPreviewPlayback={appSettings.svPreviewPlayback}
+          onSvPreviewPlayback={(v) =>
+            setAppSettings((s) => ({ ...s, svPreviewPlayback: v }))
+          }
+          bpmAffectsScroll={appSettings.bpmAffectsScroll}
+          onBpmAffectsScroll={(v) =>
+            setAppSettings((s) => ({ ...s, bpmAffectsScroll: v }))
+          }
+          playtest={appSettings.playtest}
+          onPlaytest={(v) => setAppSettings((s) => ({ ...s, playtest: v }))}
+          localAutosaveEnabled={appSettings.localAutosaveEnabled}
+          onLocalAutosaveEnabled={(v) =>
+            setAppSettings((s) => ({ ...s, localAutosaveEnabled: v }))
+          }
+          exportPngBackgroundsAsJpeg={appSettings.exportPngBackgroundsAsJpeg}
+          onExportPngBackgroundsAsJpeg={(v) =>
+            setAppSettings((s) => ({ ...s, exportPngBackgroundsAsJpeg: v }))
+          }
+          exportJpegQuality={appSettings.exportJpegQuality}
+          onExportJpegQuality={(v) =>
+            setAppSettings((s) => ({ ...s, exportJpegQuality: v }))
+          }
+          uiSoundsEnabled={appSettings.uiSoundsEnabled}
+          onUiSoundsEnabled={(v) =>
+            setAppSettings((s) => ({ ...s, uiSoundsEnabled: v }))
+          }
+          uiSoundVolume={appSettings.uiSoundVolume}
+          onUiSoundVolume={(v) =>
+            setAppSettings((s) => ({ ...s, uiSoundVolume: v }))
+          }
+        />
+      )}
+      {modalMounted("skin") && (
+        <SkinModal
+          open={modal === "skin"}
+          onClose={close}
+          skin={skin}
+          hitsoundSource={hitsoundSkinSource}
+          hitsoundSkin={hitsoundSkin}
+          savedSkins={skinLibrary}
+          activeKeyCount={active.keyCount}
+          onApplyPreset={onApplyPresetSkin}
+          onApplySavedSkin={onApplyLocalSkin}
+          onSkinFile={onSkinFile}
+          onClearSkin={onClearSkin}
+          onUseDefaultHitsounds={onUseDefaultHitsounds}
+          onUseVisualHitsounds={onUseVisualHitsounds}
+          error={skinError}
+        />
+      )}
+      {modalMounted("tools") && (
+        <ToolsModal
+          open={modal === "tools"}
+          onClose={close}
+          snapDivisor={view.snapDivisor}
+          riceCount={active.notes.length - holds}
+          holdCount={holds}
+          lnTicks={lnTicks}
+          onLnTicks={setLnTicks}
+          onFullLong={applyFullLong}
+          onFullRice={applyFullRice}
+          trimActive={cropInfo.trimActive}
+          cropRemoveCount={cropInfo.remove}
+          cropClampCount={cropInfo.clamp}
+          onCropToBrackets={applyCropToBrackets}
+        />
+      )}
       <AutoTimePrompt
         open={autoTimeOpen}
         status={autoTimeStatus}
@@ -4925,42 +4947,48 @@ export default function App() {
         onRun={runAutoTime}
         onDismiss={() => setAutoTimeOpen(false)}
       />
-      <TimingModal
-        open={modal === "timing"}
-        onClose={close}
-        timingPoints={activeTimingPoints}
-        onTimingPoints={applyTimingPoints}
-        isPlaying={audio.isPlaying}
-        playbackRate={audio.playbackRate}
-        getCurrentTime={getCurrentTime}
-        onToggle={audio.toggle}
-        onSetPlaybackRate={audio.setPlaybackRate}
-        audioBuffer={waveform?.buffer ?? null}
-        timeScale={activeRate}
-      />
-      <SvModal
-        open={modal === "sv" && featureFlags.sv_tools}
-        onClose={close}
-        timingPoints={activeTimingPoints}
-        onTimingPoints={(points) => {
-          applyTimingPoints(points);
-          void logAnalyticsEvent("sv_applied", authUserRef.current?.id).catch(
-            () => {},
-          );
-        }}
-        getCurrentTime={getCurrentTime}
-        selectionRange={selectionRange}
-        readOnly={!canEdit}
-        bpmScroll={appSettings.bpmAffectsScroll}
-        bookmarks={active.bookmarks}
-        bookmarkLabels={active.bookmarkLabels}
-      />
-      <DifficultyModal
-        open={modal === "difficulty"}
-        onClose={close}
-        difficulty={active}
-        onDifficulty={(d) => patchDifficulty(active.id, d)}
-      />
+      {modalMounted("timing") && (
+        <TimingModal
+          open={modal === "timing"}
+          onClose={close}
+          timingPoints={activeTimingPoints}
+          onTimingPoints={applyTimingPoints}
+          isPlaying={audio.isPlaying}
+          playbackRate={audio.playbackRate}
+          getCurrentTime={getCurrentTime}
+          onToggle={audio.toggle}
+          onSetPlaybackRate={audio.setPlaybackRate}
+          audioBuffer={waveform?.buffer ?? null}
+          timeScale={activeRate}
+        />
+      )}
+      {modalMounted("sv") && featureFlags.sv_tools && (
+        <SvModal
+          open={modal === "sv" && featureFlags.sv_tools}
+          onClose={close}
+          timingPoints={activeTimingPoints}
+          onTimingPoints={(points) => {
+            applyTimingPoints(points);
+            void logAnalyticsEvent("sv_applied", authUserRef.current?.id).catch(
+              () => {},
+            );
+          }}
+          getCurrentTime={getCurrentTime}
+          selectionRange={selectionRange}
+          readOnly={!canEdit}
+          bpmScroll={appSettings.bpmAffectsScroll}
+          bookmarks={active.bookmarks}
+          bookmarkLabels={active.bookmarkLabels}
+        />
+      )}
+      {modalMounted("difficulty") && (
+        <DifficultyModal
+          open={modal === "difficulty"}
+          onClose={close}
+          difficulty={active}
+          onDifficulty={(d) => patchDifficulty(active.id, d)}
+        />
+      )}
       <BackgroundScopeModal
         open={askBgScope}
         previewUrl={pendingBgName ? bgFiles[pendingBgName]?.url ?? null : null}
@@ -5039,27 +5067,31 @@ export default function App() {
         onRemoveDuplicates={removeDuplicates}
       />
 
-      <AiModModal
-        open={modal === "aimod"}
-        onClose={close}
-        report={aiModReport}
-        activeDiffName={active.name || "(unnamed)"}
-        onRefresh={runAiModCheck}
-        onJump={handleAiModJump}
-        unsnappedCount={aiModUnsnapped}
-        onResnap={handleResnap}
-      />
+      {modalMounted("aimod") && (
+        <AiModModal
+          open={modal === "aimod"}
+          onClose={close}
+          report={aiModReport}
+          activeDiffName={active.name || "(unnamed)"}
+          onRefresh={runAiModCheck}
+          onJump={handleAiModJump}
+          unsnappedCount={aiModUnsnapped}
+          onResnap={handleResnap}
+        />
+      )}
 
-      <InfoModal
-        open={modal === "info"}
-        onClose={close}
-        keybinds={editorKeybinds}
-        onKeybinds={(kb) =>
-          setAppSettings((s) => ({ ...s, editorKeybinds: kb }))
-        }
-      />
+      {modalMounted("info") && (
+        <InfoModal
+          open={modal === "info"}
+          onClose={close}
+          keybinds={editorKeybinds}
+          onKeybinds={(kb) =>
+            setAppSettings((s) => ({ ...s, editorKeybinds: kb }))
+          }
+        />
+      )}
 
-      {adminEverOpenedRef.current && (
+      {adminEverOpenedRef.current && modalMounted("admin") && (
         <Suspense fallback={null}>
           <AdminPanel
             open={modal === "admin"}
@@ -5070,25 +5102,29 @@ export default function App() {
         </Suspense>
       )}
 
-      <ShareModal
-        open={modal === "share"}
-        onClose={close}
-        projectId={cloudProjectId}
-      />
+      {modalMounted("share") && (
+        <ShareModal
+          open={modal === "share"}
+          onClose={close}
+          projectId={cloudProjectId}
+        />
+      )}
 
-      <PackBrowserModal
-        open={modal === "packBrowser"}
-        onClose={close}
-        onBack={() => {
-          setScannedPackSongs([]);
-          setPackError(null);
-          setModal(null);
-        }}
-        songs={scannedPackSongs}
-        onImport={importPackSong}
-        error={packError}
-        scanning={scanningPack}
-      />
+      {modalMounted("packBrowser") && (
+        <PackBrowserModal
+          open={modal === "packBrowser"}
+          onClose={close}
+          onBack={() => {
+            setScannedPackSongs([]);
+            setPackError(null);
+            setModal(null);
+          }}
+          songs={scannedPackSongs}
+          onImport={importPackSong}
+          error={packError}
+          scanning={scanningPack}
+        />
+      )}
 
       {peerNotice && (
         <TimedNotification
