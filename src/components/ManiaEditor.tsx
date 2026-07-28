@@ -1038,6 +1038,17 @@ export function ManiaEditor(props: Props) {
     return lo;
   }, []);
 
+  const firstPointFrom = useCallback((list: TimingPoint[], t: number) => {
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid].time < t) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }, []);
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1260,9 +1271,16 @@ export function ManiaEditor(props: Props) {
       propsRef.current.showTimingLines !== false;
 
     if (showTimingLines) {
-      for (const tp of redPoints(timingPoints)) {
+      const lineEdgeA = yToTime(-20);
+      const lineEdgeB = yToTime(height + 20);
+      const lineLo = Math.min(lineEdgeA, lineEdgeB);
+      const lineHi = Math.max(lineEdgeA, lineEdgeB);
+
+      const reds = redPoints(timingPoints);
+      for (let i = firstPointFrom(reds, lineLo); i < reds.length; i++) {
+        const tp = reds[i];
+        if (tp.time > lineHi) break;
         const y = timeToY(tp.time);
-        if (y < -20 || y > height + 20) continue;
         ctx.strokeStyle = "#ff2d6f";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -1274,9 +1292,11 @@ export function ManiaEditor(props: Props) {
         ctx.fillText(`${tp.bpm} BPM`, 6, y - 4);
       }
 
-      for (const tp of greenPoints(timingPoints)) {
+      const greens = greenPoints(timingPoints);
+      for (let i = firstPointFrom(greens, lineLo); i < greens.length; i++) {
+        const tp = greens[i];
+        if (tp.time > lineHi) break;
         const y = timeToY(tp.time);
-        if (y < -20 || y > height + 20) continue;
         ctx.strokeStyle = "#2dd4bf";
         ctx.lineWidth = 1.5;
         ctx.setLineDash([7, 4]);
@@ -1692,6 +1712,7 @@ export function ManiaEditor(props: Props) {
     ctx.restore();
   }, [
     columnAtX,
+    firstPointFrom,
     laneGeometry,
     liveCurrentTime,
     noteBounds,

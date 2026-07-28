@@ -30,6 +30,7 @@ export type SvMap = {
 
 const IDENTITY: SvMap = { segments: [] };
 const mapCache = new WeakMap<TimingPoint[], Map<string, SvMap>>();
+const dominantBpmCache = new WeakMap<TimingPoint[], number>();
 
 /**
  * osu!mania stable scrolls faster at higher BPM, so mappers build effects out
@@ -66,6 +67,14 @@ function svEventOrder(a: TimingPoint, b: TimingPoint): number {
  * out first so a map full of freezes still resolves to its musical tempo.
  */
 export function dominantBpm(points: TimingPoint[]): number {
+  const cached = dominantBpmCache.get(points);
+  if (cached !== undefined) return cached;
+  const result = computeDominantBpm(points);
+  dominantBpmCache.set(points, result);
+  return result;
+}
+
+function computeDominantBpm(points: TimingPoint[]): number {
   const reds = points
     .filter((p) => p.uninherited && p.bpm > 0)
     .sort((a, b) => a.time - b.time);
