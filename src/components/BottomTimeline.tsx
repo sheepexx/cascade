@@ -182,6 +182,7 @@ export function BottomTimeline({
     previewTime: number;
     svBpmScroll: boolean | undefined;
   } | null>(null);
+  const lastWidthRef = useRef(0);
   const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [tip, setTip] = useState<{
     x: number;
@@ -329,19 +330,27 @@ export function BottomTimeline({
     }
 
     const prev = staticSigRef.current;
-    const staticDirty =
+    const widthInMotion = !!prev && lastWidthRef.current !== width;
+    lastWidthRef.current = width;
+
+    const dataDirty =
       !prev ||
-      prev.width !== width ||
-      prev.dpr !== dpr ||
       prev.waveform !== waveform ||
       prev.sensitivity !== sensitivity ||
-      prev.revealWidth !== Math.round(revealWidth) ||
       prev.notes !== notes ||
       prev.timingPoints !== timingPoints ||
       prev.duration !== duration ||
       prev.bookmarks !== bookmarks ||
       prev.previewTime !== previewTime ||
       prev.svBpmScroll !== svBpmScroll;
+
+    const geometryDirty =
+      !prev ||
+      prev.width !== width ||
+      prev.dpr !== dpr ||
+      prev.revealWidth !== Math.round(revealWidth);
+
+    const staticDirty = dataDirty || (geometryDirty && !widthInMotion);
 
     if (staticDirty) {
       let sc = staticLayerRef.current;
@@ -351,10 +360,8 @@ export function BottomTimeline({
       }
       const bw = Math.max(1, Math.floor(width * dpr));
       const bh = Math.max(1, Math.floor(HEIGHT * dpr));
-      if (sc.width !== bw || sc.height !== bh) {
-        sc.width = bw;
-        sc.height = bh;
-      }
+      if (sc.width !== bw) sc.width = bw;
+      if (sc.height !== bh) sc.height = bh;
       const sctx = sc.getContext("2d");
       if (sctx) {
         sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -740,8 +747,10 @@ export function BottomTimeline({
       const rect = wrap.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       sizeRef.current = { width: rect.width, dpr };
-      canvas.width = Math.floor(rect.width * dpr);
-      canvas.height = Math.floor(HEIGHT * dpr);
+      const bw = Math.floor(rect.width * dpr);
+      const bh = Math.floor(HEIGHT * dpr);
+      if (canvas.width !== bw) canvas.width = bw;
+      if (canvas.height !== bh) canvas.height = bh;
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${HEIGHT}px`;
     };
