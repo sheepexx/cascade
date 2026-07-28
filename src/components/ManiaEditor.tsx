@@ -1063,10 +1063,8 @@ export function ManiaEditor(props: Props) {
 
     const bw = Math.floor(width * dpr);
     const bh = Math.floor(height * dpr);
-    if (canvas.width !== bw || canvas.height !== bh) {
-      canvas.width = bw;
-      canvas.height = bh;
-    }
+    if (canvas.width !== bw) canvas.width = bw;
+    if (canvas.height !== bh) canvas.height = bh;
 
     const { notes, timingPoints, previewTime, view, keyCount } =
       propsRef.current;
