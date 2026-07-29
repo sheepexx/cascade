@@ -81,6 +81,7 @@ import { Menu } from "./components/ui/Menu";
 import { Modal } from "./components/ui/Modal";
 import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
+import { LanguagePicker } from "./components/LanguagePicker";
 import { NotificationInbox } from "./components/NotificationInbox";
 const AdminPanel = lazy(() =>
   import("./components/admin/AdminPanel").then((m) => ({
@@ -98,6 +99,7 @@ import {
   setUiSoundVolume,
 } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
+import { useT } from "./lib/i18n";
 import {
   dismissNotification,
   listNotifications,
@@ -352,6 +354,7 @@ const TRIM_BROADCAST_MS = 90;
 
 export default function App() {
   const { user: authUser, refresh: refreshAuth } = useAuth();
+  const t = useT();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
   const [timingPoints, setTimingPoints] = useState<TimingPoint[]>(
     defaultTimingPoints,
@@ -4159,13 +4162,13 @@ export default function App() {
         }`}
         aria-hidden={zenMode}
       >
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2.5">
             <button
               type="button"
               onClick={() => hasProject && setShowHomeConfirm(true)}
               className="flex items-center gap-2.5 rounded-md transition hover:opacity-80"
-              title={hasProject ? "Return to home screen" : undefined}
+              title={hasProject ? t("home.returnTitle") : undefined}
               data-no-uisound=""
             >
               <img
@@ -4184,43 +4187,51 @@ export default function App() {
           <div
             className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
               hasProject
-                ? "max-w-[44rem] translate-x-0 opacity-100"
+                ? "max-w-[68rem] translate-x-0 opacity-100"
                 : "pointer-events-none max-w-0 -translate-x-3 opacity-0"
             }`}
             aria-hidden={!hasProject}
           >
             <nav className="flex items-center gap-1 whitespace-nowrap">
               <MenuButton onClick={() => setModal("mapSettings")}>
-                Map Settings
+                {t("nav.mapSettings")}
               </MenuButton>
-              <MenuButton onClick={() => setModal("timing")}>Timing</MenuButton>
+              <MenuButton onClick={() => setModal("timing")}>
+                {t("nav.timing")}
+              </MenuButton>
               {featureFlags.sv_tools && (
-                <MenuButton onClick={() => setModal("sv")}>SV</MenuButton>
+                <MenuButton onClick={() => setModal("sv")}>
+                  {t("nav.sv")}
+                </MenuButton>
               )}
               <MenuButton onClick={() => setModal("difficulty")}>
-                Difficulty
+                {t("nav.difficulty")}
               </MenuButton>
-              <MenuButton onClick={() => setModal("tools")}>Tools</MenuButton>
-              <MenuButton onClick={openAiMod}>AiMod</MenuButton>
+              <MenuButton onClick={() => setModal("tools")}>
+                {t("nav.tools")}
+              </MenuButton>
+              <MenuButton onClick={openAiMod}>{t("nav.aiMod")}</MenuButton>
               <MenuButton onClick={() => setModal("presets")}>
-                Presets
+                {t("nav.presets")}
               </MenuButton>
-              <MenuButton onClick={() => setModal("skin")}>Skin</MenuButton>
+              <MenuButton onClick={() => setModal("skin")}>
+                {t("nav.skin")}
+              </MenuButton>
               <MenuButton onClick={() => setModal("settings")}>
-                Settings
+                {t("nav.settings")}
               </MenuButton>
               <span className="mx-1 h-5 w-px bg-white/10" />
               <IconButton
                 onClick={undo}
                 disabled={!canUndo}
-                title="Undo (Ctrl+Z)"
+                title={t("nav.undo")}
               >
                 ↶
               </IconButton>
               <IconButton
                 onClick={redo}
                 disabled={!canRedo}
-                title="Redo (Ctrl+Shift+Z)"
+                title={t("nav.redo")}
               >
                 ↷
               </IconButton>
@@ -4228,22 +4239,26 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <div
             className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
               hasProject
-                ? "max-w-[44rem] translate-x-0 opacity-100"
+                ? "max-w-[68rem] translate-x-0 opacity-100"
                 : "pointer-events-none max-w-0 translate-x-3 opacity-0"
             }`}
             aria-hidden={!hasProject}
           >
             <div className="flex items-center gap-1.5 whitespace-nowrap">
               <span className="mr-1 hidden text-xs text-slate-500 2xl:inline">
-                {active.keyCount}K · {active.notes.length} notes ({holds} holds)
+                {t("nav.mapStats", {
+                  keys: active.keyCount,
+                  notes: active.notes.length,
+                  holds,
+                })}
               </span>
               {cloudProjectId && myRole === "viewer" && (
                 <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
-                  View only
+                  {t("nav.viewOnly")}
                 </span>
               )}
               {cloudProjectId &&
@@ -4252,7 +4267,7 @@ export default function App() {
                 featureFlags.collab && (
                   <IconButton
                     onClick={() => setModal("share")}
-                    title="Share - invite collaborators"
+                    title={t("nav.shareTitle")}
                   >
                     <UsersIcon className="h-4 w-4" />
                   </IconButton>
@@ -4262,8 +4277,8 @@ export default function App() {
                   onClick={() => setCommentsOpen((v) => !v)}
                   title={
                     commentUnreadCount
-                      ? `Comments (${commentUnreadCount} unread)`
-                      : "Comments"
+                      ? t("nav.commentsUnread", { count: commentUnreadCount })
+                      : t("nav.comments")
                   }
                 >
                   <CommentIcon className="h-4 w-4" />
@@ -4275,14 +4290,17 @@ export default function App() {
                 </IconButton>
               )}
               <Menu
-                label="File"
+                label={t("nav.file")}
                 items={[
                   {
-                    label: "New / open…",
+                    label: t("file.newOpen"),
                     onClick: () => setModal("welcome"),
                   },
                   {
-                    label: saveStatus === "saving" ? "Saving…" : "Save locally",
+                    label:
+                      saveStatus === "saving"
+                        ? t("file.saving")
+                        : t("file.saveLocally"),
                     hint: "Ctrl+S",
                     disabled: saveStatus === "saving",
                     onClick: () => void handleSave(),
@@ -4290,26 +4308,26 @@ export default function App() {
                   {
                     label:
                       cloudSaveStatus === "saving"
-                        ? "Saving…"
-                        : "Save to cloud",
-                    title: !authUser ? "Log in first!" : undefined,
+                        ? t("file.saving")
+                        : t("file.saveToCloud"),
+                    title: !authUser ? t("file.logInFirst") : undefined,
                     disabled:
                       !authUser || !canEdit || cloudSaveStatus === "saving",
                     onClick: () => void handleCloudSave(),
                   },
                   { separator: true },
                   {
-                    label: "Export .osu",
+                    label: t("file.exportOsu"),
                     disabled: !canExport,
                     onClick: handleExportOsu,
                   },
                   {
-                    label: "Export .osz",
+                    label: t("file.exportOsz"),
                     disabled: !canExport || exporting,
                     onClick: handleExportOsz,
                   },
                   {
-                    label: "Export .sm",
+                    label: t("file.exportSm"),
                     disabled: !canExport,
                     onClick: handleExportSm,
                   },
@@ -4322,10 +4340,10 @@ export default function App() {
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-ink-700/42 px-2 py-1 text-[11px] font-medium shadow-sm backdrop-blur-xl"
               title={
                 collab.status === "connected"
-                  ? "Live - edits sync in realtime"
+                  ? t("collab.live")
                   : collab.status === "connecting"
-                    ? "Connecting to the live session…"
-                    : "Live sync offline - check Realtime is enabled"
+                    ? t("collab.connecting")
+                    : t("collab.offline")
               }
             >
               <span
@@ -4391,6 +4409,7 @@ export default function App() {
               onDismiss={dismissInboxNotification}
             />
           )}
+          {!hasProject && <LanguagePicker compact />}
           <AccountControl
             compact
             onOpenMyMaps={() => setModal("myMaps")}
@@ -5276,10 +5295,12 @@ export default function App() {
       <Modal
         open={showHomeConfirm}
         onClose={() => setShowHomeConfirm(false)}
-        title="Return to home screen?"
+        title={t("home.confirmTitle")}
         footer={
           <>
-            <Button onClick={() => setShowHomeConfirm(false)}>Cancel</Button>
+            <Button onClick={() => setShowHomeConfirm(false)}>
+              {t("common.cancel")}
+            </Button>
             <Button
               variant="accent"
               onClick={() => {
@@ -5288,15 +5309,12 @@ export default function App() {
                 setTimeout(() => window.location.reload(), 120);
               }}
             >
-              Return to home
+              {t("home.returnButton")}
             </Button>
           </>
         }
       >
-        <p className="text-sm text-slate-300">
-          This will open the home screen. Your current project stays in the
-          editor, and you can come back to it at any time.
-        </p>
+        <p className="text-sm text-slate-300">{t("home.confirmBody")}</p>
       </Modal>
 
       <HoldConfirmDialog
@@ -5606,6 +5624,7 @@ function KeybindRow({
 }
 
 function EmptyState({ onEnter }: { onEnter: () => void }) {
+  const t = useT();
   return (
     <div className="h-full overflow-y-auto">
       <div className="relative grid min-h-full place-items-center text-center">
@@ -5618,17 +5637,17 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
             className="mx-auto mb-4 h-24 w-24 select-none rounded-2xl object-cover"
           />
           <h2 className="mb-1 text-lg font-semibold text-slate-200">
-            Drop audio anywhere to start mapping
+            {t("empty.title")}
           </h2>
           <p className="mb-4 text-sm text-slate-500">
-            Or press Enter and pick a sample map.{" "}
+            {t("empty.subtitleBefore")}{" "}
             <kbd className="rounded bg-ink-700 px-1.5 py-0.5 text-[11px] text-slate-300">
               Space
             </kbd>{" "}
-            plays, clicks place notes.
+            {t("empty.subtitleAfter")}
           </p>
           <Button variant="accent" onClick={onEnter}>
-            Enter
+            {t("empty.enter")}
           </Button>
           <p className="mt-6 text-[11px] font-medium tracking-wide text-slate-600">
             Cascade · v{__APP_VERSION__}
@@ -5636,7 +5655,7 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
         </div>
         <div className="absolute bottom-4 left-1/2 flex w-max -translate-x-1/2 flex-col items-center gap-1 text-xs text-slate-500">
           <p>
-            Made by{" "}
+            {t("empty.madeBy")}{" "}
             <a
               href="https://osu.ppy.sh/u/sheepex_"
               target="_blank"
@@ -5647,7 +5666,7 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
             </a>
           </p>
           <p>
-            Contributors:{" "}
+            {t("empty.contributors")}{" "}
             <a
               href="https://github.com/kaanreal"
               target="_blank"
@@ -5663,7 +5682,7 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
             rel="noreferrer"
             className="font-medium text-slate-400 transition hover:text-accent"
           >
-            buy me a coffee :)
+            {t("empty.buyCoffee")}
           </a>
         </div>
       </div>

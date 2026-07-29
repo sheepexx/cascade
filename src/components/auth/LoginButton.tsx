@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../../lib/auth";
+import { useT } from "../../lib/i18n";
 import { Button } from "../ui/Controls";
 
 export function AccountControl({
@@ -17,6 +18,7 @@ export function AccountControl({
   compact?: boolean;
 }) {
   const { user, isAdmin, loading, login, logout } = useAuth();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -65,7 +67,7 @@ export function AccountControl({
   if (!user) {
     return (
       <Button variant="accent" onClick={login} className="whitespace-nowrap">
-        Log in with osu!
+        {t("startModal.loginWithOsu")}
       </Button>
     );
   }
@@ -109,11 +111,19 @@ export function AccountControl({
             style={{ position: "fixed", top: pos.top, right: pos.right }}
             className="z-[100] w-44 overflow-hidden rounded-xl border border-ink-500/60 bg-ink-800 py-1 shadow-2xl"
           >
-            <MenuItem onClick={() => choose(onOpenMyMaps)}>My Maps</MenuItem>
-            <MenuItem onClick={() => choose(onOpenPresets)}>Presets</MenuItem>
-            <MenuItem onClick={() => choose(onOpenFeedback)}>Feedback</MenuItem>
+            <MenuItem onClick={() => choose(onOpenMyMaps)}>
+              {t("account.myMaps")}
+            </MenuItem>
+            <MenuItem onClick={() => choose(onOpenPresets)}>
+              {t("nav.presets")}
+            </MenuItem>
+            <MenuItem onClick={() => choose(onOpenFeedback)}>
+              {t("account.feedback")}
+            </MenuItem>
             {isAdmin && (
-              <MenuItem onClick={() => choose(onOpenAdmin)}>Admin</MenuItem>
+              <MenuItem onClick={() => choose(onOpenAdmin)}>
+                {t("account.admin")}
+              </MenuItem>
             )}
             <div className="my-1 h-px bg-ink-600" />
             <a
@@ -123,10 +133,10 @@ export function AccountControl({
               className="block w-full px-3 py-1.5 text-left text-sm text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"
               onClick={() => setOpen(false)}
             >
-              Privacy policy
+              {t("startModal.privacyPolicy")}
             </a>
             <MenuItem onClick={() => choose(() => void logout())} danger>
-              Log out
+              {t("account.logOut")}
             </MenuItem>
           </div>,
           document.body,

@@ -4,6 +4,7 @@ import { Button } from "../ui/Controls";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { starColor, starTextOn } from "../../lib/starRating";
 import { useAuth } from "../../lib/auth";
+import { useLocale, useT } from "../../lib/i18n";
 import {
   listMyProjectsRich,
   signedThumbUrls,
@@ -72,6 +73,7 @@ export function WelcomeModal({
   onImportFromOsu?: (input: string) => Promise<void>;
 }) {
   const { user, login } = useAuth();
+  const { locale, t } = useLocale();
   const [osuLink, setOsuLink] = useState("");
   const [osuImporting, setOsuImporting] = useState(false);
   const [osuImportError, setOsuImportError] = useState<string | null>(null);
@@ -256,20 +258,23 @@ export function WelcomeModal({
 
   return (
     <>
-      <Modal open={open} title="Get started" onClose={onClose} width="max-w-3xl">
+      <Modal
+        open={open}
+        title={t("startModal.title")}
+        onClose={onClose}
+        width="max-w-3xl"
+      >
       {firstRun && (
         <div className="mb-4 rounded-xl border border-accent/40 bg-accent/10 p-4">
           <p className="text-sm font-semibold text-slate-100">
-            Welcome to Cascade, a free osu!mania editor in your browser.
+            {t("startModal.welcome")}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-300">
-            Nothing to install. The quickest way to see how it works is to load a
-            ready-made map and press <span className="text-slate-100">Space</span>{" "}
-            to play. Or start a blank map and drop in your own song.
+            {t("startModal.welcomeBody")}
           </p>
           <div className="mt-3">
             <Button variant="accent" onClick={onTryMaps}>
-              Try a sample map →
+              {t("startModal.trySample")}
             </Button>
           </div>
         </div>
@@ -283,9 +288,11 @@ export function WelcomeModal({
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
             <NewMapIcon className="h-6 w-6" />
           </span>
-          <span className="text-sm font-semibold text-slate-100">New Map</span>
+          <span className="text-sm font-semibold text-slate-100">
+            {t("startModal.newMap")}
+          </span>
           <span className="text-xs text-slate-400">
-            Start from a blank editor. Drop audio, set the BPM and place notes.
+            {t("startModal.newMapDesc")}
           </span>
         </button>
         <button
@@ -297,10 +304,10 @@ export function WelcomeModal({
             <SampleMapsIcon className="h-6 w-6" />
           </span>
           <span className="text-sm font-semibold text-slate-100">
-            Try these maps
+            {t("startModal.tryMaps")}
           </span>
           <span className="text-xs text-slate-400">
-            Load a ready-made beatmap to explore the editor right away.
+            {t("startModal.tryMapsDesc")}
           </span>
         </button>
         {onImportSmPack && (
@@ -313,10 +320,10 @@ export function WelcomeModal({
               <SmPackIcon className="h-6 w-6" />
             </span>
             <span className="text-sm font-semibold text-slate-100">
-              Import SM pack
+              {t("startModal.importSmPack")}
             </span>
             <span className="text-xs text-slate-400">
-              Browse an Etterna pack folder and open a song in the editor.
+              {t("startModal.importSmPackDesc")}
             </span>
           </button>
         )}
@@ -330,10 +337,10 @@ export function WelcomeModal({
               <PackCreatorIcon className="h-6 w-6" />
             </span>
             <span className="text-sm font-semibold text-slate-100">
-              Pack Creator
+              {t("startModal.packCreator")}
             </span>
             <span className="text-xs text-slate-400">
-              Combine multiple mania maps into one .osz pack.
+              {t("startModal.packCreatorDesc")}
             </span>
           </button>
         )}
@@ -352,7 +359,7 @@ export function WelcomeModal({
               onKeyDown={(e) => {
                 if (e.key === "Enter") void runOsuImport();
               }}
-              placeholder="osu! beatmap link or beatmapset ID…"
+              placeholder={t("startModal.osuLinkPlaceholder")}
               disabled={osuImporting}
               className="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-accent/70 focus:ring-1 focus:ring-accent/40 disabled:opacity-50"
             />
@@ -362,12 +369,13 @@ export function WelcomeModal({
               onClick={() => void runOsuImport()}
               className="whitespace-nowrap"
             >
-              {osuImporting ? "Downloading…" : "Import from osu!"}
+              {osuImporting
+                ? t("startModal.downloading")
+                : t("startModal.importFromOsu")}
             </Button>
           </div>
           <p className="mt-1.5 text-[11px] text-slate-500">
-            Downloads the mapset from a community mirror and opens it here.
-            Works with beatmapsets/… links, /b/ links, or a bare set ID.
+            {t("startModal.osuImportHint")}
           </p>
           {osuImportError && (
             <p className="mt-1 text-xs text-rose-400">{osuImportError}</p>
@@ -382,24 +390,24 @@ export function WelcomeModal({
         className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-[#5865F2]/70 hover:bg-ink-700 hover:text-white"
       >
         <DiscordIcon className="h-5 w-5 text-[#5865F2]" />
-        Join the Discord Server
+        {t("startModal.joinDiscord")}
       </a>
 
       {!user && accountsEnabled && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
           <span className="text-sm text-slate-400">
-            Log in with osu! to see your saved maps and mapping invitations.{" "}
+            {t("startModal.loginPrompt")}{" "}
             <a
               href="/privacy"
               target="_blank"
               rel="noreferrer"
               className="whitespace-nowrap text-slate-500 underline decoration-ink-500 underline-offset-2 transition hover:text-slate-300"
             >
-              Privacy policy
+              {t("startModal.privacyPolicy")}
             </a>
           </span>
           <Button variant="accent" onClick={login} className="whitespace-nowrap">
-            Log in with osu!
+            {t("startModal.loginWithOsu")}
           </Button>
         </div>
       )}
@@ -408,27 +416,25 @@ export function WelcomeModal({
       {localError && <p className="mt-4 text-sm text-rose-400">{localError}</p>}
 
       <Section
-        title="Local projects"
-        hint="saved on this device"
+        title={t("startModal.localProjects")}
+        hint={t("startModal.localProjectsHint")}
         count={localProjects?.length}
       >
         {localProjects === null ? (
-          <SectionMessage>Loading…</SectionMessage>
+          <SectionMessage>{t("common.loading")}</SectionMessage>
         ) : localProjects.length === 0 ? (
-          <SectionMessage>
-            No local saves yet. Use Ctrl+S or enable autosave after starting a
-            map.
-          </SectionMessage>
+          <SectionMessage>{t("startModal.noLocalSaves")}</SectionMessage>
         ) : (
           <CardGrid>
             {localProjects.slice(0, MAX_CARDS).map((p) => (
               <ProjectCard
                 key={p.id}
-                title={p.title || "Untitled"}
+                title={p.title || t("common.untitled")}
                 subtitle={subtitleOf(p.artist, p.creator)}
-                note={`${p.difficultyCount} diff${
-                  p.difficultyCount === 1 ? "" : "s"
-                } · saved ${new Date(p.updatedAt).toLocaleDateString()}`}
+                note={t("startModal.projectNote", {
+                  count: p.difficultyCount,
+                  date: new Date(p.updatedAt).toLocaleDateString(locale),
+                })}
                 sourceFormat={p.sourceFormat}
                 thumbUrl={localThumbs[p.id]}
                 selected={selected.has(keyOf("local", p.id))}
@@ -462,26 +468,24 @@ export function WelcomeModal({
 
       {user && (
         <Section
-          title="Cloud projects"
-          hint="saved to your account"
+          title={t("startModal.cloudProjects")}
+          hint={t("startModal.cloudProjectsHint")}
           count={projects === null ? undefined : owned.length}
         >
           {projects === null ? (
-            <SectionMessage>Loading…</SectionMessage>
+            <SectionMessage>{t("common.loading")}</SectionMessage>
           ) : owned.length === 0 ? (
-            <SectionMessage>
-              No saved maps yet. Use “Save to cloud” after you start one.
-            </SectionMessage>
+            <SectionMessage>{t("startModal.noCloudSaves")}</SectionMessage>
           ) : (
             <CardGrid>
               {owned.slice(0, MAX_CARDS).map((p) => (
                 <ProjectCard
                   key={p.id}
-                  title={p.title || "Untitled"}
+                  title={p.title || t("common.untitled")}
                   subtitle={subtitleOf(p.artist, p.creator)}
-                  note={`saved ${new Date(
-                    p.updated_at,
-                  ).toLocaleDateString()}`}
+                  note={t("startModal.savedOn", {
+                    date: new Date(p.updated_at).toLocaleDateString(locale),
+                  })}
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
                   participants={othersOf(p.participants, user.id)}
                   selected={selected.has(keyOf("cloud", p.id))}
@@ -516,8 +520,8 @@ export function WelcomeModal({
 
       {user && invited.length > 0 && (
         <Section
-          title="Mapping invitations"
-          hint="maps others shared with you"
+          title={t("startModal.invitations")}
+          hint={t("startModal.invitationsHint")}
           count={invited.length}
         >
           <CardGrid>
@@ -528,16 +532,20 @@ export function WelcomeModal({
               return (
                 <ProjectCard
                   key={p.id}
-                  badge="Invited"
-                  title={p.title || "Untitled"}
+                  badge={t("startModal.badgeInvited")}
+                  title={p.title || t("common.untitled")}
                   subtitle={subtitleOf(p.artist, p.creator)}
-                  note={ownerName ? `shared by ${ownerName}` : undefined}
+                  note={
+                    ownerName
+                      ? t("startModal.sharedBy", { name: ownerName })
+                      : undefined
+                  }
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
                   participants={othersOf(p.participants, user.id)}
                   onOpen={() => onOpenCloudProject(p.id)}
                   actions={
                     <CardActionButton
-                      label="Archive"
+                      label={t("startModal.archive")}
                       icon={<ArchiveIcon className="h-3.5 w-3.5" />}
                       busy={busyId === p.id}
                       onClick={() => archive(p.id, true)}
@@ -558,13 +566,13 @@ export function WelcomeModal({
             className="mb-3 flex w-full items-baseline gap-2 border-b border-white/10 pb-1.5 text-left"
           >
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-              Archived
+              {t("startModal.archived")}
             </span>
             <span className="grid min-w-[1.25rem] place-items-center rounded-full bg-ink-600 px-1.5 text-[10px] font-semibold text-slate-300">
               {archivedShared.length}
             </span>
             <span className="ml-auto text-[11px] text-slate-500">
-              {showArchived ? "Hide ▲" : "Show ▼"}
+              {showArchived ? t("startModal.hide") : t("startModal.show")}
             </span>
           </button>
           {showArchived && (
@@ -572,15 +580,15 @@ export function WelcomeModal({
               {archivedShared.slice(0, MAX_CARDS).map((p) => (
                 <ProjectCard
                   key={p.id}
-                  badge="Archived"
-                  title={p.title || "Untitled"}
+                  badge={t("startModal.archived")}
+                  title={p.title || t("common.untitled")}
                   subtitle={subtitleOf(p.artist, p.creator)}
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
                   participants={othersOf(p.participants, user.id)}
                   onOpen={() => onOpenCloudProject(p.id)}
                   actions={
                     <CardActionButton
-                      label="Unarchive"
+                      label={t("startModal.unarchive")}
                       icon="↩"
                       busy={busyId === p.id}
                       onClick={() => archive(p.id, false)}
@@ -598,19 +606,18 @@ export function WelcomeModal({
         open={confirm !== null}
         title={
           confirm && confirm.ids.length > 1
-            ? "Delete projects?"
-            : "Delete project?"
+            ? t("startModal.deleteProjectsTitle")
+            : t("startModal.deleteProjectTitle")
         }
         message={
           confirm
-            ? (confirm.ids.length > 1
-                ? `${confirm.ids.length} projects will be permanently deleted. `
-                : "This project will be permanently deleted. ") +
+            ? t("startModal.deleteCount", { count: confirm.ids.length }) +
+              " " +
               (confirm.scope === "local"
-                ? confirm.ids.length > 1
-                  ? "This removes the copies saved in this browser."
-                  : "This removes the copy saved in this browser."
-                : "This can't be undone.")
+                ? t("startModal.deleteLocalNote", {
+                    count: confirm.ids.length,
+                  })
+                : t("startModal.deleteCloudNote"))
             : ""
         }
         onConfirm={() => {
@@ -901,6 +908,7 @@ export function SampleMapsModal({
 }) {
   const [maps, setMaps] = useState<SampleMap[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     if (!open || maps) return;
@@ -915,7 +923,7 @@ export function SampleMapsModal({
       })
       .catch((err) => {
         if (!cancelled)
-          setError(err instanceof Error ? err.message : "Failed to load maps.");
+          setError(err instanceof Error ? err.message : "");
       });
     return () => {
       cancelled = true;
@@ -925,20 +933,24 @@ export function SampleMapsModal({
   return (
     <Modal
       open={open}
-      title="Try these maps"
+      title={t("sampleMaps.title")}
       onClose={onClose}
       width="max-w-3xl"
       footer={
         <Button variant="ghost" onClick={onBack}>
-          Back
+          {t("common.back")}
         </Button>
       }
     >
-      {error && (
-        <p className="text-sm text-rose-400">Couldn’t load maps: {error}</p>
+      {error !== null && (
+        <p className="text-sm text-rose-400">
+          {error
+            ? t("sampleMaps.loadError", { error })
+            : t("sampleMaps.loadFailed")}
+        </p>
       )}
-      {!maps && !error && (
-        <p className="text-sm text-slate-400">Loading maps…</p>
+      {!maps && error === null && (
+        <p className="text-sm text-slate-400">{t("sampleMaps.loading")}</p>
       )}
       {maps && (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -967,7 +979,7 @@ export function SampleMapsModal({
                   )}
                   <img
                     src={asset(`${map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? "etterna-logo" : "osu-logo"}.png`)}
-                    alt={map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? "Etterna Map" : "osu! Map"}
+                    alt={map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? t("sampleMaps.etternaMap") : t("sampleMaps.osuMap")}
                     className="absolute left-2 top-2 h-5 w-5 object-contain drop-shadow-md opacity-90"
                   />
                   <span
@@ -989,7 +1001,7 @@ export function SampleMapsModal({
                       {map.artist}
                     </div>
                     <div className="mt-0.5 truncate text-[11px] text-slate-500">
-                      mapped by {map.creator}
+                      {t("sampleMaps.mappedBy", { name: map.creator })}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1">

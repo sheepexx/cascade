@@ -29,6 +29,7 @@ const PREFS_KEY = "mania-editor:prefs";
 const VOLUME_KEY = "mania-editor:volume";
 const VIEW_KEY = "mania-editor:view";
 const HITSOUND_SKIN_SOURCE_KEY = "mania-editor:hitsound-skin-source";
+const LOCALE_KEY = "mania-editor:locale";
 
 const projectKey = (id?: string | null) =>
   !id || id === KEY ? KEY : `local:${id}`;
@@ -483,6 +484,21 @@ export function loadVolume(): number | null {
     if (raw == null) return null;
     const n = Number(raw);
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocale(locale: string): void {
+  try {
+    localStorage.setItem(LOCALE_KEY, locale);
+  } catch {
+  }
+}
+
+export function loadLocale(): string | null {
+  try {
+    return localStorage.getItem(LOCALE_KEY);
   } catch {
     return null;
   }

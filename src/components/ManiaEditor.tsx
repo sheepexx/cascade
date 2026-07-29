@@ -42,6 +42,7 @@ import {
   shuffleColumns,
 } from "../lib/noteTools";
 import { Menu } from "./ui/Menu";
+import { t } from "../lib/i18n/core";
 
 export type HitsoundSource = {
   id: string;
@@ -65,7 +66,7 @@ const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
 const SCROLL_TIME_EASE = 20;
 const CANVAS_FONT_STACK =
-  '"Quicksand", "Inter", ui-sans-serif, system-ui, sans-serif';
+  '"Quicksand", "Inter", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 
 type Props = {
   notes: ManiaNote[];
@@ -1319,7 +1320,7 @@ export function ManiaEditor(props: Props) {
           ctx.stroke();
           ctx.fillStyle = "#c084fc";
           ctx.font = `11px ${CANVAS_FONT_STACK}`;
-          ctx.fillText("Preview Point", 6, y - 4);
+          ctx.fillText(t("editor.previewPoint"), 6, y - 4);
         }
       }
 
@@ -1336,7 +1337,7 @@ export function ManiaEditor(props: Props) {
           ctx.stroke();
           ctx.fillStyle = "#fbbf24";
           ctx.font = `11px ${CANVAS_FONT_STACK}`;
-          ctx.fillText("Bookmark", 6, y - 4);
+          ctx.fillText(t("editor.bookmark"), 6, y - 4);
         }
         ctx.setLineDash([]);
       }
@@ -1688,7 +1689,7 @@ export function ManiaEditor(props: Props) {
       ctx.font = `${12 + beatFlash * 6}px ${CANVAS_FONT_STACK}`;
       ctx.fillText("★", x, phY);
       ctx.font = `bold 13px ${CANVAS_FONT_STACK}`;
-      ctx.fillText("KIAI", x + 16, phY);
+      ctx.fillText(t("editor.kiai"), x + 16, phY);
       ctx.font = `${12 + beatFlash * 6}px ${CANVAS_FONT_STACK}`;
       ctx.fillText("★", x + 52, phY);
       ctx.restore();
