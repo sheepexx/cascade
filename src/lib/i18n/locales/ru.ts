@@ -357,7 +357,6 @@ export const ru: PartialCatalog = {
   "empty.enter": "Начать",
   "empty.madeBy": "Автор:",
   "empty.contributors": "Участники:",
-  "empty.buyCoffee": "купите мне кофе :)",
 
   "home.returnTitle": "Вернуться на главный экран",
   "home.confirmTitle": "Вернуться на главный экран?",

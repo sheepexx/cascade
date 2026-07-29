@@ -345,7 +345,6 @@ export const ptBR: PartialCatalog = {
   "empty.enter": "Entrar",
   "empty.madeBy": "Feito por",
   "empty.contributors": "Contribuidores:",
-  "empty.buyCoffee": "me pague um café :)",
 
   "home.returnTitle": "Voltar para a tela inicial",
   "home.confirmTitle": "Voltar para a tela inicial?",

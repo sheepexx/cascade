@@ -42,6 +42,11 @@ native speaker who plays mania should confirm or correct.
 These are file formats, product names, or terms every mania mapper reads in
 English regardless of locale.
 
+Third-party brand names are never translated and are deliberately not keys at
+all, so no catalog can pick them up: "buy me a coffee :)" on the start screen
+names the Buy Me a Coffee service, and Discord, osu!, Etterna, StepMania and
+Quaver are likewise left as written wherever they appear.
+
 `Difficulty` is also left in English in the top navigation of every locale,
 because it names a menu whose contents mappers discuss in English. The word is
 translated everywhere it appears as prose.
