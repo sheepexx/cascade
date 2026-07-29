@@ -345,7 +345,6 @@ export const de: PartialCatalog = {
   "empty.enter": "Los geht's",
   "empty.madeBy": "Erstellt von",
   "empty.contributors": "Mitwirkende:",
-  "empty.buyCoffee": "spendier mir einen Kaffee :)",
 
   "home.returnTitle": "Zum Startbildschirm zurückkehren",
   "home.confirmTitle": "Zum Startbildschirm zurückkehren?",

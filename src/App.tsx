@@ -5682,7 +5682,7 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
             rel="noreferrer"
             className="font-medium text-slate-400 transition hover:text-accent"
           >
-            {t("empty.buyCoffee")}
+            buy me a coffee :)
           </a>
         </div>
       </div>

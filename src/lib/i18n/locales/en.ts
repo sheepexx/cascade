@@ -343,7 +343,6 @@ export const en = {
   "empty.enter": "Enter",
   "empty.madeBy": "Made by",
   "empty.contributors": "Contributors:",
-  "empty.buyCoffee": "buy me a coffee :)",
 
   "home.returnTitle": "Return to home screen",
   "home.confirmTitle": "Return to home screen?",

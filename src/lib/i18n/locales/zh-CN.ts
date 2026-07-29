@@ -328,7 +328,6 @@ export const zhCN: PartialCatalog = {
   "empty.enter": "进入",
   "empty.madeBy": "制作者",
   "empty.contributors": "贡献者：",
-  "empty.buyCoffee": "请我喝杯咖啡 :)",
 
   "home.returnTitle": "返回主界面",
   "home.confirmTitle": "返回主界面？",
