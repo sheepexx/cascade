@@ -3,6 +3,8 @@ import { Modal } from "../ui/Modal";
 import { Toggle } from "../ui/Controls";
 import type { PlaytestSettings } from "../../types";
 import { keyLabel, keybindWarnings } from "../../lib/playtestKeybinds";
+import { useLocale, type Locale, type MessageKey } from "../../lib/i18n";
+import { LOCALES } from "../../lib/i18n/core";
 
 type Props = {
   open: boolean;
@@ -46,6 +48,13 @@ type Props = {
 const TABS = ["Editor", "Playtest", "Audio", "Export"] as const;
 type Tab = (typeof TABS)[number];
 
+const TAB_LABELS: Record<Tab, MessageKey> = {
+  Editor: "settings.tabEditor",
+  Playtest: "settings.tabPlaytest",
+  Audio: "settings.tabAudio",
+  Export: "settings.tabExport",
+};
+
 export function AppSettingsModal({
   open,
   onClose,
@@ -84,6 +93,7 @@ export function AppSettingsModal({
   uiSoundVolume,
   onUiSoundVolume,
 }: Props) {
+  const { locale, setLocale, t } = useLocale();
   const [tab, setTab] = useState<Tab>("Editor");
   const [keyMode, setKeyMode] = useState(4);
   const [capturing, setCapturing] = useState<number | null>(null);
@@ -112,23 +122,23 @@ export function AppSettingsModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Settings">
+    <Modal open={open} onClose={onClose} title={t("settings.title")}>
       {/* Floor the height so switching between a long tab (Playtest) and a
           short one (Audio) doesn't collapse the dialog. */}
       <div className="flex min-h-[min(30rem,60vh)] flex-col gap-5">
         <div className="flex gap-1 rounded-xl border border-white/10 bg-ink-700/40 p-1">
-          {TABS.map((t) => (
+          {TABS.map((name) => (
             <button
-              key={t}
+              key={name}
               type="button"
-              onClick={() => setTab(t)}
+              onClick={() => setTab(name)}
               className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                tab === t
+                tab === name
                   ? "bg-accent/90 text-white shadow-sm"
                   : "text-slate-300 hover:bg-white/5"
               }`}
             >
-              {t}
+              {t(TAB_LABELS[name])}
             </button>
           ))}
         </div>
@@ -137,11 +147,28 @@ export function AppSettingsModal({
           <div className="flex flex-col gap-6">
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Playfield
+                {t("settings.language")}
+              </h3>
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as Locale)}
+                className="w-full rounded-lg border border-ink-500/60 bg-ink-700 px-2 py-2 text-sm text-slate-100"
+              >
+                {LOCALES.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.nativeName}
+                  </option>
+                ))}
+              </select>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.playfield")}
               </h3>
               <div className="flex flex-col gap-2">
                 <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-                  <span>Background dim</span>
+                  <span>{t("settings.backgroundDim")}</span>
                   <span className="font-medium text-slate-200">
                     {Math.round(dimBackground)}%
                   </span>
@@ -156,7 +183,7 @@ export function AppSettingsModal({
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Size / zoom</span>
+                  <span>{t("settings.sizeZoom")}</span>
                   <span className="font-medium text-slate-200">
                     {Math.round(playfieldScale * 100)}%
                   </span>
@@ -171,87 +198,80 @@ export function AppSettingsModal({
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
                 <p className="text-[11px] text-slate-500">
-                  Higher dim keeps the notefield easier to read. Size / zoom is
-                  visual only - also adjustable with the + / − keys.
+                  {t("settings.playfieldHint")}
                 </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
-                  <span>Waveform on hit lane</span>
+                  <span>{t("settings.waveformOnLane")}</span>
                   <Toggle
                     checked={showWaveform}
                     onChange={onShowWaveform}
-                    aria-label="Waveform on hit lane"
+                    aria-label={t("settings.waveformOnLane")}
                   />
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Overlays the song&rsquo;s waveform on the lanes, in the editor
-                  and in playtest, so audio peaks line up with your notes.
-                  Handy for checking the offset. Toggle with W.
+                  {t("settings.waveformHint")}
                 </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
-                  <span>Timing and bookmark lines</span>
+                  <span>{t("settings.timingLines")}</span>
                   <Toggle
                     checked={showTimingLines}
                     onChange={onShowTimingLines}
-                    aria-label="Timing and bookmark lines"
+                    aria-label={t("settings.timingLines")}
                   />
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Draws the BPM, SV, preview point, and bookmark lines across
-                  the playfield. They are always hidden during playtest.
+                  {t("settings.timingLinesHint")}
                 </p>
               </div>
             </section>
 
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Scrolling
+                {t("settings.scrolling")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>Smooth scrolling</span>
+                <span>{t("settings.smoothScrolling")}</span>
                 <Toggle
                   checked={smoothScrolling}
                   onChange={onSmoothScrolling}
-                  aria-label="Smooth scrolling"
+                  aria-label={t("settings.smoothScrolling")}
                 />
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
-                Glides the playfield between snap lines instead of jumping. Still
-                snaps to the grid - only the motion is animated.
+                {t("settings.smoothScrollingHint")}
               </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
-                <span>Preview SV while playing</span>
+                <span>{t("settings.svPreview")}</span>
                 <Toggle
                   checked={svPreviewPlayback}
                   onChange={onSvPreviewPlayback}
-                  aria-label="Preview SV while playing"
+                  aria-label={t("settings.svPreview")}
                 />
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
-                Warps the scroll by your green SV points during editor playback,
-                the way players will see it. Playtest always applies SV. While
-                paused the editor stays linear so placing notes is predictable.
+                {t("settings.svPreviewHint")}
               </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
-                <span>BPM affects scroll speed</span>
+                <span>{t("settings.bpmAffectsScroll")}</span>
                 <Toggle
                   checked={bpmAffectsScroll}
                   onChange={onBpmAffectsScroll}
-                  aria-label="BPM affects scroll speed"
+                  aria-label={t("settings.bpmAffectsScroll")}
                 />
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
-                Matches osu!mania: red points scroll faster at higher BPM, so
-                BPM-gimmick maps (freezes, teleports) preview correctly. Turn
-                off for Quaver-style constant scroll where only SV matters.
+                {t("settings.bpmAffectsScrollHint")}
               </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
-                <span>Scroll direction</span>
+                <span>{t("settings.scrollDirection")}</span>
                 <button
                   type="button"
                   onClick={() => onUpscroll(!upscroll)}
-                  aria-label={`Scroll direction: ${
-                    upscroll ? "upscroll" : "downscroll"
-                  } (click to switch)`}
+                  aria-label={t("settings.scrollDirectionAria", {
+                    direction: upscroll
+                      ? t("settings.upscroll")
+                      : t("settings.downscroll"),
+                  })}
                   className="flex items-center gap-1.5 rounded-lg border border-ink-500/60 bg-ink-600 px-2.5 py-1 text-xs font-medium text-slate-200 shadow-sm transition hover:border-accent/60 hover:bg-ink-500"
                 >
                   <span
@@ -269,25 +289,25 @@ export function AppSettingsModal({
                         upscroll ? "scroll-dir-in-up" : "scroll-dir-in-down"
                       }`}
                     >
-                      {upscroll ? "Upscroll" : "Downscroll"}
+                      {upscroll
+                        ? t("settings.upscrollLabel")
+                        : t("settings.downscrollLabel")}
                     </span>
                   </span>
                 </button>
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
-                Downscroll drops notes toward a bottom judgement line; upscroll
-                flips the playfield so notes rise toward a top line. Editor-only,
-                it doesn&rsquo;t change the exported map.
+                {t("settings.scrollDirectionHint")}
               </p>
             </section>
 
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Long notes
+                {t("settings.longNotes")}
               </h3>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Body width</span>
+                  <span>{t("settings.bodyWidth")}</span>
                   <span className="font-medium text-slate-200">
                     {Math.round(longNoteBodyScale * 100)}%
                   </span>
@@ -302,27 +322,25 @@ export function AppSettingsModal({
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
                 <p className="text-[11px] text-slate-500">
-                  Width of the default long-note body (the gray part), relative to
-                  the lane. Only applies when no skin body sprite is used.
+                  {t("settings.bodyWidthHint")}
                 </p>
               </div>
             </section>
 
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Local save
+                {t("settings.localSave")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>Autosave local project</span>
+                <span>{t("settings.autosave")}</span>
                 <Toggle
                   checked={localAutosaveEnabled}
                   onChange={onLocalAutosaveEnabled}
-                  aria-label="Autosave local project"
+                  aria-label={t("settings.autosave")}
                 />
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
-                Saves the full project on this device, including audio,
-                difficulties and background files. Ctrl+S still saves locally.
+                {t("settings.autosaveHint")}
               </p>
             </section>
           </div>
@@ -332,7 +350,7 @@ export function AppSettingsModal({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>Scroll speed</span>
+                <span>{t("settings.scrollSpeed")}</span>
                 <span className="font-medium text-slate-200">
                   {playtest.scrollSpeed}
                 </span>
@@ -351,7 +369,7 @@ export function AppSettingsModal({
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>Rate</span>
+                <span>{t("settings.rate")}</span>
                 <span className="font-medium text-slate-200">
                   {(playtest.rate ?? 1).toFixed(2)}×
                 </span>
@@ -375,13 +393,12 @@ export function AppSettingsModal({
                 })}
               </div>
               <p className="text-[11px] text-slate-500">
-                Practice faster or slower. Hit windows scale with the rate, so the
-                timing precision you need stays the same as at 1×.
+                {t("settings.rateHint")}
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs text-slate-400">
-                <span>Zoom</span>
+                <span>{t("settings.zoom")}</span>
                 <input
                   type="number"
                   min={0.5}
@@ -393,7 +410,7 @@ export function AppSettingsModal({
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
-                <span>Background dim</span>
+                <span>{t("settings.backgroundDim")}</span>
                 <input
                   type="number"
                   min={0}
@@ -407,7 +424,7 @@ export function AppSettingsModal({
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
-                <span>Offset mode</span>
+                <span>{t("settings.offsetMode")}</span>
                 <select
                   value={playtest.offsetMode}
                   onChange={(e) =>
@@ -417,13 +434,13 @@ export function AppSettingsModal({
                   }
                   className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
                 >
-                  <option value="visual">Visual offset</option>
-                  <option value="audio">Audio offset</option>
+                  <option value="visual">{t("settings.offsetVisual")}</option>
+                  <option value="audio">{t("settings.offsetAudio")}</option>
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <div className="flex items-center justify-between">
-                  <span>Offset ms</span>
+                  <span>{t("settings.offsetMs")}</span>
                   <span className="font-medium text-slate-200">
                     {playtest.offsetMs} ms
                   </span>
@@ -442,7 +459,7 @@ export function AppSettingsModal({
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <div className="flex items-center justify-between">
-                  <span>Hit position offset</span>
+                  <span>{t("settings.hitPositionOffset")}</span>
                   <span className="font-medium text-slate-200">
                     {playtest.hitPositionOffset} px
                   </span>
@@ -459,29 +476,27 @@ export function AppSettingsModal({
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
                 <span className="text-[11px] text-slate-500">
-                  Moves the hit point below (or above) the receptors in playtest
-                  only - the receptors don't move. Visual; doesn't affect timing.
+                  {t("settings.hitPositionOffsetHint")}
                 </span>
               </label>
             </div>
             <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
-              <SettingToggle label="Show judgement text" checked={playtest.showJudgements} onChange={(v) => patchPlaytest({ showJudgements: v })} />
-              <SettingToggle label="Show combo" checked={playtest.showCombo} onChange={(v) => patchPlaytest({ showCombo: v })} />
-              <SettingToggle label="Show accuracy" checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
-              <SettingToggle label="Show hit error" checked={playtest.showHitError} onChange={(v) => patchPlaytest({ showHitError: v })} />
-              <SettingToggle label="Show error (UR) bar" checked={playtest.showErrorBar} onChange={(v) => patchPlaytest({ showErrorBar: v })} />
-              <SettingToggle label="Skin combo font" checked={playtest.useSkinComboFont} onChange={(v) => patchPlaytest({ useSkinComboFont: v })} />
-              <SettingToggle label="Skin judgements" checked={playtest.useSkinJudgements} onChange={(v) => patchPlaytest({ useSkinJudgements: v })} />
+              <SettingToggle label={t("settings.showJudgements")} checked={playtest.showJudgements} onChange={(v) => patchPlaytest({ showJudgements: v })} />
+              <SettingToggle label={t("settings.showCombo")} checked={playtest.showCombo} onChange={(v) => patchPlaytest({ showCombo: v })} />
+              <SettingToggle label={t("settings.showAccuracy")} checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
+              <SettingToggle label={t("settings.showHitError")} checked={playtest.showHitError} onChange={(v) => patchPlaytest({ showHitError: v })} />
+              <SettingToggle label={t("settings.showErrorBar")} checked={playtest.showErrorBar} onChange={(v) => patchPlaytest({ showErrorBar: v })} />
+              <SettingToggle label={t("settings.skinComboFont")} checked={playtest.useSkinComboFont} onChange={(v) => patchPlaytest({ useSkinComboFont: v })} />
+              <SettingToggle label={t("settings.skinJudgements")} checked={playtest.useSkinJudgements} onChange={(v) => patchPlaytest({ useSkinJudgements: v })} />
             </div>
 
             <div className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 p-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Quick restart key
+                  {t("settings.quickRestartKey")}
                 </div>
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Restarts the run instantly during playtest. Esc opens the pause
-                  menu; F5 enters / leaves the playtest.
+                  {t("settings.quickRestartHint")}
                 </p>
               </div>
               <button
@@ -505,14 +520,16 @@ export function AppSettingsModal({
                     : "border-white/10 bg-ink-700/60 text-slate-300 hover:border-accent/50"
                 }`}
               >
-                {capturingRestart ? "Press key" : keyLabel(playtest.quickRestartKey)}
+                {capturingRestart
+                  ? t("settings.pressKey")
+                  : keyLabel(playtest.quickRestartKey)}
               </button>
             </div>
 
             <div className="rounded-xl border border-ink-600 bg-ink-700/30 p-3">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Keybinds
+                  {t("settings.keybinds")}
                 </span>
                 <select
                   value={keyMode}
@@ -550,9 +567,11 @@ export function AppSettingsModal({
                     }`}
                   >
                     <span className="block text-[10px] text-slate-500">
-                      Lane {i + 1}
+                      {t("settings.lane", { number: i + 1 })}
                     </span>
-                    {capturing === i ? "Press key" : keyLabel(selectedKeybinds[i] || "")}
+                    {capturing === i
+                      ? t("settings.pressKey")
+                      : keyLabel(selectedKeybinds[i] || "")}
                   </button>
                 ))}
               </div>
@@ -569,30 +588,27 @@ export function AppSettingsModal({
           <div className="flex flex-col gap-6">
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Hitsounds
+                {t("settings.hitsounds")}
               </h3>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between text-xs text-slate-300">
-                  <span>Play hitsounds during playback</span>
+                  <span>{t("settings.playHitsounds")}</span>
                   <Toggle
                     checked={hitsoundsEnabled}
                     onChange={onHitsoundsEnabled}
-                    aria-label="Play hitsounds during playback"
+                    aria-label={t("settings.playHitsounds")}
                   />
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <p className="text-[11px] text-slate-500">
-                    Hitsounds now follow the map: each note plays its own sample set
-                    (normal / soft / drum) and additions (whistle, finish, clap).
-                    Edit them with the hitsound toolbar at the bottom of the editor,
-                    or the W / F / C keys.
+                    {t("settings.hitsoundsHint")}
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>Volume</span>
+                    <span>{t("settings.volume")}</span>
                     <span className="font-medium text-slate-200">
                       {Math.round(hitsoundVolume * 100)}%
                     </span>
@@ -608,8 +624,7 @@ export function AppSettingsModal({
                     className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
                   />
                   <p className="text-[11px] text-slate-500">
-                    Independent of the song volume. Also adjustable from the
-                    transport bar (&ldquo;Hit&rdquo;).
+                    {t("settings.hitsoundVolumeHint")}
                   </p>
                 </div>
               </div>
@@ -617,19 +632,19 @@ export function AppSettingsModal({
 
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Interface
+                {t("settings.interface")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>UI sound effects</span>
+                <span>{t("settings.uiSounds")}</span>
                 <Toggle
                   checked={uiSoundsEnabled}
                   onChange={onUiSoundsEnabled}
-                  aria-label="UI sound effects"
+                  aria-label={t("settings.uiSounds")}
                 />
               </div>
               <div className="mt-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Volume</span>
+                  <span>{t("settings.volume")}</span>
                   <span className="font-medium text-slate-200">
                     {Math.round(uiSoundVolume * 100)}%
                   </span>
@@ -646,8 +661,7 @@ export function AppSettingsModal({
                 />
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
-                Clicks, confirmations, and chimes for invites, cloud saves and map
-                exports.
+                {t("settings.uiSoundsHint")}
               </p>
             </section>
           </div>
@@ -657,25 +671,23 @@ export function AppSettingsModal({
           <div className="flex flex-col gap-6">
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Background images
+                {t("settings.backgroundImages")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>Convert PNG backgrounds to JPEG</span>
+                <span>{t("settings.convertPng")}</span>
                 <Toggle
                   checked={exportPngBackgroundsAsJpeg}
                   onChange={onExportPngBackgroundsAsJpeg}
-                  aria-label="Convert PNG backgrounds to JPEG"
+                  aria-label={t("settings.convertPng")}
                 />
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
-                Re-encodes PNG background images as JPEG when exporting a .osz or
-                a pack, which greatly shrinks the file. Only backgrounds are
-                converted - skin and storyboard images are always left untouched.
+                {t("settings.convertPngHint")}
               </p>
 
               <div className="mt-4 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>JPEG quality</span>
+                  <span>{t("settings.jpegQuality")}</span>
                   <span className="font-medium text-slate-200">
                     {Math.round(exportJpegQuality * 100)}%
                   </span>
@@ -691,8 +703,7 @@ export function AppSettingsModal({
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
                 />
                 <p className="text-[11px] text-slate-500">
-                  Higher quality looks better but saves less space. 90% is
-                  near-lossless at gameplay scale.
+                  {t("settings.jpegQualityHint")}
                 </p>
               </div>
             </section>

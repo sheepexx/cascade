@@ -1,6 +1,7 @@
 import type { BackgroundScope, Difficulty, LoadedFile, SmMeta, SongMeta } from "../../types";
 import { Modal } from "../ui/Modal";
 import { Field, FileButton, TextInput } from "../ui/Controls";
+import { useT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -49,6 +50,7 @@ export function SettingsModal({
   activeDiff,
   onSmMeta,
 }: Props) {
+  const t = useT();
   const set = <K extends keyof SongMeta>(key: K, value: SongMeta[K]) =>
     onMeta({ ...meta, [key]: value });
 
@@ -59,20 +61,20 @@ export function SettingsModal({
     onSmMeta?.({ ...sm, [key]: value });
 
   return (
-    <Modal open={open} onClose={onClose} title="Map Settings">
+    <Modal open={open} onClose={onClose} title={t("mapSettings.title")}>
       <div className="flex flex-col gap-6">
         <section>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Import
+            {t("mapSettings.import")}
           </h3>
           <FileButton
-            label="Import .osz map…"
+            label={t("mapSettings.importOsz")}
             accept=".osz,.zip,application/zip"
             onFile={onImportOsz}
           />
           {onImportSm && (
             <FileButton
-              label="Import .sm / .ssc map…"
+              label={t("mapSettings.importSm")}
               accept=".sm,.ssc"
               onFile={onImportSm}
             />
@@ -83,22 +85,23 @@ export function SettingsModal({
               onClick={onImportSmPack}
               className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85"
             >
-              Import SM pack…
+              {t("mapSettings.importSmPack")}
             </button>
           )}
           <p className="mt-1.5 text-[11px] text-slate-500">
-            Replaces the current project with all mania difficulties in the
-            archive.
+            {t("mapSettings.importHint")}
           </p>
         </section>
 
         <section>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Audio
+            {t("mapSettings.audio")}
           </h3>
           <div className="flex flex-col gap-2">
             <FileButton
-              label={audio ? "Replace audio…" : "Upload .mp3 / .ogg"}
+              label={
+                audio ? t("mapSettings.replaceAudio") : t("mapSettings.uploadAudio")
+              }
               accept="audio/mpeg,audio/ogg,.mp3,.ogg"
               onFile={onAudioFile}
             />
@@ -112,11 +115,15 @@ export function SettingsModal({
 
         <section>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Background
+            {t("mapSettings.background")}
           </h3>
           <div className="flex flex-col gap-2">
             <FileButton
-              label={background ? "Replace image…" : "Upload image (optional)"}
+              label={
+                background
+                  ? t("mapSettings.replaceImage")
+                  : t("mapSettings.uploadImage")
+              }
               accept="image/*"
               onFile={onBackgroundFile}
             />
@@ -125,18 +132,18 @@ export function SettingsModal({
                 <div className="flex items-center gap-2">
                   <img
                     src={background.url}
-                    alt="background preview"
+                    alt={t("mapSettings.backgroundPreview")}
                     className="h-12 w-20 rounded object-cover"
                   />
                   <button
                     onClick={onClearBackground}
                     className="text-xs text-accent hover:underline"
                   >
-                    Remove
+                    {t("common.remove")}
                   </button>
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
-                  <span>Applies to</span>
+                  <span>{t("mapSettings.appliesTo")}</span>
                   <div className="inline-flex overflow-hidden rounded-lg border border-ink-500/60">
                     {(["mapset", "difficulty"] as const).map((s) => (
                       <button
@@ -148,7 +155,9 @@ export function SettingsModal({
                             : "bg-ink-700 text-slate-300 hover:bg-ink-600"
                         }`}
                       >
-                        {s === "mapset" ? "Whole set" : "This diff"}
+                        {s === "mapset"
+                          ? t("mapSettings.wholeSet")
+                          : t("mapSettings.thisDiff")}
                       </button>
                     ))}
                   </div>
@@ -161,18 +170,20 @@ export function SettingsModal({
         <section>
           <div className="mb-3 flex items-center gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Background Video
+              {t("mapSettings.backgroundVideo")}
             </h3>
             <span
               className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300"
-              title="The video file is kept on this device and bundled into exported .osz files, but it is not uploaded with cloud saves or live collab sessions."
+              title={t("mapSettings.noCloudTitle")}
             >
-              no cloud support
+              {t("mapSettings.noCloud")}
             </span>
           </div>
           <div className="flex flex-col gap-2">
             <FileButton
-              label={video ? "Replace video…" : "Upload video (optional)"}
+              label={
+                video ? t("mapSettings.replaceVideo") : t("mapSettings.uploadVideo")
+              }
               accept="video/*,.mp4,.webm,.avi,.flv,.mov,.wmv,.m4v"
               onFile={onVideoFile}
             />
@@ -197,12 +208,12 @@ export function SettingsModal({
                       onClick={onClearVideo}
                       className="self-start text-xs text-accent hover:underline"
                     >
-                      Remove
+                      {t("common.remove")}
                     </button>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <span>Starts at</span>
+                  <span>{t("mapSettings.startsAt")}</span>
                   <TextInput
                     type="number"
                     value={videoOffsetMs}
@@ -212,18 +223,15 @@ export function SettingsModal({
                     }}
                     className="w-24 px-2 py-1 text-xs"
                   />
-                  <span>ms into the song</span>
+                  <span>{t("mapSettings.msIntoSong")}</span>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Plays muted behind the playfield, in place of the background
-                  image. Applies to the whole set. osu! plays .mp4/.avi/.flv;
-                  use H.264 .mp4 for the widest support.
+                  {t("mapSettings.videoHint")}
                 </p>
               </>
             ) : (
               <p className="text-[11px] text-slate-500">
-                Optional. The video plays muted behind the playfield while the
-                song plays, like ranked osu! maps with a video.
+                {t("mapSettings.videoEmptyHint")}
               </p>
             )}
           </div>
@@ -231,36 +239,35 @@ export function SettingsModal({
 
         <section className="flex flex-col gap-3">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Metadata
+            {t("mapSettings.metadata")}
           </h3>
-          <Field label="Title">
+          <Field label={t("mapSettings.fieldTitle")}>
             <TextInput
               value={meta.title}
               onChange={(e) => set("title", e.target.value)}
             />
           </Field>
-          <Field label="Artist">
+          <Field label={t("mapSettings.fieldArtist")}>
             <TextInput
               value={meta.artist}
               onChange={(e) => set("artist", e.target.value)}
             />
           </Field>
-          <Field label="Creator">
+          <Field label={t("mapSettings.fieldCreator")}>
             <TextInput
               value={meta.creator}
               onChange={(e) => set("creator", e.target.value)}
             />
           </Field>
-          <Field label="Tags">
+          <Field label={t("mapSettings.fieldTags")}>
             <TextInput
               value={meta.tags ?? ""}
               onChange={(e) => set("tags", e.target.value)}
-              placeholder="space-separated, e.g. stream jumpstream tech"
+              placeholder={t("mapSettings.tagsPlaceholder")}
             />
           </Field>
           <p className="text-[11px] text-slate-500">
-            Tags help players find your map in searches. Difficulty name &amp;
-            key count are set per difficulty in the Difficulty menu.
+            {t("mapSettings.tagsHint")}
           </p>
         </section>
 
@@ -273,73 +280,71 @@ export function SettingsModal({
                 className="h-4 w-4 object-contain opacity-80"
               />
               <h3 className="text-xs font-semibold uppercase tracking-wide text-pink-300">
-                StepMania / Etterna Fields
+                {t("mapSettings.smFields")}
               </h3>
             </div>
             <p className="text-[11px] text-slate-400">
-              These are written directly to the{" "}
-              <code className="rounded bg-ink-700 px-1 text-pink-300">.sm</code>{" "}
-              header on export. Leave blank to use defaults.
+              {t("mapSettings.smFieldsHint")}
             </p>
 
-            <Field label="Subtitle (#SUBTITLE)">
+            <Field label={t("mapSettings.smSubtitle")}>
               <TextInput
                 value={sm.subtitle ?? ""}
                 onChange={(e) => setSm("subtitle", e.target.value || undefined)}
-                placeholder="e.g. (TV Size)"
+                placeholder={t("mapSettings.smSubtitlePlaceholder")}
               />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Title Translit (#TITLETRANSLIT)">
+              <Field label={t("mapSettings.smTitleTranslit")}>
                 <TextInput
                   value={sm.titleTranslit ?? ""}
                   onChange={(e) =>
                     setSm("titleTranslit", e.target.value || undefined)
                   }
-                  placeholder="Romanised title"
+                  placeholder={t("mapSettings.smRomanisedTitle")}
                 />
               </Field>
-              <Field label="Subtitle Translit (#SUBTITLETRANSLIT)">
+              <Field label={t("mapSettings.smSubtitleTranslit")}>
                 <TextInput
                   value={sm.subtitleTranslit ?? ""}
                   onChange={(e) =>
                     setSm("subtitleTranslit", e.target.value || undefined)
                   }
-                  placeholder="Romanised subtitle"
+                  placeholder={t("mapSettings.smRomanisedSubtitle")}
                 />
               </Field>
             </div>
 
-            <Field label="Artist Translit (#ARTISTTRANSLIT)">
+            <Field label={t("mapSettings.smArtistTranslit")}>
               <TextInput
                 value={sm.artistTranslit ?? ""}
                 onChange={(e) =>
                   setSm("artistTranslit", e.target.value || undefined)
                 }
-                placeholder="Romanised artist name"
+                placeholder={t("mapSettings.smRomanisedArtist")}
               />
             </Field>
 
-            <Field label="Genre (#GENRE)">
+            <Field label={t("mapSettings.smGenre")}>
               <TextInput
                 value={sm.genre ?? ""}
                 onChange={(e) => setSm("genre", e.target.value || undefined)}
-                placeholder="e.g. J-Pop, Electronic"
+                placeholder={t("mapSettings.smGenrePlaceholder")}
               />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Display BPM (#DISPLAYBPM)">
+              <Field label={t("mapSettings.smDisplayBpm")}>
                 <TextInput
                   value={sm.displayBpm ?? ""}
                   onChange={(e) =>
                     setSm("displayBpm", e.target.value || undefined)
                   }
-                  placeholder="e.g. 120 or 80:200"
+                  placeholder={t("mapSettings.smDisplayBpmPlaceholder")}
                 />
               </Field>
-              <Field label="Sample Length (#SAMPLELENGTH) (s)">
+              <Field label={t("mapSettings.smSampleLength")}>
                 <TextInput
                   value={
                     sm.sampleLength !== undefined ? String(sm.sampleLength) : ""
@@ -348,14 +353,14 @@ export function SettingsModal({
                     const v = parseFloat(e.target.value);
                     setSm("sampleLength", Number.isFinite(v) ? v : undefined);
                   }}
-                  placeholder="seconds, e.g. 10"
+                  placeholder={t("mapSettings.smSampleLengthPlaceholder")}
                 />
               </Field>
             </div>
 
             <div className="flex flex-col gap-1">
               <span className="text-xs text-slate-400">
-                Selectable (#SELECTABLE)
+                {t("mapSettings.smSelectable")}
               </span>
               <div className="inline-flex overflow-hidden rounded-lg border border-ink-500/60">
                 {(["YES", "NO"] as const).map((v) => (

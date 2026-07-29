@@ -8,6 +8,7 @@ import {
 } from "../types";
 import type { AudioController } from "../hooks/useAudio";
 import { formatTime, parseTimestamp } from "../lib/timing";
+import { useT } from "../lib/i18n";
 type Props = {
   audio: AudioController;
   view: ViewState;
@@ -32,6 +33,7 @@ export function TransportBar({
   const [jumpInvalid, setJumpInvalid] = useState(false);
   const [copied, setCopied] = useState<"ms" | "timestamp" | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
+  const t = useT();
 
   useEffect(
     () => () => {
@@ -102,7 +104,7 @@ export function TransportBar({
           className={`w-36 rounded border bg-ink-900/80 px-2 py-1 font-mono text-xs text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur transition-colors ${
             jumpInvalid ? "border-red-400/80" : "border-accent/70"
           }`}
-          title="Jump to time — Enter to go, Esc to cancel"
+          title={t("transport.jumpTitle")}
         />
       ) : (
         // Each half copies what it shows: the raw millisecond count for
@@ -114,7 +116,7 @@ export function TransportBar({
             className={`cursor-pointer rounded-l py-1 pl-2 pr-1 transition-colors hover:bg-white/10 ${
               copied === "ms" ? "text-accent" : "text-slate-100"
             }`}
-            title="Click to copy the time in milliseconds"
+            title={t("transport.copyMs")}
           >
             {Math.round(currentTime)} ms
           </button>
@@ -124,7 +126,7 @@ export function TransportBar({
             className={`cursor-pointer rounded-r py-1 pl-1 pr-2 transition-colors hover:bg-white/10 hover:text-slate-100 ${
               copied === "timestamp" ? "text-accent" : "text-slate-500"
             }`}
-            title="Click to copy the timestamp"
+            title={t("transport.copyTimestamp")}
           >
             {formatTime(currentTime)}
           </button>
@@ -134,7 +136,7 @@ export function TransportBar({
         <button
           onClick={() => onJumpOpenChange(true)}
           className="cursor-pointer rounded border border-white/5 bg-ink-900/55 px-2 py-1 text-xs text-slate-400 shadow-inner shadow-black/10 backdrop-blur transition-colors hover:bg-white/10 hover:text-slate-100"
-          title="Jump to time (Ctrl+G)"
+          title={t("transport.jumpButton")}
         >
           Go to
         </button>
@@ -158,7 +160,7 @@ export function TransportBar({
         </label>
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
-          Hit
+          {t("transport.hit")}
           <input
             type="range"
             min={0}
@@ -167,7 +169,7 @@ export function TransportBar({
             value={hitsoundVolume}
             onChange={(e) => onHitsoundVolume(Number(e.target.value))}
             className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
-            title="Hitsound volume"
+            title={t("transport.hitsoundVolume")}
           />
           <span className="w-8 font-mono text-slate-300">
             {Math.round(hitsoundVolume * 100)}%
@@ -175,7 +177,7 @@ export function TransportBar({
         </label>
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
-          Snap
+          {t("transport.snap")}
           <select
             value={view.snapDivisor}
             onChange={(e) =>
@@ -195,7 +197,7 @@ export function TransportBar({
         </label>
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
-          Scroll speed
+          {t("transport.scrollSpeed")}
           <input
             type="range"
             min={MIN_SCROLL_SPEED}

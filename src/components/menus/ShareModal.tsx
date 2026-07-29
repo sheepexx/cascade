@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, TextInput } from "../ui/Controls";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
+import { useT } from "../../lib/i18n";
 import {
   listCollaborators,
   addCollaborator,
@@ -26,13 +27,14 @@ export function ShareModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmUser, setConfirmUser] = useState<Collaborator | null>(null);
+  const t = useT();
 
   const reload = () => {
     if (!projectId) return;
     listCollaborators(projectId)
       .then(setList)
       .catch((e) =>
-        setError(e instanceof Error ? e.message : "Failed to load."),
+        setError(e instanceof Error ? e.message : t("share.loadFailed")),
       );
   };
 
@@ -54,7 +56,7 @@ export function ShareModal({
       setUsername("");
       reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to invite.");
+      setError(e instanceof Error ? e.message : t("share.inviteFailed"));
     } finally {
       setBusy(false);
     }
@@ -67,7 +69,7 @@ export function ShareModal({
         await setCollaboratorRole(projectId, c.user_id, next);
         reload();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to update role.");
+        setError(e instanceof Error ? e.message : t("share.roleFailed"));
       }
     })();
 
@@ -78,30 +80,27 @@ export function ShareModal({
         await removeCollaborator(projectId, c.user_id);
         reload();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to remove.");
+        setError(e instanceof Error ? e.message : t("share.removeFailed"));
       }
     })();
 
   return (
     <>
-    <Modal open={open} title="Share & collaborate" onClose={onClose} width="max-w-lg">
+    <Modal open={open} title={t("share.title")} onClose={onClose} width="max-w-lg">
       {!projectId ? (
-        <p className="text-sm text-slate-400">
-          Save this map to your account first (“Save to cloud”), then you can
-          invite collaborators.
-        </p>
+        <p className="text-sm text-slate-400">{t("share.saveFirst")}</p>
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex items-end gap-2">
             <label className="flex flex-1 flex-col gap-1">
               <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Invite by osu! username
+                {t("share.inviteLabel")}
               </span>
               <TextInput
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && void invite()}
-                placeholder="osu! username"
+                placeholder={t("share.usernamePlaceholder")}
               />
             </label>
             <select
@@ -109,28 +108,25 @@ export function ShareModal({
               onChange={(e) => setRole(e.target.value as CollabRole)}
               className="rounded-lg border border-ink-500/60 bg-ink-700 px-2 py-2 text-sm text-slate-100"
             >
-              <option value="editor">Editor</option>
-              <option value="viewer">Viewer</option>
+              <option value="editor">{t("share.roleEditor")}</option>
+              <option value="viewer">{t("share.roleViewer")}</option>
             </select>
             <Button variant="accent" onClick={() => void invite()} disabled={busy}>
-              {busy ? "…" : "Invite"}
+              {busy ? "…" : t("share.invite")}
             </Button>
           </div>
 
-          <p className="text-[11px] text-slate-500">
-            The person must have signed in to the editor at least once before they
-            can be invited.
-          </p>
+          <p className="text-[11px] text-slate-500">{t("share.mustSignIn")}</p>
 
           {error && <p className="text-sm text-rose-400">{error}</p>}
 
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Collaborators
+              {t("share.collaborators")}
             </div>
-            {!list && <p className="text-sm text-slate-400">Loading…</p>}
+            {!list && <p className="text-sm text-slate-400">{t("common.loading")}</p>}
             {list && list.length === 0 && (
-              <p className="text-sm text-slate-400">No collaborators yet.</p>
+              <p className="text-sm text-slate-400">{t("share.noCollaborators")}</p>
             )}
             {list && list.length > 0 && (
               <ul className="flex flex-col gap-2">
@@ -156,14 +152,16 @@ export function ShareModal({
                       }
                       className="rounded-md border border-ink-500/60 bg-ink-700 px-2 py-1 text-xs text-slate-100"
                     >
-                      <option value="editor">Editor</option>
-                      <option value="viewer">Viewer</option>
+                      <option value="editor">{t("share.roleEditor")}</option>
+                      <option value="viewer">{t("share.roleViewer")}</option>
                     </select>
                     <Button
                       onClick={() => setConfirmUser(c)}
-                      title={`Remove ${c.username ?? "this user"}`}
+                      title={t("share.removeTitle", {
+                        name: c.username ?? t("share.thisUser"),
+                      })}
                     >
-                      Remove
+                      {t("common.remove")}
                     </Button>
                   </li>
                 ))}
@@ -176,13 +174,15 @@ export function ShareModal({
 
     <HoldConfirmDialog
       open={confirmUser !== null}
-      title="Remove collaborator?"
+      title={t("share.removeConfirmTitle")}
       message={
         confirmUser
-          ? `${confirmUser.username ?? "This user"} will lose access to this project.`
+          ? t("share.removeConfirmMessage", {
+              name: confirmUser.username ?? t("share.thisUserCapitalized"),
+            })
           : ""
       }
-      confirmLabel="Hold to remove"
+      confirmLabel={t("share.holdToRemove")}
       onConfirm={() => {
         const c = confirmUser;
         setConfirmUser(null);

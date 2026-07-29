@@ -7,6 +7,7 @@ import { msdColor, msdTooltip } from "../lib/msd/display";
 import { msdSupportsKeyCount, type MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
 import { RateChangerPanel } from "./RateChangerPanel";
+import { useT } from "../lib/i18n";
 import type { RateCreateOptions } from "../lib/rateChange";
 
 type PeerLite = {
@@ -44,6 +45,7 @@ export function DifficultySidebar({
   songDurationMs,
   peers,
 }: Props) {
+  const t = useT();
   const [rateOpen, setRateOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const msdRatings = useMsdRatings(difficulties);
@@ -103,7 +105,7 @@ export function DifficultySidebar({
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-white/10 bg-ink-800/45 shadow-[10px_0_30px_rgba(0,0,0,0.12)] backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] px-4 py-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Difficulties
+          {t("diffSidebar.title")}
           <span className="ml-1.5 text-slate-500">{difficulties.length}</span>
         </h2>
         <div className="flex items-center gap-1.5">
@@ -115,14 +117,14 @@ export function DifficultySidebar({
                 ? "border-accent/70 bg-accent/20 text-slate-100"
                 : "border-white/10 bg-ink-600/70 text-slate-200 hover:bg-ink-500/85"
             }`}
-            title="Rate changer"
+            title={t("diffSidebar.rateChanger")}
           >
             <RateIcon />
           </button>
           <button
             onClick={onAdd}
             className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-600/70 text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85"
-            title="Add difficulty"
+            title={t("diffSidebar.addDifficulty")}
           >
             +
           </button>
@@ -167,14 +169,19 @@ export function DifficultySidebar({
       {stats && stats.notes > 0 && (
         <div className="border-t border-white/10 bg-white/[0.02] px-4 py-3">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            {active?.name || "Active"} · stats
+            {t("diffSidebar.stats", {
+              name: active?.name || t("diffSidebar.active"),
+            })}
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
-            <Stat label="Notes" value={String(stats.notes)} />
+            <Stat label={t("diffSidebar.notes")} value={String(stats.notes)} />
             <Stat label="LN" value={`${Math.round(stats.lnRatio * 100)}%`} />
-            <Stat label="Chords" value={`${Math.round(stats.chordRatio * 100)}%`} />
-            <Stat label="Avg NPS" value={stats.avgNps.toFixed(1)} />
-            <Stat label="Peak NPS" value={String(stats.peakNps)} />
+            <Stat
+              label={t("diffSidebar.chords")}
+              value={`${Math.round(stats.chordRatio * 100)}%`}
+            />
+            <Stat label={t("diffSidebar.avgNps")} value={stats.avgNps.toFixed(1)} />
+            <Stat label={t("diffSidebar.peakNps")} value={String(stats.peakNps)} />
             <Stat label="Rice/LN" value={`${stats.rice}/${stats.holds}`} />
           </div>
           <ColumnHistogram
@@ -212,15 +219,16 @@ function ColumnHistogram({
   counts: number[];
   handBalance: number;
 }) {
+  const t = useT();
   const max = Math.max(...counts, 1);
   const leftPct = Math.round(handBalance * 100);
   return (
     <div className="mt-2.5">
       <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500">
-        <span>Columns</span>
+        <span>{t("diffSidebar.columns")}</span>
         <span
           className="tabular-nums"
-          title="Share of notes on the left vs right hand"
+          title={t("diffSidebar.handBalance")}
         >
           L {leftPct}% · R {100 - leftPct}%
         </span>
@@ -285,6 +293,7 @@ function DiffRow({
   onDelete: () => void;
   onRename: (name: string) => void;
 }) {
+  const t = useT();
   const color = starColor(star);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(difficulty.name);
@@ -345,12 +354,12 @@ function DiffRow({
           />
         ) : (
           <MarqueeText
-            text={difficulty.name || "Unnamed"}
+            text={difficulty.name || t("diffSidebar.unnamed")}
             onDoubleClick={(e) => {
               e.stopPropagation();
               startEditing();
             }}
-            title="Double-click to rename"
+            title={t("diffSidebar.doubleClickRename")}
             className="min-w-0 flex-1 text-sm font-medium text-slate-100"
           />
         )}
@@ -359,11 +368,18 @@ function DiffRow({
             src={`/${difficulty.sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`}
             alt={difficulty.sourceFormat}
             className="ml-1.5 h-3.5 w-3.5 object-contain opacity-70 flex-shrink-0"
-            title={difficulty.sourceFormat === "sm" ? "Etterna Map" : "osu! Map"}
+            title={
+              difficulty.sourceFormat === "sm"
+                ? t("sampleMaps.etternaMap")
+                : t("sampleMaps.osuMap")
+            }
           />
         )}
         {peersHere.length > 0 && (
-          <span className="flex items-center -space-x-1.5" title="Editing here">
+          <span
+            className="flex items-center -space-x-1.5"
+            title={t("diffSidebar.editingHere")}
+          >
             {peersHere.slice(0, 4).map((p) => (
               <span
                 key={p.id}
@@ -425,14 +441,14 @@ function DiffRow({
             data-no-uisound=""
             title={
               selected && selectionCount > 1
-                ? `Delete ${selectionCount} difficulties`
-                : "Delete this difficulty"
+                ? t("diffSidebar.deleteManyTitle", { count: selectionCount })
+                : t("diffSidebar.deleteOneTitle")
             }
             className="rounded px-1 py-0.5 text-[10px] text-slate-400 hover:text-red-300"
           >
             {selected && selectionCount > 1
-              ? `Delete ${selectionCount}`
-              : "Delete"}
+              ? t("diffSidebar.deleteMany", { count: selectionCount })
+              : t("common.delete")}
           </button>
         )}
       </div>
