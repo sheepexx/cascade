@@ -58,7 +58,7 @@ export function usePlaytestAutoplay({
   );
 
   const profile = useMemo(() => {
-    if (!effectiveSkill.enabled || notes.length === 0) return EMPTY_PROFILE;
+    if (notes.length === 0) return EMPTY_PROFILE;
     return computeSkillProfile(notes, keyCount, effectiveSkill, rate);
   }, [effectiveSkill, notes, keyCount, rate]);
 

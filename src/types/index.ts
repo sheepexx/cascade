@@ -338,7 +338,7 @@ export const SKILL_PRESETS: Record<SkillPresetName, SkillCapability> = {
 };
 
 export const DEFAULT_SKILL: SkillSettings = {
-  enabled: false,
+  enabled: true,
   jackNps: 5.44,
   handNps: 8.91,
   chordSize: 4,

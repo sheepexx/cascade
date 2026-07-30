@@ -669,18 +669,9 @@ export function AppSettingsModal({
                 <p className="-mt-1.5 text-[11px] text-slate-500">
                   {t("settings.humanizeHint")}
                 </p>
-                <SettingToggle
-                  label={t("settings.skill")}
-                  checked={playtest.skill.enabled}
-                  onChange={(v) => patchSkill({ enabled: v })}
-                />
-                <p className="-mt-1.5 text-[11px] text-slate-500">
-                  {t("settings.skillHint")}
-                </p>
               </div>
 
-              {playtest.skill.enabled && (
-                <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
+              <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="flex flex-col gap-1 text-xs text-slate-400">
                       <span>{t("settings.danRegular")}</span>
@@ -792,8 +783,7 @@ export function AppSettingsModal({
                       />
                     </>
                   )}
-                </div>
-              )}
+              </div>
 
               {playtest.humanize.enabled && (
                 <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">

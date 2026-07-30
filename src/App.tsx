@@ -341,6 +341,7 @@ function normalizeAppSettings(
       skill: {
         ...DEFAULT_APP_SETTINGS.playtest.skill,
         ...(playtestPrefs?.skill ?? {}),
+        enabled: true,
         lnProfile: playtestPrefs?.skill
           ? playtestPrefs.skill.lnProfile
           : DEFAULT_APP_SETTINGS.playtest.skill.lnProfile,
@@ -4690,7 +4691,7 @@ export default function App() {
                 humanized={playtestSettings.humanize.enabled}
                 showNps={!playtestSettings.showNpsGraph}
                 skillProfile={skillProfile}
-                skillEnabled={playtestSettings.skill.enabled}
+                skillEnabled
               />
             )}
             {hasProject && (

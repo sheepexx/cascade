@@ -110,6 +110,10 @@ describe("danForSkill", () => {
 });
 
 describe("DEFAULT_SKILL", () => {
+  it("keeps physical limits enabled", () => {
+    expect(DEFAULT_SKILL.enabled).toBe(true);
+  });
+
   it("keeps default key-mode selections aligned", () => {
     expect(DEFAULT_SKILL.danSelections).toEqual(DEFAULT_DAN_SELECTIONS);
   });
