@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PlaytestKeybinds } from "../lib/playtestKeybinds";
 
+export function isPlaytestTypingTarget(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  const tag = element?.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    !!element?.isContentEditable
+  );
+}
+
 export function usePlaytestInput({
   active,
   paused,
@@ -67,6 +78,7 @@ export function usePlaytestInput({
     }
 
     const down = (e: KeyboardEvent) => {
+      if (isPlaytestTypingTarget(e.target)) return;
       const h = handlers.current;
       if (e.key === "Escape") {
         e.preventDefault();
@@ -99,6 +111,12 @@ export function usePlaytestInput({
     };
 
     const up = (e: KeyboardEvent) => {
+      if (
+        isPlaytestTypingTarget(e.target) &&
+        !heldRef.current.has(e.code)
+      ) {
+        return;
+      }
       const h = handlers.current;
       const column = codeToColumn.get(e.code);
       if (column === undefined) return;
