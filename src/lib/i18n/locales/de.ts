@@ -351,4 +351,75 @@ export const de: PartialCatalog = {
   "home.returnButton": "Zum Start",
   "home.confirmBody":
     "Damit wird der Startbildschirm geöffnet. Dein aktuelles Projekt bleibt im Editor und du kannst jederzeit dorthin zurück.",
+
+  "runStats.title": "Durchlauf",
+  "runStats.auto": "Auto",
+  "runStats.autoHuman": "Auto · human",
+  "runStats.nps": "NPS",
+  "runStats.peakNps": "Max.",
+  "runStats.peakShort": "max.",
+  "runStats.combo": "Combo",
+  "runStats.accuracy": "Genauigkeit",
+  "runStats.ur": "UR",
+  "runStats.meanError": "Mittel",
+  "runStats.judged": "Bewertet",
+  "runStats.misses": "Misses",
+  "runStats.unplayable.one": "{count} unspielbare Note",
+  "runStats.unplayable.other": "{count} unspielbare Noten",
+  "runStats.unplayableBreakdown": "({stacked} gestapelt, {inLn} in LN)",
+
+  "settings.autoplay": "Autoplay",
+  "settings.autoplayHint":
+    "Drücke im Playtest Tab, um die Map der CPU zu überlassen. Sie spielt jede Note, die eine menschliche Hand erreichen könnte; Noten, die auf derselben Spur gestapelt sind oder in einer Long Note liegen, werden bewusst verfehlt, weil sie niemand treffen könnte.",
+  "settings.showNpsGraph": "Dichtegraph",
+  "settings.showNpsGraphHint":
+    "Zeigt am linken Rand das Noten-pro-Sekunde-Profil der Map mit einer Markierung für deine Position.",
+  "settings.showRunStats": "Statistik",
+  "settings.showRunStatsHint":
+    "Zeigt NPS, Combo, Genauigkeit, UR und Bewertungen live in der linken oberen Ecke.",
+  "settings.humanize": "Autoplay vermenschlichen",
+  "settings.humanizeHint":
+    "Lässt die CPU wie eine Person statt wie ein Roboter spielen: das Timing streut, manche Noten landen außerhalb des perfekten Fensters und einige werden ganz verfehlt.",
+  "settings.humanizeBias": "Timing-Abweichung",
+  "settings.humanizeBiasHint":
+    "Verschiebt jeden Treffer nach früh (negativ) oder spät (positiv), so wie bei einem falsch eingestellten Offset.",
+  "settings.humanizeJitter": "Timing-Streuung",
+  "settings.humanizeJitterHint":
+    "Standardabweichung der Trefferabweichung. Das bestimmt die Unstable Rate.",
+  "settings.humanizeMissChance": "Miss-Wahrscheinlichkeit",
+  "settings.humanizeGreatChance": "300er-Wahrscheinlichkeit",
+  "settings.humanizeGreatChanceHint":
+    "Wie oft eine Note im 300er-Fenster statt im perfekten landet.",
+  "settings.humanizeReleaseJitter": "Release-Streuung",
+  "settings.humanizeReleaseJitterHint":
+    "Zusätzliche Timing-Streuung beim Loslassen einer Long Note.",
+  "settings.humanizeSeed": "Seed",
+  "settings.humanizeSeedHint":
+    "Derselbe Seed spielt denselben Durchlauf erneut. Bei 0 wird für jeden Versuch ein neuer gezogen.",
+  "settings.humanizeSeedRandom": "zufällig",
+
+  "runStats.strain": "Belastung",
+  "runStats.strainValue": "{percent}% · max. {peak}",
+
+  "settings.skill": "Körperliche Grenzen",
+  "settings.skillHint":
+    "Gibt der CPU ein Paar Hände. Wiederholungen auf einer Spur, Handauslastung, Akkordgröße und Ausdauer werden mit dem verglichen, was diese Hände leisten können. Eine Map, die sie überfordert, bricht zusammen statt perfekt gelesen zu werden. Genau das verhindert, dass Autoplay Jacks auf Epsilon-Niveau einfach wegspielt.",
+  "settings.skillJackNps": "Jack-Geschwindigkeit",
+  "settings.skillJackNpsHint":
+    "Wiederholungen pro Sekunde auf einer einzelnen Spur. Für die meisten Spieler die eigentliche Grenze und der Grund, warum ein Triller viel leichter ist als dieselbe Rate auf einem Finger.",
+  "settings.skillHandNps": "Handgeschwindigkeit",
+  "settings.skillHandNpsHint":
+    "Noten pro Sekunde, die eine Hand über ihre Spuren hinweg halten kann.",
+  "settings.skillChordSize": "Akkordgröße",
+  "settings.skillStamina": "Ausdauer",
+  "settings.skillStaminaHint":
+    "Sekunden am Handlimit, bevor die Genauigkeit einbricht.",
+  "settings.skillRecovery": "Erholung",
+
+  "settings.skillLn": "LN-Können",
+  "settings.skillLnHint": "Wie gut gehaltene Long Notes verkraftet werden. Ein gebundener Finger kann nichts anderes drücken, daher lässt ein niedriger Wert LN-Maps zusammenbrechen.",
+
+  "settings.danRegular": "Normaler Dan",
+  "settings.danLn": "LN-Dan",
+  "settings.danHint": "Der normale Dan bestimmt das Rice-Können, der LN-Dan den Umgang mit Holds. Angezeigt werden die {keys}K-Leitern. Ein Dan ist das, was du gerade noch bestehst, auf genau dieser Stufe wird es also knapp.",
 };

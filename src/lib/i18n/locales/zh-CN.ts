@@ -334,4 +334,66 @@ export const zhCN: PartialCatalog = {
   "home.returnButton": "返回主界面",
   "home.confirmBody":
     "这将打开主界面。当前项目会保留在编辑器中，你可以随时回来继续。",
+
+  "runStats.title": "本次游玩",
+  "runStats.auto": "自动",
+  "runStats.autoHuman": "自动 · 拟人",
+  "runStats.nps": "NPS",
+  "runStats.peakNps": "峰值",
+  "runStats.peakShort": "峰值",
+  "runStats.combo": "连击",
+  "runStats.accuracy": "准确率",
+  "runStats.ur": "UR",
+  "runStats.meanError": "平均误差",
+  "runStats.judged": "已判定",
+  "runStats.misses": "miss",
+  "runStats.unplayable.other": "{count} 个无法完成的音符",
+  "runStats.unplayableBreakdown": "（{stacked} 个重叠，{inLn} 个在长条内）",
+
+  "settings.autoplay": "自动游玩",
+  "settings.autoplayHint":
+    "试玩时按 Tab 把谱面交给电脑。它会打出人手能够到的每个音符；同一轨道上重叠的音符、或落在长条内部的音符会被故意放掉，因为那本来就没人能打到。",
+  "settings.showNpsGraph": "密度图",
+  "settings.showNpsGraphHint": "在左侧显示谱面的每秒音符数曲线，并标出当前位置。",
+  "settings.showRunStats": "游玩统计",
+  "settings.showRunStatsHint":
+    "在左上角实时显示 NPS、连击、准确率、UR 和各判定数量。",
+  "settings.humanize": "拟人化自动游玩",
+  "settings.humanizeHint":
+    "让电脑像真人而不是机器一样游玩：打点会有偏差，部分音符落在完美判定之外，还会偶尔漏掉几个。",
+  "settings.humanizeBias": "打点偏移",
+  "settings.humanizeBiasHint": "让所有打点整体偏早（负值）或偏晚（正值），就像 offset 没调准。",
+  "settings.humanizeJitter": "打点抖动",
+  "settings.humanizeJitterHint": "打击误差的标准差，它决定 unstable rate。",
+  "settings.humanizeMissChance": "miss 概率",
+  "settings.humanizeGreatChance": "300 概率",
+  "settings.humanizeGreatChanceHint": "音符落在 300 判定而非完美判定的频率。",
+  "settings.humanizeReleaseJitter": "松手抖动",
+  "settings.humanizeReleaseJitterHint": "松开长条时额外的打点抖动。",
+  "settings.humanizeSeed": "随机种子",
+  "settings.humanizeSeedHint": "相同种子会重现同一次游玩。设为 0 则每次都重新随机。",
+  "settings.humanizeSeedRandom": "随机",
+
+  "runStats.strain": "负荷",
+  "runStats.strainValue": "{percent}% · 峰值 {peak}",
+
+  "settings.skill": "生理极限",
+  "settings.skillHint":
+    "给电脑装上一双手。同一轨道的连打、单手负荷、多押规模和体力都会和这双手的能力做比较，超出能力的谱面会崩掉，而不是被完美读谱。这正是让自动游玩不再随手通过 Epsilon 级连打的关键。",
+  "settings.skillJackNps": "连打速度",
+  "settings.skillJackNpsHint":
+    "单一轨道每秒的重复次数。这是大多数玩家真正的上限，也是同样的速度下交互比单指连打轻松得多的原因。",
+  "settings.skillHandNps": "单手速度",
+  "settings.skillHandNpsHint": "一只手在自己负责的轨道上每秒能持续处理的音符数。",
+  "settings.skillChordSize": "多押规模",
+  "settings.skillStamina": "体力",
+  "settings.skillStaminaHint": "在单手极限下坚持多少秒后准确率开始崩溃。",
+  "settings.skillRecovery": "恢复",
+
+  "settings.skillLn": "LN 能力",
+  "settings.skillLnHint": "对长按的承受能力。被按住的手指无法再按别的键，所以数值越低，LN 谱面越容易崩掉。",
+
+  "settings.danRegular": "常规段位",
+  "settings.danLn": "LN 段位",
+  "settings.danHint": "常规段位决定 rice 能力，LN 段位决定对长按的处理。当前显示 {keys}K 阶梯。段位代表你刚好能通过的水平，所以在同一级别上会打得很勉强。",
 };
