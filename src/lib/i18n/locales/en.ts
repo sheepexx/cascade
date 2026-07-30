@@ -349,4 +349,75 @@ export const en = {
   "home.returnButton": "Return to home",
   "home.confirmBody":
     "This will open the home screen. Your current project stays in the editor, and you can come back to it at any time.",
+
+  "runStats.title": "Run",
+  "runStats.auto": "Auto",
+  "runStats.autoHuman": "Auto · human",
+  "runStats.nps": "NPS",
+  "runStats.peakNps": "Peak",
+  "runStats.peakShort": "peak",
+  "runStats.combo": "Combo",
+  "runStats.accuracy": "Acc",
+  "runStats.ur": "UR",
+  "runStats.meanError": "Mean",
+  "runStats.judged": "Judged",
+  "runStats.misses": "Misses",
+  "runStats.unplayable.one": "{count} unplayable note",
+  "runStats.unplayable.other": "{count} unplayable notes",
+  "runStats.unplayableBreakdown": "({stacked} stacked, {inLn} in LN)",
+
+  "settings.autoplay": "Autoplay",
+  "settings.autoplayHint":
+    "Press Tab during a playtest to hand the chart to the CPU. It plays every note a human hand could reach; notes stacked on the same column or landing inside a long note are left to miss, because nobody could hit those.",
+  "settings.showNpsGraph": "Density graph",
+  "settings.showNpsGraphHint":
+    "Shows the chart's notes-per-second profile down the left edge, with a marker for where you are.",
+  "settings.showRunStats": "Run stats",
+  "settings.showRunStatsHint":
+    "Shows live NPS, combo, accuracy, UR and judgement counts in the top-left corner.",
+  "settings.humanize": "Humanize autoplay",
+  "settings.humanizeHint":
+    "Makes the CPU play like a person instead of a robot: timing scatters, some notes land outside the perfect window, and a few get missed outright.",
+  "settings.humanizeBias": "Timing bias",
+  "settings.humanizeBiasHint":
+    "Shifts every hit early (negative) or late (positive), the way a player sitting on a bad offset would.",
+  "settings.humanizeJitter": "Timing scatter",
+  "settings.humanizeJitterHint":
+    "Standard deviation of the hit error. This is what drives the unstable rate.",
+  "settings.humanizeMissChance": "Miss chance",
+  "settings.humanizeGreatChance": "Great chance",
+  "settings.humanizeGreatChanceHint":
+    "How often a note lands in the 300 window instead of the perfect one.",
+  "settings.humanizeReleaseJitter": "Release scatter",
+  "settings.humanizeReleaseJitterHint":
+    "Extra timing scatter applied when letting go of a long note.",
+  "settings.humanizeSeed": "Seed",
+  "settings.humanizeSeedHint":
+    "Same seed replays the same run. Leave at 0 to draw a fresh one each attempt.",
+  "settings.humanizeSeedRandom": "random",
+
+  "runStats.strain": "Strain",
+  "runStats.strainValue": "{percent}% · peak {peak}",
+
+  "settings.skill": "Physical limits",
+  "settings.skillHint":
+    "Gives the CPU a pair of hands. Repeats on one column, hand load, chord size and stamina all get checked against what those hands can do, so a chart that outruns them falls apart instead of being read perfectly. This is what stops autoplay from sight-reading Epsilon-tier jacks.",
+  "settings.skillJackNps": "Jack speed",
+  "settings.skillJackNpsHint":
+    "Repeats per second on a single column. The real ceiling for most players, and the reason a trill is far easier than the same rate stacked on one finger.",
+  "settings.skillHandNps": "Hand speed",
+  "settings.skillHandNpsHint":
+    "Notes per second one hand can sustain across its own columns.",
+  "settings.skillChordSize": "Chord size",
+  "settings.skillStamina": "Stamina",
+  "settings.skillStaminaHint":
+    "Seconds at the hand limit before accuracy starts collapsing.",
+  "settings.skillRecovery": "Recovery",
+
+  "settings.skillLn": "LN skill",
+  "settings.skillLnHint": "How well held long notes are tolerated. A pinned finger cannot press anything else, so a low value makes LN charts collapse.",
+
+  "settings.danRegular": "Regular dan",
+  "settings.danLn": "LN dan",
+  "settings.danHint": "Regular and LN capability are applied separately to rice and hold sections. Showing the official {keys}K ladders; in 4K, Alpha comes after 10th. A selected dan is tuned to clear its official course reliably at 1.0×.",
 } as const;

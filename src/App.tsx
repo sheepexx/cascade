@@ -112,6 +112,9 @@ import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
 import { usePlaytestInput } from "./hooks/usePlaytestInput";
+import { usePlaytestAutoplay } from "./hooks/usePlaytestAutoplay";
+import { PlaytestNpsGraph } from "./components/PlaytestNpsGraph";
+import { PlaytestRunStats } from "./components/PlaytestRunStats";
 import { fullLongNotes, fullRiceNotes, copyHitsounds, countHitsounds } from "./lib/noteTools";
 import {
   hasNoteCollisions,
@@ -295,13 +298,20 @@ function describeSaveError(err: unknown): string | null {
   return err.message || err.name || null;
 }
 
-type PlaytestRuntimeState = PlaytestState & { ended: boolean; paused: boolean };
+type PlaytestRuntimeState = PlaytestState & {
+  ended: boolean;
+  paused: boolean;
+  autoplay: boolean;
+  runKey: number;
+};
 
 function initialPlaytestState(): PlaytestRuntimeState {
   return {
     active: false,
     ended: false,
     paused: false,
+    autoplay: false,
+    runKey: 0,
     startTime: 0,
     score: 0,
     combo: 0,
@@ -324,6 +334,20 @@ function normalizeAppSettings(
       ...DEFAULT_APP_SETTINGS.playtest,
       ...(playtestPrefs ?? {}),
       keybinds: normalizePlaytestKeybinds(playtestPrefs?.keybinds),
+      humanize: {
+        ...DEFAULT_APP_SETTINGS.playtest.humanize,
+        ...(playtestPrefs?.humanize ?? {}),
+      },
+      skill: {
+        ...DEFAULT_APP_SETTINGS.playtest.skill,
+        ...(playtestPrefs?.skill ?? {}),
+        lnProfile: playtestPrefs?.skill
+          ? playtestPrefs.skill.lnProfile
+          : DEFAULT_APP_SETTINGS.playtest.skill.lnProfile,
+        danSelections: playtestPrefs?.skill
+          ? (playtestPrefs.skill.danSelections ?? {})
+          : DEFAULT_APP_SETTINGS.playtest.skill.danSelections,
+      },
     },
   };
 }
@@ -1103,11 +1127,13 @@ export default function App() {
     playtestConsumedRef.current = new Set();
     playtestEndArmedRef.current = false;
     setPlaytestConsumedIds(new Set());
-    setPlaytest({
+    setPlaytest((prev) => ({
       ...initialPlaytestState(),
       active: true,
       startTime,
-    });
+      autoplay: prev.autoplay,
+      runKey: prev.runKey + 1,
+    }));
   }, [active.notes]);
 
   const registerPlaytestResult = useCallback((result: HitResult) => {
@@ -1173,22 +1199,23 @@ export default function App() {
   );
 
   const handlePlaytestPress = useCallback(
-    (column: number) => {
+    (column: number, atMs?: number, targetId?: string) => {
       const pt = playtestRef.current;
       if (!pt.active || pt.ended || pt.paused) return;
-      const time = playtestInputTime();
+      const time = atMs ?? playtestInputTime();
       const windows = playtestWindowsRef.current;
-      const candidate = active.notes
-        .filter(
-          (n) =>
-            n.column === column &&
-            !playtestConsumedRef.current.has(n.id) &&
-            !playtestHeadJudgedRef.current.has(n.id),
-        )
-        .sort(
-          (a, b) =>
-            Math.abs(a.startTime - time) - Math.abs(b.startTime - time),
-        )[0];
+      const available = active.notes.filter(
+        (n) =>
+          n.column === column &&
+          !playtestConsumedRef.current.has(n.id) &&
+          !playtestHeadJudgedRef.current.has(n.id),
+      );
+      const candidate = targetId
+        ? available.find((n) => n.id === targetId)
+        : available.sort(
+            (a, b) =>
+              Math.abs(a.startTime - time) - Math.abs(b.startTime - time),
+          )[0];
       if (!candidate) return;
 
       const hitError = time - candidate.startTime;
@@ -1219,7 +1246,6 @@ export default function App() {
     },
     [
       active.notes,
-      active.overallDifficulty,
       consumePlaytestNote,
       playtestHitsounds,
       playtestInputTime,
@@ -1228,13 +1254,14 @@ export default function App() {
   );
 
   const handlePlaytestRelease = useCallback(
-    (column: number) => {
+    (column: number, atMs?: number, targetId?: string) => {
       const pt = playtestRef.current;
       if (!pt.active || pt.ended || pt.paused) return;
-      const time = playtestInputTime();
-      const held = [...playtestHeldLnRef.current.values()].find(
-        (n) => n.column === column,
-      );
+      const time = atMs ?? playtestInputTime();
+      const heldNotes = [...playtestHeldLnRef.current.values()];
+      const held = targetId
+        ? heldNotes.find((n) => n.id === targetId)
+        : heldNotes.find((n) => n.column === column);
       if (!held || held.endTime === undefined) return;
       const releaseWindows = playtestReleaseWindowsRef.current;
       const droppedEarly = time < held.endTime - releaseWindows.miss;
@@ -1246,7 +1273,7 @@ export default function App() {
         consumePlaytestNote(held.id);
       }
     },
-    [active.overallDifficulty, consumePlaytestNote, playtestInputTime],
+    [consumePlaytestNote, playtestInputTime],
   );
 
   const exitPlaytest = useCallback(() => {
@@ -1306,6 +1333,28 @@ export default function App() {
     else pausePlaytest();
   }, [pausePlaytest, resumePlaytest]);
 
+  const toggleAutoplay = useCallback(() => {
+    setPlaytest((prev) =>
+      prev.active && !prev.ended ? { ...prev, autoplay: !prev.autoplay } : prev,
+    );
+  }, []);
+
+  const handleHumanPress = useCallback(
+    (column: number) => {
+      if (playtestRef.current.autoplay) return;
+      handlePlaytestPress(column);
+    },
+    [handlePlaytestPress],
+  );
+
+  const handleHumanRelease = useCallback(
+    (column: number) => {
+      if (playtestRef.current.autoplay) return;
+      handlePlaytestRelease(column);
+    },
+    [handlePlaytestRelease],
+  );
+
   const { heldCodes: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef } =
     usePlaytestInput({
       active: playtest.active,
@@ -1313,11 +1362,30 @@ export default function App() {
       keyCount: active.keyCount,
       keybinds: playtestSettings.keybinds,
       quickRestartCode: playtestSettings.quickRestartKey,
-      onPress: handlePlaytestPress,
-      onRelease: handlePlaytestRelease,
+      onPress: handleHumanPress,
+      onRelease: handleHumanRelease,
       onPause: togglePlaytestPause,
       onRestart: restartPlaytest,
+      onToggleAutoplay: toggleAutoplay,
     });
+
+  const { summary: autoplaySummary, profile: skillProfile } = usePlaytestAutoplay({
+    enabled: playtest.autoplay,
+    active: playtest.active,
+    paused: playtest.paused,
+    ended: playtest.ended,
+    notes: active.notes,
+    keyCount: active.keyCount,
+    humanize: playtestSettings.humanize,
+    skill: playtestSettings.skill,
+    windows: playtestWindows,
+    releaseWindows: playtestReleaseWindows,
+    rate: playtestRate,
+    getCurrentTime: playtestInputTime,
+    onPress: handlePlaytestPress,
+    onRelease: handlePlaytestRelease,
+    runKey: playtest.runKey,
+  });
 
   const playtestTickRef = useRef({
     audio,
@@ -4601,6 +4669,30 @@ export default function App() {
               )}
             </div>
             </div>
+            {hasProject && playtest.active && playtestSettings.showNpsGraph && (
+              <PlaytestNpsGraph
+                notes={active.notes}
+                durationMs={audio.duration}
+                getCurrentTime={getEditorCurrentTime}
+                active={playtest.active}
+                label={t("runStats.nps")}
+                peakLabel={t("runStats.peakShort")}
+              />
+            )}
+            {hasProject && playtest.active && playtestSettings.showRunStats && (
+              <PlaytestRunStats
+                state={playtest}
+                notes={active.notes}
+                durationMs={audio.duration}
+                getCurrentTime={getEditorCurrentTime}
+                autoplay={playtest.autoplay}
+                autoplaySummary={autoplaySummary}
+                humanized={playtestSettings.humanize.enabled}
+                showNps={!playtestSettings.showNpsGraph}
+                skillProfile={skillProfile}
+                skillEnabled={playtestSettings.skill.enabled}
+              />
+            )}
             {hasProject && (
               <PlaytestOverlay
                 state={playtest}
@@ -4854,6 +4946,7 @@ export default function App() {
       )}
       {modalMounted("settings") && (
         <AppSettingsModal
+          keyCount={active.keyCount}
           open={modal === "settings"}
           onClose={close}
           playfieldScale={appSettings.playfieldScale}

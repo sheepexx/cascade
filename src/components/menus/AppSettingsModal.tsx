@@ -1,7 +1,20 @@
 import { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Toggle } from "../ui/Controls";
-import type { PlaytestSettings } from "../../types";
+import type {
+  HumanizeSettings,
+  PlaytestSettings,
+  SkillSettings,
+} from "../../types";
+import {
+  DAN_LADDERS,
+  combineDans,
+  danSelectionForKeyCount,
+  laddersForKeyCount,
+  lnLevelForSkill,
+  regularLevelForSkill,
+  resolveSkillForKeyCount,
+} from "../../lib/danSkill";
 import { keyLabel, keybindWarnings } from "../../lib/playtestKeybinds";
 import { useLocale, type Locale, type MessageKey } from "../../lib/i18n";
 import { LOCALES } from "../../lib/i18n/core";
@@ -43,10 +56,13 @@ type Props = {
   onUiSoundsEnabled: (value: boolean) => void;
   uiSoundVolume: number;
   onUiSoundVolume: (value: number) => void;
+  keyCount: number;
 };
 
 const TABS = ["Editor", "Playtest", "Audio", "Export"] as const;
 type Tab = (typeof TABS)[number];
+const SHOW_MANUAL_SKILL_TUNING = false;
+const ENABLE_MANUAL_SKILL_TUNING = false;
 
 const TAB_LABELS: Record<Tab, MessageKey> = {
   Editor: "settings.tabEditor",
@@ -92,6 +108,7 @@ export function AppSettingsModal({
   onUiSoundsEnabled,
   uiSoundVolume,
   onUiSoundVolume,
+  keyCount,
 }: Props) {
   const { locale, setLocale, t } = useLocale();
   const [tab, setTab] = useState<Tab>("Editor");
@@ -100,6 +117,43 @@ export function AppSettingsModal({
   const [capturingRestart, setCapturingRestart] = useState(false);
   const selectedKeybinds = playtest.keybinds[keyMode] ?? [];
   const warnings = keybindWarnings(selectedKeybinds);
+
+  const patchHumanize = (patch: Partial<HumanizeSettings>) => {
+    onPlaytest({ ...playtest, humanize: { ...playtest.humanize, ...patch } });
+  };
+
+  const ladders = laddersForKeyCount(keyCount);
+  const effectiveSkill = resolveSkillForKeyCount(playtest.skill, keyCount);
+  const danSelection = danSelectionForKeyCount(playtest.skill, keyCount);
+  const regularLevel =
+    danSelection?.regularLevel ??
+    regularLevelForSkill(ladders.regular, effectiveSkill);
+  const lnLevel =
+    danSelection?.lnLevel ??
+    lnLevelForSkill(
+      ladders.ln,
+      effectiveSkill.lnProfile?.lnSkill ?? effectiveSkill.lnSkill,
+    );
+
+  const patchSkill = (patch: Partial<SkillSettings>) => {
+    const custom = Object.keys(patch).some((key) => key !== "enabled");
+    const base = custom
+      ? { ...effectiveSkill, lnProfile: undefined, danSelections: {} }
+      : playtest.skill;
+    onPlaytest({ ...playtest, skill: { ...base, ...patch } });
+  };
+
+  const setDanSkill = (nextRegular: number, nextLn: number) => {
+    onPlaytest({
+      ...playtest,
+      skill: combineDans(
+        keyCount,
+        nextRegular,
+        nextLn,
+        playtest.skill.danSelections,
+      ),
+    });
+  };
 
   const patchPlaytest = (patch: Partial<PlaytestSettings>) => {
     onPlaytest({ ...playtest, ...patch });
@@ -581,6 +635,246 @@ export function AppSettingsModal({
                 </p>
               )}
             </div>
+
+            <section className="rounded-xl border border-ink-600 bg-ink-700/30 p-3">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.autoplay")}
+              </h3>
+              <p className="mb-3 text-[11px] text-slate-500">
+                {t("settings.autoplayHint")}
+              </p>
+
+              <div className="flex flex-col gap-3 text-xs text-slate-300">
+                <SettingToggle
+                  label={t("settings.showNpsGraph")}
+                  checked={playtest.showNpsGraph}
+                  onChange={(v) => patchPlaytest({ showNpsGraph: v })}
+                />
+                <p className="-mt-1.5 text-[11px] text-slate-500">
+                  {t("settings.showNpsGraphHint")}
+                </p>
+                <SettingToggle
+                  label={t("settings.showRunStats")}
+                  checked={playtest.showRunStats}
+                  onChange={(v) => patchPlaytest({ showRunStats: v })}
+                />
+                <p className="-mt-1.5 text-[11px] text-slate-500">
+                  {t("settings.showRunStatsHint")}
+                </p>
+                <SettingToggle
+                  label={t("settings.humanize")}
+                  checked={playtest.humanize.enabled}
+                  onChange={(v) => patchHumanize({ enabled: v })}
+                />
+                <p className="-mt-1.5 text-[11px] text-slate-500">
+                  {t("settings.humanizeHint")}
+                </p>
+                <SettingToggle
+                  label={t("settings.skill")}
+                  checked={playtest.skill.enabled}
+                  onChange={(v) => patchSkill({ enabled: v })}
+                />
+                <p className="-mt-1.5 text-[11px] text-slate-500">
+                  {t("settings.skillHint")}
+                </p>
+              </div>
+
+              {playtest.skill.enabled && (
+                <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1 text-xs text-slate-400">
+                      <span>{t("settings.danRegular")}</span>
+                      <select
+                        value={regularLevel}
+                        onChange={(e) =>
+                          setDanSkill(Number(e.target.value), lnLevel)
+                        }
+                        className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
+                      >
+                        {DAN_LADDERS[ladders.regular].levels.map((lvl, i) => (
+                          <option key={lvl.label} value={i}>
+                            {lvl.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-slate-400">
+                      <span>{t("settings.danLn")}</span>
+                      <select
+                        value={lnLevel}
+                        onChange={(e) =>
+                          setDanSkill(regularLevel, Number(e.target.value))
+                        }
+                        className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
+                      >
+                        {DAN_LADDERS[ladders.ln].levels.map((lvl, i) => (
+                          <option key={lvl.label} value={i}>
+                            {lvl.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <p className="-mt-1 text-[11px] text-slate-500">
+                    {t("settings.danHint", {
+                      keys: DAN_LADDERS[ladders.regular].keyCount,
+                    })}
+                  </p>
+
+                  {SHOW_MANUAL_SKILL_TUNING && (
+                    <>
+                      <HumanSlider
+                        label={t("settings.skillJackNps")}
+                        hint={t("settings.skillJackNpsHint")}
+                        value={effectiveSkill.jackNps}
+                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
+                        min={2}
+                        max={24}
+                        step={0.5}
+                        format={(v) => `${v} /s`}
+                        onChange={(v) => patchSkill({ jackNps: v })}
+                      />
+                      <HumanSlider
+                        label={t("settings.skillHandNps")}
+                        hint={t("settings.skillHandNpsHint")}
+                        value={effectiveSkill.handNps}
+                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
+                        min={4}
+                        max={45}
+                        step={1}
+                        format={(v) => `${v} /s`}
+                        onChange={(v) => patchSkill({ handNps: v })}
+                      />
+                      <HumanSlider
+                        label={t("settings.skillChordSize")}
+                        value={effectiveSkill.chordSize}
+                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
+                        min={1}
+                        max={10}
+                        step={1}
+                        format={(v) => `${v}`}
+                        onChange={(v) => patchSkill({ chordSize: v })}
+                      />
+                      <HumanSlider
+                        label={t("settings.skillLn")}
+                        hint={t("settings.skillLnHint")}
+                        value={Math.round(
+                          (effectiveSkill.lnProfile?.lnSkill ??
+                            effectiveSkill.lnSkill) * 100,
+                        )}
+                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
+                        min={0}
+                        max={100}
+                        step={1}
+                        format={(v) => `${v}%`}
+                        onChange={(v) => patchSkill({ lnSkill: v / 100 })}
+                      />
+                      <HumanSlider
+                        label={t("settings.skillStamina")}
+                        hint={t("settings.skillStaminaHint")}
+                        value={effectiveSkill.staminaSec}
+                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
+                        min={5}
+                        max={120}
+                        step={1}
+                        format={(v) => `${v} s`}
+                        onChange={(v) => patchSkill({ staminaSec: v })}
+                      />
+                      <HumanSlider
+                        label={t("settings.skillRecovery")}
+                        value={effectiveSkill.recoverySec}
+                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
+                        min={1}
+                        max={20}
+                        step={0.5}
+                        format={(v) => `${v} s`}
+                        onChange={(v) => patchSkill({ recoverySec: v })}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
+
+              {playtest.humanize.enabled && (
+                <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
+                  <HumanSlider
+                    label={t("settings.humanizeJitter")}
+                    hint={t("settings.humanizeJitterHint")}
+                    value={playtest.humanize.jitterMs}
+                    min={0}
+                    max={60}
+                    step={1}
+                    format={(v) => `${v} ms`}
+                    onChange={(v) => patchHumanize({ jitterMs: v })}
+                  />
+                  <HumanSlider
+                    label={t("settings.humanizeBias")}
+                    hint={t("settings.humanizeBiasHint")}
+                    value={playtest.humanize.biasMs}
+                    min={-40}
+                    max={40}
+                    step={1}
+                    format={(v) => `${v > 0 ? "+" : ""}${v} ms`}
+                    onChange={(v) => patchHumanize({ biasMs: v })}
+                  />
+                  <HumanSlider
+                    label={t("settings.humanizeGreatChance")}
+                    hint={t("settings.humanizeGreatChanceHint")}
+                    value={Math.round(playtest.humanize.greatChance * 100)}
+                    min={0}
+                    max={100}
+                    step={1}
+                    format={(v) => `${v}%`}
+                    onChange={(v) => patchHumanize({ greatChance: v / 100 })}
+                  />
+                  <HumanSlider
+                    label={t("settings.humanizeMissChance")}
+                    value={Math.round(playtest.humanize.missChance * 1000) / 10}
+                    min={0}
+                    max={10}
+                    step={0.1}
+                    format={(v) => `${v.toFixed(1)}%`}
+                    onChange={(v) => patchHumanize({ missChance: v / 100 })}
+                  />
+                  <HumanSlider
+                    label={t("settings.humanizeReleaseJitter")}
+                    hint={t("settings.humanizeReleaseJitterHint")}
+                    value={playtest.humanize.releaseJitterMs}
+                    min={0}
+                    max={80}
+                    step={1}
+                    format={(v) => `${v} ms`}
+                    onChange={(v) => patchHumanize({ releaseJitterMs: v })}
+                  />
+                  <label className="flex flex-col gap-1 text-xs text-slate-400">
+                    <div className="flex items-center justify-between">
+                      <span>{t("settings.humanizeSeed")}</span>
+                      {playtest.humanize.seed === 0 && (
+                        <span className="text-[11px] text-slate-500">
+                          {t("settings.humanizeSeedRandom")}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={playtest.humanize.seed}
+                      onChange={(e) => {
+                        const next = Math.max(0, Math.floor(Number(e.target.value)));
+                        patchHumanize({
+                          seed: Number.isFinite(next) ? next : 0,
+                        });
+                      }}
+                      className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
+                    />
+                    <span className="text-[11px] text-slate-500">
+                      {t("settings.humanizeSeedHint")}
+                    </span>
+                  </label>
+                </div>
+              )}
+            </section>
           </div>
         )}
 
@@ -711,6 +1005,53 @@ export function AppSettingsModal({
         )}
       </div>
     </Modal>
+  );
+}
+
+function HumanSlider({
+  label,
+  hint,
+  value,
+  disabled = false,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  disabled?: boolean;
+  min: number;
+  max: number;
+  step: number;
+  format: (value: number) => string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div
+      aria-disabled={disabled}
+      className={`flex flex-col gap-1.5 ${disabled ? "opacity-50" : ""}`}
+    >
+      <div className="flex items-center justify-between text-xs text-slate-400">
+        <span>{label}</span>
+        <span className="font-medium tabular-nums text-slate-200">
+          {format(value)}
+        </span>
+      </div>
+      <input
+        type="range"
+        disabled={disabled}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed"
+      />
+      {hint && <p className="text-[11px] text-slate-500">{hint}</p>}
+    </div>
   );
 }
 

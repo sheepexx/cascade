@@ -11,6 +11,7 @@ export function usePlaytestInput({
   onRelease,
   onPause,
   onRestart,
+  onToggleAutoplay,
 }: {
   active: boolean;
   paused: boolean;
@@ -21,6 +22,7 @@ export function usePlaytestInput({
   onRelease: (column: number) => void;
   onPause: () => void;
   onRestart: () => void;
+  onToggleAutoplay: () => void;
 }) {
   const [heldCodes, setHeldCodes] = useState<Set<string>>(() => new Set());
   const heldRef = useRef<Set<string>>(new Set());
@@ -35,8 +37,22 @@ export function usePlaytestInput({
     return map;
   }, [keybinds, keyCount]);
 
-  const handlers = useRef({ onPress, onRelease, onPause, onRestart, paused });
-  handlers.current = { onPress, onRelease, onPause, onRestart, paused };
+  const handlers = useRef({
+    onPress,
+    onRelease,
+    onPause,
+    onRestart,
+    onToggleAutoplay,
+    paused,
+  });
+  handlers.current = {
+    onPress,
+    onRelease,
+    onPause,
+    onRestart,
+    onToggleAutoplay,
+    paused,
+  };
 
   const syncHeld = () => setHeldCodes(new Set(heldRef.current));
 
@@ -62,6 +78,12 @@ export function usePlaytestInput({
         e.preventDefault();
         e.stopImmediatePropagation();
         h.onRestart();
+        return;
+      }
+      if (e.code === "Tab") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (!e.repeat) h.onToggleAutoplay();
         return;
       }
 
