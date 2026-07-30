@@ -245,6 +245,120 @@ export type HitsoundSkinSource = "visual" | "default" | "selected";
 
 export type PlaytestOffsetMode = "visual" | "audio";
 
+export type HumanizeSettings = {
+  enabled: boolean;
+  biasMs: number;
+  jitterMs: number;
+  missChance: number;
+  greatChance: number;
+  releaseJitterMs: number;
+  seed: number;
+};
+
+export const DEFAULT_HUMANIZE: HumanizeSettings = {
+  enabled: false,
+  biasMs: 0,
+  jitterMs: 12,
+  missChance: 0.005,
+  greatChance: 0.12,
+  releaseJitterMs: 18,
+  seed: 0,
+};
+
+export type SkillCapability = {
+  jackNps: number;
+  handNps: number;
+  chordSize: number;
+  lnSkill: number;
+  staminaSec: number;
+  recoverySec: number;
+};
+
+export type DanSelection = {
+  regularLevel: number;
+  lnLevel: number;
+};
+
+export type DanSelections = Partial<Record<"4" | "7", DanSelection>>;
+
+export type SkillSettings = SkillCapability & {
+  enabled: boolean;
+  lnProfile?: SkillCapability;
+  danSelections?: DanSelections;
+};
+
+export type SkillPresetName =
+  | "beginner"
+  | "intermediate"
+  | "advanced"
+  | "expert"
+  | "superhuman";
+
+export const SKILL_PRESETS: Record<SkillPresetName, SkillCapability> = {
+  beginner: {
+    jackNps: 2.5,
+    handNps: 4,
+    chordSize: 2,
+    lnSkill: 0.2,
+    staminaSec: 12,
+    recoverySec: 6,
+  },
+  intermediate: {
+    jackNps: 4,
+    handNps: 6.5,
+    chordSize: 3,
+    lnSkill: 0.35,
+    staminaSec: 20,
+    recoverySec: 5,
+  },
+  advanced: {
+    jackNps: 5.5,
+    handNps: 9,
+    chordSize: 4,
+    lnSkill: 0.5,
+    staminaSec: 30,
+    recoverySec: 4,
+  },
+  expert: {
+    jackNps: 7.5,
+    handNps: 13,
+    chordSize: 5,
+    lnSkill: 0.68,
+    staminaSec: 45,
+    recoverySec: 3,
+  },
+  superhuman: {
+    jackNps: 11,
+    handNps: 18,
+    chordSize: 6,
+    lnSkill: 0.88,
+    staminaSec: 90,
+    recoverySec: 2,
+  },
+};
+
+export const DEFAULT_SKILL: SkillSettings = {
+  enabled: false,
+  jackNps: 5.44,
+  handNps: 8.91,
+  chordSize: 4,
+  lnSkill: 0.49,
+  staminaSec: 29.63,
+  recoverySec: 4.04,
+  lnProfile: {
+    jackNps: 4.55,
+    handNps: 7.42,
+    chordSize: 3,
+    lnSkill: 0.41,
+    staminaSec: 23.67,
+    recoverySec: 4.63,
+  },
+  danSelections: {
+    "4": { regularLevel: 7, lnLevel: 0 },
+    "7": { regularLevel: 5, lnLevel: 5 },
+  },
+};
+
 export type PlaytestSettings = {
   scrollSpeed: number;
   zoom: number;
@@ -262,6 +376,10 @@ export type PlaytestSettings = {
   useSkinJudgements: boolean;
   keybinds: Record<number, string[]>;
   quickRestartKey: string;
+  showNpsGraph: boolean;
+  showRunStats: boolean;
+  humanize: HumanizeSettings;
+  skill: SkillSettings;
 };
 
 export type AppSettings = {
@@ -359,6 +477,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     useSkinJudgements: true,
     keybinds: {},
     quickRestartKey: "Backquote",
+    showNpsGraph: true,
+    showRunStats: true,
+    humanize: DEFAULT_HUMANIZE,
+    skill: DEFAULT_SKILL,
   },
   editorKeybinds: {},
 };

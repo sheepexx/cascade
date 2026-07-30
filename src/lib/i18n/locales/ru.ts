@@ -363,4 +363,77 @@ export const ru: PartialCatalog = {
   "home.returnButton": "На главную",
   "home.confirmBody":
     "Откроется главный экран. Текущий проект останется в редакторе, и вы сможете вернуться к нему в любой момент.",
+
+  "runStats.title": "Заход",
+  "runStats.auto": "Авто",
+  "runStats.autoHuman": "Авто · human",
+  "runStats.nps": "NPS",
+  "runStats.peakNps": "Пик",
+  "runStats.peakShort": "пик",
+  "runStats.combo": "Комбо",
+  "runStats.accuracy": "Точность",
+  "runStats.ur": "UR",
+  "runStats.meanError": "Среднее",
+  "runStats.judged": "Оценено",
+  "runStats.misses": "Промахи",
+  "runStats.unplayable.one": "{count} неиграбельная нота",
+  "runStats.unplayable.few": "{count} неиграбельные ноты",
+  "runStats.unplayable.many": "{count} неиграбельных нот",
+  "runStats.unplayable.other": "{count} неиграбельных нот",
+  "runStats.unplayableBreakdown": "({stacked} в стопке, {inLn} в LN)",
+
+  "settings.autoplay": "Автоплей",
+  "settings.autoplayHint":
+    "Нажмите Tab во время плейтеста, чтобы отдать карту компьютеру. Он играет каждую ноту, до которой достала бы человеческая рука; ноты, наложенные друг на друга в одной дорожке или попадающие внутрь длинной ноты, специально пропускаются, потому что их никто не смог бы взять.",
+  "settings.showNpsGraph": "График плотности",
+  "settings.showNpsGraphHint":
+    "Показывает профиль нот в секунду по левому краю с отметкой вашей текущей позиции.",
+  "settings.showRunStats": "Статистика захода",
+  "settings.showRunStatsHint":
+    "Показывает NPS, комбо, точность, UR и счёт судейств в левом верхнем углу.",
+  "settings.humanize": "Человечный автоплей",
+  "settings.humanizeHint":
+    "Заставляет компьютер играть как человек, а не как робот: тайминг разбросан, часть нот выходит за пределы идеального окна, а некоторые пропускаются совсем.",
+  "settings.humanizeBias": "Смещение тайминга",
+  "settings.humanizeBiasHint":
+    "Сдвигает все попадания раньше (минус) или позже (плюс), как при неверном оффсете.",
+  "settings.humanizeJitter": "Разброс тайминга",
+  "settings.humanizeJitterHint":
+    "Стандартное отклонение ошибки попадания. Именно оно задаёт unstable rate.",
+  "settings.humanizeMissChance": "Шанс промаха",
+  "settings.humanizeGreatChance": "Шанс 300",
+  "settings.humanizeGreatChanceHint":
+    "Как часто нота попадает в окно 300 вместо идеального.",
+  "settings.humanizeReleaseJitter": "Разброс отпускания",
+  "settings.humanizeReleaseJitterHint":
+    "Дополнительный разброс тайминга при отпускании длинной ноты.",
+  "settings.humanizeSeed": "Сид",
+  "settings.humanizeSeedHint":
+    "Одинаковый сид повторяет тот же заход. При 0 каждый раз берётся новый.",
+  "settings.humanizeSeedRandom": "случайный",
+
+  "runStats.strain": "Нагрузка",
+  "runStats.strainValue": "{percent}% · пик {peak}",
+
+  "settings.skill": "Физические пределы",
+  "settings.skillHint":
+    "Даёт компьютеру пару рук. Повторы на одной дорожке, загрузка руки, размер аккорда и выносливость сверяются с тем, на что эти руки способны, поэтому карта, которая им не по силам, рассыпается, а не читается идеально. Именно это не даёт автоплею с ходу проходить джеки уровня Epsilon.",
+  "settings.skillJackNps": "Скорость джеков",
+  "settings.skillJackNpsHint":
+    "Повторов в секунду на одной дорожке. Для большинства игроков это настоящий предел и причина, почему трель намного легче той же скорости одним пальцем.",
+  "settings.skillHandNps": "Скорость руки",
+  "settings.skillHandNpsHint":
+    "Сколько нот в секунду одна рука выдерживает на своих дорожках.",
+  "settings.skillChordSize": "Размер аккорда",
+  "settings.skillStamina": "Выносливость",
+  "settings.skillStaminaHint":
+    "Секунд на пределе руки, прежде чем точность начнёт падать.",
+  "settings.skillRecovery": "Восстановление",
+
+  "settings.skillLn": "Навык LN",
+  "settings.skillLnHint": "Насколько хорошо переносятся удерживаемые длинные ноты. Занятый палец не может нажимать другое, поэтому низкое значение разваливает LN-карты.",
+
+  "settings.danRegular": "Обычный дан",
+  "settings.danLn": "LN-дан",
+  "settings.danHint": "Обычный дан задаёт rice-навык, LN-дан - работу с удержаниями. Показаны лестницы для {keys}K. Дан - это то, что вы проходите на грани, так что на этом же уровне заход будет впритык.",
 };

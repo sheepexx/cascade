@@ -351,4 +351,75 @@ export const ptBR: PartialCatalog = {
   "home.returnButton": "Ir para o início",
   "home.confirmBody":
     "Isso abrirá a tela inicial. Seu projeto atual continua no editor e você pode voltar a ele quando quiser.",
+
+  "runStats.title": "Tentativa",
+  "runStats.auto": "Auto",
+  "runStats.autoHuman": "Auto · humano",
+  "runStats.nps": "NPS",
+  "runStats.peakNps": "Pico",
+  "runStats.peakShort": "pico",
+  "runStats.combo": "Combo",
+  "runStats.accuracy": "Precisão",
+  "runStats.ur": "UR",
+  "runStats.meanError": "Média",
+  "runStats.judged": "Julgadas",
+  "runStats.misses": "Misses",
+  "runStats.unplayable.one": "{count} nota impossível",
+  "runStats.unplayable.other": "{count} notas impossíveis",
+  "runStats.unplayableBreakdown": "({stacked} empilhadas, {inLn} dentro de LN)",
+
+  "settings.autoplay": "Autoplay",
+  "settings.autoplayHint":
+    "Aperte Tab durante o teste para entregar o mapa à CPU. Ela toca toda nota que uma mão humana alcançaria; notas empilhadas na mesma coluna ou que caem dentro de uma nota longa são deixadas passar, porque ninguém conseguiria acertá-las.",
+  "settings.showNpsGraph": "Gráfico de densidade",
+  "settings.showNpsGraphHint":
+    "Mostra o perfil de notas por segundo na borda esquerda, com um marcador de onde você está.",
+  "settings.showRunStats": "Estatísticas",
+  "settings.showRunStatsHint":
+    "Mostra NPS, combo, precisão, UR e a contagem de julgamentos no canto superior esquerdo.",
+  "settings.humanize": "Humanizar o autoplay",
+  "settings.humanizeHint":
+    "Faz a CPU jogar como uma pessoa em vez de um robô: o tempo varia, algumas notas caem fora da janela perfeita e outras passam batido.",
+  "settings.humanizeBias": "Desvio de tempo",
+  "settings.humanizeBiasHint":
+    "Desloca todos os acertos para antes (negativo) ou depois (positivo), como quem está com o offset errado.",
+  "settings.humanizeJitter": "Variação de tempo",
+  "settings.humanizeJitterHint":
+    "Desvio padrão do erro de acerto. É isso que define o unstable rate.",
+  "settings.humanizeMissChance": "Chance de miss",
+  "settings.humanizeGreatChance": "Chance de 300",
+  "settings.humanizeGreatChanceHint":
+    "Com que frequência uma nota cai na janela de 300 em vez da perfeita.",
+  "settings.humanizeReleaseJitter": "Variação ao soltar",
+  "settings.humanizeReleaseJitterHint":
+    "Variação extra de tempo ao soltar uma nota longa.",
+  "settings.humanizeSeed": "Semente",
+  "settings.humanizeSeedHint":
+    "A mesma semente repete a mesma tentativa. Deixe em 0 para sortear uma nova a cada vez.",
+  "settings.humanizeSeedRandom": "aleatória",
+
+  "runStats.strain": "Esforço",
+  "runStats.strainValue": "{percent}% · pico {peak}",
+
+  "settings.skill": "Limites físicos",
+  "settings.skillHint":
+    "Dá um par de mãos à CPU. Repetições na mesma coluna, carga por mão, tamanho dos acordes e resistência são comparados ao que essas mãos aguentam, então um mapa que passa do limite desanda em vez de ser lido perfeitamente. É isso que impede o autoplay de passar jacks nível Epsilon de primeira.",
+  "settings.skillJackNps": "Velocidade de jack",
+  "settings.skillJackNpsHint":
+    "Repetições por segundo em uma única coluna. É o limite real da maioria dos jogadores e o motivo de um trill ser bem mais fácil que a mesma taxa em um só dedo.",
+  "settings.skillHandNps": "Velocidade da mão",
+  "settings.skillHandNpsHint":
+    "Notas por segundo que uma mão sustenta nas colunas dela.",
+  "settings.skillChordSize": "Tamanho do acorde",
+  "settings.skillStamina": "Resistência",
+  "settings.skillStaminaHint":
+    "Segundos no limite da mão antes da precisão começar a desabar.",
+  "settings.skillRecovery": "Recuperação",
+
+  "settings.skillLn": "Habilidade em LN",
+  "settings.skillLnHint": "O quanto notas longas seguradas são toleradas. Um dedo preso não pode apertar mais nada, então um valor baixo faz mapas de LN desandarem.",
+
+  "settings.danRegular": "Dan regular",
+  "settings.danLn": "Dan de LN",
+  "settings.danHint": "O dan regular define a habilidade em rice, o dan de LN define o quanto você aguenta holds. Mostrando as escadas de {keys}K. Um dan é o que você passa por pouco, então nesse mesmo nível a tentativa sai apertada.",
 };
