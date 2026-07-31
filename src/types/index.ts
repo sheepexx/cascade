@@ -250,7 +250,7 @@ export type HumanizeSettings = {
   biasMs: number;
   jitterMs: number;
   missChance: number;
-  greatChance: number;
+  slipChance: number;
   releaseJitterMs: number;
   seed: number;
 };
@@ -258,10 +258,10 @@ export type HumanizeSettings = {
 export const DEFAULT_HUMANIZE: HumanizeSettings = {
   enabled: false,
   biasMs: 0,
-  jitterMs: 12,
+  jitterMs: 11,
   missChance: 0.005,
-  greatChance: 0.12,
-  releaseJitterMs: 18,
+  slipChance: 0.1,
+  releaseJitterMs: 22,
   seed: 0,
 };
 

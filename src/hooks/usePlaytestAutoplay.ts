@@ -70,12 +70,14 @@ export function usePlaytestAutoplay({
       releaseWindows,
       profile,
       rate,
+      keyCount,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     enabled,
     active,
     notes,
+    keyCount,
     humanize,
     windows,
     releaseWindows,

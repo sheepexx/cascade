@@ -164,7 +164,7 @@ describe("planAutoplay with humanize", () => {
     enabled: true,
     jitterMs: 14,
     missChance: 0,
-    greatChance: 0,
+    slipChance: 0,
     seed: 12345,
   };
 
@@ -260,18 +260,93 @@ describe("planAutoplay with humanize", () => {
     }
   });
 
-  it("pushes notes out of the max window when greatChance is high", () => {
+  it("throws mostly late outliers when the slip chance is high", () => {
     const byId = new Map(many.map((n) => [n.id, n]));
-    const { events } = plan(many, {
-      ...human,
-      jitterMs: 0,
-      greatChance: 1,
-    });
-    const judgements = events
+    const errors = plan(many, { ...human, slipChance: 1 }).events
       .filter((e) => e.action === "press")
-      .map((e) => judgeHitError(e.atMs - byId.get(e.noteId)!.startTime, windows));
-    expect(judgements.every((j) => j !== "max")).toBe(true);
-    expect(judgements.every((j) => j === "300")).toBe(true);
+      .map((e) => e.atMs - byId.get(e.noteId)!.startTime);
+    const outliers = errors.filter((e) => Math.abs(e) > 3 * human.jitterMs);
+    expect(outliers.length).toBeGreaterThan(errors.length * 0.4);
+    const late = outliers.filter((e) => e > 0).length;
+    expect(late).toBeGreaterThan(outliers.length * 0.6);
+  });
+
+  it("leaves the core tight while the slip chance grows", () => {
+    const byId = new Map(many.map((n) => [n.id, n]));
+    const coreSpread = (settings: HumanizeSettings) => {
+      const errors = plan(many, settings).events
+        .filter((e) => e.action === "press")
+        .map((e) => e.atMs - byId.get(e.noteId)!.startTime)
+        .sort((a, b) => a - b);
+      const at = (p: number) => errors[Math.round((errors.length - 1) * p)];
+      return at(0.75) - at(0.25);
+    };
+    const tight = coreSpread({ ...human, slipChance: 0 });
+    const slippy = coreSpread({ ...human, slipChance: 0.15 });
+    expect(slippy).toBeLessThan(tight * 1.5);
+  });
+
+  it("keeps a slip inside the miss window", () => {
+    const byId = new Map(many.map((n) => [n.id, n]));
+    const errors = plan(many, { ...human, jitterMs: 60, slipChance: 1 }).events
+      .filter((e) => e.action === "press")
+      .map((e) => e.atMs - byId.get(e.noteId)!.startTime);
+    expect(Math.max(...errors.map(Math.abs))).toBeLessThanOrEqual(windows.miss);
+    expect(errors.some((e) => Math.abs(e) > windows.hit50)).toBe(true);
+  });
+
+  it("moves notes of one chord together", () => {
+    const chords = Array.from({ length: 300 }, (_, i) => i).flatMap((i) =>
+      [0, 1, 2, 3].map((column) =>
+        note(`c${i}-${column}`, column, 1000 + i * 200),
+      ),
+    );
+    const byId = new Map(chords.map((n) => [n.id, n]));
+    const { events } = planAutoplay(chords, {
+      humanize: human,
+      windows,
+      releaseWindows,
+      keyCount: 4,
+    });
+    const groups = new Map<number, number[]>();
+    for (const e of events) {
+      const target = byId.get(e.noteId)!;
+      const list = groups.get(target.startTime) ?? [];
+      list.push(e.atMs - target.startTime);
+      groups.set(target.startTime, list);
+    }
+    const spread = [...groups.values()].map(
+      (errs) => Math.max(...errs) - Math.min(...errs),
+    );
+    const all = [...groups.values()].flat();
+    const total =
+      Math.sqrt(
+        all.reduce((s, e) => s + e * e, 0) / all.length -
+          (all.reduce((s, e) => s + e, 0) / all.length) ** 2,
+      ) * 2;
+    const meanSpread = spread.reduce((s, e) => s + e, 0) / spread.length;
+    expect(meanSpread).toBeLessThan(total);
+  });
+
+  it("lets the centre of the error drift over a run", () => {
+    const long = Array.from({ length: 4000 }, (_, i) =>
+      note(`d${i}`, i % 4, 1000 + i * 50),
+    );
+    const byId = new Map(long.map((n) => [n.id, n]));
+    const errors = plan(long, human).events
+      .filter((e) => e.action === "press")
+      .map((e) => e.atMs - byId.get(e.noteId)!.startTime);
+    const window = 200;
+    const means: number[] = [];
+    for (let i = 0; i + window <= errors.length; i += window) {
+      const slice = errors.slice(i, i + window);
+      means.push(slice.reduce((s, e) => s + e, 0) / slice.length);
+    }
+    const mean = means.reduce((s, e) => s + e, 0) / means.length;
+    const driftSd = Math.sqrt(
+      means.reduce((s, e) => s + (e - mean) ** 2, 0) / means.length,
+    );
+    expect(driftSd).toBeGreaterThan(human.jitterMs / window ** 0.5);
   });
 
   it("never releases a long note before its head press", () => {
@@ -327,7 +402,7 @@ describe("planAutoplay with physical limits", () => {
         enabled: true,
         missChance: 1,
         jitterMs: 0,
-        greatChance: 0,
+        slipChance: 0,
       },
       windows,
       releaseWindows,
@@ -398,6 +473,86 @@ describe("planAutoplay with physical limits", () => {
     const a = playWithSkill(notes).plannedMisses;
     const b = playWithSkill(notes).plannedMisses;
     expect([...a].sort()).toEqual([...b].sort());
+  });
+});
+
+describe("humanised error distribution", () => {
+  const notes = Array.from({ length: 12000 }, (_, i) =>
+    note(`h${i}`, (i * 3) % 4, 1000 + Math.round(i * 45)),
+  );
+  const byId = new Map(notes.map((n) => [n.id, n]));
+
+  function errors(seed: number) {
+    const { events } = planAutoplay(notes, {
+      humanize: { ...DEFAULT_HUMANIZE, enabled: true, missChance: 0, seed },
+      windows,
+      releaseWindows,
+      keyCount: 4,
+    });
+    return events
+      .filter((e) => e.action === "press")
+      .map((e) => e.atMs - byId.get(e.noteId)!.startTime)
+      .sort((a, b) => a - b);
+  }
+
+  const sample = errors(20260731);
+  const at = (p: number) =>
+    sample[Math.min(sample.length - 1, Math.round((sample.length - 1) * p))];
+  const median = at(0.5);
+  const core = (at(0.75) - at(0.25)) / 1.349;
+  const mean = sample.reduce((s, e) => s + e, 0) / sample.length;
+  const sd = Math.sqrt(
+    sample.reduce((s, e) => s + (e - mean) ** 2, 0) / sample.length,
+  );
+
+  it("keeps the core near the configured scatter", () => {
+    expect(core).toBeGreaterThan(DEFAULT_HUMANIZE.jitterMs * 0.8);
+    expect(core).toBeLessThan(DEFAULT_HUMANIZE.jitterMs * 1.4);
+  });
+
+  it("spreads far wider than the core, as real runs do", () => {
+    expect(sd / core).toBeGreaterThan(1.2);
+    expect(sd / core).toBeLessThan(1.9);
+  });
+
+  it("puts a few percent of hits past three sigma", () => {
+    const late = sample.filter((e) => e - median > 3 * core).length;
+    expect(late / sample.length).toBeGreaterThan(0.02);
+    expect(late / sample.length).toBeLessThan(0.06);
+  });
+
+  it("throws far more late outliers than early ones", () => {
+    const late = sample.filter((e) => e - median > 3 * core).length;
+    const early = sample.filter((e) => e - median < -3 * core).length;
+    expect(late).toBeGreaterThan(early * 2.5);
+  });
+
+  it("reaches five to ten sigma at the 99th percentile", () => {
+    const p99 = (at(0.99) - median) / core;
+    expect(p99).toBeGreaterThan(5);
+    expect(p99).toBeLessThan(10);
+  });
+
+  it("lands the judgement mix a strong player would score", () => {
+    const counts = { max: 0, rest: 0 };
+    for (const e of sample) {
+      if (judgeHitError(e, windows) === "max") counts.max += 1;
+      else counts.rest += 1;
+    }
+    const share = counts.max / sample.length;
+    expect(share).toBeGreaterThan(0.7);
+    expect(share).toBeLessThan(0.88);
+  });
+
+  it("holds that shape across seeds", () => {
+    for (const seed of [7, 4242, 99991]) {
+      const other = errors(seed);
+      const pick = (p: number) =>
+        other[Math.min(other.length - 1, Math.round((other.length - 1) * p))];
+      const otherCore = (pick(0.75) - pick(0.25)) / 1.349;
+      expect(otherCore).toBeGreaterThan(DEFAULT_HUMANIZE.jitterMs * 0.8);
+      expect(otherCore).toBeLessThan(DEFAULT_HUMANIZE.jitterMs * 1.4);
+    }
   });
 });
 

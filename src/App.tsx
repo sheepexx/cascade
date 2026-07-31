@@ -183,6 +183,7 @@ import {
   type BackgroundScope,
   type Difficulty,
   type HitsoundSkinSource,
+  type HumanizeSettings,
   type LoadedFile,
   type LoadedSkin,
   type ManiaNote,
@@ -323,6 +324,22 @@ function initialPlaytestState(): PlaytestRuntimeState {
   };
 }
 
+function normalizeHumanize(
+  saved: Partial<HumanizeSettings> | undefined,
+): HumanizeSettings {
+  const legacy = saved as { greatChance?: number } | undefined;
+  const { slipChance, ...rest } = saved ?? {};
+  return {
+    ...DEFAULT_APP_SETTINGS.playtest.humanize,
+    ...rest,
+    slipChance:
+      slipChance ??
+      (typeof legacy?.greatChance === "number"
+        ? Math.min(0.1, legacy.greatChance / 4)
+        : DEFAULT_APP_SETTINGS.playtest.humanize.slipChance),
+  };
+}
+
 function normalizeAppSettings(
   prefs: Partial<AppSettings> | null,
 ): AppSettings {
@@ -334,10 +351,7 @@ function normalizeAppSettings(
       ...DEFAULT_APP_SETTINGS.playtest,
       ...(playtestPrefs ?? {}),
       keybinds: normalizePlaytestKeybinds(playtestPrefs?.keybinds),
-      humanize: {
-        ...DEFAULT_APP_SETTINGS.playtest.humanize,
-        ...(playtestPrefs?.humanize ?? {}),
-      },
+      humanize: normalizeHumanize(playtestPrefs?.humanize),
       skill: {
         ...DEFAULT_APP_SETTINGS.playtest.skill,
         ...(playtestPrefs?.skill ?? {}),

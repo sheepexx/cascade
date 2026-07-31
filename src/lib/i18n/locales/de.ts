@@ -379,20 +379,20 @@ export const de: PartialCatalog = {
     "Zeigt NPS, Combo, Genauigkeit, UR und Bewertungen live in der linken oberen Ecke.",
   "settings.humanize": "Autoplay vermenschlichen",
   "settings.humanizeHint":
-    "Lässt die CPU wie eine Person statt wie ein Roboter spielen: das Timing streut, manche Noten landen außerhalb des perfekten Fensters und einige werden ganz verfehlt.",
+    "Lässt die CPU wie eine Person statt wie ein Roboter spielen: das Timing streut, Akkorde kommen als eine Bewegung, die Mitte wandert über einen Durchlauf und schwere Muster erzeugen späte Treffer und Misses.",
   "settings.humanizeBias": "Timing-Abweichung",
   "settings.humanizeBiasHint":
     "Verschiebt jeden Treffer nach früh (negativ) oder spät (positiv), so wie bei einem falsch eingestellten Offset.",
   "settings.humanizeJitter": "Timing-Streuung",
   "settings.humanizeJitterHint":
-    "Standardabweichung der Trefferabweichung. Das bestimmt die Unstable Rate.",
+    "Standardabweichung des engen Kerns der Trefferabweichung. Echte 4K-Spieler liegen bei etwa 10 bis 13 ms.",
   "settings.humanizeMissChance": "Miss-Wahrscheinlichkeit",
-  "settings.humanizeGreatChance": "300er-Wahrscheinlichkeit",
-  "settings.humanizeGreatChanceHint":
-    "Wie oft eine Note im 300er-Fenster statt im perfekten landet.",
+  "settings.humanizeSlipChance": "Ausrutscher-Wahrscheinlichkeit",
+  "settings.humanizeSlipChanceHint":
+    "Wie oft eine Note deutlich neben dem Kern landet, meist zu spät. Muster jenseits des Könnens erzeugen zusätzliche Ausrutscher.",
   "settings.humanizeReleaseJitter": "Release-Streuung",
   "settings.humanizeReleaseJitterHint":
-    "Zusätzliche Timing-Streuung beim Loslassen einer Long Note.",
+    "Timing-Streuung beim Loslassen einer Long Note. Spieler sind dabei etwa doppelt so ungenau wie beim Drücken.",
   "settings.humanizeSeed": "Seed",
   "settings.humanizeSeedHint":
     "Derselbe Seed spielt denselben Durchlauf erneut. Bei 0 wird für jeden Versuch ein neuer gezogen.",

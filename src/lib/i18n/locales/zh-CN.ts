@@ -360,16 +360,19 @@ export const zhCN: PartialCatalog = {
     "在左上角实时显示 NPS、连击、准确率、UR 和各判定数量。",
   "settings.humanize": "拟人化自动游玩",
   "settings.humanizeHint":
-    "让电脑像真人而不是机器一样游玩：打点会有偏差，部分音符落在完美判定之外，还会偶尔漏掉几个。",
+    "让电脑像真人而不是机器一样游玩：打点会有偏差，同一个和弦是一次动作，中心会随着一局慢慢漂移，难段还会打出偏晚的音符和 miss。",
   "settings.humanizeBias": "打点偏移",
   "settings.humanizeBiasHint": "让所有打点整体偏早（负值）或偏晚（正值），就像 offset 没调准。",
   "settings.humanizeJitter": "打点抖动",
-  "settings.humanizeJitterHint": "打击误差的标准差，它决定 unstable rate。",
+  "settings.humanizeJitterHint":
+    "打击误差核心部分的标准差。真实 4K 玩家大约在 10 到 13 毫秒。",
   "settings.humanizeMissChance": "miss 概率",
-  "settings.humanizeGreatChance": "300 概率",
-  "settings.humanizeGreatChanceHint": "音符落在 300 判定而非完美判定的频率。",
+  "settings.humanizeSlipChance": "失手概率",
+  "settings.humanizeSlipChanceHint":
+    "音符明显偏离核心的频率，多数偏晚。超出能力上限的段落还会额外增加失手。",
   "settings.humanizeReleaseJitter": "松手抖动",
-  "settings.humanizeReleaseJitterHint": "松开长条时额外的打点抖动。",
+  "settings.humanizeReleaseJitterHint":
+    "松开长条时的打点抖动。玩家松手的精度大约只有按下时的一半。",
   "settings.humanizeSeed": "随机种子",
   "settings.humanizeSeedHint": "相同种子会重现同一次游玩。设为 0 则每次都重新随机。",
   "settings.humanizeSeedRandom": "随机",

@@ -31,6 +31,24 @@ export const EMPTY_PLAN: AutoplayPlan = {
 
 const STACK_EPSILON_MS = 1;
 
+export const CHORD_GROUP_MS = 10;
+
+export const CHORD_VARIANCE_SHARE = 0.41;
+export const HAND_VARIANCE_SHARE = 0.28;
+export const NOTE_VARIANCE_SHARE = 0.31;
+
+export const DRIFT_SHARE = 0.35;
+export const DRIFT_TAU_MS = 4000;
+
+export const SLIP_CEILING = 0.35;
+export const SLIP_LOAD_SCALE = 1.1;
+export const SLIP_LATE_SIGMAS = 4.2;
+export const SLIP_EARLY_SIGMAS = 3;
+export const SLIP_EARLY_FRACTION = 0.23;
+
+const MISS_ECHO_MS = 200;
+const MISS_ECHO_GAIN = 6;
+
 export function createRng(seed: number): () => number {
   let a = (seed | 0) || 0x9e3779b9;
   return () => {
@@ -49,11 +67,20 @@ function gaussian(rng: () => number): number {
   return Math.max(-3, Math.min(3, z));
 }
 
+function exponential(rng: () => number): number {
+  return -Math.log(Math.max(1e-12, 1 - rng()));
+}
+
 function orderNotes(notes: ManiaNote[]): ManiaNote[] {
   return [...notes].sort(
     (a, b) => a.startTime - b.startTime || a.column - b.column ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
+}
+
+function handOf(column: number, keyCount: number): number {
+  if (keyCount <= 1) return 0;
+  return column < Math.floor(keyCount / 2) ? 0 : 1;
 }
 
 export function findUnplayableNotes(
@@ -93,38 +120,43 @@ export function findUnplayableNotes(
   return unplayable;
 }
 
-function pressError(
-  rng: () => number,
-  humanize: HumanizeSettings,
-  windows: JudgementWindows,
-  jitterMs: number,
-  human: boolean,
-  timingScale: number,
-): number {
-  let error =
-    (human ? humanize.biasMs * timingScale : 0) +
-    gaussian(rng) * jitterMs;
-  if (human && rng() < humanize.greatChance) {
-    const past = windows.max + 1 + rng() * Math.max(1, windows.hit300 - windows.max - 1);
-    error = error < 0 ? -past : past;
-  }
-  const limit = Math.max(0, windows.hit50);
-  return Math.max(-limit, Math.min(limit, error));
+export function slipChanceForLoad(base: number, load: number): number {
+  const floor = Math.max(0, Math.min(1, base));
+  if (load <= 0) return floor;
+  const room = Math.max(0, SLIP_CEILING - floor);
+  return floor + room * (1 - Math.exp(-load / SLIP_LOAD_SCALE));
 }
 
-function releaseError(
+function slipError(
   rng: () => number,
-  humanize: HumanizeSettings,
-  releaseWindows: JudgementWindows,
-  jitterMs: number,
-  human: boolean,
-  timingScale: number,
+  sigma: number,
+  chance: number,
 ): number {
-  const error =
-    (human ? humanize.biasMs * timingScale : 0) +
-    gaussian(rng) * jitterMs;
-  const limit = Math.max(0, releaseWindows.hit50);
-  return Math.max(-limit, Math.min(limit, error));
+  if (sigma <= 0 || chance <= 0 || rng() >= chance) return 0;
+  return rng() < SLIP_EARLY_FRACTION
+    ? -sigma * SLIP_EARLY_SIGMAS * exponential(rng)
+    : sigma * SLIP_LATE_SIGMAS * exponential(rng);
+}
+
+function makeDrift(rng: () => number): (atMs: number) => number {
+  let value = gaussian(rng);
+  let last: number | null = null;
+  return (atMs) => {
+    if (last === null) {
+      last = atMs;
+      return value;
+    }
+    const decay = Math.exp(-Math.max(0, atMs - last) / DRIFT_TAU_MS);
+    last = atMs;
+    value =
+      value * decay + gaussian(rng) * Math.sqrt(Math.max(0, 1 - decay * decay));
+    return value;
+  };
+}
+
+function clampError(error: number, limit: number): number {
+  const bound = Math.max(0, limit);
+  return Math.max(-bound, Math.min(bound, error));
 }
 
 export function planAutoplay(
@@ -135,12 +167,14 @@ export function planAutoplay(
     releaseWindows,
     profile = null,
     rate = 1,
+    keyCount = 0,
   }: {
     humanize: HumanizeSettings;
     windows: JudgementWindows;
     releaseWindows: JudgementWindows;
     profile?: SkillProfile | null;
     rate?: number;
+    keyCount?: number;
   },
 ): AutoplayPlan {
   const unplayable = findUnplayableNotes(notes);
@@ -152,62 +186,114 @@ export function planAutoplay(
   const human = humanize.enabled;
   const timingScale = Math.max(0.25, Math.min(4, rate));
   const localizeHumanMisses = (profile?.loads.size ?? 0) > 0;
+  const drift = makeDrift(rng);
 
-  for (const note of orderNotes(notes)) {
-    if (unplayable.has(note.id)) continue;
+  let columns = keyCount;
+  if (columns <= 0) {
+    for (const note of notes) columns = Math.max(columns, note.column + 1);
+  }
 
-    const load = profile?.loads.get(note.id)?.load ?? 0;
-    const physicalMiss = missChanceFromLoad(load);
+  const playable = orderNotes(notes).filter((note) => !unplayable.has(note.id));
+  let lastMissAt = -Infinity;
 
-    const baseMiss =
-      human && (!localizeHumanMisses || physicalMiss > 0)
-        ? humanize.missChance
-        : 0;
-    const missChance = 1 - (1 - baseMiss) * (1 - physicalMiss);
-    if (missChance > 0 && rng() < missChance) {
-      plannedMisses.add(note.id);
-      continue;
+  for (let index = 0; index < playable.length; ) {
+    const chordStart = playable[index].startTime;
+    let end = index;
+    while (
+      end < playable.length &&
+      playable[end].startTime - chordStart <= CHORD_GROUP_MS
+    ) {
+      end += 1;
     }
+    const chord = playable.slice(index, end);
+    index = end;
 
-    const jitter =
-      ((human ? humanize.jitterMs : 0) + loadJitterMs(load)) * timingScale;
-    const error =
-      human || jitter > 0
-        ? pressError(
-            rng,
-            humanize,
-            windows,
-            jitter,
-            human,
-            timingScale,
-          )
-        : 0;
-    events.push({
-      atMs: note.startTime + error,
-      column: note.column,
-      action: "press",
-      noteId: note.id,
-    });
+    const loads = chord.map((note) => profile?.loads.get(note.id)?.load ?? 0);
+    const sigmas = loads.map(
+      (load) => (human ? humanize.jitterMs : 0) + loadJitterMs(load),
+    );
+    const chordSigma = sigmas.reduce((sum, s) => sum + s, 0) / sigmas.length;
 
-    if (note.endTime !== undefined && note.endTime > note.startTime) {
-      const relError =
-        human || load > 0
-          ? releaseError(
-              rng,
-              humanize,
-              releaseWindows,
-              ((human ? humanize.releaseJitterMs : 0) + loadJitterMs(load)) *
-                timingScale,
-              human,
-              timingScale,
-            )
+    const driftUnit = drift(chordStart);
+    const chordOffset =
+      driftUnit * chordSigma * DRIFT_SHARE +
+      gaussian(rng) * chordSigma * Math.sqrt(CHORD_VARIANCE_SHARE);
+    const handOffsets = new Map<number, number>();
+
+    for (let k = 0; k < chord.length; k++) {
+      const note = chord[k];
+      const load = loads[k];
+
+      const physicalMiss = missChanceFromLoad(load);
+      const baseMiss =
+        human && (!localizeHumanMisses || physicalMiss > 0)
+          ? humanize.missChance
           : 0;
+      let missChance = 1 - (1 - baseMiss) * (1 - physicalMiss);
+      if (missChance > 0) {
+        const sinceMiss = (note.startTime - lastMissAt) / timingScale;
+        if (sinceMiss < MISS_ECHO_MS) {
+          missChance = Math.min(
+            0.95,
+            missChance *
+              (1 + MISS_ECHO_GAIN * (1 - Math.max(0, sinceMiss) / MISS_ECHO_MS)),
+          );
+        }
+      }
+      if (missChance > 0 && rng() < missChance) {
+        plannedMisses.add(note.id);
+        lastMissAt = note.startTime;
+        continue;
+      }
+
+      const sigma = sigmas[k];
+      const hand = handOf(note.column, columns);
+      let handOffset = handOffsets.get(hand);
+      if (handOffset === undefined) {
+        handOffset = gaussian(rng) * chordSigma * Math.sqrt(HAND_VARIANCE_SHARE);
+        handOffsets.set(hand, handOffset);
+      }
+
+      const error = clampError(
+        ((human ? humanize.biasMs : 0) +
+          chordOffset +
+          handOffset +
+          gaussian(rng) * sigma * Math.sqrt(NOTE_VARIANCE_SHARE) +
+          slipError(
+            rng,
+            sigma,
+            slipChanceForLoad(human ? humanize.slipChance : 0, load),
+          )) *
+          timingScale,
+        windows.miss,
+      );
       events.push({
-        atMs: Math.max(note.endTime + relError, note.startTime + error + 1),
+        atMs: note.startTime + error,
         column: note.column,
-        action: "release",
+        action: "press",
         noteId: note.id,
       });
+
+      if (note.endTime !== undefined && note.endTime > note.startTime) {
+        const releaseSigma =
+          (human ? humanize.releaseJitterMs : 0) + loadJitterMs(load);
+        const releaseError = clampError(
+          ((human ? humanize.biasMs : 0) +
+            driftUnit * releaseSigma * DRIFT_SHARE +
+            gaussian(rng) * releaseSigma) *
+            timingScale,
+          releaseWindows.miss,
+        );
+        events.push({
+          atMs: Math.max(
+            note.endTime + releaseError,
+            note.startTime + error + 1,
+          ),
+          column: note.column,
+          action: "release",
+          noteId: note.id,
+        });
+      }
     }
   }
 

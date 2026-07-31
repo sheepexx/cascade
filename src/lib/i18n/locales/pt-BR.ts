@@ -379,20 +379,20 @@ export const ptBR: PartialCatalog = {
     "Mostra NPS, combo, precisão, UR e a contagem de julgamentos no canto superior esquerdo.",
   "settings.humanize": "Humanizar o autoplay",
   "settings.humanizeHint":
-    "Faz a CPU jogar como uma pessoa em vez de um robô: o tempo varia, algumas notas caem fora da janela perfeita e outras passam batido.",
+    "Faz a CPU jogar como uma pessoa em vez de um robô: o tempo varia, acordes caem como um movimento só, o centro oscila ao longo da run e padrões difíceis geram acertos atrasados e misses.",
   "settings.humanizeBias": "Desvio de tempo",
   "settings.humanizeBiasHint":
     "Desloca todos os acertos para antes (negativo) ou depois (positivo), como quem está com o offset errado.",
   "settings.humanizeJitter": "Variação de tempo",
   "settings.humanizeJitterHint":
-    "Desvio padrão do erro de acerto. É isso que define o unstable rate.",
+    "Desvio padrão do núcleo estreito do erro de acerto. Jogadores 4K reais ficam entre 10 e 13 ms.",
   "settings.humanizeMissChance": "Chance de miss",
-  "settings.humanizeGreatChance": "Chance de 300",
-  "settings.humanizeGreatChanceHint":
-    "Com que frequência uma nota cai na janela de 300 em vez da perfeita.",
+  "settings.humanizeSlipChance": "Chance de escorregão",
+  "settings.humanizeSlipChanceHint":
+    "Com que frequência uma nota cai bem longe do núcleo, quase sempre atrasada. Padrões além do limite de habilidade somam escorregões a isso.",
   "settings.humanizeReleaseJitter": "Variação ao soltar",
   "settings.humanizeReleaseJitterHint":
-    "Variação extra de tempo ao soltar uma nota longa.",
+    "Variação de tempo ao soltar uma nota longa. Jogadores são cerca de duas vezes mais imprecisos ao soltar do que ao apertar.",
   "settings.humanizeSeed": "Semente",
   "settings.humanizeSeedHint":
     "A mesma semente repete a mesma tentativa. Deixe em 0 para sortear uma nova a cada vez.",

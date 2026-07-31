@@ -377,20 +377,20 @@ export const en = {
     "Shows live NPS, combo, accuracy, UR and judgement counts in the top-left corner.",
   "settings.humanize": "Humanize autoplay",
   "settings.humanizeHint":
-    "Makes the CPU play like a person instead of a robot: timing scatters, some notes land outside the perfect window, and a few get missed outright.",
+    "Makes the CPU play like a person instead of a robot: timing scatters, chords land as one motion, the centre drifts over a run, and hard patterns throw late hits and misses.",
   "settings.humanizeBias": "Timing bias",
   "settings.humanizeBiasHint":
     "Shifts every hit early (negative) or late (positive), the way a player sitting on a bad offset would.",
   "settings.humanizeJitter": "Timing scatter",
   "settings.humanizeJitterHint":
-    "Standard deviation of the hit error. This is what drives the unstable rate.",
+    "Standard deviation of the tight core of the hit error. Real 4K players sit around 10 to 13 ms.",
   "settings.humanizeMissChance": "Miss chance",
-  "settings.humanizeGreatChance": "Great chance",
-  "settings.humanizeGreatChanceHint":
-    "How often a note lands in the 300 window instead of the perfect one.",
+  "settings.humanizeSlipChance": "Slip chance",
+  "settings.humanizeSlipChanceHint":
+    "How often a note slips well outside the core, mostly late. Patterns past the skill limit add slips on top of this.",
   "settings.humanizeReleaseJitter": "Release scatter",
   "settings.humanizeReleaseJitterHint":
-    "Extra timing scatter applied when letting go of a long note.",
+    "Timing scatter when letting go of a long note. Players are about twice as loose on releases as on presses.",
   "settings.humanizeSeed": "Seed",
   "settings.humanizeSeedHint":
     "Same seed replays the same run. Leave at 0 to draw a fresh one each attempt.",

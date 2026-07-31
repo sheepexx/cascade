@@ -326,7 +326,7 @@ export function missChanceFromLoad(load: number): number {
   return Math.min(0.95, Math.pow(over, MISS_CURVE));
 }
 
-const LOAD_JITTER_MS = 45;
+const LOAD_JITTER_MS = 4;
 
 export function loadJitterMs(load: number): number {
   if (load <= 0) return 0;

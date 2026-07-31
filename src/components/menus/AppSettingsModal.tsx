@@ -808,14 +808,14 @@ export function AppSettingsModal({
                     onChange={(v) => patchHumanize({ biasMs: v })}
                   />
                   <HumanSlider
-                    label={t("settings.humanizeGreatChance")}
-                    hint={t("settings.humanizeGreatChanceHint")}
-                    value={Math.round(playtest.humanize.greatChance * 100)}
+                    label={t("settings.humanizeSlipChance")}
+                    hint={t("settings.humanizeSlipChanceHint")}
+                    value={Math.round(playtest.humanize.slipChance * 1000) / 10}
                     min={0}
-                    max={100}
-                    step={1}
-                    format={(v) => `${v}%`}
-                    onChange={(v) => patchHumanize({ greatChance: v / 100 })}
+                    max={35}
+                    step={0.5}
+                    format={(v) => `${v.toFixed(1)}%`}
+                    onChange={(v) => patchHumanize({ slipChance: v / 100 })}
                   />
                   <HumanSlider
                     label={t("settings.humanizeMissChance")}
