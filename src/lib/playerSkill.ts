@@ -317,8 +317,8 @@ export function computeSkillProfile(
 }
 
 const MISS_DEAD_ZONE = 0.25;
-const MISS_SCALE = 2.2;
-const MISS_CURVE = 1.6;
+const MISS_SCALE = 4.5;
+const MISS_CURVE = 2.6;
 
 export function missChanceFromLoad(load: number): number {
   if (load <= MISS_DEAD_ZONE) return 0;

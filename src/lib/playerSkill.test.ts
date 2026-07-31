@@ -266,10 +266,15 @@ describe("missChanceFromLoad", () => {
     expect(missChanceFromLoad(0.3)).toBeLessThan(0.01);
   });
 
+  it("keeps drops rare while the player is merely strained", () => {
+    expect(missChanceFromLoad(0.5)).toBeLessThan(0.005);
+    expect(missChanceFromLoad(1)).toBeGreaterThan(0.002);
+    expect(missChanceFromLoad(1)).toBeLessThan(0.02);
+  });
+
   it("rises with load and saturates below certainty", () => {
-    expect(missChanceFromLoad(1)).toBeGreaterThan(0.1);
-    expect(missChanceFromLoad(1)).toBeLessThan(0.3);
-    expect(missChanceFromLoad(2)).toBeGreaterThan(0.5);
+    expect(missChanceFromLoad(2)).toBeGreaterThan(0.05);
+    expect(missChanceFromLoad(3)).toBeGreaterThan(0.2);
     expect(missChanceFromLoad(5)).toBeGreaterThan(0.9);
     expect(missChanceFromLoad(1000)).toBeLessThanOrEqual(0.95);
   });

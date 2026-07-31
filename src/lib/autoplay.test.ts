@@ -13,7 +13,10 @@ import {
   summarizePlan,
 } from "./autoplay";
 import { computeSkillProfile } from "./playerSkill";
+import { DAN_LADDERS, combineDans, resolveSkillForKeyCount } from "./danSkill";
+import { accuracyFromCounts } from "./playtestScoring";
 import {
+  emptyJudgementCounts,
   judgeHitError,
   maniaJudgementWindows,
   maniaReleaseWindows,
@@ -553,6 +556,83 @@ describe("humanised error distribution", () => {
       expect(otherCore).toBeGreaterThan(DEFAULT_HUMANIZE.jitterMs * 0.8);
       expect(otherCore).toBeLessThan(DEFAULT_HUMANIZE.jitterMs * 1.4);
     }
+  });
+});
+
+describe("dan levels clear their own charts", () => {
+  const HAND_ORDER = [0, 2, 1, 3];
+
+  function danChart(handNps: number, burstRatio: number) {
+    const notes: ManiaNote[] = [];
+    let index = 0;
+    let at = 1000;
+    for (let cycle = 0; cycle < 12; cycle++) {
+      for (const [ratio, span] of [
+        [burstRatio, 1000],
+        [0.5, 6000],
+      ]) {
+        const gap = 1000 / (handNps * 2 * ratio);
+        for (let t = 0; t < span; t += gap) {
+          notes.push(
+            note(`s${index}`, HAND_ORDER[index % 4], Math.round(at + t)),
+          );
+          index += 1;
+        }
+        at += span;
+      }
+    }
+    return notes;
+  }
+
+  function play(notes: ManiaNote[], level: number) {
+    const skill = resolveSkillForKeyCount(combineDans(4, level, 0), 4);
+    const profile = computeSkillProfile(notes, 4, skill, 1);
+    const plan = planAutoplay(notes, {
+      humanize: { ...DEFAULT_HUMANIZE, enabled: true, seed: 555 },
+      windows,
+      releaseWindows,
+      profile,
+      keyCount: 4,
+    });
+    const byId = new Map(notes.map((n) => [n.id, n]));
+    const counts = emptyJudgementCounts();
+    for (const e of plan.events) {
+      if (e.action !== "press") continue;
+      const j = judgeHitError(e.atMs - byId.get(e.noteId)!.startTime, windows);
+      if (j) counts[j] += 1;
+    }
+    counts.miss += plan.plannedMisses.size + plan.unplayable.size;
+    return {
+      accuracy: accuracyFromCounts(counts),
+      dropRate: plan.plannedMisses.size / notes.length,
+    };
+  }
+
+  const levels = [7, 11, 15, 17, 19];
+  const chartFor = (level: number) =>
+    danChart(DAN_LADDERS["4k-regular"].levels[level].skill.handNps, 1.67);
+
+  it("does not drop notes en masse at its own level", () => {
+    for (const level of levels) {
+      expect(play(chartFor(level), level).dropRate).toBeLessThan(0.02);
+    }
+  });
+
+  it("falls behind on a chart built for a much higher level", () => {
+    const hard = chartFor(19);
+    const top = play(hard, 19).accuracy;
+    for (const level of [7, 11, 15]) {
+      expect(play(hard, level).accuracy).toBeLessThan(top - 2);
+    }
+  });
+
+  it("gets steadily better at one chart as the level climbs", () => {
+    const hard = chartFor(17);
+    const scores = levels.map((level) => play(hard, level).accuracy);
+    for (let i = 1; i < scores.length; i++) {
+      expect(scores[i]).toBeGreaterThan(scores[i - 1] - 0.5);
+    }
+    expect(scores[scores.length - 1]).toBeGreaterThan(scores[0] + 3);
   });
 });
 
