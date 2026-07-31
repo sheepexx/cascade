@@ -222,11 +222,11 @@ function NotificationRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-100">
+            <div className="break-words text-sm font-semibold text-slate-100">
               {notification.title}
             </div>
             {notification.body && (
-              <p className="mt-0.5 line-clamp-3 text-xs leading-4 text-slate-400">
+              <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-4 text-slate-400">
                 {notification.body}
               </p>
             )}
