@@ -1,4 +1,5 @@
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta, TimingPoint } from "../types";
+import { difficultyRate } from "./rateChange";
 import { activeTimingAt, beatLength, redPoints, sortedPoints } from "./timing";
 
 // osu! only recognises objects snapped to one of these beat divisors. Notes on a
@@ -105,6 +106,17 @@ export const AIMOD_CATEGORIES: AiModCategory[] = [
 
 export type AiModSeverity = "warning" | "error";
 
+export const AIMOD_CONCURRENT_MS = 30;
+export const AIMOD_MIN_LONG_NOTE_MS = 30;
+
+export type AiModObject = { time: number; column: number };
+
+export type AiModDetail = {
+  time: number;
+  label: string;
+  objects?: AiModObject[];
+};
+
 export type AiModIssue = {
   id: string;
   category: AiModCategory;
@@ -114,6 +126,8 @@ export type AiModIssue = {
   diffId?: string;
   /** Time in ms to jump to when the issue is clicked. */
   time?: number;
+  count?: number;
+  details?: AiModDetail[];
 };
 
 export type AiModReport = {
@@ -127,12 +141,36 @@ export type AiModArgs = {
   difficulties: Difficulty[];
   audioFiles: Record<string, LoadedFile>;
   bgFiles: Record<string, LoadedFile>;
-  /** Song length in ms, if the audio is loaded. Enables length/drain checks. */
+  /**
+   * Length of the source audio file in ms, unscaled by any difficulty rate.
+   * Enables the length, drain and past-the-end-of-audio checks.
+   */
   audioDurationMs?: number;
 };
 
 const MIN_MAP_LENGTH_MS = 30_000;
 const RECOMMENDED_MAP_LENGTH_MS = 45_000;
+const MAX_DETAILS = 1000;
+
+export function formatAiModTime(ms: number): string {
+  const v = Math.round(ms);
+  const sign = v < 0 ? "-" : "";
+  const abs = Math.abs(v);
+  const minutes = Math.floor(abs / 60000);
+  const seconds = Math.floor((abs % 60000) / 1000);
+  return `${sign}${minutes.toString().padStart(2, "0")}:${seconds
+    .toString()
+    .padStart(2, "0")}:${(abs % 1000).toString().padStart(3, "0")}`;
+}
+
+export function formatAiModObjects(objects?: AiModObject[]): string {
+  if (!objects || objects.length === 0) return "";
+  return `(${objects.map((o) => `${Math.round(o.time)}|${o.column}`).join(",")})`;
+}
+
+function objectRef(time: number, column: number): AiModObject {
+  return { time: Math.round(time), column };
+}
 
 /** Total time spanned by the notes of a difficulty (first to last). */
 function mappedSpanMs(d: Difficulty): number {
@@ -158,6 +196,19 @@ export function runAiMod({
   let seq = 0;
   const add = (i: Omit<AiModIssue, "id">) =>
     issues.push({ ...i, id: `ai_${seq++}` });
+  const addGroup = (
+    i: Omit<AiModIssue, "id" | "time" | "count" | "details">,
+    details: AiModDetail[],
+  ) => {
+    if (details.length === 0) return;
+    const sorted = [...details].sort((a, b) => a.time - b.time);
+    add({
+      ...i,
+      time: sorted[0].time,
+      count: sorted.length,
+      details: sorted.slice(0, MAX_DETAILS),
+    });
+  };
 
   // --- Mapset-wide metadata (Meta) ---
   if (!meta.title.trim())
@@ -177,6 +228,13 @@ export function runAiMod({
   if (Object.keys(audioFiles).length === 0)
     add({ category: "Mapset", severity: "error", message: "No audio file loaded." });
 
+  if (difficulties.length === 0)
+    add({
+      category: "Mapset",
+      severity: "error",
+      message: "The mapset has no difficulties.",
+    });
+
   const keyCounts = new Set(difficulties.map((d) => d.keyCount));
   if (difficulties.length > 1 && keyCounts.size > 1) {
     // Not an error (mixed-key sets are legal) but worth surfacing.
@@ -187,13 +245,37 @@ export function runAiMod({
     });
   }
 
+  const nameCounts = new Map<string, number>();
+  for (const d of difficulties) {
+    const key = d.name.trim().toLowerCase();
+    if (key) nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
+  }
+  const reportedNames = new Set<string>();
+  for (const d of difficulties) {
+    const key = d.name.trim().toLowerCase();
+    const n = nameCounts.get(key) ?? 0;
+    if (n < 2 || reportedNames.has(key)) continue;
+    reportedNames.add(key);
+    add({
+      category: "Mapset",
+      severity: "error",
+      message: `${n} difficulties share the name "${d.name.trim()}".`,
+    });
+  }
+
   for (const d of difficulties) {
     const diffId = d.id;
     const points = d.timingPoints?.length ? d.timingPoints : [];
-    const sortedNotes = [...d.notes].sort((a, b) => a.startTime - b.startTime);
+    const sortedNotes = [...d.notes].sort(
+      (a, b) => a.startTime - b.startTime || a.column - b.column,
+    );
+    const audioEnd =
+      audioDurationMs !== undefined && audioDurationMs > 0
+        ? audioDurationMs / difficultyRate(d)
+        : undefined;
 
     // --- Timing ---
-    const reds = points.filter((p) => p.uninherited);
+    const reds = redPoints(points);
     if (reds.length === 0) {
       add({
         category: "Timing",
@@ -202,7 +284,7 @@ export function runAiMod({
         diffId,
       });
     } else {
-      const firstRed = sortedPoints(points).find((p) => p.uninherited)!;
+      const firstRed = reds[0];
       const firstNote = sortedNotes[0];
       if (firstNote && firstNote.startTime < firstRed.time - 1) {
         add({
@@ -215,91 +297,229 @@ export function runAiMod({
       }
     }
 
-    // --- Compose: unsnapped objects ---
-    if (reds.length > 0) {
-      let unsnappedStarts = 0;
-      let unsnappedEnds = 0;
-      let firstStartTime: number | undefined;
-      let firstEndTime: number | undefined;
-      for (const n of sortedNotes) {
-        if (isUnsnapped(n.startTime, points)) {
-          unsnappedStarts++;
-          if (firstStartTime === undefined) firstStartTime = n.startTime;
-        }
-        if (n.endTime !== undefined && isUnsnapped(n.endTime, points)) {
-          unsnappedEnds++;
-          if (firstEndTime === undefined) firstEndTime = n.endTime;
-        }
-      }
-      if (unsnappedStarts > 0)
-        add({
-          category: "Compose",
-          severity: "warning",
-          message:
-            unsnappedStarts === 1
-              ? `[${d.name}] Object isn't snapped!`
-              : `[${d.name}] ${unsnappedStarts} objects aren't snapped!`,
-          diffId,
-          time: firstStartTime,
+    const badBpm: AiModDetail[] = [];
+    const duplicatePoints: AiModDetail[] = [];
+    const earlyGreens: AiModDetail[] = [];
+    const seenPoints = new Set<string>();
+    for (const p of sortedPoints(points)) {
+      if (p.uninherited && !(Number.isFinite(p.bpm) && p.bpm > 0))
+        badBpm.push({ time: p.time, label: `BPM is ${p.bpm}.` });
+      const key = `${p.uninherited ? "red" : "green"}@${Math.round(p.time)}`;
+      if (seenPoints.has(key))
+        duplicatePoints.push({
+          time: p.time,
+          label: `Two ${p.uninherited ? "red" : "green"} points share this time.`,
         });
-      if (unsnappedEnds > 0)
-        add({
-          category: "Compose",
-          severity: "warning",
-          message:
-            unsnappedEnds === 1
-              ? `[${d.name}] Object's end isn't snapped!`
-              : `[${d.name}] ${unsnappedEnds} object ends aren't snapped!`,
-          diffId,
-          time: firstEndTime,
+      else seenPoints.add(key);
+      if (!p.uninherited && reds.length > 0 && p.time < reds[0].time)
+        earlyGreens.push({
+          time: p.time,
+          label: "Inherited point before the first timing point; osu! ignores it.",
         });
     }
+    addGroup(
+      {
+        category: "Timing",
+        severity: "error",
+        message: `[${d.name}] Timing point with an invalid BPM.`,
+        diffId,
+      },
+      badBpm,
+    );
+    addGroup(
+      {
+        category: "Timing",
+        severity: "warning",
+        message: `[${d.name}] Duplicate timing points.`,
+        diffId,
+      },
+      duplicatePoints,
+    );
+    addGroup(
+      {
+        category: "Timing",
+        severity: "warning",
+        message: `[${d.name}] Inherited points before the first timing point.`,
+        diffId,
+      },
+      earlyGreens,
+    );
 
-    // --- Compose: overlaps / duplicates in a column ---
+    // --- Compose: unsnapped objects ---
+    if (reds.length > 0) {
+      const unsnappedStarts: AiModDetail[] = [];
+      const unsnappedEnds: AiModDetail[] = [];
+      for (const n of sortedNotes) {
+        const start = nearestSnap(n.startTime, points);
+        if (start.unsnap > 0)
+          unsnappedStarts.push({
+            time: n.startTime,
+            objects: [objectRef(n.startTime, n.column)],
+            label: `Unsnapped by ${start.unsnap} ms (nearest 1/${start.divisor}).`,
+          });
+        if (n.endTime !== undefined) {
+          const end = nearestSnap(n.endTime, points);
+          if (end.unsnap > 0)
+            unsnappedEnds.push({
+              time: n.endTime,
+              objects: [objectRef(n.endTime, n.column)],
+              label: `Unsnapped by ${end.unsnap} ms (nearest 1/${end.divisor}).`,
+            });
+        }
+      }
+      addGroup(
+        {
+          category: "Compose",
+          severity: "warning",
+          message: `[${d.name}] Objects aren't snapped!`,
+          diffId,
+        },
+        unsnappedStarts,
+      );
+      addGroup(
+        {
+          category: "Compose",
+          severity: "warning",
+          message: `[${d.name}] Object ends aren't snapped!`,
+          diffId,
+        },
+        unsnappedEnds,
+      );
+    }
+
+    // --- Compose: concurrent objects in the same column ---
     const byCol = new Map<number, ManiaNote[]>();
     for (const n of d.notes) {
       const arr = byCol.get(n.column);
       if (arr) arr.push(n);
       else byCol.set(n.column, [n]);
     }
-    let overlaps = 0;
-    let overlapTime: number | undefined;
+    const concurrent: AiModDetail[] = [];
     for (const arr of byCol.values()) {
       arr.sort((a, b) => a.startTime - b.startTime);
       for (let i = 1; i < arr.length; i++) {
-        const prevEnd = arr[i - 1].endTime ?? arr[i - 1].startTime;
-        if (arr[i].startTime <= prevEnd) {
-          overlaps++;
-          if (overlapTime === undefined) overlapTime = arr[i].startTime;
-        }
+        const prev = arr[i - 1];
+        const cur = arr[i];
+        const prevEnd = Math.max(prev.startTime, prev.endTime ?? prev.startTime);
+        const gap = Math.round(cur.startTime - prevEnd);
+        if (gap >= AIMOD_CONCURRENT_MS) continue;
+        concurrent.push({
+          time: prev.startTime,
+          objects: [
+            objectRef(prev.startTime, prev.column),
+            objectRef(cur.startTime, cur.column),
+          ],
+          label:
+            gap < 0
+              ? `Overlapping by ${-gap} ms.`
+              : `Within ${gap} ms of one another.`,
+        });
       }
     }
-    if (overlaps > 0)
-      add({
+    addGroup(
+      {
         category: "Compose",
         severity: "error",
-        message: `[${d.name}] ${overlaps} overlapping object(s) in the same column.`,
+        message: `[${d.name}] Concurrent hit objects.`,
         diffId,
-        time: overlapTime,
-      });
+      },
+      concurrent,
+    );
 
-    // --- Compose: notes in an invalid column ---
-    let invalidCol = 0;
-    let invalidColTime: number | undefined;
+    const shortHolds: AiModDetail[] = [];
+    const invalidHolds: AiModDetail[] = [];
     for (const n of sortedNotes) {
-      if (n.column < 0 || n.column >= d.keyCount) {
-        invalidCol++;
-        if (invalidColTime === undefined) invalidColTime = n.startTime;
-      }
+      if (n.endTime === undefined) continue;
+      const length = Math.round(n.endTime - n.startTime);
+      const objects = [objectRef(n.startTime, n.column)];
+      if (length <= 0)
+        invalidHolds.push({
+          time: n.startTime,
+          objects,
+          label:
+            length === 0
+              ? "Long note has no length."
+              : `Long note ends ${-length} ms before it starts.`,
+        });
+      else if (length < AIMOD_MIN_LONG_NOTE_MS)
+        shortHolds.push({
+          time: n.startTime,
+          objects,
+          label: `Long note held for only ${length} ms.`,
+        });
     }
-    if (invalidCol > 0)
-      add({
+    addGroup(
+      {
         category: "Compose",
         severity: "error",
-        message: `[${d.name}] ${invalidCol} object(s) in a column outside 1-${d.keyCount}K.`,
+        message: `[${d.name}] Long notes that end before they start.`,
         diffId,
-        time: invalidColTime,
-      });
+      },
+      invalidHolds,
+    );
+    addGroup(
+      {
+        category: "Compose",
+        severity: "warning",
+        message: `[${d.name}] Too short long notes (less than ${AIMOD_MIN_LONG_NOTE_MS}ms).`,
+        diffId,
+      },
+      shortHolds,
+    );
+
+    // --- Compose: objects outside the playfield or the audio ---
+    const invalidCol: AiModDetail[] = [];
+    const beforeAudio: AiModDetail[] = [];
+    const afterAudio: AiModDetail[] = [];
+    for (const n of sortedNotes) {
+      const objects = [objectRef(n.startTime, n.column)];
+      if (n.column < 0 || n.column >= d.keyCount)
+        invalidCol.push({
+          time: n.startTime,
+          objects,
+          label: `Column ${n.column + 1} is outside 1-${d.keyCount}K.`,
+        });
+      if (n.startTime < 0)
+        beforeAudio.push({
+          time: n.startTime,
+          objects,
+          label: `Starts ${Math.round(-n.startTime)} ms before the audio.`,
+        });
+      const end = n.endTime ?? n.startTime;
+      if (audioEnd !== undefined && end > audioEnd)
+        afterAudio.push({
+          time: n.startTime,
+          objects,
+          label: `Ends ${Math.round(end - audioEnd)} ms past the end of the audio.`,
+        });
+    }
+    addGroup(
+      {
+        category: "Compose",
+        severity: "error",
+        message: `[${d.name}] Objects in a column outside 1-${d.keyCount}K.`,
+        diffId,
+      },
+      invalidCol,
+    );
+    addGroup(
+      {
+        category: "Compose",
+        severity: "error",
+        message: `[${d.name}] Objects before the start of the audio.`,
+        diffId,
+      },
+      beforeAudio,
+    );
+    addGroup(
+      {
+        category: "Compose",
+        severity: "warning",
+        message: `[${d.name}] Objects past the end of the audio.`,
+        diffId,
+      },
+      afterAudio,
+    );
 
     // --- Compose: empty difficulty / no hitsounds ---
     if (d.notes.length === 0) {
@@ -347,12 +567,42 @@ export function runAiMod({
         diffId,
       });
 
+    // --- Meta: difficulty name ---
+    if (!d.name.trim())
+      add({
+        category: "Meta",
+        severity: "error",
+        message: "A difficulty has no name.",
+        diffId,
+      });
+
     // --- Timing: preview point ---
     if (d.previewTime < 0)
       add({
         category: "Timing",
         severity: "warning",
         message: `[${d.name}] No preview point set.`,
+        diffId,
+      });
+    else if (audioEnd !== undefined && d.previewTime > audioEnd)
+      add({
+        category: "Timing",
+        severity: "warning",
+        message: `[${d.name}] Preview point is past the end of the audio.`,
+        diffId,
+        time: d.previewTime,
+      });
+
+    // --- Mapset: audio reference ---
+    if (
+      d.audioFilename &&
+      !audioFiles[d.audioFilename] &&
+      Object.keys(audioFiles).length > 1
+    )
+      add({
+        category: "Mapset",
+        severity: "error",
+        message: `[${d.name}] Audio file "${d.audioFilename}" is not in the mapset.`,
         diffId,
       });
 
@@ -365,11 +615,7 @@ export function runAiMod({
         message: `[${d.name}] Drain time should be over 30 seconds.`,
         diffId,
       });
-    else if (
-      audioDurationMs !== undefined &&
-      audioDurationMs > 0 &&
-      audioDurationMs < RECOMMENDED_MAP_LENGTH_MS
-    )
+    else if (audioEnd !== undefined && audioEnd < RECOMMENDED_MAP_LENGTH_MS)
       add({
         category: "Mapset",
         severity: "warning",

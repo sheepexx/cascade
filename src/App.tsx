@@ -864,6 +864,8 @@ export default function App() {
 
   const durationRef = useRef(audio.duration);
   durationRef.current = audio.duration;
+  const sourceDurationRef = useRef(0);
+  sourceDurationRef.current = audio.duration * audio.timeScale;
   const modalAtmosphereOpen =
     (modal !== null && modal !== "timing") ||
     askBgScope ||
@@ -2194,6 +2196,7 @@ export default function App() {
   );
 
   const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
+  const [confirmResnap, setConfirmResnap] = useState(false);
 
   const runAiModCheck = useCallback(() => {
     setAiModReport(
@@ -2202,8 +2205,8 @@ export default function App() {
         difficulties: difficultiesRef.current,
         audioFiles,
         bgFiles,
-        audioDurationMs: durationRef.current
-          ? Math.round(durationRef.current)
+        audioDurationMs: sourceDurationRef.current
+          ? Math.round(sourceDurationRef.current)
           : undefined,
       }),
     );
@@ -2222,15 +2225,17 @@ export default function App() {
   }, [difficulties, activeId]);
 
   const handleAiModJump = useCallback(
-    (issue: AiModIssue) => {
+    (issue: AiModIssue, time?: number) => {
       if (issue.diffId && issue.diffId !== activeIdRef.current)
         setActiveId(issue.diffId);
-      if (issue.time !== undefined) audio.seek(Math.max(0, issue.time));
+      const target = time ?? issue.time;
+      if (target !== undefined) audio.seek(Math.max(0, target));
     },
     [audio],
   );
 
   const handleResnap = useCallback(() => {
+    setConfirmResnap(false);
     const id = activeIdRef.current;
     const d = difficultiesRef.current.find((x) => x.id === id);
     if (!d) return;
@@ -2247,8 +2252,8 @@ export default function App() {
           ),
           audioFiles,
           bgFiles,
-          audioDurationMs: durationRef.current
-            ? Math.round(durationRef.current)
+          audioDurationMs: sourceDurationRef.current
+            ? Math.round(sourceDurationRef.current)
             : undefined,
         }),
       );
@@ -5203,7 +5208,7 @@ export default function App() {
           onRefresh={runAiModCheck}
           onJump={handleAiModJump}
           unsnappedCount={aiModUnsnapped}
-          onResnap={handleResnap}
+          onResnap={() => setConfirmResnap(true)}
         />
       )}
 
@@ -5445,6 +5450,17 @@ export default function App() {
           setPendingDeleteDiffIds(null);
         }}
         onCancel={() => setPendingDeleteDiffIds(null)}
+      />
+
+      <HoldConfirmDialog
+        open={confirmResnap}
+        title="Resnap objects?"
+        message={`${aiModUnsnapped} object${
+          aiModUnsnapped === 1 ? "" : "s"
+        } in “${active.name || "(unnamed)"}” will be moved onto the nearest valid beat divisor. Undo with Ctrl+Z if it isn't what you wanted.`}
+        confirmLabel="Hold to resnap"
+        onConfirm={handleResnap}
+        onCancel={() => setConfirmResnap(false)}
       />
     </div>
   );

@@ -6,6 +6,8 @@ import {
   resnapNotes,
   countUnsnapped,
   runAiMod,
+  formatAiModObjects,
+  formatAiModTime,
 } from "./aimod";
 
 function note(startTime: number, column = 0, endTime?: number): ManiaNote {
@@ -132,5 +134,152 @@ describe("runAiMod", () => {
       bgFiles: bg,
     });
     expect(report.issues.some((i) => /Drain time/.test(i.message))).toBe(true);
+  });
+
+  function report(diff: ReturnType<typeof baseDiff>, audioDurationMs?: number) {
+    return runAiMod({
+      meta,
+      difficulties: [diff],
+      audioFiles: files,
+      bgFiles: bg,
+      audioDurationMs,
+    });
+  }
+
+  function find(
+    r: ReturnType<typeof runAiMod>,
+    pattern: RegExp,
+  ) {
+    return r.issues.find((i) => pattern.test(i.message));
+  }
+
+  it("flags objects in the same column closer than 30ms", () => {
+    const d = baseDiff();
+    d.notes = [note(0), note(22), note(30_500, 3)];
+    const issue = find(report(d), /Concurrent hit objects/);
+    expect(issue?.severity).toBe("error");
+    expect(issue?.count).toBe(1);
+    expect(issue?.details?.[0].label).toBe("Within 22 ms of one another.");
+    expect(issue?.details?.[0].objects).toEqual([
+      { time: 0, column: 0 },
+      { time: 22, column: 0 },
+    ]);
+  });
+
+  it("measures the gap from the end of a hold, not its head", () => {
+    const d = baseDiff();
+    d.notes = [note(0, 0, 22), note(500), note(30_500, 3)];
+    const issue = find(report(d), /Concurrent hit objects/);
+    expect(issue).toBeUndefined();
+  });
+
+  it("keeps overlapping objects in the same column an error", () => {
+    const d = baseDiff();
+    d.notes = [note(0, 0, 250), note(125), note(30_500, 3)];
+    const issue = find(report(d), /Concurrent hit objects/);
+    expect(issue?.severity).toBe("error");
+    expect(issue?.details?.[0].label).toBe("Overlapping by 125 ms.");
+  });
+
+  it("leaves objects in different columns alone", () => {
+    const d = baseDiff();
+    d.notes = [note(0, 0), note(0, 1), note(10, 2), note(30_500, 3)];
+    expect(find(report(d), /Concurrent hit objects/)).toBeUndefined();
+  });
+
+  it("flags long notes shorter than 30ms", () => {
+    const d = baseDiff();
+    d.notes = [note(0, 0, 22), note(30_500, 3)];
+    const issue = find(report(d), /Too short long notes/);
+    expect(issue?.severity).toBe("warning");
+    expect(issue?.details?.[0].label).toBe("Long note held for only 22 ms.");
+    expect(issue?.message).toContain("less than 30ms");
+  });
+
+  it("accepts a long note exactly 30ms long", () => {
+    const d = baseDiff();
+    d.notes = [note(0, 0, 30), note(30_500, 3)];
+    expect(find(report(d), /Too short long notes/)).toBeUndefined();
+  });
+
+  it("errors on a long note that ends before it starts", () => {
+    const d = baseDiff();
+    d.notes = [note(500, 0, 400), note(30_500, 3)];
+    const issue = find(report(d), /end before they start/);
+    expect(issue?.severity).toBe("error");
+    expect(issue?.details?.[0].label).toBe("Long note ends 100 ms before it starts.");
+  });
+
+  it("flags objects past the end of the audio", () => {
+    const d = baseDiff();
+    const issue = find(report(d, 30_000), /past the end of the audio/);
+    expect(issue?.count).toBe(1);
+    expect(issue?.details?.[0].label).toBe(
+      "Ends 500 ms past the end of the audio.",
+    );
+  });
+
+  it("measures the end of the audio in map time for rate difficulties", () => {
+    const d = baseDiff();
+    d.audioRate = 0.5;
+    expect(find(report(d, 30_000), /past the end of the audio/)).toBeUndefined();
+  });
+
+  it("flags objects placed before the audio starts", () => {
+    const d = baseDiff();
+    d.notes = [note(-125, 0), ...d.notes];
+    const issue = find(report(d), /before the start of the audio/);
+    expect(issue?.severity).toBe("error");
+    expect(issue?.details?.[0].label).toBe("Starts 125 ms before the audio.");
+  });
+
+  it("lists every unsnapped object with how far off it is", () => {
+    const d = baseDiff();
+    d.notes = [note(0), note(127, 1), note(30_500, 3)];
+    const issue = find(report(d), /aren't snapped/);
+    expect(issue?.count).toBe(1);
+    expect(issue?.details?.[0]).toEqual({
+      time: 127,
+      objects: [{ time: 127, column: 1 }],
+      label: "Unsnapped by 2 ms (nearest 1/4).",
+    });
+  });
+
+  it("flags duplicate timing points and unusable BPM", () => {
+    const d = baseDiff();
+    d.timingPoints = [makeRedPoint(0, 120), makeRedPoint(0, 0)];
+    const r = report(d);
+    expect(find(r, /invalid BPM/)?.severity).toBe("error");
+    expect(find(r, /Duplicate timing points/)?.severity).toBe("warning");
+  });
+
+  it("flags two difficulties sharing a name", () => {
+    const a = baseDiff();
+    const b = baseDiff();
+    const r = runAiMod({
+      meta,
+      difficulties: [a, b],
+      audioFiles: files,
+      bgFiles: bg,
+    });
+    expect(r.issues.filter((i) => /share the name/.test(i.message)).length).toBe(1);
+  });
+});
+
+describe("aimod formatting", () => {
+  it("prints osu-style timestamps", () => {
+    expect(formatAiModTime(92212)).toBe("01:32:212");
+    expect(formatAiModTime(241987)).toBe("04:01:987");
+    expect(formatAiModTime(-125)).toBe("-00:00:125");
+  });
+
+  it("prints object references the way osu does", () => {
+    expect(
+      formatAiModObjects([
+        { time: 92212, column: 0 },
+        { time: 92256, column: 0 },
+      ]),
+    ).toBe("(92212|0,92256|0)");
+    expect(formatAiModObjects()).toBe("");
   });
 });

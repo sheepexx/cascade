@@ -1,16 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AIMOD_CATEGORIES,
+  formatAiModObjects,
+  formatAiModTime,
   type AiModCategory,
   type AiModIssue,
   type AiModReport,
 } from "../../lib/aimod";
-import { formatTime } from "../../lib/timing";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 
 type Tab = "All" | AiModCategory;
 const TABS: Tab[] = ["All", ...AIMOD_CATEGORIES];
+const PREVIEW_DETAILS = 5;
 
 type Props = {
   open: boolean;
@@ -18,7 +20,7 @@ type Props = {
   report: AiModReport | null;
   activeDiffName: string;
   onRefresh: () => void;
-  onJump: (issue: AiModIssue) => void;
+  onJump: (issue: AiModIssue, time?: number) => void;
   unsnappedCount: number;
   onResnap: () => void;
 };
@@ -34,6 +36,11 @@ export function AiModModal({
   onResnap,
 }: Props) {
   const [tab, setTab] = useState<Tab>("All");
+  const [expanded, setExpanded] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    setExpanded({});
+  }, [report]);
 
   const byCategory = useMemo(() => {
     const map = new Map<AiModCategory, number>();
@@ -125,33 +132,102 @@ export function AiModModal({
           </p>
         ) : (
           <ul className="flex flex-col divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10">
-            {shown.map((issue) => (
-              <li
-                key={issue.id}
-                className="flex items-start gap-3 bg-ink-700/30 px-3 py-2 text-sm"
-              >
-                <span
-                  className={`mt-0.5 shrink-0 ${
-                    issue.severity === "error"
-                      ? "text-red-400"
-                      : "text-amber-300"
-                  }`}
-                  aria-hidden
-                >
-                  {issue.severity === "error" ? "⛔" : "⚠"}
-                </span>
-                <span className="flex-1 text-slate-200">{issue.message}</span>
-                {issue.time !== undefined && (
-                  <button
-                    onClick={() => onJump(issue)}
-                    className="shrink-0 font-mono text-xs text-accent hover:underline"
-                    title="Jump to this time"
-                  >
-                    {formatTime(issue.time)}
-                  </button>
-                )}
-              </li>
-            ))}
+            {shown.map((issue) => {
+              const details = issue.details ?? [];
+              const visible = expanded[issue.id] ?? 0;
+              const isOpen = visible > 0;
+              const listed = details.slice(0, visible);
+              const hidden = details.length - listed.length;
+              const untracked = (issue.count ?? details.length) - details.length;
+              return (
+                <li key={issue.id} className="bg-ink-700/30">
+                  <div className="flex items-start gap-3 px-3 py-2 text-sm">
+                    <span
+                      className={`mt-0.5 shrink-0 ${
+                        issue.severity === "error"
+                          ? "text-red-400"
+                          : "text-amber-300"
+                      }`}
+                      aria-hidden
+                    >
+                      {issue.severity === "error" ? "⛔" : "⚠"}
+                    </span>
+                    {details.length > 0 ? (
+                      <button
+                        onClick={() =>
+                          setExpanded((prev) => ({
+                            ...prev,
+                            [issue.id]: isOpen ? 0 : PREVIEW_DETAILS,
+                          }))
+                        }
+                        className="flex flex-1 items-start gap-2 text-left"
+                        aria-expanded={isOpen}
+                      >
+                        <span className="w-3 shrink-0 text-center text-[11px] leading-5 text-slate-400">
+                          {isOpen ? "▾" : "▸"}
+                        </span>
+                        <span className="flex-1 text-slate-200 hover:text-white">
+                          {issue.message}
+                        </span>
+                        <span className="shrink-0 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-slate-300">
+                          {issue.count ?? details.length}
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="flex-1 text-slate-200">{issue.message}</span>
+                    )}
+                    {issue.time !== undefined && (
+                      <button
+                        onClick={() => onJump(issue)}
+                        className="shrink-0 font-mono text-xs text-accent hover:underline"
+                        title="Jump to this time"
+                      >
+                        {formatAiModTime(issue.time)}
+                      </button>
+                    )}
+                  </div>
+                  {isOpen && (
+                    <ul className="flex flex-col border-t border-white/5 bg-ink-800/50 px-3 py-1.5 pl-9">
+                      {listed.map((d, i) => (
+                        <li
+                          key={`${issue.id}_${i}`}
+                          className="flex flex-wrap items-baseline gap-x-2 py-0.5 text-xs"
+                        >
+                          <button
+                            onClick={() => onJump(issue, d.time)}
+                            className="font-mono text-accent hover:underline"
+                            title="Jump to this time"
+                          >
+                            {formatAiModTime(d.time)} {formatAiModObjects(d.objects)}
+                          </button>
+                          <span className="text-slate-400">- {d.label}</span>
+                        </li>
+                      ))}
+                      {hidden > 0 && (
+                        <li className="py-1">
+                          <button
+                            onClick={() =>
+                              setExpanded((prev) => ({
+                                ...prev,
+                                [issue.id]: details.length,
+                              }))
+                            }
+                            className="text-xs font-medium text-accent hover:underline"
+                          >
+                            Show {hidden} more
+                          </button>
+                        </li>
+                      )}
+                      {hidden === 0 && untracked > 0 && (
+                        <li className="py-1 text-xs text-slate-500">
+                          {untracked} more not listed.
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
 
