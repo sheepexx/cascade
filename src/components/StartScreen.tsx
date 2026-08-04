@@ -22,8 +22,10 @@ const LOGO_MIN = 168;
 const BAR_HEIGHT = 136;
 const PANEL_MAX = 152;
 const PANEL_MIN = 104;
-const RING_RATIO = 0.23;
-const BARS = 120;
+const RING_RATIO = 0.52;
+const BARS = 200;
+const ROUNDS = 5;
+const DEAD_ZONE = 0.085;
 const SKEW = "-11deg";
 
 export function StartScreen({
@@ -363,53 +365,67 @@ function Visualizer({
     canvas.height = box * dpr;
     ctx.scale(dpr, dpr);
 
-    const radius = size / 2 - 1;
-    const maxLen = pad * 0.92;
+    const radius = size / 2 - 2;
+    const maxLen = pad * 0.9;
     const centre = box / 2;
     const node = pulseRef.current;
+    const step = (Math.PI * 2) / BARS;
+    const roundStep = (Math.PI * 2) / ROUNDS;
+    let rotation = 0;
+    let last = 0;
     let raf = 0;
 
     const draw = (time: number) => {
       raf = requestAnimationFrame(draw);
+      const delta = last ? Math.min(64, time - last) : 16;
+      last = time;
+      rotation += delta * 0.00009;
       ctx.clearRect(0, 0, box, box);
 
       const { readLevels, getPosition, track } = musicRef.current;
       const levels = readLevels();
-      const smooth = smoothRef.current;
-      const half = BARS / 2;
+      const amps = smoothRef.current;
+      const decay = Math.pow(0.9975, delta);
       let loud = 0;
 
       for (let i = 0; i < BARS; i++) {
-        const mirrored = i < half ? i : BARS - 1 - i;
-        const frac = mirrored / (half - 1);
         let raw: number;
         if (levels) {
-          const bin = 1 + Math.round(Math.pow(frac, 1.8) * 46);
-          const gain = 0.8 + frac * 2.6;
-          raw = Math.min(1, (levels[Math.min(bin, levels.length - 1)] / 255) * gain);
+          const bin = Math.min(levels.length - 1, i + 2);
+          raw = Math.min(1, (levels[bin] / 255) * (1 + (i / BARS) * 0.9));
           raw *= raw;
         } else {
-          raw = 0.16 + Math.sin(time / 1100 + frac * 5) * 0.07;
+          raw = Math.max(
+            0,
+            Math.sin(time / 1600 + i * 0.11) * 0.055 +
+              Math.sin(time / 900 + i * 0.37) * 0.03,
+          );
         }
-        smooth[i] += (raw - smooth[i]) * (raw > smooth[i] ? 0.6 : 0.09);
-        loud += smooth[i];
+        amps[i] = Math.max(amps[i] * decay, raw);
+        loud += amps[i];
       }
       loud /= BARS;
 
+      ctx.globalCompositeOperation = "lighter";
       ctx.lineCap = "butt";
-      ctx.lineWidth = 1.6;
-      for (let i = 0; i < BARS; i++) {
-        const level = Math.min(1, smooth[i]);
-        const len = 3 + level * maxLen;
-        const angle = (i / BARS) * Math.PI * 2 - Math.PI / 2;
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        ctx.beginPath();
-        ctx.moveTo(centre + cos * radius, centre + sin * radius);
-        ctx.lineTo(centre + cos * (radius + len), centre + sin * (radius + len));
-        ctx.strokeStyle = `rgba(255,255,255,${0.1 + level * 0.4})`;
-        ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.15)";
+      ctx.beginPath();
+      for (let r = 0; r < ROUNDS; r++) {
+        const base = rotation + r * roundStep;
+        for (let i = 0; i < BARS; i++) {
+          const level = amps[i];
+          if (level < DEAD_ZONE) continue;
+          const angle = base + i * step;
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          const len = (0.14 + level * 0.92) * maxLen;
+          ctx.moveTo(centre + cos * radius, centre + sin * radius);
+          ctx.lineTo(centre + cos * (radius + len), centre + sin * (radius + len));
+        }
       }
+      ctx.stroke();
+      ctx.globalCompositeOperation = "source-over";
 
       if (node) {
         const position = getPosition();
@@ -420,7 +436,7 @@ function Visualizer({
             (((position - track.beatOffsetMs) % beatMs) + beatMs) % beatMs;
           beat = Math.pow(1 - phase / beatMs, 5);
         }
-        const scale = 1 + beat * 0.05 + Math.min(0.035, loud * 0.28);
+        const scale = 1 + beat * 0.05 + Math.min(0.035, loud * 0.5);
         node.style.transform = `scale(${scale.toFixed(4)})`;
       }
     };

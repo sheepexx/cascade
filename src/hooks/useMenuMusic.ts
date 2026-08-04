@@ -24,7 +24,7 @@ export type MenuMusic = {
   getPosition: () => number | null;
 };
 
-const FFT_SIZE = 256;
+const FFT_SIZE = 512;
 const MENU_VOLUME = 0.55;
 
 function shuffle<T>(items: T[]): T[] {
