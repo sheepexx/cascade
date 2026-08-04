@@ -5010,6 +5010,7 @@ export default function App() {
           onImportSmPack={onImportSmPack}
           activeDiff={active}
           onSmMeta={(sm) => patchDifficulty(active.id, { smMeta: sm })}
+          onBeatmapId={(id) => patchDifficulty(active.id, { beatmapId: id })}
         />
       )}
       {modalMounted("settings") && (

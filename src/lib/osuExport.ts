@@ -145,8 +145,9 @@ export function buildOsuFile({
     `Version:${difficulty.name}`,
     "Source:",
     `Tags:${tagsWithCascade(meta.tags)}`,
-    // Writing 0/-1 here would detach the map from its upload, so osu! would
-    // treat an exported update as a brand-new submission.
+    // Preserved from the import so an export updates the existing submission
+    // rather than looking like a new one. Map Settings can override these with
+    // 0/-1 to deliberately detach the map, which osu! then imports as local.
     `BeatmapID:${difficulty.beatmapId ?? 0}`,
     `BeatmapSetID:${meta.beatmapSetId ?? -1}`,
     "",

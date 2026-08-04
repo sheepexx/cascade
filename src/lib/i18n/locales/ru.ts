@@ -187,6 +187,12 @@ export const ru: PartialCatalog = {
   "mapSettings.tagsPlaceholder": "через пробел, например stream jumpstream tech",
   "mapSettings.tagsHint":
     "Теги помогают игрокам найти вашу карту в поиске. Название сложности и количество клавиш задаются для каждой сложности в меню Difficulty.",
+  "mapSettings.beatmapId": "Beatmap ID (эта сложность)",
+  "mapSettings.beatmapSetId": "Beatmap Set ID (весь сет)",
+  "mapSettings.markUnsubmitted": "Пометить как неопубликованную (-1)",
+  "mapSettings.alreadyUnsubmitted": "Уже неопубликованная",
+  "mapSettings.idsHint":
+    "Cascade сохраняет ID, с которыми карта была импортирована, поэтому экспорт обновляет ту же публикацию. Значение -1 отвязывает карту — osu! импортирует её как совершенно новую локальную карту.",
   "mapSettings.smFields": "Поля StepMania / Etterna",
   "mapSettings.smFieldsHint":
     "Эти значения записываются прямо в заголовок .sm при экспорте. Оставьте пустыми, чтобы использовать значения по умолчанию.",

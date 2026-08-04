@@ -86,6 +86,22 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
     expect(parsed.difficulty.beatmapId).toBeUndefined();
   });
 
+  it("writes a -1 the mapper set in Map Settings to detach the map", () => {
+    const detached = buildOsuFile({
+      meta: { ...meta, beatmapSetId: -1 },
+      difficulty: { ...difficulty, beatmapId: -1 },
+      timingPoints,
+      audioFilename: "audio.mp3",
+    });
+    expect(detached).toContain("BeatmapSetID:-1");
+    expect(detached).toContain("BeatmapID:-1");
+
+    // Re-importing drops both, so a later export still reads as unsubmitted.
+    const back = parseOsuFile(detached);
+    expect(back.meta.beatmapSetId).toBeUndefined();
+    expect(back.difficulty.beatmapId).toBeUndefined();
+  });
+
   it("preserves original-script title and artist", () => {
     const jp = buildOsuFile({
       meta: {

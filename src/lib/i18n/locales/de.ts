@@ -186,6 +186,12 @@ export const de: PartialCatalog = {
   "mapSettings.tagsPlaceholder": "durch Leerzeichen getrennt, z. B. stream jumpstream tech",
   "mapSettings.tagsHint":
     "Tags helfen Spielern, deine Map über die Suche zu finden. Name der Schwierigkeit und Tastenanzahl werden pro Schwierigkeit im Difficulty-Menü gesetzt.",
+  "mapSettings.beatmapId": "Beatmap ID (diese Schwierigkeit)",
+  "mapSettings.beatmapSetId": "Beatmap Set ID (ganzes Set)",
+  "mapSettings.markUnsubmitted": "Als nicht hochgeladen markieren (-1)",
+  "mapSettings.alreadyUnsubmitted": "Bereits nicht hochgeladen",
+  "mapSettings.idsHint":
+    "Cascade behält die IDs, mit denen eine Map importiert wurde, damit ein Export dieselbe Einreichung aktualisiert. Auf -1 gesetzt löst sich die Map davon — osu! importiert sie dann als komplett neue lokale Map.",
   "mapSettings.smFields": "StepMania- / Etterna-Felder",
   "mapSettings.smFieldsHint":
     "Diese werden beim Export direkt in den .sm-Header geschrieben. Leer lassen, um die Standardwerte zu verwenden.",

@@ -186,6 +186,12 @@ export const ptBR: PartialCatalog = {
   "mapSettings.tagsPlaceholder": "separadas por espaço, ex.: stream jumpstream tech",
   "mapSettings.tagsHint":
     "As tags ajudam os jogadores a encontrar seu mapa nas buscas. O nome da dificuldade e a quantidade de teclas são definidos por dificuldade no menu Difficulty.",
+  "mapSettings.beatmapId": "Beatmap ID (esta dificuldade)",
+  "mapSettings.beatmapSetId": "Beatmap Set ID (conjunto inteiro)",
+  "mapSettings.markUnsubmitted": "Marcar como não enviado (-1)",
+  "mapSettings.alreadyUnsubmitted": "Já está como não enviado",
+  "mapSettings.idsHint":
+    "O Cascade mantém os IDs com que um mapa foi importado, então exportar atualiza esse envio. Defina -1 para desvincular o mapa — o osu! passa a importá-lo como um mapa local totalmente novo.",
   "mapSettings.smFields": "Campos do StepMania / Etterna",
   "mapSettings.smFieldsHint":
     "Estes valores são escritos direto no cabeçalho .sm ao exportar. Deixe em branco para usar os padrões.",

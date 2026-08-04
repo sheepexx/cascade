@@ -182,6 +182,12 @@ export const zhCN: PartialCatalog = {
   "mapSettings.tagsPlaceholder": "用空格分隔，例如 stream jumpstream tech",
   "mapSettings.tagsHint":
     "标签能帮助玩家在搜索中找到你的谱面。难度名称和键数在 Difficulty 菜单中按难度分别设置。",
+  "mapSettings.beatmapId": "Beatmap ID（当前难度）",
+  "mapSettings.beatmapSetId": "Beatmap Set ID（整个谱面集）",
+  "mapSettings.markUnsubmitted": "标记为未上传（-1）",
+  "mapSettings.alreadyUnsubmitted": "已是未上传状态",
+  "mapSettings.idsHint":
+    "Cascade 会保留谱面导入时自带的 ID，因此导出会更新原有的投稿。将其设为 -1 可解除关联——osu! 会把它当作全新的本地谱面导入。",
   "mapSettings.smFields": "StepMania / Etterna 字段",
   "mapSettings.smFieldsHint":
     "这些内容会在导出时直接写入 .sm 文件头。留空则使用默认值。",

@@ -184,6 +184,12 @@ export const en = {
   "mapSettings.tagsPlaceholder": "space-separated, e.g. stream jumpstream tech",
   "mapSettings.tagsHint":
     "Tags help players find your map in searches. Difficulty name & key count are set per difficulty in the Difficulty menu.",
+  "mapSettings.beatmapId": "Beatmap ID (this difficulty)",
+  "mapSettings.beatmapSetId": "Beatmap Set ID (whole set)",
+  "mapSettings.markUnsubmitted": "Mark as unsubmitted (-1)",
+  "mapSettings.alreadyUnsubmitted": "Already unsubmitted",
+  "mapSettings.idsHint":
+    "Cascade keeps the IDs an imported map came with, so an export updates that submission. Set them to -1 to detach the map — osu! then imports it as a brand-new local map.",
   "mapSettings.smFields": "StepMania / Etterna Fields",
   "mapSettings.smFieldsHint":
     "These are written directly to the .sm header on export. Leave blank to use defaults.",

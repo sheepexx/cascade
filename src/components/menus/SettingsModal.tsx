@@ -25,7 +25,15 @@ type Props = {
   onImportSmPack?: () => void;
   activeDiff?: Difficulty;
   onSmMeta?: (sm: SmMeta) => void;
+  onBeatmapId?: (id: number | undefined) => void;
 };
+
+/** Blank clears the ID back to the format default; -1 is a valid entry. */
+function parseId(raw: string): number | undefined {
+  if (!raw.trim()) return undefined;
+  const v = Math.round(Number(raw));
+  return Number.isFinite(v) ? v : undefined;
+}
 
 export function SettingsModal({
   open,
@@ -49,6 +57,7 @@ export function SettingsModal({
   onImportSmPack,
   activeDiff,
   onSmMeta,
+  onBeatmapId,
 }: Props) {
   const t = useT();
   const set = <K extends keyof SongMeta>(key: K, value: SongMeta[K]) =>
@@ -56,6 +65,13 @@ export function SettingsModal({
 
   const isSm = activeDiff?.sourceFormat === "sm";
   const sm: SmMeta = activeDiff?.smMeta ?? {};
+
+  const unsubmitted =
+    (activeDiff?.beatmapId ?? 0) <= 0 && (meta.beatmapSetId ?? -1) <= 0;
+  const markUnsubmitted = () => {
+    set("beatmapSetId", -1);
+    onBeatmapId?.(-1);
+  };
 
   const setSm = <K extends keyof SmMeta>(key: K, value: SmMeta[K]) =>
     onSmMeta?.({ ...sm, [key]: value });
@@ -268,6 +284,41 @@ export function SettingsModal({
           </Field>
           <p className="text-[11px] text-slate-500">
             {t("mapSettings.tagsHint")}
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("mapSettings.beatmapId")}>
+              <TextInput
+                type="number"
+                step={1}
+                value={activeDiff?.beatmapId ?? ""}
+                onChange={(e) => onBeatmapId?.(parseId(e.target.value))}
+                placeholder="0"
+                disabled={!onBeatmapId}
+              />
+            </Field>
+            <Field label={t("mapSettings.beatmapSetId")}>
+              <TextInput
+                type="number"
+                step={1}
+                value={meta.beatmapSetId ?? ""}
+                onChange={(e) => set("beatmapSetId", parseId(e.target.value))}
+                placeholder="-1"
+              />
+            </Field>
+          </div>
+          <button
+            type="button"
+            onClick={markUnsubmitted}
+            disabled={unsubmitted}
+            className="self-start rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-ink-600/75"
+          >
+            {unsubmitted
+              ? t("mapSettings.alreadyUnsubmitted")
+              : t("mapSettings.markUnsubmitted")}
+          </button>
+          <p className="text-[11px] text-slate-500">
+            {t("mapSettings.idsHint")}
           </p>
         </section>
 
