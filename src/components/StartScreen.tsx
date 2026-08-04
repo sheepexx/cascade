@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
+import { useAuth } from "../lib/auth";
+import { countLocalProjects } from "../lib/persistence";
 import {
   ImportIcon,
   LibraryIcon,
@@ -46,6 +48,8 @@ export function StartScreen({
 }) {
   const [open, setOpen] = useState(false);
   const [layout, setLayout] = useState(() => measure());
+  const [projectCount, setProjectCount] = useState<number | null>(null);
+  const { user } = useAuth();
   const pulseRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -54,6 +58,19 @@ export function StartScreen({
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  useEffect(() => {
+    if (!open || projectCount !== null) return;
+    let cancelled = false;
+    countLocalProjects()
+      .then((n) => {
+        if (!cancelled) setProjectCount(n);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, projectCount]);
 
   useEffect(() => {
     if (!open) return;
@@ -123,6 +140,32 @@ export function StartScreen({
             className="absolute inset-0 cursor-default"
           />
         )}
+
+        <div
+          className={`pointer-events-none absolute inset-x-0 flex flex-col items-center px-4 text-center transition-all duration-300 ease-out ${
+            open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+          }`}
+          style={{
+            bottom: `calc(50% + ${
+              (wide ? Math.max(BAR_HEIGHT / 2, logoOpen / 2) : logoClosed / 2) +
+              32
+            }px)`,
+          }}
+        >
+          <p className="text-lg font-semibold text-slate-100 drop-shadow">
+            {greeting()}
+            {user ? `, ${user.username}` : ""}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-400 drop-shadow">
+            {projectCount === null
+              ? " "
+              : projectCount === 0
+                ? "You don't have any local projects yet."
+                : `You currently have ${projectCount} local project${
+                    projectCount === 1 ? "" : "s"
+                  }.`}
+          </p>
+        </div>
 
         {wide ? (
           <div
@@ -206,6 +249,15 @@ export function StartScreen({
       {children}
     </div>
   );
+}
+
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Good night";
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  if (hour < 23) return "Good evening";
+  return "Good night";
 }
 
 function measure() {
@@ -313,12 +365,12 @@ function MenuBackground({ url }: { url: string | null }) {
           src={shown}
           alt=""
           aria-hidden
-          className={`absolute inset-0 h-full w-full scale-105 object-cover blur-[3px] transition-opacity duration-1000 ${
-            loaded ? "opacity-[0.18]" : "opacity-0"
+          className={`absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] transition-opacity duration-1000 ${
+            loaded ? "opacity-[0.3]" : "opacity-0"
           }`}
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-b from-ink-900/85 via-ink-900/70 to-ink-900/95" />
+      <div className="absolute inset-0 bg-gradient-to-b from-ink-900/80 via-ink-900/66 to-ink-900/88" />
     </div>
   );
 }

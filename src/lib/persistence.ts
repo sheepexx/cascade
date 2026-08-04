@@ -447,6 +447,15 @@ function trackBeat(project: SavedProject): { bpm: number; beatOffsetMs: number }
     : { bpm: 0, beatOffsetMs: 0 };
 }
 
+export async function countLocalProjects(): Promise<number> {
+  return withStore<number>("readonly", (store, resolve) => {
+    const keysReq = store.getAllKeys();
+    keysReq.onsuccess = () => {
+      resolve(keysReq.result.filter((key) => projectIdFromKey(key)).length);
+    };
+  });
+}
+
 export async function listLocalTracks(): Promise<LocalTrack[]> {
   return withStore<LocalTrack[]>("readonly", (store, resolve) => {
     const keysReq = store.getAllKeys();

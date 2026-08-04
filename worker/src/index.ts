@@ -51,6 +51,8 @@ export default {
           return await handleCallback(req, url, env);
         case "/auth/session":
           return await handleSession(req, env);
+        case "/auth/osu/cover":
+          return await handleCover(req, env);
         case "/auth/logout":
           return handleLogout(env);
         default:
@@ -239,6 +241,66 @@ async function handleSession(req: Request, env: Env): Promise<Response> {
   const supabaseToken = await mintSupabaseToken(env, user);
   const sessionToken = await signSession(env, user.id);
   return json({ user, supabaseToken, sessionToken }, 200, env);
+}
+
+// osu! profile covers are only reachable through the API, and the session
+// payload predates them, so the SPA asks for one on demand. Client-credentials
+// tokens last a day; keeping the last one avoids a token round-trip per open.
+let appToken: { value: string; expiresAt: number } | null = null;
+
+async function appAccessToken(env: Env): Promise<string | null> {
+  if (appToken && appToken.expiresAt > Date.now() + 60_000)
+    return appToken.value;
+  const res = await fetch("https://osu.ppy.sh/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      client_id: env.CLIENT_ID,
+      client_secret: env.CLIENT_SECRET,
+      grant_type: "client_credentials",
+      scope: "public",
+    }),
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as {
+    access_token?: string;
+    expires_in?: number;
+  };
+  if (!data.access_token) return null;
+  appToken = {
+    value: data.access_token,
+    expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
+  };
+  return appToken.value;
+}
+
+async function handleCover(req: Request, env: Env): Promise<Response> {
+  const cookieToken = getCookie(req, SESSION_COOKIE);
+  const headerToken = bearerToken(req);
+  const uid =
+    (cookieToken && (await verifySession(env, cookieToken))) ||
+    (headerToken && (await verifySession(env, headerToken))) ||
+    null;
+  if (!uid) return json({ cover_url: null }, 401, env);
+
+  const user = await fetchUser(env, uid);
+  if (!user) return json({ cover_url: null }, 404, env);
+
+  const token = await appAccessToken(env);
+  if (!token) return json({ cover_url: null }, 200, env);
+
+  const res = await fetch(
+    `https://osu.ppy.sh/api/v2/users/${user.osu_id}?key=id`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return json({ cover_url: null }, 200, env);
+  const profile = (await res.json()) as {
+    cover_url?: string;
+    cover?: { url?: string; custom_url?: string | null };
+  };
+  const cover =
+    profile.cover?.custom_url ?? profile.cover?.url ?? profile.cover_url ?? null;
+  return json({ cover_url: cover }, 200, env);
 }
 
 function handleLogout(env: Env): Response {

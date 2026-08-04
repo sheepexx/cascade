@@ -1,8 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAuth } from "../../lib/auth";
+import { sessionAuthHeaders, useAuth } from "../../lib/auth";
 import { useT } from "../../lib/i18n";
 import { Button } from "../ui/Controls";
+
+const WORKER = import.meta.env.VITE_WORKER_URL;
+const MENU_EXIT_MS = 160;
+const sessionHeaders = () => sessionAuthHeaders();
 
 export function AccountControl({
   onOpenMyMaps,
@@ -20,6 +24,9 @@ export function AccountControl({
   const { user, isAdmin, loading, login, logout } = useAuth();
   const t = useT();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [cover, setCover] = useState<string | null>(null);
+  const coverTried = useRef(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; right: number }>({
@@ -35,6 +42,34 @@ export function AccountControl({
       right: Math.max(8, window.innerWidth - rect.right),
     });
   }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      return;
+    }
+    if (!mounted) return;
+    const id = window.setTimeout(() => setMounted(false), MENU_EXIT_MS);
+    return () => window.clearTimeout(id);
+  }, [open, mounted]);
+
+  useEffect(() => {
+    if (!open || !user || coverTried.current || !WORKER) return;
+    coverTried.current = true;
+    let cancelled = false;
+    fetch(`${WORKER}/auth/osu/cover`, {
+      credentials: "include",
+      headers: sessionHeaders(),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { cover_url?: string | null } | null) => {
+        if (!cancelled && data?.cover_url) setCover(data.cover_url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user, cover]);
 
   useEffect(() => {
     if (!open) return;
@@ -104,13 +139,49 @@ export function AccountControl({
         <span className="text-[10px] text-slate-400">▾</span>
       </button>
 
-      {open &&
+      {mounted &&
         createPortal(
           <div
             ref={menuRef}
             style={{ position: "fixed", top: pos.top, right: pos.right }}
-            className="z-[100] w-44 overflow-hidden rounded-xl border border-ink-500/60 bg-ink-800 py-1 shadow-2xl"
+            className={`z-[100] w-52 overflow-hidden rounded-xl border border-ink-500/60 bg-ink-800 pb-1 shadow-2xl ${
+              open ? "dropdown-in" : "dropdown-out pointer-events-none"
+            }`}
           >
+            <div className="relative h-20 w-full overflow-hidden bg-ink-700">
+              {cover && (
+                <img
+                  src={cover}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 h-full w-full object-cover"
+                  style={{
+                    maskImage:
+                      "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0) 100%)",
+                    WebkitMaskImage:
+                      "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0) 100%)",
+                  }}
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-ink-800 via-ink-800/45 to-transparent" />
+              <div className="absolute inset-x-3 bottom-2 flex items-center gap-2">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    className="h-7 w-7 rounded-full object-cover ring-2 ring-ink-800"
+                  />
+                ) : (
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-ink-600 text-xs ring-2 ring-ink-800">
+                    {user.username.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100 drop-shadow">
+                  {user.username}
+                </span>
+              </div>
+            </div>
+            <div className="pt-1" />
             <MenuItem onClick={() => choose(onOpenMyMaps)}>
               {t("account.myMaps")}
             </MenuItem>

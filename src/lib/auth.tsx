@@ -49,6 +49,11 @@ function storeSessionToken(token: string | null): void {
   }
 }
 
+export function sessionAuthHeaders(): Record<string, string> {
+  const token = readSessionToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 function adoptSessionTokenFromUrl(): void {
   const hash = window.location.hash;
   if (!hash.startsWith("#session=")) return;
