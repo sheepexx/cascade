@@ -25,6 +25,8 @@ export type MenuMusic = {
 
 const FFT_SIZE = 512;
 const MENU_VOLUME = 0.55;
+const FADE_OUT_MS = 260;
+const FADE_IN_MS = 520;
 
 function shuffle<T>(items: T[]): T[] {
   const out = [...items];
@@ -33,6 +35,25 @@ function shuffle<T>(items: T[]): T[] {
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;
+}
+
+function rampVolume(
+  el: HTMLAudioElement,
+  to: number,
+  ms: number,
+  onDone?: () => void,
+): () => void {
+  const from = el.volume;
+  const started = performance.now();
+  let raf = 0;
+  const step = () => {
+    const t = Math.min(1, (performance.now() - started) / ms);
+    el.volume = Math.max(0, Math.min(1, from + (to - from) * t));
+    if (t < 1) raf = requestAnimationFrame(step);
+    else onDone?.();
+  };
+  step();
+  return () => cancelAnimationFrame(raf);
 }
 
 function toMenuTrack(row: LocalTrack): MenuTrack {
@@ -61,6 +82,19 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   const levelsRef = useRef(new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)));
   const urlsRef = useRef<string[]>([]);
   const wantsPlayRef = useRef(true);
+  const volumeRef = useRef(MENU_VOLUME);
+  const cancelFadeRef = useRef<(() => void) | null>(null);
+
+  const fade = useCallback(
+    (el: HTMLAudioElement, to: number, ms: number, onDone?: () => void) => {
+      cancelFadeRef.current?.();
+      cancelFadeRef.current = rampVolume(el, to, ms, () => {
+        cancelFadeRef.current = null;
+        onDone?.();
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!enabled) return;
@@ -130,7 +164,8 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
     const el = new Audio(track.audioUrl);
     el.preload = "auto";
     const stored = loadVolume();
-    el.volume = Math.min(1, Math.max(0, (stored ?? 1) * MENU_VOLUME));
+    volumeRef.current = Math.min(1, Math.max(0, (stored ?? 1) * MENU_VOLUME));
+    el.volume = 0;
     audioRef.current = el;
 
     let seeked = false;
@@ -140,7 +175,10 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       advanced = true;
       setIndex((i) => i + 1);
     };
-    const onPlay = () => setIsPlaying(true);
+    const onPlay = () => {
+      setIsPlaying(true);
+      fade(el, volumeRef.current, FADE_IN_MS);
+    };
     const onPause = () => setIsPlaying(false);
     const onEnded = advance;
     const onError = advance;
@@ -173,6 +211,8 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
     window.addEventListener("keydown", onGesture);
 
     return () => {
+      cancelFadeRef.current?.();
+      cancelFadeRef.current = null;
       window.removeEventListener("pointerdown", onGesture);
       window.removeEventListener("keydown", onGesture);
       el.removeEventListener("play", onPlay);
@@ -189,7 +229,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       if (audioRef.current === el) audioRef.current = null;
       setIsPlaying(false);
     };
-  }, [enabled, track, connect]);
+  }, [enabled, track, index, connect, fade]);
 
   useEffect(() => {
     if (enabled) return;
@@ -217,19 +257,27 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       el.play().catch(() => {});
     } else {
       wantsPlayRef.current = false;
-      el.pause();
+      fade(el, 0, FADE_OUT_MS, () => el.pause());
     }
-  }, [connect]);
+  }, [connect, fade]);
 
-  const next = useCallback(() => {
-    wantsPlayRef.current = true;
-    setIndex((i) => i + 1);
-  }, []);
+  const skip = useCallback(
+    (step: number) => {
+      wantsPlayRef.current = true;
+      const el = audioRef.current;
+      const move = () =>
+        setIndex((i) => (step < 0 ? (i > 0 ? i - 1 : i) : i + step));
+      if (!el || el.paused) {
+        move();
+        return;
+      }
+      fade(el, 0, FADE_OUT_MS, move);
+    },
+    [fade],
+  );
 
-  const previous = useCallback(() => {
-    wantsPlayRef.current = true;
-    setIndex((i) => (i > 0 ? i - 1 : i));
-  }, []);
+  const next = useCallback(() => skip(1), [skip]);
+  const previous = useCallback(() => skip(-1), [skip]);
 
   const readLevels = useCallback(() => {
     const analyser = analyserRef.current;

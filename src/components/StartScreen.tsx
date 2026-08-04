@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
 import { useAuth } from "../lib/auth";
+import { useT } from "../lib/i18n";
 import { countLocalProjects } from "../lib/persistence";
 import {
   ImportIcon,
@@ -50,6 +51,7 @@ export function StartScreen({
   const [layout, setLayout] = useState(() => measure());
   const [projectCount, setProjectCount] = useState<number | null>(null);
   const { user } = useAuth();
+  const t = useT();
   const pulseRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -241,9 +243,18 @@ export function StartScreen({
           </div>
         </button>
 
-        <p className="pointer-events-none absolute bottom-3 right-4 text-[11px] font-medium tracking-wide text-slate-600">
-          Cascade · v{__APP_VERSION__}
-        </p>
+        <div className="absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600">
+          <span>Cascade · v{__APP_VERSION__}</span>
+          <span aria-hidden>·</span>
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noreferrer"
+            className="transition hover:text-slate-400"
+          >
+            {t("startModal.privacyPolicy")}
+          </a>
+        </div>
       </div>
 
       {children}

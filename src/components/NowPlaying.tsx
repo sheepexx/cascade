@@ -37,7 +37,10 @@ export function NowPlaying({ music }: { music: MenuMusic }) {
         >
           ♪
         </span>
-        <span className="min-w-0 flex-1 truncate text-[11px] leading-none">
+        <span
+          key={track.id}
+          className="track-fade-in min-w-0 flex-1 truncate text-[11px] leading-none"
+        >
           {track.artist && (
             <span className="text-slate-500">{track.artist} · </span>
           )}
