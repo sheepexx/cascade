@@ -236,6 +236,7 @@ export const en = {
   "collab.offline": "Live sync offline - check Realtime is enabled",
 
   "startModal.title": "Get started",
+  "startModal.myMaps": "My Maps",
   "startModal.welcome":
     "Welcome to Cascade, a free osu!mania editor in your browser.",
   "startModal.welcomeBody":

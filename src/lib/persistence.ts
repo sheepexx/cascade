@@ -79,6 +79,16 @@ export type SavedSkinBlob = {
   savedAt?: number;
 };
 
+export type LocalTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  audioBlob: Blob;
+  backgroundBlob?: Blob;
+  previewTime: number;
+  updatedAt: number;
+};
+
 type MediaPayload = Pick<
   SavedProject,
   "audioFiles" | "audio" | "backgroundFiles" | "videoFiles" | "background" | "skin"
@@ -369,6 +379,100 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
               difficultyCount: full.difficulties.length,
               sourceFormat: full.difficulties[0]?.sourceFormat,
               backgroundBlob: pickLocalBackground(full),
+            });
+            done();
+          };
+
+          if (project.version === LEGACY_VERSION) {
+            add(project);
+            return;
+          }
+          if (project.version !== VERSION) {
+            done();
+            return;
+          }
+          const mediaReq = store.get(mediaKeyFor(key as string));
+          mediaReq.onsuccess = () =>
+            add(mergeMedia(project, mediaReq.result as MediaRecord | undefined));
+        };
+      }
+    };
+  });
+}
+
+function isTimed(project: SavedProject): boolean {
+  const timed = (points: TimingPoint[] | undefined) =>
+    (points ?? []).some((p) => p.uninherited && Number.isFinite(p.bpm) && p.bpm > 0);
+  return (
+    timed(project.timingPoints) ||
+    project.difficulties.some((d) => timed(d.timingPoints))
+  );
+}
+
+function pickTrackAudio(project: SavedProject): Blob | undefined {
+  const files = project.audioFiles ?? [];
+  const active =
+    project.difficulties.find((d) => d.id === project.activeId) ??
+    project.difficulties[0];
+  const wanted = active?.audioFilename;
+  if (wanted) {
+    const hit = files.find((f) => f.name === wanted);
+    if (hit) return hit.blob;
+  }
+  return files[0]?.blob ?? project.audio?.blob ?? undefined;
+}
+
+function trackPreviewTime(project: SavedProject): number {
+  const active =
+    project.difficulties.find((d) => d.id === project.activeId) ??
+    project.difficulties[0];
+  const preview = active?.previewTime ?? -1;
+  return preview > 0 ? preview : 0;
+}
+
+export async function listLocalTracks(): Promise<LocalTrack[]> {
+  return withStore<LocalTrack[]>("readonly", (store, resolve) => {
+    const keysReq = store.getAllKeys();
+    keysReq.onsuccess = () => {
+      const projectKeys = keysReq.result.filter((key) => projectIdFromKey(key));
+      if (!projectKeys.length) {
+        resolve([]);
+        return;
+      }
+
+      const rows: LocalTrack[] = [];
+      let pending = projectKeys.length;
+      const done = () => {
+        pending -= 1;
+        if (pending === 0) {
+          rows.sort((a, b) => b.updatedAt - a.updatedAt);
+          resolve(rows);
+        }
+      };
+
+      for (const key of projectKeys) {
+        const req = store.get(key);
+        req.onsuccess = () => {
+          const project = req.result as SavedProject | undefined;
+          const id = projectIdFromKey(key);
+          if (!id || !project) {
+            done();
+            return;
+          }
+          const add = (full: SavedProject) => {
+            const audioBlob = pickTrackAudio(full);
+            if (!audioBlob || !isTimed(full)) {
+              done();
+              return;
+            }
+            rows.push({
+              id,
+              title: full.meta.title,
+              artist: full.meta.artist,
+              audioBlob,
+              backgroundBlob: pickLocalBackground(full),
+              previewTime: trackPreviewTime(full),
+              updatedAt: full.savedAt,
             });
             done();
           };

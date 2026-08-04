@@ -58,6 +58,7 @@ export function WelcomeModal({
   onOpenLocalProject,
   accountsEnabled = true,
   onImportFromOsu,
+  projectsOnly = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -71,6 +72,8 @@ export function WelcomeModal({
   accountsEnabled?: boolean;
   /** Present when beatmap import is enabled and a worker is configured. */
   onImportFromOsu?: (input: string) => Promise<void>;
+  /** Drops the action cards so the modal is purely a project browser. */
+  projectsOnly?: boolean;
 }) {
   const { user, login } = useAuth();
   const { locale, t } = useLocale();
@@ -260,11 +263,11 @@ export function WelcomeModal({
     <>
       <Modal
         open={open}
-        title={t("startModal.title")}
+        title={projectsOnly ? t("startModal.myMaps") : t("startModal.title")}
         onClose={onClose}
         width="max-w-3xl"
       >
-      {firstRun && (
+      {firstRun && !projectsOnly && (
         <div className="mb-4 rounded-xl border border-accent/40 bg-accent/10 p-4">
           <p className="text-sm font-semibold text-slate-100">
             {t("startModal.welcome")}
@@ -279,7 +282,7 @@ export function WelcomeModal({
           </div>
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={`grid gap-3 sm:grid-cols-2 ${projectsOnly ? "hidden" : ""}`}>
         <button
           type="button"
           onClick={onNewMap}
@@ -346,7 +349,7 @@ export function WelcomeModal({
         )}
       </div>
 
-      {onImportFromOsu && (
+      {onImportFromOsu && !projectsOnly && (
         <div className="mt-3 rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3">
           <div className="flex items-center gap-2">
             <input
@@ -383,15 +386,17 @@ export function WelcomeModal({
         </div>
       )}
 
-      <a
-        href="https://discord.gg/aY2UckUxYd"
-        target="_blank"
-        rel="noreferrer"
-        className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-[#5865F2]/70 hover:bg-ink-700 hover:text-white"
-      >
-        <DiscordIcon className="h-5 w-5 text-[#5865F2]" />
-        {t("startModal.joinDiscord")}
-      </a>
+      {!projectsOnly && (
+        <a
+          href="https://discord.gg/aY2UckUxYd"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-[#5865F2]/70 hover:bg-ink-700 hover:text-white"
+        >
+          <DiscordIcon className="h-5 w-5 text-[#5865F2]" />
+          {t("startModal.joinDiscord")}
+        </a>
+      )}
 
       {!user && accountsEnabled && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">

@@ -60,6 +60,36 @@ export function PackageIcon({ className }: IconProps) {
   );
 }
 
+export function ImportIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path
+        d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v1.8c0 1.12 0 1.68.218 2.108a2 2 0 00.874.874C5.52 22 6.08 22 7.2 22h9.6c1.12 0 1.68 0 2.108-.218a2 2 0 00.874-.874C20 20.48 20 19.92 20 18.8V17"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+export function LibraryIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path
+        d="M4 7.8c0-.72 0-1.08.14-1.355a1.3 1.3 0 01.567-.568C4.98 5.737 5.34 5.737 6.06 5.737h11.88c.72 0 1.08 0 1.355.14a1.3 1.3 0 01.567.568c.14.275.14.635.14 1.355v10.4c0 .72 0 1.08-.14 1.355a1.3 1.3 0 01-.567.568c-.275.14-.635.14-1.355.14H6.06c-.72 0-1.08 0-1.355-.14a1.3 1.3 0 01-.567-.568C4 19.28 4 18.92 4 18.2V7.8zM6.5 3h11M8 10h8M8 13.5h5"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
 export function FolderIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>

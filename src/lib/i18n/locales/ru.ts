@@ -242,6 +242,7 @@ export const ru: PartialCatalog = {
   "collab.offline": "Live-синхронизация отключена - проверьте, включён ли Realtime",
 
   "startModal.title": "Начало работы",
+  "startModal.myMaps": "Мои карты",
   "startModal.welcome":
     "Добро пожаловать в Cascade, бесплатный редактор osu!mania в браузере.",
   "startModal.welcomeBody":

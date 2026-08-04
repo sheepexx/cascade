@@ -35,6 +35,8 @@ import {
   type SampleMap,
 } from "./components/menus/StartModal";
 import { MyMapsModal } from "./components/menus/MyMapsModal";
+import { ImportModal } from "./components/menus/ImportModal";
+import { StartScreen } from "./components/StartScreen";
 const PackCreator = lazy(() =>
   import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
 );
@@ -228,6 +230,8 @@ import {
 
 type ModalId =
   | "welcome"
+  | "myProjects"
+  | "import"
   | "sampleMaps"
   | "mapSettings"
   | "settings"
@@ -4627,7 +4631,15 @@ export default function App() {
                 hideHints={playtest.active}
               />
             ) : (
-              <EmptyState onEnter={() => setModal("welcome")} />
+              <StartScreen
+                onMyMaps={() => setModal("myProjects")}
+                onNewMap={() => handleNew(hasProjectContent)}
+                onPackCreator={() => setPackCreatorOpen(true)}
+                onTryMaps={() => setModal("sampleMaps")}
+                onImport={() => setModal("import")}
+              >
+                <LandingCopy />
+              </StartScreen>
             )}
             </div>
             <div
@@ -4889,6 +4901,39 @@ export default function App() {
           onOpenCloudProject={(id) => void loadCloudProject(id)}
         />
       )}
+      {modalMounted("myProjects") && (
+        <WelcomeModal
+          projectsOnly
+          open={modal === "myProjects"}
+          onClose={close}
+          accountsEnabled={featureFlags.cloud_accounts}
+          onNewMap={() => handleNew(hasProjectContent)}
+          onTryMaps={() => setModal("sampleMaps")}
+          onOpenLocalProject={(id) => void loadLocalProject(id)}
+          onOpenCloudProject={(id) => void loadCloudProject(id)}
+        />
+      )}
+      {modalMounted("import") && (
+        <ImportModal
+          open={modal === "import"}
+          onClose={close}
+          onFile={(file) => {
+            setModal(null);
+            if (isSmFile(file)) void importSmFile(file);
+            else void importMapFile(file);
+          }}
+          onFolder={
+            "showDirectoryPicker" in window
+              ? () => void onImportSmPack()
+              : undefined
+          }
+          onImportFromOsu={
+            featureFlags.beatmap_import && import.meta.env.VITE_WORKER_URL
+              ? importFromOsu
+              : undefined
+          }
+        />
+      )}
       {packCreatorEverOpenedRef.current && (
         <Suspense fallback={null}>
           <PackCreator
@@ -4898,10 +4943,7 @@ export default function App() {
                 : undefined
             }
             open={packCreatorOpen}
-            onClose={() => {
-              setPackCreatorOpen(false);
-              if (!hasProject) setModal("welcome");
-            }}
+            onClose={() => setPackCreatorOpen(false)}
           />
         </Suspense>
       )}
@@ -5747,71 +5789,44 @@ function KeybindRow({
   );
 }
 
-function EmptyState({ onEnter }: { onEnter: () => void }) {
+function LandingCopy() {
   const t = useT();
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="relative grid min-h-full place-items-center text-center">
-        <div className="max-w-sm">
-          <img
-            src={`${import.meta.env.BASE_URL}logo.png?v=2`}
-            alt="Cascade"
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-            className="mx-auto mb-4 h-24 w-24 select-none rounded-2xl object-cover"
-          />
-          <h2 className="mb-1 text-lg font-semibold text-slate-200">
-            {t("empty.title")}
-          </h2>
-          <p className="mb-4 text-sm text-slate-500">
-            {t("empty.subtitleBefore")}{" "}
-            <kbd className="rounded bg-ink-700 px-1.5 py-0.5 text-[11px] text-slate-300">
-              Space
-            </kbd>{" "}
-            {t("empty.subtitleAfter")}
-          </p>
-          <Button variant="accent" onClick={onEnter}>
-            {t("empty.enter")}
-          </Button>
-          <p className="mt-6 text-[11px] font-medium tracking-wide text-slate-600">
-            Cascade · v{__APP_VERSION__}
-          </p>
-        </div>
-        <div className="absolute bottom-4 left-1/2 flex w-max -translate-x-1/2 flex-col items-center gap-1 text-xs text-slate-500">
-          <p>
-            {t("empty.madeBy")}{" "}
-            <a
-              href="https://osu.ppy.sh/u/sheepex_"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-slate-300 transition hover:text-accent"
-            >
-              sheepex_
-            </a>
-          </p>
-          <p>
-            {t("empty.contributors")}{" "}
-            <a
-              href="https://github.com/kaanreal"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-slate-300 transition hover:text-accent"
-            >
-              kaanreal
-            </a>
-          </p>
+    <>
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-5 pt-8 text-xs text-slate-500">
+        <p>
+          {t("empty.madeBy")}{" "}
           <a
-            href="https://buymeacoffee.com/sheepex_"
+            href="https://osu.ppy.sh/u/sheepex_"
             target="_blank"
             rel="noreferrer"
-            className="font-medium text-slate-400 transition hover:text-accent"
+            className="font-semibold text-slate-300 transition hover:text-accent"
           >
-            buy me a coffee :)
+            sheepex_
           </a>
-        </div>
+        </p>
+        <p>
+          {t("empty.contributors")}{" "}
+          <a
+            href="https://github.com/kaanreal"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-slate-300 transition hover:text-accent"
+          >
+            kaanreal
+          </a>
+        </p>
+        <a
+          href="https://buymeacoffee.com/sheepex_"
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-slate-400 transition hover:text-accent"
+        >
+          buy me a coffee :)
+        </a>
       </div>
 
-      <section className="mx-auto max-w-2xl px-5 pb-14 pt-10 text-left text-sm leading-relaxed text-slate-400">
+      <section className="mx-auto max-w-2xl px-5 pb-14 pt-6 text-left text-sm leading-relaxed text-slate-400">
         <h1 className="mb-3 text-xl font-bold text-slate-200">
           Free Online osu!mania Editor &amp; Map Viewer
         </h1>
@@ -5913,6 +5928,6 @@ function EmptyState({ onEnter }: { onEnter: () => void }) {
           </li>
         </ul>
       </section>
-    </div>
+    </>
   );
 }

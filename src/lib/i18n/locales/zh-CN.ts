@@ -233,6 +233,7 @@ export const zhCN: PartialCatalog = {
   "collab.offline": "实时同步已离线 - 请检查是否已启用 Realtime",
 
   "startModal.title": "开始使用",
+  "startModal.myMaps": "我的谱面",
   "startModal.welcome": "欢迎使用 Cascade，一个在浏览器中运行的免费 osu!mania 编辑器。",
   "startModal.welcomeBody":
     "无需安装。最快的上手方式是加载一张现成的谱面并按空格键试玩。或者新建一张空白谱面，把你自己的歌曲拖进来。",

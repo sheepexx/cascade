@@ -238,6 +238,7 @@ export const ptBR: PartialCatalog = {
   "collab.offline": "Sincronização ao vivo offline - verifique se o Realtime está ativado",
 
   "startModal.title": "Começar",
+  "startModal.myMaps": "Meus mapas",
   "startModal.welcome":
     "Bem-vindo ao Cascade, um editor de osu!mania gratuito no seu navegador.",
   "startModal.welcomeBody":

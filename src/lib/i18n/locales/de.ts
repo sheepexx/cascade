@@ -238,6 +238,7 @@ export const de: PartialCatalog = {
   "collab.offline": "Live-Sync offline - prüfe, ob Realtime aktiviert ist",
 
   "startModal.title": "Loslegen",
+  "startModal.myMaps": "Meine Maps",
   "startModal.welcome":
     "Willkommen bei Cascade, einem kostenlosen osu!mania-Editor im Browser.",
   "startModal.welcomeBody":
