@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useMenuMusic } from "../hooks/useMenuMusic";
+import { useMenuMusic, type MenuMusic } from "../hooks/useMenuMusic";
 import {
   ImportIcon,
   LibraryIcon,
@@ -12,14 +12,19 @@ type MenuAction = {
   id: string;
   label: string;
   icon: ReactNode;
-  tint: string;
+  color: string;
   onClick: () => void;
 };
 
-const LOGO_MAX = 300;
-const LOGO_MIN = 170;
-const RING_RATIO = 0.21;
-const BARS = 72;
+const LOGO_CLOSED = 300;
+const LOGO_OPEN = 196;
+const LOGO_MIN = 168;
+const BAR_HEIGHT = 136;
+const PANEL_MAX = 152;
+const PANEL_MIN = 104;
+const RING_RATIO = 0.23;
+const BARS = 120;
+const SKEW = "-11deg";
 
 export function StartScreen({
   onMyMaps,
@@ -37,21 +42,12 @@ export function StartScreen({
   children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [logoSize, setLogoSize] = useState(LOGO_MAX);
+  const [layout, setLayout] = useState(() => measure());
   const music = useMenuMusic(true);
-  const logoRef = useRef<HTMLImageElement | null>(null);
+  const pulseRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const update = () =>
-      setLogoSize(
-        Math.max(
-          LOGO_MIN,
-          Math.min(
-            LOGO_MAX,
-            Math.round(Math.min(window.innerWidth * 0.62, window.innerHeight * 0.42)),
-          ),
-        ),
-      );
+    const update = () => setLayout(measure());
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -66,94 +62,139 @@ export function StartScreen({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  const left: MenuAction[] = [
+    {
+      id: "import",
+      label: "Import map",
+      icon: <ImportIcon className="h-7 w-7" />,
+      color: "#3c3c46",
+      onClick: onImport,
+    },
+  ];
+
   const right: MenuAction[] = [
     {
       id: "myMaps",
       label: "My Maps",
-      icon: <LibraryIcon className="h-6 w-6" />,
-      tint: "text-sky-300 group-hover:bg-sky-400/20",
+      icon: <LibraryIcon className="h-7 w-7" />,
+      color: "#7c4dd8",
       onClick: onMyMaps,
     },
     {
       id: "new",
       label: "New map",
-      icon: <NewMapIcon className="h-6 w-6" />,
-      tint: "text-accent-soft group-hover:bg-accent/25",
+      icon: <NewMapIcon className="h-7 w-7" />,
+      color: "#e86868",
       onClick: onNewMap,
     },
     {
       id: "pack",
       label: "Pack creator",
-      icon: <PackCreatorIcon className="h-6 w-6" />,
-      tint: "text-amber-300 group-hover:bg-amber-400/20",
+      icon: <PackCreatorIcon className="h-7 w-7" />,
+      color: "#e0972f",
       onClick: onPackCreator,
     },
     {
       id: "try",
       label: "Try these maps",
-      icon: <SampleMapsIcon className="h-6 w-6" />,
-      tint: "text-emerald-300 group-hover:bg-emerald-400/20",
+      icon: <SampleMapsIcon className="h-7 w-7" />,
+      color: "#7fb03a",
       onClick: onTryMaps,
     },
   ];
 
-  const left: MenuAction[] = [
-    {
-      id: "import",
-      label: "Import map",
-      icon: <ImportIcon className="h-6 w-6" />,
-      tint: "text-violet-300 group-hover:bg-violet-400/20",
-      onClick: onImport,
-    },
-  ];
+  const { wide, panel, logoOpen, logoClosed } = layout;
+  const shift = ((left.length - right.length) * panel) / 2;
+  const logoSize = open ? logoOpen : logoClosed;
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="relative grid min-h-full place-items-center overflow-hidden">
         <MenuBackground url={music.track?.backgroundUrl ?? null} />
 
-        <div className="relative flex w-full items-center justify-center px-6 py-16">
-          <div className="relative flex flex-col items-center gap-10 lg:block">
-            <MenuStrip
-              actions={left}
-              open={open}
-              className="lg:absolute lg:right-full lg:top-1/2 lg:mr-12 lg:-translate-y-1/2"
-              from="lg:translate-x-10"
+        {open && (
+          <button
+            type="button"
+            aria-label="Close menu"
+            tabIndex={-1}
+            onClick={() => setOpen(false)}
+            className="absolute inset-0 cursor-default"
+          />
+        )}
+
+        {wide ? (
+          <div
+            className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 transition-all duration-300 ease-out ${
+              open ? "opacity-100" : "opacity-0"
+            }`}
+            style={{ height: BAR_HEIGHT }}
+          >
+            <div
+              className={`absolute inset-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-300 ease-out ${
+                open ? "scale-y-100" : "scale-y-50"
+              }`}
             />
-
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              aria-label="Cascade menu"
-              aria-expanded={open}
-              className="group relative grid place-items-center rounded-full outline-none"
-              style={{ width: logoSize, height: logoSize }}
+            <div
+              className={`absolute inset-0 flex justify-center ${
+                open ? "pointer-events-auto" : "pointer-events-none"
+              }`}
             >
-              <Visualizer
-                read={music.readLevels}
-                logoRef={logoRef}
-                active={music.isPlaying}
-                size={logoSize}
-              />
-              <img
-                ref={logoRef}
-                src={`${import.meta.env.BASE_URL}logo.png?v=2`}
-                alt="Cascade"
-                draggable={false}
-                onDragStart={(e) => e.preventDefault()}
-                className="relative select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.28)] ring-1 ring-white/10 transition-[filter] duration-300 group-hover:brightness-110"
-                style={{ width: logoSize, height: logoSize }}
-              />
-            </button>
+              {left.map((a) => (
+                <Panel key={a.id} action={a} width={panel} open={open} />
+              ))}
+              <div style={{ width: logoOpen }} />
+              {right.map((a) => (
+                <Panel key={a.id} action={a} width={panel} open={open} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div
+            className={`absolute inset-x-0 flex justify-center px-3 transition-all duration-300 ease-out ${
+              open
+                ? "translate-y-0 opacity-100"
+                : "pointer-events-none -translate-y-2 opacity-0"
+            }`}
+            style={{ top: `calc(50% + ${Math.round(logoClosed / 2) + 22}px)` }}
+          >
+            <div className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md">
+              {[...left, ...right].map((a) => (
+                <StackedAction key={a.id} action={a} open={open} />
+              ))}
+            </div>
+          </div>
+        )}
 
-            <MenuStrip
-              actions={right}
-              open={open}
-              className="lg:absolute lg:left-full lg:top-1/2 lg:ml-12 lg:-translate-y-1/2"
-              from="lg:-translate-x-10"
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Cascade menu"
+          aria-expanded={open}
+          className="group absolute left-1/2 top-1/2 outline-none transition-transform duration-300 ease-out"
+          style={{
+            width: logoClosed,
+            height: logoClosed,
+            transform: `translate(-50%, -50%) translateX(${
+              open && wide ? shift : 0
+            }px) scale(${logoSize / logoClosed})`,
+          }}
+        >
+          <div ref={pulseRef} className="relative h-full w-full">
+            <Visualizer
+              music={music}
+              size={logoClosed}
+              pulseRef={pulseRef}
+              active={music.isPlaying}
+            />
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png?v=2`}
+              alt="Cascade"
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              className="relative h-full w-full select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.3)] ring-1 ring-white/10 transition-[filter] duration-200 group-hover:brightness-110"
             />
           </div>
-        </div>
+        </button>
 
         {music.track && (
           <NowPlaying
@@ -175,45 +216,80 @@ export function StartScreen({
   );
 }
 
-function MenuStrip({
-  actions,
+function measure() {
+  const vw = typeof window === "undefined" ? 1280 : window.innerWidth;
+  const vh = typeof window === "undefined" ? 800 : window.innerHeight;
+  const wide = vw >= 900 && vh >= 560;
+  const panel = Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(vw / 8.6)));
+  const logoClosed = Math.max(
+    LOGO_MIN,
+    Math.min(
+      LOGO_CLOSED,
+      Math.round(wide ? Math.min(vw * 0.6, vh * 0.44) : Math.min(vw * 0.55, vh * 0.3)),
+    ),
+  );
+  const logoOpen = wide
+    ? Math.min(LOGO_OPEN, Math.round(logoClosed * 0.68))
+    : logoClosed;
+  return { wide, panel, logoOpen, logoClosed };
+}
+
+function Panel({
+  action,
+  width,
   open,
-  className,
-  from,
 }: {
-  actions: MenuAction[];
+  action: MenuAction;
+  width: number;
   open: boolean;
-  className: string;
-  from: string;
 }) {
   return (
-    <div
-      className={`flex max-w-[92vw] flex-wrap items-center justify-center gap-1 rounded-2xl border border-white/10 bg-ink-900/70 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all duration-300 ease-out lg:max-w-none lg:flex-nowrap lg:gap-2 ${className} ${
-        open
-          ? "translate-x-0 translate-y-0 scale-100 opacity-100"
-          : `pointer-events-none translate-y-3 scale-95 opacity-0 ${from}`
-      }`}
-      aria-hidden={!open}
+    <button
+      type="button"
+      tabIndex={open ? 0 : -1}
+      onClick={action.onClick}
+      className="group relative h-full shrink-0 text-white outline-none"
+      style={{ width }}
     >
-      {actions.map((a) => (
-        <button
-          key={a.id}
-          type="button"
-          tabIndex={open ? 0 : -1}
-          onClick={a.onClick}
-          className="group flex w-[104px] flex-col items-center gap-2 rounded-xl px-2 py-3 text-center transition hover:bg-white/5"
-        >
-          <span
-            className={`grid h-12 w-12 place-items-center rounded-xl bg-white/5 transition ${a.tint}`}
-          >
-            {a.icon}
-          </span>
-          <span className="text-[11px] font-semibold leading-tight text-slate-300 transition group-hover:text-white">
-            {a.label}
-          </span>
-        </button>
-      ))}
-    </div>
+      <span
+        aria-hidden
+        className="absolute -left-px -right-px inset-y-0 transition-[filter] duration-150 group-hover:brightness-125 group-focus-visible:brightness-125"
+        style={{ background: action.color, transform: `skewX(${SKEW})` }}
+      />
+      <span className="relative flex h-full flex-col items-center justify-center gap-2 transition-transform duration-150 group-hover:scale-105">
+        {action.icon}
+        <span className="text-[13px] font-semibold tracking-wide drop-shadow">
+          {action.label}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function StackedAction({
+  action,
+  open,
+}: {
+  action: MenuAction;
+  open: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      tabIndex={open ? 0 : -1}
+      onClick={action.onClick}
+      className="group flex w-[104px] flex-col items-center gap-2 rounded-xl px-2 py-3 text-center transition hover:bg-white/5"
+    >
+      <span
+        className="grid h-12 w-12 place-items-center rounded-xl text-white transition group-hover:brightness-125"
+        style={{ background: action.color }}
+      >
+        {action.icon}
+      </span>
+      <span className="text-[11px] font-semibold leading-tight text-slate-200">
+        {action.label}
+      </span>
+    </button>
   );
 }
 
@@ -256,19 +332,21 @@ function MenuBackground({ url }: { url: string | null }) {
 }
 
 function Visualizer({
-  read,
-  logoRef,
+  music,
+  size,
+  pulseRef,
   active,
-  size: logoSize,
 }: {
-  read: () => Uint8Array | null;
-  logoRef: React.RefObject<HTMLImageElement | null>;
-  active: boolean;
+  music: MenuMusic;
   size: number;
+  pulseRef: React.RefObject<HTMLDivElement | null>;
+  active: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const smoothRef = useRef<number[]>(new Array(BARS).fill(0));
-  const ringPad = Math.round(logoSize * RING_RATIO);
+  const musicRef = useRef(music);
+  musicRef.current = music;
+  const pad = Math.round(size * RING_RATIO);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -279,84 +357,90 @@ function Visualizer({
     const reduced = window.matchMedia?.(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    const size = logoSize + ringPad * 2;
+    const box = size + pad * 2;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
+    canvas.width = box * dpr;
+    canvas.height = box * dpr;
     ctx.scale(dpr, dpr);
 
-    const radius = logoSize / 2 + 8;
-    const maxLen = ringPad - Math.round(logoSize * 0.047);
-    const logo = logoRef.current;
+    const radius = size / 2 - 1;
+    const maxLen = pad * 0.92;
+    const centre = box / 2;
+    const node = pulseRef.current;
     let raf = 0;
 
     const draw = (time: number) => {
       raf = requestAnimationFrame(draw);
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, box, box);
 
-      const levels = read();
+      const { readLevels, getPosition, track } = musicRef.current;
+      const levels = readLevels();
       const smooth = smoothRef.current;
       const half = BARS / 2;
-      let bass = 0;
+      let loud = 0;
 
       for (let i = 0; i < BARS; i++) {
         const mirrored = i < half ? i : BARS - 1 - i;
         const frac = mirrored / (half - 1);
         let raw: number;
         if (levels) {
-          const bin = 1 + Math.round(Math.pow(frac, 1.7) * 40);
-          const gain = 0.85 + frac * 2.4;
+          const bin = 1 + Math.round(Math.pow(frac, 1.8) * 46);
+          const gain = 0.8 + frac * 2.6;
           raw = Math.min(1, (levels[Math.min(bin, levels.length - 1)] / 255) * gain);
-          raw = raw * raw * 1.2;
+          raw *= raw;
         } else {
-          raw = 0.12 + Math.sin(time / 900 + frac * 3.2) * 0.06;
+          raw = 0.16 + Math.sin(time / 1100 + frac * 5) * 0.07;
         }
-        smooth[i] += (raw - smooth[i]) * (raw > smooth[i] ? 0.55 : 0.12);
-        if (mirrored < 4) bass += smooth[i];
+        smooth[i] += (raw - smooth[i]) * (raw > smooth[i] ? 0.6 : 0.09);
+        loud += smooth[i];
       }
+      loud /= BARS;
 
-      ctx.lineCap = "round";
+      ctx.lineCap = "butt";
+      ctx.lineWidth = 1.6;
       for (let i = 0; i < BARS; i++) {
+        const level = Math.min(1, smooth[i]);
+        const len = 3 + level * maxLen;
         const angle = (i / BARS) * Math.PI * 2 - Math.PI / 2;
-        const len = Math.max(2, Math.min(1, smooth[i]) * maxLen);
         const cos = Math.cos(angle);
         const sin = Math.sin(angle);
-        const cx = size / 2;
-        const cy = size / 2;
         ctx.beginPath();
-        ctx.moveTo(cx + cos * radius, cy + sin * radius);
-        ctx.lineTo(cx + cos * (radius + len), cy + sin * (radius + len));
-        ctx.strokeStyle = `rgba(244, 138, 138, ${0.25 + Math.min(1, smooth[i]) * 0.55})`;
-        ctx.lineWidth = 3;
+        ctx.moveTo(centre + cos * radius, centre + sin * radius);
+        ctx.lineTo(centre + cos * (radius + len), centre + sin * (radius + len));
+        ctx.strokeStyle = `rgba(255,255,255,${0.1 + level * 0.4})`;
         ctx.stroke();
       }
 
-      if (logo) {
-        const pulse = 1 + Math.min(0.07, (bass / 8) * 0.12);
-        logo.style.transform = `scale(${pulse.toFixed(4)})`;
+      if (node) {
+        const position = getPosition();
+        let beat = 0;
+        if (position !== null && track && track.bpm > 0) {
+          const beatMs = 60000 / track.bpm;
+          const phase =
+            (((position - track.beatOffsetMs) % beatMs) + beatMs) % beatMs;
+          beat = Math.pow(1 - phase / beatMs, 5);
+        }
+        const scale = 1 + beat * 0.05 + Math.min(0.035, loud * 0.28);
+        node.style.transform = `scale(${scale.toFixed(4)})`;
       }
     };
 
-    if (reduced) {
-      ctx.clearRect(0, 0, size, size);
-    } else {
-      raf = requestAnimationFrame(draw);
-    }
+    if (!reduced) raf = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(raf);
-      if (logo) logo.style.transform = "";
+      if (node) node.style.transform = "";
     };
-  }, [read, logoRef, logoSize, ringPad]);
+  }, [size, pad, pulseRef]);
 
   return (
     <canvas
       ref={canvasRef}
       aria-hidden
-      className={`pointer-events-none absolute transition-opacity duration-700 ${
-        active ? "opacity-100" : "opacity-60"
+      className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-700 ${
+        active ? "opacity-100" : "opacity-70"
       }`}
-      style={{ width: logoSize + ringPad * 2, height: logoSize + ringPad * 2 }}
+      style={{ width: size + pad * 2, height: size + pad * 2 }}
     />
   );
 }
@@ -387,10 +471,7 @@ function NowPlaying({
         <span className="font-semibold text-slate-100">{title}</span>
       </span>
       <div className="flex items-center gap-1">
-        <MiniButton
-          label={isPlaying ? "Pause" : "Play"}
-          onClick={onToggle}
-        >
+        <MiniButton label={isPlaying ? "Pause" : "Play"} onClick={onToggle}>
           {isPlaying ? "❚❚" : "▶"}
         </MiniButton>
         <MiniButton label="Next track" onClick={onNext}>

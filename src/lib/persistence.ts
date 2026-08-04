@@ -86,6 +86,8 @@ export type LocalTrack = {
   audioBlob: Blob;
   backgroundBlob?: Blob;
   previewTime: number;
+  bpm: number;
+  beatOffsetMs: number;
   updatedAt: number;
 };
 
@@ -430,6 +432,21 @@ function trackPreviewTime(project: SavedProject): number {
   return preview > 0 ? preview : 0;
 }
 
+function trackBeat(project: SavedProject): { bpm: number; beatOffsetMs: number } {
+  const active =
+    project.difficulties.find((d) => d.id === project.activeId) ??
+    project.difficulties[0];
+  const points = [
+    ...(active?.timingPoints ?? []),
+    ...(project.timingPoints ?? []),
+  ].filter((p) => p.uninherited && Number.isFinite(p.bpm) && p.bpm > 0);
+  points.sort((a, b) => a.time - b.time);
+  const first = points[0];
+  return first
+    ? { bpm: first.bpm, beatOffsetMs: first.time }
+    : { bpm: 0, beatOffsetMs: 0 };
+}
+
 export async function listLocalTracks(): Promise<LocalTrack[]> {
   return withStore<LocalTrack[]>("readonly", (store, resolve) => {
     const keysReq = store.getAllKeys();
@@ -472,6 +489,7 @@ export async function listLocalTracks(): Promise<LocalTrack[]> {
               audioBlob,
               backgroundBlob: pickLocalBackground(full),
               previewTime: trackPreviewTime(full),
+              ...trackBeat(full),
               updatedAt: full.savedAt,
             });
             done();

@@ -8,6 +8,8 @@ export type MenuTrack = {
   audioUrl: string;
   backgroundUrl: string | null;
   previewTime: number;
+  bpm: number;
+  beatOffsetMs: number;
 };
 
 export type MenuMusic = {
@@ -18,6 +20,8 @@ export type MenuMusic = {
   next: () => void;
   previous: () => void;
   readLevels: () => Uint8Array | null;
+  /** Playback position in ms, or null when nothing is playing. */
+  getPosition: () => number | null;
 };
 
 const FFT_SIZE = 256;
@@ -42,6 +46,8 @@ function toMenuTrack(row: LocalTrack): MenuTrack {
       ? URL.createObjectURL(row.backgroundBlob)
       : null,
     previewTime: row.previewTime,
+    bpm: row.bpm,
+    beatOffsetMs: row.beatOffsetMs,
   };
 }
 
@@ -54,29 +60,36 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const levelsRef = useRef(new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)));
+  const urlsRef = useRef<string[]>([]);
   const wantsPlayRef = useRef(true);
 
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    let made: MenuTrack[] = [];
     listLocalTracks()
       .then((rows) => {
         if (cancelled) return;
-        made = shuffle(rows).map(toMenuTrack);
+        const made = shuffle(rows).map(toMenuTrack);
+        for (const t of made) {
+          urlsRef.current.push(t.audioUrl);
+          if (t.backgroundUrl) urlsRef.current.push(t.backgroundUrl);
+        }
         setPlaylist(made);
         setIndex(0);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
-      setPlaylist([]);
-      for (const t of made) {
-        URL.revokeObjectURL(t.audioUrl);
-        if (t.backgroundUrl) URL.revokeObjectURL(t.backgroundUrl);
-      }
     };
   }, [enabled]);
+
+  useEffect(
+    () => () => {
+      for (const url of urlsRef.current) URL.revokeObjectURL(url);
+      urlsRef.current = [];
+    },
+    [],
+  );
 
   const track = playlist.length ? playlist[index % playlist.length] : null;
 
@@ -115,20 +128,30 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
     el.volume = Math.min(1, Math.max(0, (stored ?? 1) * MENU_VOLUME));
     audioRef.current = el;
 
+    let seeked = false;
+    let advanced = false;
+    const advance = () => {
+      if (advanced || audioRef.current !== el) return;
+      advanced = true;
+      setIndex((i) => i + 1);
+    };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
-    const onEnded = () => setIndex((i) => i + 1);
-    const onError = () => setIndex((i) => i + 1);
+    const onEnded = advance;
+    const onError = advance;
     const onReady = () => {
+      if (seeked) return;
       const from = track.previewTime / 1000;
-      if (from > 0 && Number.isFinite(el.duration) && el.duration > from + 5)
-        el.currentTime = from;
+      if (!(from > 0) || !Number.isFinite(el.duration)) return;
+      seeked = true;
+      el.currentTime = el.duration > from + 5 ? from : 0;
     };
     el.addEventListener("play", onPlay);
     el.addEventListener("pause", onPause);
     el.addEventListener("ended", onEnded);
     el.addEventListener("error", onError);
     el.addEventListener("loadedmetadata", onReady);
+    el.addEventListener("canplay", onReady);
 
     const start = () => {
       if (!wantsPlayRef.current) return;
@@ -152,6 +175,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       el.removeEventListener("ended", onEnded);
       el.removeEventListener("error", onError);
       el.removeEventListener("loadedmetadata", onReady);
+      el.removeEventListener("canplay", onReady);
       el.pause();
       sourceRef.current?.disconnect();
       sourceRef.current = null;
@@ -210,6 +234,12 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
     return levelsRef.current;
   }, []);
 
+  const getPosition = useCallback(() => {
+    const el = audioRef.current;
+    if (!el || el.paused) return null;
+    return el.currentTime * 1000;
+  }, []);
+
   return useMemo(
     () => ({
       track,
@@ -219,7 +249,17 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       next,
       previous,
       readLevels,
+      getPosition,
     }),
-    [track, isPlaying, playlist.length, toggle, next, previous, readLevels],
+    [
+      track,
+      isPlaying,
+      playlist.length,
+      toggle,
+      next,
+      previous,
+      readLevels,
+      getPosition,
+    ],
   );
 }
