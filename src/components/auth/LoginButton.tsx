@@ -6,7 +6,41 @@ import { Button } from "../ui/Controls";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
 const MENU_EXIT_MS = 160;
-const sessionHeaders = () => sessionAuthHeaders();
+const COVER_KEY = "mania-editor:osu-cover";
+const COVER_DELAY_MS = 700;
+
+let coverCache: { osuId: number; url: string } | null = null;
+const preloaded = new Set<string>();
+
+function readCachedCover(osuId: number): string | null {
+  if (coverCache?.osuId === osuId) return coverCache.url;
+  try {
+    const raw = localStorage.getItem(COVER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { osuId?: number; url?: string };
+    if (parsed.osuId !== osuId || typeof parsed.url !== "string") return null;
+    coverCache = { osuId, url: parsed.url };
+    return parsed.url;
+  } catch {
+    return null;
+  }
+}
+
+function storeCachedCover(osuId: number, url: string): void {
+  coverCache = { osuId, url };
+  try {
+    localStorage.setItem(COVER_KEY, JSON.stringify(coverCache));
+  } catch {
+  }
+}
+
+function preloadCover(url: string): void {
+  if (preloaded.has(url)) return;
+  preloaded.add(url);
+  const img = new Image();
+  img.decoding = "async";
+  img.src = url;
+}
 
 export function AccountControl({
   onOpenMyMaps,
@@ -26,7 +60,6 @@ export function AccountControl({
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [cover, setCover] = useState<string | null>(null);
-  const coverTried = useRef(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; right: number }>({
@@ -54,22 +87,40 @@ export function AccountControl({
   }, [open, mounted]);
 
   useEffect(() => {
-    if (!open || !user || coverTried.current || !WORKER) return;
-    coverTried.current = true;
+    if (!user) {
+      setCover(null);
+      return;
+    }
+    const osuId = user.osu_id;
+    const cached = readCachedCover(osuId);
+    if (cached) {
+      setCover(cached);
+      preloadCover(cached);
+    }
+    if (!WORKER) return;
+
     let cancelled = false;
-    fetch(`${WORKER}/auth/osu/cover`, {
-      credentials: "include",
-      headers: sessionHeaders(),
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { cover_url?: string | null } | null) => {
-        if (!cancelled && data?.cover_url) setCover(data.cover_url);
+    const timer = window.setTimeout(() => {
+      fetch(`${WORKER}/auth/osu/cover`, {
+        credentials: "include",
+        headers: sessionAuthHeaders(),
       })
-      .catch(() => {});
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { cover_url?: string | null } | null) => {
+          const url = data?.cover_url;
+          if (cancelled || !url) return;
+          storeCachedCover(osuId, url);
+          setCover(url);
+          preloadCover(url);
+        })
+        .catch(() => {});
+    }, COVER_DELAY_MS);
+
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [open, user, cover]);
+  }, [user]);
 
   useEffect(() => {
     if (!open) return;
