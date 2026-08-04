@@ -37,6 +37,8 @@ import {
 import { MyMapsModal } from "./components/menus/MyMapsModal";
 import { ImportModal } from "./components/menus/ImportModal";
 import { StartScreen } from "./components/StartScreen";
+import { NowPlaying } from "./components/NowPlaying";
+import { useMenuMusic } from "./hooks/useMenuMusic";
 const PackCreator = lazy(() =>
   import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
 );
@@ -2198,6 +2200,8 @@ export default function App() {
     },
     [patchDifficulty],
   );
+
+  const menuMusic = useMenuMusic(!hasProject);
 
   const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
   const [confirmResnap, setConfirmResnap] = useState(false);
@@ -4501,6 +4505,7 @@ export default function App() {
               onDismiss={dismissInboxNotification}
             />
           )}
+          {!hasProject && <NowPlaying music={menuMusic} />}
           {!hasProject && <LanguagePicker compact />}
           <AccountControl
             compact
@@ -4632,6 +4637,7 @@ export default function App() {
               />
             ) : (
               <StartScreen
+                music={menuMusic}
                 onMyMaps={() => setModal("myProjects")}
                 onNewMap={() => handleNew(hasProjectContent)}
                 onPackCreator={() => setPackCreatorOpen(true)}

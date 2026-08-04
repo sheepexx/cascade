@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useMenuMusic, type MenuMusic } from "../hooks/useMenuMusic";
+import type { MenuMusic } from "../hooks/useMenuMusic";
 import {
   ImportIcon,
   LibraryIcon,
@@ -28,6 +28,7 @@ const BARS = 32;
 const SKEW = "-11deg";
 
 export function StartScreen({
+  music,
   onMyMaps,
   onNewMap,
   onPackCreator,
@@ -35,6 +36,7 @@ export function StartScreen({
   onImport,
   children,
 }: {
+  music: MenuMusic;
   onMyMaps: () => void;
   onNewMap: () => void;
   onPackCreator: () => void;
@@ -44,7 +46,6 @@ export function StartScreen({
 }) {
   const [open, setOpen] = useState(false);
   const [layout, setLayout] = useState(() => measure());
-  const music = useMenuMusic(true);
   const pulseRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -196,16 +197,6 @@ export function StartScreen({
             />
           </div>
         </button>
-
-        {music.track && (
-          <NowPlaying
-            title={music.track.title}
-            artist={music.track.artist}
-            isPlaying={music.isPlaying}
-            onToggle={music.toggle}
-            onNext={music.next}
-          />
-        )}
 
         <p className="pointer-events-none absolute bottom-3 right-4 text-[11px] font-medium tracking-wide text-slate-600">
           Cascade · v{__APP_VERSION__}
@@ -381,7 +372,7 @@ function Visualizer({
       rotation += delta * 0.00009;
       ctx.clearRect(0, 0, box, box);
 
-      const { readLevels, getPosition, track } = musicRef.current;
+      const { readLevels, getPlayback, track } = musicRef.current;
       const levels = readLevels();
       const amps = smoothRef.current;
       const decay = Math.pow(0.9975, delta);
@@ -423,12 +414,12 @@ function Visualizer({
       ctx.globalCompositeOperation = "source-over";
 
       if (node) {
-        const position = getPosition();
+        const playback = getPlayback();
         let beat = 0;
-        if (position !== null && track && track.bpm > 0) {
+        if (playback?.playing && track && track.bpm > 0) {
           const beatMs = 60000 / track.bpm;
           const phase =
-            (((position - track.beatOffsetMs) % beatMs) + beatMs) % beatMs;
+            (((playback.position - track.beatOffsetMs) % beatMs) + beatMs) % beatMs;
           beat = Math.pow(1 - phase / beatMs, 5);
         }
         const scale = 1 + beat * 0.05 + Math.min(0.035, loud * 0.5);
@@ -453,64 +444,5 @@ function Visualizer({
       }`}
       style={{ width: size + pad * 2, height: size + pad * 2 }}
     />
-  );
-}
-
-function NowPlaying({
-  title,
-  artist,
-  isPlaying,
-  onToggle,
-  onNext,
-}: {
-  title: string;
-  artist: string;
-  isPlaying: boolean;
-  onToggle: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <div className="absolute bottom-4 left-1/2 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-ink-900/70 py-2 pl-4 pr-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md">
-      <span
-        className={`text-accent-soft ${isPlaying ? "animate-pulse" : "opacity-50"}`}
-        aria-hidden
-      >
-        ♪
-      </span>
-      <span className="min-w-0 truncate text-xs text-slate-300">
-        {artist && <span className="text-slate-500">{artist} · </span>}
-        <span className="font-semibold text-slate-100">{title}</span>
-      </span>
-      <div className="flex items-center gap-1">
-        <MiniButton label={isPlaying ? "Pause" : "Play"} onClick={onToggle}>
-          {isPlaying ? "❚❚" : "▶"}
-        </MiniButton>
-        <MiniButton label="Next track" onClick={onNext}>
-          ▶❘
-        </MiniButton>
-      </div>
-    </div>
-  );
-}
-
-function MiniButton({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      className="grid h-7 w-7 place-items-center rounded-full text-[10px] text-slate-300 transition hover:bg-white/10 hover:text-white"
-    >
-      {children}
-    </button>
   );
 }

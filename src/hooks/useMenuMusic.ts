@@ -20,8 +20,7 @@ export type MenuMusic = {
   next: () => void;
   previous: () => void;
   readLevels: () => Uint8Array | null;
-  /** Playback position in ms, or null when nothing is playing. */
-  getPosition: () => number | null;
+  getPlayback: () => { position: number; duration: number; playing: boolean } | null;
 };
 
 const FFT_SIZE = 512;
@@ -66,20 +65,26 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    let mine: string[] = [];
     listLocalTracks()
       .then((rows) => {
         if (cancelled) return;
         const made = shuffle(rows).map(toMenuTrack);
-        for (const t of made) {
-          urlsRef.current.push(t.audioUrl);
-          if (t.backgroundUrl) urlsRef.current.push(t.backgroundUrl);
-        }
+        mine = made.flatMap((t) =>
+          t.backgroundUrl ? [t.audioUrl, t.backgroundUrl] : [t.audioUrl],
+        );
+        urlsRef.current.push(...mine);
         setPlaylist(made);
         setIndex(0);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
+      if (mine.length === 0) return;
+      setPlaylist([]);
+      setIndex(0);
+      for (const url of mine) URL.revokeObjectURL(url);
+      urlsRef.current = urlsRef.current.filter((u) => !mine.includes(u));
     };
   }, [enabled]);
 
@@ -234,10 +239,14 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
     return levelsRef.current;
   }, []);
 
-  const getPosition = useCallback(() => {
+  const getPlayback = useCallback(() => {
     const el = audioRef.current;
-    if (!el || el.paused) return null;
-    return el.currentTime * 1000;
+    if (!el) return null;
+    return {
+      position: el.currentTime * 1000,
+      duration: Number.isFinite(el.duration) ? el.duration * 1000 : 0,
+      playing: !el.paused,
+    };
   }, []);
 
   return useMemo(
@@ -249,7 +258,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       next,
       previous,
       readLevels,
-      getPosition,
+      getPlayback,
     }),
     [
       track,
@@ -259,7 +268,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       next,
       previous,
       readLevels,
-      getPosition,
+      getPlayback,
     ],
   );
 }
