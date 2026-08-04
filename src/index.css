@@ -221,6 +221,32 @@ textarea {
   transform-origin: bottom center;
 }
 
+@keyframes bg-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bg-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.bg-fade-in {
+  animation: bg-fade-in 900ms ease-out;
+}
+
+.bg-fade-out {
+  animation: bg-fade-out 700ms ease-in forwards;
+}
+
 @keyframes track-fade-in {
   from {
     opacity: 0;

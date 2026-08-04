@@ -4493,6 +4493,8 @@ export default function App() {
               ))}
             </div>
           )}
+          {!hasProject && <NowPlaying music={menuMusic} />}
+          {!hasProject && <LanguagePicker compact />}
           {authUser && (
             <NotificationInbox
               notifications={notifications}
@@ -4505,8 +4507,6 @@ export default function App() {
               onDismiss={dismissInboxNotification}
             />
           )}
-          {!hasProject && <NowPlaying music={menuMusic} />}
-          {!hasProject && <LanguagePicker compact />}
           <AccountControl
             compact
             onOpenMyMaps={() => setModal("myMaps")}

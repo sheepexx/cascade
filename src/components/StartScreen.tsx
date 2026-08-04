@@ -25,6 +25,7 @@ const LOGO_MIN = 168;
 const BAR_HEIGHT = 136;
 const PANEL_MAX = 152;
 const PANEL_MIN = 104;
+const BG_FADE_MS = 900;
 const RING_RATIO = 0.42;
 const ROUNDS = 3;
 const BARS = 32;
@@ -349,38 +350,70 @@ function StackedAction({
 }
 
 function MenuBackground({ url }: { url: string | null }) {
-  const [shown, setShown] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [layers, setLayers] = useState<{ id: number; url: string }[]>([]);
+  const [clearing, setClearing] = useState(false);
+  const nextId = useRef(0);
 
   useEffect(() => {
-    setLoaded(false);
     if (!url) {
-      setShown(null);
+      setLayers((prev) => {
+        if (prev.length) setClearing(true);
+        return prev;
+      });
       return;
     }
+    setClearing(false);
+    let cancelled = false;
     const img = new Image();
+    img.decoding = "async";
     img.onload = () => {
-      setShown(url);
-      setLoaded(true);
+      if (cancelled) return;
+      setLayers((prev) => [...prev.slice(-1), { id: nextId.current++, url }]);
     };
     img.src = url;
     return () => {
+      cancelled = true;
       img.onload = null;
     };
   }, [url]);
 
+  useEffect(() => {
+    if (layers.length < 2) return;
+    const id = window.setTimeout(
+      () => setLayers((prev) => prev.slice(-1)),
+      BG_FADE_MS,
+    );
+    return () => window.clearTimeout(id);
+  }, [layers]);
+
+  useEffect(() => {
+    if (!clearing) return;
+    const id = window.setTimeout(() => {
+      setLayers([]);
+      setClearing(false);
+    }, BG_FADE_MS);
+    return () => window.clearTimeout(id);
+  }, [clearing]);
+
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {shown && (
-        <img
-          src={shown}
-          alt=""
-          aria-hidden
-          className={`absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] transition-opacity duration-1000 ${
-            loaded ? "opacity-[0.3]" : "opacity-0"
-          }`}
-        />
-      )}
+      <div className="absolute inset-0 opacity-[0.3]">
+        {layers.map((layer, i) => (
+          <img
+            key={layer.id}
+            src={layer.url}
+            alt=""
+            aria-hidden
+            className={`absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] ${
+              i === layers.length - 1
+                ? clearing
+                  ? "bg-fade-out"
+                  : "bg-fade-in"
+                : ""
+            }`}
+          />
+        ))}
+      </div>
       <div className="absolute inset-0 bg-gradient-to-b from-ink-900/80 via-ink-900/66 to-ink-900/88" />
     </div>
   );
