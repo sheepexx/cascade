@@ -22,10 +22,9 @@ const LOGO_MIN = 168;
 const BAR_HEIGHT = 136;
 const PANEL_MAX = 152;
 const PANEL_MIN = 104;
-const RING_RATIO = 0.52;
-const BARS = 200;
-const ROUNDS = 5;
-const DEAD_ZONE = 0.085;
+const RING_RATIO = 0.42;
+const ROUNDS = 3;
+const BARS = 32;
 const SKEW = "-11deg";
 
 export function StartScreen({
@@ -389,17 +388,15 @@ function Visualizer({
       let loud = 0;
 
       for (let i = 0; i < BARS; i++) {
+        const frac = i / (BARS - 1);
         let raw: number;
         if (levels) {
-          const bin = Math.min(levels.length - 1, i + 2);
-          raw = Math.min(1, (levels[bin] / 255) * (1 + (i / BARS) * 0.9));
+          const bin = 1 + Math.round(Math.pow(frac, 1.7) * 52);
+          const gain = 0.9 + frac * 2.1;
+          raw = Math.min(1, (levels[Math.min(bin, levels.length - 1)] / 255) * gain);
           raw *= raw;
         } else {
-          raw = Math.max(
-            0,
-            Math.sin(time / 1600 + i * 0.11) * 0.055 +
-              Math.sin(time / 900 + i * 0.37) * 0.03,
-          );
+          raw = 0.06 + Math.sin(time / 1500 + frac * 4.2) * 0.045;
         }
         amps[i] = Math.max(amps[i] * decay, raw);
         loud += amps[i];
@@ -408,18 +405,16 @@ function Visualizer({
 
       ctx.globalCompositeOperation = "lighter";
       ctx.lineCap = "butt";
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(255,255,255,0.15)";
+      ctx.lineWidth = 1.3;
+      ctx.strokeStyle = "rgba(255,255,255,0.26)";
       ctx.beginPath();
       for (let r = 0; r < ROUNDS; r++) {
         const base = rotation + r * roundStep;
         for (let i = 0; i < BARS; i++) {
-          const level = amps[i];
-          if (level < DEAD_ZONE) continue;
           const angle = base + i * step;
           const cos = Math.cos(angle);
           const sin = Math.sin(angle);
-          const len = (0.14 + level * 0.92) * maxLen;
+          const len = (0.1 + amps[i] * 0.88) * maxLen;
           ctx.moveTo(centre + cos * radius, centre + sin * radius);
           ctx.lineTo(centre + cos * (radius + len), centre + sin * (radius + len));
         }
