@@ -51,6 +51,47 @@ export type SampleMap = {
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 
 const MAX_CARDS = 9;
+const CARD_COUNT_KEY = "mania:card-counts";
+const DEFAULT_SKELETON_CARDS = 3;
+
+type CardCounts = { local: number; cloud: number };
+
+function clampCardCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0)
+    return DEFAULT_SKELETON_CARDS;
+  return Math.min(MAX_CARDS, Math.round(value));
+}
+
+function readCardCounts(): CardCounts {
+  const fallback = {
+    local: DEFAULT_SKELETON_CARDS,
+    cloud: DEFAULT_SKELETON_CARDS,
+  };
+  try {
+    const raw = localStorage.getItem(CARD_COUNT_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<CardCounts>;
+    return {
+      local: clampCardCount(parsed.local),
+      cloud: clampCardCount(parsed.cloud),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function rememberCardCounts(counts: Partial<CardCounts>) {
+  try {
+    const raw = localStorage.getItem(CARD_COUNT_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Partial<CardCounts>) : {};
+    localStorage.setItem(
+      CARD_COUNT_KEY,
+      JSON.stringify({ ...parsed, ...counts }),
+    );
+  } catch {
+    return;
+  }
+}
 
 export function WelcomeModal({
   open,
@@ -107,6 +148,7 @@ export function WelcomeModal({
   >(null);
   const [cloudThumbs, setCloudThumbs] = useState<Record<string, string>>({});
   const [localThumbs, setLocalThumbs] = useState<Record<string, string>>({});
+  const [cardCounts, setCardCounts] = useState<CardCounts>(readCardCounts);
   const [error, setError] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -196,11 +238,26 @@ export function WelcomeModal({
   }, [open, user]);
 
   const owned = user ? (projects ?? []).filter((p) => p.owner === user.id) : [];
+  const ownedCount = owned.length;
   const shared = user
     ? (projects ?? []).filter((p) => p.owner !== user.id)
     : [];
   const invited = shared.filter((p) => !p.archived);
   const archivedShared = shared.filter((p) => p.archived);
+
+  useEffect(() => {
+    if (!localProjects) return;
+    const local = Math.min(MAX_CARDS, localProjects.length);
+    setCardCounts((prev) => (prev.local === local ? prev : { ...prev, local }));
+    rememberCardCounts({ local });
+  }, [localProjects]);
+
+  useEffect(() => {
+    if (!projects) return;
+    const cloud = Math.min(MAX_CARDS, ownedCount);
+    setCardCounts((prev) => (prev.cloud === cloud ? prev : { ...prev, cloud }));
+    rememberCardCounts({ cloud });
+  }, [projects, ownedCount]);
 
   const keyOf = (scope: "local" | "cloud", id: string) => `${scope}:${id}`;
 
@@ -432,7 +489,7 @@ export function WelcomeModal({
         count={localProjects?.length}
       >
         {localProjects === null ? (
-          <SkeletonCards count={3} label={t("common.loading")} />
+          <SkeletonCards count={cardCounts.local} label={t("common.loading")} />
         ) : localProjects.length === 0 ? (
           <SectionMessage>{t("startModal.noLocalSaves")}</SectionMessage>
         ) : (
@@ -485,7 +542,7 @@ export function WelcomeModal({
           count={projects === null ? undefined : owned.length}
         >
           {projects === null ? (
-            <SkeletonCards count={3} label={t("common.loading")} />
+            <SkeletonCards count={cardCounts.cloud} label={t("common.loading")} />
           ) : owned.length === 0 ? (
             <SectionMessage>{t("startModal.noCloudSaves")}</SectionMessage>
           ) : (
