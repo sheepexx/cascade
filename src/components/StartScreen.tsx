@@ -44,6 +44,15 @@ const MASK_DIM = 0.2;
 const MASK_EDGE_LOW = 0.35;
 const MASK_EDGE_HIGH = 0.9;
 
+const SEAM_FADE = `linear-gradient(to bottom, ${Array.from(
+  { length: 21 },
+  (_, i) => {
+    const t = i / 20;
+    const a = t * t * (3 - 2 * t);
+    return `rgba(15,15,20,${a.toFixed(4)}) ${(t * 100).toFixed(1)}%`;
+  },
+).join(", ")})`;
+
 export function StartScreen({
   music,
   onMyMaps,
@@ -146,6 +155,12 @@ export function StartScreen({
     <div className="h-full overflow-y-auto">
       <div className="relative grid min-h-full place-items-center overflow-hidden">
         <MenuBackground url={music.track?.backgroundUrl ?? null} />
+
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(7rem,22vh,16rem)]"
+          style={{ backgroundImage: SEAM_FADE }}
+        />
 
         {open && (
           <button
