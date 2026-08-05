@@ -353,6 +353,23 @@ export const de: PartialCatalog = {
   "empty.madeBy": "Erstellt von",
   "empty.contributors": "Mitwirkende:",
 
+  "menu.open": "Cascade-Menü",
+  "menu.close": "Menü schließen",
+  "menu.importMap": "Map importieren",
+  "menu.myMaps": "Meine Maps",
+  "menu.newMap": "Neue Map",
+  "menu.packCreator": "Pack Creator",
+  "menu.tryMaps": "Diese Maps ausprobieren",
+  "menu.goodMorning": "Guten Morgen",
+  "menu.goodAfternoon": "Guten Tag",
+  "menu.goodEvening": "Guten Abend",
+  "menu.goodNight": "Gute Nacht",
+  "menu.noLocalProjects": "Du hast noch keine lokalen Projekte.",
+  "menu.localProjects.one": "Du hast derzeit {count} lokales Projekt.",
+  "menu.localProjects.other": "Du hast derzeit {count} lokale Projekte.",
+  "menu.needSong":
+    "Füge zuerst einen Song hinzu, um zu mappen. Zieh eine Audiodatei hinein oder wähle eine in den Map-Einstellungen.",
+
   "home.returnTitle": "Zum Startbildschirm zurückkehren",
   "home.confirmTitle": "Zum Startbildschirm zurückkehren?",
   "home.returnButton": "Zum Start",

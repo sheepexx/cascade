@@ -353,6 +353,23 @@ export const ptBR: PartialCatalog = {
   "empty.madeBy": "Feito por",
   "empty.contributors": "Contribuidores:",
 
+  "menu.open": "Menu do Cascade",
+  "menu.close": "Fechar menu",
+  "menu.importMap": "Importar mapa",
+  "menu.myMaps": "Meus mapas",
+  "menu.newMap": "Novo mapa",
+  "menu.packCreator": "Pack Creator",
+  "menu.tryMaps": "Teste estes mapas",
+  "menu.goodMorning": "Bom dia",
+  "menu.goodAfternoon": "Boa tarde",
+  "menu.goodEvening": "Boa noite",
+  "menu.goodNight": "Boa noite",
+  "menu.noLocalProjects": "Você ainda não tem projetos locais.",
+  "menu.localProjects.one": "Você tem {count} projeto local no momento.",
+  "menu.localProjects.other": "Você tem {count} projetos locais no momento.",
+  "menu.needSong":
+    "Adicione uma música primeiro para começar a mapear. Solte um arquivo de áudio em qualquer lugar ou escolha um nas Configurações do mapa.",
+
   "home.returnTitle": "Voltar para a tela inicial",
   "home.confirmTitle": "Voltar para a tela inicial?",
   "home.returnButton": "Ir para o início",

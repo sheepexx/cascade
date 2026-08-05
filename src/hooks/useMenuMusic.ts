@@ -92,6 +92,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   const levelsRef = useRef(new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)));
   const urlsRef = useRef<string[]>([]);
   const wantsPlayRef = useRef(true);
+  const resumeOnEnableRef = useRef(true);
   const volumeRef = useRef(MENU_VOLUME);
   const cancelFadeRef = useRef<(() => void) | null>(null);
 
@@ -181,6 +182,16 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   }, []);
 
   useEffect(() => {
+    if (enabled) {
+      if (resumeOnEnableRef.current) wantsPlayRef.current = true;
+      return;
+    }
+    resumeOnEnableRef.current = wantsPlayRef.current;
+    wantsPlayRef.current = false;
+    audioRef.current?.pause();
+  }, [enabled]);
+
+  useEffect(() => {
     if (!enabled || !track) return;
     const el = new Audio(track.audioUrl);
     el.preload = "auto";
@@ -251,12 +262,6 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       setIsPlaying(false);
     };
   }, [enabled, track, index, connect, fade]);
-
-  useEffect(() => {
-    if (enabled) return;
-    wantsPlayRef.current = false;
-    audioRef.current?.pause();
-  }, [enabled]);
 
   useEffect(
     () => () => {

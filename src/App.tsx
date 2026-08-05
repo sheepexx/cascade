@@ -2206,7 +2206,7 @@ export default function App() {
     [patchDifficulty],
   );
 
-  const menuMusic = useMenuMusic(!hasProject);
+  const menuMusic = useMenuMusic(!hasProject && !packCreatorOpen);
 
   const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
   const [confirmResnap, setConfirmResnap] = useState(false);
@@ -5376,10 +5376,7 @@ export default function App() {
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
             <SampleMapsIcon className="h-4 w-4" />
           </span>
-          <span>
-            Add a song first to start mapping. Drop an audio file anywhere, or
-            pick one in Map Settings.
-          </span>
+          <span>{t("menu.needSong")}</span>
         </TimedNotification>
 
         <TimedNotification

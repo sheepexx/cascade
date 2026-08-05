@@ -351,6 +351,23 @@ export const en = {
   "empty.madeBy": "Made by",
   "empty.contributors": "Contributors:",
 
+  "menu.open": "Cascade menu",
+  "menu.close": "Close menu",
+  "menu.importMap": "Import map",
+  "menu.myMaps": "My Maps",
+  "menu.newMap": "New map",
+  "menu.packCreator": "Pack creator",
+  "menu.tryMaps": "Try these maps",
+  "menu.goodMorning": "Good morning",
+  "menu.goodAfternoon": "Good afternoon",
+  "menu.goodEvening": "Good evening",
+  "menu.goodNight": "Good night",
+  "menu.noLocalProjects": "You don't have any local projects yet.",
+  "menu.localProjects.one": "You currently have {count} local project.",
+  "menu.localProjects.other": "You currently have {count} local projects.",
+  "menu.needSong":
+    "Add a song first to start mapping. Drop an audio file anywhere, or pick one in Map Settings.",
+
   "home.returnTitle": "Return to home screen",
   "home.confirmTitle": "Return to home screen?",
   "home.returnButton": "Return to home",

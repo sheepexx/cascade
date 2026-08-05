@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
 import { useAuth } from "../lib/auth";
-import { useT } from "../lib/i18n";
+import { useT, type MessageKey } from "../lib/i18n";
 import { countLocalProjects } from "../lib/persistence";
 import {
   ImportIcon,
@@ -137,7 +137,7 @@ export function StartScreen({
   const left: MenuAction[] = [
     {
       id: "import",
-      label: "Import map",
+      label: t("menu.importMap"),
       icon: <ImportIcon className="h-7 w-7" />,
       color: "#3c3c46",
       onClick: onImport,
@@ -147,28 +147,28 @@ export function StartScreen({
   const right: MenuAction[] = [
     {
       id: "myMaps",
-      label: "My Maps",
+      label: t("menu.myMaps"),
       icon: <LibraryIcon className="h-7 w-7" />,
       color: "#7c4dd8",
       onClick: onMyMaps,
     },
     {
       id: "new",
-      label: "New map",
+      label: t("menu.newMap"),
       icon: <NewMapIcon className="h-7 w-7" />,
       color: "#e86868",
       onClick: onNewMap,
     },
     {
       id: "pack",
-      label: "Pack creator",
+      label: t("menu.packCreator"),
       icon: <PackCreatorIcon className="h-7 w-7" />,
       color: "#e0972f",
       onClick: onPackCreator,
     },
     {
       id: "try",
-      label: "Try these maps",
+      label: t("menu.tryMaps"),
       icon: <SampleMapsIcon className="h-7 w-7" />,
       color: "#7fb03a",
       onClick: onTryMaps,
@@ -193,7 +193,7 @@ export function StartScreen({
         {open && (
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={t("menu.close")}
             tabIndex={-1}
             onClick={() => setOpen(false)}
             className="absolute inset-0 cursor-default"
@@ -212,17 +212,15 @@ export function StartScreen({
           }}
         >
           <p className="text-lg font-semibold text-slate-100 drop-shadow">
-            {greeting()}
+            {t(greetingKey())}
             {user ? `, ${user.username}` : ""}
           </p>
           <p className="mt-0.5 text-xs text-slate-400 drop-shadow">
             {projectCount === null
               ? " "
               : projectCount === 0
-                ? "You don't have any local projects yet."
-                : `You currently have ${projectCount} local project${
-                    projectCount === 1 ? "" : "s"
-                  }.`}
+                ? t("menu.noLocalProjects")
+                : t("menu.localProjects", { count: projectCount })}
           </p>
         </div>
 
@@ -294,7 +292,7 @@ export function StartScreen({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          aria-label="Cascade menu"
+          aria-label={t("menu.open")}
           aria-expanded={open}
           className="group absolute left-1/2 top-1/2 outline-none transition-transform duration-300 ease-out"
           style={{
@@ -341,13 +339,13 @@ export function StartScreen({
   );
 }
 
-function greeting(): string {
+function greetingKey(): MessageKey {
   const hour = new Date().getHours();
-  if (hour < 5) return "Good night";
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  if (hour < 23) return "Good evening";
-  return "Good night";
+  if (hour < 5) return "menu.goodNight";
+  if (hour < 12) return "menu.goodMorning";
+  if (hour < 18) return "menu.goodAfternoon";
+  if (hour < 23) return "menu.goodEvening";
+  return "menu.goodNight";
 }
 
 function measure() {

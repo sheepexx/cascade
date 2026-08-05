@@ -336,6 +336,22 @@ export const zhCN: PartialCatalog = {
   "empty.madeBy": "制作者",
   "empty.contributors": "贡献者：",
 
+  "menu.open": "Cascade 菜单",
+  "menu.close": "关闭菜单",
+  "menu.importMap": "导入谱面",
+  "menu.myMaps": "我的谱面",
+  "menu.newMap": "新建谱面",
+  "menu.packCreator": "Pack Creator",
+  "menu.tryMaps": "试试这些谱面",
+  "menu.goodMorning": "早上好",
+  "menu.goodAfternoon": "下午好",
+  "menu.goodEvening": "晚上好",
+  "menu.goodNight": "晚安",
+  "menu.noLocalProjects": "你还没有本地项目。",
+  "menu.localProjects.other": "你当前有 {count} 个本地项目。",
+  "menu.needSong":
+    "请先添加一首歌曲才能开始制谱。将音频文件拖入任意位置，或在谱面设置中选择一个。",
+
   "home.returnTitle": "返回主界面",
   "home.confirmTitle": "返回主界面？",
   "home.returnButton": "返回主界面",
