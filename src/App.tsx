@@ -3389,6 +3389,10 @@ export default function App() {
     audio.setAmbientDucking(modalAtmosphereActive);
   }, [audio.setAmbientDucking, modalAtmosphereActive]);
 
+  useEffect(() => {
+    menuMusic.setAmbientDucking(modalAtmosphereOpen);
+  }, [menuMusic.setAmbientDucking, modalAtmosphereOpen]);
+
   const doExportOsu = useCallback(() => {
     if (!audioFile) return;
     downloadOsu({

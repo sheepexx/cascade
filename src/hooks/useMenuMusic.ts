@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listLocalTracks, loadVolume, type LocalTrack } from "../lib/persistence";
+import {
+  DUCK_FILTER_HZ,
+  DUCK_VOLUME_FACTOR,
+  MIX_RAMP_SECONDS,
+  NORMAL_FILTER_HZ,
+} from "../lib/audioAtmosphere";
 
 export type MenuTrack = {
   id: string;
@@ -21,6 +27,7 @@ export type MenuMusic = {
   previous: () => void;
   readLevels: () => Uint8Array | null;
   getPlayback: () => { position: number; duration: number; playing: boolean } | null;
+  setAmbientDucking: (ducked: boolean) => void;
 };
 
 const FFT_SIZE = 512;
@@ -78,6 +85,9 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const filterRef = useRef<BiquadFilterNode | null>(null);
+  const duckGainRef = useRef<GainNode | null>(null);
+  const duckedRef = useRef(false);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const levelsRef = useRef(new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)));
   const urlsRef = useRef<string[]>([]);
@@ -144,9 +154,20 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
         const analyser = ctx.createAnalyser();
         analyser.fftSize = FFT_SIZE;
         analyser.smoothingTimeConstant = 0.74;
-        analyser.connect(ctx.destination);
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = duckedRef.current
+          ? DUCK_FILTER_HZ
+          : NORMAL_FILTER_HZ;
+        const duckGain = ctx.createGain();
+        duckGain.gain.value = duckedRef.current ? DUCK_VOLUME_FACTOR : 1;
+        analyser.connect(filter);
+        filter.connect(duckGain);
+        duckGain.connect(ctx.destination);
         ctxRef.current = ctx;
         analyserRef.current = analyser;
+        filterRef.current = filter;
+        duckGainRef.current = duckGain;
       }
       const ctx = ctxRef.current;
       const analyser = analyserRef.current;
@@ -287,6 +308,28 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
     return levelsRef.current;
   }, []);
 
+  const setAmbientDucking = useCallback((ducked: boolean) => {
+    if (duckedRef.current === ducked) return;
+    duckedRef.current = ducked;
+    const ctx = ctxRef.current;
+    const filter = filterRef.current;
+    const gain = duckGainRef.current;
+    if (!ctx || !filter || !gain) return;
+    const now = ctx.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(
+      ducked ? DUCK_VOLUME_FACTOR : 1,
+      now + MIX_RAMP_SECONDS,
+    );
+    filter.frequency.cancelScheduledValues(now);
+    filter.frequency.setValueAtTime(Math.max(40, filter.frequency.value), now);
+    filter.frequency.exponentialRampToValueAtTime(
+      ducked ? DUCK_FILTER_HZ : NORMAL_FILTER_HZ,
+      now + MIX_RAMP_SECONDS,
+    );
+  }, []);
+
   const getPlayback = useCallback(() => {
     const el = audioRef.current;
     if (!el) return null;
@@ -307,6 +350,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       previous,
       readLevels,
       getPlayback,
+      setAmbientDucking,
     }),
     [
       track,
@@ -317,6 +361,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       previous,
       readLevels,
       getPlayback,
+      setAmbientDucking,
     ],
   );
 }

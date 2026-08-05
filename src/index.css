@@ -118,6 +118,23 @@ textarea {
   }
 }
 
+@keyframes modal-panel-up-in {
+  from {
+    transform: translateY(100vh);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes modal-panel-up-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100vh);
+  }
+}
+
 .modal-backdrop-in {
   animation: modal-backdrop-in 260ms ease-out;
 }
@@ -129,6 +146,12 @@ textarea {
 }
 .modal-panel-out {
   animation: modal-panel-out 220ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+.modal-panel-up-in {
+  animation: modal-panel-up-in 440ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-panel-up-out {
+  animation: modal-panel-up-out 300ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
 @keyframes confirm-backdrop-in {
@@ -219,6 +242,19 @@ textarea {
 .pfp-pop-in {
   animation: pfp-pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: bottom center;
+}
+
+.menu-panel-face {
+  transform: scaleY(1) skewX(var(--menu-skew));
+  transition:
+    transform 190ms cubic-bezier(0.2, 1.7, 0.45, 1),
+    filter 90ms ease-out;
+}
+
+.group:hover > .menu-panel-face,
+.group:focus-visible > .menu-panel-face {
+  transform: scaleY(1.16) skewX(var(--menu-skew));
+  filter: brightness(calc(1.2 + var(--beat, 0) * 0.35));
 }
 
 @keyframes bg-fade-in {
@@ -681,6 +717,8 @@ textarea {
   .modal-backdrop-out,
   .modal-panel-in,
   .modal-panel-out,
+  .modal-panel-up-in,
+  .modal-panel-up-out,
   .confirm-backdrop-in,
   .confirm-backdrop-out,
   .confirm-pop-in,
@@ -709,6 +747,10 @@ textarea {
   /* Must match the specificity of .rate-panel-reveal[data-open="true"]. */
   .rate-panel-reveal,
   .rate-panel-reveal[data-open="true"] {
+    transition-duration: 1ms;
+  }
+
+  .menu-panel-face {
     transition-duration: 1ms;
   }
 }

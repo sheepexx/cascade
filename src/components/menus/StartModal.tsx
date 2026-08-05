@@ -271,6 +271,7 @@ export function WelcomeModal({
         title={projectsOnly ? t("startModal.myMaps") : t("startModal.title")}
         onClose={onClose}
         width="max-w-3xl"
+        slideUp={projectsOnly}
       >
       {firstRun && !projectsOnly && (
         <div className="mb-4 rounded-xl border border-accent/40 bg-accent/10 p-4">

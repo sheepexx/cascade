@@ -8,9 +8,11 @@ type Props = {
   footer?: ReactNode;
   width?: string;
   center?: boolean;
+  slideUp?: boolean;
 };
 
 const EXIT_MS = 220;
+const SLIDE_EXIT_MS = 300;
 
 export function Modal({
   open,
@@ -20,6 +22,7 @@ export function Modal({
   footer,
   width = "max-w-md",
   center = false,
+  slideUp = false,
 }: Props) {
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
@@ -32,12 +35,15 @@ export function Modal({
     }
     if (!mounted) return;
     setClosing(true);
-    const id = window.setTimeout(() => {
-      setMounted(false);
-      setClosing(false);
-    }, EXIT_MS);
+    const id = window.setTimeout(
+      () => {
+        setMounted(false);
+        setClosing(false);
+      },
+      slideUp ? SLIDE_EXIT_MS : EXIT_MS,
+    );
     return () => window.clearTimeout(id);
-  }, [open, mounted]);
+  }, [open, mounted, slideUp]);
 
   useEffect(() => {
     if (!open) return;
@@ -59,9 +65,9 @@ export function Modal({
       // the whole panel slide every time its content grows or shrinks (tab
       // switches, async content), which reads as the dialog jumping around.
       // Pinning the top edge means only the bottom edge ever moves.
-      className={`fixed inset-0 flex justify-center overflow-y-auto bg-ink-900/72 p-4 backdrop-blur-md ${
-        center ? "items-center" : "items-start pt-[max(1rem,8vh)]"
-      } ${
+      className={`fixed inset-0 flex justify-center bg-ink-900/72 p-4 backdrop-blur-md ${
+        slideUp ? "overflow-hidden" : "overflow-y-auto"
+      } ${center ? "items-center" : "items-start pt-[max(1rem,8vh)]"} ${
         closing
           ? "pointer-events-none z-40 modal-backdrop-out"
           : "z-50 modal-backdrop-in"
@@ -72,7 +78,13 @@ export function Modal({
     >
       <div
         className={`flex max-h-[84vh] w-full ${width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] ${
-          closing ? "modal-panel-out" : "modal-panel-in"
+          closing
+            ? slideUp
+              ? "modal-panel-up-out"
+              : "modal-panel-out"
+            : slideUp
+              ? "modal-panel-up-in"
+              : "modal-panel-in"
         }`}
       >
         <header className="flex items-center justify-between border-b border-white/10 bg-ink-700 px-5 py-3.5">

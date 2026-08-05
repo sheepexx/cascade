@@ -76,6 +76,34 @@ export function StartScreen({
   const { user } = useAuth();
   const t = useT();
   const pulseRef = useRef<HTMLDivElement | null>(null);
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [barHovered, setBarHovered] = useState(false);
+  const musicRef = useRef(music);
+  musicRef.current = music;
+
+  useEffect(() => {
+    const node = barRef.current;
+    if (!node || !barHovered) return;
+    let raf = 0;
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const { getPlayback, track } = musicRef.current;
+      const playback = getPlayback();
+      let beat = 0;
+      if (playback?.playing && track && track.bpm > 0) {
+        const beatMs = 60000 / track.bpm;
+        const phase =
+          (((playback.position - track.beatOffsetMs) % beatMs) + beatMs) % beatMs;
+        beat = Math.pow(1 - phase / beatMs, 5);
+      }
+      node.style.setProperty("--beat", beat.toFixed(3));
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      node.style.removeProperty("--beat");
+    };
+  }, [barHovered]);
 
   useEffect(() => {
     const update = () => setLayout(measure());
@@ -206,21 +234,43 @@ export function StartScreen({
             style={{ height: BAR_HEIGHT }}
           >
             <div
-              className={`absolute inset-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-300 ease-out ${
+              className={`absolute inset-y-0 left-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-300 ease-out ${
                 open ? "scale-y-100" : "scale-y-50"
               }`}
+              style={{ width: `calc(50% + ${shift - logoOpen / 2}px)` }}
             />
             <div
+              className={`absolute inset-y-0 right-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-300 ease-out ${
+                open ? "scale-y-100" : "scale-y-50"
+              }`}
+              style={{ left: `calc(50% + ${shift + logoOpen / 2}px)` }}
+            />
+            <div
+              ref={barRef}
+              onMouseEnter={() => setBarHovered(true)}
+              onMouseLeave={() => setBarHovered(false)}
               className={`absolute inset-0 flex justify-center ${
                 open ? "pointer-events-auto" : "pointer-events-none"
               }`}
             >
-              {left.map((a) => (
-                <Panel key={a.id} action={a} width={panel} open={open} />
+              {left.map((a, i) => (
+                <Panel
+                  key={a.id}
+                  action={a}
+                  width={panel}
+                  open={open}
+                  bleedRight={i === left.length - 1 ? logoOpen / 2 + 2 : 0}
+                />
               ))}
               <div style={{ width: logoOpen }} />
-              {right.map((a) => (
-                <Panel key={a.id} action={a} width={panel} open={open} />
+              {right.map((a, i) => (
+                <Panel
+                  key={a.id}
+                  action={a}
+                  width={panel}
+                  open={open}
+                  bleedLeft={i === 0 ? logoOpen / 2 + 2 : 0}
+                />
               ))}
             </div>
           </div>
@@ -322,10 +372,14 @@ function Panel({
   action,
   width,
   open,
+  bleedLeft = 0,
+  bleedRight = 0,
 }: {
   action: MenuAction;
   width: number;
   open: boolean;
+  bleedLeft?: number;
+  bleedRight?: number;
 }) {
   return (
     <button
@@ -337,10 +391,17 @@ function Panel({
     >
       <span
         aria-hidden
-        className="absolute -left-px -right-px inset-y-0 transition-[filter] duration-150 group-hover:brightness-125 group-focus-visible:brightness-125"
-        style={{ background: action.color, transform: `skewX(${SKEW})` }}
+        className="menu-panel-face absolute inset-y-0"
+        style={
+          {
+            background: action.color,
+            "--menu-skew": SKEW,
+            left: -1 - bleedLeft,
+            right: -1 - bleedRight,
+          } as React.CSSProperties
+        }
       />
-      <span className="relative flex h-full flex-col items-center justify-center gap-2 transition-transform duration-150 group-hover:scale-105">
+      <span className="relative flex h-full flex-col items-center justify-center gap-2">
         {action.icon}
         <span className="text-[13px] font-semibold tracking-wide drop-shadow">
           {action.label}
