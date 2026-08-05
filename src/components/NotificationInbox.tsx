@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { InboxNotification } from "../lib/notifications";
+import { SkeletonRows } from "./ui/Skeleton";
 
 export function NotificationInbox({
   notifications,
@@ -127,14 +128,13 @@ export function NotificationInbox({
 
             <div className="min-h-0 flex-1 overflow-y-auto">
               {loading && notifications.length === 0 && (
-                <div className="space-y-3 p-4" aria-label="Loading notifications">
-                  {[0, 1, 2].map((item) => (
-                    <div
-                      key={item}
-                      className="h-16 animate-pulse rounded-lg bg-ink-700/70"
-                    />
-                  ))}
-                </div>
+                <SkeletonRows
+                  count={3}
+                  avatar
+                  action={false}
+                  className="p-4"
+                  label="Loading notifications"
+                />
               )}
 
               {!loading && error && (

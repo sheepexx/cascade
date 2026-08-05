@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
+import {
+  AsyncImage,
+  SkeletonBanners,
+  SkeletonCards,
+} from "../ui/Skeleton";
 import { starColor, starTextOn } from "../../lib/starRating";
 import { useAuth } from "../../lib/auth";
 import { useLocale, useT } from "../../lib/i18n";
@@ -426,7 +431,7 @@ export function WelcomeModal({
         count={localProjects?.length}
       >
         {localProjects === null ? (
-          <SectionMessage>{t("common.loading")}</SectionMessage>
+          <SkeletonCards count={3} label={t("common.loading")} />
         ) : localProjects.length === 0 ? (
           <SectionMessage>{t("startModal.noLocalSaves")}</SectionMessage>
         ) : (
@@ -442,6 +447,7 @@ export function WelcomeModal({
                 })}
                 sourceFormat={p.sourceFormat}
                 thumbUrl={localThumbs[p.id]}
+                thumbPending={!!p.backgroundBlob && !localThumbs[p.id]}
                 selected={selected.has(keyOf("local", p.id))}
                 onOpen={(additive) =>
                   additive
@@ -478,7 +484,7 @@ export function WelcomeModal({
           count={projects === null ? undefined : owned.length}
         >
           {projects === null ? (
-            <SectionMessage>{t("common.loading")}</SectionMessage>
+            <SkeletonCards count={3} label={t("common.loading")} />
           ) : owned.length === 0 ? (
             <SectionMessage>{t("startModal.noCloudSaves")}</SectionMessage>
           ) : (
@@ -492,6 +498,7 @@ export function WelcomeModal({
                     date: new Date(p.updated_at).toLocaleDateString(locale),
                   })}
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
+                  thumbPending={!!p.bg_path && !cloudThumbs[p.bg_path]}
                   participants={othersOf(p.participants, user.id)}
                   selected={selected.has(keyOf("cloud", p.id))}
                   onOpen={(additive) =>
@@ -546,6 +553,7 @@ export function WelcomeModal({
                       : undefined
                   }
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
+                  thumbPending={!!p.bg_path && !cloudThumbs[p.bg_path]}
                   participants={othersOf(p.participants, user.id)}
                   onOpen={() => onOpenCloudProject(p.id)}
                   actions={
@@ -589,6 +597,7 @@ export function WelcomeModal({
                   title={p.title || t("common.untitled")}
                   subtitle={subtitleOf(p.artist, p.creator)}
                   thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
+                  thumbPending={!!p.bg_path && !cloudThumbs[p.bg_path]}
                   participants={othersOf(p.participants, user.id)}
                   onOpen={() => onOpenCloudProject(p.id)}
                   actions={
@@ -696,7 +705,9 @@ function SectionMessage({ children }: { children: React.ReactNode }) {
 
 function CardGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+    <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {children}
+    </div>
   );
 }
 
@@ -705,6 +716,7 @@ function ProjectCard({
   subtitle,
   note,
   thumbUrl,
+  thumbPending,
   badge,
   sourceFormat,
   participants,
@@ -716,6 +728,7 @@ function ProjectCard({
   subtitle?: string;
   note?: string;
   thumbUrl?: string;
+  thumbPending?: boolean;
   badge?: string;
   sourceFormat?: "osu" | "sm";
   participants?: ProjectParticipant[];
@@ -737,18 +750,16 @@ function ProjectCard({
         className="flex flex-col text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       >
         <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-600">
-          {thumbUrl ? (
-            <img
-              src={thumbUrl}
-              alt=""
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="grid h-full w-full place-items-center text-slate-600">
-              <SampleMapsIcon className="h-8 w-8" />
-            </div>
-          )}
+          <AsyncImage
+            src={thumbUrl}
+            pending={thumbPending}
+            className="h-full w-full object-cover"
+            fallback={
+              <div className="grid h-full w-full place-items-center text-slate-600">
+                <SampleMapsIcon className="h-8 w-8" />
+              </div>
+            }
+          />
           {sourceFormat && (
             <img
               src={asset(`${sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`)}
@@ -955,10 +966,10 @@ export function SampleMapsModal({
         </p>
       )}
       {!maps && error === null && (
-        <p className="text-sm text-slate-400">{t("sampleMaps.loading")}</p>
+        <SkeletonBanners count={4} label={t("sampleMaps.loading")} />
       )}
       {maps && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2">
           {maps.map((map) => {
             const stars = map.difficulties.map((d) => d.stars);
             const maxStars = stars.length ? Math.max(...stars) : 0;
@@ -970,18 +981,15 @@ export function SampleMapsModal({
                 className="group flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40 text-left transition hover:border-accent/70 hover:bg-ink-700"
               >
                 <div className="relative aspect-[3.5/1] w-full overflow-hidden bg-ink-600">
-                  {map.banner ? (
-                    <img
-                      src={asset(map.banner)}
-                      alt=""
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center text-slate-500">
-                      <SampleMapsIcon className="h-7 w-7" />
-                    </div>
-                  )}
+                  <AsyncImage
+                    src={map.banner ? asset(map.banner) : undefined}
+                    className="h-full w-full object-cover"
+                    fallback={
+                      <div className="grid h-full w-full place-items-center text-slate-500">
+                        <SampleMapsIcon className="h-7 w-7" />
+                      </div>
+                    }
+                  />
                   <img
                     src={asset(`${map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? "etterna-logo" : "osu-logo"}.png`)}
                     alt={map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? t("sampleMaps.etternaMap") : t("sampleMaps.osuMap")}

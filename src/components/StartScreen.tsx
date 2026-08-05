@@ -30,6 +30,19 @@ const RING_RATIO = 0.42;
 const ROUNDS = 3;
 const BARS = 32;
 const SKEW = "-11deg";
+const BAR_ALPHA = 0.26;
+const SPIN_SPEED = 0.00009;
+const AMP_SHIFT_MS = 140;
+const AMP_GAIN = 1;
+const AMP_DECAY_PER_MS = 0.0011;
+const BAR_FLOOR = 0.05;
+const BAR_REACH = 0.95;
+const MASK_LOBES = 4;
+const MASK_STEPS = 7;
+const MASK_SPEED = 0.0018;
+const MASK_DIM = 0.2;
+const MASK_EDGE_LOW = 0.35;
+const MASK_EDGE_HIGH = 0.9;
 
 export function StartScreen({
   music,
@@ -419,6 +432,11 @@ function MenuBackground({ url }: { url: string | null }) {
   );
 }
 
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 function Visualizer({
   music,
   size,
@@ -455,9 +473,23 @@ function Visualizer({
     const maxLen = pad * 0.9;
     const centre = box / 2;
     const node = pulseRef.current;
-    const step = (Math.PI * 2) / BARS;
     const roundStep = (Math.PI * 2) / ROUNDS;
+    const step = roundStep / BARS;
+    const segments = ROUNDS * BARS;
+    const segX0 = new Float32Array(segments);
+    const segY0 = new Float32Array(segments);
+    const segX1 = new Float32Array(segments);
+    const segY1 = new Float32Array(segments);
+    const segLevel = new Uint8Array(segments);
+    const maskStrokes = Array.from({ length: MASK_STEPS }, (_, level) => {
+      const frac = level / (MASK_STEPS - 1);
+      const alpha = BAR_ALPHA * (MASK_DIM + (1 - MASK_DIM) * frac);
+      return `rgba(255,255,255,${alpha.toFixed(3)})`;
+    });
     let rotation = 0;
+    let maskAngle = 0;
+    let indexOffset = 0;
+    let sinceAmps = 0;
     let last = 0;
     let raf = 0;
 
@@ -465,48 +497,80 @@ function Visualizer({
       raf = requestAnimationFrame(draw);
       const delta = last ? Math.min(64, time - last) : 16;
       last = time;
-      rotation += delta * 0.00009;
+      rotation += delta * SPIN_SPEED;
+      maskAngle -= delta * MASK_SPEED;
       ctx.clearRect(0, 0, box, box);
 
       const { readLevels, getPlayback, track } = musicRef.current;
-      const levels = readLevels();
       const amps = smoothRef.current;
-      const decay = Math.pow(0.9975, delta);
-      let loud = 0;
 
+      const levels = readLevels();
+      const seconds = time / 1000;
       for (let i = 0; i < BARS; i++) {
-        const frac = i / (BARS - 1);
-        let raw: number;
+        let target: number;
         if (levels) {
-          const bin = 1 + Math.round(Math.pow(frac, 1.7) * 52);
-          const gain = 0.9 + frac * 2.1;
-          raw = Math.min(1, (levels[Math.min(bin, levels.length - 1)] / 255) * gain);
-          raw *= raw;
+          const bin = (i + indexOffset) % BARS;
+          target = Math.min(1, (levels[bin] / 255) * AMP_GAIN);
         } else {
-          raw = 0.06 + Math.sin(time / 1500 + frac * 4.2) * 0.045;
+          target =
+            0.16 +
+            Math.sin(i * 0.7 + seconds * 1.9) * 0.09 +
+            Math.sin(i * 0.23 - seconds * 1.1) * 0.055;
+          if (target < 0.02) target = 0.02;
         }
-        amps[i] = Math.max(amps[i] * decay, raw);
+        if (target > amps[i]) amps[i] = target;
+      }
+
+      sinceAmps += delta;
+      if (sinceAmps >= AMP_SHIFT_MS) {
+        sinceAmps -= AMP_SHIFT_MS;
+        indexOffset = (indexOffset + 1) % BARS;
+      }
+
+      const drop = delta * AMP_DECAY_PER_MS;
+      let loud = 0;
+      for (let i = 0; i < BARS; i++) {
+        amps[i] -= drop;
+        if (amps[i] < 0) amps[i] = 0;
         loud += amps[i];
       }
       loud /= BARS;
 
-      ctx.globalCompositeOperation = "lighter";
-      ctx.lineCap = "butt";
-      ctx.lineWidth = 1.3;
-      ctx.strokeStyle = "rgba(255,255,255,0.26)";
-      ctx.beginPath();
+      let seg = 0;
       for (let r = 0; r < ROUNDS; r++) {
         const base = rotation + r * roundStep;
         for (let i = 0; i < BARS; i++) {
           const angle = base + i * step;
           const cos = Math.cos(angle);
           const sin = Math.sin(angle);
-          const len = (0.1 + amps[i] * 0.88) * maxLen;
-          ctx.moveTo(centre + cos * radius, centre + sin * radius);
-          ctx.lineTo(centre + cos * (radius + len), centre + sin * (radius + len));
+          const len = (BAR_FLOOR + amps[i] * BAR_REACH) * maxLen;
+          segX0[seg] = centre + cos * radius;
+          segY0[seg] = centre + sin * radius;
+          segX1[seg] = centre + cos * (radius + len);
+          segY1[seg] = centre + sin * (radius + len);
+          const lobe = Math.abs(
+            Math.cos((MASK_LOBES / 2) * (angle - maskAngle)),
+          );
+          segLevel[seg] = Math.round(
+            smoothstep(MASK_EDGE_LOW, MASK_EDGE_HIGH, lobe) * (MASK_STEPS - 1),
+          );
+          seg++;
         }
       }
-      ctx.stroke();
+
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "butt";
+      ctx.lineWidth = 1.3;
+      for (let level = 0; level < MASK_STEPS; level++) {
+        ctx.strokeStyle = maskStrokes[level];
+        ctx.beginPath();
+        for (let s = 0; s < segments; s++) {
+          if (segLevel[s] !== level) continue;
+          ctx.moveTo(segX0[s], segY0[s]);
+          ctx.lineTo(segX1[s], segY1[s]);
+        }
+        ctx.stroke();
+      }
       ctx.globalCompositeOperation = "source-over";
 
       if (node) {

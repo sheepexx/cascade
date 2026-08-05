@@ -273,13 +273,13 @@ describe("aimod formatting", () => {
     expect(formatAiModTime(-125)).toBe("-00:00:125");
   });
 
-  it("prints object references the way osu does", () => {
+  it("prints object references with 1-based columns", () => {
     expect(
       formatAiModObjects([
         { time: 92212, column: 0 },
-        { time: 92256, column: 0 },
+        { time: 92256, column: 3 },
       ]),
-    ).toBe("(92212|0,92256|0)");
+    ).toBe("(92212|1,92256|4)");
     expect(formatAiModObjects()).toBe("");
   });
 });

@@ -7,6 +7,7 @@ type Props = {
   children: ReactNode;
   footer?: ReactNode;
   width?: string;
+  center?: boolean;
 };
 
 const EXIT_MS = 220;
@@ -18,6 +19,7 @@ export function Modal({
   children,
   footer,
   width = "max-w-md",
+  center = false,
 }: Props) {
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
@@ -57,7 +59,9 @@ export function Modal({
       // the whole panel slide every time its content grows or shrinks (tab
       // switches, async content), which reads as the dialog jumping around.
       // Pinning the top edge means only the bottom edge ever moves.
-      className={`fixed inset-0 flex items-start justify-center overflow-y-auto bg-ink-900/72 p-4 pt-[max(1rem,8vh)] backdrop-blur-md ${
+      className={`fixed inset-0 flex justify-center overflow-y-auto bg-ink-900/72 p-4 backdrop-blur-md ${
+        center ? "items-center" : "items-start pt-[max(1rem,8vh)]"
+      } ${
         closing
           ? "pointer-events-none z-40 modal-backdrop-out"
           : "z-50 modal-backdrop-in"

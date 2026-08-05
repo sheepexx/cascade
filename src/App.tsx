@@ -42,7 +42,11 @@ import { useMenuMusic } from "./hooks/useMenuMusic";
 const PackCreator = lazy(() =>
   import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
 );
-import { CommentIcon, UsersIcon } from "./components/ui/StartIcons";
+import {
+  CommentIcon,
+  SampleMapsIcon,
+  UsersIcon,
+} from "./components/ui/StartIcons";
 import { PresetBrowserModal } from "./components/menus/PresetBrowserModal";
 import { PublishPresetModal } from "./components/menus/PublishPresetModal";
 import { FeedbackModal } from "./components/menus/FeedbackModal";
@@ -512,6 +516,7 @@ export default function App() {
     null | "saving" | "saved" | "error"
   >(null);
   const [saveErrorDetail, setSaveErrorDetail] = useState<string | null>(null);
+  const [needsSongHint, setNeedsSongHint] = useState(false);
   const [localProjectId, setLocalProjectId] = useState(newLocalProjectId);
   const [exportCheck, setExportCheck] = useState<{
     result: ValidationResult;
@@ -4093,6 +4098,7 @@ export default function App() {
     setModal(null);
     setImportError(null);
     setSaveStatus(null);
+    setNeedsSongHint(true);
     setLocalProjectId(newLocalProjectId());
     setCloudProjectId(null);
     setCloudOwnerId(null);
@@ -5355,6 +5361,24 @@ export default function App() {
         )}
 
         <TimedNotification
+          open={needsSongHint && !audioFile}
+          durationMs={8000}
+          onDismiss={() => setNeedsSongHint(false)}
+          resetKey="needs-song"
+          showClose
+          progressClassName="bg-accent"
+          className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-lg border border-white/10 bg-ink-800/95 px-4 py-2 pb-3 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
+        >
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
+            <SampleMapsIcon className="h-4 w-4" />
+          </span>
+          <span>
+            Add a song first to start mapping. Drop an audio file anywhere, or
+            pick one in Map Settings.
+          </span>
+        </TimedNotification>
+
+        <TimedNotification
           open={cloudSaveStatus === "saving" || exporting}
           durationMs={null}
           resetKey={cloudSaveStatus === "saving" ? "cloud-save" : "export"}
@@ -5457,6 +5481,7 @@ export default function App() {
       <Modal
         open={showHomeConfirm}
         onClose={() => setShowHomeConfirm(false)}
+        center
         title={t("home.confirmTitle")}
         footer={
           <>

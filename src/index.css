@@ -568,6 +568,52 @@ textarea {
   animation: loader-logo-pulse 1700ms ease-in-out infinite;
 }
 
+@keyframes skeleton-sheen {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(39, 39, 51, 0.62);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.045) 40%,
+    rgba(255, 255, 255, 0.095) 50%,
+    rgba(255, 255, 255, 0.045) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-sheen 1.6s cubic-bezier(0.4, 0, 0.5, 1) infinite;
+  animation-delay: var(--skeleton-delay, 0ms);
+}
+
+@keyframes skeleton-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.skeleton-swap-in {
+  animation: skeleton-swap-in 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @keyframes scroll-dir-in-up {
   from {
     opacity: 0;
@@ -650,9 +696,14 @@ textarea {
   .loader-content-in,
   .scroll-dir-in-up,
   .scroll-dir-in-down,
+  .skeleton-swap-in,
   .playtest-judgement,
   .playtest-hit-error {
     animation-duration: 1ms;
+  }
+
+  .skeleton::after {
+    animation: none;
   }
 
   /* Must match the specificity of .rate-panel-reveal[data-open="true"]. */

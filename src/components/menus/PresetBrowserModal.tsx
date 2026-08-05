@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, TextInput, Toggle } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
+import { SkeletonMediaCards } from "../ui/Skeleton";
 import { listPresets, type Preset } from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
 import { useAuth } from "../../lib/auth";
@@ -93,7 +94,7 @@ export function PresetBrowserModal({
 
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!filtered && !error && (
-        <p className="text-sm text-slate-400">Loading presets…</p>
+        <SkeletonMediaCards count={4} label="Loading presets" />
       )}
       {filtered && filtered.length === 0 && (
         <p className="text-sm text-slate-400">
@@ -104,7 +105,7 @@ export function PresetBrowserModal({
         </p>
       )}
       {filtered && filtered.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2">
           {filtered.map((p) => (
             <div
               key={p.id}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Toggle } from "./ui/Controls";
 import { HoldConfirmDialog } from "./ui/HoldConfirmDialog";
+import { SkeletonRows } from "./ui/Skeleton";
 import {
   listComments,
   addComment,
@@ -69,6 +70,7 @@ export function CommentsSidebar({
   const [hideResolved, setHideResolved] = useState(false);
   const [scope, setScope] = useState<"active" | "all">("active");
   const [seenAt, setSeenAt] = useState("");
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const seenKey = `cascade:comments-seen:${projectId}`;
@@ -90,10 +92,12 @@ export function CommentsSidebar({
       })
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Failed to load comments."),
-      );
+      )
+      .finally(() => setLoaded(true));
 
   useEffect(() => {
     if (!projectId) return;
+    setLoaded(false);
     reload();
     const unsub = subscribeComments(projectId, reload);
     return unsub;
@@ -286,7 +290,15 @@ export function CommentsSidebar({
       {error && <p className="px-3 pt-2 text-xs text-rose-400">{error}</p>}
 
       <div className="flex-1 overflow-y-auto p-3">
-        {threads.length === 0 && (
+        {!loaded && !error && (
+          <SkeletonRows
+            count={3}
+            lines={3}
+            action={false}
+            label="Loading comments"
+          />
+        )}
+        {loaded && threads.length === 0 && (
           <p className="text-sm text-slate-500">
             {scope === "active"
               ? "No comments on this difficulty."

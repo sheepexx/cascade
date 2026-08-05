@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { sessionAuthHeaders, useAuth } from "../../lib/auth";
 import { useT } from "../../lib/i18n";
 import { Button } from "../ui/Controls";
+import { Skeleton } from "../ui/Skeleton";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
 const MENU_EXIT_MS = 160;
@@ -145,9 +146,7 @@ export function AccountControl({
   }, [open]);
 
   if (loading) {
-    return (
-      <div className="h-9 w-24 animate-pulse rounded-lg bg-ink-700/60" />
-    );
+    return <Skeleton className="h-9 w-24 rounded-lg" />;
   }
 
   if (!user) {

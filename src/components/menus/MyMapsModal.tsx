@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
+import { SkeletonRows } from "../ui/Skeleton";
 import { useAuth } from "../../lib/auth";
 import {
   listProjectsCloud,
@@ -62,7 +63,7 @@ export function MyMapsModal({
     <Modal open={open} title="My Maps" onClose={onClose} width="max-w-2xl">
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!maps && !error && (
-        <p className="text-sm text-slate-400">Loading your maps…</p>
+        <SkeletonRows count={3} lines={3} label="Loading your maps" />
       )}
       {maps && maps.length === 0 && (
         <p className="text-sm text-slate-400">
@@ -70,7 +71,7 @@ export function MyMapsModal({
         </p>
       )}
       {maps && maps.length > 0 && (
-        <ul className="flex flex-col gap-2">
+        <ul className="skeleton-swap-in flex flex-col gap-2">
           {maps.map((m) => (
             <li
               key={m.id}

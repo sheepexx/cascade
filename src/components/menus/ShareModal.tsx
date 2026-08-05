@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, TextInput } from "../ui/Controls";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
+import { SkeletonRows } from "../ui/Skeleton";
 import { useT } from "../../lib/i18n";
 import {
   listCollaborators,
@@ -124,12 +125,19 @@ export function ShareModal({
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               {t("share.collaborators")}
             </div>
-            {!list && <p className="text-sm text-slate-400">{t("common.loading")}</p>}
+            {!list && (
+              <SkeletonRows
+                count={2}
+                lines={1}
+                avatar
+                label={t("common.loading")}
+              />
+            )}
             {list && list.length === 0 && (
               <p className="text-sm text-slate-400">{t("share.noCollaborators")}</p>
             )}
             {list && list.length > 0 && (
-              <ul className="flex flex-col gap-2">
+              <ul className="skeleton-swap-in flex flex-col gap-2">
                 {list.map((c) => (
                   <li
                     key={c.user_id}

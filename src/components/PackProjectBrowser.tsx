@@ -17,6 +17,7 @@ import { buildOsz } from "../lib/oszExport";
 import { sanitizePackFilename } from "../lib/packCreator";
 import { normalizeTimingPoints, type LoadedFile } from "../types";
 import { SampleMapsIcon } from "./ui/StartIcons";
+import { AsyncImage, SkeletonCards } from "./ui/Skeleton";
 
 type SelectionKey = string;
 
@@ -216,11 +217,11 @@ export function PackProjectBrowser({
 
       <BrowserSection title="Local projects" hint="saved on this device">
         {localProjects === null ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <SkeletonCards count={3} label="Loading local projects" />
         ) : localProjects.length === 0 ? (
           <p className="text-sm text-slate-500">No local saves yet.</p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {localProjects.map((p) => (
               <SelectableCard
                 key={p.id}
@@ -229,6 +230,7 @@ export function PackProjectBrowser({
                 subtitle={[p.artist, p.creator].filter(Boolean).join(" · ")}
                 note={`${p.difficultyCount} diff${p.difficultyCount === 1 ? "" : "s"}`}
                 thumbUrl={localThumbs[p.id]}
+                thumbPending={!!p.backgroundBlob && !localThumbs[p.id]}
                 disabled={adding}
                 onToggle={() => toggle(`local:${p.id}`)}
               />
@@ -248,11 +250,11 @@ export function PackProjectBrowser({
             </Button>
           </div>
         ) : cloudProjects === null ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <SkeletonCards count={3} label="Loading cloud projects" />
         ) : cloudProjects.length === 0 ? (
           <p className="text-sm text-slate-500">No cloud maps yet.</p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {cloudProjects.map((p) => (
               <SelectableCard
                 key={p.id}
@@ -261,6 +263,7 @@ export function PackProjectBrowser({
                 subtitle={[p.artist, p.creator].filter(Boolean).join(" · ")}
                 note={`saved ${new Date(p.updated_at).toLocaleDateString()}`}
                 thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
+                thumbPending={!!p.bg_path && !cloudThumbs[p.bg_path]}
                 disabled={adding}
                 onToggle={() => toggle(`cloud:${p.id}`)}
               />
@@ -300,6 +303,7 @@ function SelectableCard({
   subtitle,
   note,
   thumbUrl,
+  thumbPending,
   disabled,
   onToggle,
 }: {
@@ -308,6 +312,7 @@ function SelectableCard({
   subtitle?: string;
   note?: string;
   thumbUrl?: string;
+  thumbPending?: boolean;
   disabled?: boolean;
   onToggle: () => void;
 }) {
@@ -324,18 +329,16 @@ function SelectableCard({
       }`}
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-600">
-        {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="grid h-full w-full place-items-center text-slate-600">
-            <SampleMapsIcon className="h-8 w-8" />
-          </div>
-        )}
+        <AsyncImage
+          src={thumbUrl}
+          pending={thumbPending}
+          className="h-full w-full object-cover"
+          fallback={
+            <div className="grid h-full w-full place-items-center text-slate-600">
+              <SampleMapsIcon className="h-8 w-8" />
+            </div>
+          }
+        />
         {selected && (
           <span className="absolute right-2 top-2 rounded-md bg-emerald-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
             Selected ✓

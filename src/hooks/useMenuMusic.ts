@@ -143,7 +143,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
         const ctx = new Ctor();
         const analyser = ctx.createAnalyser();
         analyser.fftSize = FFT_SIZE;
-        analyser.smoothingTimeConstant = 0.75;
+        analyser.smoothingTimeConstant = 0.74;
         analyser.connect(ctx.destination);
         ctxRef.current = ctx;
         analyserRef.current = analyser;

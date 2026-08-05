@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, TextInput } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
+import {
+  SkeletonMediaCards,
+  SkeletonRows,
+  SkeletonStats,
+  SkeletonTable,
+} from "../ui/Skeleton";
 import { useAuth } from "../../lib/auth";
 import {
   listPresetsByStatus,
@@ -142,9 +148,7 @@ function StatsTab() {
   return (
     <div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-      {!stats && !error && (
-        <p className="text-sm text-slate-400">Loading...</p>
-      )}
+      {!stats && !error && <SkeletonStats count={4} label="Loading stats" />}
       {stats && (
         <>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -160,7 +164,9 @@ function StatsTab() {
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Feature usage
             </h2>
-            {!events && <p className="text-sm text-slate-500">Loading...</p>}
+            {!events && (
+              <SkeletonTable rows={5} columns={4} label="Loading feature usage" />
+            )}
             {events && events.length === 0 && (
               <p className="text-sm text-slate-500">
                 No events yet (or migration 0014 isn't applied).
@@ -291,7 +297,13 @@ function PresetsTab() {
         ))}
       </div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-      {!presets && <p className="text-sm text-slate-400">Loading…</p>}
+      {!presets && (
+        <SkeletonMediaCards
+          count={4}
+          columns="lg:grid-cols-2"
+          label="Loading presets"
+        />
+      )}
       {presets && presets.length === 0 && (
         <p className="text-sm text-slate-400">No {status} presets.</p>
       )}
@@ -386,7 +398,7 @@ function UsersTab() {
   return (
     <div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-      {!users && <p className="text-sm text-slate-400">Loading…</p>}
+      {!users && <SkeletonTable rows={8} columns={5} label="Loading users" />}
       {users && (
         <table className="w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -485,7 +497,9 @@ function ProjectsTab() {
   return (
     <div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-      {!projects && <p className="text-sm text-slate-400">Loading…</p>}
+      {!projects && (
+        <SkeletonTable rows={8} columns={5} label="Loading projects" />
+      )}
       {projects && projects.length === 0 && (
         <p className="text-sm text-slate-400">No projects.</p>
       )}
@@ -650,7 +664,11 @@ function FeatureFlagsSection() {
       </p>
       {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
       {!rows && !error && (
-        <p className="mt-3 text-sm text-slate-500">Loading…</p>
+        <SkeletonRows
+          count={4}
+          className="mt-4"
+          label="Loading feature flags"
+        />
       )}
       <div className="mt-4 flex flex-col gap-3">
         {rows?.map((row) => (
@@ -779,7 +797,12 @@ function FeedbackTab() {
     <div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!items && !error && (
-        <p className="text-sm text-slate-400">Loading...</p>
+        <SkeletonRows
+          count={3}
+          lines={3}
+          action={false}
+          label="Loading feedback"
+        />
       )}
       {items && items.length === 0 && (
         <p className="text-sm text-slate-400">No feedback yet.</p>

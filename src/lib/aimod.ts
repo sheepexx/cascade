@@ -165,7 +165,9 @@ export function formatAiModTime(ms: number): string {
 
 export function formatAiModObjects(objects?: AiModObject[]): string {
   if (!objects || objects.length === 0) return "";
-  return `(${objects.map((o) => `${Math.round(o.time)}|${o.column}`).join(",")})`;
+  return `(${objects
+    .map((o) => `${Math.round(o.time)}|${o.column + 1}`)
+    .join(",")})`;
 }
 
 function objectRef(time: number, column: number): AiModObject {
