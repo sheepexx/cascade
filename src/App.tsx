@@ -4219,7 +4219,7 @@ export default function App() {
       {importingMap && (
         <div className="loader-fade-in fixed inset-0 z-[55] flex flex-col items-center justify-center gap-8 bg-ink-900/80">
           <img
-            src={`${import.meta.env.BASE_URL}logo.png?v=2`}
+            src={`${import.meta.env.BASE_URL}favicon.png?v=3`}
             alt=""
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
@@ -4282,7 +4282,7 @@ export default function App() {
               data-no-uisound=""
             >
               <img
-                src={`${import.meta.env.BASE_URL}logo.png?v=2`}
+                src={`${import.meta.env.BASE_URL}favicon.png?v=3`}
                 alt="Cascade"
                 draggable={false}
                 onDragStart={(e) => e.preventDefault()}

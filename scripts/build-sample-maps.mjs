@@ -1,8 +1,15 @@
 
-import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
+import { readFile, readdir, writeFile, mkdir, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { join, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import JSZip from "jszip";
+
+const run = promisify(execFile);
+
+const BANNER_WIDTH = 800;
+const BANNER_QUALITY = 82;
 
 const SOURCE_DIR = process.argv[2] ?? "C:\\Users\\noahe\\Downloads\\maps";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -213,6 +220,27 @@ function computeStarRating(notes, keyCount) {
   return difficulty * DIFFICULTY_MULTIPLIER;
 }
 
+async function downscaleBanner(src, dst) {
+  const script = `
+Add-Type -AssemblyName System.Drawing
+$img=[System.Drawing.Image]::FromFile('${src}')
+$w=[math]::Min(${BANNER_WIDTH}, $img.Width)
+$h=[int][math]::Round($img.Height*($w/$img.Width))
+$bmp=New-Object System.Drawing.Bitmap($w,$h)
+$g=[System.Drawing.Graphics]::FromImage($bmp)
+$g.InterpolationMode=[System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+$g.PixelOffsetMode=[System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+$g.CompositingQuality=[System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+$g.DrawImage($img,0,0,$w,$h)
+$g.Dispose(); $img.Dispose()
+$enc=[System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
+$prm=New-Object System.Drawing.Imaging.EncoderParameters(1)
+$prm.Param[0]=New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality,${BANNER_QUALITY}L)
+$bmp.Save('${dst}',$enc,$prm)
+$bmp.Dispose()`;
+  await run("powershell", ["-NoProfile", "-NonInteractive", "-Command", script]);
+}
+
 function slugify(name) {
   return name
     .toLowerCase()
@@ -277,9 +305,18 @@ async function main() {
       const entry = findEntry(zip, withBg.background);
       if (entry) {
         const ext = extname(withBg.background) || ".jpg";
-        bannerName = `${slug}-banner${ext.toLowerCase()}`;
+        const rawName = `${slug}-banner-source${ext.toLowerCase()}`;
+        const rawPath = join(OUT_DIR, rawName);
         const imgBuf = await entry.async("nodebuffer");
-        await writeFile(join(OUT_DIR, bannerName), imgBuf);
+        await writeFile(rawPath, imgBuf);
+        bannerName = `${slug}-banner.jpg`;
+        try {
+          await downscaleBanner(rawPath, join(OUT_DIR, bannerName));
+          await rm(rawPath, { force: true });
+        } catch {
+          console.warn(`  banner downscale failed, keeping full size: ${file}`);
+          bannerName = rawName;
+        }
       }
     }
 

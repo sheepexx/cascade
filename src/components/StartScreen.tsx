@@ -313,7 +313,7 @@ export function StartScreen({
               active={music.isPlaying}
             />
             <img
-              src={`${import.meta.env.BASE_URL}logo.png?v=2`}
+              src={`${import.meta.env.BASE_URL}logo.png?v=3`}
               alt="Cascade"
               draggable={false}
               onDragStart={(e) => e.preventDefault()}
