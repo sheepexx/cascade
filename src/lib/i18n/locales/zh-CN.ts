@@ -1,6 +1,11 @@
 import type { PartialCatalog } from "../core";
 
 export const zhCN: PartialCatalog = {
+  "crash.title": "出了点问题",
+  "crash.body":
+    "编辑器遇到意外错误，无法继续运行。重新加载通常可以解决问题，你保存在本地的谱面仍然保留在此浏览器中。",
+  "crash.reload": "重新加载编辑器",
+  "crash.copyDetails": "复制错误详情",
   "common.cancel": "取消",
   "common.save": "保存",
   "common.close": "关闭",
@@ -187,7 +192,7 @@ export const zhCN: PartialCatalog = {
   "mapSettings.markUnsubmitted": "标记为未上传（-1）",
   "mapSettings.alreadyUnsubmitted": "已是未上传状态",
   "mapSettings.idsHint":
-    "Cascade 会保留谱面导入时自带的 ID，因此导出会更新原有的投稿。将其设为 -1 可解除关联——osu! 会把它当作全新的本地谱面导入。",
+    "Cascade 会保留谱面导入时自带的 ID，因此导出会更新原有的投稿。将其设为 -1 可解除关联，osu! 会把它当作全新的本地谱面导入。",
   "mapSettings.smFields": "StepMania / Etterna 字段",
   "mapSettings.smFieldsHint":
     "这些内容会在导出时直接写入 .sm 文件头。留空则使用默认值。",

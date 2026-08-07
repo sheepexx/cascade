@@ -690,7 +690,7 @@ export function SvModal({
               {stutterDrifts && (
                 <span className="text-amber-300">
                   {" "}
-                  Peak too strong to fully compensate — the field will drift
+                  Peak too strong to fully compensate, so the field will drift
                   forward.
                 </span>
               )}

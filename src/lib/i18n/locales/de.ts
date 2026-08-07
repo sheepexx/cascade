@@ -1,6 +1,11 @@
 import type { PartialCatalog } from "../core";
 
 export const de: PartialCatalog = {
+  "crash.title": "Etwas ist schiefgelaufen",
+  "crash.body":
+    "Der Editor ist auf einen unerwarteten Fehler gestoßen und konnte nicht fortfahren. Neu laden hilft meistens, und deine lokal gespeicherten Maps bleiben in diesem Browser erhalten.",
+  "crash.reload": "Editor neu laden",
+  "crash.copyDetails": "Fehlerdetails kopieren",
   "common.cancel": "Abbrechen",
   "common.save": "Speichern",
   "common.close": "Schließen",
@@ -191,7 +196,7 @@ export const de: PartialCatalog = {
   "mapSettings.markUnsubmitted": "Als nicht hochgeladen markieren (-1)",
   "mapSettings.alreadyUnsubmitted": "Bereits nicht hochgeladen",
   "mapSettings.idsHint":
-    "Cascade behält die IDs, mit denen eine Map importiert wurde, damit ein Export dieselbe Einreichung aktualisiert. Auf -1 gesetzt löst sich die Map davon — osu! importiert sie dann als komplett neue lokale Map.",
+    "Cascade behält die IDs, mit denen eine Map importiert wurde, damit ein Export dieselbe Einreichung aktualisiert. Auf -1 gesetzt löst sich die Map davon, und osu! importiert sie dann als komplett neue lokale Map.",
   "mapSettings.smFields": "StepMania- / Etterna-Felder",
   "mapSettings.smFieldsHint":
     "Diese werden beim Export direkt in den .sm-Header geschrieben. Leer lassen, um die Standardwerte zu verwenden.",

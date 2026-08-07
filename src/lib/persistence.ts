@@ -297,6 +297,19 @@ async function withStore<T>(
   }
 }
 
+let persistenceRequested = false;
+
+export function requestPersistentStorage(): void {
+  if (persistenceRequested) return;
+  persistenceRequested = true;
+  const storage = navigator.storage;
+  if (!storage?.persist || !storage.persisted) return;
+  void storage
+    .persisted()
+    .then((granted) => (granted ? true : storage.persist()))
+    .catch(() => false);
+}
+
 export async function saveProject(
   project: SavedProject,
   localId: string = KEY,

@@ -1,4 +1,9 @@
 export const en = {
+  "crash.title": "Something went wrong",
+  "crash.body":
+    "The editor hit an unexpected error and could not continue. Reloading usually fixes it, and the maps you saved locally stay in this browser.",
+  "crash.reload": "Reload editor",
+  "crash.copyDetails": "Copy error details",
   "common.cancel": "Cancel",
   "common.save": "Save",
   "common.close": "Close",
@@ -189,7 +194,7 @@ export const en = {
   "mapSettings.markUnsubmitted": "Mark as unsubmitted (-1)",
   "mapSettings.alreadyUnsubmitted": "Already unsubmitted",
   "mapSettings.idsHint":
-    "Cascade keeps the IDs an imported map came with, so an export updates that submission. Set them to -1 to detach the map — osu! then imports it as a brand-new local map.",
+    "Cascade keeps the IDs an imported map came with, so an export updates that submission. Set them to -1 to detach the map, and osu! then imports it as a brand-new local map.",
   "mapSettings.smFields": "StepMania / Etterna Fields",
   "mapSettings.smFieldsHint":
     "These are written directly to the .sm header on export. Leave blank to use defaults.",

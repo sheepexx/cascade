@@ -329,7 +329,7 @@ export function RateChangerPanel({
 
         {neutral && (
           <p className="mt-1.5 text-center text-[10px] leading-tight text-slate-500">
-            At 1.00x nothing would change — pick another rate.
+            At 1.00x nothing would change, so pick another rate.
           </p>
         )}
       </div>

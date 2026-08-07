@@ -158,6 +158,7 @@ import {
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
 import {
   loadProject,
+  requestPersistentStorage,
   saveProject,
   PROJECT_VERSION,
   savePreferences,
@@ -3588,7 +3589,10 @@ export default function App() {
   ]);
 
   const handleSave = useCallback(async (silent = false) => {
-    if (!silent) setSaveStatus("saving");
+    if (!silent) {
+      setSaveStatus("saving");
+      requestPersistentStorage();
+    }
     try {
       await saveProject(buildSavedProject(), localProjectId);
       setSaveErrorDetail(null);

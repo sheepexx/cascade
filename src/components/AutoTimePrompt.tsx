@@ -86,7 +86,7 @@ export function AutoTimePrompt({
               ✓ Timed at {result.bpm} BPM
             </div>
             <div className="mt-0.5 text-xs text-slate-400">
-              offset {result.offsetMs} ms · {confidenceLabel} — fine-tune in
+              offset {result.offsetMs} ms · {confidenceLabel} · fine-tune in
               the Timing menu
             </div>
           </div>
