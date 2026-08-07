@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { en } from "./locales/en";
 import { de } from "./locales/de";
 import { ru } from "./locales/ru";
@@ -7,6 +7,7 @@ import { ptBR } from "./locales/pt-BR";
 import {
   LOCALES,
   detectLocale,
+  registerCatalog,
   resolveLocale,
   translate,
   type Locale,
@@ -20,6 +21,10 @@ const TRANSLATIONS: [Locale, PartialCatalog][] = [
   ["zh-CN", zhCN],
   ["pt-BR", ptBR],
 ];
+
+beforeAll(() => {
+  for (const [locale, catalog] of TRANSLATIONS) registerCatalog(locale, catalog);
+});
 
 function placeholders(text: string): string[] {
   return [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
@@ -138,6 +143,20 @@ describe("translate", () => {
     expect(translate("en", "does.not.exist" as MessageKey)).toBe(
       "does.not.exist",
     );
+  });
+});
+
+describe("lazy catalogs", () => {
+  it("ships English up front and loads the rest on demand", async () => {
+    vi.resetModules();
+    const core = await import("./core");
+    expect(core.isCatalogLoaded("en")).toBe(true);
+    expect(core.isCatalogLoaded("ru")).toBe(false);
+    expect(core.translate("ru", "common.save")).toBe("Save");
+
+    await core.loadCatalog("ru");
+    expect(core.isCatalogLoaded("ru")).toBe(true);
+    expect(core.translate("ru", "common.save")).toBe("Сохранить");
   });
 });
 

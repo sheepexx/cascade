@@ -1,8 +1,4 @@
 import { en } from "./locales/en";
-import { de } from "./locales/de";
-import { ru } from "./locales/ru";
-import { zhCN } from "./locales/zh-CN";
-import { ptBR } from "./locales/pt-BR";
 
 export type Locale = "en" | "de" | "ru" | "zh-CN" | "pt-BR";
 
@@ -37,13 +33,37 @@ export const LOCALES: LocaleOption[] = [
 
 export const DEFAULT_LOCALE: Locale = "en";
 
-const CATALOGS: Record<Locale, PartialCatalog> = {
-  en,
-  de,
-  ru,
-  "zh-CN": zhCN,
-  "pt-BR": ptBR,
+const CATALOGS: Partial<Record<Locale, PartialCatalog>> = { en };
+
+const LOADERS: Record<string, () => Promise<PartialCatalog>> = {
+  de: () => import("./locales/de").then((m) => m.de),
+  ru: () => import("./locales/ru").then((m) => m.ru),
+  "zh-CN": () => import("./locales/zh-CN").then((m) => m.zhCN),
+  "pt-BR": () => import("./locales/pt-BR").then((m) => m.ptBR),
 };
+
+const pending = new Map<Locale, Promise<void>>();
+
+export function registerCatalog(locale: Locale, catalog: PartialCatalog): void {
+  CATALOGS[locale] = catalog;
+}
+
+export function isCatalogLoaded(locale: Locale): boolean {
+  return CATALOGS[locale] !== undefined;
+}
+
+export function loadCatalog(locale: Locale): Promise<void> {
+  const loaded = pending.get(locale);
+  if (loaded) return loaded;
+  if (isCatalogLoaded(locale)) return Promise.resolve();
+  const loader = LOADERS[locale];
+  if (!loader) return Promise.resolve();
+  const task = loader()
+    .then((catalog) => registerCatalog(locale, catalog))
+    .catch(() => {});
+  pending.set(locale, task);
+  return task;
+}
 
 export function isLocale(value: unknown): value is Locale {
   return (

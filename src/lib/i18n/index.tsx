@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -9,6 +10,8 @@ import {
 import { loadLocale, saveLocale } from "../persistence";
 import {
   detectLocale,
+  isCatalogLoaded,
+  loadCatalog,
   resolveLocale,
   setActiveLocale,
   translate,
@@ -47,9 +50,22 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
     const next = initialLocale();
     setActiveLocale(next);
+    void loadCatalog(next);
     if (typeof document !== "undefined") document.documentElement.lang = next;
     return next;
   });
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    if (isCatalogLoaded(locale)) return;
+    let cancelled = false;
+    void loadCatalog(locale).then(() => {
+      if (!cancelled) setRevision((n) => n + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
     setActiveLocale(next);
@@ -66,7 +82,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       setLocale,
       t: (key, params) => translate(locale, key, params),
     }),
-    [locale, setLocale],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale, setLocale, revision],
   );
 
   return (
