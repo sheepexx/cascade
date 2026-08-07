@@ -39,6 +39,7 @@ import { ImportModal } from "./components/menus/ImportModal";
 import { StartScreen } from "./components/StartScreen";
 import { NowPlaying } from "./components/NowPlaying";
 import { useMenuMusic } from "./hooks/useMenuMusic";
+import { dialogIsOpen } from "./hooks/useDialog";
 const PackCreator = lazy(() =>
   import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
 );
@@ -3122,7 +3123,7 @@ export default function App() {
     const shouldIgnoreHotkey = (e: KeyboardEvent) => {
       if (playtestRef.current.active) return true;
       if (!projectStartedRef.current) return true;
-      if (modalRef.current || askBgScope) return true;
+      if (modalRef.current || askBgScope || dialogIsOpen()) return true;
       if (!isTypingTarget(e.target)) return false;
       return (e.target as HTMLInputElement).type !== "range";
     };

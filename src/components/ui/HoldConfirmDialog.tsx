@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Button } from "./Controls";
 import { HoldToDelete } from "./HoldToDelete";
+import { useDialog } from "../../hooks/useDialog";
 import { playUiSound } from "../../lib/uiSounds";
 
 const EXIT_MS = 200;
@@ -25,6 +26,8 @@ export function HoldConfirmDialog({
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   const [shown, setShown] = useState({ title, message, confirmLabel });
+  const titleId = useId();
+  const panelRef = useDialog(open && mounted);
 
   useEffect(() => {
     if (open) {
@@ -74,12 +77,19 @@ export function HoldConfirmDialog({
       }}
     >
       <div
-        className={`flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] ring-1 ring-rose-500/20 ${
+        ref={panelRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] outline-none ring-1 ring-rose-500/20 ${
           closing ? "confirm-pop-out" : "confirm-pop-in"
         }`}
       >
         <header className="border-b border-white/10 bg-ink-700 px-5 py-3.5">
-          <h2 className="text-sm font-semibold text-slate-100">{shown.title}</h2>
+          <h2 id={titleId} className="text-sm font-semibold text-slate-100">
+            {shown.title}
+          </h2>
         </header>
         <div className="px-5 py-4 text-sm text-slate-300">{shown.message}</div>
         <footer className="flex justify-end gap-2 border-t border-white/10 bg-ink-700 px-5 py-3.5">

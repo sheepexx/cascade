@@ -30,6 +30,7 @@ import {
 } from "../lib/editorKeybinds";
 import type { PatternNote } from "../lib/patterns";
 import type { Waveform } from "../hooks/useWaveform";
+import { dialogIsOpen } from "../hooks/useDialog";
 import {
   hasNoteCollision,
   hasNoteCollisions,
@@ -567,6 +568,7 @@ export function ManiaEditor(props: Props) {
       setShiftActive(active);
     };
     const isTyping = (target: EventTarget | null) => {
+      if (dialogIsOpen()) return true;
       const t = target as HTMLElement | null;
       const tag = t?.tagName;
       return (

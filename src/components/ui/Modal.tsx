@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { useDialog } from "../../hooks/useDialog";
 
 type Props = {
   open: boolean;
@@ -26,6 +27,8 @@ export function Modal({
 }: Props) {
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
+  const titleId = useId();
+  const panelRef = useDialog(open && mounted);
 
   useEffect(() => {
     if (open) {
@@ -77,7 +80,12 @@ export function Modal({
       }}
     >
       <div
-        className={`flex max-h-[84vh] w-full ${width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] ${
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`flex max-h-[84vh] w-full ${width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] outline-none ${
           closing
             ? slideUp
               ? "modal-panel-up-out"
@@ -88,7 +96,9 @@ export function Modal({
         }`}
       >
         <header className="flex items-center justify-between border-b border-white/10 bg-ink-700 px-5 py-3.5">
-          <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
+          <h2 id={titleId} className="text-sm font-semibold text-slate-100">
+            {title}
+          </h2>
           <button
             onClick={onClose}
             className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
