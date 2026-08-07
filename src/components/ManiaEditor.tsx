@@ -299,6 +299,11 @@ export function ManiaEditor(props: Props) {
 
   const propsRef = useRef(props);
   propsRef.current = props;
+  const dirtyRef = useRef(true);
+  dirtyRef.current = true;
+  const markDirty = useCallback(() => {
+    dirtyRef.current = true;
+  }, []);
   const renderTimeRef = useRef(props.currentTime);
   const liveCurrentTime = useCallback(() => renderTimeRef.current, []);
   const smoothScrollSpeedRef = useRef(props.view.scrollSpeed);
@@ -338,6 +343,7 @@ export function ManiaEditor(props: Props) {
   const selectionDragRef = useRef<SelectionDragState | null>(null);
   const moveDragRef = useRef<MoveDragState | null>(null);
   const selectionAutoscrollTimeRef = useRef<number | null>(null);
+  const selectionAutoscrollRafRef = useRef(0);
   const boxSelectCapturedRef = useRef(false);
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(
     new Map(),
@@ -571,6 +577,7 @@ export function ManiaEditor(props: Props) {
       );
     };
     const onKeyDown = (e: KeyboardEvent) => {
+      markDirty();
       if (propsRef.current.playtestMode) {
         if (e.key === "Shift") setShift(false);
         return;
@@ -693,12 +700,14 @@ export function ManiaEditor(props: Props) {
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
+      markDirty();
       if (propsRef.current.playtestMode) return;
       if (e.key === "Shift") {
         setShift(false);
       }
     };
     const onBlur = () => {
+      markDirty();
       setShift(false);
       selectionDragRef.current = null;
       selectionAutoscrollTimeRef.current = null;
@@ -737,8 +746,9 @@ export function ManiaEditor(props: Props) {
       if (propsRef.current.backgroundUrl !== url) return;
       bgImgRef.current = img;
       bgFadeStartRef.current = performance.now();
+      markDirty();
     };
-  }, [props.backgroundUrl]);
+  }, [props.backgroundUrl, markDirty]);
 
   useEffect(() => {
     if (!props.videoUrl) {
@@ -750,14 +760,18 @@ export function ManiaEditor(props: Props) {
     video.muted = true;
     video.playsInline = true;
     video.preload = "auto";
+    video.addEventListener("loadeddata", markDirty);
+    video.addEventListener("seeked", markDirty);
     videoRef.current = video;
     return () => {
+      video.removeEventListener("loadeddata", markDirty);
+      video.removeEventListener("seeked", markDirty);
       video.pause();
       video.removeAttribute("src");
       video.load();
       if (videoRef.current === video) videoRef.current = null;
     };
-  }, [props.videoUrl]);
+  }, [props.videoUrl, markDirty]);
 
   useEffect(() => {
     const skin = props.skin;
@@ -783,7 +797,9 @@ export function ManiaEditor(props: Props) {
       const img = new Image();
       img.src = url;
       img.onload = () => {
-        if (!cancelled) assign(img);
+        if (cancelled) return;
+        assign(img);
+        markDirty();
       };
     };
     skin.columns.forEach((c, i) => {
@@ -797,43 +813,56 @@ export function ManiaEditor(props: Props) {
     return () => {
       cancelled = true;
     };
-  }, [props.skin]);
+  }, [props.skin, markDirty]);
 
   const updateSmoothMotion = useCallback(() => {
     const now = performance.now();
     const last = lastMotionFrameRef.current || now;
     const dt = Math.min(0.08, Math.max(0, (now - last) / 1000));
     lastMotionFrameRef.current = now;
+    let moving = false;
 
     const targetTime = propsRef.current.getCurrentTime();
     const smooth = propsRef.current.smoothScrolling !== false;
     if (!smooth || propsRef.current.isPlaying) {
+      if (renderTimeRef.current !== targetTime) moving = true;
       renderTimeRef.current = targetTime;
     } else if (Number.isFinite(targetTime)) {
       const cur = renderTimeRef.current;
       const delta = targetTime - cur;
       if (Math.abs(delta) < 0.4) {
+        if (cur !== targetTime) moving = true;
         renderTimeRef.current = targetTime;
       } else {
         renderTimeRef.current =
           cur + delta * (1 - Math.exp(-SCROLL_TIME_EASE * dt));
+        moving = true;
       }
     }
 
     const targetScale = propsRef.current.playfieldScale || 1;
     const curScale = smoothScaleRef.current;
-    smoothScaleRef.current =
-      Math.abs(targetScale - curScale) < 0.002
-        ? targetScale
-        : curScale + (targetScale - curScale) * (1 - Math.exp(-SCROLL_SPEED_EASE * dt));
+    if (Math.abs(targetScale - curScale) < 0.002) {
+      if (curScale !== targetScale) moving = true;
+      smoothScaleRef.current = targetScale;
+    } else {
+      smoothScaleRef.current =
+        curScale +
+        (targetScale - curScale) * (1 - Math.exp(-SCROLL_SPEED_EASE * dt));
+      moving = true;
+    }
 
     const targetBlend = propsRef.current.svPreview ? 1 : 0;
     const curBlend = svBlendRef.current;
-    svBlendRef.current =
-      Math.abs(targetBlend - curBlend) < 0.005
-        ? targetBlend
-        : curBlend +
-          (targetBlend - curBlend) * (1 - Math.exp(-SCROLL_SPEED_EASE * dt));
+    if (Math.abs(targetBlend - curBlend) < 0.005) {
+      if (curBlend !== targetBlend) moving = true;
+      svBlendRef.current = targetBlend;
+    } else {
+      svBlendRef.current =
+        curBlend +
+        (targetBlend - curBlend) * (1 - Math.exp(-SCROLL_SPEED_EASE * dt));
+      moving = true;
+    }
     if (svBlendRef.current > 0) {
       svAnchorPosRef.current = svPositionAt(
         svMap(),
@@ -844,13 +873,15 @@ export function ManiaEditor(props: Props) {
 
     const target = propsRef.current.view.scrollSpeed;
     const current = smoothScrollSpeedRef.current;
-    if (!Number.isFinite(target)) return;
+    if (!Number.isFinite(target)) return moving;
     if (Math.abs(target - current) < 0.01) {
+      if (current !== target) moving = true;
       smoothScrollSpeedRef.current = target;
-      return;
+      return moving;
     }
     const amount = 1 - Math.exp(-SCROLL_SPEED_EASE * dt);
     smoothScrollSpeedRef.current = current + (target - current) * amount;
+    return true;
   }, []);
 
   const ppms = useCallback(() => {
@@ -1722,21 +1753,36 @@ export function ManiaEditor(props: Props) {
 
   useEffect(() => {
     let raf = 0;
+    const animating = () => {
+      const p = propsRef.current;
+      if (p.isPlaying || p.playtestMode) return true;
+      const video = videoRef.current;
+      if (video && !video.paused && video.readyState >= 2) return true;
+      const fadeStart = bgFadeStartRef.current;
+      return (
+        fadeStart > 0 &&
+        performance.now() - fadeStart <
+          BACKGROUND_FADE_DELAY_MS + BACKGROUND_FADE_MS
+      );
+    };
     const loop = () => {
-      updateSmoothMotion();
+      const moving = updateSmoothMotion();
       const hud = fpsHudRef.current;
-      if (hud.show) {
-        const t0 = performance.now();
-        draw();
-        hud.drawMs = performance.now() - t0;
-        hud.frames++;
-        if (t0 - hud.windowStart >= 1000) {
-          hud.fps = (hud.frames * 1000) / (t0 - hud.windowStart);
-          hud.frames = 0;
-          hud.windowStart = t0;
+      if (dirtyRef.current || moving || hud.show || animating()) {
+        dirtyRef.current = false;
+        if (hud.show) {
+          const t0 = performance.now();
+          draw();
+          hud.drawMs = performance.now() - t0;
+          hud.frames++;
+          if (t0 - hud.windowStart >= 1000) {
+            hud.fps = (hud.frames * 1000) / (t0 - hud.windowStart);
+            hud.frames = 0;
+            hud.windowStart = t0;
+          }
+        } else {
+          draw();
         }
-      } else {
-        draw();
       }
       raf = requestAnimationFrame(loop);
     };
@@ -1755,12 +1801,13 @@ export function ManiaEditor(props: Props) {
         height: rect.height,
         dpr: window.devicePixelRatio || 1,
       };
+      markDirty();
     };
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, []);
+  }, [markDirty]);
 
   const localPoint = (e: React.MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -1845,16 +1892,15 @@ export function ManiaEditor(props: Props) {
     );
   }
 
-  useEffect(() => {
-    let raf = 0;
+  const startSelectionAutoscroll = useCallback(() => {
+    if (selectionAutoscrollRafRef.current) return;
     let last = performance.now();
 
     const tick = (now: number) => {
       const selection = selectionDragRef.current;
       if (!selection) {
         selectionAutoscrollTimeRef.current = null;
-        last = now;
-        raf = requestAnimationFrame(tick);
+        selectionAutoscrollRafRef.current = 0;
         return;
       }
 
@@ -1913,12 +1959,21 @@ export function ManiaEditor(props: Props) {
       }
 
       last = now;
-      raf = requestAnimationFrame(tick);
+      selectionAutoscrollRafRef.current = requestAnimationFrame(tick);
     };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    selectionAutoscrollRafRef.current = requestAnimationFrame(tick);
   }, [liveCurrentTime, playheadY, ppms]);
+
+  useEffect(
+    () => () => {
+      if (selectionAutoscrollRafRef.current) {
+        cancelAnimationFrame(selectionAutoscrollRafRef.current);
+        selectionAutoscrollRafRef.current = 0;
+      }
+    },
+    [],
+  );
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -1940,6 +1995,7 @@ export function ManiaEditor(props: Props) {
         currentTime: yToTime(y),
         rawY: y,
       };
+      startSelectionAutoscroll();
       setSelection(new Set());
       return;
     }
@@ -2127,6 +2183,7 @@ export function ManiaEditor(props: Props) {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
+    markDirty();
     if (e.pointerType === "mouse") {
       onMouseDown(e);
       if (selectionDragRef.current) {
@@ -2160,6 +2217,7 @@ export function ManiaEditor(props: Props) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    markDirty();
     if (e.pointerType === "mouse") {
       onMouseMove(e);
       return;
@@ -2181,6 +2239,7 @@ export function ManiaEditor(props: Props) {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
+    markDirty();
     if (e.pointerType === "mouse") {
       if (boxSelectCapturedRef.current) {
         boxSelectCapturedRef.current = false;
@@ -2206,6 +2265,7 @@ export function ManiaEditor(props: Props) {
   };
 
   const onPointerCancel = (e: React.PointerEvent) => {
+    markDirty();
     if (e.pointerType === "mouse") {
       if (boxSelectCapturedRef.current) {
         boxSelectCapturedRef.current = false;
@@ -2220,10 +2280,12 @@ export function ManiaEditor(props: Props) {
   };
 
   const onPointerLeave = (e: React.PointerEvent) => {
+    markDirty();
     if (e.pointerType === "mouse") onMouseLeave();
   };
 
   const onWheel = (e: React.WheelEvent) => {
+    markDirty();
     if (props.playtestMode) {
       e.preventDefault();
       return;
