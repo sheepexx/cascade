@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/logo.png?v=2" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
     <link rel="canonical" href="https://cascade.sheepex.net/osu-mania-map-viewer" />
     <meta name="theme-color" content="#0b0d12" />
     <meta name="robots" content="index, follow" />
@@ -18,6 +18,13 @@
     <meta property="og:description" content="Drop an .osz and watch the map play with audio, hitsounds and skins. Free, in your browser." />
     <meta property="og:url" content="https://cascade.sheepex.net/osu-mania-map-viewer" />
     <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Cascade editor with an osu!mania beatmap open" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Preview osu!mania maps online" />
+    <meta name="twitter:description" content="Drop an .osz and watch the map play with audio, hitsounds and skins. Free, in your browser." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
     <style>
       :root { color-scheme: dark; }
       body {
@@ -47,11 +54,31 @@
       footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
       footer a { color: #9aa0ad; }
     </style>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "osu!mania map viewer",
+            "item": "https://cascade.sheepex.net/osu-mania-map-viewer"
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <main>
       <header>
-        <img src="/logo.png?v=2" alt="Cascade logo" />
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
         <a href="/">Cascade</a>
       </header>
 
