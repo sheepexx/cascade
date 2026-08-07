@@ -484,6 +484,7 @@ export default function App() {
     };
   }, []);
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const [pendingDeleteDiffIds, setPendingDeleteDiffIds] = useState<
     string[] | null
@@ -1561,6 +1562,7 @@ export default function App() {
     timingPoints[0]?.bpm !== 120 ||
     !hasDefaultDifficulty;
   const showChrome = hasProject && !zenMode && !playtest.active;
+  const showHeader = !zenMode && (hasProject || menuOpen);
   const showChromeRef = useRef(showChrome);
   showChromeRef.current = showChrome;
   const playtestVisualOffset =
@@ -4261,12 +4263,14 @@ export default function App() {
       )}
 
       <header
-        className={`flex items-center justify-between gap-4 overflow-hidden border-white/10 bg-ink-800/65 px-5 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out ${
-          zenMode
-            ? "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
-            : "max-h-20 translate-y-0 border-b py-2.5 opacity-100"
+        className={`z-30 flex items-center justify-between gap-4 overflow-hidden border-white/10 bg-ink-800/65 px-5 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out ${
+          hasProject ? "" : "absolute inset-x-0 top-0"
+        } ${
+          showHeader
+            ? "max-h-20 translate-y-0 border-b py-2.5 opacity-100"
+            : "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
         }`}
-        aria-hidden={zenMode}
+        aria-hidden={!showHeader}
       >
         <div className="flex min-w-0 items-center gap-4">
           <div className="flex shrink-0 items-center gap-2.5">
@@ -4648,6 +4652,7 @@ export default function App() {
             ) : (
               <StartScreen
                 music={menuMusic}
+                onOpenChange={setMenuOpen}
                 onMyMaps={() => setModal("myProjects")}
                 onNewMap={() => handleNew(hasProjectContent)}
                 onPackCreator={() => setPackCreatorOpen(true)}

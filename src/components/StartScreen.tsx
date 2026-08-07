@@ -19,6 +19,7 @@ type MenuAction = {
   onClick: () => void;
 };
 
+const IDLE_BPM = 59;
 const LOGO_CLOSED = 300;
 const LOGO_OPEN = 196;
 const LOGO_MIN = 168;
@@ -55,6 +56,7 @@ const SEAM_FADE = `linear-gradient(to bottom, ${Array.from(
 
 export function StartScreen({
   music,
+  onOpenChange,
   onMyMaps,
   onNewMap,
   onPackCreator,
@@ -63,6 +65,7 @@ export function StartScreen({
   children,
 }: {
   music: MenuMusic;
+  onOpenChange?: (open: boolean) => void;
   onMyMaps: () => void;
   onNewMap: () => void;
   onPackCreator: () => void;
@@ -85,18 +88,12 @@ export function StartScreen({
     const node = barRef.current;
     if (!node || !barHovered) return;
     let raf = 0;
-    const tick = () => {
+    const tick = (time: number) => {
       raf = requestAnimationFrame(tick);
-      const { getPlayback, track } = musicRef.current;
-      const playback = getPlayback();
-      let beat = 0;
-      if (playback?.playing && track && track.bpm > 0) {
-        const beatMs = 60000 / track.bpm;
-        const phase =
-          (((playback.position - track.beatOffsetMs) % beatMs) + beatMs) % beatMs;
-        beat = Math.pow(1 - phase / beatMs, 5);
-      }
-      node.style.setProperty("--beat", beat.toFixed(3));
+      node.style.setProperty(
+        "--beat",
+        beatPulse(musicRef.current, time).toFixed(3),
+      );
     };
     raf = requestAnimationFrame(tick);
     return () => {
@@ -104,6 +101,11 @@ export function StartScreen({
       node.style.removeProperty("--beat");
     };
   }, [barHovered]);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+    return () => onOpenChange?.(false);
+  }, [open, onOpenChange]);
 
   useEffect(() => {
     const update = () => setLayout(measure());
@@ -511,6 +513,21 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   return t * t * (3 - 2 * t);
 }
 
+function pulseAt(period: number, position: number): number {
+  const phase = ((position % period) + period) % period;
+  return Math.pow(1 - phase / period, 5);
+}
+
+function beatPulse(music: MenuMusic, now: number): number {
+  const { track } = music;
+  const playback = music.getPlayback();
+  if (playback?.playing && track && track.bpm > 0) {
+    return pulseAt(60000 / track.bpm, playback.position - track.beatOffsetMs);
+  }
+  if (music.hasPlaylist) return 0;
+  return pulseAt(60000 / IDLE_BPM, now);
+}
+
 function Visualizer({
   music,
   size,
@@ -575,7 +592,7 @@ function Visualizer({
       maskAngle -= delta * MASK_SPEED;
       ctx.clearRect(0, 0, box, box);
 
-      const { readLevels, getPlayback, track } = musicRef.current;
+      const { readLevels } = musicRef.current;
       const amps = smoothRef.current;
 
       const levels = readLevels();
@@ -648,14 +665,7 @@ function Visualizer({
       ctx.globalCompositeOperation = "source-over";
 
       if (node) {
-        const playback = getPlayback();
-        let beat = 0;
-        if (playback?.playing && track && track.bpm > 0) {
-          const beatMs = 60000 / track.bpm;
-          const phase =
-            (((playback.position - track.beatOffsetMs) % beatMs) + beatMs) % beatMs;
-          beat = Math.pow(1 - phase / beatMs, 5);
-        }
+        const beat = beatPulse(musicRef.current, time);
         const scale = 1 + beat * 0.05 + Math.min(0.035, loud * 0.5);
         node.style.transform = `scale(${scale.toFixed(4)})`;
       }
