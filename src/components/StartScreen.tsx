@@ -45,6 +45,24 @@ const MASK_DIM = 0.2;
 const MASK_EDGE_LOW = 0.35;
 const MASK_EDGE_HIGH = 0.9;
 
+const KIAI_FADE_IN_MS = 110;
+const KIAI_FADE_OUT_MS = 460;
+const KIAI_GLOW_BASE = 0.1;
+const KIAI_GLOW_BEAT = 0.22;
+const KIAI_GLOW_TAIL = 0.6;
+const KIAI_BURST_GLOW = 0.12;
+const KIAI_BURST_DECAY_MS = 700;
+const STARS_PER_SIDE = 26;
+const STAR_OPENING = 0.45;
+const STAR_EMIT_MS = 380;
+const STAR_SPRITE = 64;
+const STAR_LIFE_MS = 1400;
+const STAR_REACH = 0.62;
+const STAR_END_SPEED = 0.26;
+const STAR_ALPHA = 0.6;
+const STAR_FADE_FROM = 0.45;
+const STAR_MAX = 160;
+
 const SEAM_FADE = `linear-gradient(to bottom, ${Array.from(
   { length: 21 },
   (_, i) => {
@@ -53,6 +71,14 @@ const SEAM_FADE = `linear-gradient(to bottom, ${Array.from(
     return `rgba(15,15,20,${a.toFixed(4)}) ${(t * 100).toFixed(1)}%`;
   },
 ).join(", ")})`;
+
+const KIAI_GLOW_STOPS = Array.from({ length: 13 }, (_, i) => {
+  const t = i / 12;
+  const a = Math.pow(1 - t, 3.4);
+  return `rgba(255,250,240,${a.toFixed(4)}) ${(t * 100).toFixed(1)}%`;
+}).join(", ");
+const KIAI_GLOW_LEFT = `linear-gradient(to right, ${KIAI_GLOW_STOPS})`;
+const KIAI_GLOW_RIGHT = `linear-gradient(to left, ${KIAI_GLOW_STOPS})`;
 
 export function StartScreen({
   music,
@@ -191,6 +217,8 @@ export function StartScreen({
           className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(7rem,22vh,16rem)]"
           style={{ backgroundImage: SEAM_FADE }}
         />
+
+        <KiaiEffects music={music} />
 
         {open && (
           <button
@@ -526,6 +554,261 @@ function beatPulse(music: MenuMusic, now: number): number {
   }
   if (music.hasPlaylist) return 0;
   return pulseAt(60000 / IDLE_BPM, now);
+}
+
+type Star = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  gravity: number;
+  life: number;
+  ttl: number;
+  size: number;
+  rot: number;
+  spin: number;
+};
+
+function makeStarSprite(): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = STAR_SPRITE;
+  canvas.height = STAR_SPRITE;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+  const mid = STAR_SPRITE / 2;
+  const outer = mid * 0.46;
+  const inner = outer * 0.42;
+  const halo = ctx.createRadialGradient(mid, mid, 0, mid, mid, mid);
+  halo.addColorStop(0, "rgba(255,255,255,0.5)");
+  halo.addColorStop(0.34, "rgba(255,242,224,0.14)");
+  halo.addColorStop(1, "rgba(255,226,190,0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, STAR_SPRITE, STAR_SPRITE);
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const radius = i % 2 === 0 ? outer : inner;
+    const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+    const px = mid + Math.cos(angle) * radius;
+    const py = mid + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.shadowColor = "rgba(255,244,224,0.9)";
+  ctx.shadowBlur = mid * 0.45;
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  return canvas;
+}
+
+function KiaiEffects({ music }: { music: MenuMusic }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const leftRef = useRef<HTMLDivElement | null>(null);
+  const rightRef = useRef<HTMLDivElement | null>(null);
+  const spriteRef = useRef<HTMLCanvasElement | null>(null);
+  const musicRef = useRef(music);
+  musicRef.current = music;
+  const active = music.isPlaying && (music.track?.kiai.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (!active) return;
+    const canvas = canvasRef.current;
+    const left = leftRef.current;
+    const right = rightRef.current;
+    if (!canvas || !left || !right) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    if (!spriteRef.current) spriteRef.current = makeStarSprite();
+    const sprite = spriteRef.current;
+
+    let width = 1;
+    let height = 1;
+    let dpr = 1;
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.round(rect.width));
+      height = Math.max(1, Math.round(rect.height));
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
+
+    const stars: Star[] = [];
+    let envelope = 0;
+    let burst = 0;
+    let pending = 0;
+    let emitted = 0;
+    let wasKiai = false;
+    let painted = false;
+    let last = 0;
+    let raf = 0;
+
+    const spawn = (count: number) => {
+      const inset = Math.max(30, Math.min(120, width * 0.07));
+      const reach = height * STAR_REACH;
+      for (let side = -1; side <= 1; side += 2) {
+        const originX = side < 0 ? inset : width - inset;
+        for (let i = 0; i < count; i++) {
+          const angle =
+            -Math.PI / 2 -
+            side * (0.04 + Math.random() * 0.13) +
+            (Math.random() - 0.5) * 0.26;
+          const ttl = STAR_LIFE_MS * (0.86 + Math.random() * 0.28);
+          const seconds = ttl / 1000;
+          const distance = reach * (0.62 + Math.random() * 0.38);
+          const velocity = (2 * distance) / (seconds * (1 + STAR_END_SPEED));
+          stars.push({
+            x: originX + (Math.random() - 0.5) * 44,
+            y: height + 6 + Math.random() * 26,
+            vx: Math.cos(angle) * velocity,
+            vy: Math.sin(angle) * velocity,
+            gravity: (velocity * (1 - STAR_END_SPEED)) / seconds,
+            life: 0,
+            ttl,
+            size: 11 + Math.random() * 15,
+            rot: Math.random() * Math.PI * 2,
+            spin: (Math.random() - 0.5) * 3.4,
+          });
+        }
+      }
+      if (stars.length > STAR_MAX) stars.splice(0, stars.length - STAR_MAX);
+    };
+
+    const fire = () => {
+      const opening = Math.round(STARS_PER_SIDE * STAR_OPENING);
+      pending = STARS_PER_SIDE - opening;
+      emitted = 0;
+      burst = 1;
+      spawn(opening);
+    };
+
+    const draw = (time: number) => {
+      raf = requestAnimationFrame(draw);
+      const delta = last ? Math.min(64, time - last) : 16;
+      last = time;
+
+      const current = musicRef.current;
+      const playback = current.getPlayback();
+      const ranges = current.track?.kiai;
+      const inKiai =
+        !!playback?.playing &&
+        !!ranges &&
+        ranges.some(
+          (r) => playback.position >= r.start && playback.position < r.end,
+        );
+
+      if (inKiai && !wasKiai) fire();
+      wasKiai = inKiai;
+
+      if (pending > 0) {
+        emitted +=
+          (delta * STARS_PER_SIDE * (1 - STAR_OPENING)) / STAR_EMIT_MS;
+        const due = Math.min(pending, Math.floor(emitted));
+        if (due > 0) {
+          emitted -= due;
+          pending -= due;
+          spawn(due);
+        }
+      }
+
+      envelope = inKiai
+        ? Math.min(1, envelope + delta / KIAI_FADE_IN_MS)
+        : Math.max(0, envelope - delta / KIAI_FADE_OUT_MS);
+      burst = Math.max(0, burst - delta / KIAI_BURST_DECAY_MS);
+
+      const beat = Math.pow(beatPulse(current, time), KIAI_GLOW_TAIL);
+      const glow = Math.min(
+        1,
+        envelope * (KIAI_GLOW_BASE + KIAI_GLOW_BEAT * beat) +
+          burst * burst * KIAI_BURST_GLOW,
+      );
+      const opacity = glow.toFixed(3);
+      left.style.opacity = opacity;
+      right.style.opacity = opacity;
+
+      if (!stars.length) {
+        if (painted) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          painted = false;
+        }
+        return;
+      }
+
+      const seconds = delta / 1000;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const star = stars[i];
+        star.life += delta;
+        if (star.life >= star.ttl) {
+          stars.splice(i, 1);
+          continue;
+        }
+        star.vy += star.gravity * seconds;
+        star.x += star.vx * seconds;
+        star.y += star.vy * seconds;
+        star.rot += star.spin * seconds;
+
+        const age = star.life / star.ttl;
+        const alpha =
+          STAR_ALPHA *
+          Math.min(1, star.life / 70) *
+          (age < STAR_FADE_FROM ? 1 : (1 - age) / (1 - STAR_FADE_FROM)) *
+          (0.86 + 0.14 * Math.sin(star.life * 0.018 + star.rot));
+        if (alpha <= 0.01) continue;
+        const scale = (star.size / STAR_SPRITE) * dpr;
+        const cos = Math.cos(star.rot) * scale;
+        const sin = Math.sin(star.rot) * scale;
+        ctx.globalAlpha = alpha;
+        ctx.setTransform(cos, sin, -sin, cos, star.x * dpr, star.y * dpr);
+        ctx.drawImage(sprite, -STAR_SPRITE / 2, -STAR_SPRITE / 2);
+      }
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+      painted = true;
+    };
+
+    raf = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      left.style.opacity = "0";
+      right.style.opacity = "0";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+  }, [active]);
+
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+    >
+      <div
+        ref={leftRef}
+        className="absolute inset-y-0 left-0 w-[min(24%,17rem)] opacity-0 mix-blend-screen"
+        style={{ backgroundImage: KIAI_GLOW_LEFT }}
+      />
+      <div
+        ref={rightRef}
+        className="absolute inset-y-0 right-0 w-[min(24%,17rem)] opacity-0 mix-blend-screen"
+        style={{ backgroundImage: KIAI_GLOW_RIGHT }}
+      />
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full mix-blend-screen"
+      />
+    </div>
+  );
 }
 
 function Visualizer({

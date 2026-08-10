@@ -6,6 +6,7 @@ import {
   MIX_RAMP_SECONDS,
   NORMAL_FILTER_HZ,
 } from "../lib/audioAtmosphere";
+import type { KiaiRange } from "../lib/timing";
 
 export type MenuTrack = {
   id: string;
@@ -16,6 +17,7 @@ export type MenuTrack = {
   previewTime: number;
   bpm: number;
   beatOffsetMs: number;
+  kiai: KiaiRange[];
 };
 
 export type MenuMusic = {
@@ -75,6 +77,7 @@ function toMenuTrack(row: LocalTrack): MenuTrack {
     previewTime: row.previewTime,
     bpm: row.bpm,
     beatOffsetMs: row.beatOffsetMs,
+    kiai: row.kiai,
   };
 }
 

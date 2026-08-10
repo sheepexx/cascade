@@ -14,6 +14,7 @@ import type {
   SongMeta,
   TimingPoint,
 } from "../types";
+import { kiaiRanges, type KiaiRange } from "./timing";
 
 const DB_NAME = "mania-editor";
 const STORE = "project";
@@ -88,6 +89,7 @@ export type LocalTrack = {
   previewTime: number;
   bpm: number;
   beatOffsetMs: number;
+  kiai: KiaiRange[];
   updatedAt: number;
 };
 
@@ -424,11 +426,23 @@ function isTimed(project: SavedProject): boolean {
   );
 }
 
+function activeDifficulty(project: SavedProject): Difficulty | undefined {
+  return (
+    project.difficulties.find((d) => d.id === project.activeId) ??
+    project.difficulties[0]
+  );
+}
+
+function trackPoints(project: SavedProject): TimingPoint[] {
+  const active = activeDifficulty(project);
+  return active?.timingPoints?.length
+    ? active.timingPoints
+    : (project.timingPoints ?? []);
+}
+
 function pickTrackAudio(project: SavedProject): Blob | undefined {
   const files = project.audioFiles ?? [];
-  const active =
-    project.difficulties.find((d) => d.id === project.activeId) ??
-    project.difficulties[0];
+  const active = activeDifficulty(project);
   const wanted = active?.audioFilename;
   if (wanted) {
     const hit = files.find((f) => f.name === wanted);
@@ -438,26 +452,22 @@ function pickTrackAudio(project: SavedProject): Blob | undefined {
 }
 
 function trackPreviewTime(project: SavedProject): number {
-  const active =
-    project.difficulties.find((d) => d.id === project.activeId) ??
-    project.difficulties[0];
-  const preview = active?.previewTime ?? -1;
+  const preview = activeDifficulty(project)?.previewTime ?? -1;
   return preview > 0 ? preview : 0;
 }
 
 function trackBeat(project: SavedProject): { bpm: number; beatOffsetMs: number } {
-  const active =
-    project.difficulties.find((d) => d.id === project.activeId) ??
-    project.difficulties[0];
-  const points = [
-    ...(active?.timingPoints ?? []),
-    ...(project.timingPoints ?? []),
-  ].filter((p) => p.uninherited && Number.isFinite(p.bpm) && p.bpm > 0);
-  points.sort((a, b) => a.time - b.time);
+  const points = trackPoints(project)
+    .filter((p) => p.uninherited && Number.isFinite(p.bpm) && p.bpm > 0)
+    .sort((a, b) => a.time - b.time);
   const first = points[0];
   return first
     ? { bpm: first.bpm, beatOffsetMs: first.time }
     : { bpm: 0, beatOffsetMs: 0 };
+}
+
+function trackKiai(project: SavedProject): KiaiRange[] {
+  return kiaiRanges(trackPoints(project), Number.POSITIVE_INFINITY);
 }
 
 export async function countLocalProjects(): Promise<number> {
@@ -512,6 +522,7 @@ export async function listLocalTracks(): Promise<LocalTrack[]> {
               backgroundBlob: pickLocalBackground(full),
               previewTime: trackPreviewTime(full),
               ...trackBeat(full),
+              kiai: trackKiai(full),
               updatedAt: full.savedAt,
             });
             done();

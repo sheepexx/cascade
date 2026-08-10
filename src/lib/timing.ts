@@ -79,12 +79,14 @@ export function kiaiAt(time: number, points: TimingPoint[]): boolean {
   return kiai;
 }
 
+export type KiaiRange = { start: number; end: number };
+
 export function kiaiRanges(
   points: TimingPoint[],
   songEnd: number,
-): { start: number; end: number }[] {
+): KiaiRange[] {
   const sorted = sortedPoints(points);
-  const ranges: { start: number; end: number }[] = [];
+  const ranges: KiaiRange[] = [];
   let openStart: number | null = null;
   for (const p of sorted) {
     if (p.kiai && openStart === null) {

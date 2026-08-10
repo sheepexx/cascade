@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { makeGreenPoint, makeRedPoint } from "../types";
 import type { SavedProject } from "./persistence";
 
 type OpenRequest = {
@@ -303,6 +304,54 @@ describe("project media records", () => {
     await clearProject();
     expect(data.has("current")).toBe(false);
     expect(data.has("media:current")).toBe(false);
+  });
+
+  it("exposes the active difficulty's beat and kiai sections as a menu track", async () => {
+    installStore();
+    const { saveProject, listLocalTracks } = await freshPersistence();
+
+    await saveProject(
+      project({
+        audioFiles: [{ name: "a.mp3", blob: bytes(16) }],
+        activeId: "d2",
+        difficulties: [
+          { id: "d1", timingPoints: [makeRedPoint(0, 100)] },
+          {
+            id: "d2",
+            timingPoints: [
+              makeRedPoint(120, 180),
+              makeGreenPoint(4000, 1, { kiai: true }),
+              makeGreenPoint(9000, 1, { kiai: false }),
+            ],
+          },
+        ],
+      } as Partial<SavedProject>),
+      "abc",
+    );
+    const rows = await listLocalTracks();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].bpm).toBe(180);
+    expect(rows[0].beatOffsetMs).toBe(120);
+    expect(rows[0].kiai).toEqual([{ start: 4000, end: 9000 }]);
+  });
+
+  it("leaves the kiai section open to the end of the song", async () => {
+    installStore();
+    const { saveProject, listLocalTracks } = await freshPersistence();
+
+    await saveProject(
+      project({
+        audioFiles: [{ name: "a.mp3", blob: bytes(16) }],
+        difficulties: [
+          { id: "d1", timingPoints: [makeRedPoint(0, 120, { kiai: true })] },
+        ],
+      } as Partial<SavedProject>),
+      "abc",
+    );
+    const rows = await listLocalTracks();
+
+    expect(rows[0].kiai).toEqual([{ start: 0, end: Infinity }]);
   });
 
   it("rewrites media after a clear so the next save is self-contained", async () => {
