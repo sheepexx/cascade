@@ -28,7 +28,11 @@ import {
   matchesBind,
   type EditorKeybinds,
 } from "../lib/editorKeybinds";
-import type { PatternNote } from "../lib/patterns";
+import {
+  notesToPattern,
+  patternToNotes,
+  type PatternNote,
+} from "../lib/patterns";
 import type { Waveform } from "../hooks/useWaveform";
 import { dialogIsOpen } from "../hooks/useDialog";
 import {
@@ -43,6 +47,7 @@ import {
   shuffleColumns,
 } from "../lib/noteTools";
 import { Menu } from "./ui/Menu";
+import { SnapBadge } from "./ui/SnapBadge";
 import { t } from "../lib/i18n/core";
 
 export type HitsoundSource = {
@@ -168,17 +173,7 @@ type MoveDragState = {
 
 type Clip = {
   id: string;
-  notes: {
-    column: number;
-    startTime: number;
-    endTime?: number;
-    hitSound?: number;
-    sampleSet?: number;
-    additionSet?: number;
-    sampleIndex?: number;
-    sampleVolume?: number;
-    sampleFile?: string;
-  }[];
+  notes: PatternNote[];
 };
 
 function hitsoundOf(n: {
@@ -387,20 +382,12 @@ export function ManiaEditor(props: Props) {
   }, [props.playtestMode, setSelection]);
 
   const copySelection = useCallback((): Clip | null => {
-    const { notes } = propsRef.current;
+    const { notes, timingPoints } = propsRef.current;
     const selected = notes.filter((n) => selectedNoteIdsRef.current.has(n.id));
     if (!selected.length) return null;
-    const minTime = Math.min(...selected.map((n) => n.startTime));
     const clip: Clip = {
       id: uid("clip"),
-      notes: selected
-        .map((n) => ({
-          column: n.column,
-          startTime: n.startTime - minTime,
-          endTime: n.endTime !== undefined ? n.endTime - minTime : undefined,
-          ...hitsoundOf(n),
-        }))
-        .sort((a, b) => a.startTime - b.startTime || a.column - b.column),
+      notes: notesToPattern(selected, timingPoints),
     };
     setClipboard(clip);
     setHistory((prev) => [clip, ...prev].slice(0, 8));
@@ -518,15 +505,7 @@ export function ManiaEditor(props: Props) {
     const currentTime = liveCurrentTime();
     const base = snapTime(currentTime, timingPoints, view.snapDivisor);
     const newNotes: ManiaNote[] = withoutNoteCollisions(
-      clip.notes
-        .filter((n) => n.column >= 0 && n.column < keyCount)
-        .map((n) => ({
-          id: uid("n"),
-          column: n.column,
-          startTime: n.startTime + base,
-          endTime: n.endTime !== undefined ? n.endTime + base : undefined,
-          ...hitsoundOf(n),
-        })),
+      patternToNotes(clip.notes, base, keyCount, timingPoints),
       notes,
     );
     if (!newNotes.length) return;
@@ -2470,10 +2449,11 @@ export function ManiaEditor(props: Props) {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5">
                 <ClipThumb clip={clipboard} keyCount={props.keyCount} />
-                <span className="text-[10px] text-slate-400">
+                <span className="min-w-0 text-[10px] text-slate-400">
                   {clipboard.notes.length} note
                   {clipboard.notes.length === 1 ? "" : "s"}
                 </span>
+                <SnapBadge pattern={clipboard.notes} />
               </div>
               {props.onPublishPattern && (
                 <button
@@ -2512,10 +2492,11 @@ export function ManiaEditor(props: Props) {
                     }`}
                   >
                     <ClipThumb clip={item} keyCount={props.keyCount} small />
-                    <span className="text-[10px] text-slate-400">
+                    <span className="min-w-0 flex-1 text-[10px] text-slate-400">
                       {item.notes.length} note
                       {item.notes.length === 1 ? "" : "s"}
                     </span>
+                    <SnapBadge pattern={item.notes} />
                   </button>
                 ))}
               </div>

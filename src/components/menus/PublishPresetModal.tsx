@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, Field, TextInput } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
+import { SnapBadge } from "../ui/SnapBadge";
 import { useAuth } from "../../lib/auth";
 import { logAnalyticsEvent } from "../../lib/analytics";
 import {
@@ -134,8 +135,11 @@ export function PublishPresetModal({
             ) : (
               <span className="text-xs text-slate-500">No pattern selected.</span>
             )}
-            <div className="text-xs text-slate-400">
-              {keyCount}K · {pattern?.length ?? 0} notes
+            <div className="flex flex-wrap items-center gap-1 text-xs text-slate-400">
+              <span>
+                {keyCount}K · {pattern?.length ?? 0} notes
+              </span>
+              {pattern && <SnapBadge pattern={pattern} />}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">

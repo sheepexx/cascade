@@ -100,6 +100,62 @@ export function kiaiRanges(
   return ranges;
 }
 
+type BpmSegment = { start: number; end: number; length: number };
+
+function bpmSegments(points: TimingPoint[]): BpmSegment[] {
+  const reds = redPoints(points);
+  return reds.map((p, i) => ({
+    start: i === 0 ? -Infinity : p.time,
+    end: i + 1 < reds.length ? reds[i + 1].time : Infinity,
+    length: beatLength(p.bpm),
+  }));
+}
+
+export function beatsBetween(
+  from: number,
+  to: number,
+  points: TimingPoint[],
+): number {
+  const lo = Math.min(from, to);
+  const hi = Math.max(from, to);
+  let beats = 0;
+  for (const seg of bpmSegments(points)) {
+    if (!(seg.length > 0)) continue;
+    const start = Math.max(lo, seg.start);
+    const end = Math.min(hi, seg.end);
+    if (end > start) beats += (end - start) / seg.length;
+  }
+  return to < from ? -beats : beats;
+}
+
+export function timeAtBeatOffset(
+  from: number,
+  beats: number,
+  points: TimingPoint[],
+): number {
+  if (!beats) return from;
+  const forward = beats > 0;
+  const segments = bpmSegments(points);
+  if (!segments.length) return from;
+  let remaining = Math.abs(beats);
+  let cursor = from;
+  for (const seg of forward ? segments : [...segments].reverse()) {
+    if (!(seg.length > 0)) continue;
+    const start = forward ? Math.max(cursor, seg.start) : seg.start;
+    const end = forward ? seg.end : Math.min(cursor, seg.end);
+    if (end <= start) continue;
+    const capacity = (end - start) / seg.length;
+    if (capacity >= remaining) {
+      return forward
+        ? start + remaining * seg.length
+        : end - remaining * seg.length;
+    }
+    remaining -= capacity;
+    cursor = forward ? seg.end : seg.start;
+  }
+  return cursor;
+}
+
 export function snapIntervalAt(
   time: number,
   points: TimingPoint[],
@@ -188,7 +244,7 @@ export function gridLinesInRange(
   return lines;
 }
 
-export function gridLineColor(idxInBeat: number, divisor: SnapDivisor): string {
+export function gridLineColor(idxInBeat: number, divisor: number): string {
   if (idxInBeat === 0) return "rgba(255,255,255,0.85)";
 
   const reducedDivisor = divisor / gcd(Math.abs(idxInBeat), divisor);

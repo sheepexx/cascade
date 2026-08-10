@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, TextInput, Toggle } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
+import { SnapBadge } from "../ui/SnapBadge";
 import { SkeletonMediaCards } from "../ui/Skeleton";
 import { listPresets, type Preset } from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
@@ -120,10 +121,13 @@ export function PresetBrowserModal({
                 <div className="truncate text-sm font-semibold text-slate-100">
                   {p.name}
                 </div>
-                <div className="text-[11px] text-slate-500">
-                  {p.key_count}K · {p.pattern.length} notes
+                <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-500">
+                  <span>
+                    {p.key_count}K · {p.pattern.length} notes
+                  </span>
+                  <SnapBadge pattern={p.pattern} />
                   {!p.is_public && (
-                    <span className="ml-1 rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold text-accent">
+                    <span className="rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold text-accent">
                       Private
                     </span>
                   )}
