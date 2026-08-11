@@ -34,14 +34,65 @@ export type AdminStats = {
   browsers: { browser: string; count: number }[];
 };
 
-export async function listAllUsers(): Promise<AdminUser[]> {
-  const { data, error } = await supabase
-    .from("users")
-    .select("id,osu_id,username,avatar_url,is_admin,created_at,last_signed_in_at")
-    .order("last_signed_in_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false });
+export type AdminUserSummary = AdminUser & {
+  event_count: number;
+  events_7d: number;
+  events_30d: number;
+  last_event_at: string | null;
+  export_count: number;
+  project_count: number;
+  storage_bytes: number;
+  preset_count: number;
+  comment_count: number;
+  collab_count: number;
+  feedback_count: number;
+  last_browser: string | null;
+  last_os: string | null;
+};
+
+export type AdminUserEvent = {
+  event_type: string;
+  last_7d: number;
+  last_30d: number;
+  total: number;
+  last_at: string | null;
+};
+
+export type AdminUserProject = {
+  id: string;
+  title: string;
+  artist: string;
+  created_at: string;
+  updated_at: string;
+  asset_count: number;
+  asset_bytes: number;
+  role: string;
+};
+
+export async function listUserSummaries(): Promise<AdminUserSummary[]> {
+  const { data, error } = await supabase.rpc("admin_user_summaries");
   if (error) throw new Error(error.message);
-  return (data ?? []) as AdminUser[];
+  return (data ?? []) as AdminUserSummary[];
+}
+
+export async function adminUserEvents(
+  userId: string,
+): Promise<AdminUserEvent[]> {
+  const { data, error } = await supabase.rpc("admin_user_events", {
+    p_user: userId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AdminUserEvent[];
+}
+
+export async function adminUserProjects(
+  userId: string,
+): Promise<AdminUserProject[]> {
+  const { data, error } = await supabase.rpc("admin_user_projects", {
+    p_user: userId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AdminUserProject[];
 }
 
 export async function setUserAdmin(

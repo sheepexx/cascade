@@ -18,14 +18,18 @@ import {
 } from "../../lib/presets";
 import {
   adminEventStats,
+  adminUserEvents,
+  adminUserProjects,
   getAdminStats,
-  listAllUsers,
+  listUserSummaries,
   setUserAdmin,
   listAllProjects,
   deleteProjectAdmin,
   type AdminEventStat,
   type AdminStats,
-  type AdminUser,
+  type AdminUserEvent,
+  type AdminUserProject,
+  type AdminUserSummary,
   type AdminProject,
 } from "../../lib/admin";
 import {
@@ -371,20 +375,67 @@ function PresetsTab() {
   );
 }
 
+type UserSortKey =
+  | "username"
+  | "osu_id"
+  | "created_at"
+  | "last_seen"
+  | "events_30d"
+  | "event_count"
+  | "export_count"
+  | "project_count"
+  | "storage_bytes"
+  | "preset_count";
+
+const USER_COLUMNS: { key: UserSortKey; label: string; right?: boolean }[] = [
+  { key: "username", label: "User" },
+  { key: "osu_id", label: "osu! id", right: true },
+  { key: "created_at", label: "Joined", right: true },
+  { key: "last_seen", label: "Last seen", right: true },
+  { key: "events_30d", label: "30d", right: true },
+  { key: "event_count", label: "Events", right: true },
+  { key: "export_count", label: "Exports", right: true },
+  { key: "project_count", label: "Maps", right: true },
+  { key: "storage_bytes", label: "Storage", right: true },
+  { key: "preset_count", label: "Presets", right: true },
+];
+
+function lastSeenAt(u: AdminUserSummary): number {
+  const signedIn = u.last_signed_in_at
+    ? new Date(u.last_signed_in_at).getTime()
+    : 0;
+  const event = u.last_event_at ? new Date(u.last_event_at).getTime() : 0;
+  return Math.max(signedIn, event);
+}
+
+function userSortValue(
+  u: AdminUserSummary,
+  key: UserSortKey,
+): number | string {
+  if (key === "username") return u.username.toLowerCase();
+  if (key === "created_at") return new Date(u.created_at).getTime();
+  if (key === "last_seen") return lastSeenAt(u);
+  return Number(u[key] ?? 0);
+}
+
 function UsersTab() {
   const { user } = useAuth();
-  const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [users, setUsers] = useState<AdminUserSummary[] | null>(null);
+  const [sort, setSort] = useState<UserSortKey>("last_seen");
+  const [descending, setDescending] = useState(true);
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const { error, setError, wrap } = useAsyncError();
 
   useEffect(() => {
-    listAllUsers()
+    listUserSummaries()
       .then(setUsers)
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Failed to load."),
       );
   }, [setError]);
 
-  const toggle = (u: AdminUser) =>
+  const toggle = (u: AdminUserSummary) =>
     void wrap(async () => {
       await setUserAdmin(u.id, !u.is_admin);
       setUsers(
@@ -395,75 +446,362 @@ function UsersTab() {
       );
     });
 
+  const changeSort = (key: UserSortKey) => {
+    if (key === sort) {
+      setDescending((prev) => !prev);
+      return;
+    }
+    setSort(key);
+    setDescending(key !== "username");
+  };
+
+  const rows = useMemo(() => {
+    if (!users) return null;
+    const needle = query.trim().toLowerCase();
+    const filtered = needle
+      ? users.filter(
+          (u) =>
+            u.username.toLowerCase().includes(needle) ||
+            String(u.osu_id).includes(needle),
+        )
+      : users;
+    return [...filtered].sort((a, b) => {
+      const av = userSortValue(a, sort);
+      const bv = userSortValue(b, sort);
+      const cmp =
+        typeof av === "string" && typeof bv === "string"
+          ? av.localeCompare(bv)
+          : Number(av) - Number(bv);
+      return descending ? -cmp : cmp;
+    });
+  }, [users, query, sort, descending]);
+
+  const selected = users?.find((u) => u.id === selectedId) ?? null;
+
+  if (selected) {
+    return (
+      <UserDetail
+        user={selected}
+        isSelf={selected.id === user?.id}
+        onBack={() => setSelectedId(null)}
+        onToggleAdmin={() => toggle(selected)}
+      />
+    );
+  }
+
   return (
     <div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-      {!users && <SkeletonTable rows={8} columns={5} label="Loading users" />}
       {users && (
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="py-2">User</th>
-              <th className="py-2">osu! id</th>
-              <th className="py-2">Joined</th>
-              <th className="py-2">Last signed in</th>
-              <th className="py-2">Admin</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-t border-ink-700">
-                <td className="py-2">
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={`https://osu.ppy.sh/users/${u.osu_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex min-w-0 items-center gap-2 text-slate-200 transition hover:text-accent"
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm text-slate-400">
+            <span className="font-semibold text-slate-200">{users.length}</span>{" "}
+            accounts
+            {rows && rows.length !== users.length && (
+              <span className="text-slate-500"> · {rows.length} shown</span>
+            )}
+          </div>
+          <TextInput
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name or osu! id"
+            className="w-56"
+          />
+        </div>
+      )}
+      {!users && <SkeletonTable rows={8} columns={6} label="Loading users" />}
+      {rows && rows.length === 0 && (
+        <p className="text-sm text-slate-400">No matching users.</p>
+      )}
+      {rows && rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                {USER_COLUMNS.map((col) => (
+                  <th
+                    key={col.key}
+                    className={col.right ? "text-right" : "text-left"}
+                  >
+                    <button
+                      onClick={() => changeSort(col.key)}
+                      className={`whitespace-nowrap rounded px-1.5 py-2 transition hover:text-slate-200 ${
+                        sort === col.key ? "text-accent" : ""
+                      }`}
                     >
+                      {col.label}
+                      {sort === col.key && (descending ? " ↓" : " ↑")}
+                    </button>
+                  </th>
+                ))}
+                <th className="py-2 text-right text-xs font-medium">Admin</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((u) => (
+                <tr
+                  key={u.id}
+                  onClick={() => setSelectedId(u.id)}
+                  className="cursor-pointer border-t border-ink-700 transition hover:bg-ink-800"
+                >
+                  <td className="py-2 pr-3">
+                    <div className="flex min-w-0 items-center gap-2">
                       {u.avatar_url && (
                         <img
                           src={u.avatar_url}
                           alt=""
-                          className="h-6 w-6 rounded-full object-cover"
+                          className="h-6 w-6 shrink-0 rounded-full object-cover"
                         />
                       )}
-                      <span className="truncate font-medium">{u.username}</span>
-                    </a>
-                  </div>
-                </td>
-                <td className="py-2 text-slate-400">{u.osu_id}</td>
-                <td className="py-2 text-slate-500">
-                  {new Date(u.created_at).toLocaleDateString()}
-                </td>
-                <td className="py-2 text-slate-500">
-                  {formatLastSignedIn(u.last_signed_in_at)}
-                </td>
-                <td className="py-2">
-                  <Button
-                    onClick={() => toggle(u)}
-                    disabled={u.id === user?.id}
-                    title={
-                      u.id === user?.id
-                        ? "You can't change your own admin status"
-                        : ""
-                    }
-                  >
-                    {u.is_admin ? "Revoke" : "Make admin"}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <span className="truncate font-medium text-slate-200">
+                        {u.username}
+                      </span>
+                      {u.is_admin && (
+                        <span className="shrink-0 rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase text-accent">
+                          admin
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-1.5 py-2 text-right font-mono text-xs text-slate-500">
+                    {u.osu_id}
+                  </td>
+                  <td className="px-1.5 py-2 text-right text-xs text-slate-500">
+                    {new Date(u.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-1.5 py-2 text-right text-xs text-slate-500">
+                    {formatLastSeen(u)}
+                  </td>
+                  <NumberCell value={u.events_30d} />
+                  <NumberCell value={u.event_count} />
+                  <NumberCell value={u.export_count} />
+                  <NumberCell value={u.project_count} />
+                  <td className="px-1.5 py-2 text-right font-mono text-xs text-slate-400">
+                    {formatBytes(Number(u.storage_bytes))}
+                  </td>
+                  <NumberCell value={u.preset_count} />
+                  <td className="py-2 pl-3 text-right">
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        onClick={() => toggle(u)}
+                        disabled={u.id === user?.id}
+                        title={
+                          u.id === user?.id
+                            ? "You can't change your own admin status"
+                            : ""
+                        }
+                      >
+                        {u.is_admin ? "Revoke" : "Make admin"}
+                      </Button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
 }
 
-function formatLastSignedIn(value: string | null): string {
-  if (!value) return "Not tracked yet";
+function NumberCell({ value }: { value: number }) {
+  return (
+    <td
+      className={`px-1.5 py-2 text-right font-mono text-xs ${
+        Number(value) > 0 ? "text-slate-300" : "text-slate-600"
+      }`}
+    >
+      {Number(value)}
+    </td>
+  );
+}
+
+function formatLastSeen(u: AdminUserSummary): string {
+  const at = lastSeenAt(u);
+  return at ? new Date(at).toLocaleDateString() : "never";
+}
+
+function formatMoment(value: string | null): string {
+  if (!value) return "never";
   return new Date(value).toLocaleString();
+}
+
+function UserDetail({
+  user,
+  isSelf,
+  onBack,
+  onToggleAdmin,
+}: {
+  user: AdminUserSummary;
+  isSelf: boolean;
+  onBack: () => void;
+  onToggleAdmin: () => void;
+}) {
+  const [events, setEvents] = useState<AdminUserEvent[] | null>(null);
+  const [projects, setProjects] = useState<AdminUserProject[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEvents(null);
+    setProjects(null);
+    setError(null);
+    adminUserEvents(user.id)
+      .then(setEvents)
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : "Failed to load activity."),
+      );
+    adminUserProjects(user.id)
+      .then(setProjects)
+      .catch(() => setProjects([]));
+  }, [user.id]);
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Button onClick={onBack}>← All users</Button>
+        {user.avatar_url && (
+          <img
+            src={user.avatar_url}
+            alt=""
+            className="h-10 w-10 rounded-full object-cover"
+          />
+        )}
+        <div className="min-w-0">
+          <a
+            href={`https://osu.ppy.sh/users/${user.osu_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-base font-semibold text-slate-100 transition hover:text-accent"
+          >
+            {user.username}
+          </a>
+          <div className="text-[11px] text-slate-500">
+            osu! id {user.osu_id} · joined{" "}
+            {new Date(user.created_at).toLocaleDateString()} · last signed in{" "}
+            {formatMoment(user.last_signed_in_at)}
+          </div>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {user.is_admin && (
+            <span className="rounded bg-accent/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-accent">
+              admin
+            </span>
+          )}
+          <Button
+            onClick={onToggleAdmin}
+            disabled={isSelf}
+            title={isSelf ? "You can't change your own admin status" : ""}
+          >
+            {user.is_admin ? "Revoke admin" : "Make admin"}
+          </Button>
+        </div>
+      </div>
+
+      {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Events (all time)" value={Number(user.event_count)} />
+        <StatCard label="Events (7 days)" value={Number(user.events_7d)} />
+        <StatCard label="Events (30 days)" value={Number(user.events_30d)} />
+        <StatCard label="Exports" value={Number(user.export_count)} />
+        <StatCard label="Cloud maps" value={Number(user.project_count)} />
+        <StatCard label="Presets" value={Number(user.preset_count)} />
+        <StatCard label="Comments" value={Number(user.comment_count)} />
+        <StatCard label="Shared maps" value={Number(user.collab_count)} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-ink-600 bg-ink-800 px-4 py-3 text-[11px] text-slate-500">
+        <span>storage {formatBytes(Number(user.storage_bytes))}</span>
+        <span>last event {formatMoment(user.last_event_at)}</span>
+        <span>browser {user.last_browser ?? "unknown"}</span>
+        <span>os {user.last_os ?? "unknown"}</span>
+        <span>feedback {Number(user.feedback_count)}</span>
+      </div>
+
+      <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Feature usage
+        </h2>
+        {!events && !error && (
+          <SkeletonTable rows={5} columns={5} label="Loading activity" />
+        )}
+        {events && events.length === 0 && (
+          <p className="text-sm text-slate-500">
+            No events recorded for this account. Events logged while signed out
+            aren't attributed to anyone.
+          </p>
+        )}
+        {events && events.length > 0 && (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="pb-2 font-medium">Event</th>
+                <th className="pb-2 text-right font-medium">7 days</th>
+                <th className="pb-2 text-right font-medium">30 days</th>
+                <th className="pb-2 text-right font-medium">All time</th>
+                <th className="pb-2 text-right font-medium">Last</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((row) => (
+                <tr key={row.event_type} className="border-t border-ink-600/60">
+                  <td className="py-1.5 font-mono text-xs text-slate-200">
+                    {row.event_type}
+                  </td>
+                  <td className="py-1.5 text-right font-mono text-xs text-slate-400">
+                    {row.last_7d}
+                  </td>
+                  <td className="py-1.5 text-right font-mono text-xs text-slate-400">
+                    {row.last_30d}
+                  </td>
+                  <td className="py-1.5 text-right font-mono text-xs text-slate-300">
+                    {row.total}
+                  </td>
+                  <td className="py-1.5 text-right text-xs text-slate-500">
+                    {formatMoment(row.last_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Maps
+        </h2>
+        {!projects && (
+          <SkeletonRows count={3} lines={2} action={false} label="Loading maps" />
+        )}
+        {projects && projects.length === 0 && (
+          <p className="text-sm text-slate-500">No cloud maps.</p>
+        )}
+        {projects && projects.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {projects.map((p) => (
+              <li
+                key={`${p.role}-${p.id}`}
+                className="rounded-lg border border-ink-600/70 bg-ink-700/30 p-3"
+              >
+                <div className="truncate text-sm text-slate-200">
+                  {p.title || "Untitled"}
+                  <span className="text-slate-500"> - {p.artist}</span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                  <span className="text-accent">{p.role}</span>
+                  <span>saved {new Date(p.updated_at).toLocaleString()}</span>
+                  <span>{formatBytes(Number(p.asset_bytes))}</span>
+                  <span>{Number(p.asset_count)} assets</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
 }
 
 function ProjectsTab() {
