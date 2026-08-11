@@ -35,9 +35,11 @@ export function Menu({
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const width = menuRef.current?.offsetWidth ?? 0;
+    const maxRight = Math.max(8, window.innerWidth - width - 8);
     setPos({
       top: rect.bottom + 4,
-      right: Math.max(8, window.innerWidth - rect.right),
+      right: Math.min(Math.max(8, window.innerWidth - rect.right), maxRight),
     });
   }, [open]);
 

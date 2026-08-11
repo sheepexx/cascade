@@ -1,12 +1,12 @@
 {
   "name": "cascade",
   "private": true,
-  "version": "1.2.182",
+  "version": "1.2.183",
   "type": "module",
   "description": "Cascade - a browser-based osu!mania beatmap editor",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/build-sitemap.mjs",
+    "build": "node scripts/build-landing-pages.mjs && tsc && vite build && node scripts/build-sitemap.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
