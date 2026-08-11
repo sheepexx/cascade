@@ -350,6 +350,10 @@ export const ptBR: PartialCatalog = {
   "editor.previewPoint": "Ponto de preview",
   "editor.bookmark": "Marcador",
   "editor.kiai": "KIAI",
+  "editor.songStart": "INÍCIO DA MÚSICA",
+  "editor.songEnd": "FIM DA MÚSICA",
+  "editor.trimStart": "INÍCIO DO CORTE",
+  "editor.trimEnd": "FIM DO CORTE",
 
   "empty.title": "Solte um áudio em qualquer lugar para começar a mapear",
   "empty.subtitleBefore": "Ou pressione Enter e escolha um mapa de exemplo.",

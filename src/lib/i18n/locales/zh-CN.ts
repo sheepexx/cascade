@@ -333,6 +333,10 @@ export const zhCN: PartialCatalog = {
   "editor.previewPoint": "预览点",
   "editor.bookmark": "书签",
   "editor.kiai": "KIAI",
+  "editor.songStart": "歌曲开始",
+  "editor.songEnd": "歌曲结束",
+  "editor.trimStart": "裁剪开始",
+  "editor.trimEnd": "裁剪结束",
 
   "empty.title": "把音频拖到任意位置即可开始制谱",
   "empty.subtitleBefore": "或按 Enter 选择一张示例谱面。",

@@ -348,6 +348,10 @@ export const en = {
   "editor.previewPoint": "Preview Point",
   "editor.bookmark": "Bookmark",
   "editor.kiai": "KIAI",
+  "editor.songStart": "SONG START",
+  "editor.songEnd": "SONG END",
+  "editor.trimStart": "TRIM START",
+  "editor.trimEnd": "TRIM END",
 
   "empty.title": "Drop audio anywhere to start mapping",
   "empty.subtitleBefore": "Or press Enter and pick a sample map.",

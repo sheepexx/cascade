@@ -67,6 +67,12 @@ const SELECT_AUTOSCROLL_MAX_PX_PER_SEC = 900;
 const RECEPTOR_HIT_WINDOW = 90;
 const NOTE_FALLTHROUGH_FADE_MS = 240;
 
+const BOUND_HATCH_STEP = 15;
+const BOUND_HATCH_ALPHA = 0.14;
+const BOUND_TINT_ALPHA = 0.05;
+const BOUND_SONG_RGB = "239,68,68";
+const BOUND_TRIM_RGB = "245,158,11";
+
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
@@ -127,6 +133,10 @@ type Props = {
   missWindowMs?: number;
   hideHints?: boolean;
   bookmarks?: number[];
+  /** Length of the loaded audio in map time; bounds the playable range. */
+  songEndMs?: number;
+  trimStartMs?: number;
+  trimEndMs?: number;
   showTimingLines?: boolean;
   /** Warp scroll by green-point SV (playtest, or editor playback preview). */
   svPreview?: boolean;
@@ -139,6 +149,18 @@ type Props = {
   /** Remappable notefield shortcuts; falls back to the defaults. */
   editorKeybinds?: EditorKeybinds;
 };
+
+/**
+ * Times a note may occupy: inside the audio file, and inside the trim when the
+ * difficulty has one. Notes already outside it (a trim set after mapping) are
+ * left alone; this only stops new ones being put there.
+ */
+function playableBounds(props: Props): { lo: number; hi: number } {
+  const songEnd = props.songEndMs ?? 0;
+  let hi = songEnd > 0 ? songEnd : Infinity;
+  if (props.trimEndMs !== undefined) hi = Math.min(hi, props.trimEndMs);
+  return { lo: Math.max(0, props.trimStartMs ?? 0), hi };
+}
 
 type DragState = {
   column: number;
@@ -381,6 +403,11 @@ export function ManiaEditor(props: Props) {
     moveDragRef.current = null;
   }, [props.playtestMode, setSelection]);
 
+  const inBounds = useCallback((from: number, to = from) => {
+    const { lo, hi } = playableBounds(propsRef.current);
+    return from >= lo - 0.5 && to <= hi + 0.5;
+  }, []);
+
   const copySelection = useCallback((): Clip | null => {
     const { notes, timingPoints } = propsRef.current;
     const selected = notes.filter((n) => selectedNoteIdsRef.current.has(n.id));
@@ -505,13 +532,15 @@ export function ManiaEditor(props: Props) {
     const currentTime = liveCurrentTime();
     const base = snapTime(currentTime, timingPoints, view.snapDivisor);
     const newNotes: ManiaNote[] = withoutNoteCollisions(
-      patternToNotes(clip.notes, base, keyCount, timingPoints),
+      patternToNotes(clip.notes, base, keyCount, timingPoints).filter((n) =>
+        inBounds(n.startTime, n.endTime ?? n.startTime),
+      ),
       notes,
     );
     if (!newNotes.length) return;
     propsRef.current.onAddNotes(newNotes);
     setSelection(new Set(newNotes.map((n) => n.id)));
-  }, [setSelection]);
+  }, [inBounds, setSelection]);
 
   const toggleAddition = useCallback((bit: number) => {
     const ids = selectedNoteIdsRef.current;
@@ -1277,6 +1306,80 @@ export function ManiaEditor(props: Props) {
       }
     }
 
+    if (!propsRef.current.playtestMode) {
+      const drawBoundary = (
+        time: number,
+        outsideLater: boolean,
+        rgb: string,
+        label: string,
+        limit?: number,
+      ) => {
+        const y = timeToY(time);
+        const dir = up ? -1 : 1;
+        const sign = outsideLater ? -dir : dir;
+        const far =
+          limit === undefined ? (sign > 0 ? height : 0) : timeToY(limit);
+        const bandTop = Math.max(0, Math.min(y, far));
+        const bandBottom = Math.min(height, Math.max(y, far));
+        const bandH = bandBottom - bandTop;
+        if (bandH > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(originX, bandTop, playfieldWidth, bandH);
+          ctx.clip();
+          ctx.fillStyle = `rgba(${rgb},${BOUND_TINT_ALPHA})`;
+          ctx.fillRect(originX, bandTop, playfieldWidth, bandH);
+          ctx.strokeStyle = `rgba(${rgb},${BOUND_HATCH_ALPHA})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (let x = 0; x <= playfieldWidth + bandH; x += BOUND_HATCH_STEP) {
+            ctx.moveTo(originX - bandH + x, bandBottom);
+            ctx.lineTo(originX + x, bandTop);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+        if (y < -4 || y > height + 4) return;
+        const x0 = originX;
+        const x1 = originX + playfieldWidth;
+        ctx.strokeStyle = `rgba(${rgb},0.26)`;
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x1, y);
+        ctx.stroke();
+        ctx.strokeStyle = `rgb(${rgb})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x1, y);
+        ctx.stroke();
+        ctx.fillStyle = `rgb(${rgb})`;
+        ctx.font = `11px ${CANVAS_FONT_STACK}`;
+        ctx.fillText(label, 6, sign > 0 ? y + 14 : y - 6);
+      };
+
+      const songEnd = propsRef.current.songEndMs ?? 0;
+      const trimStart = propsRef.current.trimStartMs;
+      const trimEnd = propsRef.current.trimEndMs;
+      drawBoundary(0, false, BOUND_SONG_RGB, t("editor.songStart"));
+      if (songEnd > 0) {
+        drawBoundary(songEnd, true, BOUND_SONG_RGB, t("editor.songEnd"));
+      }
+      if (trimStart !== undefined && trimStart > 0) {
+        drawBoundary(trimStart, false, BOUND_TRIM_RGB, t("editor.trimStart"), 0);
+      }
+      if (trimEnd !== undefined && (!(songEnd > 0) || trimEnd < songEnd - 0.5)) {
+        drawBoundary(
+          trimEnd,
+          true,
+          BOUND_TRIM_RGB,
+          t("editor.trimEnd"),
+          songEnd > 0 ? songEnd : undefined,
+        );
+      }
+    }
+
     const showTimingLines =
       !propsRef.current.playtestMode &&
       propsRef.current.showTimingLines !== false;
@@ -2023,6 +2126,7 @@ export function ManiaEditor(props: Props) {
     if (col < 0) return;
     const { timingPoints, view } = propsRef.current;
     const t = snapTime(yToTime(y), timingPoints, view.snapDivisor);
+    if (!inBounds(t)) return;
     dragRef.current = { column: col, startTime: t, currentTime: t };
   };
 
@@ -2072,7 +2176,9 @@ export function ManiaEditor(props: Props) {
     const drag = dragRef.current;
     if (drag) {
       const { timingPoints, view } = propsRef.current;
-      drag.currentTime = snapTime(yToTime(y), timingPoints, view.snapDivisor);
+      const { lo, hi } = playableBounds(propsRef.current);
+      const snapped = snapTime(yToTime(y), timingPoints, view.snapDivisor);
+      drag.currentTime = Math.min(Math.max(snapped, lo), hi);
     }
   };
 
@@ -2091,9 +2197,16 @@ export function ManiaEditor(props: Props) {
         (move.colDelta !== 0 || move.timeDelta !== 0 || move.timeMoved)
       ) {
         const updated = move.origin.map((o) => movedNoteSnapped(o, move));
+        const escapes = updated.some((n, i) => {
+          const from = move.origin[i];
+          return (
+            !inBounds(n.startTime, n.endTime ?? n.startTime) &&
+            inBounds(from.startTime, from.endTime ?? from.startTime)
+          );
+        });
         const byId = new Map(updated.map((n) => [n.id, n]));
         const nextNotes = propsRef.current.notes.map((n) => byId.get(n.id) ?? n);
-        if (!hasNoteCollisions(nextNotes)) {
+        if (!escapes && !hasNoteCollisions(nextNotes)) {
           propsRef.current.onMoveNotes(updated);
         }
       }
@@ -2129,6 +2242,7 @@ export function ManiaEditor(props: Props) {
             endTime: end,
             ...hs,
           };
+    if (!inBounds(start, end)) return;
     if (!withoutNoteCollisions([note], propsRef.current.notes).length) return;
     props.onPlaceNote(note);
   };

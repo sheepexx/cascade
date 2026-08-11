@@ -4653,6 +4653,9 @@ export default function App() {
                 }
                 missWindowMs={playtestWindows.miss}
                 hideHints={playtest.active}
+                songEndMs={audio.duration}
+                trimStartMs={active.trimStartMs}
+                trimEndMs={active.trimEndMs}
               />
             ) : (
               <StartScreen

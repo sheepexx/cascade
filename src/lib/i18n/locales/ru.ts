@@ -362,6 +362,10 @@ export const ru: PartialCatalog = {
   "editor.previewPoint": "Точка превью",
   "editor.bookmark": "Закладка",
   "editor.kiai": "KIAI",
+  "editor.songStart": "НАЧАЛО ПЕСНИ",
+  "editor.songEnd": "КОНЕЦ ПЕСНИ",
+  "editor.trimStart": "НАЧАЛО ОБРЕЗКИ",
+  "editor.trimEnd": "КОНЕЦ ОБРЕЗКИ",
 
   "empty.title": "Перетащите аудио куда угодно, чтобы начать маппинг",
   "empty.subtitleBefore": "Или нажмите Enter и выберите пример карты.",

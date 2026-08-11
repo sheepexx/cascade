@@ -350,6 +350,10 @@ export const de: PartialCatalog = {
   "editor.previewPoint": "Vorschaupunkt",
   "editor.bookmark": "Lesezeichen",
   "editor.kiai": "KIAI",
+  "editor.songStart": "SONGANFANG",
+  "editor.songEnd": "SONGENDE",
+  "editor.trimStart": "SCHNITT ANFANG",
+  "editor.trimEnd": "SCHNITT ENDE",
 
   "empty.title": "Zieh Audio irgendwo hin, um mit dem Mappen zu starten",
   "empty.subtitleBefore": "Oder drücke Enter und wähle eine Beispiel-Map.",
