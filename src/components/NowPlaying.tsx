@@ -46,7 +46,7 @@ export function NowPlaying({ music }: { music: MenuMusic }) {
           )}
           <span className="font-medium text-slate-200">{track.title}</span>
         </span>
-        <MiniButton label={isPlaying ? "Pause" : "Play"} onClick={toggle}>
+        <MiniButton label={isPlaying ? "Pause (C)" : "Play (C)"} onClick={toggle}>
           {isPlaying ? "❚❚" : "▶"}
         </MiniButton>
         <MiniButton label="Next track" onClick={next}>

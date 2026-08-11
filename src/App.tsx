@@ -2212,7 +2212,8 @@ export default function App() {
     [patchDifficulty],
   );
 
-  const menuMusic = useMenuMusic(!hasProject && !packCreatorOpen);
+  const menuMusicEnabled = !hasProject && !packCreatorOpen;
+  const menuMusic = useMenuMusic(menuMusicEnabled);
 
   const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
   const [confirmResnap, setConfirmResnap] = useState(false);
@@ -3398,6 +3399,19 @@ export default function App() {
   useEffect(() => {
     menuMusic.setAmbientDucking(modalAtmosphereOpen);
   }, [menuMusic.setAmbientDucking, modalAtmosphereOpen]);
+
+  useEffect(() => {
+    if (!menuMusicEnabled) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "KeyC" || e.repeat) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      if (isTypingTarget(e.target)) return;
+      e.preventDefault();
+      menuMusic.toggle();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuMusicEnabled, menuMusic.toggle]);
 
   const doExportOsu = useCallback(() => {
     if (!audioFile) return;
