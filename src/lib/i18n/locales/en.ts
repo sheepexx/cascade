@@ -361,6 +361,7 @@ export const en = {
   "empty.enter": "Enter",
   "empty.madeBy": "Made by",
   "empty.contributors": "Contributors:",
+  "empty.support": "Support",
 
   "menu.open": "Cascade menu",
   "menu.close": "Close menu",

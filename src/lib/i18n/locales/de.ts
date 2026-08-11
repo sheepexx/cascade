@@ -363,6 +363,7 @@ export const de: PartialCatalog = {
   "empty.enter": "Los geht's",
   "empty.madeBy": "Erstellt von",
   "empty.contributors": "Mitwirkende:",
+  "empty.support": "Unterstützen",
 
   "menu.open": "Cascade-Menü",
   "menu.close": "Menü schließen",

@@ -5914,12 +5914,12 @@ function LandingCopy() {
           </a>
         </p>
         <a
-          href="https://buymeacoffee.com/sheepex_"
+          href="https://ko-fi.com/sheepex"
           target="_blank"
           rel="noreferrer"
           className="font-medium text-slate-400 transition hover:text-accent"
         >
-          buy me a coffee :)
+          {t("empty.support")}
         </a>
       </div>
 

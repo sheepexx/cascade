@@ -346,6 +346,7 @@ export const zhCN: PartialCatalog = {
   "empty.enter": "进入",
   "empty.madeBy": "制作者",
   "empty.contributors": "贡献者：",
+  "empty.support": "赞助",
 
   "menu.open": "Cascade 菜单",
   "menu.close": "关闭菜单",

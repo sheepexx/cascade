@@ -363,6 +363,7 @@ export const ptBR: PartialCatalog = {
   "empty.enter": "Entrar",
   "empty.madeBy": "Feito por",
   "empty.contributors": "Contribuidores:",
+  "empty.support": "Apoiar",
 
   "menu.open": "Menu do Cascade",
   "menu.close": "Fechar menu",

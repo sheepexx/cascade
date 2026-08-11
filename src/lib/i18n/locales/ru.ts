@@ -375,6 +375,7 @@ export const ru: PartialCatalog = {
   "empty.enter": "Начать",
   "empty.madeBy": "Автор:",
   "empty.contributors": "Участники:",
+  "empty.support": "Поддержать",
 
   "menu.open": "Меню Cascade",
   "menu.close": "Закрыть меню",
