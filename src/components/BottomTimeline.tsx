@@ -19,6 +19,7 @@ const DENSITY_BUCKETS = 240;
 const MAIN_REVEAL_MS = 300;
 const WAVEFORM_REVEAL_DELAY_MS = MAIN_REVEAL_MS;
 const WAVEFORM_REVEAL_MS = 700;
+const RESIZE_SETTLE_MS = 90;
 
 type TrimGeom = {
   sx: number;
@@ -743,21 +744,33 @@ export function BottomTimeline({
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return;
-    const resize = () => {
-      const rect = wrap.getBoundingClientRect();
+    let settle = 0;
+    let pending = -1;
+
+    const applyWidth = (width: number) => {
       const dpr = window.devicePixelRatio || 1;
-      sizeRef.current = { width: rect.width, dpr };
-      const bw = Math.floor(rect.width * dpr);
-      const bh = Math.floor(HEIGHT * dpr);
+      sizeRef.current = { width, dpr };
+      const bw = Math.max(1, Math.floor(width * dpr));
+      const bh = Math.max(1, Math.floor(HEIGHT * dpr));
       if (canvas.width !== bw) canvas.width = bw;
       if (canvas.height !== bh) canvas.height = bh;
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${HEIGHT}px`;
     };
-    resize();
-    const ro = new ResizeObserver(resize);
+
+    const measure = () => {
+      const width = wrap.getBoundingClientRect().width;
+      if (width === pending) return;
+      pending = width;
+      window.clearTimeout(settle);
+      settle = window.setTimeout(() => applyWidth(width), RESIZE_SETTLE_MS);
+    };
+
+    applyWidth(wrap.getBoundingClientRect().width);
+    const ro = new ResizeObserver(measure);
     ro.observe(wrap);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      window.clearTimeout(settle);
+    };
   }, []);
 
   const seekFromEvent = useCallback(
