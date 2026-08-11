@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  FREE_SNAP,
   MAX_SCROLL_SPEED,
   MIN_SCROLL_SPEED,
-  SNAP_DIVISORS,
+  SNAP_OPTIONS,
   type SnapDivisor,
   type ViewState,
 } from "../types";
@@ -188,9 +189,9 @@ export function TransportBar({
             }
             className="rounded-md border border-white/10 bg-ink-700/70 px-2 py-1 text-slate-100 outline-none backdrop-blur-sm"
           >
-            {SNAP_DIVISORS.map((d) => (
+            {SNAP_OPTIONS.map((d) => (
               <option key={d} value={d}>
-                1/{d}
+                {d === FREE_SNAP ? t("transport.snapFree") : `1/${d}`}
               </option>
             ))}
           </select>

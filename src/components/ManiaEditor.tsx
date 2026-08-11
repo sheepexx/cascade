@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  SNAP_DIVISORS,
+  SNAP_OPTIONS,
   uid,
   HITSOUND_WHISTLE,
   HITSOUND_FINISH,
@@ -2392,16 +2392,16 @@ export function ManiaEditor(props: Props) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       const { view } = propsRef.current;
-      const currentIndex = SNAP_DIVISORS.indexOf(view.snapDivisor);
+      const currentIndex = SNAP_OPTIONS.indexOf(view.snapDivisor);
       const dir = e.deltaY > 0 ? -1 : 1;
       const nextIndex = Math.min(
-        SNAP_DIVISORS.length - 1,
+        SNAP_OPTIONS.length - 1,
         Math.max(0, currentIndex + dir),
       );
       if (nextIndex !== currentIndex) {
         propsRef.current.onView({
           ...view,
-          snapDivisor: SNAP_DIVISORS[nextIndex],
+          snapDivisor: SNAP_OPTIONS[nextIndex],
         });
       }
       return;

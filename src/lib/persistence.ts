@@ -2,7 +2,7 @@ import {
   DEFAULT_VIEW,
   MAX_SCROLL_SPEED,
   MIN_SCROLL_SPEED,
-  SNAP_DIVISORS,
+  SNAP_OPTIONS,
   type SnapDivisor,
   type ViewState,
 } from "../types";
@@ -604,7 +604,7 @@ export function loadViewPreferences(): ViewState | null {
     const raw = localStorage.getItem(VIEW_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<ViewState>;
-    const snapDivisor = SNAP_DIVISORS.includes(
+    const snapDivisor = SNAP_OPTIONS.includes(
       parsed.snapDivisor as SnapDivisor,
     )
       ? (parsed.snapDivisor as SnapDivisor)

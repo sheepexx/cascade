@@ -327,6 +327,7 @@ export const de: PartialCatalog = {
   "transport.hitsoundVolume": "Hitsound-Lautstärke",
   "transport.hit": "Hit",
   "transport.snap": "Snap",
+  "transport.snapFree": "Frei",
   "transport.scrollSpeed": "Scrollgeschw.",
 
   "diffSidebar.title": "Schwierigkeiten",

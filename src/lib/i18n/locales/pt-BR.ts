@@ -327,6 +327,7 @@ export const ptBR: PartialCatalog = {
   "transport.hitsoundVolume": "Volume dos hitsounds",
   "transport.hit": "Hit",
   "transport.snap": "Snap",
+  "transport.snapFree": "Livre",
   "transport.scrollSpeed": "Velocidade",
 
   "diffSidebar.title": "Dificuldades",

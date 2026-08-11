@@ -1,4 +1,4 @@
-import { type SnapDivisor, type TimingPoint } from "../types";
+import { FREE_SNAP, type SnapDivisor, type TimingPoint } from "../types";
 
 export function beatLength(bpm: number): number {
   return 60000 / bpm;
@@ -156,13 +156,22 @@ export function timeAtBeatOffset(
   return cursor;
 }
 
+/**
+ * Free snap has no grid, but the playhead still has to move by *something* per
+ * scroll step, and the Full LN tool still has to have a tick length. Both
+ * borrow the finest divisor; stepping by 1ms would make the wheel unusable.
+ */
+export function snapTickDivisor(divisor: SnapDivisor): number {
+  return divisor === FREE_SNAP ? 16 : divisor;
+}
+
 export function snapIntervalAt(
   time: number,
   points: TimingPoint[],
   divisor: SnapDivisor,
 ): number {
   const tp = activeTimingAt(time, points);
-  return beatLength(tp.bpm) / divisor;
+  return beatLength(tp.bpm) / snapTickDivisor(divisor);
 }
 
 export function snapTime(
@@ -170,6 +179,7 @@ export function snapTime(
   points: TimingPoint[],
   divisor: SnapDivisor,
 ): number {
+  if (divisor === FREE_SNAP) return Math.round(time);
   const tp = activeTimingAt(time, points);
   const interval = beatLength(tp.bpm) / divisor;
   if (interval <= 0) return Math.round(time);
@@ -210,13 +220,17 @@ export function gridLinesInRange(
   const reds = redPoints(points);
   if (reds.length === 0) return lines;
 
+  // Free snap draws no subdivisions, but keeping the beat and bar lines leaves
+  // the field readable - notes just aren't pulled onto them.
+  const grid = divisor === FREE_SNAP ? 1 : divisor;
+
   for (let i = 0; i < reds.length; i++) {
     const tp = reds[i];
     const segStart = tp.time;
     const segEnd = i + 1 < reds.length ? reds[i + 1].time : Infinity;
     const meter = Math.max(1, Math.round(tp.meter || 4));
 
-    const interval = beatLength(tp.bpm) / divisor;
+    const interval = beatLength(tp.bpm) / grid;
     if (interval <= 0) continue;
 
     const visibleStart = Math.max(segStart, fromTime);
@@ -232,8 +246,8 @@ export function gridLinesInRange(
 
     for (let k = firstIdx; k <= lastIdx; k++) {
       const time = segStart + k * interval;
-      const idxInBeat = ((k % divisor) + divisor) % divisor;
-      const beatIdx = k / divisor;
+      const idxInBeat = ((k % grid) + grid) % grid;
+      const beatIdx = k / grid;
       const barline =
         idxInBeat === 0 &&
         Math.abs(beatIdx - Math.round(beatIdx)) < 1e-6 &&

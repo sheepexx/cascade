@@ -17,11 +17,21 @@ export const HITSOUND_CLAP = 8;
 
 export const SAMPLE_SET_NAMES = ["auto", "normal", "soft", "drum"] as const;
 
-export type SnapDivisor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 12 | 16;
+/** Free placement: notes land on the exact millisecond, with no grid. */
+export const FREE_SNAP = 0;
 
+export type SnapDivisor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 12 | 16 | 0;
+
+/**
+ * Real beat divisors only. Anything that has to reason about a grid - pattern
+ * snap detection, AiMod - works off this list, so free snap stays out of it.
+ */
 export const SNAP_DIVISORS: SnapDivisor[] = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16,
 ];
+
+/** What the snap picker offers, in order: every divisor, then free. */
+export const SNAP_OPTIONS: SnapDivisor[] = [...SNAP_DIVISORS, FREE_SNAP];
 
 export type TimingPoint = {
   id: string;

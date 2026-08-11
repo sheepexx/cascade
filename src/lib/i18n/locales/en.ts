@@ -325,6 +325,7 @@ export const en = {
   "transport.hitsoundVolume": "Hitsound volume",
   "transport.hit": "Hit",
   "transport.snap": "Snap",
+  "transport.snapFree": "Free",
   "transport.scrollSpeed": "Scroll speed",
 
   "diffSidebar.title": "Difficulties",

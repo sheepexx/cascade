@@ -310,6 +310,7 @@ export const zhCN: PartialCatalog = {
   "transport.hitsoundVolume": "打击音效音量",
   "transport.hit": "打击音",
   "transport.snap": "吸附",
+  "transport.snapFree": "自由",
   "transport.scrollSpeed": "滚动速度",
 
   "diffSidebar.title": "难度",

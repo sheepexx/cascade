@@ -5748,7 +5748,7 @@ function InfoModal({
         </InfoSection>
 
         <InfoSection title="Grid and display">
-          <InfoRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/16." />
+          <InfoRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/16, or Free to place notes on any millisecond." />
           {row("scrollSpeedDown", "Decrease visual note scroll speed.")}
           {row("scrollSpeedUp", "Increase visual note scroll speed.")}
           {row("zoomIn", "Grow the playfield.")}

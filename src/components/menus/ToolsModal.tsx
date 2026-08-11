@@ -1,4 +1,5 @@
 import type { SnapDivisor } from "../../types";
+import { snapTickDivisor } from "../../lib/timing";
 import { Modal } from "../ui/Modal";
 import { Button, Field, NumberInput } from "../ui/Controls";
 
@@ -49,7 +50,7 @@ export function ToolsModal({
             Turns every note into a long note ending a set number of ticks
             before the next note in its lane. Existing holds only get longer.
           </p>
-          <Field label={`Gap (ticks @ 1/${snapDivisor})`}>
+          <Field label={`Gap (ticks @ 1/${snapTickDivisor(snapDivisor)})`}>
             <NumberInput
               min={0}
               max={64}

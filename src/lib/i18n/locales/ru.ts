@@ -339,6 +339,7 @@ export const ru: PartialCatalog = {
   "transport.hitsoundVolume": "Громкость хитсаундов",
   "transport.hit": "Hit",
   "transport.snap": "Снап",
+  "transport.snapFree": "Свободно",
   "transport.scrollSpeed": "Скорость",
 
   "diffSidebar.title": "Сложности",

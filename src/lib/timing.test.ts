@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeRedPoint, makeGreenPoint } from "../types";
+import { FREE_SNAP, makeRedPoint, makeGreenPoint } from "../types";
 import {
   beatLength,
   activeTimingAt,
@@ -10,6 +10,7 @@ import {
   kiaiRanges,
   snapTime,
   snapIntervalAt,
+  snapTickDivisor,
   stepToSnap,
   gridLinesInRange,
   formatTime,
@@ -110,6 +111,18 @@ describe("snapTime / snapIntervalAt", () => {
     expect(snapTime(70, points, 4)).toBe(125);
     expect(snapTime(130, points, 4)).toBe(125);
   });
+
+  it("leaves the time alone on free snap", () => {
+    expect(snapTime(60, points, FREE_SNAP)).toBe(60);
+    expect(snapTime(130, points, FREE_SNAP)).toBe(130);
+    expect(snapTime(7.4, points, FREE_SNAP)).toBe(7);
+  });
+
+  it("falls back to a 1/16 cell for free snap steps and LN ticks", () => {
+    expect(snapTickDivisor(FREE_SNAP)).toBe(16);
+    expect(snapTickDivisor(4)).toBe(4);
+    expect(snapIntervalAt(0, points, FREE_SNAP)).toBe(31.25);
+  });
 });
 
 describe("stepToSnap", () => {
@@ -123,6 +136,11 @@ describe("stepToSnap", () => {
   it("lands on the nearest line in the step direction when off-grid", () => {
     expect(stepToSnap(60, points, 4, 1)).toBe(125);
     expect(stepToSnap(60, points, 4, -1)).toBe(0);
+  });
+
+  it("moves by a cell without snapping on free snap", () => {
+    expect(stepToSnap(60, points, FREE_SNAP, 1)).toBe(91);
+    expect(stepToSnap(60, points, FREE_SNAP, -1)).toBe(29);
   });
 });
 
@@ -141,6 +159,13 @@ describe("gridLinesInRange", () => {
   it("returns nothing for an empty/inverted range", () => {
     const points = [makeRedPoint(0, 120)];
     expect(gridLinesInRange(1000, 0, points, 4)).toEqual([]);
+  });
+
+  it("keeps only the beat and bar lines on free snap", () => {
+    const points = [makeRedPoint(0, 120, { meter: 4 })];
+    const lines = gridLinesInRange(0, 2000, points, FREE_SNAP);
+    expect(lines.map((l) => l.time)).toEqual([0, 500, 1000, 1500, 2000]);
+    expect(lines.filter((l) => l.barline).map((l) => l.time)).toEqual([0, 2000]);
   });
 
   it("switches tempo at the next red point", () => {
