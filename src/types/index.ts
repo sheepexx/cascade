@@ -393,6 +393,7 @@ export type AppSettings = {
   smoothScrolling: boolean;
   showWaveform: boolean;
   showTimingLines: boolean;
+  difficultyPanelOpen: boolean;
   upscroll: boolean;
   svPreviewPlayback: boolean;
   bpmAffectsScroll: boolean;
@@ -452,6 +453,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   smoothScrolling: true,
   showWaveform: false,
   showTimingLines: true,
+  difficultyPanelOpen: true,
   upscroll: false,
   svPreviewPlayback: false,
   bpmAffectsScroll: false,

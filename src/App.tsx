@@ -1564,6 +1564,8 @@ export default function App() {
     timingPoints[0]?.bpm !== 120 ||
     !hasDefaultDifficulty;
   const showChrome = hasProject && !zenMode && !playtest.active;
+  const diffPanelOpen = appSettings.difficultyPanelOpen !== false;
+  const diffPanelShown = showChrome && diffPanelOpen;
   const showHeader = !zenMode && (hasProject || menuOpen);
   const showChromeRef = useRef(showChrome);
   showChromeRef.current = showChrome;
@@ -4537,27 +4539,57 @@ export default function App() {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <div
-          className={`shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out ${
-            showChrome ? "w-60 opacity-100" : "w-0 opacity-0"
-          }`}
-          aria-hidden={!showChrome}
-        >
-          <div className="h-full w-60">
-            <DifficultySidebar
-              difficulties={difficulties}
-              activeId={active.id}
-              onSelect={setActiveId}
-              onAdd={addDifficulty}
-              onDuplicate={duplicateDifficulty}
-              onDelete={(ids) => setPendingDeleteDiffIds(ids)}
-              onRename={(id, name) => patchDifficulty(id, { name })}
-              onCreateRate={createRateDifficulty}
-              canEdit={canEdit}
-              songDurationMs={audio.duration > 0 ? audio.duration : null}
-              peers={liveEnabled ? collab.peers : undefined}
-            />
+        <div className="relative z-10 shrink-0">
+          <div
+            className={`h-full overflow-hidden transition-[width,opacity] duration-300 ease-out ${
+              diffPanelShown ? "w-60 opacity-100" : "w-0 opacity-0"
+            }`}
+            aria-hidden={!diffPanelShown}
+          >
+            <div className="h-full w-60">
+              <DifficultySidebar
+                difficulties={difficulties}
+                activeId={active.id}
+                onSelect={setActiveId}
+                onAdd={addDifficulty}
+                onDuplicate={duplicateDifficulty}
+                onDelete={(ids) => setPendingDeleteDiffIds(ids)}
+                onRename={(id, name) => patchDifficulty(id, { name })}
+                onCreateRate={createRateDifficulty}
+                canEdit={canEdit}
+                songDurationMs={audio.duration > 0 ? audio.duration : null}
+                peers={liveEnabled ? collab.peers : undefined}
+              />
+            </div>
           </div>
+
+          {showChrome && (
+            <div className="group absolute left-full top-1/2 h-32 w-11 -translate-y-1/2 overflow-hidden">
+              <button
+                type="button"
+                onClick={() =>
+                  setAppSettings((s) => ({
+                    ...s,
+                    difficultyPanelOpen: !diffPanelOpen,
+                  }))
+                }
+                title={t(
+                  diffPanelOpen
+                    ? "diffSidebar.collapse"
+                    : "diffSidebar.expand",
+                )}
+                aria-label={t(
+                  diffPanelOpen
+                    ? "diffSidebar.collapse"
+                    : "diffSidebar.expand",
+                )}
+                aria-expanded={diffPanelOpen}
+                className="absolute left-0 top-1/2 grid h-14 w-8 -translate-x-[76%] -translate-y-1/2 place-items-center rounded-r-xl border border-l-0 border-white/10 bg-ink-700/90 text-slate-300 shadow-lg backdrop-blur-sm transition-[transform,background-color,color] duration-200 ease-out hover:bg-ink-600 hover:text-white focus-visible:translate-x-0 group-hover:translate-x-0"
+              >
+                <ChevronIcon flipped={!diffPanelOpen} />
+              </button>
+            </div>
+          )}
         </div>
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -5832,6 +5864,25 @@ function KeybindRow({
       </button>
       <div className="text-slate-400">{text}</div>
     </div>
+  );
+}
+
+function ChevronIcon({ flipped }: { flipped: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={`h-4 w-4 transition-transform duration-200 ${
+        flipped ? "rotate-180" : ""
+      }`}
+    >
+      <path d="M15 5 8 12l7 7" />
+    </svg>
   );
 }
 

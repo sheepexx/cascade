@@ -358,6 +358,8 @@ export const ru: PartialCatalog = {
   "diffSidebar.deleteOneTitle": "Удалить эту сложность",
   "diffSidebar.deleteManyTitle": "Удалить сложностей: {count}",
   "diffSidebar.deleteMany": "Удалить {count}",
+  "diffSidebar.collapse": "Скрыть список сложностей",
+  "diffSidebar.expand": "Показать список сложностей",
 
   "editor.previewPoint": "Точка превью",
   "editor.bookmark": "Закладка",

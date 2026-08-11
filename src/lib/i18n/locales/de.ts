@@ -346,6 +346,8 @@ export const de: PartialCatalog = {
   "diffSidebar.deleteOneTitle": "Diese Schwierigkeit löschen",
   "diffSidebar.deleteManyTitle": "{count} Schwierigkeiten löschen",
   "diffSidebar.deleteMany": "{count} löschen",
+  "diffSidebar.collapse": "Schwierigkeitsliste ausblenden",
+  "diffSidebar.expand": "Schwierigkeitsliste einblenden",
 
   "editor.previewPoint": "Vorschaupunkt",
   "editor.bookmark": "Lesezeichen",

@@ -344,6 +344,8 @@ export const en = {
   "diffSidebar.deleteOneTitle": "Delete this difficulty",
   "diffSidebar.deleteManyTitle": "Delete {count} difficulties",
   "diffSidebar.deleteMany": "Delete {count}",
+  "diffSidebar.collapse": "Hide the difficulty list",
+  "diffSidebar.expand": "Show the difficulty list",
 
   "editor.previewPoint": "Preview Point",
   "editor.bookmark": "Bookmark",

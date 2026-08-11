@@ -329,6 +329,8 @@ export const zhCN: PartialCatalog = {
   "diffSidebar.deleteOneTitle": "删除此难度",
   "diffSidebar.deleteManyTitle": "删除 {count} 个难度",
   "diffSidebar.deleteMany": "删除 {count} 个",
+  "diffSidebar.collapse": "隐藏难度列表",
+  "diffSidebar.expand": "显示难度列表",
 
   "editor.previewPoint": "预览点",
   "editor.bookmark": "书签",

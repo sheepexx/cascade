@@ -346,6 +346,8 @@ export const ptBR: PartialCatalog = {
   "diffSidebar.deleteOneTitle": "Excluir esta dificuldade",
   "diffSidebar.deleteManyTitle": "Excluir {count} dificuldades",
   "diffSidebar.deleteMany": "Excluir {count}",
+  "diffSidebar.collapse": "Ocultar a lista de dificuldades",
+  "diffSidebar.expand": "Mostrar a lista de dificuldades",
 
   "editor.previewPoint": "Ponto de preview",
   "editor.bookmark": "Marcador",
