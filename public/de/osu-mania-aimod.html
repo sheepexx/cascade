@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/de/osu-mania-aimod" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-aimod" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-aimod" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-aimod" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-aimod" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-aimod" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-aimod" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>osu!mania AiMod: Map vor dem Upload prüfen | Cascade</title>
+    <meta name="description" content="Prüfe dein osu!mania-Mapset vollständig im Browser. Cascade meldet fehlende Metadaten, Timing-Probleme, nicht gesnappte Objekte, gleichzeitige Noten, kaputte lange Noten und Spalten außerhalb des Keymodes und springt dich zu jedem Fund." />
+    <meta name="keywords" content="osu mania aimod, beatmap checker, osu mania map prüfen, ungesnappte noten, gleichzeitige objekte, ranking criteria, mapset prüfung, osu mania modding" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:title" content="Prüfe deine osu!mania-Map, bevor du sie hochlädst" />
+    <meta property="og:description" content="Metadaten, Timing, Snapping, lange Noten und Spaltenfehler in einem Durchlauf, mit Sprung zu jedem Fund." />
+    <meta property="og:url" content="https://cascade.sheepex.net/de/osu-mania-aimod" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Der Cascade-Editor mit einer geöffneten osu!mania-Beatmap" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Prüfe deine osu!mania-Map, bevor du sie hochlädst" />
+    <meta name="twitter:description" content="Metadaten, Timing, Snapping, lange Noten und Spaltenfehler in einem Durchlauf, mit Sprung zu jedem Fund." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Map vor dem Upload prüfen",
+            "item": "https://cascade.sheepex.net/de/osu-mania-aimod"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Finde die Fehler, bevor ein Modder sie findet</h1>
+      <p>
+        Die meisten Anmerkungen aus einem ersten Mod haben nichts mit Geschmack
+        zu tun. Es sind ungesnappte Objekte, eine Schwierigkeit ohne rote Linie,
+        zwei Noten in derselben Spalte, eine lange Note von einer Millisekunde.
+        Cascades <strong>AiMod</strong> durchsucht das ganze Mapset genau nach
+        dieser Art Problem, damit das Feedback, das du bekommst, wirklich vom
+        Mapping handelt.
+      </p>
+      <a class="cta" href="/">Editor öffnen und AiMod starten</a>
+
+      <h2>Was geprüft wird</h2>
+      <ul>
+        <li><strong>Metadaten</strong>: fehlender romanisierter Titel, Künstler oder Creator und ein leeres Tags-Feld.</li>
+        <li><strong>Mapset</strong>: kein Audio geladen, keine Schwierigkeiten, Schwierigkeiten mit gleichem Namen und ein Set, das Keymodes mischt.</li>
+        <li><strong>Timing</strong>: eine Schwierigkeit ohne rote Linie, Objekte vor dem ersten Timing-Punkt, ungültige BPM-Werte, doppelte Punkte und grüne Linien vor der ersten roten.</li>
+        <li><strong>Snapping</strong>: Objekte und Enden langer Noten, die nicht auf dem Raster liegen.</li>
+        <li><strong>Noten</strong>: gleichzeitige Objekte in derselben Spalte, lange Noten, die vor ihrem Anfang enden, zu kurze lange Noten und Objekte in Spalten außerhalb des Keymodes.</li>
+      </ul>
+
+      <h2>Fehler und Warnungen sind nicht dasselbe</h2>
+      <p>
+        Was als <strong>Fehler</strong> markiert ist, macht entweder die Datei
+        kaputt oder führt zur Ablehnung des Sets: fehlender Creator, eine Map
+        ohne Timing, eine Note in Spalte fünf einer 4K-Schwierigkeit. Eine
+        <strong>Warnung</strong> ist etwas, das du dir ansehen und bewusst
+        behalten kannst, etwa ein Set, das absichtlich Keymodes mischt.
+      </p>
+
+      <h2>Direkt zur Fundstelle springen</h2>
+      <p>
+        Jeder Fund nennt die Schwierigkeit, aus der er stammt. So bekommst du
+        auch bei acht Charts eine abarbeitbare Liste statt einer Textwand.
+        Beheben, erneut laufen lassen, Liste schrumpfen sehen.
+      </p>
+
+      <p class="note">
+        AiMod prüft Struktur, nicht Geschmack. Es wird dir nie sagen, dass ein
+        Muster langweilig ist, und ersetzt keinen echten Mod.
+      </p>
+      <p class="langs">Diese Seite auf: <a href="/osu-mania-aimod" hreflang="en">English</a> · <a href="/ru/osu-mania-aimod" hreflang="ru">Русский</a> · <a href="/zh-cn/osu-mania-aimod" hreflang="zh-CN">简体中文</a> · <a href="/pt-br/osu-mania-aimod" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          Mehr: <a href="/">Cascade, der osu!mania-Editor im Browser</a> ·
+          <a href="/de/osu-mania-playtest">osu!mania-Maps testspielen</a> ·
+          <a href="/de/osu-mania-collab">Gemeinsam in Echtzeit mappen</a> ·
+          <a href="/de/osu-mania-bpm-finder">BPM und Offset finden</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

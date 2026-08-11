@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/zh-cn/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-bpm-finder" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>osu!mania 谱面的 BPM 与偏移查找器 | Cascade</title>
+    <meta name="description" content="在浏览器里给歌曲对时间轴。Cascade 能直接从音频识别 BPM，你可以跟着敲击确认，用节拍器覆盖检验，并微调偏移直到节拍线正好落在声音上。" />
+    <meta name="keywords" content="bpm 查找, osu mania 时间轴, 找歌曲 bpm, 偏移查找, 敲击 bpm, osu mania offset, 谱面时间轴, 节拍器, 在线 bpm 检测" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content="在浏览器里找出任意歌曲的 BPM 和偏移" />
+    <meta property="og:description" content="从音频识别 BPM，敲击确认，用节拍器检验，并微调偏移直到对齐。" />
+    <meta property="og:url" content="https://cascade.sheepex.net/zh-cn/osu-mania-bpm-finder" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="打开了 osu!mania 谱面的 Cascade 编辑器" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="在浏览器里找出任意歌曲的 BPM 和偏移" />
+    <meta name="twitter:description" content="从音频识别 BPM，敲击确认，用节拍器检验，并微调偏移直到对齐。" />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "如何为 osu!mania 谱面对好时间轴",
+        "description": "从音频识别 BPM，敲击确认，用节拍器检验，并微调偏移直到对齐。",
+        "totalTime": "PT2M",
+        "tool": {
+          "@type": "HowToTool",
+          "name": "Cascade"
+        },
+        "url": "https://cascade.sheepex.net/zh-cn/osu-mania-bpm-finder",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "加载音频",
+            "text": "把音频文件拖进 Cascade 来开始一张谱面。"
+          },
+          {
+            "@type": "HowToStep",
+            "name": "识别 BPM",
+            "text": "Cascade 会分析波形并给出一个速度建议。"
+          },
+          {
+            "@type": "HowToStep",
+            "name": "敲击确认",
+            "text": "跟着歌曲敲击，把敲出来的速度和识别到的速度做对比。"
+          },
+          {
+            "@type": "HowToStep",
+            "name": "设置偏移",
+            "text": "把播放头放在第一拍上，据此设置偏移，然后小步微调。"
+          },
+          {
+            "@type": "HowToStep",
+            "name": "用节拍器检验",
+            "text": "开着节拍器播放歌曲，直到咔哒声正好落在拍点上。"
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "找 BPM 和偏移",
+            "item": "https://cascade.sheepex.net/zh-cn/osu-mania-bpm-finder"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>找出任意歌曲的 BPM 和偏移</h1>
+      <p>
+        时间轴是做图里其他一切赖以存在的部分。BPM 差了百分之一，或者偏移差了几毫秒，
+        谱面里每一颗对齐过的音符都是错的，再好的排键也救不回来。
+        Cascade 提供三种把它做对的方式，还有一个节拍器来证明。
+      </p>
+      <a class="cta" href="/">打开编辑器开始对时间轴</a>
+
+      <h2>从音频中识别</h2>
+      <p>
+        拖入一首歌，Cascade 会分析波形，在你还没敲任何东西之前就给出速度建议。
+        对于节拍稳定的曲子，这通常就是答案，或者已经接近到只需要一点微调。
+      </p>
+
+      <h2>自己敲一遍</h2>
+      <p>
+        对于识别器判断模糊的情况，比如重后拍或者慢速前奏的歌，敲击定速仍然是最可靠的核对方式。
+        跟着敲几个小节，Cascade 会把你的敲击平均成可以直接应用的 BPM 和偏移。
+        如果你敲出来的速度和识别到的一致，那就搞定了。
+      </p>
+
+      <h2>把偏移对准</h2>
+      <p>
+        把播放头放到第一拍上并据此设置偏移，然后一边播放一边小步微调。
+        打开节拍器，咔哒声要么正好落在声音上，要么没有，
+        这比盯着波形看要快得多。
+      </p>
+
+      <h2>变速与花招</h2>
+      <p>
+        会加速、减速或者少一拍的歌需要更多红线，每条有自己的速度，节拍网格会跟着走。
+        时间轴一旦正确，对齐分度才真正有意义，你才能在它上面搭建谱面。
+      </p>
+
+      <p class="note">
+        先对时间轴，再排键。给做完的谱面重新对时间轴，意味着要把里面每一颗音符重新对齐。
+      </p>
+      <p class="langs">其他语言: <a href="/osu-mania-bpm-finder" hreflang="en">English</a> · <a href="/de/osu-mania-bpm-finder" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-bpm-finder" hreflang="ru">Русский</a> · <a href="/pt-br/osu-mania-bpm-finder" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          更多: <a href="/">Cascade，浏览器里的 osu!mania 编辑器</a> ·
+          <a href="/zh-cn/osu-mania-playtest">试玩 osu!mania 谱面</a> ·
+          <a href="/zh-cn/osu-mania-collab">实时协作做图</a> ·
+          <a href="/zh-cn/osu-mania-aimod">上传前检查谱面</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/ru/osu-mania-playtest" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-playtest" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-playtest" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-playtest" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-playtest" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-playtest" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-playtest" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>Тестируйте карты osu!mania прямо в браузере | Cascade</title>
+    <meta name="description" content="Играйте карту, которую редактируете, сразу же. Cascade использует настоящие окна точности osu!mania из вашей OD и показывает точность, комбо, unstable rate, среднюю ошибку попадания и NPS в реальном времени, без экспорта и перезагрузки." />
+    <meta name="keywords" content="osu mania playtest, тест карты osu mania, играть osu mania в браузере, окна точности mania, unstable rate, точность osu mania, редактор mania" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="Тестируйте карту osu!mania, не выходя из редактора" />
+    <meta property="og:description" content="Нажмите F5 и сыграйте карту, которую пишете: настоящие окна точности, точность, unstable rate и NPS в реальном времени." />
+    <meta property="og:url" content="https://cascade.sheepex.net/ru/osu-mania-playtest" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Редактор Cascade с открытой картой osu!mania" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Тестируйте карту osu!mania, не выходя из редактора" />
+    <meta name="twitter:description" content="Нажмите F5 и сыграйте карту, которую пишете: настоящие окна точности, точность, unstable rate и NPS в реальном времени." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "Как протестировать карту osu!mania в браузере",
+        "description": "Нажмите F5 и сыграйте карту, которую пишете: настоящие окна точности, точность, unstable rate и NPS в реальном времени.",
+        "totalTime": "PT1M",
+        "tool": {
+          "@type": "HowToTool",
+          "name": "Cascade"
+        },
+        "url": "https://cascade.sheepex.net/ru/osu-mania-playtest",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Откройте карту",
+            "text": "Загрузите карту в Cascade или импортируйте файл .osz."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Нажмите F5",
+            "text": "Редактор передаёт карту прямо на игровое поле и запускает заход."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Смотрите статистику",
+            "text": "Точность, комбо, unstable rate, средняя ошибка и NPS обновляются прямо во время игры."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Вернитесь и поправьте",
+            "text": "Нажмите F5 ещё раз, чтобы вернуться в редактор на том же месте и изменить паттерн."
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Тестировать карты osu!mania",
+            "item": "https://cascade.sheepex.net/ru/osu-mania-playtest"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Играйте свою карту osu!mania, не выходя из редактора</h1>
+      <p>
+        Самая медленная часть маппинга — понять, действительно ли паттерн
+        играется хорошо. Обычно это значит: экспортировать, открыть игру,
+        загрузить сет, сыграть и вернуться назад. Cascade убирает этот круг:
+        нажмите <code>F5</code>, и карта, которую вы редактируете, сразу
+        становится играбельной, в той же вкладке и на том же месте.
+      </p>
+      <a class="cta" href="/">Открыть редактор и сыграть</a>
+
+      <h2>Настоящая точность, а не приближение</h2>
+      <p>
+        Игровое поле использует окна точности osu!mania, вычисленные из overall
+        difficulty вашей карты, поэтому заход говорит о карте правду. Попадания
+        оцениваются как MAX, 300, 200, 100, 50 или промах, отпускание длинных
+        нот получает собственное более широкое окно, а числа совпадают с теми,
+        что вы увидели бы в игре.
+      </p>
+
+      <h2>Что показывает заход</h2>
+      <ul>
+        <li><strong>Точность и комбо</strong> по ходу игры, а не только в конце.</li>
+        <li><strong>Unstable rate</strong> и <strong>средняя ошибка попадания</strong>: видно, действительно ли участок сложный или просто плохо оттаймингован.</li>
+        <li><strong>Текущий и пиковый NPS</strong> превращают смутное ощущение плотности в число, которое можно сравнивать.</li>
+        <li><strong>Оценка pp</strong> для сложности прямо во время работы.</li>
+      </ul>
+
+      <h2>Тренируйтесь на любой скорости</h2>
+      <p>
+        Заходы доступны от 0,75x до 2x. Замедлить бёрст настолько, чтобы его
+        реально можно было прочитать, — самый быстрый способ понять, нечестный
+        он или просто непривычный. И наоборот, ускоренный спокойный участок
+        покажет паттерны, которые разваливаются под давлением. Окна точности
+        масштабируются точно так же, как в игре.
+      </p>
+
+      <p class="note">
+        Тестовая игра — инструмент маппинга, а не отправка результата. Ничего не
+        покидает ваш браузер, и ни один заход никуда не загружается.
+      </p>
+
+      <h2>А потом дальше за работу</h2>
+      <p>
+        Нажмите <code>F5</code> снова, и вы вернётесь в редактор на том же
+        месте, готовые подвинуть ноту, которая только что игралась не так.
+        Когда карта играется как надо, экспортируйте <code>.osu</code> или
+        <code>.osz</code>.
+      </p>
+      <p class="langs">Эта страница на: <a href="/osu-mania-playtest" hreflang="en">English</a> · <a href="/de/osu-mania-playtest" hreflang="de">Deutsch</a> · <a href="/zh-cn/osu-mania-playtest" hreflang="zh-CN">简体中文</a> · <a href="/pt-br/osu-mania-playtest" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          Ещё: <a href="/">Cascade, редактор osu!mania в браузере</a> ·
+          <a href="/ru/osu-mania-collab">Совместный маппинг в реальном времени</a> ·
+          <a href="/ru/osu-mania-aimod">Проверить карту перед загрузкой</a> ·
+          <a href="/ru/osu-mania-bpm-finder">Найти BPM и оффсет</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

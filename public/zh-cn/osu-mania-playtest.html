@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/zh-cn/osu-mania-playtest" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-playtest" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-playtest" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-playtest" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-playtest" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-playtest" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-playtest" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>在浏览器里试玩 osu!mania 谱面 | Cascade</title>
+    <meta name="description" content="立刻试玩正在编辑的谱面。Cascade 按你的 OD 使用真实的 osu!mania 判定区间，实时显示准确率、连击、UR、平均误差和 NPS，无需导出，也无需重新加载。" />
+    <meta name="keywords" content="osu mania 试玩, 测试 osu mania 谱面, 浏览器玩 osu mania, mania 判定区间, unstable rate, osu mania 准确率, mania 编辑器" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content="不离开编辑器，直接试玩你的 osu!mania 谱面" />
+    <meta property="og:description" content="按 F5 就能玩你正在写的谱面：真实判定区间、准确率、UR 和实时 NPS。" />
+    <meta property="og:url" content="https://cascade.sheepex.net/zh-cn/osu-mania-playtest" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="打开了 osu!mania 谱面的 Cascade 编辑器" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="不离开编辑器，直接试玩你的 osu!mania 谱面" />
+    <meta name="twitter:description" content="按 F5 就能玩你正在写的谱面：真实判定区间、准确率、UR 和实时 NPS。" />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "如何在浏览器里试玩 osu!mania 谱面",
+        "description": "按 F5 就能玩你正在写的谱面：真实判定区间、准确率、UR 和实时 NPS。",
+        "totalTime": "PT1M",
+        "tool": {
+          "@type": "HowToTool",
+          "name": "Cascade"
+        },
+        "url": "https://cascade.sheepex.net/zh-cn/osu-mania-playtest",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "打开谱面",
+            "text": "在 Cascade 里加载谱面，或导入一个 .osz 文件。"
+          },
+          {
+            "@type": "HowToStep",
+            "name": "按 F5",
+            "text": "编辑器会把谱面直接交给游戏区域并开始这一次游玩。"
+          },
+          {
+            "@type": "HowToStep",
+            "name": "查看数据",
+            "text": "准确率、连击、UR、平均误差和实时 NPS 会在游玩过程中持续更新。"
+          },
+          {
+            "@type": "HowToStep",
+            "name": "回去修改",
+            "text": "再按一次 F5，就能回到编辑器中相同的位置去调整排键。"
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "试玩 osu!mania 谱面",
+            "item": "https://cascade.sheepex.net/zh-cn/osu-mania-playtest"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>不离开编辑器，直接玩你的 osu!mania 谱面</h1>
+      <p>
+        做图最慢的一步，是判断一段排键到底手感好不好。通常这意味着导出、打开游戏、
+        加载谱面、游玩，然后再回来。Cascade 省掉了这一圈：按下 <code>F5</code>，
+        你正在编辑的谱面立刻就能玩，还是同一个标签页、同一个时间点。
+      </p>
+      <a class="cta" href="/">打开编辑器并试玩</a>
+
+      <h2>真实判定，而不是近似</h2>
+      <p>
+        游戏区域使用由谱面 overall difficulty 推导出的 osu!mania 判定区间，
+        因此一次游玩能真实反映谱面的情况。打击会被判定为 MAX、300、200、100、50
+        或 miss，长条尾部有自己更宽的判定区间，得到的数字和游戏里一致。
+      </p>
+
+      <h2>一次游玩能告诉你什么</h2>
+      <ul>
+        <li>游玩过程中实时的<strong>准确率与连击</strong>，而不是只有结算。</li>
+        <li><strong>UR</strong> 和<strong>平均打击误差</strong>，让你看清某一段是真的难，还是只是时间轴没对准。</li>
+        <li><strong>实时 NPS 与峰值 NPS</strong>，把模糊的密度感受变成可比较的数字。</li>
+        <li>边写边看的难度 <strong>pp 估算</strong>。</li>
+      </ul>
+
+      <h2>任意倍速练习</h2>
+      <p>
+        游玩速度可以在 0.75x 到 2x 之间调整。把一段密集串降速到能真正看清，
+        是判断它究竟是不合理还是只是不熟悉的最快方法；反过来，把平缓段加速，
+        则能暴露出在压力下会崩掉的排键。判定区间会像游戏里那样随倍速缩放。
+      </p>
+
+      <p class="note">
+        试玩是做图工具，不是成绩提交。所有数据都留在你的浏览器里，任何一次游玩都不会被上传。
+      </p>
+
+      <h2>然后继续做图</h2>
+      <p>
+        再按一次 <code>F5</code>，你就回到编辑器中相同的位置，可以立刻去挪动刚才手感不对的那颗音符。
+        当谱面玩起来符合预期，就导出 <code>.osu</code> 或 <code>.osz</code>。
+      </p>
+      <p class="langs">其他语言: <a href="/osu-mania-playtest" hreflang="en">English</a> · <a href="/de/osu-mania-playtest" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-playtest" hreflang="ru">Русский</a> · <a href="/pt-br/osu-mania-playtest" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          更多: <a href="/">Cascade，浏览器里的 osu!mania 编辑器</a> ·
+          <a href="/zh-cn/osu-mania-collab">实时协作做图</a> ·
+          <a href="/zh-cn/osu-mania-aimod">上传前检查谱面</a> ·
+          <a href="/zh-cn/osu-mania-bpm-finder">找 BPM 和偏移</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/pt-br/osu-mania-aimod" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-aimod" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-aimod" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-aimod" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-aimod" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-aimod" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-aimod" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>osu!mania AiMod: cheque seu mapa antes de enviar | Cascade</title>
+    <meta name="description" content="Rode uma checagem completa no seu mapset de osu!mania pelo navegador. O Cascade aponta metadados faltando, problemas de timing, objetos fora da grade, notas simultâneas, notas longas quebradas e colunas fora do alcance, e leva você até cada um." />
+    <meta name="keywords" content="osu mania aimod, verificador de beatmap, checar mapa osu mania, notas fora da grade, objetos simultaneos, ranking criteria, validacao de mapset, modding osu mania" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="Cheque seu mapa de osu!mania antes de enviar" />
+    <meta property="og:description" content="Metadados, timing, grade, notas longas e erros de coluna, tudo em uma passada, com um pulo até cada problema." />
+    <meta property="og:url" content="https://cascade.sheepex.net/pt-br/osu-mania-aimod" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="O editor Cascade com um beatmap de osu!mania aberto" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cheque seu mapa de osu!mania antes de enviar" />
+    <meta name="twitter:description" content="Metadados, timing, grade, notas longas e erros de coluna, tudo em uma passada, com um pulo até cada problema." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Checar o mapa antes de enviar",
+            "item": "https://cascade.sheepex.net/pt-br/osu-mania-aimod"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Ache os problemas antes que um modder ache</h1>
+      <p>
+        A maior parte das observações de um primeiro mod não é sobre gosto. São
+        objetos fora da grade, uma dificuldade sem linha vermelha, duas notas
+        empilhadas na mesma coluna, uma nota longa de um milissegundo. O
+        <strong>AiMod</strong> do Cascade varre o mapset inteiro exatamente
+        atrás desse tipo de problema, para que o retorno que você receber seja
+        sobre o mapeamento.
+      </p>
+      <a class="cta" href="/">Abrir o editor e rodar o AiMod</a>
+
+      <h2>O que ele checa</h2>
+      <ul>
+        <li><strong>Metadados</strong>: título, artista ou criador romanizados faltando, e campo de tags vazio.</li>
+        <li><strong>Mapset</strong>: sem áudio carregado, sem dificuldades, dificuldades com o mesmo nome e um set que mistura contagens de teclas.</li>
+        <li><strong>Timing</strong>: dificuldade sem linha vermelha, objetos antes do primeiro ponto de timing, BPM inválido, pontos duplicados e linhas verdes antes da primeira vermelha.</li>
+        <li><strong>Grade</strong>: objetos e finais de notas longas que não caem na grade de tempo.</li>
+        <li><strong>Notas</strong>: objetos simultâneos na mesma coluna, notas longas que terminam antes de começar, notas longas curtas demais e objetos em colunas fora da contagem de teclas.</li>
+      </ul>
+
+      <h2>Erro e aviso não são a mesma coisa</h2>
+      <p>
+        O que aparece como <strong>erro</strong> quebra o arquivo ou faz o set
+        ser rejeitado: criador faltando, um mapa sem timing, uma nota na coluna
+        cinco de uma dificuldade 4K. Um <strong>aviso</strong> é algo para
+        olhar e possivelmente manter, como um set que mistura contagens de
+        teclas de propósito.
+      </p>
+
+      <h2>Pule direto para o problema</h2>
+      <p>
+        Cada achado diz de qual dificuldade veio, então um set com oito mapas
+        ainda te dá uma lista para percorrer em vez de um muro de texto.
+        Corrija, rode de novo e veja a lista encolher.
+      </p>
+
+      <p class="note">
+        O AiMod checa estrutura, não gosto. Ele nunca vai dizer que um padrão é
+        chato, e não substitui um mod de verdade.
+      </p>
+      <p class="langs">Leia em: <a href="/osu-mania-aimod" hreflang="en">English</a> · <a href="/de/osu-mania-aimod" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-aimod" hreflang="ru">Русский</a> · <a href="/zh-cn/osu-mania-aimod" hreflang="zh-CN">简体中文</a></p>
+
+      <footer>
+        <p>
+          Mais: <a href="/">Cascade, o editor de osu!mania no navegador</a> ·
+          <a href="/pt-br/osu-mania-playtest">Testar mapas de osu!mania</a> ·
+          <a href="/pt-br/osu-mania-collab">Mapear junto em tempo real</a> ·
+          <a href="/pt-br/osu-mania-bpm-finder">Achar BPM e offset</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/osu-mania-playtest" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-playtest" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-playtest" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-playtest" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-playtest" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-playtest" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-playtest" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>Playtest osu!mania Maps in Your Browser | Cascade</title>
+    <meta name="description" content="Play the chart you are editing straight away. Cascade uses the real osu!mania judgement windows from your OD and reports accuracy, combo, unstable rate, mean hit error and live NPS, with no export and no reload." />
+    <meta name="keywords" content="osu mania playtest, test osu mania map, play osu mania in browser, osu mania editor playtest, mania judgement windows, unstable rate, osu mania accuracy, osu mania practice, mania rate practice" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Playtest your osu!mania map without leaving the editor" />
+    <meta property="og:description" content="Press F5 and play the chart you are writing, with real judgement windows, accuracy, unstable rate and live NPS." />
+    <meta property="og:url" content="https://cascade.sheepex.net/osu-mania-playtest" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Cascade editor with an osu!mania beatmap open" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Playtest your osu!mania map without leaving the editor" />
+    <meta name="twitter:description" content="Press F5 and play the chart you are writing, with real judgement windows, accuracy, unstable rate and live NPS." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to playtest an osu!mania map in the browser",
+        "description": "Press F5 and play the chart you are writing, with real judgement windows, accuracy, unstable rate and live NPS.",
+        "totalTime": "PT1M",
+        "tool": {
+          "@type": "HowToTool",
+          "name": "Cascade"
+        },
+        "url": "https://cascade.sheepex.net/osu-mania-playtest",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Open your map",
+            "text": "Load a map in Cascade or import an .osz."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Press F5",
+            "text": "The editor hands the chart straight to the playfield and starts the run."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Read the run stats",
+            "text": "Accuracy, combo, unstable rate, mean hit error and live NPS update while you play."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Go back and fix it",
+            "text": "Press F5 again to drop back into the editor at the same spot and adjust the pattern."
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Playtest osu!mania maps",
+            "item": "https://cascade.sheepex.net/osu-mania-playtest"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Play your osu!mania map without leaving the editor</h1>
+      <p>
+        The slowest part of mapping is finding out whether a pattern actually
+        feels good. Normally that means exporting, opening the game, loading
+        the set, playing, then coming back. Cascade removes the round trip:
+        press <code>F5</code> and the chart you are editing becomes playable
+        immediately, in the same tab, at the same timestamp.
+      </p>
+      <a class="cta" href="/">Open the editor and playtest</a>
+
+      <h2>Real judgement, not an approximation</h2>
+      <p>
+        The playfield uses the osu!mania judgement windows derived from your
+        map's overall difficulty, so a run tells you something true about the
+        chart. Hits are graded MAX, 300, 200, 100, 50 or miss, long note
+        releases get their own wider window, and the numbers you get back are
+        the ones you would get in game.
+      </p>
+
+      <h2>What the run tells you</h2>
+      <ul>
+        <li><strong>Accuracy and combo</strong> while the run is going, not just at the end.</li>
+        <li><strong>Unstable rate</strong> and <strong>mean hit error</strong>, so you can see whether a section is genuinely hard or just badly timed.</li>
+        <li><strong>Live NPS and peak NPS</strong>, which turn a vague feeling of density into a number you can compare between sections.</li>
+        <li>A <strong>pp estimate</strong> for the difficulty as you write it.</li>
+      </ul>
+
+      <h2>Practise at any rate</h2>
+      <p>
+        Runs can be played anywhere from 0.75x to 2x. Slowing a burst down
+        until you can actually read it is the fastest way to tell whether it is
+        unfair or just unfamiliar, and speeding a calm section up exposes
+        patterns that fall apart under pressure. The judgement windows scale
+        with the rate exactly as the game scales them.
+      </p>
+
+      <p class="note">
+        Playtest is a mapping tool, not a score submission. Nothing leaves your
+        browser and no run is uploaded anywhere.
+      </p>
+
+      <h2>Then keep working</h2>
+      <p>
+        Press <code>F5</code> again and you are back in the editor at the same
+        point, ready to move the note that just felt wrong. When the chart
+        plays the way you want, export a <code>.osu</code> or <code>.osz</code>,
+        or carry on with <a href="/osu-mania-sv-editor">scroll velocity</a> and
+        <a href="/osu-mania-aimod">a full map check</a>.
+      </p>
+      <p class="langs">Read this in: <a href="/de/osu-mania-playtest" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-playtest" hreflang="ru">Русский</a> · <a href="/zh-cn/osu-mania-playtest" hreflang="zh-CN">简体中文</a> · <a href="/pt-br/osu-mania-playtest" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          More: <a href="/">Cascade, the online osu!mania editor</a> ·
+          <a href="/osu-mania-collab">Map together in real time</a> ·
+          <a href="/osu-mania-aimod">Check a map before upload</a> ·
+          <a href="/osu-mania-bpm-finder">Find BPM and offset</a> ·
+          <a href="/how-to-make-an-osu-mania-map">How to make an osu!mania map</a> ·
+          <a href="/osu-mania-sv-editor">Edit scroll velocity</a> ·
+          <a href="/osu-to-stepmania">Convert to StepMania / Etterna</a> ·
+          <a href="/osu-mania-map-viewer">Preview maps online</a> ·
+          <a href="/osu-mania-pack-creator">Combine maps into one pack</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

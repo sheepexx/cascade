@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/pt-br/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-bpm-finder" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>Buscador de BPM e offset para mapas de osu!mania | Cascade</title>
+    <meta name="description" content="Faça o timing de uma música no navegador. O Cascade detecta o BPM a partir do próprio áudio, deixa você bater junto para confirmar, roda um metrônomo por cima e ajusta o offset até as linhas de tempo caírem em cima do som." />
+    <meta name="keywords" content="buscador de bpm, timing osu mania, achar bpm de musica, achar offset, bater bpm, osu mania offset, timing de beatmap, metronomo, detector de bpm online" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="Ache o BPM e o offset de qualquer música, no navegador" />
+    <meta property="og:description" content="Detecte o BPM pelo áudio, bata junto para confirmar, rode um metrônomo e ajuste o offset até travar." />
+    <meta property="og:url" content="https://cascade.sheepex.net/pt-br/osu-mania-bpm-finder" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="O editor Cascade com um beatmap de osu!mania aberto" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ache o BPM e o offset de qualquer música, no navegador" />
+    <meta name="twitter:description" content="Detecte o BPM pelo áudio, bata junto para confirmar, rode um metrônomo e ajuste o offset até travar." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "Como fazer o timing de uma música para osu!mania",
+        "description": "Detecte o BPM pelo áudio, bata junto para confirmar, rode um metrônomo e ajuste o offset até travar.",
+        "totalTime": "PT2M",
+        "tool": {
+          "@type": "HowToTool",
+          "name": "Cascade"
+        },
+        "url": "https://cascade.sheepex.net/pt-br/osu-mania-bpm-finder",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Carregue o áudio",
+            "text": "Solte um arquivo de áudio no Cascade para começar um mapa."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Detecte o BPM",
+            "text": "O Cascade analisa a forma de onda e propõe um andamento."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Bata para confirmar",
+            "text": "Bata junto com a música e compare o andamento batido com o detectado."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Defina o offset",
+            "text": "Ponha o cursor no primeiro tempo, defina o offset a partir dele e ajuste em passos pequenos."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Confira no metrônomo",
+            "text": "Toque a música com o metrônomo ligado até o clique cair exatamente no tempo."
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Achar BPM e offset",
+            "item": "https://cascade.sheepex.net/pt-br/osu-mania-bpm-finder"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Ache o BPM e o offset de qualquer música</h1>
+      <p>
+        Timing é a parte do mapeamento sem a qual nada mais sobrevive. Se o BPM
+        estiver errado por um centésimo ou o offset por alguns milissegundos,
+        toda nota alinhada do mapa está no lugar errado, e nenhum padrão bom
+        salva isso. O Cascade dá três caminhos para acertar e um metrônomo para
+        provar.
+      </p>
+      <a class="cta" href="/">Abrir o editor e começar o timing</a>
+
+      <h2>Detectado pelo áudio</h2>
+      <p>
+        Solte uma música e o Cascade analisa a forma de onda e propõe um
+        andamento antes de você bater qualquer coisa. Numa faixa de batida
+        constante isso costuma ser a resposta, ou perto o bastante para um
+        pequeno ajuste resolver.
+      </p>
+
+      <h2>Bata você mesmo</h2>
+      <p>
+        Bater o tempo continua sendo a checagem mais confiável para tudo que o
+        detector achar ambíguo, como músicas com contratempo forte ou intro
+        lenta. Bata junto por alguns compassos e o Cascade tira a média em um
+        BPM e um offset que dá para aplicar direto. Se o seu andamento e o
+        detectado combinam, acabou.
+      </p>
+
+      <h2>Acerte o offset</h2>
+      <p>
+        Ponha o cursor no primeiro tempo e defina o offset a partir dele, depois
+        ajuste em passos pequenos com a música tocando. Ligue o metrônomo: o
+        clique cai exatamente em cima do som ou não cai, e isso é um teste bem
+        mais rápido do que encarar a forma de onda.
+      </p>
+
+      <h2>Mudanças de BPM</h2>
+      <p>
+        Músicas que aceleram, desaceleram ou comem um compasso ganham mais
+        linhas vermelhas, cada uma com seu andamento, e a grade acompanha. Com o
+        timing certo, o divisor de alinhamento passa a significar algo e dá para
+        construir o mapa em cima dele.
+      </p>
+
+      <p class="note">
+        Timing primeiro, padrões depois. Refazer o timing de um mapa pronto
+        significa realinhar cada nota dele.
+      </p>
+      <p class="langs">Leia em: <a href="/osu-mania-bpm-finder" hreflang="en">English</a> · <a href="/de/osu-mania-bpm-finder" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-bpm-finder" hreflang="ru">Русский</a> · <a href="/zh-cn/osu-mania-bpm-finder" hreflang="zh-CN">简体中文</a></p>
+
+      <footer>
+        <p>
+          Mais: <a href="/">Cascade, o editor de osu!mania no navegador</a> ·
+          <a href="/pt-br/osu-mania-playtest">Testar mapas de osu!mania</a> ·
+          <a href="/pt-br/osu-mania-collab">Mapear junto em tempo real</a> ·
+          <a href="/pt-br/osu-mania-aimod">Checar o mapa antes de enviar</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

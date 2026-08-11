@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/zh-cn/osu-mania-collab" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-collab" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-collab" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-collab" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-collab" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-collab" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-collab" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>实时协作制作 osu!mania 谱面 | Cascade</title>
+    <meta name="description" content="用 osu! 用户名邀请其他作图者，一起编辑同一张 osu!mania 谱面。实时看到彼此的光标和播放位置，分配编辑或只读权限，并留下绑定到时间点的评论。" />
+    <meta name="keywords" content="协作谱面编辑器, osu mania 联合作图, 一起做图, 实时编辑谱面, guest difficulty, 共享谱面编辑器" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content="多人实时一起做 osu!mania 谱面" />
+    <meta property="og:description" content="用 osu! 用户名邀请，同时编辑同一张谱面，并留下绑定到时间点的评论。" />
+    <meta property="og:url" content="https://cascade.sheepex.net/zh-cn/osu-mania-collab" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="打开了 osu!mania 谱面的 Cascade 编辑器" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="多人实时一起做 osu!mania 谱面" />
+    <meta name="twitter:description" content="用 osu! 用户名邀请，同时编辑同一张谱面，并留下绑定到时间点的评论。" />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "实时协作做图",
+            "item": "https://cascade.sheepex.net/zh-cn/osu-mania-collab"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>同一张谱面，同一时间，一起做图</h1>
+      <p>
+        联合作图通常靠传文件：一个人导出 <code>.osz</code>，另一个人打开、修改、
+        再发回来，而忘了先拉取最新版本的那个人就会丢掉自己的工作。
+        Cascade 让所有人待在同一张实时谱面里。
+      </p>
+      <a class="cta" href="/">打开编辑器</a>
+
+      <h2>用 osu! 用户名邀请</h2>
+      <p>
+        把谱面保存到账号里，打开<em>分享</em>，然后用 osu! 用户名邀请对方。
+        对方会在 Cascade 收件箱收到通知，谱面也会出现在他的「我的谱面」里。
+        谁都不用发文件，也不用确认最新版本在谁手上。
+      </p>
+
+      <h2>编辑者或旁观者</h2>
+      <p>
+        每个被邀请的人要么是<strong>编辑者</strong>，可以改动谱面；
+        要么是<strong>旁观者</strong>，可以跟着看、可以评论，但不能编辑。
+        旁观权限是把半成品拿给别人看又不担心文件被改坏的稳妥做法。
+      </p>
+
+      <h2>你们能看见彼此的工作</h2>
+      <p>
+        会话中的每个人都会带着头像、光标和播放位置出现，
+        因此你能看到对方正在哪一段工作，互不干扰。音符一放下就会出现。
+        没有需要互相协调的保存按钮，最后也不需要合并。
+      </p>
+
+      <h2>绑定到时间点的评论</h2>
+      <p>
+        如果没人找得到说的是哪一小节，对谱面的反馈就毫无意义。
+        Cascade 的评论会绑定到歌曲中的某个时间和某个难度，
+        点一下就能让编辑器跳到正在讨论的那段排键，处理完的讨论还能标记为已解决。
+      </p>
+
+      <p class="note">
+        协作需要账号，因为邀请是绑定 osu! 用户名的。本地谱面则完全留在你自己的电脑上。
+      </p>
+      <p class="langs">其他语言: <a href="/osu-mania-collab" hreflang="en">English</a> · <a href="/de/osu-mania-collab" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-collab" hreflang="ru">Русский</a> · <a href="/pt-br/osu-mania-collab" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          更多: <a href="/">Cascade，浏览器里的 osu!mania 编辑器</a> ·
+          <a href="/zh-cn/osu-mania-playtest">试玩 osu!mania 谱面</a> ·
+          <a href="/zh-cn/osu-mania-aimod">上传前检查谱面</a> ·
+          <a href="/zh-cn/osu-mania-bpm-finder">找 BPM 和偏移</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/zh-cn/osu-mania-aimod" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-aimod" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-aimod" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-aimod" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-aimod" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-aimod" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-aimod" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>osu!mania AiMod：上传前检查你的谱面 | Cascade</title>
+    <meta name="description" content="在浏览器里对整套 osu!mania 谱面做一次完整检查。Cascade 会标出缺失的元数据、时间轴问题、未对齐的物件、重叠音符、损坏的长条以及超出键位的列，并可直接跳到每一处。" />
+    <meta name="keywords" content="osu mania aimod, 谱面检查, osu mania 检查, 未对齐音符, 重叠物件, ranking criteria, 谱面验证, osu mania modding" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content="上传前先检查你的 osu!mania 谱面" />
+    <meta property="og:description" content="元数据、时间轴、对齐、长条和列错误，一次扫描全部标出，并能跳到每一处。" />
+    <meta property="og:url" content="https://cascade.sheepex.net/zh-cn/osu-mania-aimod" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="打开了 osu!mania 谱面的 Cascade 编辑器" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="上传前先检查你的 osu!mania 谱面" />
+    <meta name="twitter:description" content="元数据、时间轴、对齐、长条和列错误，一次扫描全部标出，并能跳到每一处。" />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "上传前检查谱面",
+            "item": "https://cascade.sheepex.net/zh-cn/osu-mania-aimod"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>在 modder 发现之前先找出问题</h1>
+      <p>
+        第一次收到 mod 时，大多数意见其实和审美无关：未对齐的物件、没有红线的难度、
+        同一列里叠了两个音符、只有一毫秒长的长条。Cascade 的 <strong>AiMod</strong>
+        会针对这一类问题扫描整套谱面，让你真正收到的反馈是关于排键本身的。
+      </p>
+      <a class="cta" href="/">打开编辑器并运行 AiMod</a>
+
+      <h2>它会检查什么</h2>
+      <ul>
+        <li><strong>元数据</strong>：缺少罗马音标题、艺术家或作者，以及标签为空。</li>
+        <li><strong>谱面集</strong>：没有加载音频、没有难度、难度重名，以及键数混用的谱面集。</li>
+        <li><strong>时间轴</strong>：难度没有红线、物件早于第一个时间点、BPM 数值非法、时间点重复，以及绿线出现在第一条红线之前。</li>
+        <li><strong>对齐</strong>：没有落在节拍网格上的物件和长条尾部。</li>
+        <li><strong>音符</strong>：同一列中的重叠物件、结束早于开始的长条、短到无法游玩的长条，以及超出键数范围的列。</li>
+      </ul>
+
+      <h2>错误和警告不是一回事</h2>
+      <p>
+        标记为<strong>错误</strong>的问题，要么会让文件损坏，要么会导致谱面被拒：
+        缺少作者、没有时间轴的谱面、4K 难度里出现在第五列的音符。
+        <strong>警告</strong>则是值得看一眼、也可能刻意保留的东西，
+        比如一个有意混用键数的谱面集。
+      </p>
+
+      <h2>直接跳到问题所在</h2>
+      <p>
+        每条结果都会标明它来自哪个难度，所以即使一套有八个难度，
+        你拿到的也是一份可以逐条处理的清单，而不是一大段文字。
+        改完再跑一次，看着清单变短。
+      </p>
+
+      <p class="note">
+        AiMod 检查的是结构，不是审美。它永远不会告诉你某段排键无聊，也不能替代真正的 mod。
+      </p>
+      <p class="langs">其他语言: <a href="/osu-mania-aimod" hreflang="en">English</a> · <a href="/de/osu-mania-aimod" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-aimod" hreflang="ru">Русский</a> · <a href="/pt-br/osu-mania-aimod" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          更多: <a href="/">Cascade，浏览器里的 osu!mania 编辑器</a> ·
+          <a href="/zh-cn/osu-mania-playtest">试玩 osu!mania 谱面</a> ·
+          <a href="/zh-cn/osu-mania-collab">实时协作做图</a> ·
+          <a href="/zh-cn/osu-mania-bpm-finder">找 BPM 和偏移</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

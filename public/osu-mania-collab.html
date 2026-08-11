@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/osu-mania-collab" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-collab" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-collab" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-collab" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-collab" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-collab" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-collab" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>Collaborative osu!mania Mapping in Real Time | Cascade</title>
+    <meta name="description" content="Invite another mapper by osu! username and edit the same osu!mania map together. See each other's cursors and playhead live, set editor or viewer access, and leave comments pinned to a timestamp." />
+    <meta name="keywords" content="collaborative beatmap editor, osu mania collab, map together, realtime beatmap editing, osu mania guest difficulty, collab mapping, shared beatmap editor" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Map an osu!mania chart together, live" />
+    <meta property="og:description" content="Invite by osu! username, edit the same map at the same time, and leave comments pinned to a timestamp." />
+    <meta property="og:url" content="https://cascade.sheepex.net/osu-mania-collab" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Cascade editor with an osu!mania beatmap open" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Map an osu!mania chart together, live" />
+    <meta name="twitter:description" content="Invite by osu! username, edit the same map at the same time, and leave comments pinned to a timestamp." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Map together in real time",
+            "item": "https://cascade.sheepex.net/osu-mania-collab"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Map together, in the same chart, at the same time</h1>
+      <p>
+        Collab mapping normally runs on file swaps: someone exports a
+        <code>.osz</code>, someone else opens it, edits, sends it back, and
+        whoever forgot to pull first loses their work. Cascade keeps everyone in
+        one live chart instead, so a guest difficulty or a full collab set is
+        just two people in the same editor.
+      </p>
+      <a class="cta" href="/">Open the editor</a>
+
+      <h2>Invite by osu! username</h2>
+      <p>
+        Save a map to your account, open <em>Share</em>, and invite someone by
+        their osu! username. They get a notification in their Cascade inbox and
+        the map appears in their My Maps. Nobody has to send a file or agree on
+        who is holding the latest version.
+      </p>
+
+      <h2>Editor or viewer</h2>
+      <p>
+        Each person you invite is an <strong>editor</strong>, who can change the
+        chart, or a <strong>viewer</strong>, who can follow along and comment but
+        not edit. Viewer access is the honest way to show a work in progress to
+        someone whose opinion you want without risking the file.
+      </p>
+
+      <h2>You can see each other work</h2>
+      <p>
+        Everyone in the session shows up with their avatar, their cursor and
+        their playhead, so you can watch where the other person is working and
+        stay out of each other's way. Notes appear as they are placed. There is
+        no save button to coordinate around and no merge step at the end.
+      </p>
+
+      <h2>Comments pinned to a timestamp</h2>
+      <p>
+        Feedback on a chart is useless if nobody can find the bar it is about.
+        Comments in Cascade are anchored to a time in the song and to a
+        difficulty, so clicking one jumps the editor straight to the pattern
+        being discussed. Threads can be resolved once the note has been dealt
+        with.
+      </p>
+
+      <p class="note">
+        Collaboration needs an account, because invitations are tied to osu!
+        usernames. Local maps stay entirely on your machine.
+      </p>
+      <p class="langs">Read this in: <a href="/de/osu-mania-collab" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-collab" hreflang="ru">Русский</a> · <a href="/zh-cn/osu-mania-collab" hreflang="zh-CN">简体中文</a> · <a href="/pt-br/osu-mania-collab" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          More: <a href="/">Cascade, the online osu!mania editor</a> ·
+          <a href="/osu-mania-playtest">Playtest osu!mania maps</a> ·
+          <a href="/osu-mania-aimod">Check a map before upload</a> ·
+          <a href="/osu-mania-bpm-finder">Find BPM and offset</a> ·
+          <a href="/how-to-make-an-osu-mania-map">How to make an osu!mania map</a> ·
+          <a href="/osu-mania-sv-editor">Edit scroll velocity</a> ·
+          <a href="/osu-to-stepmania">Convert to StepMania / Etterna</a> ·
+          <a href="/osu-mania-map-viewer">Preview maps online</a> ·
+          <a href="/osu-mania-pack-creator">Combine maps into one pack</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

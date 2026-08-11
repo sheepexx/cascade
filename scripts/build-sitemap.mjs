@@ -2,9 +2,23 @@ import { execFileSync } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  LOCALES,
+  PAGES as LANDING_PAGES,
+  urlFor,
+} from "./landing-content.mjs";
 
 const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+const GENERATED = LANDING_PAGES.flatMap((page) =>
+  Object.keys(LOCALES).map((locale) => ({
+    path: urlFor(page.slug, locale),
+    source: "scripts/landing-content.mjs",
+    priority: locale === "en" ? "0.7" : "0.5",
+    changefreq: "monthly",
+  })),
+);
 
 const PAGES = [
   { path: "/", source: "index.html", priority: "1.0", changefreq: "weekly" },
@@ -38,6 +52,7 @@ const PAGES = [
     priority: "0.7",
     changefreq: "monthly",
   },
+  ...GENERATED,
   {
     path: "/privacy",
     source: "public/privacy.html",
