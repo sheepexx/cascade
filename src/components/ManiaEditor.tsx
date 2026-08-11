@@ -1035,11 +1035,15 @@ export function ManiaEditor(props: Props) {
     const buffer = props.waveformOverlay?.buffer;
     if (!buffer) return null;
     const channel = buffer.getChannelData(0);
-    const bucketMs = 2;
+    const targetBucketMs = 2;
     const bucketSamples = Math.max(
       1,
-      Math.round((buffer.sampleRate * bucketMs) / 1000),
+      Math.round((buffer.sampleRate * targetBucketMs) / 1000),
     );
+    // A bucket is a whole number of samples, so it is rarely exactly 2ms (88
+    // samples at 44.1kHz is 1.9955ms). Measuring it back off the sample rate
+    // keeps the overlay from drifting ~1ms per 440ms against the audio.
+    const bucketMs = (bucketSamples / buffer.sampleRate) * 1000;
     const count = Math.ceil(channel.length / bucketSamples);
     const peaks = new Float32Array(count);
     for (let i = 0; i < count; i++) {
