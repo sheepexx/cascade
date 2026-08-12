@@ -363,6 +363,9 @@ export const en = {
   "empty.madeBy": "Made by",
   "empty.contributors": "Contributors:",
   "empty.support": "Support",
+  "mobile.desktopTitle": "Open Cascade on a computer",
+  "mobile.desktopBody":
+    "The editor needs a keyboard and mouse, so mapping is desktop only for now. Have a look around below, then open cascade.sheepex.net on your computer to start.",
 
   "landing.h1": "Free Online osu!mania Editor & Map Viewer",
   "landing.intro":

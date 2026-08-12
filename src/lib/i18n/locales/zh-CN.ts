@@ -348,6 +348,9 @@ export const zhCN: PartialCatalog = {
   "empty.madeBy": "制作者",
   "empty.contributors": "贡献者：",
   "empty.support": "赞助",
+  "mobile.desktopTitle": "请在电脑上打开 Cascade",
+  "mobile.desktopBody":
+    "编辑器需要键盘和鼠标，所以制谱目前只支持电脑。你可以先在下面了解一下，然后在电脑上打开 cascade.sheepex.net。",
 
   "landing.h1": "免费在线 osu!mania 编辑器与谱面预览",
   "landing.intro":

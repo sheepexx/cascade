@@ -29,6 +29,7 @@ const PANEL_MIN = 104;
 const BG_FADE_MS = 900;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
+const PHONE_MAX_WIDTH = 720;
 const RING_RATIO = 0.42;
 const ROUNDS = 3;
 const BARS = 32;
@@ -82,6 +83,74 @@ const KIAI_GLOW_STOPS = Array.from({ length: 13 }, (_, i) => {
 const KIAI_GLOW_LEFT = `linear-gradient(to right, ${KIAI_GLOW_STOPS})`;
 const KIAI_GLOW_RIGHT = `linear-gradient(to left, ${KIAI_GLOW_STOPS})`;
 
+function isPhoneViewport(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(pointer: coarse)").matches === true &&
+    window.innerWidth < PHONE_MAX_WIDTH
+  );
+}
+
+export function usePhoneViewport(): boolean {
+  const [phone, setPhone] = useState(isPhoneViewport);
+  useEffect(() => {
+    const update = () => setPhone(isPhoneViewport());
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+  return phone;
+}
+
+function PhoneStart({
+  music,
+  children,
+}: {
+  music: MenuMusic;
+  children?: ReactNode;
+}) {
+  const t = useT();
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="relative min-h-full overflow-hidden">
+        <MenuBackground url={music.track?.backgroundUrl ?? null} />
+
+        <div className="relative px-5 pt-14">
+          <div className="flex flex-col items-center text-center">
+            <img
+              src="/logo.png?v=3"
+              alt=""
+              aria-hidden
+              className="h-24 w-24 drop-shadow-[0_0_28px_rgba(244,90,90,0.35)]"
+            />
+            <p className="mt-4 text-2xl font-bold tracking-tight text-white">
+              Cascade
+            </p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-accent">
+              VSRG Editor
+            </p>
+          </div>
+
+          <div className="mx-auto mt-8 max-w-md rounded-2xl border border-white/10 bg-ink-800/80 p-5 text-center backdrop-blur-sm">
+            <p className="text-base font-semibold text-slate-100">
+              {t("mobile.desktopTitle")}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              {t("mobile.desktopBody")}
+            </p>
+          </div>
+        </div>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function StartScreen({
   music,
   onOpenChange,
@@ -104,6 +173,7 @@ export function StartScreen({
   const [open, setOpen] = useState(false);
   const [layout, setLayout] = useState(() => measure());
   const [projectCount, setProjectCount] = useState<number | null>(null);
+  const phone = usePhoneViewport();
   const { user } = useAuth();
   const t = useT();
   const pulseRef = useRef<HTMLDivElement | null>(null);
@@ -208,6 +278,10 @@ export function StartScreen({
   const { wide, panel, logoOpen, logoClosed } = layout;
   const shift = ((left.length - right.length) * panel) / 2;
   const logoSize = open ? logoOpen : logoClosed;
+
+  if (phone) {
+    return <PhoneStart music={music}>{children}</PhoneStart>;
+  }
 
   return (
     <div className="h-full overflow-y-auto">

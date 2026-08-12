@@ -365,6 +365,9 @@ export const de: PartialCatalog = {
   "empty.madeBy": "Erstellt von",
   "empty.contributors": "Mitwirkende:",
   "empty.support": "Unterstützen",
+  "mobile.desktopTitle": "Öffne Cascade auf dem Computer",
+  "mobile.desktopBody":
+    "Der Editor braucht Tastatur und Maus, Mappen geht deshalb vorerst nur am Desktop. Sieh dich unten in Ruhe um und öffne cascade.sheepex.net dann auf deinem Computer.",
 
   "landing.h1": "Kostenloser osu!mania-Editor und Map-Viewer im Browser",
   "landing.intro":

@@ -377,6 +377,9 @@ export const ru: PartialCatalog = {
   "empty.madeBy": "Автор:",
   "empty.contributors": "Участники:",
   "empty.support": "Поддержать",
+  "mobile.desktopTitle": "Откройте Cascade на компьютере",
+  "mobile.desktopBody":
+    "Редактору нужны клавиатура и мышь, поэтому маппинг пока работает только на компьютере. Осмотритесь ниже, а потом откройте cascade.sheepex.net на компьютере.",
 
   "landing.h1": "Бесплатный онлайн-редактор osu!mania и просмотр карт",
   "landing.intro":

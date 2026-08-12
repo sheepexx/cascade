@@ -365,6 +365,9 @@ export const ptBR: PartialCatalog = {
   "empty.madeBy": "Feito por",
   "empty.contributors": "Contribuidores:",
   "empty.support": "Apoiar",
+  "mobile.desktopTitle": "Abra o Cascade no computador",
+  "mobile.desktopBody":
+    "O editor precisa de teclado e mouse, então mapear só funciona no computador por enquanto. Dê uma olhada abaixo e depois abra cascade.sheepex.net no seu computador.",
 
   "landing.h1": "Editor de osu!mania e visualizador de mapas online e gratuito",
   "landing.intro":
