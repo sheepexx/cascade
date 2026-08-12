@@ -5,6 +5,7 @@ import { buildOsz } from "../lib/oszExport";
 import { SharedMapPreview } from "./SharedMapPreview";
 import { cardChips, formatLength } from "../lib/shareCard";
 import { computeStarRating, starColor, starTextOn } from "../lib/starRating";
+import { resolveSharedAudioUrl } from "../lib/sharedMapAudio";
 import {
   countSharedView,
   loadSharedMap,
@@ -12,8 +13,6 @@ import {
   type SharedMap,
 } from "../lib/sharedMap";
 import type { LoadedFile } from "../types";
-
-type Fetched = { audio: LoadedFile | null; background: LoadedFile | null };
 
 async function fetchAsset(
   url: string | null,
@@ -153,39 +152,54 @@ export function SharedMapPage({
     }));
   }, [previewDifficulties]);
 
+  const previewAudioUrl =
+    preview && map
+      ? resolveSharedAudioUrl(
+          map.audioUrls,
+          map.audioUrl,
+          preview.audioFilename,
+        )
+      : null;
+
   const usePreviewClip =
     clipReady &&
     preview != null &&
     preview.id === previewDifficulties[0]?.id &&
+    previewAudioUrl === map?.audioUrl &&
     (preview.audioRate ?? 1) === 1;
 
   const makeOsz = useCallback(async (): Promise<Blob | null> => {
     if (!map) return null;
-    const [audio, background]: [LoadedFile | null, LoadedFile | null] =
-      await Promise.all([
-        fetchAsset(
-          map.audioUrl,
-          map.data.difficulties.find((d) => d.audioFilename)?.audioFilename ??
-            "audio.mp3",
-        ),
-        fetchAsset(map.backgroundUrl, "background.jpg"),
-      ] as [Promise<LoadedFile | null>, Promise<LoadedFile | null>]);
-    const fetched: Fetched = { audio, background };
+    const legacyAudioName =
+      map.data.difficulties.find((difficulty) => difficulty.audioFilename)
+        ?.audioFilename ?? "audio.mp3";
+    const audioSources = Object.entries(map.audioUrls);
+    if (!audioSources.length && map.audioUrl) {
+      audioSources.push([legacyAudioName, map.audioUrl]);
+    }
+    const [audioResults, background] = await Promise.all([
+      Promise.all(
+        audioSources.map(([name, url]) => fetchAsset(url, name)),
+      ),
+      fetchAsset(map.backgroundUrl, "background.jpg"),
+    ]);
+    const audio = audioResults.filter(
+      (file): file is LoadedFile => file !== null,
+    );
+    const legacyAudio = Object.keys(map.audioUrls).length ? null : audio[0];
     const difficulties = map.data.difficulties.map((d) => ({
       ...d,
-      audioFilename: fetched.audio?.name ?? d.audioFilename,
-      backgroundFilename: fetched.background
-        ? fetched.background.name
+      audioFilename: legacyAudio?.name ?? d.audioFilename,
+      backgroundFilename: background
+        ? background.name
         : d.backgroundFilename,
     }));
     return buildOsz({
       meta: map.data.meta,
       difficulties,
       timingPoints: map.data.timingPoints,
-      audioFiles: fetched.audio ? { [fetched.audio.name]: fetched.audio } : {},
-      bgFiles: fetched.background
-        ? { [fetched.background.name]: fetched.background }
-        : {},
+      audioFiles: Object.fromEntries(audio.map((file) => [file.name, file])),
+      bgFiles: background ? { [background.name]: background } : {},
     });
   }, [map]);
 
@@ -326,7 +340,7 @@ export function SharedMapPage({
               notes={preview.notes}
               keyCount={preview.keyCount}
               previewTime={preview.previewTime}
-              audioUrl={usePreviewClip ? map.previewUrl : map.audioUrl}
+              audioUrl={usePreviewClip ? map.previewUrl : previewAudioUrl}
               audioRate={preview.audioRate}
               preservePitch={preview.preservePitch}
               clipStartsAtZero={usePreviewClip}

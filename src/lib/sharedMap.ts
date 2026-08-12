@@ -28,6 +28,7 @@ export type SharedMap = {
   creator: string;
   data: SharedMapData;
   audioUrl: string | null;
+  audioUrls: Record<string, string>;
   previewUrl: string | null;
   backgroundUrl: string | null;
   cardUrl: string | null;
@@ -48,6 +49,7 @@ type SharedRow = {
   creator: string;
   data: SharedMapData;
   audio_path: string | null;
+  audio_paths: Record<string, string> | null;
   bg_path: string | null;
   card_path: string | null;
   key_counts: number[] | null;
@@ -81,6 +83,17 @@ export function sharedMapUrl(slug: string): string {
 function publicUrl(path: string | null): string | null {
   if (!path) return null;
   return supabase.storage.from(SHARED_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+function publicAudioUrls(
+  paths: Record<string, string> | null,
+): Record<string, string> {
+  const urls: Record<string, string> = {};
+  for (const [name, path] of Object.entries(paths ?? {})) {
+    const url = publicUrl(path);
+    if (url) urls[name] = url;
+  }
+  return urls;
 }
 
 export function previewClipUrl(owner: string, slug: string): string | null {
@@ -131,7 +144,8 @@ export type PublishParams = {
   ownerId: string;
   projectId: string | null;
   data: SharedMapData;
-  audio: { name: string; blob: Blob } | null;
+  audioFiles: { name: string; blob: Blob }[];
+  previewAudioName?: string | null;
   background: { name: string; blob: Blob } | null;
   card: Blob | null;
   previewStartMs?: number;
@@ -182,8 +196,10 @@ export async function makePreviewClip(
 }
 
 export async function publishSharedMap(params: PublishParams): Promise<string> {
-  const { ownerId, projectId, data, audio, background, card } = params;
-  const bytes = (audio?.blob.size ?? 0) + (background?.blob.size ?? 0);
+  const { ownerId, projectId, data, audioFiles, background, card } = params;
+  const bytes =
+    audioFiles.reduce((sum, audio) => sum + audio.blob.size, 0) +
+    (background?.blob.size ?? 0);
   if (bytes > SHARED_BYTE_LIMIT) {
     throw new Error(
       `Shared assets are ${(bytes / 1048576).toFixed(0)} MB, over the ` +
@@ -193,12 +209,24 @@ export async function publishSharedMap(params: PublishParams): Promise<string> {
 
   const slug = makeSlug();
   const base = `${ownerId}/${slug}`;
-  const audioPath = audio
-    ? await upload(`${base}/audio.${extensionOf(audio.name, "mp3")}`, audio.blob)
-    : null;
-  if (audio) {
+  const audioPaths: Record<string, string> = {};
+  for (const [index, audio] of audioFiles.entries()) {
+    audioPaths[audio.name] = await upload(
+      `${base}/audio-${index}.${extensionOf(audio.name, "mp3")}`,
+      audio.blob,
+    );
+  }
+  const previewAudio =
+    audioFiles.find((audio) => audio.name === params.previewAudioName) ??
+    audioFiles[0] ??
+    null;
+  const audioPath = previewAudio ? audioPaths[previewAudio.name] : null;
+  if (previewAudio) {
     await loadMp3Encoder().catch(() => {});
-    const clip = await makePreviewClip(audio.blob, params.previewStartMs ?? 0);
+    const clip = await makePreviewClip(
+      previewAudio.blob,
+      params.previewStartMs ?? 0,
+    );
     if (clip) await upload(`${base}/${PREVIEW_CLIP_NAME}`, clip.blob);
   }
   const bgPath = background
@@ -216,6 +244,7 @@ export async function publishSharedMap(params: PublishParams): Promise<string> {
     creator: data.meta.creator || "",
     data,
     audio_path: audioPath,
+    audio_paths: audioPaths,
     bg_path: bgPath,
     card_path: cardPath,
     key_counts: summary.keyCounts,
@@ -232,7 +261,7 @@ export async function loadSharedMap(slug: string): Promise<SharedMap | null> {
   const { data, error } = await supabase
     .from("shared_maps")
     .select(
-      "slug,owner,title,artist,creator,data,audio_path,bg_path,card_path,key_counts,star_rating,length_ms,bpm,note_count,views,created_at",
+      "slug,owner,title,artist,creator,data,audio_path,audio_paths,bg_path,card_path,key_counts,star_rating,length_ms,bpm,note_count,views,created_at",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -247,6 +276,7 @@ export async function loadSharedMap(slug: string): Promise<SharedMap | null> {
     creator: row.creator,
     data: row.data,
     audioUrl: publicUrl(row.audio_path),
+    audioUrls: publicAudioUrls(row.audio_paths),
     previewUrl: previewClipUrl(row.owner, row.slug),
     backgroundUrl: publicUrl(row.bg_path),
     cardUrl: publicUrl(row.card_path),
@@ -264,7 +294,7 @@ export async function listMySharedMaps(ownerId: string): Promise<SharedMap[]> {
   const { data, error } = await supabase
     .from("shared_maps")
     .select(
-      "slug,owner,title,artist,creator,data,audio_path,bg_path,card_path,key_counts,star_rating,length_ms,bpm,note_count,views,created_at",
+      "slug,owner,title,artist,creator,data,audio_path,audio_paths,bg_path,card_path,key_counts,star_rating,length_ms,bpm,note_count,views,created_at",
     )
     .eq("owner", ownerId)
     .order("created_at", { ascending: false });
@@ -277,6 +307,7 @@ export async function listMySharedMaps(ownerId: string): Promise<SharedMap[]> {
     creator: row.creator,
     data: row.data,
     audioUrl: publicUrl(row.audio_path),
+    audioUrls: publicAudioUrls(row.audio_paths),
     previewUrl: previewClipUrl(row.owner, row.slug),
     backgroundUrl: publicUrl(row.bg_path),
     cardUrl: publicUrl(row.card_path),

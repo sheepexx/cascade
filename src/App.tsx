@@ -1919,8 +1919,27 @@ export default function App() {
       timingPoints: timingPointsRef.current,
       difficulties: difficultiesRef.current,
     };
-    const audioName = data.difficulties.find((d) => d.audioFilename)?.audioFilename;
-    const audioFile = audioName ? audioFilesRef.current[audioName] : null;
+    const referencedAudioNames = new Set(
+      data.difficulties.flatMap((difficulty) =>
+        difficulty.audioFilename ? [difficulty.audioFilename] : [],
+      ),
+    );
+    const missingAudioName = [...referencedAudioNames].find(
+      (name) => !audioFilesRef.current[name],
+    );
+    if (missingAudioName) {
+      throw new Error(`Couldn't publish because ${missingAudioName} isn't loaded.`);
+    }
+    let sharedAudioFiles = [...referencedAudioNames].flatMap((name) => {
+      const file = audioFilesRef.current[name];
+      return file ? [{ name: file.name, blob: file.blob }] : [];
+    });
+    if (!sharedAudioFiles.length) {
+      const available = Object.values(audioFilesRef.current);
+      if (available.length === 1) {
+        sharedAudioFiles = [{ name: available[0].name, blob: available[0].blob }];
+      }
+    }
     const bgName = data.difficulties.find((d) => d.backgroundFilename)
       ?.backgroundFilename;
     const bgFile = bgName ? bgFilesRef.current[bgName] : null;
@@ -1943,7 +1962,8 @@ export default function App() {
       ownerId: owner.id,
       projectId: cloudProjectIdRef.current,
       data,
-      audio: audioFile ? { name: audioFile.name, blob: audioFile.blob } : null,
+      audioFiles: sharedAudioFiles,
+      previewAudioName: previewDifficulty?.audioFilename ?? null,
       background: bgFile ? { name: bgFile.name, blob: bgFile.blob } : null,
       card,
       previewStartMs: previewStartMs(
