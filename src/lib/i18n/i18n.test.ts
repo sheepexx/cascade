@@ -7,6 +7,7 @@ import { ptBR } from "./locales/pt-BR";
 import {
   LOCALES,
   detectLocale,
+  localeFromPath,
   registerCatalog,
   resolveLocale,
   translate,
@@ -50,6 +51,27 @@ describe("resolveLocale", () => {
     expect(resolveLocale(null)).toBeNull();
   });
 
+});
+
+describe("localeFromPath", () => {
+  it("reads the locale prefix of a localised home", () => {
+    expect(localeFromPath("/de")).toBe("de");
+    expect(localeFromPath("/ru/")).toBe("ru");
+    expect(localeFromPath("/zh-cn")).toBe("zh-CN");
+    expect(localeFromPath("/pt-br/")).toBe("pt-BR");
+  });
+
+  it("reads the prefix of a localised landing page", () => {
+    expect(localeFromPath("/de/osu-mania-playtest")).toBe("de");
+  });
+
+  it("ignores the English root and unprefixed pages", () => {
+    expect(localeFromPath("/")).toBeNull();
+    expect(localeFromPath("")).toBeNull();
+    expect(localeFromPath("/osu-mania-sv-editor")).toBeNull();
+    expect(localeFromPath("/how-to-make-an-osu-mania-map")).toBeNull();
+    expect(localeFromPath("/privacy")).toBeNull();
+  });
 });
 
 describe("detectLocale", () => {

@@ -364,6 +364,50 @@ export const en = {
   "empty.contributors": "Contributors:",
   "empty.support": "Support",
 
+  "landing.h1": "Free Online osu!mania Editor & Map Viewer",
+  "landing.intro":
+    "Cascade is a browser-based osu!mania beatmap editor, StepMania editor, Etterna editor, and VSRG map viewer. Import `.osz` / `.osu` files, convert osu to Etterna or StepMania, chart notes on a vertical scrolling playfield, set timing, hear real osu! hitsounds, collaborate in realtime, and export a ready-to-play `.osu`, `.osz`, or `.sm` map. No download, no install.",
+  "landing.doTitle": "What you can do",
+  "landing.do1":
+    "Edit osu!mania beatmaps online (1K to 18K), with rice notes and long notes",
+  "landing.do2":
+    "Edit StepMania and Etterna charts in a browser-based ArrowVortex-style workflow",
+  "landing.do3": "Preview and view osu!mania maps right in the browser",
+  "landing.do4": "Import `.osz` / `.osu`, export `.osu`, `.osz`, or `.sm`",
+  "landing.do5":
+    "Convert osu!mania maps to Etterna or StepMania-compatible .sm files",
+  "landing.do6":
+    "Combine multiple maps into one .osz song pack with the Pack Creator",
+  "landing.do7": "Set BPM and timing with tap tempo and a metronome",
+  "landing.do8":
+    "Set a background image or a muted background video, like ranked osu! maps",
+  "landing.do9": "Real osu! hitsounds and `.osk` skin support",
+  "landing.do10": "Realtime collaborative mapping with live comments",
+  "landing.faqTitle": "osu!mania editor FAQ",
+  "landing.faqQ1": "Is Cascade free to use?",
+  "landing.faqA1":
+    "Yes. Cascade is a free online osu!mania editor that runs entirely in your web browser.",
+  "landing.faqQ2": "Do I need to install anything?",
+  "landing.faqA2":
+    "No. It is a web app: open it in any modern browser and start mapping immediately.",
+  "landing.faqQ3": "Can I import my existing osu!mania beatmaps?",
+  "landing.faqA3":
+    "Yes. Drag an `.osz` or `.osu` file onto the page to edit an existing map, then export it back out or convert osu to Etterna / StepMania.",
+  "landing.faqQ4": "Is this a VSRG editor?",
+  "landing.faqA4":
+    "Yes. Cascade charts on a standard vertical-scrolling rhythm-game (VSRG) playfield and exports osu!mania .osu / .osz files plus StepMania and Etterna .sm charts.",
+  "landing.faqQ5": "Is Cascade like ArrowVortex?",
+  "landing.faqA5":
+    "Cascade covers similar mania chart editing and conversion workflows in the browser, including osu!mania, StepMania, and Etterna formats.",
+  "landing.faqQ6": "Can I combine multiple maps into one .osz pack?",
+  "landing.faqA6":
+    "Yes. The Pack Creator on the start menu merges several beatmaps into a single .osz song pack with shared metadata, mapper credits, and generated difficulty names, for local play.",
+  "landing.guidesTitle": "Guides",
+  "landing.guide1": "How to make an osu!mania map online",
+  "landing.guide2": "Convert osu!mania maps to StepMania / Etterna (.osz to .sm)",
+  "landing.guide3": "Preview osu!mania maps online",
+  "landing.guide4": "Combine multiple maps into one .osz pack",
+
   "menu.open": "Cascade menu",
   "menu.close": "Close menu",
   "menu.importMap": "Import map",

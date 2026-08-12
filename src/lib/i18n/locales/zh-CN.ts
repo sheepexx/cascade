@@ -349,6 +349,45 @@ export const zhCN: PartialCatalog = {
   "empty.contributors": "贡献者：",
   "empty.support": "赞助",
 
+  "landing.h1": "免费在线 osu!mania 编辑器与谱面预览",
+  "landing.intro":
+    "Cascade 是一个在浏览器里运行的 osu!mania 谱面编辑器、StepMania 编辑器、Etterna 编辑器和 VSRG 谱面预览工具。导入 `.osz` / `.osu` 文件，把 osu 转换成 Etterna 或 StepMania，在竖向下落的轨道上摆放音符，设置时间轴，听真实的 osu! 打击音效，实时协作，并导出可直接游玩的 `.osu`、`.osz` 或 `.sm` 谱面。无需下载，无需安装。",
+  "landing.doTitle": "你可以做什么",
+  "landing.do1": "在线编辑 osu!mania 谱面（1K 到 18K），支持单点和长条",
+  "landing.do2": "在浏览器里以 ArrowVortex 式的流程编辑 StepMania 和 Etterna 谱面",
+  "landing.do3": "直接在浏览器里预览和观看 osu!mania 谱面",
+  "landing.do4": "导入 `.osz` / `.osu`，导出 `.osu`、`.osz` 或 `.sm`",
+  "landing.do5": "把 osu!mania 谱面转换成 Etterna 或 StepMania 可用的 .sm 文件",
+  "landing.do6": "用 Pack Creator 把多张谱面合并成一个 .osz 曲包",
+  "landing.do7": "用打拍测速和节拍器设置 BPM 与时间轴",
+  "landing.do8": "像上架的 osu! 谱面一样设置背景图片或静音背景视频",
+  "landing.do9": "真实的 osu! 打击音效，并支持 `.osk` 皮肤",
+  "landing.do10": "实时协作制谱，并带实时评论",
+  "landing.faqTitle": "osu!mania 编辑器常见问题",
+  "landing.faqQ1": "Cascade 是免费的吗？",
+  "landing.faqA1":
+    "是的。Cascade 是一个免费的在线 osu!mania 编辑器，完全在你的浏览器里运行。",
+  "landing.faqQ2": "需要安装什么吗？",
+  "landing.faqA2":
+    "不需要。它是一个网页应用：用任意现代浏览器打开就能立刻开始制谱。",
+  "landing.faqQ3": "可以导入我已有的 osu!mania 谱面吗？",
+  "landing.faqA3":
+    "可以。把 `.osz` 或 `.osu` 文件拖到页面上就能编辑已有谱面，之后再导出，或者把 osu 转换成 Etterna / StepMania。",
+  "landing.faqQ4": "这是 VSRG 编辑器吗？",
+  "landing.faqA4":
+    "是的。Cascade 使用标准的竖向下落式音游（VSRG）轨道，并可导出 osu!mania 的 .osu / .osz 文件以及 StepMania 和 Etterna 的 .sm 谱面。",
+  "landing.faqQ5": "Cascade 和 ArrowVortex 类似吗？",
+  "landing.faqA5":
+    "Cascade 在浏览器里覆盖了类似的 mania 谱面编辑与转换流程，支持 osu!mania、StepMania 和 Etterna 格式。",
+  "landing.faqQ6": "可以把多张谱面合并成一个 .osz 曲包吗？",
+  "landing.faqA6":
+    "可以。开始菜单里的 Pack Creator 会把多张谱面合并成一个 .osz 曲包，共用元数据、保留各自的作者署名并生成难度名，适合本地游玩。",
+  "landing.guidesTitle": "指南",
+  "landing.guide1": "如何在线制作 osu!mania 谱面",
+  "landing.guide2": "把 osu!mania 谱面转换成 StepMania / Etterna（.osz 转 .sm）",
+  "landing.guide3": "在线预览 osu!mania 谱面",
+  "landing.guide4": "把多张谱面合并成一个 .osz 曲包",
+
   "menu.open": "Cascade 菜单",
   "menu.close": "关闭菜单",
   "menu.importMap": "导入谱面",

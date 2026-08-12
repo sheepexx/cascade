@@ -20,8 +20,18 @@ const GENERATED = LANDING_PAGES.flatMap((page) =>
   })),
 );
 
+const LOCALISED_HOMES = Object.keys(LOCALES)
+  .filter((locale) => LOCALES[locale].prefix)
+  .map((locale) => ({
+    path: `/${LOCALES[locale].prefix}`,
+    source: `src/lib/i18n/locales/${locale}.ts`,
+    priority: "0.8",
+    changefreq: "weekly",
+  }));
+
 const PAGES = [
   { path: "/", source: "index.html", priority: "1.0", changefreq: "weekly" },
+  ...LOCALISED_HOMES,
   {
     path: "/how-to-make-an-osu-mania-map",
     source: "public/how-to-make-an-osu-mania-map.html",

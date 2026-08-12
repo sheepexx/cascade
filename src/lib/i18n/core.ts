@@ -86,6 +86,15 @@ export function resolveLocale(tag: string | null | undefined): Locale | null {
   return null;
 }
 
+export function localeFromPath(
+  pathname: string | null | undefined,
+): Locale | null {
+  if (!pathname) return null;
+  const segment = pathname.split("/")[1];
+  if (!segment) return null;
+  return resolveLocale(segment);
+}
+
 export function detectLocale(): Locale {
   if (typeof navigator === "undefined") return DEFAULT_LOCALE;
   const tags = navigator.languages?.length

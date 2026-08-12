@@ -7,7 +7,12 @@
       "has": [{ "type": "host", "value": "mania.sheepex.net" }],
       "destination": "https://cascade.sheepex.net/:path*",
       "permanent": true
-    }
+    },
+    { "source": "/zh", "destination": "/zh-cn", "permanent": true },
+    { "source": "/zh/:path*", "destination": "/zh-cn/:path*", "permanent": true },
+    { "source": "/pt", "destination": "/pt-br", "permanent": true },
+    { "source": "/pt/:path*", "destination": "/pt-br/:path*", "permanent": true },
+    { "source": "/en", "destination": "/", "permanent": true }
   ],
   "headers": [
     {

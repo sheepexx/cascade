@@ -366,6 +366,52 @@ export const ptBR: PartialCatalog = {
   "empty.contributors": "Contribuidores:",
   "empty.support": "Apoiar",
 
+  "landing.h1": "Editor de osu!mania e visualizador de mapas online e gratuito",
+  "landing.intro":
+    "O Cascade é um editor de beatmaps de osu!mania, editor de StepMania, editor de Etterna e visualizador de mapas VSRG que roda no navegador. Importe arquivos `.osz` / `.osu`, converta osu para Etterna ou StepMania, posicione notas em um campo de rolagem vertical, ajuste o timing, ouça hitsounds reais do osu!, colabore em tempo real e exporte um mapa `.osu`, `.osz` ou `.sm` pronto para jogar. Sem download, sem instalação.",
+  "landing.doTitle": "O que dá para fazer",
+  "landing.do1":
+    "Editar beatmaps de osu!mania online (de 1K a 18K), com notas simples e long notes",
+  "landing.do2":
+    "Editar charts de StepMania e Etterna no navegador, num fluxo parecido com o do ArrowVortex",
+  "landing.do3": "Visualizar e assistir mapas de osu!mania direto no navegador",
+  "landing.do4":
+    "Importar `.osz` / `.osu` e exportar `.osu`, `.osz` ou `.sm`",
+  "landing.do5":
+    "Converter mapas de osu!mania para arquivos .sm compatíveis com Etterna ou StepMania",
+  "landing.do6":
+    "Juntar vários mapas em um único song pack .osz com o Pack Creator",
+  "landing.do7": "Definir BPM e timing com tap tempo e metrônomo",
+  "landing.do8":
+    "Definir uma imagem de fundo ou um vídeo de fundo sem som, como nos mapas ranked do osu!",
+  "landing.do9": "Hitsounds reais do osu! e suporte a skins `.osk`",
+  "landing.do10": "Mapeamento colaborativo em tempo real com comentários ao vivo",
+  "landing.faqTitle": "Perguntas frequentes sobre o editor de osu!mania",
+  "landing.faqQ1": "O Cascade é gratuito?",
+  "landing.faqA1":
+    "Sim. O Cascade é um editor de osu!mania online e gratuito que roda inteiramente no seu navegador.",
+  "landing.faqQ2": "Preciso instalar alguma coisa?",
+  "landing.faqA2":
+    "Não. Ele é um app web: abra em qualquer navegador moderno e comece a mapear na hora.",
+  "landing.faqQ3": "Posso importar meus beatmaps de osu!mania?",
+  "landing.faqA3":
+    "Sim. Arraste um arquivo `.osz` ou `.osu` para a página para editar um mapa existente e depois exporte de volta ou converta de osu para Etterna / StepMania.",
+  "landing.faqQ4": "Isso é um editor VSRG?",
+  "landing.faqA4":
+    "Sim. O Cascade usa o campo vertical clássico dos rhythm games (VSRG) e exporta arquivos de osu!mania (.osu / .osz) além de charts .sm de StepMania e Etterna.",
+  "landing.faqQ5": "O Cascade é parecido com o ArrowVortex?",
+  "landing.faqA5":
+    "O Cascade cobre fluxos parecidos de edição e conversão de charts de mania no navegador, incluindo os formatos osu!mania, StepMania e Etterna.",
+  "landing.faqQ6": "Posso juntar vários mapas em um pack .osz?",
+  "landing.faqA6":
+    "Sim. O Pack Creator no menu inicial junta vários beatmaps em um único song pack .osz, com metadados compartilhados, créditos de cada mapper e nomes de dificuldade gerados, para jogar localmente.",
+  "landing.guidesTitle": "Guias",
+  "landing.guide1": "Como fazer um mapa de osu!mania online",
+  "landing.guide2":
+    "Converter mapas de osu!mania para StepMania / Etterna (.osz para .sm)",
+  "landing.guide3": "Visualizar mapas de osu!mania online",
+  "landing.guide4": "Juntar vários mapas em um pack .osz",
+
   "menu.open": "Menu do Cascade",
   "menu.close": "Fechar menu",
   "menu.importMap": "Importar mapa",
