@@ -147,12 +147,8 @@ export function SharedMapPreview({
         const below = height - receptorY;
         if (below <= 0) continue;
         ctx.save();
-        ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = 0.55 * intensity;
-        const grad = ctx.createLinearGradient(0, receptorY, 0, height);
-        grad.addColorStop(0, laneColour(c, keyCount));
-        grad.addColorStop(1, "transparent");
-        ctx.fillStyle = grad;
+        ctx.globalAlpha = 0.24 * intensity;
+        ctx.fillStyle = laneColour(c, keyCount);
         ctx.fillRect(laneX(c), receptorY, laneWidth, below);
         ctx.restore();
       }
@@ -186,19 +182,17 @@ export function SharedMapPreview({
         }
 
         const noteY = Math.min(y, receptorY);
-        const body = ctx.createLinearGradient(
-          0,
-          noteY - NOTE_HEIGHT / 2,
-          0,
-          noteY + NOTE_HEIGHT / 2,
-        );
-        body.addColorStop(0, "#ffffff");
-        body.addColorStop(0.45, colour);
-        body.addColorStop(1, colour);
-        ctx.fillStyle = body;
+        ctx.fillStyle = colour;
         ctx.beginPath();
         ctx.roundRect(x + 2, noteY - NOTE_HEIGHT / 2, laneWidth - 4, NOTE_HEIGHT, 4);
         ctx.fill();
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.roundRect(x + 4, noteY - NOTE_HEIGHT / 2 + 2, laneWidth - 8, 3, 2);
+        ctx.fill();
+        ctx.restore();
       }
 
       for (let c = 0; c < keyCount; c++) {
@@ -209,8 +203,7 @@ export function SharedMapPreview({
         ctx.fill();
         if (glow[c] > 0) {
           ctx.save();
-          ctx.globalCompositeOperation = "lighter";
-          ctx.globalAlpha = glow[c];
+          ctx.globalAlpha = 0.85 * glow[c];
           ctx.fillStyle = laneColour(c, keyCount);
           ctx.beginPath();
           ctx.roundRect(x + 2, receptorY - 3, laneWidth - 4, 7, 3);
@@ -265,11 +258,17 @@ export function SharedMapPreview({
       audio.addEventListener("playing", () => {
         if (audioRef.current !== audio) return;
         audioPlayingRef.current = true;
+        startedAtRef.current = performance.now();
         clockRef.current.reset();
+        if (!rafRef.current) {
+          rafRef.current = requestAnimationFrame(tick);
+        }
       });
       const suspendClock = () => {
         if (audioRef.current !== audio) return;
         audioPlayingRef.current = false;
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
         clockRef.current.reset();
       };
       audio.addEventListener("pause", suspendClock);
@@ -288,8 +287,9 @@ export function SharedMapPreview({
         { once: true },
       );
       audio.src = audioUrl;
+    } else {
+      rafRef.current = requestAnimationFrame(tick);
     }
-    rafRef.current = requestAnimationFrame(tick);
   }, [
     audioUrl,
     clipStartsAtZero,
