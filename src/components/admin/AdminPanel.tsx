@@ -20,6 +20,7 @@ import {
   adminEventStats,
   adminUserEvents,
   adminUserProjects,
+  deleteSharedMapAdmin,
   getAdminStats,
   listAdminSharedMaps,
   listUserSummaries,
@@ -34,7 +35,6 @@ import {
   type AdminProject,
   type AdminSharedMap,
 } from "../../lib/admin";
-import { formatLength } from "../../lib/shareCard";
 import { sharedMapUrl } from "../../lib/sharedMap";
 import {
   listFeedback,
@@ -492,6 +492,22 @@ function UsersTab() {
         isSelf={selected.id === user?.id}
         onBack={() => setSelectedId(null)}
         onToggleAdmin={() => toggle(selected)}
+        onPreviewDeleted={(bytes) =>
+          setUsers(
+            (prev) =>
+              prev?.map((item) =>
+                item.id === selected.id
+                  ? {
+                      ...item,
+                      storage_bytes: Math.max(
+                        0,
+                        Number(item.storage_bytes) - bytes,
+                      ),
+                    }
+                  : item,
+              ) ?? null,
+          )
+        }
       />
     );
   }
@@ -639,17 +655,22 @@ function UserDetail({
   isSelf,
   onBack,
   onToggleAdmin,
+  onPreviewDeleted,
 }: {
   user: AdminUserSummary;
   isSelf: boolean;
   onBack: () => void;
   onToggleAdmin: () => void;
+  onPreviewDeleted: (bytes: number) => void;
 }) {
   const [events, setEvents] = useState<AdminUserEvent[] | null>(null);
   const [projects, setProjects] = useState<AdminUserProject[] | null>(null);
   const [previews, setPreviews] = useState<AdminSharedMap[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [deletingPreviewId, setDeletingPreviewId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     setEvents(null);
@@ -673,6 +694,27 @@ function UserDetail({
         ),
       );
   }, [user.id]);
+
+  const removePreview = async (preview: AdminSharedMap) => {
+    if (!window.confirm("Delete this public preview and all of its files?")) {
+      return;
+    }
+    setDeletingPreviewId(preview.id);
+    setPreviewError(null);
+    try {
+      await deleteSharedMapAdmin(preview);
+      setPreviews((previous) =>
+        previous?.filter((item) => item.id !== preview.id) ?? null,
+      );
+      onPreviewDeleted(Number(preview.asset_bytes || 0));
+    } catch (e) {
+      setPreviewError(
+        e instanceof Error ? e.message : "Failed to delete preview.",
+      );
+    } finally {
+      setDeletingPreviewId(null);
+    }
+  };
 
   return (
     <div>
@@ -841,7 +883,12 @@ function UserDetail({
           <p className="text-sm text-slate-500">No public previews.</p>
         )}
         {previews && previews.length > 0 && (
-          <SharedMapList previews={previews} showOwner={false} />
+          <SharedMapList
+            previews={previews}
+            showOwner={false}
+            deletingId={deletingPreviewId}
+            onDelete={removePreview}
+          />
         )}
       </section>
     </div>
@@ -955,12 +1002,18 @@ function ProjectsTab() {
   );
 }
 
-type PreviewSort = "created" | "views" | "title";
+type PreviewSort =
+  | "last_view"
+  | "created"
+  | "storage"
+  | "views"
+  | "title";
 
 function PreviewsTab() {
   const [previews, setPreviews] = useState<AdminSharedMap[] | null>(null);
-  const [sort, setSort] = useState<PreviewSort>("created");
+  const [sort, setSort] = useState<PreviewSort>("last_view");
   const [query, setQuery] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { error, setError } = useAsyncError();
 
   useEffect(() => {
@@ -979,7 +1032,6 @@ function PreviewsTab() {
           [
             preview.title,
             preview.artist,
-            preview.creator,
             preview.owner_username,
             preview.slug,
           ].some((value) => value?.toLowerCase().includes(needle)),
@@ -989,10 +1041,43 @@ function PreviewsTab() {
       if (sort === "title") {
         return (a.title || "Untitled").localeCompare(b.title || "Untitled");
       }
+      if (sort === "storage") {
+        return Number(b.asset_bytes) - Number(a.asset_bytes);
+      }
       if (sort === "views") return Number(b.views) - Number(a.views);
+      if (sort === "last_view") {
+        return (
+          new Date(b.last_viewed_at ?? 0).getTime() -
+          new Date(a.last_viewed_at ?? 0).getTime()
+        );
+      }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }, [previews, query, sort]);
+
+  const remove = async (preview: AdminSharedMap) => {
+    if (!window.confirm("Delete this public preview and all of its files?")) {
+      return;
+    }
+    setDeletingId(preview.id);
+    setError(null);
+    try {
+      await deleteSharedMapAdmin(preview);
+      setPreviews((previous) =>
+        previous?.filter((item) => item.id !== preview.id) ?? null,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete preview.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const totalBytes =
+    previews?.reduce(
+      (sum, preview) => sum + Number(preview.asset_bytes || 0),
+      0,
+    ) ?? 0;
 
   return (
     <div>
@@ -1006,7 +1091,10 @@ function PreviewsTab() {
             <span className="font-semibold text-slate-200">
               {previews.length}
             </span>{" "}
-            public previews
+            public previews · total storage{" "}
+            <span className="font-semibold text-slate-200">
+              {formatBytes(totalBytes)}
+            </span>
             {rows && rows.length !== previews.length && (
               <span className="text-slate-500"> · {rows.length} shown</span>
             )}
@@ -1025,7 +1113,9 @@ function PreviewsTab() {
                 onChange={(event) => setSort(event.target.value as PreviewSort)}
                 className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1.5 text-sm text-slate-100 outline-none"
               >
-                <option value="created">Newest</option>
+                <option value="last_view">Latest view</option>
+                <option value="created">Published</option>
+                <option value="storage">Storage</option>
                 <option value="views">Views</option>
                 <option value="title">Title</option>
               </select>
@@ -1038,7 +1128,14 @@ function PreviewsTab() {
           {previews?.length ? "No matching previews." : "No public previews."}
         </p>
       )}
-      {rows && rows.length > 0 && <SharedMapList previews={rows} showOwner />}
+      {rows && rows.length > 0 && (
+        <SharedMapList
+          previews={rows}
+          showOwner
+          deletingId={deletingId}
+          onDelete={remove}
+        />
+      )}
     </div>
   );
 }
@@ -1046,18 +1143,18 @@ function PreviewsTab() {
 function SharedMapList({
   previews,
   showOwner,
+  deletingId,
+  onDelete,
 }: {
   previews: AdminSharedMap[];
   showOwner: boolean;
+  deletingId: string | null;
+  onDelete: (preview: AdminSharedMap) => void;
 }) {
   return (
     <ul className="flex flex-col gap-2">
       {previews.map((preview) => {
         const url = sharedMapUrl(preview.slug);
-        const length = formatLength(preview.length_ms);
-        const star =
-          preview.star_rating == null ? null : Number(preview.star_rating);
-        const bpm = preview.bpm == null ? null : Number(preview.bpm);
         return (
           <li
             key={preview.id}
@@ -1089,42 +1186,42 @@ function SharedMapList({
                     {" · "}
                   </>
                 )}
-                mapped by {preview.creator || "unknown"} · published{" "}
-                {new Date(preview.created_at).toLocaleString()}
+                published {new Date(preview.created_at).toLocaleString()}
               </div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
                 <a
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title={url}
-                  className="break-all font-mono text-accent hover:underline"
+                  className="font-mono text-accent hover:underline"
                 >
-                  {url}
+                  /m/{preview.slug}
                 </a>
+                <span>last view {formatMoment(preview.last_viewed_at)}</span>
                 <span>{Number(preview.views).toLocaleString()} views</span>
-                {preview.key_counts.length > 0 && (
-                  <span>{preview.key_counts.map((key) => `${key}K`).join(" · ")}</span>
-                )}
-                {star != null && Number.isFinite(star) && star > 0 && (
-                  <span>★ {star.toFixed(2)}</span>
-                )}
-                {bpm != null && Number.isFinite(bpm) && bpm > 0 && (
-                  <span>{Math.round(bpm)} BPM</span>
-                )}
-                {length && <span>{length}</span>}
-                <span>{Number(preview.note_count).toLocaleString()} notes</span>
-                <span>{preview.project_id ? "linked project" : "project removed"}</span>
+                <span>{formatBytes(Number(preview.asset_bytes))}</span>
+                <span>
+                  {Number(preview.asset_count)}{" "}
+                  {Number(preview.asset_count) === 1 ? "file" : "files"}
+                </span>
               </div>
             </div>
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-white/10 bg-ink-700 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-accent/50 hover:text-white"
-            >
-              Open preview
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-white/10 bg-ink-700 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-accent/50 hover:text-white"
+              >
+                Open
+              </a>
+              <Button
+                disabled={deletingId !== null}
+                onClick={() => onDelete(preview)}
+              >
+                {deletingId === preview.id ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
           </li>
         );
       })}

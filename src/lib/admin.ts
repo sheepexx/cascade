@@ -78,21 +78,32 @@ export type AdminSharedMap = {
   owner_osu_id: number | null;
   title: string;
   artist: string;
-  creator: string;
-  key_counts: number[];
-  star_rating: number | string | null;
-  length_ms: number | null;
-  bpm: number | string | null;
-  note_count: number;
   views: number;
+  last_viewed_at: string | null;
+  asset_count: number;
+  asset_bytes: number;
   created_at: string;
   updated_at: string;
 };
 
 export async function listUserSummaries(): Promise<AdminUserSummary[]> {
-  const { data, error } = await supabase.rpc("admin_user_summaries");
-  if (error) throw new Error(error.message);
-  return (data ?? []) as AdminUserSummary[];
+  const [usersResult, previews] = await Promise.all([
+    supabase.rpc("admin_user_summaries"),
+    listAdminSharedMaps(),
+  ]);
+  if (usersResult.error) throw new Error(usersResult.error.message);
+  const previewBytes = new Map<string, number>();
+  for (const preview of previews) {
+    previewBytes.set(
+      preview.owner,
+      (previewBytes.get(preview.owner) ?? 0) + Number(preview.asset_bytes || 0),
+    );
+  }
+  return ((usersResult.data ?? []) as AdminUserSummary[]).map((user) => ({
+    ...user,
+    storage_bytes:
+      Number(user.storage_bytes || 0) + (previewBytes.get(user.id) ?? 0),
+  }));
 }
 
 export async function adminUserEvents(
@@ -123,6 +134,28 @@ export async function listAdminSharedMaps(
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminSharedMap[];
+}
+
+export async function deleteSharedMapAdmin(
+  preview: Pick<AdminSharedMap, "id" | "owner" | "slug">,
+): Promise<void> {
+  const folder = `${preview.owner}/${preview.slug}`;
+  const { data: files, error: listError } = await supabase.storage
+    .from("shared")
+    .list(folder, { limit: 100 });
+  if (listError) throw new Error(listError.message);
+  const paths = (files ?? []).map((file) => `${folder}/${file.name}`);
+  if (paths.length) {
+    const { error: storageError } = await supabase.storage
+      .from("shared")
+      .remove(paths);
+    if (storageError) throw new Error(storageError.message);
+  }
+  const { error } = await supabase
+    .from("shared_maps")
+    .delete()
+    .eq("id", preview.id);
+  if (error) throw new Error(error.message);
 }
 
 export async function setUserAdmin(
