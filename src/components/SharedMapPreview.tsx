@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPlaybackClock } from "../lib/playbackClock";
-import { previewStartMs } from "../lib/sharedMap";
-import { longNoteBodyRange } from "../lib/sharedMapPreview";
+import {
+  longNoteBodyRange,
+  previewMapTimeMs,
+  previewStartMs,
+} from "../lib/sharedMapPreview";
 import type { ManiaNote } from "../types";
 
 export const PREVIEW_MS = 10000;
@@ -39,6 +41,7 @@ export function SharedMapPreview({
   audioRate = 1,
   preservePitch = false,
   clipStartsAtZero = false,
+  startTimeMs,
   label,
   stopLabel,
 }: {
@@ -49,6 +52,7 @@ export function SharedMapPreview({
   audioRate?: number;
   preservePitch?: boolean;
   clipStartsAtZero?: boolean;
+  startTimeMs?: number;
   label: string;
   stopLabel: string;
 }) {
@@ -56,11 +60,10 @@ export function SharedMapPreview({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef(0);
   const startedAtRef = useRef(0);
-  const audioPlayingRef = useRef(false);
-  const clockRef = useRef(createPlaybackClock());
+  const mediaTimeRef = useRef(0);
   const [playing, setPlaying] = useState(false);
 
-  const startMs = previewStartMs(notes, previewTime);
+  const startMs = startTimeMs ?? previewStartMs(notes, previewTime);
   const rate =
     Number.isFinite(audioRate) && audioRate > 0
       ? Math.max(0.1, Math.min(4, audioRate))
@@ -86,8 +89,7 @@ export function SharedMapPreview({
       audio.removeAttribute("src");
       audio.load();
     }
-    audioPlayingRef.current = false;
-    clockRef.current.reset();
+    mediaTimeRef.current = 0;
     setPlaying(false);
   }, []);
 
@@ -221,21 +223,24 @@ export function SharedMapPreview({
     const audio = audioRef.current;
     const now = performance.now();
     const wall = now - startedAtRef.current;
-    let elapsed: number;
+    let mapTime: number;
     if (audio) {
-      const audioTime = audioPlayingRef.current
-        ? clockRef.current.read(audio.currentTime, rate, now) * 1000
-        : audio.currentTime * 1000;
-      const mapTime = audioTime / rate;
-      elapsed = clipStartsAtZero ? mapTime : mapTime - startMs;
+      mapTime = previewMapTimeMs(
+        mediaTimeRef.current,
+        wall,
+        rate,
+        clipStartsAtZero,
+        startMs,
+      );
     } else {
-      elapsed = wall;
+      mapTime = startMs + wall;
     }
+    const elapsed = mapTime - startMs;
     if (elapsed >= PREVIEW_MS || wall >= PREVIEW_MS + 4000) {
       stop();
       return;
     }
-    draw(startMs + Math.max(0, elapsed));
+    draw(Math.max(startMs, mapTime));
     rafRef.current = requestAnimationFrame(tick);
   }, [clipStartsAtZero, draw, rate, startMs, stop]);
 
@@ -246,7 +251,6 @@ export function SharedMapPreview({
     }
     setPlaying(true);
     startedAtRef.current = performance.now();
-    clockRef.current.reset();
     if (audioUrl) {
       const audio = new Audio();
       audio.preload = "auto";
@@ -257,19 +261,16 @@ export function SharedMapPreview({
       audio.addEventListener("ended", stop, { once: true });
       audio.addEventListener("playing", () => {
         if (audioRef.current !== audio) return;
-        audioPlayingRef.current = true;
+        mediaTimeRef.current = audio.currentTime;
         startedAtRef.current = performance.now();
-        clockRef.current.reset();
         if (!rafRef.current) {
           rafRef.current = requestAnimationFrame(tick);
         }
       });
       const suspendClock = () => {
         if (audioRef.current !== audio) return;
-        audioPlayingRef.current = false;
         cancelAnimationFrame(rafRef.current);
         rafRef.current = 0;
-        clockRef.current.reset();
       };
       audio.addEventListener("pause", suspendClock);
       audio.addEventListener("seeking", suspendClock);
@@ -279,7 +280,6 @@ export function SharedMapPreview({
         () => {
           if (audioRef.current !== audio) return;
           if (!clipStartsAtZero) audio.currentTime = (startMs * rate) / 1000;
-          clockRef.current.reset();
           void audio.play().catch(() => {
             if (audioRef.current === audio) stop();
           });

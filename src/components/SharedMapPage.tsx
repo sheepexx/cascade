@@ -164,6 +164,7 @@ export function SharedMapPage({
   const usePreviewClip =
     clipReady &&
     preview != null &&
+    map?.data.previewClipStartMs != null &&
     preview.id === previewDifficulties[0]?.id &&
     previewAudioUrl === map?.audioUrl &&
     (preview.audioRate ?? 1) === 1;
@@ -344,6 +345,9 @@ export function SharedMapPage({
               audioRate={preview.audioRate}
               preservePitch={preview.preservePitch}
               clipStartsAtZero={usePreviewClip}
+              startTimeMs={
+                usePreviewClip ? map.data.previewClipStartMs : undefined
+              }
               label={t("shared.preview")}
               stopLabel={t("shared.stopPreview")}
             />

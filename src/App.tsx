@@ -41,12 +41,12 @@ import { StartScreen } from "./components/StartScreen";
 import { SharedMapPage } from "./components/SharedMapPage";
 import {
   findSharedMapForProject,
-  previewStartMs,
   publishSharedMap,
   sharedMapUrl,
   slugFromPath,
   summarise as summariseSharedMap,
 } from "./lib/sharedMap";
+import { previewStartMs } from "./lib/sharedMapPreview";
 import { renderShareCard } from "./lib/shareCard";
 import { NowPlaying } from "./components/NowPlaying";
 import { useMenuMusic } from "./hooks/useMenuMusic";

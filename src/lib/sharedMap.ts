@@ -4,7 +4,7 @@ import { loadMp3Encoder } from "./lameEncoder";
 import { computeMapStats } from "./mapStats";
 import { computeStarRating } from "./starRating";
 import { activeTimingAt } from "./timing";
-import type { Difficulty, ManiaNote, SongMeta, TimingPoint } from "../types";
+import type { Difficulty, SongMeta, TimingPoint } from "../types";
 
 export const SHARED_BUCKET = "shared";
 export const PREVIEW_CLIP_MS = 10000;
@@ -18,6 +18,7 @@ export type SharedMapData = {
   meta: SongMeta;
   timingPoints: TimingPoint[];
   difficulties: Difficulty[];
+  previewClipStartMs?: number;
 };
 
 export type SharedMap = {
@@ -131,15 +132,6 @@ export function summarise(data: SharedMapData): {
   return { keyCounts, starRating, lengthMs, bpm, noteCount };
 }
 
-export function previewStartMs(notes: ManiaNote[], previewTime: number): number {
-  if (previewTime > 0) return previewTime;
-  const first = notes.reduce(
-    (min, n) => (n.startTime < min ? n.startTime : min),
-    Number.POSITIVE_INFINITY,
-  );
-  return Number.isFinite(first) ? Math.max(0, first - 800) : 0;
-}
-
 export type PublishParams = {
   ownerId: string;
   projectId: string | null;
@@ -168,7 +160,7 @@ async function upload(path: string, blob: Blob): Promise<string> {
 export async function makePreviewClip(
   audio: Blob,
   startMs: number,
-): Promise<{ blob: Blob; ext: string } | null> {
+): Promise<{ blob: Blob; ext: string; startMs: number } | null> {
   const AC =
     window.AudioContext ||
     (window as unknown as { webkitAudioContext?: typeof AudioContext })
@@ -187,7 +179,7 @@ export async function makePreviewClip(
       fadeOutMs: PREVIEW_FADE_MS,
     });
     if (encoded.ext !== "mp3") return null;
-    return { blob: encoded.blob, ext: encoded.ext };
+    return { blob: encoded.blob, ext: encoded.ext, startMs: start };
   } catch {
     return null;
   } finally {
@@ -221,13 +213,17 @@ export async function publishSharedMap(params: PublishParams): Promise<string> {
     audioFiles[0] ??
     null;
   const audioPath = previewAudio ? audioPaths[previewAudio.name] : null;
+  let previewClipStartMs: number | undefined;
   if (previewAudio) {
     await loadMp3Encoder().catch(() => {});
     const clip = await makePreviewClip(
       previewAudio.blob,
       params.previewStartMs ?? 0,
     );
-    if (clip) await upload(`${base}/${PREVIEW_CLIP_NAME}`, clip.blob);
+    if (clip) {
+      await upload(`${base}/${PREVIEW_CLIP_NAME}`, clip.blob);
+      previewClipStartMs = clip.startMs;
+    }
   }
   const bgPath = background
     ? await upload(`${base}/bg.${extensionOf(background.name, "jpg")}`, background.blob)
@@ -242,7 +238,10 @@ export async function publishSharedMap(params: PublishParams): Promise<string> {
     title: data.meta.title || "Untitled",
     artist: data.meta.artist || "",
     creator: data.meta.creator || "",
-    data,
+    data:
+      previewClipStartMs == null
+        ? data
+        : { ...data, previewClipStartMs },
     audio_path: audioPath,
     audio_paths: audioPaths,
     bg_path: bgPath,
