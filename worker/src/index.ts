@@ -43,6 +43,10 @@ export default {
       if (lookup && req.method === "GET") {
         return await handleBeatmapLookup(lookup[1], env);
       }
+      const shared = url.pathname.match(/^\/m\/([a-z0-9]{4,32})\/?$/i);
+      if (shared && req.method === "GET") {
+        return await handleSharedMapPage(shared[1], env);
+      }
 
       switch (url.pathname) {
         case "/auth/osu/login":
@@ -399,6 +403,125 @@ function cors(env: Env): Record<string, string> {
     "Access-Control-Allow-Credentials": "true",
     Vary: "Origin",
   };
+}
+
+// Shared map pages need per-map og tags in the initial HTML, which the SPA
+// cannot provide: crawlers read meta before any script runs. The worker fetches
+// the deployed shell and rewrites the head, so humans still get the real app
+// with its hashed asset URLs.
+type SharedMapRow = {
+  slug: string;
+  title: string;
+  artist: string;
+  creator: string;
+  card_path: string | null;
+  key_counts: number[] | null;
+  star_rating: number | string | null;
+  length_ms: number | null;
+  bpm: number | string | null;
+};
+
+async function handleSharedMapPage(slug: string, env: Env): Promise<Response> {
+  const shell = await fetch(`${env.FRONTEND_URL}/index.html`, {
+    cf: { cacheTtl: 300 },
+  });
+  if (!shell.ok) return Response.redirect(`${env.FRONTEND_URL}/`, 302);
+  const html = await shell.text();
+
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/shared_maps?slug=eq.${encodeURIComponent(slug)}` +
+      "&select=slug,title,artist,creator,card_path,key_counts,star_rating,length_ms,bpm",
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+    },
+  );
+  const rows = res.ok ? ((await res.json()) as SharedMapRow[]) : [];
+  const map = rows[0];
+
+  const headers = new Headers({
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "public, max-age=60, s-maxage=300",
+  });
+  if (!map) return new Response(html, { status: 404, headers });
+
+  const url = `${env.FRONTEND_URL}/m/${map.slug}`;
+  const title = `${map.artist ? `${map.artist} - ` : ""}${map.title}`;
+  const image = map.card_path
+    ? `${env.SUPABASE_URL}/storage/v1/object/public/shared/${map.card_path}`
+    : `${env.FRONTEND_URL}/og.png?v=2`;
+  const bits: string[] = [];
+  if (map.key_counts?.length) bits.push(map.key_counts.map((k) => `${k}K`).join(" · "));
+  const star = map.star_rating == null ? null : Number(map.star_rating);
+  if (star != null && Number.isFinite(star) && star > 0) bits.push(`★ ${star.toFixed(2)}`);
+  const bpm = map.bpm == null ? null : Number(map.bpm);
+  if (bpm != null && Number.isFinite(bpm) && bpm > 0) bits.push(`${Math.round(bpm)} BPM`);
+  if (map.length_ms) {
+    const total = Math.round(map.length_ms / 1000);
+    bits.push(`${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`);
+  }
+  const description = `${map.creator ? `Mapped by ${map.creator}. ` : ""}${bits.join(
+    " · ",
+  )}${bits.length ? ". " : ""}Play it or download the .osz in your browser with Cascade.`;
+
+  return new Response(rewriteHead(html, { url, title, description, image }), {
+    status: 200,
+    headers,
+  });
+}
+
+function escapeAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function rewriteHead(
+  html: string,
+  meta: { url: string; title: string; description: string; image: string },
+): string {
+  const title = escapeAttr(`${meta.title} | Cascade`);
+  const description = escapeAttr(meta.description);
+  const image = escapeAttr(meta.image);
+  const url = escapeAttr(meta.url);
+
+  let out = html
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`)
+    .replace(
+      /<meta\s+name="description"\s+content="[^"]*"\s*\/>/,
+      `<meta name="description" content="${description}" />`,
+    )
+    .replace(
+      /<meta\s+property="og:title"\s+content="[^"]*"\s*\/>/,
+      `<meta property="og:title" content="${title}" />`,
+    )
+    .replace(
+      /<meta\s+property="og:description"\s+content="[^"]*"\s*\/>/,
+      `<meta property="og:description" content="${description}" />`,
+    )
+    .replace(
+      /<meta\s+property="og:url"\s+content="[^"]*"\s*\/>/,
+      `<meta property="og:url" content="${url}" />`,
+    )
+    .replace(
+      /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/>/,
+      `<meta name="twitter:title" content="${title}" />`,
+    )
+    .replace(
+      /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/>/,
+      `<meta name="twitter:description" content="${description}" />`,
+    );
+
+  out = out
+    .replace(/<meta\s+property="og:image"\s+content="[^"]*"\s*\/>/, `<meta property="og:image" content="${image}" />`)
+    .replace(/<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/>/, `<meta name="twitter:image" content="${image}" />`)
+    .replace(/<link rel="canonical" href="[^"]*" \/>/, `<link rel="canonical" href="${url}" />`);
+
+  return out;
 }
 
 function json(

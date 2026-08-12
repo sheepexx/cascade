@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/m/:slug",
+      "destination": "https://mania-editor.noahcraft01.workers.dev/m/:slug"
+    }
+  ],
   "redirects": [
     {
       "source": "/:path*",

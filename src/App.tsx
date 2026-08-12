@@ -38,6 +38,14 @@ import {
 import { MyMapsModal } from "./components/menus/MyMapsModal";
 import { ImportModal } from "./components/menus/ImportModal";
 import { StartScreen } from "./components/StartScreen";
+import { SharedMapPage } from "./components/SharedMapPage";
+import {
+  publishSharedMap,
+  sharedMapUrl,
+  slugFromPath,
+  summarise as summariseSharedMap,
+} from "./lib/sharedMap";
+import { renderShareCard } from "./lib/shareCard";
 import { NowPlaying } from "./components/NowPlaying";
 import { useMenuMusic } from "./hooks/useMenuMusic";
 import { dialogIsOpen } from "./hooks/useDialog";
@@ -595,6 +603,10 @@ export default function App() {
   const playtestEndArmedRef = useRef(false);
   const difficultiesRef = useRef(difficulties);
   difficultiesRef.current = difficulties;
+  const audioFilesRef = useRef(audioFiles);
+  audioFilesRef.current = audioFiles;
+  const bgFilesRef = useRef(bgFiles);
+  bgFilesRef.current = bgFiles;
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const metaRef = useRef(meta);
@@ -1809,6 +1821,10 @@ export default function App() {
     setHitsoundSkinSource("visual");
   }, []);
 
+  const [sharedSlug, setSharedSlug] = useState<string | null>(() =>
+    typeof location === "undefined" ? null : slugFromPath(location.pathname),
+  );
+
   const importMapFile = useCallback(async (
     file: File,
     preferredBeatmapId?: number,
@@ -1872,6 +1888,55 @@ export default function App() {
       setImportProgress(null);
     }
   }, []);
+
+  const publishCurrentMap = useCallback(async (): Promise<string> => {
+    const owner = authUserRef.current;
+    if (!owner) throw new Error("Sign in to publish a map.");
+    const data = {
+      meta: metaRef.current,
+      timingPoints: timingPointsRef.current,
+      difficulties: difficultiesRef.current,
+    };
+    const audioName = data.difficulties.find((d) => d.audioFilename)?.audioFilename;
+    const audioFile = audioName ? audioFilesRef.current[audioName] : null;
+    const bgName = data.difficulties.find((d) => d.backgroundFilename)
+      ?.backgroundFilename;
+    const bgFile = bgName ? bgFilesRef.current[bgName] : null;
+
+    const summary = summariseSharedMap(data);
+    const card = await renderShareCard({
+      title: data.meta.title,
+      artist: data.meta.artist,
+      creator: data.meta.creator,
+      keyCounts: summary.keyCounts,
+      starRating: summary.starRating,
+      lengthMs: summary.lengthMs,
+      bpm: summary.bpm,
+      noteCount: summary.noteCount,
+      backgroundUrl: bgFile?.url ?? null,
+    }).catch(() => null);
+
+    const slug = await publishSharedMap({
+      ownerId: owner.id,
+      projectId: cloudProjectIdRef.current,
+      data,
+      audio: audioFile ? { name: audioFile.name, blob: audioFile.blob } : null,
+      background: bgFile ? { name: bgFile.name, blob: bgFile.blob } : null,
+      card,
+    });
+    return sharedMapUrl(slug);
+  }, []);
+
+  const openSharedMap = useCallback(
+    (file: File) => {
+      setSharedSlug(null);
+      if (typeof history !== "undefined") {
+        history.replaceState(null, "", "/");
+      }
+      void importMapFile(file);
+    },
+    [importMapFile],
+  );
 
   const requestImportMap = useCallback(
     (file: File) => {
@@ -4704,6 +4769,8 @@ export default function App() {
                 trimStartMs={active.trimStartMs}
                 trimEndMs={active.trimEndMs}
               />
+            ) : sharedSlug ? (
+              <SharedMapPage slug={sharedSlug} onOpen={openSharedMap} />
             ) : (
               <StartScreen
                 music={menuMusic}
@@ -5358,6 +5425,10 @@ export default function App() {
           open={modal === "share"}
           onClose={close}
           projectId={cloudProjectId}
+          canPublish={
+            !!authUser && (!cloudOwnerId || cloudOwnerId === authUser.id)
+          }
+          onPublish={publishCurrentMap}
         />
       )}
 

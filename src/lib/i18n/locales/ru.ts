@@ -45,6 +45,10 @@ export const ru: PartialCatalog = {
   "share.roleEditor": "Редактор",
   "share.roleViewer": "Наблюдатель",
   "share.invite": "Пригласить",
+  "share.publicLink": "Публичная ссылка",
+  "share.publish": "Создать публичную ссылку",
+  "share.publishFailed": "Не удалось опубликовать эту карту.",
+  "share.publicHint": "Любой, у кого есть ссылка, сможет посмотреть, сыграть и скачать эту карту. Песня раздаётся публично.",
   "share.mustSignIn":
     "Человек должен хотя бы раз войти в редактор, прежде чем его можно будет пригласить.",
   "share.collaborators": "Соавторы",
@@ -377,6 +381,12 @@ export const ru: PartialCatalog = {
   "empty.madeBy": "Автор:",
   "empty.contributors": "Участники:",
   "empty.support": "Поддержать",
+  "shared.loading": "Карта загружается…",
+  "shared.notFound": "Эта ссылка на карту недоступна.",
+  "shared.toEditor": "Открыть редактор",
+  "shared.openInCascade": "Открыть в Cascade",
+  "shared.download": "Скачать .osz",
+  "shared.mappedBy": "маппер: {name}",
   "mobile.desktopTitle": "Откройте Cascade на компьютере",
   "mobile.desktopBody":
     "Редактору нужны клавиатура и мышь, поэтому маппинг пока работает только на компьютере. Осмотритесь ниже, а потом откройте cascade.sheepex.net на компьютере.",

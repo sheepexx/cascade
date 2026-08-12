@@ -17,11 +17,18 @@ export function ShareModal({
   open,
   onClose,
   projectId,
+  canPublish = false,
+  onPublish,
 }: {
   open: boolean;
   onClose: () => void;
   projectId: string | null;
+  canPublish?: boolean;
+  onPublish?: () => Promise<string>;
 }) {
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [list, setList] = useState<Collaborator[] | null>(null);
   const [username, setUsername] = useState("");
   const [role, setRole] = useState<CollabRole>("editor");
@@ -120,6 +127,51 @@ export function ShareModal({
           <p className="text-[11px] text-slate-500">{t("share.mustSignIn")}</p>
 
           {error && <p className="text-sm text-rose-400">{error}</p>}
+
+          {canPublish && onPublish && (
+            <div className="rounded-xl border border-ink-500/60 bg-ink-800/60 p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("share.publicLink")}
+              </div>
+              {publicUrl ? (
+                <div className="flex items-center gap-2">
+                  <TextInput value={publicUrl} readOnly className="flex-1" />
+                  <Button
+                    onClick={() => {
+                      void navigator.clipboard.writeText(publicUrl).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 1500);
+                      });
+                    }}
+                  >
+                    {copied ? t("common.copied") : t("common.copy")}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="accent"
+                  disabled={publishing}
+                  onClick={() => {
+                    setPublishing(true);
+                    setError(null);
+                    onPublish()
+                      .then(setPublicUrl)
+                      .catch((e) =>
+                        setError(
+                          e instanceof Error ? e.message : t("share.publishFailed"),
+                        ),
+                      )
+                      .finally(() => setPublishing(false));
+                  }}
+                >
+                  {publishing ? "…" : t("share.publish")}
+                </Button>
+              )}
+              <p className="mt-2 text-[11px] text-slate-500">
+                {t("share.publicHint")}
+              </p>
+            </div>
+          )}
 
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">

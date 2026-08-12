@@ -43,6 +43,10 @@ export const en = {
   "share.roleEditor": "Editor",
   "share.roleViewer": "Viewer",
   "share.invite": "Invite",
+  "share.publicLink": "Public link",
+  "share.publish": "Create public link",
+  "share.publishFailed": "Could not publish this map.",
+  "share.publicHint": "Anyone with the link can view, play and download this map. The song is served publicly.",
   "share.mustSignIn":
     "The person must have signed in to the editor at least once before they can be invited.",
   "share.collaborators": "Collaborators",
@@ -363,6 +367,12 @@ export const en = {
   "empty.madeBy": "Made by",
   "empty.contributors": "Contributors:",
   "empty.support": "Support",
+  "shared.loading": "Loading map…",
+  "shared.notFound": "This map link is not available.",
+  "shared.toEditor": "Open the editor",
+  "shared.openInCascade": "Open in Cascade",
+  "shared.download": "Download .osz",
+  "shared.mappedBy": "mapped by {name}",
   "mobile.desktopTitle": "Open Cascade on a computer",
   "mobile.desktopBody":
     "The editor needs a keyboard and mouse, so mapping is desktop only for now. Have a look around below, then open cascade.sheepex.net on your computer to start.",

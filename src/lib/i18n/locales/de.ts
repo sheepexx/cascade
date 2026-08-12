@@ -45,6 +45,10 @@ export const de: PartialCatalog = {
   "share.roleEditor": "Bearbeiter",
   "share.roleViewer": "Betrachter",
   "share.invite": "Einladen",
+  "share.publicLink": "Öffentlicher Link",
+  "share.publish": "Öffentlichen Link erstellen",
+  "share.publishFailed": "Diese Map konnte nicht veröffentlicht werden.",
+  "share.publicHint": "Jeder mit dem Link kann diese Map ansehen, spielen und herunterladen. Der Song wird dabei öffentlich ausgeliefert.",
   "share.mustSignIn":
     "Die Person muss sich mindestens einmal im Editor angemeldet haben, bevor sie eingeladen werden kann.",
   "share.collaborators": "Mitarbeiter",
@@ -365,6 +369,12 @@ export const de: PartialCatalog = {
   "empty.madeBy": "Erstellt von",
   "empty.contributors": "Mitwirkende:",
   "empty.support": "Unterstützen",
+  "shared.loading": "Map wird geladen…",
+  "shared.notFound": "Dieser Map-Link ist nicht verfügbar.",
+  "shared.toEditor": "Editor öffnen",
+  "shared.openInCascade": "In Cascade öffnen",
+  "shared.download": ".osz herunterladen",
+  "shared.mappedBy": "gemappt von {name}",
   "mobile.desktopTitle": "Öffne Cascade auf dem Computer",
   "mobile.desktopBody":
     "Der Editor braucht Tastatur und Maus, Mappen geht deshalb vorerst nur am Desktop. Sieh dich unten in Ruhe um und öffne cascade.sheepex.net dann auf deinem Computer.",
