@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LOCALES, PAGES, urlFor } from "./landing-content.mjs";
+import { LOCALES, PAGES, UI, urlFor } from "./landing-content.mjs";
 
 const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -301,6 +301,12 @@ for (const locale of Object.keys(LOCALES)) {
     `<meta property="og:url" content="${SITE}/" />`,
     `<meta property="og:url" content="${url}" />`,
     "og:url",
+  );
+  html = swapPattern(
+    html,
+    /<meta\s+property="og:image:alt"\s+content="[^"]*"\s*\/>/s,
+    `<meta property="og:image:alt" content="${escapeHtml(UI[locale].ogImageAlt)}" />`,
+    "og:image:alt",
   );
   html = swapPattern(
     html,
