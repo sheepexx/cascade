@@ -69,10 +69,6 @@ export function SharedMapPage({
       .then((found) => {
         if (cancelled) return;
         setMap(found);
-        setPreviewDifficultyId(
-          found?.data.difficulties.find((difficulty) => difficulty.notes.length)
-            ?.id ?? null,
-        );
         setState(found ? "ready" : "missing");
         if (found) void countSharedView(slug).catch(() => {});
       })
@@ -133,24 +129,28 @@ export function SharedMapPage({
     [map],
   );
 
+  const previewOptions = useMemo(() => {
+    return previewDifficulties
+      .map((difficulty) => ({
+        id: difficulty.id,
+        label: difficulty.name,
+        keyCount: difficulty.keyCount,
+        starRating: computeStarRating(difficulty.notes, difficulty.keyCount),
+      }))
+      .sort((a, b) => a.starRating - b.starRating);
+  }, [previewDifficulties]);
+
   const preview = useMemo(() => {
     return (
       previewDifficulties.find(
         (difficulty) => difficulty.id === previewDifficultyId,
       ) ??
-      previewDifficulties[0] ??
+      previewDifficulties.find(
+        (difficulty) => difficulty.id === previewOptions[0]?.id,
+      ) ??
       null
     );
-  }, [previewDifficulties, previewDifficultyId]);
-
-  const previewOptions = useMemo(() => {
-    return previewDifficulties.map((difficulty) => ({
-      id: difficulty.id,
-      label: difficulty.name,
-      keyCount: difficulty.keyCount,
-      starRating: computeStarRating(difficulty.notes, difficulty.keyCount),
-    }));
-  }, [previewDifficulties]);
+  }, [previewDifficulties, previewDifficultyId, previewOptions]);
 
   const previewAudioUrl =
     preview && map
