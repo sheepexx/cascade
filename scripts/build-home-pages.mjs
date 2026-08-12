@@ -228,6 +228,13 @@ function swap(html, from, to, label) {
   return html.replace(from, to);
 }
 
+function swapAll(html, from, to, label) {
+  if (!html.includes(from)) {
+    throw new Error(`build-home-pages: could not find ${label} in index.html`);
+  }
+  return html.replaceAll(from, to);
+}
+
 function swapPattern(html, pattern, to, label) {
   if (!pattern.test(html)) {
     throw new Error(`build-home-pages: could not find ${label} in index.html`);
@@ -301,6 +308,12 @@ for (const locale of Object.keys(LOCALES)) {
     `<meta property="og:url" content="${SITE}/" />`,
     `<meta property="og:url" content="${url}" />`,
     "og:url",
+  );
+  html = swapAll(
+    html,
+    `content="${SITE}/og.png?v=2"`,
+    `content="${SITE}/og-${prefix}.png?v=2"`,
+    "og:image",
   );
   html = swapPattern(
     html,

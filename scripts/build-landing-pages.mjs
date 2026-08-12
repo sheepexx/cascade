@@ -24,6 +24,11 @@ function alternates(slug) {
   return links.join("\n");
 }
 
+function ogImage(locale) {
+  const prefix = LOCALES[locale].prefix;
+  return `${SITE}/og${prefix ? `-${prefix}` : ""}.png?v=2`;
+}
+
 function breadcrumb(slug, locale, label) {
   return {
     "@context": "https://schema.org",
@@ -129,14 +134,14 @@ ${alternates(page.slug)}
     <meta property="og:title" content="${c.ogTitle}" />
     <meta property="og:description" content="${c.ogDescription}" />
     <meta property="og:url" content="${url}" />
-    <meta property="og:image" content="${SITE}/og.png?v=2" />
+    <meta property="og:image" content="${ogImage(locale)}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="${UI[locale].ogImageAlt}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${c.ogTitle}" />
     <meta name="twitter:description" content="${c.ogDescription}" />
-    <meta name="twitter:image" content="${SITE}/og.png?v=2" />
+    <meta name="twitter:image" content="${ogImage(locale)}" />
 ${
   structured
     ? `    <script type="application/ld+json">\n${ld(structured)}\n    </script>\n`
