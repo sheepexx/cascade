@@ -233,6 +233,20 @@ export async function listMySharedMaps(ownerId: string): Promise<SharedMap[]> {
   }));
 }
 
+export async function findSharedMapForProject(
+  projectId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("shared_maps")
+    .select("slug")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as { slug: string } | null)?.slug ?? null;
+}
+
 export async function unpublishSharedMap(slug: string): Promise<void> {
   const { error } = await supabase.from("shared_maps").delete().eq("slug", slug);
   if (error) throw new Error(error.message);

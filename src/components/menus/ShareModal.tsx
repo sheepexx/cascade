@@ -18,15 +18,16 @@ export function ShareModal({
   onClose,
   projectId,
   canPublish = false,
+  publicUrl = null,
   onPublish,
 }: {
   open: boolean;
   onClose: () => void;
   projectId: string | null;
   canPublish?: boolean;
+  publicUrl?: string | null;
   onPublish?: () => Promise<string>;
 }) {
-  const [publicUrl, setPublicUrl] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [list, setList] = useState<Collaborator[] | null>(null);
@@ -155,7 +156,6 @@ export function ShareModal({
                     setPublishing(true);
                     setError(null);
                     onPublish()
-                      .then(setPublicUrl)
                       .catch((e) =>
                         setError(
                           e instanceof Error ? e.message : t("share.publishFailed"),

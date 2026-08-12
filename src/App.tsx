@@ -40,6 +40,7 @@ import { ImportModal } from "./components/menus/ImportModal";
 import { StartScreen } from "./components/StartScreen";
 import { SharedMapPage } from "./components/SharedMapPage";
 import {
+  findSharedMapForProject,
   publishSharedMap,
   sharedMapUrl,
   slugFromPath,
@@ -1838,6 +1839,7 @@ export default function App() {
     onProgress({ ratio: 0, label: "Reading the archive" });
     try {
       const map = await importOsz(file, onProgress);
+      setPublicMapUrl(null);
       setCloudProjectId(null);
       setCloudOwnerId(null);
       setMyRole(null);
@@ -1889,6 +1891,25 @@ export default function App() {
     }
   }, []);
 
+  const [publicMapUrl, setPublicMapUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPublicMapUrl(null);
+  }, [cloudProjectId]);
+
+  useEffect(() => {
+    if (modal !== "share" || !cloudProjectId) return;
+    let cancelled = false;
+    findSharedMapForProject(cloudProjectId)
+      .then((slug) => {
+        if (!cancelled && slug) setPublicMapUrl(sharedMapUrl(slug));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [modal, cloudProjectId]);
+
   const publishCurrentMap = useCallback(async (): Promise<string> => {
     const owner = authUserRef.current;
     if (!owner) throw new Error("Sign in to publish a map.");
@@ -1924,7 +1945,9 @@ export default function App() {
       background: bgFile ? { name: bgFile.name, blob: bgFile.blob } : null,
       card,
     });
-    return sharedMapUrl(slug);
+    const url = sharedMapUrl(slug);
+    setPublicMapUrl(url);
+    return url;
   }, []);
 
   const openSharedMap = useCallback(
@@ -5428,6 +5451,7 @@ export default function App() {
           canPublish={
             !!authUser && (!cloudOwnerId || cloudOwnerId === authUser.id)
           }
+          publicUrl={publicMapUrl}
           onPublish={publishCurrentMap}
         />
       )}
