@@ -27,6 +27,8 @@ const BAR_HEIGHT = 136;
 const PANEL_MAX = 152;
 const PANEL_MIN = 104;
 const BG_FADE_MS = 900;
+const PARALLAX_PX = 10;
+const PARALLAX_EASE = 7;
 const RING_RATIO = 0.42;
 const ROUNDS = 3;
 const BARS = 32;
@@ -470,6 +472,56 @@ function MenuBackground({ url }: { url: string | null }) {
   const [layers, setLayers] = useState<{ id: number; url: string }[]>([]);
   const [clearing, setClearing] = useState(false);
   const nextId = useRef(0);
+  const parallaxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = parallaxRef.current;
+    if (!node) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    let targetX = 0;
+    let targetY = 0;
+    let x = 0;
+    let y = 0;
+    let last = 0;
+    let raf = 0;
+
+    const apply = () => {
+      node.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+    };
+    const frame = (now: number) => {
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+      last = now;
+      const amount = 1 - Math.exp(-PARALLAX_EASE * dt);
+      x += (targetX - x) * amount;
+      y += (targetY - y) * amount;
+      if (Math.abs(targetX - x) < 0.05 && Math.abs(targetY - y) < 0.05) {
+        x = targetX;
+        y = targetY;
+        apply();
+        raf = 0;
+        return;
+      }
+      apply();
+      raf = requestAnimationFrame(frame);
+    };
+    const move = (e: PointerEvent) => {
+      const w = window.innerWidth || 1;
+      const h = window.innerHeight || 1;
+      targetX = (e.clientX / w - 0.5) * 2 * PARALLAX_PX;
+      targetY = (e.clientY / h - 0.5) * 2 * PARALLAX_PX;
+      if (!raf) {
+        last = 0;
+        raf = requestAnimationFrame(frame);
+      }
+    };
+
+    window.addEventListener("pointermove", move, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", move);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   useEffect(() => {
     if (!url) {
@@ -514,14 +566,14 @@ function MenuBackground({ url }: { url: string | null }) {
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.3]">
+      <div ref={parallaxRef} className="absolute inset-0 opacity-[0.3] will-change-transform">
         {layers.map((layer, i) => (
           <img
             key={layer.id}
             src={layer.url}
             alt=""
             aria-hidden
-            className={`absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] ${
+            className={`absolute inset-0 h-full w-full scale-110 object-cover blur-[2px] ${
               i === layers.length - 1
                 ? clearing
                   ? "bg-fade-out"

@@ -77,6 +77,8 @@ const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
 const SCROLL_TIME_EASE = 20;
+const PARALLAX_PX = 10;
+const PARALLAX_EASE = 7;
 const CANVAS_FONT_STACK =
   '"Quicksand", "Inter", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 
@@ -298,6 +300,7 @@ export function ManiaEditor(props: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const bgFadeStartRef = useRef(0);
+  const parallaxRef = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const skinColsRef = useRef<ColumnRender[]>([]);
   const shiftActiveRef = useRef(false);
@@ -881,6 +884,20 @@ export function ManiaEditor(props: Props) {
       );
     }
 
+    const par = parallaxRef.current;
+    const dx = par.tx - par.x;
+    const dy = par.ty - par.y;
+    if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) {
+      if (par.x !== par.tx || par.y !== par.ty) moving = true;
+      par.x = par.tx;
+      par.y = par.ty;
+    } else {
+      const parAmount = 1 - Math.exp(-PARALLAX_EASE * dt);
+      par.x += dx * parAmount;
+      par.y += dy * parAmount;
+      moving = true;
+    }
+
     const target = propsRef.current.view.scrollSpeed;
     const current = smoothScrollSpeedRef.current;
     if (!Number.isFinite(target)) return moving;
@@ -1189,7 +1206,15 @@ export function ManiaEditor(props: Props) {
         Math.min(1, (propsRef.current.dimBackground ?? 100) / 100),
       );
       ctx.globalAlpha = eased;
-      drawCover(ctx, bg, 0, 0, width, height);
+      const par = parallaxRef.current;
+      drawCover(
+        ctx,
+        bg,
+        par.x - PARALLAX_PX,
+        par.y - PARALLAX_PX,
+        width + PARALLAX_PX * 2,
+        height + PARALLAX_PX * 2,
+      );
       const overlayAlpha = Math.max(0, Math.min(1, dimT - beatFlash * 0.05)) * eased;
       if (overlayAlpha > 0) {
         ctx.globalAlpha = overlayAlpha;
@@ -1896,6 +1921,33 @@ export function ManiaEditor(props: Props) {
     ro.observe(wrap);
     return () => ro.disconnect();
   }, [markDirty]);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    const clamp = (v: number) =>
+      Math.max(-PARALLAX_PX, Math.min(PARALLAX_PX, v));
+    const move = (e: PointerEvent) => {
+      const rect = wrap.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+      const par = parallaxRef.current;
+      par.tx = clamp(((e.clientX - rect.left) / rect.width - 0.5) * 2 * PARALLAX_PX);
+      par.ty = clamp(((e.clientY - rect.top) / rect.height - 0.5) * 2 * PARALLAX_PX);
+    };
+    const leave = () => {
+      const par = parallaxRef.current;
+      par.tx = 0;
+      par.ty = 0;
+    };
+    wrap.addEventListener("pointermove", move, { passive: true });
+    wrap.addEventListener("pointerleave", leave);
+    return () => {
+      wrap.removeEventListener("pointermove", move);
+      wrap.removeEventListener("pointerleave", leave);
+    };
+  }, []);
 
   const localPoint = (e: React.MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
