@@ -41,6 +41,7 @@ import { StartScreen } from "./components/StartScreen";
 import { SharedMapPage } from "./components/SharedMapPage";
 import {
   findSharedMapForProject,
+  previewStartMs,
   publishSharedMap,
   sharedMapUrl,
   slugFromPath,
@@ -1944,6 +1945,10 @@ export default function App() {
       audio: audioFile ? { name: audioFile.name, blob: audioFile.blob } : null,
       background: bgFile ? { name: bgFile.name, blob: bgFile.blob } : null,
       card,
+      previewStartMs: previewStartMs(
+        data.difficulties.find((d) => d.notes.length)?.notes ?? [],
+        data.difficulties.find((d) => d.notes.length)?.previewTime ?? -1,
+      ),
     });
     const url = sharedMapUrl(slug);
     setPublicMapUrl(url);

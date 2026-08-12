@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "../lib/auth";
 import { useT } from "../lib/i18n";
 import { buildOsz } from "../lib/oszExport";
+import { SharedMapPreview } from "./SharedMapPreview";
 import { cardChips, formatLength } from "../lib/shareCard";
 import { starColor, starTextOn } from "../lib/starRating";
 import {
   countSharedView,
   loadSharedMap,
+  requestSharedMapAccess,
   type SharedMap,
 } from "../lib/sharedMap";
 import type { LoadedFile } from "../types";
@@ -35,9 +38,26 @@ export function SharedMapPage({
   onOpen: (file: File) => void;
 }) {
   const t = useT();
+  const { user } = useAuth();
   const [map, setMap] = useState<SharedMap | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing">("loading");
   const [busy, setBusy] = useState<"open" | "download" | null>(null);
+  const [access, setAccess] = useState<"idle" | "sending" | "sent">("idle");
+  const [accessError, setAccessError] = useState<string | null>(null);
+
+  const requestAccess = useCallback(() => {
+    if (access !== "idle") return;
+    setAccess("sending");
+    setAccessError(null);
+    requestSharedMapAccess(slug)
+      .then(() => setAccess("sent"))
+      .catch((e: unknown) => {
+        setAccess("idle");
+        setAccessError(
+          e instanceof Error ? e.message : "Could not send the request.",
+        );
+      });
+  }, [access, slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +76,22 @@ export function SharedMapPage({
       cancelled = true;
     };
   }, [slug]);
+
+  const [clipReady, setClipReady] = useState(false);
+
+  useEffect(() => {
+    setClipReady(false);
+    if (!map?.previewUrl) return;
+    let cancelled = false;
+    fetch(map.previewUrl, { method: "HEAD" })
+      .then((res) => {
+        if (!cancelled && res.ok) setClipReady(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [map]);
 
   useEffect(() => {
     if (!map) return;
@@ -82,6 +118,16 @@ export function SharedMapPage({
         : [],
     [map],
   );
+
+  const preview = useMemo(() => {
+    const diff = map?.data.difficulties.find((d) => d.notes.length);
+    if (!diff) return null;
+    return {
+      notes: diff.notes,
+      keyCount: diff.keyCount,
+      previewTime: diff.previewTime ?? -1,
+    };
+  }, [map]);
 
   const makeOsz = useCallback(async (): Promise<Blob | null> => {
     if (!map) return null;
@@ -224,12 +270,15 @@ export function SharedMapPage({
             ))}
           </div>
 
-          {map.audioUrl && (
-            <audio
-              src={map.audioUrl}
-              controls
-              preload="none"
-              className="mt-8 w-full"
+          {preview && (
+            <SharedMapPreview
+              notes={preview.notes}
+              keyCount={preview.keyCount}
+              previewTime={preview.previewTime}
+              audioUrl={clipReady ? map.previewUrl : map.audioUrl}
+              clipStartsAtZero={clipReady}
+              label={t("shared.preview")}
+              stopLabel={t("shared.stopPreview")}
             />
           )}
 
@@ -250,7 +299,25 @@ export function SharedMapPage({
             >
               {busy === "download" ? t("common.loading") : t("shared.download")}
             </button>
+            {user && user.id !== map.owner && (
+              <button
+                type="button"
+                onClick={requestAccess}
+                disabled={access !== "idle"}
+                className="rounded-xl border border-white/15 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/5 disabled:opacity-60"
+              >
+                {access === "sent"
+                  ? t("shared.accessSent")
+                  : access === "sending"
+                    ? t("common.loading")
+                    : t("shared.requestAccess")}
+              </button>
+            )}
           </div>
+
+          {accessError && (
+            <p className="mt-3 text-sm text-rose-400">{accessError}</p>
+          )}
 
           <p className="mt-10 text-xs text-slate-500">
             {formatLength(map.lengthMs) ?? ""}

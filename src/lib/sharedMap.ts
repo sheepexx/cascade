@@ -1,10 +1,15 @@
 import { supabase } from "./supabase";
+import { decodeAudioBlob, renderTrimmedAudio } from "./audioTrim";
+import { loadMp3Encoder } from "./lameEncoder";
 import { computeMapStats } from "./mapStats";
 import { computeStarRating } from "./starRating";
 import { activeTimingAt } from "./timing";
-import type { Difficulty, SongMeta, TimingPoint } from "../types";
+import type { Difficulty, ManiaNote, SongMeta, TimingPoint } from "../types";
 
 export const SHARED_BUCKET = "shared";
+export const PREVIEW_CLIP_MS = 10000;
+const PREVIEW_FADE_MS = 400;
+const PREVIEW_CLIP_NAME = "preview.mp3";
 const SLUG_ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789";
 const SLUG_LENGTH = 10;
 const SHARED_BYTE_LIMIT = 60 * 1024 * 1024;
@@ -23,6 +28,7 @@ export type SharedMap = {
   creator: string;
   data: SharedMapData;
   audioUrl: string | null;
+  previewUrl: string | null;
   backgroundUrl: string | null;
   cardUrl: string | null;
   keyCounts: number[];
@@ -77,6 +83,10 @@ function publicUrl(path: string | null): string | null {
   return supabase.storage.from(SHARED_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+export function previewClipUrl(owner: string, slug: string): string | null {
+  return publicUrl(`${owner}/${slug}/${PREVIEW_CLIP_NAME}`);
+}
+
 function num(value: number | string | null | undefined): number | null {
   if (value == null) return null;
   const n = typeof value === "number" ? value : Number(value);
@@ -108,6 +118,15 @@ export function summarise(data: SharedMapData): {
   return { keyCounts, starRating, lengthMs, bpm, noteCount };
 }
 
+export function previewStartMs(notes: ManiaNote[], previewTime: number): number {
+  if (previewTime > 0) return previewTime;
+  const first = notes.reduce(
+    (min, n) => (n.startTime < min ? n.startTime : min),
+    Number.POSITIVE_INFINITY,
+  );
+  return Number.isFinite(first) ? Math.max(0, first - 800) : 0;
+}
+
 export type PublishParams = {
   ownerId: string;
   projectId: string | null;
@@ -115,6 +134,7 @@ export type PublishParams = {
   audio: { name: string; blob: Blob } | null;
   background: { name: string; blob: Blob } | null;
   card: Blob | null;
+  previewStartMs?: number;
 };
 
 function extensionOf(name: string, fallback: string): string {
@@ -129,6 +149,36 @@ async function upload(path: string, blob: Blob): Promise<string> {
     .upload(path, blob, { upsert: true, contentType: blob.type || undefined });
   if (error) throw new Error(error.message);
   return path;
+}
+
+export async function makePreviewClip(
+  audio: Blob,
+  startMs: number,
+): Promise<{ blob: Blob; ext: string } | null> {
+  const AC =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!AC) return null;
+  const ctx = new AC({ sampleRate: 44100 });
+  try {
+    const buffer = await decodeAudioBlob(audio, ctx);
+    if (!buffer) return null;
+    const durationMs = buffer.duration * 1000;
+    const start = Math.max(0, Math.min(startMs, Math.max(0, durationMs - 1000)));
+    const encoded = renderTrimmedAudio(buffer, {
+      startMs: start,
+      endMs: Math.min(durationMs, start + PREVIEW_CLIP_MS),
+      fadeInMs: PREVIEW_FADE_MS,
+      fadeOutMs: PREVIEW_FADE_MS,
+    });
+    if (encoded.ext !== "mp3") return null;
+    return { blob: encoded.blob, ext: encoded.ext };
+  } catch {
+    return null;
+  } finally {
+    void ctx.close().catch(() => {});
+  }
 }
 
 export async function publishSharedMap(params: PublishParams): Promise<string> {
@@ -146,6 +196,11 @@ export async function publishSharedMap(params: PublishParams): Promise<string> {
   const audioPath = audio
     ? await upload(`${base}/audio.${extensionOf(audio.name, "mp3")}`, audio.blob)
     : null;
+  if (audio) {
+    await loadMp3Encoder().catch(() => {});
+    const clip = await makePreviewClip(audio.blob, params.previewStartMs ?? 0);
+    if (clip) await upload(`${base}/${PREVIEW_CLIP_NAME}`, clip.blob);
+  }
   const bgPath = background
     ? await upload(`${base}/bg.${extensionOf(background.name, "jpg")}`, background.blob)
     : null;
@@ -192,6 +247,7 @@ export async function loadSharedMap(slug: string): Promise<SharedMap | null> {
     creator: row.creator,
     data: row.data,
     audioUrl: publicUrl(row.audio_path),
+    previewUrl: previewClipUrl(row.owner, row.slug),
     backgroundUrl: publicUrl(row.bg_path),
     cardUrl: publicUrl(row.card_path),
     keyCounts: row.key_counts ?? [],
@@ -221,6 +277,7 @@ export async function listMySharedMaps(ownerId: string): Promise<SharedMap[]> {
     creator: row.creator,
     data: row.data,
     audioUrl: publicUrl(row.audio_path),
+    previewUrl: previewClipUrl(row.owner, row.slug),
     backgroundUrl: publicUrl(row.bg_path),
     cardUrl: publicUrl(row.card_path),
     keyCounts: row.key_counts ?? [],
@@ -254,4 +311,11 @@ export async function unpublishSharedMap(slug: string): Promise<void> {
 
 export async function countSharedView(slug: string): Promise<void> {
   await supabase.rpc("bump_shared_map_view", { p_slug: slug });
+}
+
+export async function requestSharedMapAccess(slug: string): Promise<void> {
+  const { error } = await supabase.rpc("request_shared_map_access", {
+    p_slug: slug,
+  });
+  if (error) throw new Error(error.message);
 }

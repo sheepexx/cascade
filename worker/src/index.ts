@@ -405,10 +405,6 @@ function cors(env: Env): Record<string, string> {
   };
 }
 
-// Shared map pages need per-map og tags in the initial HTML, which the SPA
-// cannot provide: crawlers read meta before any script runs. The worker fetches
-// the deployed shell and rewrites the head, so humans still get the real app
-// with its hashed asset URLs.
 type SharedMapRow = {
   slug: string;
   title: string;
