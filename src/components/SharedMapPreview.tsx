@@ -51,6 +51,7 @@ export function SharedMapPreview({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef(0);
   const startedAtRef = useRef(0);
+  const audioPlayingRef = useRef(false);
   const clockRef = useRef(createPlaybackClock());
   const [playing, setPlaying] = useState(false);
 
@@ -76,6 +77,7 @@ export function SharedMapPreview({
       audio.removeAttribute("src");
       audio.load();
     }
+    audioPlayingRef.current = false;
     clockRef.current.reset();
     setPlaying(false);
   }, []);
@@ -217,11 +219,12 @@ export function SharedMapPreview({
     const audio = audioRef.current;
     const now = performance.now();
     const wall = now - startedAtRef.current;
-    const live = audio != null && !audio.paused && audio.currentTime > 0;
     let elapsed: number;
-    if (live) {
-      const smooth = clockRef.current.read(audio.currentTime, 1, now) * 1000;
-      elapsed = clipStartsAtZero ? smooth : smooth - startMs;
+    if (audio) {
+      const audioTime = audioPlayingRef.current
+        ? clockRef.current.read(audio.currentTime, 1, now) * 1000
+        : audio.currentTime * 1000;
+      elapsed = clipStartsAtZero ? audioTime : audioTime - startMs;
     } else {
       elapsed = wall;
     }
@@ -243,16 +246,31 @@ export function SharedMapPreview({
     clockRef.current.reset();
     if (audioUrl) {
       const audio = new Audio();
-      audio.preload = "metadata";
+      audio.preload = "auto";
       audioRef.current = audio;
       audio.addEventListener("ended", stop, { once: true });
+      audio.addEventListener("playing", () => {
+        if (audioRef.current !== audio) return;
+        audioPlayingRef.current = true;
+        clockRef.current.reset();
+      });
+      const suspendClock = () => {
+        if (audioRef.current !== audio) return;
+        audioPlayingRef.current = false;
+        clockRef.current.reset();
+      };
+      audio.addEventListener("pause", suspendClock);
+      audio.addEventListener("seeking", suspendClock);
+      audio.addEventListener("waiting", suspendClock);
       audio.addEventListener(
         "loadedmetadata",
         () => {
           if (audioRef.current !== audio) return;
           if (!clipStartsAtZero) audio.currentTime = startMs / 1000;
           clockRef.current.reset();
-          void audio.play().catch(() => {});
+          void audio.play().catch(() => {
+            if (audioRef.current === audio) stop();
+          });
         },
         { once: true },
       );
