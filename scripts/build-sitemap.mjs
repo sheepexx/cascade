@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,10 +10,12 @@ import {
 const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
+const HOME_UPDATED = "2026-08-12";
+
 const GENERATED = LANDING_PAGES.flatMap((page) =>
   Object.keys(LOCALES).map((locale) => ({
     path: urlFor(page.slug, locale),
-    source: "scripts/landing-content.mjs",
+    updated: page.updated,
     priority: locale === "en" ? "0.7" : "0.5",
     changefreq: "monthly",
   })),
@@ -24,73 +25,63 @@ const LOCALISED_HOMES = Object.keys(LOCALES)
   .filter((locale) => LOCALES[locale].prefix)
   .map((locale) => ({
     path: `/${LOCALES[locale].prefix}`,
-    source: `src/lib/i18n/locales/${locale}.ts`,
+    updated: HOME_UPDATED,
     priority: "0.8",
     changefreq: "weekly",
   }));
 
 const PAGES = [
-  { path: "/", source: "index.html", priority: "1.0", changefreq: "weekly" },
+  { path: "/", updated: HOME_UPDATED, priority: "1.0", changefreq: "weekly" },
   ...LOCALISED_HOMES,
   {
     path: "/how-to-make-an-osu-mania-map",
-    source: "public/how-to-make-an-osu-mania-map.html",
+    updated: "2026-08-12",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
     path: "/osu-to-stepmania",
-    source: "public/osu-to-stepmania.html",
+    updated: "2026-08-12",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
     path: "/osu-mania-map-viewer",
-    source: "public/osu-mania-map-viewer.html",
+    updated: "2026-08-12",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
     path: "/osu-mania-pack-creator",
-    source: "public/osu-mania-pack-creator.html",
+    updated: "2026-08-12",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
     path: "/osu-mania-sv-editor",
-    source: "public/osu-mania-sv-editor.html",
+    updated: "2026-08-12",
     priority: "0.7",
     changefreq: "monthly",
   },
   ...GENERATED,
   {
     path: "/privacy",
-    source: "public/privacy.html",
+    updated: "2026-08-07",
     priority: "0.3",
     changefreq: "yearly",
   },
 ];
 
-const today = new Date().toISOString().slice(0, 10);
-
-function lastModified(source) {
-  try {
-    const out = execFileSync(
-      "git",
-      ["log", "-1", "--format=%cs", "--", source],
-      { encoding: "utf8", cwd: ROOT },
-    ).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(out)) return out;
-  } catch {
-    return today;
+for (const page of PAGES) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(page.updated ?? "")) {
+    throw new Error(`build-sitemap: ${page.path} needs an updated date`);
   }
-  return today;
 }
 
 const urls = PAGES.map(
   (page) => `  <url>
     <loc>${SITE}${page.path}</loc>
-    <lastmod>${lastModified(page.source)}</lastmod>
+    <lastmod>${page.updated}</lastmod>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>
   </url>`,

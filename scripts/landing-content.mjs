@@ -59,6 +59,7 @@ export const UI = {
 
 const playtest = {
   slug: "osu-mania-playtest",
+  updated: "2026-08-11",
   structured: (c, url) => ({
     "@context": "https://schema.org",
     "@type": "HowTo",
@@ -396,6 +397,7 @@ const playtest = {
 
 const collab = {
   slug: "osu-mania-collab",
+  updated: "2026-08-11",
   content: {
     en: {
       navLabel: "Map together in real time",
@@ -681,6 +683,7 @@ const collab = {
 
 const aimod = {
   slug: "osu-mania-aimod",
+  updated: "2026-08-11",
   content: {
     en: {
       navLabel: "Check a map before upload",
@@ -931,6 +934,7 @@ const aimod = {
 
 const timing = {
   slug: "osu-mania-bpm-finder",
+  updated: "2026-08-11",
   structured: (c, url) => ({
     "@context": "https://schema.org",
     "@type": "HowTo",
