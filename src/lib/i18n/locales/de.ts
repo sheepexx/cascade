@@ -374,6 +374,7 @@ export const de: PartialCatalog = {
   "shared.toEditor": "Editor öffnen",
   "shared.openInCascade": "In Cascade öffnen",
   "shared.preview": "Vorschau",
+  "shared.difficulty": "Schwierigkeit",
   "shared.stopPreview": "Vorschau stoppen",
   "shared.requestAccess": "Bearbeitungszugriff anfragen",
   "shared.accessSent": "Anfrage gesendet",

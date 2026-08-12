@@ -21,6 +21,7 @@ import {
   adminUserEvents,
   adminUserProjects,
   getAdminStats,
+  listAdminSharedMaps,
   listUserSummaries,
   setUserAdmin,
   listAllProjects,
@@ -31,7 +32,10 @@ import {
   type AdminUserProject,
   type AdminUserSummary,
   type AdminProject,
+  type AdminSharedMap,
 } from "../../lib/admin";
+import { formatLength } from "../../lib/shareCard";
+import { sharedMapUrl } from "../../lib/sharedMap";
 import {
   listFeedback,
   setFeedbackStatus,
@@ -51,6 +55,7 @@ type Tab =
   | "presets"
   | "users"
   | "projects"
+  | "previews"
   | "feedback"
   | "notifications"
   | "settings";
@@ -82,6 +87,7 @@ export function AdminPanel({
               "presets",
               "users",
               "projects",
+              "previews",
               "feedback",
               "notifications",
               "settings",
@@ -107,6 +113,7 @@ export function AdminPanel({
         {tab === "presets" && <PresetsTab />}
         {tab === "users" && <UsersTab />}
         {tab === "projects" && <ProjectsTab />}
+        {tab === "previews" && <PreviewsTab />}
         {tab === "feedback" && <FeedbackTab />}
         {tab === "notifications" && <NotificationsTab />}
         {tab === "settings" && (
@@ -640,12 +647,16 @@ function UserDetail({
 }) {
   const [events, setEvents] = useState<AdminUserEvent[] | null>(null);
   const [projects, setProjects] = useState<AdminUserProject[] | null>(null);
+  const [previews, setPreviews] = useState<AdminSharedMap[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     setEvents(null);
     setProjects(null);
+    setPreviews(null);
     setError(null);
+    setPreviewError(null);
     adminUserEvents(user.id)
       .then(setEvents)
       .catch((e) =>
@@ -654,6 +665,13 @@ function UserDetail({
     adminUserProjects(user.id)
       .then(setProjects)
       .catch(() => setProjects([]));
+    listAdminSharedMaps(user.id)
+      .then(setPreviews)
+      .catch((e) =>
+        setPreviewError(
+          e instanceof Error ? e.message : "Failed to load previews.",
+        ),
+      );
   }, [user.id]);
 
   return (
@@ -708,7 +726,10 @@ function UserDetail({
         <StatCard label="Cloud maps" value={Number(user.project_count)} />
         <StatCard label="Presets" value={Number(user.preset_count)} />
         <StatCard label="Comments" value={Number(user.comment_count)} />
-        <StatCard label="Shared maps" value={Number(user.collab_count)} />
+        <StatCard label="Collaborations" value={Number(user.collab_count)} />
+        {previews && (
+          <StatCard label="Public previews" value={previews.length} />
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-ink-600 bg-ink-800 px-4 py-3 text-[11px] text-slate-500">
@@ -798,6 +819,29 @@ function UserDetail({
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Public previews
+        </h2>
+        {previewError && (
+          <p className="text-sm text-rose-400">{previewError}</p>
+        )}
+        {!previews && !previewError && (
+          <SkeletonRows
+            count={2}
+            lines={2}
+            action={false}
+            label="Loading previews"
+          />
+        )}
+        {previews && previews.length === 0 && (
+          <p className="text-sm text-slate-500">No public previews.</p>
+        )}
+        {previews && previews.length > 0 && (
+          <SharedMapList previews={previews} showOwner={false} />
         )}
       </section>
     </div>
@@ -908,6 +952,183 @@ function ProjectsTab() {
         </ul>
       )}
     </div>
+  );
+}
+
+type PreviewSort = "created" | "views" | "title";
+
+function PreviewsTab() {
+  const [previews, setPreviews] = useState<AdminSharedMap[] | null>(null);
+  const [sort, setSort] = useState<PreviewSort>("created");
+  const [query, setQuery] = useState("");
+  const { error, setError } = useAsyncError();
+
+  useEffect(() => {
+    listAdminSharedMaps()
+      .then(setPreviews)
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : "Failed to load previews."),
+      );
+  }, [setError]);
+
+  const rows = useMemo(() => {
+    if (!previews) return null;
+    const needle = query.trim().toLowerCase();
+    const filtered = needle
+      ? previews.filter((preview) =>
+          [
+            preview.title,
+            preview.artist,
+            preview.creator,
+            preview.owner_username,
+            preview.slug,
+          ].some((value) => value?.toLowerCase().includes(needle)),
+        )
+      : previews;
+    return [...filtered].sort((a, b) => {
+      if (sort === "title") {
+        return (a.title || "Untitled").localeCompare(b.title || "Untitled");
+      }
+      if (sort === "views") return Number(b.views) - Number(a.views);
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [previews, query, sort]);
+
+  return (
+    <div>
+      {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
+      {!previews && !error && (
+        <SkeletonRows count={8} lines={3} label="Loading previews" />
+      )}
+      {previews && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm text-slate-400">
+            <span className="font-semibold text-slate-200">
+              {previews.length}
+            </span>{" "}
+            public previews
+            {rows && rows.length !== previews.length && (
+              <span className="text-slate-500"> · {rows.length} shown</span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <TextInput
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search map, owner, or slug"
+              className="w-64"
+            />
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              Sort
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as PreviewSort)}
+                className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1.5 text-sm text-slate-100 outline-none"
+              >
+                <option value="created">Newest</option>
+                <option value="views">Views</option>
+                <option value="title">Title</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      )}
+      {rows && rows.length === 0 && (
+        <p className="text-sm text-slate-400">
+          {previews?.length ? "No matching previews." : "No public previews."}
+        </p>
+      )}
+      {rows && rows.length > 0 && <SharedMapList previews={rows} showOwner />}
+    </div>
+  );
+}
+
+function SharedMapList({
+  previews,
+  showOwner,
+}: {
+  previews: AdminSharedMap[];
+  showOwner: boolean;
+}) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {previews.map((preview) => {
+        const url = sharedMapUrl(preview.slug);
+        const length = formatLength(preview.length_ms);
+        const star =
+          preview.star_rating == null ? null : Number(preview.star_rating);
+        const bpm = preview.bpm == null ? null : Number(preview.bpm);
+        return (
+          <li
+            key={preview.id}
+            className="flex flex-wrap items-center gap-3 rounded-lg border border-ink-700 bg-ink-800 p-3"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm text-slate-200">
+                {preview.title || "Untitled"}
+                {preview.artist && (
+                  <span className="text-slate-500"> - {preview.artist}</span>
+                )}
+              </div>
+              <div className="mt-0.5 text-[11px] text-slate-500">
+                {showOwner && (
+                  <>
+                    owner{" "}
+                    {preview.owner_osu_id ? (
+                      <a
+                        href={`https://osu.ppy.sh/users/${preview.owner_osu_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        {preview.owner_username ?? preview.owner.slice(0, 8)}
+                      </a>
+                    ) : (
+                      (preview.owner_username ?? preview.owner.slice(0, 8))
+                    )}
+                    {" · "}
+                  </>
+                )}
+                mapped by {preview.creator || "unknown"} · published{" "}
+                {new Date(preview.created_at).toLocaleString()}
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={url}
+                  className="break-all font-mono text-accent hover:underline"
+                >
+                  {url}
+                </a>
+                <span>{Number(preview.views).toLocaleString()} views</span>
+                {preview.key_counts.length > 0 && (
+                  <span>{preview.key_counts.map((key) => `${key}K`).join(" · ")}</span>
+                )}
+                {star != null && Number.isFinite(star) && star > 0 && (
+                  <span>★ {star.toFixed(2)}</span>
+                )}
+                {bpm != null && Number.isFinite(bpm) && bpm > 0 && (
+                  <span>{Math.round(bpm)} BPM</span>
+                )}
+                {length && <span>{length}</span>}
+                <span>{Number(preview.note_count).toLocaleString()} notes</span>
+                <span>{preview.project_id ? "linked project" : "project removed"}</span>
+              </div>
+            </div>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-white/10 bg-ink-700 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-accent/50 hover:text-white"
+            >
+              Open preview
+            </a>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

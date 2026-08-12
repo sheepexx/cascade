@@ -372,6 +372,7 @@ export const en = {
   "shared.toEditor": "Open the editor",
   "shared.openInCascade": "Open in Cascade",
   "shared.preview": "Preview",
+  "shared.difficulty": "Difficulty",
   "shared.stopPreview": "Stop preview",
   "shared.requestAccess": "Request edit access",
   "shared.accessSent": "Request sent",

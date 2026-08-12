@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPlaybackClock } from "../lib/playbackClock";
 import { previewStartMs } from "../lib/sharedMap";
+import { longNoteBodyRange } from "../lib/sharedMapPreview";
 import type { ManiaNote } from "../types";
 
 export const PREVIEW_MS = 10000;
@@ -35,6 +36,8 @@ export function SharedMapPreview({
   keyCount,
   previewTime,
   audioUrl,
+  audioRate = 1,
+  preservePitch = false,
   clipStartsAtZero = false,
   label,
   stopLabel,
@@ -43,6 +46,8 @@ export function SharedMapPreview({
   keyCount: number;
   previewTime: number;
   audioUrl: string | null;
+  audioRate?: number;
+  preservePitch?: boolean;
   clipStartsAtZero?: boolean;
   label: string;
   stopLabel: string;
@@ -56,6 +61,10 @@ export function SharedMapPreview({
   const [playing, setPlaying] = useState(false);
 
   const startMs = previewStartMs(notes, previewTime);
+  const rate =
+    Number.isFinite(audioRate) && audioRate > 0
+      ? Math.max(0.1, Math.min(4, audioRate))
+      : 1;
 
   const { sorted, maxDur } = useMemo(() => {
     const list = [...notes].sort((a, b) => a.startTime - b.startTime);
@@ -161,15 +170,15 @@ export function SharedMapPreview({
 
         if (note.endTime != null && note.endTime > note.startTime) {
           const tailY = receptorY - (note.endTime - nowMs) * pxPerMs;
-          const top = Math.min(y, tailY);
+          const bodyRange = longNoteBodyRange(y, tailY, receptorY);
           ctx.globalAlpha = 0.42;
           ctx.fillStyle = colour;
           ctx.beginPath();
           ctx.roundRect(
             x + laneWidth * 0.2,
-            top,
+            bodyRange.top,
             laneWidth * 0.6,
-            Math.abs(y - tailY),
+            bodyRange.height,
             4,
           );
           ctx.fill();
@@ -222,9 +231,10 @@ export function SharedMapPreview({
     let elapsed: number;
     if (audio) {
       const audioTime = audioPlayingRef.current
-        ? clockRef.current.read(audio.currentTime, 1, now) * 1000
+        ? clockRef.current.read(audio.currentTime, rate, now) * 1000
         : audio.currentTime * 1000;
-      elapsed = clipStartsAtZero ? audioTime : audioTime - startMs;
+      const mapTime = audioTime / rate;
+      elapsed = clipStartsAtZero ? mapTime : mapTime - startMs;
     } else {
       elapsed = wall;
     }
@@ -234,7 +244,7 @@ export function SharedMapPreview({
     }
     draw(startMs + Math.max(0, elapsed));
     rafRef.current = requestAnimationFrame(tick);
-  }, [clipStartsAtZero, draw, startMs, stop]);
+  }, [clipStartsAtZero, draw, rate, startMs, stop]);
 
   const play = useCallback(() => {
     if (playing) {
@@ -247,6 +257,9 @@ export function SharedMapPreview({
     if (audioUrl) {
       const audio = new Audio();
       audio.preload = "auto";
+      audio.defaultPlaybackRate = rate;
+      audio.playbackRate = rate;
+      audio.preservesPitch = preservePitch;
       audioRef.current = audio;
       audio.addEventListener("ended", stop, { once: true });
       audio.addEventListener("playing", () => {
@@ -266,7 +279,7 @@ export function SharedMapPreview({
         "loadedmetadata",
         () => {
           if (audioRef.current !== audio) return;
-          if (!clipStartsAtZero) audio.currentTime = startMs / 1000;
+          if (!clipStartsAtZero) audio.currentTime = (startMs * rate) / 1000;
           clockRef.current.reset();
           void audio.play().catch(() => {
             if (audioRef.current === audio) stop();
@@ -277,7 +290,16 @@ export function SharedMapPreview({
       audio.src = audioUrl;
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [audioUrl, clipStartsAtZero, playing, startMs, stop, tick]);
+  }, [
+    audioUrl,
+    clipStartsAtZero,
+    playing,
+    preservePitch,
+    rate,
+    startMs,
+    stop,
+    tick,
+  ]);
 
   useEffect(() => {
     draw(startMs);

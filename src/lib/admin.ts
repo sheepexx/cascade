@@ -69,6 +69,26 @@ export type AdminUserProject = {
   role: string;
 };
 
+export type AdminSharedMap = {
+  id: string;
+  slug: string;
+  project_id: string | null;
+  owner: string;
+  owner_username: string | null;
+  owner_osu_id: number | null;
+  title: string;
+  artist: string;
+  creator: string;
+  key_counts: number[];
+  star_rating: number | string | null;
+  length_ms: number | null;
+  bpm: number | string | null;
+  note_count: number;
+  views: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export async function listUserSummaries(): Promise<AdminUserSummary[]> {
   const { data, error } = await supabase.rpc("admin_user_summaries");
   if (error) throw new Error(error.message);
@@ -93,6 +113,16 @@ export async function adminUserProjects(
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminUserProject[];
+}
+
+export async function listAdminSharedMaps(
+  userId: string | null = null,
+): Promise<AdminSharedMap[]> {
+  const { data, error } = await supabase.rpc("admin_shared_map_summaries", {
+    p_user: userId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AdminSharedMap[];
 }
 
 export async function setUserAdmin(

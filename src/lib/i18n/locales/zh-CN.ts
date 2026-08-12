@@ -357,6 +357,7 @@ export const zhCN: PartialCatalog = {
   "shared.toEditor": "打开编辑器",
   "shared.openInCascade": "在 Cascade 中打开",
   "shared.preview": "预览",
+  "shared.difficulty": "难度",
   "shared.stopPreview": "停止预览",
   "shared.requestAccess": "申请编辑权限",
   "shared.accessSent": "申请已发送",

@@ -374,6 +374,7 @@ export const ptBR: PartialCatalog = {
   "shared.toEditor": "Abrir o editor",
   "shared.openInCascade": "Abrir no Cascade",
   "shared.preview": "Prévia",
+  "shared.difficulty": "Dificuldade",
   "shared.stopPreview": "Parar prévia",
   "shared.requestAccess": "Pedir acesso de edição",
   "shared.accessSent": "Pedido enviado",

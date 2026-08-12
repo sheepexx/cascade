@@ -4,7 +4,7 @@ import { useT } from "../lib/i18n";
 import { buildOsz } from "../lib/oszExport";
 import { SharedMapPreview } from "./SharedMapPreview";
 import { cardChips, formatLength } from "../lib/shareCard";
-import { starColor, starTextOn } from "../lib/starRating";
+import { computeStarRating, starColor, starTextOn } from "../lib/starRating";
 import {
   countSharedView,
   loadSharedMap,
@@ -44,6 +44,9 @@ export function SharedMapPage({
   const [busy, setBusy] = useState<"open" | "download" | null>(null);
   const [access, setAccess] = useState<"idle" | "sending" | "sent">("idle");
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [previewDifficultyId, setPreviewDifficultyId] = useState<string | null>(
+    null,
+  );
 
   const requestAccess = useCallback(() => {
     if (access !== "idle") return;
@@ -62,10 +65,15 @@ export function SharedMapPage({
   useEffect(() => {
     let cancelled = false;
     setState("loading");
+    setPreviewDifficultyId(null);
     loadSharedMap(slug)
       .then((found) => {
         if (cancelled) return;
         setMap(found);
+        setPreviewDifficultyId(
+          found?.data.difficulties.find((difficulty) => difficulty.notes.length)
+            ?.id ?? null,
+        );
         setState(found ? "ready" : "missing");
         if (found) void countSharedView(slug).catch(() => {});
       })
@@ -119,15 +127,37 @@ export function SharedMapPage({
     [map],
   );
 
+  const previewDifficulties = useMemo(
+    () =>
+      map?.data.difficulties.filter((difficulty) => difficulty.notes.length) ??
+      [],
+    [map],
+  );
+
   const preview = useMemo(() => {
-    const diff = map?.data.difficulties.find((d) => d.notes.length);
-    if (!diff) return null;
-    return {
-      notes: diff.notes,
-      keyCount: diff.keyCount,
-      previewTime: diff.previewTime ?? -1,
-    };
-  }, [map]);
+    return (
+      previewDifficulties.find(
+        (difficulty) => difficulty.id === previewDifficultyId,
+      ) ??
+      previewDifficulties[0] ??
+      null
+    );
+  }, [previewDifficulties, previewDifficultyId]);
+
+  const previewOptions = useMemo(() => {
+    return previewDifficulties.map((difficulty) => ({
+      id: difficulty.id,
+      label: difficulty.name,
+      keyCount: difficulty.keyCount,
+      starRating: computeStarRating(difficulty.notes, difficulty.keyCount),
+    }));
+  }, [previewDifficulties]);
+
+  const usePreviewClip =
+    clipReady &&
+    preview != null &&
+    preview.id === previewDifficulties[0]?.id &&
+    (preview.audioRate ?? 1) === 1;
 
   const makeOsz = useCallback(async (): Promise<Blob | null> => {
     if (!map) return null;
@@ -270,13 +300,36 @@ export function SharedMapPage({
             ))}
           </div>
 
+          {previewOptions.length > 1 && preview && (
+            <label className="mx-auto mt-8 grid w-full max-w-[260px] gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("shared.difficulty")}
+              </span>
+              <select
+                value={preview.id}
+                onChange={(event) => setPreviewDifficultyId(event.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-ink-800 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+              >
+                {previewOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label || t("common.untitled")} · {option.keyCount}K ·
+                    ★ {option.starRating.toFixed(2)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
           {preview && (
             <SharedMapPreview
+              key={`${preview.id}-${usePreviewClip ? "clip" : "audio"}`}
               notes={preview.notes}
               keyCount={preview.keyCount}
               previewTime={preview.previewTime}
-              audioUrl={clipReady ? map.previewUrl : map.audioUrl}
-              clipStartsAtZero={clipReady}
+              audioUrl={usePreviewClip ? map.previewUrl : map.audioUrl}
+              audioRate={preview.audioRate}
+              preservePitch={preview.preservePitch}
+              clipStartsAtZero={usePreviewClip}
               label={t("shared.preview")}
               stopLabel={t("shared.stopPreview")}
             />

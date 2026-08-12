@@ -1938,6 +1938,7 @@ export default function App() {
       backgroundUrl: bgFile?.url ?? null,
     }).catch(() => null);
 
+    const previewDifficulty = data.difficulties.find((d) => d.notes.length);
     const slug = await publishSharedMap({
       ownerId: owner.id,
       projectId: cloudProjectIdRef.current,
@@ -1946,9 +1947,9 @@ export default function App() {
       background: bgFile ? { name: bgFile.name, blob: bgFile.blob } : null,
       card,
       previewStartMs: previewStartMs(
-        data.difficulties.find((d) => d.notes.length)?.notes ?? [],
-        data.difficulties.find((d) => d.notes.length)?.previewTime ?? -1,
-      ),
+        previewDifficulty?.notes ?? [],
+        previewDifficulty?.previewTime ?? -1,
+      ) * (previewDifficulty?.audioRate ?? 1),
     });
     const url = sharedMapUrl(slug);
     setPublicMapUrl(url);

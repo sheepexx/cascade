@@ -386,6 +386,7 @@ export const ru: PartialCatalog = {
   "shared.toEditor": "Открыть редактор",
   "shared.openInCascade": "Открыть в Cascade",
   "shared.preview": "Превью",
+  "shared.difficulty": "Сложность",
   "shared.stopPreview": "Остановить превью",
   "shared.requestAccess": "Запросить доступ к редактированию",
   "shared.accessSent": "Запрос отправлен",
