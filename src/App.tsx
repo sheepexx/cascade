@@ -5194,12 +5194,6 @@ export default function App() {
           {!hasProject && !sharedSlug && <NowPlaying music={menuMusic} />}
           {!hasProject && <LanguagePicker compact />}
           {authUser && (
-            <AccountSyncIndicator
-              status={accountSyncStatus}
-              error={accountSyncError}
-            />
-          )}
-          {authUser && (
             <NotificationInbox
               notifications={notifications}
               loading={notificationsLoading}
@@ -5860,6 +5854,8 @@ export default function App() {
           onEditorKeybinds={(value) =>
             setAppSettings((s) => ({ ...s, editorKeybinds: value }))
           }
+          accountSyncStatus={authUser ? accountSyncStatus : null}
+          accountSyncError={accountSyncError}
         />
       )}
       {modalMounted("skin") && (
@@ -6368,41 +6364,6 @@ export default function App() {
         onCancel={() => setConfirmResnap(false)}
       />
     </div>
-  );
-}
-
-function AccountSyncIndicator({
-  status,
-  error,
-}: {
-  status: "idle" | "syncing" | "synced" | "error";
-  error: string | null;
-}) {
-  const t = useT();
-  const label =
-    status === "syncing"
-      ? t("accountSync.syncing")
-      : status === "synced"
-        ? t("accountSync.synced")
-        : status === "error"
-          ? t("accountSync.error")
-          : t("accountSync.ready");
-  return (
-    <span
-      className="flex w-[7.75rem] shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-ink-700/42 px-2 py-1 text-[11px] font-medium text-slate-300 shadow-sm backdrop-blur-xl"
-      title={error ?? label}
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${
-          status === "syncing"
-            ? "animate-pulse bg-sky-400"
-            : status === "error"
-              ? "bg-rose-500"
-              : "bg-emerald-400"
-        }`}
-      />
-      <span className="truncate">{label}</span>
-    </span>
   );
 }
 

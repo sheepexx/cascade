@@ -73,6 +73,8 @@ type Props = {
   editorKeybinds: EditorKeybinds;
   onEditorKeybinds: (value: EditorKeybinds) => void;
   keyCount: number;
+  accountSyncStatus: "idle" | "syncing" | "synced" | "error" | null;
+  accountSyncError: string | null;
 };
 
 const TABS = ["Editor", "Playtest", "Audio", "Export", "Shortcuts"] as const;
@@ -140,6 +142,8 @@ export function AppSettingsModal({
   editorKeybinds,
   onEditorKeybinds,
   keyCount,
+  accountSyncStatus,
+  accountSyncError,
 }: Props) {
   const { locale, setLocale, t } = useLocale();
   const [tab, setTab] = useState<Tab>("Editor");
@@ -235,6 +239,17 @@ export function AppSettingsModal({
       {/* Floor the height so switching between a long tab (Playtest) and a
           short one (Audio) doesn't collapse the dialog. */}
       <div className="flex min-h-[min(30rem,60vh)] flex-col gap-5">
+        {accountSyncStatus && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-ink-700/40 px-3 py-2">
+            <span className="text-xs font-medium text-slate-400">
+              Account settings
+            </span>
+            <AccountSyncIndicator
+              status={accountSyncStatus}
+              error={accountSyncError}
+            />
+          </div>
+        )}
         <div className="flex gap-1 rounded-xl border border-white/10 bg-ink-700/40 p-1">
           {TABS.map((name) => (
             <button
@@ -1130,6 +1145,41 @@ export function AppSettingsModal({
         )}
       </div>
     </Modal>
+  );
+}
+
+function AccountSyncIndicator({
+  status,
+  error,
+}: {
+  status: "idle" | "syncing" | "synced" | "error";
+  error: string | null;
+}) {
+  const { t } = useLocale();
+  const label =
+    status === "syncing"
+      ? t("accountSync.syncing")
+      : status === "synced"
+        ? t("accountSync.synced")
+        : status === "error"
+          ? t("accountSync.error")
+          : t("accountSync.ready");
+  return (
+    <span
+      className="flex w-[7.75rem] shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-ink-700/60 px-2 py-1 text-[11px] font-medium text-slate-300"
+      title={error ?? label}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          status === "syncing"
+            ? "animate-pulse bg-sky-400"
+            : status === "error"
+              ? "bg-rose-500"
+              : "bg-emerald-400"
+        }`}
+      />
+      <span className="truncate">{label}</span>
+    </span>
   );
 }
 
