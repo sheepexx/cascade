@@ -1,5 +1,12 @@
 import { supabase } from "./supabase";
-import { deleteProjectWithAssets, deleteSharedAssets } from "./storage";
+import {
+  deleteProjectWithAssets,
+  deleteSharedAssets,
+  getAdminStorageStats,
+  type AdminStorageStats,
+} from "./storage";
+
+export type { AdminStorageStats };
 
 export type AdminUser = {
   id: string;
@@ -226,4 +233,8 @@ export async function getAdminStats(): Promise<AdminStats> {
       .map(([browser, count]) => ({ browser, count }))
       .sort((a, b) => b.count - a.count || a.browser.localeCompare(b.browser)),
   };
+}
+
+export async function getStorageStats(): Promise<AdminStorageStats> {
+  return getAdminStorageStats();
 }

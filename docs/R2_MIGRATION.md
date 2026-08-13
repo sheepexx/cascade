@@ -55,7 +55,13 @@ These non-secret values are already in `worker/wrangler.jsonc`:
 - `FRONTEND_URL`
 - `OSU_REDIRECT_URI`
 - `SUPABASE_STORAGE_FALLBACK=true`
+- `SUPABASE_STORAGE_ALLOWANCE_BYTES=1073741824`
+- `R2_STORAGE_ALLOWANCE_BYTES=10737418240`
 - `MAX_ASSET_BYTES=62914560`
+
+The allowance values power the progress meters in **Admin → Stats**. They default
+to the Supabase Free storage quota and R2 Standard's monthly included storage;
+update them if the project's plans change.
 
 Validate and deploy only when ready:
 

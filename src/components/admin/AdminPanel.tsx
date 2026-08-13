@@ -22,6 +22,7 @@ import {
   adminUserProjects,
   deleteSharedMapAdmin,
   getAdminStats,
+  getStorageStats,
   listAdminSharedMaps,
   listUserSummaries,
   setUserAdmin,
@@ -29,6 +30,7 @@ import {
   deleteProjectAdmin,
   type AdminEventStat,
   type AdminStats,
+  type AdminStorageStats,
   type AdminUserEvent,
   type AdminUserProject,
   type AdminUserSummary,
@@ -138,11 +140,15 @@ function useAsyncError() {
 
 function StatsTab() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [storage, setStorage] = useState<AdminStorageStats | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
   const [events, setEvents] = useState<AdminEventStat[] | null>(null);
   const { error, setError } = useAsyncError();
 
   useEffect(() => {
     setStats(null);
+    setStorage(null);
+    setStorageError(null);
     setEvents(null);
     setError(null);
     getAdminStats()
@@ -154,6 +160,13 @@ function StatsTab() {
     adminEventStats()
       .then(setEvents)
       .catch(() => setEvents([]));
+    getStorageStats()
+      .then(setStorage)
+      .catch((e) =>
+        setStorageError(
+          e instanceof Error ? e.message : "Failed to load storage stats.",
+        ),
+      );
   }, [setError]);
 
   return (
@@ -171,6 +184,7 @@ function StatsTab() {
               value={stats.localProjectsCreated}
             />
           </div>
+          <StorageStatsSection stats={storage} error={storageError} />
           <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Feature usage
@@ -891,6 +905,140 @@ function UserDetail({
           />
         )}
       </section>
+    </div>
+  );
+}
+
+function StorageStatsSection({
+  stats,
+  error,
+}: {
+  stats: AdminStorageStats | null;
+  error: string | null;
+}) {
+  return (
+    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Physical storage
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Actual files stored in each provider's buckets.
+          </p>
+        </div>
+        {stats && (
+          <div className="text-right">
+            <div className="text-xs uppercase tracking-wide text-slate-500">
+              Total used
+            </div>
+            <div className="font-mono text-sm font-semibold text-slate-200">
+              {formatBytes(stats.totalBytes)}
+            </div>
+          </div>
+        )}
+      </div>
+      {error && <p className="text-sm text-rose-400">{error}</p>}
+      {!stats && !error && (
+        <div className="grid gap-3 lg:grid-cols-2" aria-label="Loading storage stats">
+          {[0, 1].map((item) => (
+            <div
+              key={item}
+              className="h-36 animate-pulse rounded-lg bg-ink-700/60"
+            />
+          ))}
+        </div>
+      )}
+      {stats && (
+        <div className="grid gap-3 lg:grid-cols-2">
+          <StorageMeter
+            name="Supabase Storage"
+            bytes={stats.supabase.bytes}
+            objects={stats.supabase.objects}
+            allowanceBytes={stats.supabase.allowanceBytes}
+            buckets={[
+              ["maps", stats.supabase.buckets.maps],
+              ["shared", stats.supabase.buckets.shared],
+            ]}
+          />
+          <StorageMeter
+            name="Cloudflare R2"
+            bytes={stats.cloudflare.bytes}
+            objects={stats.cloudflare.objects}
+            allowanceBytes={stats.cloudflare.allowanceBytes}
+            buckets={[
+              ["projects", stats.cloudflare.buckets.projects],
+              ["shared", stats.cloudflare.buckets.shared],
+            ]}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StorageMeter({
+  name,
+  bytes,
+  objects,
+  allowanceBytes,
+  buckets,
+}: {
+  name: string;
+  bytes: number;
+  objects: number;
+  allowanceBytes: number;
+  buckets: [string, { bytes: number; objects: number }][];
+}) {
+  const percent = allowanceBytes > 0 ? (bytes / allowanceBytes) * 100 : null;
+  const barPercent = percent === null ? 0 : Math.min(100, Math.max(0, percent));
+  const percentLabel =
+    percent === null
+      ? null
+      : percent > 0 && percent < 0.1
+        ? "<0.1%"
+        : `${percent.toFixed(1)}%`;
+  return (
+    <div className="rounded-lg border border-ink-600/80 bg-ink-700/40 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-100">{name}</h3>
+          <p className="mt-1 font-mono text-base text-slate-200">
+            {formatBytes(bytes)}
+            {allowanceBytes > 0 && (
+              <span className="text-slate-500">
+                {" "}/ {formatBytes(allowanceBytes)} included
+              </span>
+            )}
+          </p>
+        </div>
+        {percentLabel && (
+          <span className="font-mono text-xs text-slate-400">{percentLabel}</span>
+        )}
+      </div>
+      {allowanceBytes > 0 && (
+        <div
+          className="mt-3 h-2 overflow-hidden rounded-full bg-ink-600"
+          role="progressbar"
+          aria-label={`${name} storage used`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(barPercent)}
+        >
+          <div
+            className="h-full rounded-full bg-accent transition-all"
+            style={{ width: `${barPercent}%` }}
+          />
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+        <span>{objects.toLocaleString()} objects</span>
+        {buckets.map(([label, usage]) => (
+          <span key={label}>
+            {label} {formatBytes(usage.bytes)}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

@@ -14,6 +14,36 @@ type DeleteResult = {
   warnings?: string[];
 };
 
+export type StorageUsage = {
+  bytes: number;
+  objects: number;
+};
+
+export type AdminStorageStats = {
+  totalBytes: number;
+  cloudflare: StorageUsage & {
+    allowanceBytes: number;
+    buckets: {
+      projects: StorageUsage;
+      shared: StorageUsage;
+    };
+  };
+  supabase: StorageUsage & {
+    allowanceBytes: number;
+    buckets: {
+      maps: StorageUsage;
+      shared: StorageUsage;
+    };
+  };
+};
+
+export async function getAdminStorageStats(): Promise<AdminStorageStats> {
+  return workerJson<AdminStorageStats>("/storage/admin/stats", {
+    method: "GET",
+    headers: sessionAuthHeaders(),
+  });
+}
+
 export async function uploadProjectAsset(
   projectId: string,
   storagePath: string,

@@ -23,6 +23,14 @@ type SharedMapStorageRow = {
 type StorageListEntry = {
   id?: string | null;
   name?: string;
+  metadata?: {
+    size?: number | string | null;
+  } | null;
+};
+
+type StorageUsage = {
+  bytes: number;
+  objects: number;
 };
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
@@ -39,6 +47,16 @@ export async function handleStorageRoute(
   authenticate: StorageAuthenticator,
 ): Promise<Response | null> {
   if (!url.pathname.startsWith("/storage/")) return null;
+
+  if (/^\/storage\/admin\/stats\/?$/i.test(url.pathname)) {
+    if (req.method !== "GET") {
+      return storageJson({ error: "method not allowed" }, 405, env);
+    }
+    const auth = await authenticate();
+    if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
+    if (!auth.isAdmin) return storageJson({ error: "forbidden" }, 403, env);
+    return adminStorageStats(env);
+  }
 
   const projectRoot = url.pathname.match(
     new RegExp(`^/storage/projects/(${UUID})/?$`, "i"),
@@ -141,6 +159,115 @@ export async function handleStorageRoute(
   }
 
   return storageJson({ error: "not found" }, 404, env);
+}
+
+async function adminStorageStats(env: WorkerEnv): Promise<Response> {
+  const [projects, r2Shared, maps, supabaseShared] = await Promise.all([
+    r2BucketUsage(env.PROJECT_ASSETS),
+    r2BucketUsage(env.SHARED_ASSETS),
+    supabaseBucketUsage("maps", env),
+    supabaseBucketUsage("shared", env),
+  ]);
+  const cloudflare = addStorageUsage(projects, r2Shared);
+  const supabase = addStorageUsage(maps, supabaseShared);
+  const response = storageJson(
+    {
+      totalBytes: cloudflare.bytes + supabase.bytes,
+      cloudflare: {
+        ...cloudflare,
+        allowanceBytes: configuredBytes(env.R2_STORAGE_ALLOWANCE_BYTES),
+        buckets: { projects, shared: r2Shared },
+      },
+      supabase: {
+        ...supabase,
+        allowanceBytes: configuredBytes(env.SUPABASE_STORAGE_ALLOWANCE_BYTES),
+        buckets: { maps, shared: supabaseShared },
+      },
+    },
+    200,
+    env,
+  );
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+}
+
+export async function r2BucketUsage(bucket: R2Bucket): Promise<StorageUsage> {
+  const usage: StorageUsage = { bytes: 0, objects: 0 };
+  let cursor: string | undefined;
+  do {
+    const page = await bucket.list({ limit: 1000, ...(cursor ? { cursor } : {}) });
+    for (const object of page.objects) {
+      usage.bytes += object.size;
+      usage.objects += 1;
+    }
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return usage;
+}
+
+async function supabaseBucketUsage(
+  bucket: "maps" | "shared",
+  env: WorkerEnv,
+): Promise<StorageUsage> {
+  const usage: StorageUsage = { bytes: 0, objects: 0 };
+  const pending = [""];
+  let visited = 0;
+  while (pending.length) {
+    const folder = pending.shift();
+    if (folder === undefined) continue;
+    for (let offset = 0; ; offset += 1000) {
+      const response = await fetch(
+        `${env.SUPABASE_URL}/storage/v1/object/list/${bucket}`,
+        {
+          method: "POST",
+          headers: {
+            ...serviceHeaders(env),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prefix: folder,
+            limit: 1000,
+            offset,
+            sortBy: { column: "name", order: "asc" },
+          }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Supabase Storage list failed with ${response.status}`);
+      }
+      const entries = (await response.json()) as StorageListEntry[];
+      for (const entry of entries) {
+        if (!entry.name) continue;
+        const path = folder ? `${folder}/${entry.name}` : entry.name;
+        if (entry.id) {
+          usage.bytes += storageEntryBytes(entry);
+          usage.objects += 1;
+        } else {
+          pending.push(path);
+        }
+        visited += 1;
+        if (visited > 100_000) {
+          throw new Error("Supabase Storage stats scan limit exceeded");
+        }
+      }
+      if (entries.length < 1000) break;
+    }
+  }
+  return usage;
+}
+
+function storageEntryBytes(entry: StorageListEntry): number {
+  const bytes = Number(entry.metadata?.size ?? 0);
+  return Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
+}
+
+function addStorageUsage(a: StorageUsage, b: StorageUsage): StorageUsage {
+  return { bytes: a.bytes + b.bytes, objects: a.objects + b.objects };
+}
+
+function configuredBytes(value: string): number {
+  const bytes = Number(value);
+  return Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
 }
 
 async function getPrivateProjectObject(
