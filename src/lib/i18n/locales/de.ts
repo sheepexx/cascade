@@ -283,6 +283,11 @@ export const de: PartialCatalog = {
   "startModal.loginWithOsu": "Mit osu! anmelden",
   "startModal.localProjects": "Lokale Projekte",
   "startModal.localProjectsHint": "auf diesem Gerät gespeichert",
+  "startModal.localProjectsUsage": "{size} · auf diesem Gerät gespeichert",
+  "startModal.select": "Auswählen",
+  "startModal.selectAll": "Alle auswählen",
+  "startModal.deselectAll": "Auswahl aufheben",
+  "startModal.deleteSelected": "{count} löschen",
   "startModal.noLocalSaves":
     "Noch keine lokalen Speicherstände. Nutze Strg+S oder aktiviere Autosave, nachdem du eine Map begonnen hast.",
   "startModal.projectNote.one": "{count} Diff · gespeichert am {date}",

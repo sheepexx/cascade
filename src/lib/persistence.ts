@@ -70,6 +70,7 @@ export type LocalProjectSummary = {
   creator: string;
   updatedAt: number;
   difficultyCount: number;
+  sizeBytes: number;
   sourceFormat?: "osu" | "sm";
   backgroundBlob?: Blob;
 };
@@ -145,6 +146,19 @@ function mergeMedia(
     (merged as Record<string, unknown>)[field] = media[field];
   }
   return merged;
+}
+
+function mediaBytes(project: SavedProject): number {
+  let total = 0;
+  for (const field of MEDIA_FIELDS) {
+    const value = project[field];
+    if (Array.isArray(value)) {
+      for (const file of value) total += file.blob.size;
+    } else if (value) {
+      total += value.blob.size;
+    }
+  }
+  return total;
 }
 
 const lastMediaSignature = new Map<string, string>();
@@ -394,6 +408,7 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
               creator: full.meta.creator,
               updatedAt: full.savedAt,
               difficultyCount: full.difficulties.length,
+              sizeBytes: mediaBytes(full),
               sourceFormat: full.difficulties[0]?.sourceFormat,
               backgroundBlob: pickLocalBackground(full),
             });

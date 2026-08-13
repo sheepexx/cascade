@@ -272,6 +272,11 @@ export const zhCN: PartialCatalog = {
   "startModal.loginWithOsu": "使用 osu! 登录",
   "startModal.localProjects": "本地项目",
   "startModal.localProjectsHint": "保存在本设备",
+  "startModal.localProjectsUsage": "{size} · 保存在本设备",
+  "startModal.select": "选择",
+  "startModal.selectAll": "全选",
+  "startModal.deselectAll": "取消全选",
+  "startModal.deleteSelected": "删除 {count} 个",
   "startModal.noLocalSaves":
     "还没有本地存档。开始制谱后按 Ctrl+S，或启用自动保存。",
   "startModal.projectNote.other": "{count} 个难度 · 保存于 {date}",

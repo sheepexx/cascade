@@ -280,6 +280,11 @@ export const en = {
   "startModal.loginWithOsu": "Log in with osu!",
   "startModal.localProjects": "Local projects",
   "startModal.localProjectsHint": "saved on this device",
+  "startModal.localProjectsUsage": "{size} · saved on this device",
+  "startModal.select": "Select",
+  "startModal.selectAll": "Select all",
+  "startModal.deselectAll": "Deselect all",
+  "startModal.deleteSelected": "Delete {count}",
   "startModal.noLocalSaves":
     "No local saves yet. Use Ctrl+S or enable autosave after starting a map.",
   "startModal.projectNote.one": "{count} diff · saved {date}",

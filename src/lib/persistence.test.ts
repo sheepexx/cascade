@@ -294,6 +294,23 @@ describe("project media records", () => {
     expect(rows[0].backgroundBlob).toBe(bg);
   });
 
+  it("reports the stored media size of each project", async () => {
+    installStore();
+    const { saveProject, listLocalProjects } = await freshPersistence();
+
+    await saveProject(
+      project({
+        audioFiles: [{ name: "a.mp3", blob: bytes(1000) }],
+        backgroundFiles: [{ name: "bg.png", blob: bytes(24) }],
+        skin: { name: "skin.osk", blob: bytes(8) },
+      }),
+      "abc",
+    );
+    const rows = await listLocalProjects();
+
+    expect(rows[0].sizeBytes).toBe(1032);
+  });
+
   it("clears both records for a project", async () => {
     const { data } = installStore();
     const { saveProject, clearProject } = await freshPersistence();

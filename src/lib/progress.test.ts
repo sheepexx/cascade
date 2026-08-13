@@ -105,6 +105,7 @@ describe("formatBytes", () => {
     expect(formatBytes(512)).toBe("512 B");
     expect(formatBytes(2048)).toBe("2 KB");
     expect(formatBytes(7 * 1024 * 1024)).toBe("7.0 MB");
+    expect(formatBytes(3 * 1024 * 1024 * 1024)).toBe("3.00 GB");
   });
 
   it("returns empty for junk", () => {

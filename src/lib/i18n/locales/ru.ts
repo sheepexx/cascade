@@ -287,6 +287,11 @@ export const ru: PartialCatalog = {
   "startModal.loginWithOsu": "Войти через osu!",
   "startModal.localProjects": "Локальные проекты",
   "startModal.localProjectsHint": "сохранены на этом устройстве",
+  "startModal.localProjectsUsage": "{size} · сохранены на этом устройстве",
+  "startModal.select": "Выбрать",
+  "startModal.selectAll": "Выбрать все",
+  "startModal.deselectAll": "Снять выделение",
+  "startModal.deleteSelected": "Удалить: {count}",
   "startModal.noLocalSaves":
     "Локальных сохранений пока нет. Нажмите Ctrl+S или включите автосохранение после начала карты.",
   "startModal.projectNote.one": "{count} сложность · сохранено {date}",

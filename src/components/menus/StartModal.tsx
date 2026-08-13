@@ -23,6 +23,7 @@ import {
   clearProject,
   type LocalProjectSummary,
 } from "../../lib/persistence";
+import { formatBytes } from "../../lib/progress";
 import {
   ArchiveIcon,
   NewMapIcon,
@@ -153,6 +154,7 @@ export function WelcomeModal({
   const [localError, setLocalError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<{
     scope: "local" | "cloud";
@@ -174,6 +176,7 @@ export function WelcomeModal({
   useEffect(() => {
     if (!open) {
       setSelected(new Set());
+      setSelectMode(false);
       setConfirm(null);
       setShowArchived(false);
       return;
@@ -259,6 +262,13 @@ export function WelcomeModal({
     rememberCardCounts({ cloud });
   }, [projects, ownedCount]);
 
+  const visibleLocal = (localProjects ?? []).slice(0, MAX_CARDS);
+  const visibleCloud = owned.slice(0, MAX_CARDS);
+  const localBytes = (localProjects ?? []).reduce(
+    (sum, p) => sum + p.sizeBytes,
+    0,
+  );
+
   const keyOf = (scope: "local" | "cloud", id: string) => `${scope}:${id}`;
 
   const toggleSelect = (scope: "local" | "cloud", id: string) =>
@@ -270,10 +280,42 @@ export function WelcomeModal({
       return next;
     });
 
+  const toggleSelectAll = (scope: "local" | "cloud", ids: string[]) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const all = ids.every((id) => next.has(keyOf(scope, id)));
+      for (const id of ids) {
+        if (all) next.delete(keyOf(scope, id));
+        else next.add(keyOf(scope, id));
+      }
+      return next;
+    });
+
   const idsForScope = (scope: "local" | "cloud") =>
     [...selected]
       .filter((k) => k.startsWith(`${scope}:`))
       .map((k) => k.slice(scope.length + 1));
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+  };
+
+  const selectControls = (scope: "local" | "cloud", ids: string[]) => {
+    const inScope = idsForScope(scope);
+    return (
+      <SelectControls
+        active={selectMode}
+        disabled={busyId !== null}
+        allSelected={ids.length > 0 && ids.every((id) => selected.has(keyOf(scope, id)))}
+        selectedCount={inScope.length}
+        onEnter={() => setSelectMode(true)}
+        onExit={exitSelectMode}
+        onToggleAll={() => toggleSelectAll(scope, ids)}
+        onDelete={() => setConfirm({ scope, ids: inScope })}
+      />
+    );
+  };
 
   const deleteTargets = (scope: "local" | "cloud", id: string) => {
     const inScope = idsForScope(scope);
@@ -485,8 +527,22 @@ export function WelcomeModal({
 
       <Section
         title={t("startModal.localProjects")}
-        hint={t("startModal.localProjectsHint")}
+        hint={
+          localBytes > 0
+            ? t("startModal.localProjectsUsage", {
+                size: formatBytes(localBytes),
+              })
+            : t("startModal.localProjectsHint")
+        }
         count={localProjects?.length}
+        actions={
+          visibleLocal.length > 0
+            ? selectControls(
+                "local",
+                visibleLocal.map((p) => p.id),
+              )
+            : undefined
+        }
       >
         {localProjects === null ? (
           <SkeletonCards count={cardCounts.local} label={t("common.loading")} />
@@ -494,7 +550,7 @@ export function WelcomeModal({
           <SectionMessage>{t("startModal.noLocalSaves")}</SectionMessage>
         ) : (
           <CardGrid>
-            {localProjects.slice(0, MAX_CARDS).map((p) => (
+            {visibleLocal.map((p) => (
               <ProjectCard
                 key={p.id}
                 title={p.title || t("common.untitled")}
@@ -508,26 +564,30 @@ export function WelcomeModal({
                 thumbPending={!!p.backgroundBlob && !localThumbs[p.id]}
                 selected={selected.has(keyOf("local", p.id))}
                 onOpen={(additive) =>
-                  additive
+                  additive || selectMode
                     ? toggleSelect("local", p.id)
                     : onOpenLocalProject(p.id)
                 }
                 actions={
-                  <DeleteAction
-                    count={
-                      selected.has(keyOf("local", p.id))
-                        ? deleteTargets("local", p.id).length
-                        : 1
-                    }
-                    busy={busyId === p.id}
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      setConfirm({
-                        scope: "local",
-                        ids: deleteTargets("local", p.id),
-                      })
-                    }
-                  />
+                  selectMode ? (
+                    <SelectCheck checked={selected.has(keyOf("local", p.id))} />
+                  ) : (
+                    <DeleteAction
+                      count={
+                        selected.has(keyOf("local", p.id))
+                          ? deleteTargets("local", p.id).length
+                          : 1
+                      }
+                      busy={busyId === p.id}
+                      disabled={busyId !== null}
+                      onClick={() =>
+                        setConfirm({
+                          scope: "local",
+                          ids: deleteTargets("local", p.id),
+                        })
+                      }
+                    />
+                  )
                 }
               />
             ))}
@@ -540,6 +600,14 @@ export function WelcomeModal({
           title={t("startModal.cloudProjects")}
           hint={t("startModal.cloudProjectsHint")}
           count={projects === null ? undefined : owned.length}
+          actions={
+            visibleCloud.length > 0
+              ? selectControls(
+                  "cloud",
+                  visibleCloud.map((p) => p.id),
+                )
+              : undefined
+          }
         >
           {projects === null ? (
             <SkeletonCards count={cardCounts.cloud} label={t("common.loading")} />
@@ -547,7 +615,7 @@ export function WelcomeModal({
             <SectionMessage>{t("startModal.noCloudSaves")}</SectionMessage>
           ) : (
             <CardGrid>
-              {owned.slice(0, MAX_CARDS).map((p) => (
+              {visibleCloud.map((p) => (
                 <ProjectCard
                   key={p.id}
                   title={p.title || t("common.untitled")}
@@ -560,26 +628,32 @@ export function WelcomeModal({
                   participants={othersOf(p.participants, user.id)}
                   selected={selected.has(keyOf("cloud", p.id))}
                   onOpen={(additive) =>
-                    additive
+                    additive || selectMode
                       ? toggleSelect("cloud", p.id)
                       : onOpenCloudProject(p.id)
                   }
                   actions={
-                    <DeleteAction
-                      count={
-                        selected.has(keyOf("cloud", p.id))
-                          ? deleteTargets("cloud", p.id).length
-                          : 1
-                      }
-                      busy={busyId === p.id}
-                      disabled={busyId !== null}
-                      onClick={() =>
-                        setConfirm({
-                          scope: "cloud",
-                          ids: deleteTargets("cloud", p.id),
-                        })
-                      }
-                    />
+                    selectMode ? (
+                      <SelectCheck
+                        checked={selected.has(keyOf("cloud", p.id))}
+                      />
+                    ) : (
+                      <DeleteAction
+                        count={
+                          selected.has(keyOf("cloud", p.id))
+                            ? deleteTargets("cloud", p.id).length
+                            : 1
+                        }
+                        busy={busyId === p.id}
+                        disabled={busyId !== null}
+                        onClick={() =>
+                          setConfirm({
+                            scope: "cloud",
+                            ids: deleteTargets("cloud", p.id),
+                          })
+                        }
+                      />
+                    )
                   }
                 />
               ))}
@@ -730,16 +804,18 @@ function Section({
   title,
   hint,
   count,
+  actions,
   children,
 }: {
   title: string;
   hint?: string;
   count?: number;
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="mt-6">
-      <div className="mb-3 flex items-baseline gap-2 border-b border-white/10 pb-1.5">
+      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-white/10 pb-1.5">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
           {title}
         </h3>
@@ -751,9 +827,112 @@ function Section({
         {hint && (
           <span className="ml-auto text-[11px] text-slate-500">{hint}</span>
         )}
+        {actions && (
+          <div className={`flex items-center gap-1 ${hint ? "" : "ml-auto"}`}>
+            {actions}
+          </div>
+        )}
       </div>
       {children}
     </section>
+  );
+}
+
+function SectionButton({
+  onClick,
+  danger,
+  disabled,
+  children,
+}: {
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+        danger
+          ? "border-rose-500/50 bg-rose-600/20 text-rose-300 hover:bg-rose-600/40 hover:text-white"
+          : "border-white/10 bg-ink-600/60 text-slate-300 hover:bg-ink-500/70 hover:text-slate-100"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SelectControls({
+  active,
+  allSelected,
+  selectedCount,
+  disabled,
+  onEnter,
+  onExit,
+  onToggleAll,
+  onDelete,
+}: {
+  active: boolean;
+  allSelected: boolean;
+  selectedCount: number;
+  disabled?: boolean;
+  onEnter: () => void;
+  onExit: () => void;
+  onToggleAll: () => void;
+  onDelete: () => void;
+}) {
+  const t = useT();
+  if (!active)
+    return (
+      <SectionButton onClick={onEnter}>{t("startModal.select")}</SectionButton>
+    );
+  return (
+    <>
+      <SectionButton onClick={onToggleAll} disabled={disabled}>
+        {allSelected ? t("startModal.deselectAll") : t("startModal.selectAll")}
+      </SectionButton>
+      {selectedCount > 0 && (
+        <SectionButton danger onClick={onDelete} disabled={disabled}>
+          {t("startModal.deleteSelected", { count: selectedCount })}
+        </SectionButton>
+      )}
+      <SectionButton onClick={onExit} disabled={disabled}>
+        {t("common.done")}
+      </SectionButton>
+    </>
+  );
+}
+
+function SelectCheck({ checked }: { checked: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none grid h-7 w-7 place-items-center rounded-lg border text-sm shadow backdrop-blur transition ${
+        checked
+          ? "border-sky-300/80 bg-sky-500/90 text-white"
+          : "border-white/25 bg-ink-900/70 text-transparent"
+      }`}
+    >
+      <CheckIcon className="h-4 w-4" />
+    </span>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path
+        d="M5 12.5L10 17.5L19 7"
+        stroke="currentColor"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
   );
 }
 

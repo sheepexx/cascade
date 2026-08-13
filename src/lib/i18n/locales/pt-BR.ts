@@ -282,6 +282,11 @@ export const ptBR: PartialCatalog = {
   "startModal.loginWithOsu": "Entrar com o osu!",
   "startModal.localProjects": "Projetos locais",
   "startModal.localProjectsHint": "salvos neste dispositivo",
+  "startModal.localProjectsUsage": "{size} · salvos neste dispositivo",
+  "startModal.select": "Selecionar",
+  "startModal.selectAll": "Selecionar tudo",
+  "startModal.deselectAll": "Limpar seleção",
+  "startModal.deleteSelected": "Excluir {count}",
   "startModal.noLocalSaves":
     "Nenhum salvamento local ainda. Use Ctrl+S ou ative o salvamento automático depois de começar um mapa.",
   "startModal.projectNote.one": "{count} diff · salvo em {date}",
