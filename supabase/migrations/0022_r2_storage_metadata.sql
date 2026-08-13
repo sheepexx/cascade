@@ -27,7 +27,7 @@ begin
           ('^' || p_project::text || '/[0-9a-f]{64}\.[a-z0-9]{1,8}$')
        or coalesce(asset->>'sha256', '') !~ '^[0-9a-f]{64}$'
        or asset->>'storage_path' not like
-          (p_project::text || '/' || asset->>'sha256' || '.%')
+          (p_project::text || '/' || (asset->>'sha256') || '.%')
        or coalesce(asset->>'bytes', '') !~ '^[0-9]+$'
   ) then
     raise exception 'invalid project asset row';
