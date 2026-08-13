@@ -138,7 +138,7 @@ describe("project deletion", () => {
       OSU_REDIRECT_URI:
         "https://mania-editor.noahcraft01.workers.dev/auth/osu/callback",
       SUPABASE_URL: "https://splqsxhwdusjeqthinxz.supabase.co",
-      SUPABASE_STORAGE_FALLBACK: "true",
+      SUPABASE_STORAGE_FALLBACK: "false",
       SUPABASE_STORAGE_ALLOWANCE_BYTES: "1073741824",
       R2_STORAGE_ALLOWANCE_BYTES: "10737418240",
       MAX_ASSET_BYTES: "62914560",
