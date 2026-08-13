@@ -700,6 +700,9 @@ const FLOAT_EXIT_MS = 400;
 const FLOAT_MIN_GAP_DESKTOP = 190;
 const FLOAT_MIN_GAP_PHONE = 130;
 
+const FLOAT_TOP_GAP_PX = 110;
+const FLOAT_CENTER_GAP_PX = 100;
+
 type AvatarSlot = {
   x: number;
   y: number;
@@ -731,12 +734,14 @@ function makeSlot(phone: boolean, occupied: AvatarSlot[]): AvatarSlot {
   const minGap = phone ? FLOAT_MIN_GAP_PHONE : FLOAT_MIN_GAP_DESKTOP;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const topPct = (FLOAT_TOP_GAP_PX / vh) * 100;
+  const centerPct = (FLOAT_CENTER_GAP_PX / vh) * 100;
   let x = 8 + Math.random() * 84;
   let y = 8 + Math.random() * 84;
   for (let attempt = 0; attempt < 24; attempt++) {
     const cx = 8 + Math.random() * 84;
     const cy = 8 + Math.random() * 84;
-    if (Math.abs(cx - 50) < 8 && Math.abs(cy - 50) < 8) continue;
+    if (cy < topPct || Math.abs(cy - 50) < centerPct) continue;
     const farEnough = occupied.every((o) => {
       const dx = ((cx - o.x) / 100) * vw;
       const dy = ((cy - o.y) / 100) * vh;
@@ -784,11 +789,13 @@ function FloatingPlayers({
   const t = useT();
   const limit = phone ? FLOAT_PHONE_COUNT : FLOAT_DESKTOP_COUNT;
   const slotsRef = useRef<Map<string, AvatarSlot>>(new Map());
+  const exitTimersRef = useRef<Map<string, number>>(new Map());
   const [shown, setShown] = useState<OnlinePlayer[]>([]);
   const [leaving, setLeaving] = useState<OnlinePlayer[]>([]);
-  const timerRef = useRef<number | undefined>(undefined);
   const shownRef = useRef(shown);
   shownRef.current = shown;
+  const leavingRef = useRef(leaving);
+  leavingRef.current = leaving;
 
   // Only a subset of the roster floats at a time; every so often a face leaves
   // and a fresh one joins so the background never looks static.
@@ -798,7 +805,11 @@ function FloatingPlayers({
     setShown((prev) => {
       const keep = prev.filter((p) => players.some((q) => q.id === p.id));
       const fill = ordered
-        .filter((p) => !keep.some((q) => q.id === p.id))
+        .filter(
+          (p) =>
+            !keep.some((q) => q.id === p.id) &&
+            !leavingRef.current.some((q) => q.id === p.id),
+        )
         .slice(0, Math.max(0, limit - keep.length));
       return [...keep, ...fill];
     });
@@ -808,12 +819,17 @@ function FloatingPlayers({
 
   useEffect(() => {
     if (players.length <= limit) return;
+    const exitTimers = exitTimersRef.current;
     const swap = () => {
       const current = shownRef.current;
       if (current.length === 0) return;
-      const out = current[Math.floor(Math.random() * current.length)];
-      const pool = ordered.filter((p) => !current.some((q) => q.id === p.id));
+      const pool = ordered.filter(
+        (p) =>
+          !current.some((q) => q.id === p.id) &&
+          !leavingRef.current.some((q) => q.id === p.id),
+      );
       if (pool.length === 0) return;
+      const out = current[Math.floor(Math.random() * current.length)];
       const add = pool[Math.floor(Math.random() * pool.length)];
       // Place the incoming face before it renders so it avoids every face that
       // is currently on screen, including the one fading out.
@@ -823,17 +839,21 @@ function FloatingPlayers({
       slotsRef.current.set(add.id, makeSlot(phone, used));
       setShown((prev) => [...prev.filter((p) => p.id !== out.id), add]);
       setLeaving((l) => [...l, out]);
-      window.clearTimeout(timerRef.current);
-      timerRef.current = window.setTimeout(() => {
+      const timer = window.setTimeout(() => {
+        exitTimers.delete(out.id);
         setLeaving((l) => l.filter((p) => p.id !== out.id));
         // Drop the slot so this face lands somewhere new when it comes back.
         slotsRef.current.delete(out.id);
       }, FLOAT_EXIT_MS);
+      exitTimers.set(out.id, timer);
     };
     const id = window.setInterval(swap, FLOAT_ROTATE_MS);
     return () => {
       window.clearInterval(id);
-      window.clearTimeout(timerRef.current);
+      for (const timer of exitTimers.values()) {
+        window.clearTimeout(timer);
+      }
+      exitTimers.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, limit]);
@@ -844,7 +864,7 @@ function FloatingPlayers({
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
+      className="pointer-events-none absolute inset-0 z-[35] overflow-hidden"
     >
       {rendered.map((p, i) => {
         if (!slotsRef.current.has(p.id)) {
@@ -857,7 +877,7 @@ function FloatingPlayers({
         const online = p.online;
         const color = online ? "#3fdc8c" : "#78818f";
         const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
-        const tipAbove = slot.y > 38;
+        const tipAbove = slot.y <= 50;
         const profileUrl =
           p.osuId != null
             ? `https://osu.ppy.sh/users/${p.osuId}`
@@ -907,15 +927,12 @@ function FloatingPlayers({
                     src={p.avatar ?? undefined}
                     alt=""
                     draggable={false}
-                    className={`h-full w-full rounded-full object-cover transition-[filter,opacity] duration-700 ${
+                    className={`h-full w-full rounded-full object-cover transition-opacity duration-700 ${
                       online ? "opacity-95" : "opacity-70 grayscale brightness-[0.72]"
                     }`}
                     style={{
                       border: `2px solid ${color}`,
                       boxShadow: online ? `0 0 16px ${color}55` : "none",
-                      filter: online
-                        ? "hue-rotate(75deg) saturate(1.15)"
-                        : undefined,
                     }}
                   />
                 </div>

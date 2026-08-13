@@ -99,10 +99,6 @@ export function useOnlinePresence(
       const p = payload();
       if (!p) return;
       const statusChanged = lastPayloadRef.current?.status !== p.status;
-      // The heartbeat and the throttle share the same 60s cadence, so a
-      // throttled tick would usually skip itself. Only skip when nothing
-      // changed; always publish on a fresh channel, after an untrack, and
-      // when the status changed so the roster stays accurate.
       if (!force && !statusChanged && now - lastTrackRef.current < PRESENCE_SEND_MS)
         return;
       lastTrackRef.current = now;
@@ -116,8 +112,6 @@ export function useOnlinePresence(
         config: { presence: { key: sessionIdRef.current } },
       });
       currentChannel = ch;
-      // A fresh channel starts with empty presence on the server, so the
-      // first subscribe must always publish regardless of the throttle.
       lastTrackRef.current = 0;
       ch.on("presence", { event: "sync" }, () => sync(ch));
       ch.subscribe((status) => {
