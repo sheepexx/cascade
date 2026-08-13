@@ -283,6 +283,76 @@ textarea {
   animation: bg-fade-out 700ms ease-in forwards;
 }
 
+@keyframes float-player-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.float-player-in {
+  animation: float-player-in 480ms ease-out both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+@keyframes float-player-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.92);
+  }
+}
+
+.float-player-out {
+  animation: float-player-out 400ms ease-in both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+/* Two nested sine curves at a 2:1 period trace a smooth figure-8, so faces
+   wander in arcs instead of switching between sharp corners. */
+@keyframes float-player-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translate3d(var(--drift-x, 44px), 0, 0)
+      rotate(var(--tilt, 0deg));
+  }
+}
+
+.float-player-drift {
+  height: 100%;
+  animation: float-player-drift var(--float-duration, 12s) ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+  will-change: transform;
+}
+
+@keyframes float-player-bob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, var(--bob-y, -18px), 0) scale(1.02);
+  }
+}
+
+.float-player-bob {
+  height: 100%;
+  animation: float-player-bob calc(var(--float-duration, 12s) / 2)
+    ease-in-out infinite;
+  animation-delay: calc(var(--float-delay, 0s) * -0.5);
+  will-change: transform;
+}
+
 @keyframes track-fade-in {
   from {
     opacity: 0;
@@ -741,6 +811,15 @@ textarea {
   }
 
   .skeleton::after {
+    animation: none;
+  }
+
+  .float-player-in {
+    animation-duration: 1ms;
+  }
+
+  .float-player-drift,
+  .float-player-bob {
     animation: none;
   }
 

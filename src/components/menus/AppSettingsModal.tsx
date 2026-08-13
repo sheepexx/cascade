@@ -72,6 +72,10 @@ type Props = {
   onUiSoundVolume: (value: number) => void;
   editorKeybinds: EditorKeybinds;
   onEditorKeybinds: (value: EditorKeybinds) => void;
+  showMenuPlayers: boolean;
+  onShowMenuPlayers: (value: boolean) => void;
+  hideStatus: boolean;
+  onHideStatus: (value: boolean) => void;
   keyCount: number;
   accountSyncStatus: "idle" | "syncing" | "synced" | "error" | null;
   accountSyncError: string | null;
@@ -141,6 +145,10 @@ export function AppSettingsModal({
   onUiSoundVolume,
   editorKeybinds,
   onEditorKeybinds,
+  showMenuPlayers,
+  onShowMenuPlayers,
+  hideStatus,
+  onHideStatus,
   keyCount,
   accountSyncStatus,
   accountSyncError,
@@ -538,6 +546,27 @@ export function AppSettingsModal({
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
                 {t("settings.autosaveHint")}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.presence")}
+              </h3>
+              <div className="flex flex-col gap-3">
+                <SettingToggle
+                  label={t("settings.showMenuPlayers")}
+                  checked={showMenuPlayers}
+                  onChange={onShowMenuPlayers}
+                />
+                <SettingToggle
+                  label={t("settings.hideStatus")}
+                  checked={hideStatus}
+                  onChange={onHideStatus}
+                />
+              </div>
+              <p className="mt-3 text-[11px] text-slate-500">
+                {t("settings.presenceHint")}
               </p>
             </section>
           </div>

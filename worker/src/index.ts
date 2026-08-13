@@ -57,6 +57,10 @@ export default {
           return await handleCover(req, env);
         case "/auth/logout":
           return handleLogout(env);
+        case "/presence/roster":
+          if (req.method !== "GET")
+            return json({ error: "method not allowed" }, 405, env);
+          return await handleOnlineRoster(env);
         default:
           return json({ error: "not found" }, 404, env);
       }
@@ -323,6 +327,62 @@ async function handleCover(req: Request, env: WorkerEnv): Promise<Response> {
   const cover =
     profile.cover?.custom_url ?? profile.cover?.url ?? profile.cover_url ?? null;
   return json({ cover_url: cover }, 200, env);
+}
+
+// A random sample of registered users for the menu's floating avatar layer.
+// Presence (who is online right now) lives in Supabase Realtime on the client,
+// so this endpoint only supplies a pool of "known players"; the SPA marks each
+// roster entry as online/offline by merging Realtime presence.
+const ROSTER_POOL = 40;
+const ROSTER_LIMIT = 10;
+
+type RosterUser = {
+  id: string;
+  osu_id: number;
+  username: string;
+  avatar_url: string | null;
+  last_signed_in_at: string | null;
+};
+
+async function handleOnlineRoster(env: WorkerEnv): Promise<Response> {
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/users?select=id,osu_id,username,avatar_url,last_signed_in_at` +
+      `&order=last_signed_in_at.desc.nullslast&limit=${ROSTER_POOL}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+    },
+  );
+  if (!res.ok) return json({ users: [] }, 200, env);
+  const rows = (await res.json()) as RosterUser[];
+  const pool = rows.filter(
+    (u) =>
+      typeof u.username === "string" &&
+      typeof u.avatar_url === "string" &&
+      u.avatar_url,
+  );
+  const users = shuffle(pool).slice(0, ROSTER_LIMIT).map((u) => ({
+    id: u.id,
+    osu_id: u.osu_id,
+    username: u.username,
+    avatar_url: u.avatar_url,
+    last_seen: u.last_signed_in_at
+      ? Date.parse(u.last_signed_in_at) || null
+      : null,
+  }));
+  const response = json({ users }, 200, env);
+  response.headers.set("Cache-Control", "public, max-age=300, s-maxage=300");
+  return response;
+}
+
+function shuffle<T>(items: T[]): T[] {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
 }
 
 function handleLogout(env: WorkerEnv): Response {

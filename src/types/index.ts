@@ -418,6 +418,8 @@ export type AppSettings = {
   exportJpegQuality: number;
   uiSoundsEnabled: boolean;
   uiSoundVolume: number;
+  showMenuPlayers: boolean;
+  hideStatus: boolean;
   playtest: PlaytestSettings;
   /** Rebindable editor shortcuts (KeyboardEvent.code per action); defaults
    * are filled in by normalizeEditorKeybinds at load time. */
@@ -483,6 +485,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   exportJpegQuality: 0.9,
   uiSoundsEnabled: true,
   uiSoundVolume: 1,
+  showMenuPlayers: true,
+  hideStatus: false,
   playtest: {
     scrollSpeed: 35,
     zoom: 1.5,

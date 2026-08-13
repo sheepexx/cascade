@@ -14,3 +14,4 @@ scripts/migrate/.env
 worker/.dev.vars
 worker/.wrangler
 worker/.wrangler-dry-run
+.env

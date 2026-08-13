@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
+import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { useAuth } from "../lib/auth";
-import { useT, type MessageKey } from "../lib/i18n";
+import { useT, type MessageKey, type Translate } from "../lib/i18n";
 import { countLocalProjects } from "../lib/persistence";
 import {
   ImportIcon,
@@ -109,16 +110,18 @@ export function usePhoneViewport(): boolean {
 
 function PhoneStart({
   music,
+  players,
   children,
 }: {
   music: MenuMusic;
+  players?: OnlinePlayer[];
   children?: ReactNode;
 }) {
   const t = useT();
   return (
     <div className="h-full overflow-y-auto">
       <div className="relative min-h-full overflow-hidden">
-        <MenuBackground url={music.track?.backgroundUrl ?? null} />
+        <MenuBackground url={music.track?.backgroundUrl ?? null} players={players ?? []} phone open={false} />
 
         <div className="relative px-5 pt-14">
           <div className="flex flex-col items-center text-center">
@@ -162,6 +165,7 @@ export function StartScreen({
   onImport,
   onSettings,
   children,
+  players,
 }: {
   music: MenuMusic;
   onOpenChange?: (open: boolean) => void;
@@ -172,6 +176,7 @@ export function StartScreen({
   onImport: () => void;
   onSettings: () => void;
   children?: ReactNode;
+  players?: OnlinePlayer[];
 }) {
   const [open, setOpen] = useState(false);
   const [layout, setLayout] = useState(() => measure());
@@ -290,13 +295,13 @@ export function StartScreen({
   const logoSize = open ? logoOpen : logoClosed;
 
   if (phone) {
-    return <PhoneStart music={music}>{children}</PhoneStart>;
+    return <PhoneStart music={music} players={players}>{children}</PhoneStart>;
   }
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="relative grid min-h-full place-items-center overflow-hidden">
-        <MenuBackground url={music.track?.backgroundUrl ?? null} />
+        <MenuBackground url={music.track?.backgroundUrl ?? null} players={players ?? []} phone={false} open={open} />
 
         <div
           aria-hidden
@@ -312,7 +317,7 @@ export function StartScreen({
             aria-label={t("menu.close")}
             tabIndex={-1}
             onClick={() => setOpen(false)}
-            className="absolute inset-0 cursor-default"
+            className="absolute inset-0 z-0 cursor-default"
           />
         )}
 
@@ -342,7 +347,7 @@ export function StartScreen({
 
         {wide ? (
           <div
-            className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 transition-all duration-300 ease-out ${
+            className={`pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 transition-all duration-300 ease-out ${
               open ? "opacity-100" : "opacity-0"
             }`}
             style={{ height: BAR_HEIGHT }}
@@ -390,7 +395,7 @@ export function StartScreen({
           </div>
         ) : (
           <div
-            className={`absolute inset-x-0 flex justify-center px-3 transition-all duration-300 ease-out ${
+            className={`absolute inset-x-0 z-20 flex justify-center px-3 transition-all duration-300 ease-out ${
               open
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none -translate-y-2 opacity-0"
@@ -410,7 +415,7 @@ export function StartScreen({
           onClick={() => setOpen((v) => !v)}
           aria-label={t("menu.open")}
           aria-expanded={open}
-          className="group absolute left-1/2 top-1/2 outline-none transition-transform duration-300 ease-out"
+          className="group absolute left-1/2 top-1/2 z-20 outline-none transition-transform duration-300 ease-out"
           style={{
             width: logoClosed,
             height: logoClosed,
@@ -552,7 +557,17 @@ function StackedAction({
   );
 }
 
-function MenuBackground({ url }: { url: string | null }) {
+function MenuBackground({
+  url,
+  players,
+  phone,
+  open,
+}: {
+  url: string | null;
+  players: OnlinePlayer[];
+  phone: boolean;
+  open: boolean;
+}) {
   const [layers, setLayers] = useState<{ id: number; url: string }[]>([]);
   const [clearing, setClearing] = useState(false);
   const nextId = useRef(0);
@@ -668,6 +683,259 @@ function MenuBackground({ url }: { url: string | null }) {
         ))}
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-ink-900/80 via-ink-900/66 to-ink-900/88" />
+      {open && <FloatingPlayers players={players} phone={phone} />}
+    </div>
+  );
+}
+
+const FLOAT_DESKTOP_COUNT = 8;
+const FLOAT_PHONE_COUNT = 4;
+// Faces swap in and out of the background layer on a gentle rhythm so the
+// menu never shows the same cast twice in a row.
+const FLOAT_ROTATE_MS = 9_000;
+const FLOAT_EXIT_MS = 400;
+
+// Faces keep at least this much distance (in px) between their centers, so
+// the scatter reads as spread out no matter where each one lands.
+const FLOAT_MIN_GAP_DESKTOP = 190;
+const FLOAT_MIN_GAP_PHONE = 130;
+
+type AvatarSlot = {
+  x: number;
+  y: number;
+  size: number;
+  driftX: number;
+  bobY: number;
+  tilt: number;
+  duration: number;
+  delay: number;
+};
+
+function hashId(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// Each face gets a fresh, fully random spot — no grid, no per-player caching —
+// so every entry lands somewhere new and the background never settles into a
+// fixed pattern. Candidates are rejected if they sit too close to another face
+// or on the central logo area. From there the slot drifts on a slow, smooth
+// loop (a gentle horizontal wander plus a small vertical bob), so the motion
+// reads as calm rather than busy.
+function makeSlot(phone: boolean, occupied: AvatarSlot[]): AvatarSlot {
+  const size = phone ? 34 + Math.random() * 8 : 48 + Math.random() * 8;
+  const minGap = phone ? FLOAT_MIN_GAP_PHONE : FLOAT_MIN_GAP_DESKTOP;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let x = 8 + Math.random() * 84;
+  let y = 8 + Math.random() * 84;
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const cx = 8 + Math.random() * 84;
+    const cy = 8 + Math.random() * 84;
+    if (Math.abs(cx - 50) < 8 && Math.abs(cy - 50) < 8) continue;
+    const farEnough = occupied.every((o) => {
+      const dx = ((cx - o.x) / 100) * vw;
+      const dy = ((cy - o.y) / 100) * vh;
+      return Math.sqrt(dx * dx + dy * dy) >= minGap;
+    });
+    if (farEnough) {
+      x = cx;
+      y = cy;
+      break;
+    }
+    x = cx;
+    y = cy;
+  }
+  return {
+    x,
+    y,
+    size,
+    driftX: phone ? 26 + Math.random() * 22 : 44 + Math.random() * 34,
+    bobY: phone ? 12 + Math.random() * 10 : 18 + Math.random() * 14,
+    tilt: (Math.random() - 0.5) * 4,
+    duration: phone ? 26_000 + Math.random() * 14_000 : 36_000 + Math.random() * 20_000,
+    delay: -Math.random() * 16_000,
+  };
+}
+
+function formatLastSeen(ts: number | null, t: Translate): string | null {
+  if (ts == null) return null;
+  const minutes = Math.max(0, Math.floor((Date.now() - ts) / 60_000));
+  if (minutes < 1) return t("menu.justNow");
+  if (minutes < 60) return t("menu.minutesAgo", { n: minutes });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t("menu.hoursAgo", { n: hours });
+  const days = Math.floor(hours / 24);
+  if (days < 7) return t("menu.daysAgo", { n: days });
+  return new Date(ts).toLocaleDateString();
+}
+
+function FloatingPlayers({
+  players,
+  phone,
+}: {
+  players: OnlinePlayer[];
+  phone: boolean;
+}) {
+  const t = useT();
+  const limit = phone ? FLOAT_PHONE_COUNT : FLOAT_DESKTOP_COUNT;
+  const slotsRef = useRef<Map<string, AvatarSlot>>(new Map());
+  const [shown, setShown] = useState<OnlinePlayer[]>([]);
+  const [leaving, setLeaving] = useState<OnlinePlayer[]>([]);
+  const timerRef = useRef<number | undefined>(undefined);
+  const shownRef = useRef(shown);
+  shownRef.current = shown;
+
+  // Only a subset of the roster floats at a time; every so often a face leaves
+  // and a fresh one joins so the background never looks static.
+  const ordered = [...players].sort((a, b) => hashId(a.id) - hashId(b.id));
+
+  useEffect(() => {
+    setShown((prev) => {
+      const keep = prev.filter((p) => players.some((q) => q.id === p.id));
+      const fill = ordered
+        .filter((p) => !keep.some((q) => q.id === p.id))
+        .slice(0, Math.max(0, limit - keep.length));
+      return [...keep, ...fill];
+    });
+    setLeaving((prev) => prev.filter((p) => players.some((q) => q.id === p.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players, limit]);
+
+  useEffect(() => {
+    if (players.length <= limit) return;
+    const swap = () => {
+      const current = shownRef.current;
+      if (current.length === 0) return;
+      const out = current[Math.floor(Math.random() * current.length)];
+      const pool = ordered.filter((p) => !current.some((q) => q.id === p.id));
+      if (pool.length === 0) return;
+      const add = pool[Math.floor(Math.random() * pool.length)];
+      // Place the incoming face before it renders so it avoids every face that
+      // is currently on screen, including the one fading out.
+      const used = [...slotsRef.current.entries()]
+        .filter(([id]) => id !== add.id)
+        .map(([, s]) => s);
+      slotsRef.current.set(add.id, makeSlot(phone, used));
+      setShown((prev) => [...prev.filter((p) => p.id !== out.id), add]);
+      setLeaving((l) => [...l, out]);
+      window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => {
+        setLeaving((l) => l.filter((p) => p.id !== out.id));
+        // Drop the slot so this face lands somewhere new when it comes back.
+        slotsRef.current.delete(out.id);
+      }, FLOAT_EXIT_MS);
+    };
+    const id = window.setInterval(swap, FLOAT_ROTATE_MS);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players, limit]);
+
+  const rendered = [...leaving, ...shown];
+  const occupied: AvatarSlot[] = [];
+
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
+    >
+      {rendered.map((p, i) => {
+        if (!slotsRef.current.has(p.id)) {
+          slotsRef.current.set(p.id, makeSlot(phone, occupied));
+        }
+        const slot = slotsRef.current.get(p.id);
+        if (!slot) return null;
+        occupied.push(slot);
+        const out = leaving.some((q) => q.id === p.id);
+        const online = p.online;
+        const color = online ? "#3fdc8c" : "#78818f";
+        const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
+        const tipAbove = slot.y > 38;
+        return (
+          <div
+            key={p.id}
+            className={`${out ? "float-player-out" : "float-player-in"} group absolute pointer-events-auto`}
+            style={
+              {
+                left: `${slot.x}%`,
+                top: `${slot.y}%`,
+                width: slot.size,
+                height: slot.size,
+                "--reveal-delay": `${out ? 0 : i * 70}ms`,
+              } as React.CSSProperties
+            }
+          >
+            <div
+              className="float-player-drift"
+              style={
+                {
+                  "--drift-x": `${slot.driftX}px`,
+                  "--tilt": `${slot.tilt}deg`,
+                  "--float-duration": `${slot.duration}ms`,
+                  "--float-delay": `${slot.delay}ms`,
+                } as React.CSSProperties
+              }
+            >
+              <div
+                className="float-player-bob"
+                style={
+                  {
+                    "--bob-y": `${slot.bobY}px`,
+                  } as React.CSSProperties
+                }
+              >
+                <div className="relative h-full w-full">
+                  <span
+                    className="absolute -inset-1.5 rounded-full blur-[10px]"
+                    style={{ background: color, opacity: online ? 0.3 : 0.12 }}
+                  />
+                  <img
+                    src={p.avatar ?? undefined}
+                    alt=""
+                    draggable={false}
+                    className={`h-full w-full rounded-full object-cover transition-[filter,opacity] duration-700 ${
+                      online ? "opacity-95" : "opacity-70 grayscale brightness-[0.72]"
+                    }`}
+                    style={{
+                      border: `2px solid ${color}`,
+                      boxShadow: online ? `0 0 16px ${color}55` : "none",
+                      filter: online
+                        ? "hue-rotate(75deg) saturate(1.15)"
+                        : undefined,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={`pointer-events-none absolute left-1/2 z-20 w-max max-w-[240px] -translate-x-1/2 rounded-lg border border-white/10 bg-ink-900/95 px-2.5 py-1.5 text-center shadow-xl backdrop-blur transition-opacity duration-200 group-hover:opacity-100 ${
+                tipAbove ? "bottom-full mb-2" : "top-full mt-2"
+              } opacity-0`}
+            >
+              <div className="truncate text-[11px] font-semibold text-slate-100">
+                {p.username}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {online
+                  ? `${t("menu.workingOn")}: ${p.status || "—"}`
+                  : lastSeen
+                    ? `${t("menu.offline")} · ${t("menu.lastSeen", {
+                        time: lastSeen,
+                      })}`
+                    : t("menu.offline")}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

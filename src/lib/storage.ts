@@ -1,6 +1,6 @@
 import { sessionAuthHeaders } from "./auth";
 
-const WORKER = import.meta.env.VITE_WORKER_URL.replace(/\/+$/, "");
+const WORKER = (import.meta.env.VITE_WORKER_URL ?? "").replace(/\/+$/, "");
 
 type UploadResult = {
   path: string;

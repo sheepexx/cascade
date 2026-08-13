@@ -39,6 +39,7 @@ import { MyMapsModal } from "./components/menus/MyMapsModal";
 import { ImportModal } from "./components/menus/ImportModal";
 import { NewMapModal } from "./components/menus/NewMapModal";
 import { StartScreen } from "./components/StartScreen";
+import { useOnlinePresence } from "./hooks/useOnlinePresence";
 import { SharedMapPage } from "./components/SharedMapPage";
 import {
   findSharedMapForProject,
@@ -2704,6 +2705,13 @@ export default function App() {
 
   const menuMusicEnabled = !hasProject && !packCreatorOpen && !sharedSlug;
   const menuMusic = useMenuMusic(menuMusicEnabled);
+  const onlinePlayers = useOnlinePresence(
+    () => {
+      const title = meta.title.trim();
+      return hasProject ? title || null : null;
+    },
+    appSettings.hideStatus,
+  );
 
   const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
   const [confirmResnap, setConfirmResnap] = useState(false);
@@ -5378,6 +5386,7 @@ export default function App() {
             ) : (
               <StartScreen
                 music={menuMusic}
+                players={appSettings.showMenuPlayers ? onlinePlayers : []}
                 onOpenChange={setMenuOpen}
                 onMyMaps={() => setModal("myProjects")}
                 onNewMap={() => setModal("newMap")}
@@ -5856,6 +5865,12 @@ export default function App() {
           }
           accountSyncStatus={authUser ? accountSyncStatus : null}
           accountSyncError={accountSyncError}
+          showMenuPlayers={appSettings.showMenuPlayers}
+          onShowMenuPlayers={(v) =>
+            setAppSettings((s) => ({ ...s, showMenuPlayers: v }))
+          }
+          hideStatus={appSettings.hideStatus}
+          onHideStatus={(v) => setAppSettings((s) => ({ ...s, hideStatus: v }))}
         />
       )}
       {modalMounted("skin") && (

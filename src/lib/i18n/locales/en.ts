@@ -125,6 +125,12 @@ export const en = {
   "settings.autosaveHint":
     "Saves the full project on this device, including audio, difficulties and background files. Ctrl+S still saves locally.",
 
+  "settings.presence": "Presence",
+  "settings.showMenuPlayers": "Show players on the menu",
+  "settings.hideStatus": "Hide my status",
+  "settings.presenceHint":
+    "Floating avatars on the menu show who's online and what they're working on. Hiding your status keeps you invisible to others while you browse.",
+
   "settings.scrollSpeed": "Scroll speed",
   "settings.rate": "Rate",
   "settings.rateHint":
@@ -470,6 +476,13 @@ export const en = {
   "menu.goodEvening": "Good evening",
   "menu.goodNight": "Good night",
   "menu.noLocalProjects": "You don't have any local projects yet.",
+  "menu.workingOn": "Working on",
+  "menu.offline": "Offline",
+  "menu.justNow": "just now",
+  "menu.minutesAgo": "{n}m ago",
+  "menu.hoursAgo": "{n}h ago",
+  "menu.daysAgo": "{n}d ago",
+  "menu.lastSeen": "Last seen {time}",
   "menu.localProjects.one": "You currently have {count} local project.",
   "menu.localProjects.other": "You currently have {count} local projects.",
   "menu.needSong":
