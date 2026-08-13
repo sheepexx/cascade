@@ -858,9 +858,16 @@ function FloatingPlayers({
         const color = online ? "#3fdc8c" : "#78818f";
         const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
         const tipAbove = slot.y > 38;
+        const profileUrl =
+          p.osuId != null
+            ? `https://osu.ppy.sh/users/${p.osuId}`
+            : undefined;
         return (
-          <div
+          <a
             key={p.id}
+            href={profileUrl}
+            target={profileUrl ? "_blank" : undefined}
+            rel="noopener noreferrer"
             className={`${out ? "float-player-out" : "float-player-in"} group absolute pointer-events-auto`}
             style={
               {
@@ -916,24 +923,63 @@ function FloatingPlayers({
             </div>
 
             <div
-              className={`pointer-events-none absolute left-1/2 z-20 w-max max-w-[240px] -translate-x-1/2 rounded-lg border border-white/10 bg-ink-900/95 px-2.5 py-1.5 text-center shadow-xl backdrop-blur transition-opacity duration-200 group-hover:opacity-100 ${
-                tipAbove ? "bottom-full mb-2" : "top-full mt-2"
-              } opacity-0`}
+              className={`pointer-events-none absolute left-1/2 z-20 w-max ${
+                tipAbove ? "bottom-full mb-1.5" : "top-full mt-1.5"
+              }`}
             >
-              <div className="truncate text-[11px] font-semibold text-slate-100">
-                {p.username}
-              </div>
-              <div className="text-[10px] text-slate-400">
-                {online
-                  ? `${t("menu.workingOn")}: ${p.status || "—"}`
-                  : lastSeen
-                    ? `${t("menu.offline")} · ${t("menu.lastSeen", {
-                        time: lastSeen,
-                      })}`
-                    : t("menu.offline")}
+              <div
+                className="float-player-drift"
+                style={
+                  {
+                    "--drift-x": `${slot.driftX}px`,
+                    "--tilt": "0deg",
+                    "--float-duration": `${slot.duration}ms`,
+                    "--float-delay": `${slot.delay}ms`,
+                  } as React.CSSProperties
+                }
+              >
+                <div
+                  className="float-player-bob"
+                  style={
+                    {
+                      "--bob-y": `${slot.bobY}px`,
+                      "--float-duration": `${slot.duration}ms`,
+                      "--float-delay": `${slot.delay}ms`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="float-player-tip-card flex w-max -translate-x-1/2 flex-col items-center gap-1.5 rounded-xl border border-ink-500/70 bg-ink-900/95 px-3 py-2.5 shadow-2xl">
+                    <span
+                      className="grid h-14 w-14 place-items-center overflow-hidden rounded-full border-2 bg-ink-700/70 text-lg font-semibold text-slate-100 shadow-md"
+                      style={{ borderColor: color }}
+                    >
+                      {p.avatar ? (
+                        <img
+                          src={p.avatar}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        p.username.slice(0, 1).toUpperCase()
+                      )}
+                    </span>
+                    <span className="block max-w-[8.5rem] truncate text-xs font-semibold text-slate-100">
+                      {p.username}
+                    </span>
+                    <span className="block max-w-[8.5rem] text-center text-[10px] text-slate-400">
+                      {online
+                        ? `${t("menu.workingOn")}: ${p.status || "—"}`
+                        : lastSeen
+                          ? `${t("menu.offline")} · ${t("menu.lastSeen", {
+                              time: lastSeen,
+                            })}`
+                          : t("menu.offline")}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </a>
         );
       })}
     </div>

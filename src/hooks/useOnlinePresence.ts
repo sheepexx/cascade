@@ -19,6 +19,7 @@ export type OnlinePlayer = {
   username: string;
   avatar: string | null;
   color: string;
+  osuId: number | null;
   online: boolean;
   status: string | null;
   lastSeen: number | null;
@@ -44,6 +45,7 @@ export function useOnlinePresence(
   const [roster, setRoster] = useState<OnlineRosterUser[]>([]);
   const sessionIdRef = useRef(crypto.randomUUID());
   const lastTrackRef = useRef(0);
+  const lastPayloadRef = useRef<TrackedPresence | null>(null);
   const userRef = useRef(user);
   userRef.current = user;
   const statusRef = useRef(getStatus);
@@ -75,6 +77,7 @@ export function useOnlinePresence(
         username: me.username,
         avatar: me.avatar_url,
         color: colorForId(me.id),
+        osuId: me.osu_id,
         status: statusRef.current?.() ?? null,
         sessionId: sessionIdRef.current,
         updatedAt: Date.now(),
@@ -91,12 +94,19 @@ export function useOnlinePresence(
       ]);
     };
 
-    const track = (ch: RealtimeChannel) => {
+    const track = (ch: RealtimeChannel, force = false) => {
       const now = Date.now();
-      if (now - lastTrackRef.current < PRESENCE_SEND_MS) return;
       const p = payload();
       if (!p) return;
+      const statusChanged = lastPayloadRef.current?.status !== p.status;
+      // The heartbeat and the throttle share the same 60s cadence, so a
+      // throttled tick would usually skip itself. Only skip when nothing
+      // changed; always publish on a fresh channel, after an untrack, and
+      // when the status changed so the roster stays accurate.
+      if (!force && !statusChanged && now - lastTrackRef.current < PRESENCE_SEND_MS)
+        return;
       lastTrackRef.current = now;
+      lastPayloadRef.current = p;
       void ch.track(p);
     };
 
@@ -106,11 +116,14 @@ export function useOnlinePresence(
         config: { presence: { key: sessionIdRef.current } },
       });
       currentChannel = ch;
+      // A fresh channel starts with empty presence on the server, so the
+      // first subscribe must always publish regardless of the throttle.
+      lastTrackRef.current = 0;
       ch.on("presence", { event: "sync" }, () => sync(ch));
       ch.subscribe((status) => {
         if (disposed || currentChannel !== ch) return;
         if (status === "SUBSCRIBED") {
-          track(ch);
+          track(ch, true);
           sync(ch);
         } else if (
           status === "CHANNEL_ERROR" ||
@@ -134,7 +147,7 @@ export function useOnlinePresence(
     const onVisibility = () => {
       const ch = currentChannel;
       if (!ch) return;
-      if (document.visibilityState === "visible") track(ch);
+      if (document.visibilityState === "visible") track(ch, true);
       else void ch.untrack();
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -169,6 +182,7 @@ export function useOnlinePresence(
         username: p.username,
         avatar: p.avatar,
         color: p.color,
+        osuId: p.osuId ?? null,
         online: true,
         status: p.status ?? null,
         lastSeen: null,
@@ -186,6 +200,7 @@ export function useOnlinePresence(
         username: u.username,
         avatar: u.avatar_url,
         color: colorForId(u.id),
+        osuId: u.osu_id,
         online: demoPreview && rosterIndex % 3 === 0,
         status: u.status ?? null,
         lastSeen: u.last_seen ?? null,

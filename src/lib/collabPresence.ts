@@ -3,6 +3,7 @@ export type PresencePeer = {
   username: string;
   avatar: string | null;
   color: string;
+  osuId?: number | null;
   status?: string | null;
   activeDiffId?: string;
   playheadMs?: number;
@@ -40,6 +41,7 @@ export function aggregatePresencePeers(
         username: session.username,
         avatar: session.avatar ?? null,
         color: session.color,
+        osuId: session.osuId ?? null,
         status: session.status ?? null,
         activeDiffId: session.activeDiffId,
         playheadMs: session.playheadMs,
