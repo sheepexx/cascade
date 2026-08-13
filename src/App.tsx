@@ -144,7 +144,14 @@ import {
 } from "./lib/noteCollision";
 import { downloadOsu } from "./lib/osuExport";
 import { downloadOsz } from "./lib/oszExport";
-import { importOsz } from "./lib/osuImport";
+import {
+  adoptOsuDifficulty,
+  importOsz,
+  isManiaOsu,
+  isSameSong,
+  parseOsuFile,
+  type ParsedOsu,
+} from "./lib/osuImport";
 import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
 import { importOsk } from "./lib/skinImport";
 import { parseSmFile } from "./lib/smImport";
@@ -287,6 +294,8 @@ type BookmarkLoopState = {
   endMs: number;
   enabled: boolean;
 };
+
+type OsuEntry = { file: File; parsed: ParsedOsu };
 
 function decodeJwtClaims(
   token: string,
@@ -534,7 +543,11 @@ export default function App() {
   const [askBgScope, setAskBgScope] = useState(false);
   const [lnTicks, setLnTicks] = useState(1);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
+  const [pendingOsuDiffs, setPendingOsuDiffs] = useState<OsuEntry[] | null>(
+    null,
+  );
   const [importingMap, setImportingMap] = useState(false);
   // Long jobs report a 0-1 ratio plus a label so the loader can say what it is
   // actually doing instead of spinning indefinitely.
@@ -632,6 +645,8 @@ export default function App() {
   audioFilesRef.current = audioFiles;
   const bgFilesRef = useRef(bgFiles);
   bgFilesRef.current = bgFiles;
+  const videoFilesRef = useRef(videoFiles);
+  videoFilesRef.current = videoFiles;
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const metaRef = useRef(meta);
@@ -2233,6 +2248,167 @@ export default function App() {
     [hasProjectContent, importQuaFile],
   );
 
+  const readOsuFiles = useCallback(async (files: File[]) => {
+    const entries: OsuEntry[] = [];
+    for (const file of files) {
+      const text = await file.text();
+      if (!isManiaOsu(text)) {
+        throw new Error(`${file.name} isn't an osu!mania (Mode 3) difficulty.`);
+      }
+      entries.push({ file, parsed: parseOsuFile(text) });
+    }
+    return entries;
+  }, []);
+
+  const openOsuAsProject = useCallback((entries: OsuEntry[]) => {
+    if (!entries.length) return;
+    importStartedRef.current = true;
+    setImportError(null);
+    setAudioFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return {};
+    });
+    setBgFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return {};
+    });
+    setVideoFiles((prev) => {
+      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
+      return {};
+    });
+    setPublicMapUrl(null);
+    setCloudProjectId(null);
+    setCloudOwnerId(null);
+    setMyRole(null);
+    setReferenceId(null);
+    setProjectStarted(true);
+    setMeta(entries[0].parsed.meta);
+    setTimingPoints(normalizeTimingPoints(entries[0].parsed.timingPoints));
+    const names: string[] = [];
+    const diffs = entries.map(({ parsed }) => {
+      const diff = adoptOsuDifficulty(parsed, {
+        audioFilenames: [],
+        backgroundFilenames: [],
+        videoFilenames: [],
+        existingNames: names,
+      });
+      names.push(diff.name);
+      return { ...diff, timingPoints: normalizeTimingPoints(diff.timingPoints) };
+    });
+    setDifficulties(diffs);
+    setActiveId(diffs[0].id);
+    setNeedsSongHint(true);
+    setPendingImport(null);
+    setPendingOsuDiffs(null);
+    setModal(null);
+    setLocalProjectId(newLocalProjectId());
+    void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
+      () => {},
+    );
+  }, []);
+
+  const importOsuProjectFile = useCallback(
+    async (file: File) => {
+      setImportError(null);
+      try {
+        openOsuAsProject(await readOsuFiles([file]));
+      } catch (err) {
+        setImportError(
+          err instanceof Error ? err.message : "Failed to import .osu file.",
+        );
+      }
+    },
+    [readOsuFiles, openOsuAsProject],
+  );
+
+  const addOsuDifficulties = useCallback(
+    (entries: OsuEntry[]) => {
+      if (!entries.length) return;
+      if (!canEditRef.current) {
+        setImportError("You don't have edit access to this map.");
+        return;
+      }
+      const audioFilenames = Object.keys(audioFilesRef.current);
+      const backgroundFilenames = Object.keys(bgFilesRef.current);
+      const videoFilenames = Object.keys(videoFilesRef.current);
+      const current = difficultiesRef.current;
+      const base =
+        current.find((d) => d.id === activeIdRef.current) ?? current[0];
+      const inherit = (wanted: string | undefined, pool: string[]) =>
+        wanted && pool.includes(wanted)
+          ? wanted
+          : pool.length === 1
+            ? pool[0]
+            : undefined;
+      const names = current.map((d) => d.name);
+      const takenBeatmapIds = current.flatMap((d) =>
+        d.beatmapId ? [d.beatmapId] : [],
+      );
+      const added = entries.map(({ parsed }) => {
+        const diff = adoptOsuDifficulty(parsed, {
+          audioFilenames,
+          backgroundFilenames,
+          videoFilenames,
+          fallbackAudioFilename: inherit(base?.audioFilename, audioFilenames),
+          fallbackBackgroundFilename: inherit(
+            base?.backgroundFilename,
+            backgroundFilenames,
+          ),
+          existingNames: names,
+          takenBeatmapIds,
+        });
+        names.push(diff.name);
+        if (diff.beatmapId) takenBeatmapIds.push(diff.beatmapId);
+        return {
+          ...diff,
+          timingPoints: normalizeTimingPoints(diff.timingPoints),
+        };
+      });
+      markStructural();
+      setDifficulties((prev) => [...prev, ...added]);
+      setActiveId(added[added.length - 1].id);
+      setPendingOsuDiffs(null);
+      setModal(null);
+      announceAssetChange(
+        added.length === 1
+          ? `added the difficulty ${added[0].name}`
+          : `added ${added.length} difficulties`,
+      );
+      setImportNotice(
+        added.length === 1
+          ? `Added ${added[0].name} as a new difficulty`
+          : `Added ${added.length} difficulties`,
+      );
+    },
+    [markStructural, announceAssetChange],
+  );
+
+  const openOsuFiles = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return;
+      setImportError(null);
+      let entries: OsuEntry[];
+      try {
+        entries = await readOsuFiles(files);
+      } catch (err) {
+        setImportError(
+          err instanceof Error ? err.message : "Failed to read the .osu file.",
+        );
+        return;
+      }
+      if (!projectStartedRef.current) {
+        openOsuAsProject(entries);
+        return;
+      }
+      if (entries.every(({ parsed }) => isSameSong(metaRef.current, parsed.meta))) {
+        addOsuDifficulties(entries);
+        return;
+      }
+      setPendingOsuDiffs(entries);
+    },
+    [readOsuFiles, openOsuAsProject, addOsuDifficulties],
+  );
+
   const importPackSong = useCallback(
     (song: PackSong) => {
       void (async () => {
@@ -3506,6 +3682,7 @@ export default function App() {
     f.type.startsWith("video/") ||
     /\.(mp4|webm|avi|flv|mov|wmv|m4v|mpe?g)$/i.test(f.name);
   const isOszFile = (f: File) => /\.(osz|zip)$/i.test(f.name);
+  const isOsuFile = (f: File) => /\.osu$/i.test(f.name);
   const isOskFile = (f: File) => /\.osk$/i.test(f.name);
   const isSmFile = (f: File) => /\.(sm|ssc)$/i.test(f.name);
   const isQuaFile = (f: File) => /\.qua$/i.test(f.name);
@@ -3606,6 +3783,11 @@ export default function App() {
         void importArchive(osz);
         return;
       }
+      const osus = files.filter(isOsuFile);
+      if (osus.length) {
+        void openOsuFiles(osus);
+        return;
+      }
       const sm = files.find(isSmFile);
       if (sm) {
         requestImportSm(sm);
@@ -3628,7 +3810,7 @@ export default function App() {
       const videoF = files.find(isVideoFile);
       if (videoF) onVideoFile(videoF);
     },
-    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, requestImportSm, requestImportQua, importPackSong, resetFileDrag],
+    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, openOsuFiles, requestImportSm, requestImportQua, importPackSong, resetFileDrag],
   );
 
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
@@ -3782,11 +3964,13 @@ export default function App() {
         void importSmFile(file);
       } else if (/\.qua$/i.test(file.name)) {
         void importQuaFile(file);
+      } else if (/\.osu$/i.test(file.name)) {
+        void importOsuProjectFile(file);
       } else {
         void importMapFile(file);
       }
     },
-    [importSmFile, importQuaFile, importMapFile],
+    [importSmFile, importQuaFile, importOsuProjectFile, importMapFile],
   );
 
   const confirmImportWithoutExport = useCallback(() => {
@@ -3811,6 +3995,14 @@ export default function App() {
   const cancelPendingImport = useCallback(() => {
     setPendingImport(null);
   }, []);
+
+  const openPendingOsuAsMap = useCallback(() => {
+    const entry = pendingOsuDiffs?.[0];
+    if (!entry) return;
+    setPendingOsuDiffs(null);
+    if (hasProjectContent) setPendingImport(entry.file);
+    else openOsuAsProject([entry]);
+  }, [pendingOsuDiffs, hasProjectContent, openOsuAsProject]);
 
   const removeDuplicates = useCallback(() => {
     if (!exportCheck) return;
@@ -4519,7 +4711,7 @@ export default function App() {
             <div className="mb-2 text-3xl">🎵</div>
             <p className="text-lg font-semibold text-slate-100">Drop to load</p>
             <p className="text-sm text-slate-400">
-              audio (.mp3 / .ogg) · image background · .osz / .sm / .ssc / .qua map (folder) · .osk skin
+              audio (.mp3 / .ogg) · image background · .osz / .osu / .sm / .ssc / .qua map (folder) · .osk skin
             </p>
           </div>
         </div>
@@ -5137,7 +5329,7 @@ export default function App() {
               </button>
             )}
             {hasProject && !zenMode && !playtest.active && eligibleRefs.length > 0 && (
-              <div className="absolute left-3 top-14 z-30 rounded-lg border border-white/10 bg-ink-900/62 shadow-xl shadow-black/20 backdrop-blur-xl">
+              <div className="absolute left-3 top-[5.5rem] z-30 rounded-lg border border-white/10 bg-ink-900/62 shadow-xl shadow-black/20 backdrop-blur-xl">
                 <Menu
                   label={
                     referenceDiff ? `Ref: ${referenceDiff.name}` : "Reference"
@@ -5304,6 +5496,7 @@ export default function App() {
             setModal(null);
             if (isSmFile(file)) void importSmFile(file);
             else if (isQuaFile(file)) void importQuaFile(file);
+            else if (isOsuFile(file)) void openOsuFiles([file]);
             else void importMapFile(file);
           }}
           onFolder={
@@ -5384,6 +5577,7 @@ export default function App() {
           onClearVideo={onClearVideo}
           onVideoOffsetMs={onVideoOffsetMs}
           onImportOsz={(f) => void importArchive(f)}
+          onImportOsuDiff={(f) => void openOsuFiles([f])}
           onImportSm={requestImportSm}
           onImportSmPack={onImportSmPack}
           activeDiff={active}
@@ -5612,6 +5806,56 @@ export default function App() {
           <p className="text-xs text-slate-500">
             Export current project downloads an .osz first. Don't save imports
             the new map and clears the old local save. Cancel stops the import.
+          </p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={pendingOsuDiffs !== null}
+        onClose={() => setPendingOsuDiffs(null)}
+        title="Different song"
+        footer={
+          <>
+            <Button onClick={() => setPendingOsuDiffs(null)}>Cancel</Button>
+            {pendingOsuDiffs?.length === 1 && (
+              <Button onClick={openPendingOsuAsMap}>Open as a new map</Button>
+            )}
+            <Button
+              variant="accent"
+              onClick={() => addOsuDifficulties(pendingOsuDiffs ?? [])}
+            >
+              {pendingOsuDiffs && pendingOsuDiffs.length > 1
+                ? "Add as difficulties"
+                : "Add as a difficulty"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-slate-300">
+          <p>
+            {pendingOsuDiffs && pendingOsuDiffs.length > 1
+              ? "Those .osu files are metadata for another song than the one you have open."
+              : "That .osu file is metadata for another song than the one you have open."}
+          </p>
+          <div className="rounded-lg border border-white/10 bg-ink-700/40 px-3 py-2 text-xs">
+            <p className="text-slate-400">
+              Open:{" "}
+              <span className="font-medium text-slate-100">
+                {meta.artist} - {meta.title}
+              </span>
+            </p>
+            <p className="mt-1 text-slate-400">
+              File:{" "}
+              <span className="font-medium text-slate-100">
+                {pendingOsuDiffs?.[0]
+                  ? `${pendingOsuDiffs[0].parsed.meta.artist} - ${pendingOsuDiffs[0].parsed.meta.title}`
+                  : ""}
+              </span>
+            </p>
+          </div>
+          <p className="text-xs text-slate-500">
+            Adding keeps the current project and plays the new difficulty
+            against the audio you already have loaded.
           </p>
         </div>
       </Modal>
@@ -5846,6 +6090,17 @@ export default function App() {
           className="pointer-events-auto max-w-full rounded-lg border border-red-500/40 bg-red-950/90 py-2 pb-3 pl-4 pr-9 text-sm text-red-200 shadow-lg"
         >
           {importError ?? ""}
+        </TimedNotification>
+
+        <TimedNotification
+          open={!!importNotice}
+          durationMs={4000}
+          onDismiss={() => setImportNotice(null)}
+          resetKey={importNotice}
+          progressClassName="bg-emerald-400"
+          className="pointer-events-auto max-w-full rounded-lg border border-emerald-500/40 bg-emerald-950/90 px-4 py-2 pb-3 text-sm text-emerald-200 shadow-lg"
+        >
+          {importNotice ?? ""}
         </TimedNotification>
       </div>
 
@@ -6098,7 +6353,7 @@ function InfoModal({
         </InfoSection>
 
         <InfoSection title="Menus">
-          <InfoRow keys="Map Settings" text="Import .osz, set audio, background and metadata." />
+          <InfoRow keys="Map Settings" text="Import .osz, add an .osu as a difficulty, set audio, background and metadata." />
           <InfoRow keys="Timing" text="Edit red BPM points, green SV points, kiai, volume and tap BPM." />
           <InfoRow keys="SV" text="Generate scroll velocity ramps, stutters and constants over a range." />
           <InfoRow keys="Difficulty" text="Set name, key count, HP and OD for the active difficulty." />

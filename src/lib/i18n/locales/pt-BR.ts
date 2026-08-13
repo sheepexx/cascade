@@ -168,6 +168,9 @@ export const ptBR: PartialCatalog = {
   "mapSettings.importSmPack": "Importar pack SM…",
   "mapSettings.importHint":
     "Substitui o projeto atual por todas as dificuldades mania do arquivo.",
+  "mapSettings.importOsuDiff": "Adicionar .osu como dificuldade…",
+  "mapSettings.importOsuDiffHint":
+    "Adiciona um único .osu desta música ao mapa atual como uma nova dificuldade. Ele reaproveita o áudio e o fundo já carregados, então nenhum .mp3 é necessário.",
   "mapSettings.audio": "Áudio",
   "mapSettings.replaceAudio": "Substituir áudio…",
   "mapSettings.uploadAudio": "Enviar .mp3 / .ogg",

@@ -166,6 +166,9 @@ export const en = {
   "mapSettings.importSmPack": "Import SM pack…",
   "mapSettings.importHint":
     "Replaces the current project with all mania difficulties in the archive.",
+  "mapSettings.importOsuDiff": "Add .osu as difficulty…",
+  "mapSettings.importOsuDiffHint":
+    "Adds a single .osu of this song to the current map as a new difficulty. It reuses the audio and background you already have loaded, so no .mp3 is needed.",
   "mapSettings.audio": "Audio",
   "mapSettings.replaceAudio": "Replace audio…",
   "mapSettings.uploadAudio": "Upload .mp3 / .ogg",

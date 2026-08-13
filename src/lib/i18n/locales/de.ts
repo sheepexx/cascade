@@ -168,6 +168,9 @@ export const de: PartialCatalog = {
   "mapSettings.importSmPack": "SM-Pack importieren…",
   "mapSettings.importHint":
     "Ersetzt das aktuelle Projekt durch alle mania-Schwierigkeiten im Archiv.",
+  "mapSettings.importOsuDiff": ".osu als Schwierigkeit hinzufügen…",
+  "mapSettings.importOsuDiffHint":
+    "Fügt eine einzelne .osu-Datei dieses Songs als neue Schwierigkeit zur aktuellen Map hinzu. Sie nutzt das bereits geladene Audio und Hintergrundbild, eine .mp3 wird also nicht gebraucht.",
   "mapSettings.audio": "Audio",
   "mapSettings.replaceAudio": "Audio ersetzen…",
   "mapSettings.uploadAudio": ".mp3 / .ogg hochladen",

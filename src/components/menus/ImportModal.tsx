@@ -99,7 +99,8 @@ export function ImportModal({
 
         <p className="text-[11px] text-slate-500">
           You can also drag a map file, an audio file or a song folder anywhere
-          onto the page.
+          onto the page. With a map open, dropping .osu files of the same song
+          adds them as difficulties, no audio file needed.
         </p>
       </div>
     </Modal>

@@ -21,6 +21,7 @@ type Props = {
   onClearVideo: () => void;
   onVideoOffsetMs: (ms: number) => void;
   onImportOsz: (f: File) => void;
+  onImportOsuDiff?: (f: File) => void;
   onImportSm?: (f: File) => void;
   onImportSmPack?: () => void;
   activeDiff?: Difficulty;
@@ -53,6 +54,7 @@ export function SettingsModal({
   onClearVideo,
   onVideoOffsetMs,
   onImportOsz,
+  onImportOsuDiff,
   onImportSm,
   onImportSmPack,
   activeDiff,
@@ -107,6 +109,18 @@ export function SettingsModal({
           <p className="mt-1.5 text-[11px] text-slate-500">
             {t("mapSettings.importHint")}
           </p>
+          {onImportOsuDiff && (
+            <div className="mt-3 border-t border-white/10 pt-3">
+              <FileButton
+                label={t("mapSettings.importOsuDiff")}
+                accept=".osu"
+                onFile={onImportOsuDiff}
+              />
+              <p className="mt-1.5 text-[11px] text-slate-500">
+                {t("mapSettings.importOsuDiffHint")}
+              </p>
+            </div>
+          )}
         </section>
 
         <section>

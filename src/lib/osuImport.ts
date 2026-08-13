@@ -16,6 +16,7 @@ import {
   uid,
 } from "../types";
 import { xToColumn } from "./osuExport";
+import { uniqueDifficultyName } from "./rateChange";
 
 export type ParsedOsu = {
   meta: SongMeta;
@@ -241,6 +242,95 @@ export function parseOsuFile(text: string): ParsedOsu {
   };
 }
 
+export function isManiaOsu(text: string): boolean {
+  return /^\s*Mode\s*:\s*3\s*$/m.test(text);
+}
+
+function metaKey(value: string | undefined): string {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function metaKeys(primary: string, alternate?: string): string[] {
+  return [metaKey(primary), metaKey(alternate)].filter(Boolean);
+}
+
+function sharesKey(a: string[], b: string[]): boolean {
+  return a.some((value) => b.includes(value));
+}
+
+export function isSameSong(a: SongMeta, b: SongMeta): boolean {
+  if (a.beatmapSetId && b.beatmapSetId && a.beatmapSetId === b.beatmapSetId) {
+    return true;
+  }
+  return (
+    sharesKey(
+      metaKeys(a.title, a.titleUnicode),
+      metaKeys(b.title, b.titleUnicode),
+    ) &&
+    sharesKey(
+      metaKeys(a.artist, a.artistUnicode),
+      metaKeys(b.artist, b.artistUnicode),
+    )
+  );
+}
+
+export type OsuDifficultyTarget = {
+  audioFilenames: string[];
+  backgroundFilenames: string[];
+  videoFilenames: string[];
+  fallbackAudioFilename?: string;
+  fallbackBackgroundFilename?: string;
+  existingNames?: Iterable<string>;
+  takenBeatmapIds?: Iterable<number>;
+};
+
+function loadedName(
+  wanted: string | null | undefined,
+  pool: string[],
+): string | undefined {
+  if (!wanted) return undefined;
+  const lower = wanted.toLowerCase();
+  return pool.find((name) => name.toLowerCase() === lower);
+}
+
+export function adoptOsuDifficulty(
+  parsed: ParsedOsu,
+  target: OsuDifficultyTarget,
+): Difficulty {
+  const audioFilename =
+    loadedName(parsed.difficulty.audioFilename, target.audioFilenames) ??
+    target.fallbackAudioFilename;
+  const backgroundFilename =
+    loadedName(parsed.backgroundFilename, target.backgroundFilenames) ??
+    target.fallbackBackgroundFilename;
+  const videoFilename = loadedName(parsed.videoFilename, target.videoFilenames);
+  const taken = new Set(target.takenBeatmapIds ?? []);
+  const beatmapId =
+    parsed.difficulty.beatmapId && !taken.has(parsed.difficulty.beatmapId)
+      ? parsed.difficulty.beatmapId
+      : undefined;
+
+  return {
+    ...parsed.difficulty,
+    id: uid("diff"),
+    name: uniqueDifficultyName(
+      parsed.difficulty.name || "Imported",
+      target.existingNames ?? [],
+    ),
+    audioFilename,
+    backgroundFilename,
+    videoFilename,
+    videoOffsetMs:
+      videoFilename && parsed.videoOffsetMs ? parsed.videoOffsetMs : undefined,
+    beatmapId,
+    timingPoints: parsed.difficulty.timingPoints.map((point) => ({
+      ...point,
+      id: uid("tp"),
+    })),
+    notes: parsed.difficulty.notes.map((note) => ({ ...note, id: uid("n") })),
+  };
+}
+
 function findEntry(zip: JSZip, name: string | null) {
   if (!name) return null;
   const target = name.toLowerCase();
@@ -316,7 +406,7 @@ export async function importOsz(
       parsed.length / osuPaths.length,
     );
     const text = await zip.file(path)!.async("string");
-    if (/^\s*Mode\s*:\s*3\s*$/m.test(text)) parsed.push(parseOsuFile(text));
+    if (isManiaOsu(text)) parsed.push(parseOsuFile(text));
   }
   if (parsed.length === 0) {
     throw new Error("No osu!mania (Mode 3) difficulties found in the archive.");

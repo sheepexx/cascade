@@ -163,6 +163,9 @@ export const zhCN: PartialCatalog = {
   "mapSettings.importSm": "导入 .sm / .ssc 谱面…",
   "mapSettings.importSmPack": "导入 SM 图包…",
   "mapSettings.importHint": "用压缩包中所有 mania 难度替换当前项目。",
+  "mapSettings.importOsuDiff": "添加 .osu 为难度…",
+  "mapSettings.importOsuDiffHint":
+    "把这首歌的单个 .osu 文件作为新难度加入当前谱面。它会沿用已加载的音频和背景，因此不需要 .mp3。",
   "mapSettings.audio": "音频",
   "mapSettings.replaceAudio": "替换音频…",
   "mapSettings.uploadAudio": "上传 .mp3 / .ogg",

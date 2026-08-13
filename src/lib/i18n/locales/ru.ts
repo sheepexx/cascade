@@ -169,6 +169,9 @@ export const ru: PartialCatalog = {
   "mapSettings.importSmPack": "Импортировать пак SM…",
   "mapSettings.importHint":
     "Заменяет текущий проект всеми сложностями mania из архива.",
+  "mapSettings.importOsuDiff": "Добавить .osu как сложность…",
+  "mapSettings.importOsuDiffHint":
+    "Добавляет один файл .osu этой песни в текущую карту как новую сложность. Он использует уже загруженные аудио и фон, поэтому .mp3 не нужен.",
   "mapSettings.audio": "Аудио",
   "mapSettings.replaceAudio": "Заменить аудио…",
   "mapSettings.uploadAudio": "Загрузить .mp3 / .ogg",
