@@ -2327,7 +2327,7 @@ export default function App() {
     [patchDifficulty],
   );
 
-  const menuMusicEnabled = !hasProject && !packCreatorOpen;
+  const menuMusicEnabled = !hasProject && !packCreatorOpen && !sharedSlug;
   const menuMusic = useMenuMusic(menuMusicEnabled);
 
   const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
@@ -4646,7 +4646,7 @@ export default function App() {
               ))}
             </div>
           )}
-          {!hasProject && <NowPlaying music={menuMusic} />}
+          {!hasProject && !sharedSlug && <NowPlaying music={menuMusic} />}
           {!hasProject && <LanguagePicker compact />}
           {authUser && (
             <NotificationInbox

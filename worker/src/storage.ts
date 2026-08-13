@@ -311,13 +311,22 @@ async function serveR2Object(
   });
 }
 
-function resolveRange(range: R2Range, size: number): { offset: number; length: number } | null {
-  if ("suffix" in range) {
-    const length = Math.min(range.suffix, size);
+export function resolveRange(
+  range: R2Range,
+  size: number,
+): { offset: number; length: number } | null {
+  const suffix = "suffix" in range ? range.suffix : undefined;
+  if (typeof suffix === "number") {
+    const length = Math.min(suffix, size);
     return { offset: size - length, length };
   }
-  const offset = range.offset ?? 0;
-  const length = Math.min(range.length ?? size - offset, size - offset);
+  const offset =
+    "offset" in range && typeof range.offset === "number" ? range.offset : 0;
+  const requestedLength =
+    "length" in range && typeof range.length === "number"
+      ? range.length
+      : size - offset;
+  const length = Math.min(requestedLength, size - offset);
   return length > 0 ? { offset, length } : null;
 }
 
