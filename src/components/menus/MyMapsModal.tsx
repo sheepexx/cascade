@@ -121,7 +121,7 @@ export function MyMapsModal({
     <HoldConfirmDialog
       open={confirmId !== null}
       title="Delete saved map?"
-      message="This saved map will be permanently deleted. This can't be undone."
+      message="This saved map and all of its stored files will be permanently deleted from Cloudflare R2 and Supabase Storage. This can't be undone."
       busy={busyId !== null}
       onConfirm={() => {
         const id = confirmId;

@@ -1058,7 +1058,12 @@ function ProjectsTab() {
 
   const remove = (id: string) =>
     void wrap(async () => {
-      if (!window.confirm("Delete this project permanently?")) return;
+      if (
+        !window.confirm(
+          "Delete this project permanently? Its database record and all files in Cloudflare R2 and Supabase Storage will be removed.",
+        )
+      )
+        return;
       await deleteProjectAdmin(id);
       setProjects((prev) => prev?.filter((p) => p.id !== id) ?? null);
     });

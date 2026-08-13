@@ -498,42 +498,68 @@ async function deleteProject(
   auth: StorageAuthContext,
   env: WorkerEnv,
 ): Promise<Response> {
+  const projectResponse = await supabaseRest(
+    env,
+    `/projects?id=eq.${projectId}&select=id,owner`,
+    { headers: serviceHeaders(env) },
+  );
+  if (!projectResponse.ok) throw new Error("could not read project");
+  const projects = (await projectResponse.json()) as {
+    id: string;
+    owner: string;
+  }[];
+  const project = projects[0];
+  if (!project) return storageJson({ error: "project not found" }, 404, env);
+  if (project.owner !== auth.uid && !auth.isAdmin) {
+    return storageJson({ error: "forbidden" }, 403, env);
+  }
+
   const rowsResponse = await supabaseRest(
     env,
     `/project_assets?project_id=eq.${projectId}&select=storage_path`,
-    { headers: userHeaders(env, auth.supabaseToken) },
+    { headers: serviceHeaders(env) },
   );
   if (!rowsResponse.ok) throw new Error("could not read project assets");
   const rows = (await rowsResponse.json()) as { storage_path: string }[];
+
+  const warnings: string[] = [];
+  const known = rows
+    .map((row) => row.storage_path)
+    .filter((path) => path.startsWith(`${projectId}/`));
+  const cleanup = await Promise.allSettled([
+    deleteR2Prefix(env.PROJECT_ASSETS, `${projectId}/`),
+    deleteSupabasePrefix("maps", projectId, env, known),
+  ]);
+  for (const result of cleanup) {
+    if (result.status === "rejected") warnings.push(errorMessage(result.reason));
+  }
+  if (warnings.length) {
+    reportCleanupWarnings("project", projectId, warnings);
+    return storageJson(
+      {
+        error: "Project was not deleted because its files could not be fully removed. Try again.",
+      },
+      502,
+      env,
+    );
+  }
+
   const deleteResponse = await supabaseRest(
     env,
     `/projects?id=eq.${projectId}&select=id`,
     {
       method: "DELETE",
       headers: {
-        ...userHeaders(env, auth.supabaseToken),
+        ...serviceHeaders(env),
         Prefer: "return=representation",
       },
     },
   );
   if (!deleteResponse.ok) throw new Error("project deletion failed");
   const deleted = (await deleteResponse.json()) as { id: string }[];
-  if (!deleted.length) return storageJson({ error: "project not found or forbidden" }, 403, env);
+  if (!deleted.length) return storageJson({ error: "project not found" }, 404, env);
 
-  const warnings: string[] = [];
-  try {
-    await deleteR2Prefix(env.PROJECT_ASSETS, `${projectId}/`);
-  } catch (error) {
-    warnings.push(errorMessage(error));
-  }
-  try {
-    const known = rows.map((row) => row.storage_path).filter(Boolean);
-    await deleteSupabasePrefix("maps", projectId, env, known);
-  } catch (error) {
-    warnings.push(errorMessage(error));
-  }
-  reportCleanupWarnings("project", projectId, warnings);
-  return storageJson({ deleted: true, warnings }, 200, env);
+  return storageJson({ deleted: true }, 200, env);
 }
 
 async function deleteSharedMap(
