@@ -348,6 +348,10 @@ export const en = {
   "account.feedback": "Feedback",
   "account.admin": "Admin",
   "account.logOut": "Log out",
+  "accountSync.ready": "Cloud settings",
+  "accountSync.syncing": "Syncing cloud",
+  "accountSync.synced": "Cloud synced",
+  "accountSync.error": "Sync unavailable",
 
   "transport.jumpTitle": "Jump to time - Enter to go, Esc to cancel",
   "transport.copyMs": "Click to copy the time in milliseconds",

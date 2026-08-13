@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { HitsoundSkinSource, LoadedSkin } from "../../types";
 import type { SavedSkinBlob } from "../../lib/persistence";
+import type { CloudSkin } from "../../lib/accountCloud";
+import { formatBytes } from "../../lib/progress";
 import { Modal } from "../ui/Modal";
 import { Button, FileButton } from "../ui/Controls";
 
@@ -29,6 +31,9 @@ type Props = {
   hitsoundSource: HitsoundSkinSource;
   hitsoundSkin: LoadedSkin | null;
   savedSkins: SavedSkinBlob[];
+  cloudSkins: CloudSkin[];
+  cloudAvailable: boolean;
+  cloudLoading: boolean;
   activeKeyCount: number;
   onApplyPreset: (
     url: string,
@@ -40,6 +45,9 @@ type Props = {
     target: "visual" | "hitsound",
   ) => Promise<void> | void;
   onSkinFile: (file: File, target: "visual" | "hitsound") => void;
+  onUploadCloudSkin: (slot: 1 | 2, file: File) => Promise<void>;
+  onDownloadCloudSkin: (skin: CloudSkin) => Promise<void>;
+  onDeleteCloudSkin: (skin: CloudSkin) => Promise<void>;
   onClearSkin: () => void;
   onUseDefaultHitsounds: () => void;
   onUseVisualHitsounds: () => void;
@@ -53,16 +61,23 @@ export function SkinModal({
   hitsoundSource,
   hitsoundSkin,
   savedSkins,
+  cloudSkins,
+  cloudAvailable,
+  cloudLoading,
   activeKeyCount,
   onApplyPreset,
   onApplySavedSkin,
   onSkinFile,
+  onUploadCloudSkin,
+  onDownloadCloudSkin,
+  onDeleteCloudSkin,
   onClearSkin,
   onUseDefaultHitsounds,
   onUseVisualHitsounds,
   error,
 }: Props) {
   const [loadingName, setLoadingName] = useState<string | null>(null);
+  const [cloudBusy, setCloudBusy] = useState<string | null>(null);
 
   const keymodes = skin
     ? Object.keys(skin.keymodes)
@@ -102,6 +117,36 @@ export function SkinModal({
       await onApplySavedSkin(saved, target);
     } finally {
       setLoadingName(null);
+    }
+  };
+
+  const uploadCloud = async (slot: 1 | 2, file: File) => {
+    setCloudBusy(`upload:${slot}`);
+    try {
+      await onUploadCloudSkin(slot, file);
+    } catch {
+    } finally {
+      setCloudBusy(null);
+    }
+  };
+
+  const downloadCloud = async (cloudSkin: CloudSkin) => {
+    setCloudBusy(`download:${cloudSkin.slot}`);
+    try {
+      await onDownloadCloudSkin(cloudSkin);
+    } catch {
+    } finally {
+      setCloudBusy(null);
+    }
+  };
+
+  const deleteCloud = async (cloudSkin: CloudSkin) => {
+    setCloudBusy(`delete:${cloudSkin.slot}`);
+    try {
+      await onDeleteCloudSkin(cloudSkin);
+    } catch {
+    } finally {
+      setCloudBusy(null);
     }
   };
 
@@ -199,6 +244,116 @@ export function SkinModal({
               </Button>
             )}
           </div>
+        </section>
+
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Account skins
+          </h3>
+          <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
+            Store up to two skins in your account. Other devices only load the
+            names and file sizes until you press the cloud download button.
+          </p>
+          {!cloudAvailable ? (
+            <p className="rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2 text-xs text-slate-400">
+              Sign in to save skins to your account.
+            </p>
+          ) : cloudLoading ? (
+            <p className="rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2 text-xs text-slate-400">
+              Loading cloud skin slots…
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {([1, 2] as const).map((slot) => {
+                const cloudSkin = cloudSkins.find((item) => item.slot === slot);
+                const busy = cloudBusy?.endsWith(`:${slot}`) === true;
+                return (
+                  <div
+                    key={slot}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        Slot {slot}
+                      </div>
+                      <div
+                        className="truncate text-sm text-slate-200"
+                        title={cloudSkin?.filename}
+                      >
+                        {cloudSkin?.filename ?? "Empty"}
+                      </div>
+                      {cloudSkin && (
+                        <div className="text-[10px] text-slate-500">
+                          Stored in cloud · {formatBytes(cloudSkin.bytes)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {cloudSkin && (
+                        <button
+                          type="button"
+                          disabled={cloudBusy !== null}
+                          onClick={() => void downloadCloud(cloudSkin)}
+                          className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-ink-600/75 text-sky-300 transition hover:bg-ink-500/85 disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label={`Download ${cloudSkin.filename} from cloud`}
+                          title="Download and apply this skin"
+                        >
+                          {cloudBusy === `download:${slot}` ? (
+                            <span className="text-[10px]">…</span>
+                          ) : (
+                            <CloudDownloadIcon />
+                          )}
+                        </button>
+                      )}
+                      <label
+                        className={`inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-2.5 text-xs font-medium text-slate-200 transition hover:bg-ink-500/85 ${
+                          cloudBusy !== null
+                            ? "pointer-events-none opacity-40"
+                            : ""
+                        }`}
+                      >
+                        {cloudBusy === `upload:${slot}`
+                          ? "Uploading…"
+                          : cloudSkin
+                            ? "Replace"
+                            : "Upload"}
+                        <input
+                          type="file"
+                          accept=".osk,.zip,application/zip"
+                          className="hidden"
+                          disabled={cloudBusy !== null}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) void uploadCloud(slot, file);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {cloudSkin && (
+                        <button
+                          type="button"
+                          disabled={cloudBusy !== null}
+                          onClick={() => void deleteCloud(cloudSkin)}
+                          className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-ink-600/75 text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label={`Delete ${cloudSkin.filename} from cloud`}
+                          title="Delete this cloud skin"
+                        >
+                          {cloudBusy === `delete:${slot}` ? (
+                            <span className="text-[10px]">…</span>
+                          ) : (
+                            <TrashIcon />
+                          )}
+                        </button>
+                      )}
+                      {!cloudSkin && busy && (
+                        <span className="text-[10px] text-slate-500">…</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {savedSkins.length > 0 && (
@@ -383,5 +538,40 @@ export function SkinModal({
         )}
       </div>
     </Modal>
+  );
+}
+
+function CloudDownloadIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M7 18h10a4 4 0 000-8h-.3A6 6 0 005.2 8.8 4.5 4.5 0 007 18z" />
+      <path d="M12 11v7m-3-3 3 3 3-3" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+    </svg>
   );
 }

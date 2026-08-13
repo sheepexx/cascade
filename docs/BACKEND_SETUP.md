@@ -75,6 +75,9 @@ Reload the app - an **Admin** entry appears in the account menu.
   periodically; it returns the user + a fresh 1h Supabase token, applied to supabase-js.
 - **Cloud maps**: chart JSON stays in `projects.data`; audio/background blobs use
   the private `cascade-projects` R2 bucket and remain tracked in `project_assets`.
+- **Account sync**: preferences stay in `user_settings`; the two optional account
+  skin slots keep metadata in `user_skins` and binaries under the private
+  `cascade-projects` R2 binding. Cloud skin files are fetched only on request.
 - **Presets**: copy notes in the editor → "Save as preset…" → `pending`; an admin
   approves it in the Admin panel; approved presets show in the Preset browser for all.
 

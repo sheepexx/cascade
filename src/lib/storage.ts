@@ -14,6 +14,16 @@ type DeleteResult = {
   warnings?: string[];
 };
 
+export type UserSkinStorageRow = {
+  id: string;
+  slot: number;
+  filename: string;
+  storage_path: string;
+  sha256: string;
+  bytes: number | string;
+  updated_at: string;
+};
+
 export type StorageUsage = {
   bytes: number;
   objects: number;
@@ -125,6 +135,45 @@ export async function deleteProjectWithAssets(projectId: string): Promise<void> 
     `/storage/projects/${encodeURIComponent(projectId)}`,
     { method: "DELETE", headers: sessionAuthHeaders() },
   );
+}
+
+export async function uploadUserSkin(
+  slot: 1 | 2,
+  sha256: string,
+  filename: string,
+  blob: Blob,
+): Promise<UserSkinStorageRow> {
+  const result = await workerJson<{ skin: UserSkinStorageRow }>(
+    `/storage/users/skins/${slot}/${sha256}.osk?filename=${encodeURIComponent(filename)}`,
+    {
+      method: "PUT",
+      headers: {
+        ...sessionAuthHeaders(),
+        "Content-Type": blob.type || "application/octet-stream",
+      },
+      body: blob,
+    },
+  );
+  if (result.skin.sha256 !== sha256 || Number(result.skin.bytes) !== blob.size) {
+    throw new Error("Skin upload verification failed.");
+  }
+  return result.skin;
+}
+
+export async function downloadUserSkin(slot: 1 | 2): Promise<Blob> {
+  const response = await workerFetch(`/storage/users/skins/${slot}`, {
+    method: "GET",
+    headers: sessionAuthHeaders(),
+  });
+  if (!response.ok) throw await responseError(response);
+  return response.blob();
+}
+
+export async function deleteUserSkin(slot: 1 | 2): Promise<void> {
+  await workerJson<DeleteResult>(`/storage/users/skins/${slot}`, {
+    method: "DELETE",
+    headers: sessionAuthHeaders(),
+  });
 }
 
 export async function uploadSharedAsset(

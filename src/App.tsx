@@ -120,7 +120,18 @@ import {
   setUiSoundVolume,
 } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
-import { useT } from "./lib/i18n";
+import { useLocale, useT } from "./lib/i18n";
+import {
+  downloadCloudSkin,
+  listCloudSkins,
+  loadAccountSettings,
+  normalizeAccountSettings,
+  removeCloudSkin,
+  saveAccountSettings,
+  uploadCloudSkin,
+  type AccountSettings,
+  type CloudSkin,
+} from "./lib/accountCloud";
 import {
   dismissNotification,
   listNotifications,
@@ -435,7 +446,7 @@ const TRIM_BROADCAST_MS = 90;
 
 export default function App() {
   const { user: authUser, refresh: refreshAuth } = useAuth();
-  const t = useT();
+  const { locale, setLocale, t } = useLocale();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
   const [timingPoints, setTimingPoints] = useState<TimingPoint[]>(
     defaultTimingPoints,
@@ -457,6 +468,8 @@ export default function App() {
   const [hitsoundSkinSource, setHitsoundSkinSource] =
     useState<HitsoundSkinSource>(() => loadHitsoundSkinSource());
   const [skinLibrary, setSkinLibrary] = useState<SavedSkinBlob[]>([]);
+  const [cloudSkins, setCloudSkins] = useState<CloudSkin[]>([]);
+  const [cloudSkinsLoading, setCloudSkinsLoading] = useState(false);
   const [skinError, setSkinError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -580,7 +593,10 @@ export default function App() {
   const [notificationsError, setNotificationsError] = useState<string | null>(
     null,
   );
-  const [autoSave, setAutoSave] = useState<"idle" | "saving" | "saved">("idle");
+  const [accountSyncStatus, setAccountSyncStatus] = useState<
+    "idle" | "syncing" | "synced" | "error"
+  >("idle");
+  const [accountSyncError, setAccountSyncError] = useState<string | null>(null);
   const [publishPattern, setPublishPattern] = useState<PatternNote[] | null>(
     null,
   );
@@ -650,6 +666,25 @@ export default function App() {
   timingPointsRef.current = timingPoints;
   const authUserRef = useRef(authUser);
   authUserRef.current = authUser;
+  const refreshCloudSkins = useCallback(async () => {
+    const userId = authUserRef.current?.id;
+    if (!userId) {
+      setCloudSkins([]);
+      setCloudSkinsLoading(false);
+      return;
+    }
+    setCloudSkinsLoading(true);
+    try {
+      setCloudSkins(await listCloudSkins(userId));
+    } catch {
+      setCloudSkins([]);
+    } finally {
+      setCloudSkinsLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    void refreshCloudSkins();
+  }, [authUser?.id, refreshCloudSkins]);
   const cloudProjectIdRef = useRef(cloudProjectId);
   cloudProjectIdRef.current = cloudProjectId;
   const inviteNoticeProjectsRef = useRef<Set<string>>(new Set());
@@ -680,6 +715,10 @@ export default function App() {
   const forcedAssetReloadsRef = useRef<Set<string>>(new Set());
   const cloudRefreshIdRef = useRef(0);
   const pendingSeekRef = useRef<number | null>(null);
+  const accountSettingsReadyUserRef = useRef<string | null>(null);
+  const lastCloudSettingsRef = useRef<string | null>(null);
+  const accountSettingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const accountSettingsSaveVersionRef = useRef(0);
 
   useEffect(() => {
     if (!cloudProjectId || !authUser) return;
@@ -906,6 +945,7 @@ export default function App() {
   currentTimeRef.current = audio.getCurrentTime();
   const getCurrentTime = audio.getCurrentTime;
   const seekAudio = audio.seek;
+  const setAudioVolume = audio.setVolume;
 
   useEffect(() => {
     if (!activeBookmarkLoop?.enabled) return;
@@ -994,7 +1034,6 @@ export default function App() {
     if (!cloudProjectId || !canEdit) return;
     window.clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => {
-      setAutoSave("saving");
       void queueCloudSave(cloudProjectId, {
         meta: metaRef.current,
         timingPoints: timingPointsRef.current,
@@ -1002,9 +1041,7 @@ export default function App() {
         activeId: activeIdRef.current,
         view,
         bgScope,
-      })
-        .then(() => setAutoSave("saved"))
-        .catch(() => setAutoSave("idle"));
+      }).catch(() => {});
     }, 1500);
     return () => window.clearTimeout(autoSaveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1840,6 +1877,54 @@ export default function App() {
       }
     },
     [loadSkin],
+  );
+
+  const onUploadCloudSkin = useCallback(
+    async (slot: 1 | 2, file: File) => {
+      setSkinError(null);
+      try {
+        await uploadCloudSkin(slot, file);
+        await refreshCloudSkins();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Couldn't upload that skin.";
+        setSkinError(message);
+        throw error;
+      }
+    },
+    [refreshCloudSkins],
+  );
+
+  const onDownloadCloudSkin = useCallback(
+    async (cloudSkin: CloudSkin) => {
+      setSkinError(null);
+      try {
+        const blob = await downloadCloudSkin(cloudSkin.slot);
+        await loadSkin(blob, cloudSkin.filename, "visual", true);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Couldn't download that skin.";
+        setSkinError(message);
+        throw error;
+      }
+    },
+    [loadSkin],
+  );
+
+  const onDeleteCloudSkin = useCallback(
+    async (cloudSkin: CloudSkin) => {
+      setSkinError(null);
+      try {
+        await removeCloudSkin(cloudSkin.slot);
+        await refreshCloudSkins();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Couldn't remove that skin.";
+        setSkinError(message);
+        throw error;
+      }
+    },
+    [refreshCloudSkins],
   );
 
   const onClearSkin = useCallback(() => {
@@ -3429,6 +3514,113 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [appSettings]);
 
+  const accountSettings = useMemo<AccountSettings>(
+    () => ({
+      version: 1,
+      appSettings,
+      view,
+      volume: audio.volume,
+      locale,
+      hitsoundSkinSource,
+    }),
+    [appSettings, view, audio.volume, locale, hitsoundSkinSource],
+  );
+  const accountSettingsRef = useRef(accountSettings);
+  accountSettingsRef.current = accountSettings;
+
+  useEffect(() => {
+    const userId = authUser?.id;
+    accountSettingsSaveVersionRef.current += 1;
+    accountSettingsReadyUserRef.current = null;
+    lastCloudSettingsRef.current = null;
+    if (!userId) {
+      setAccountSyncStatus("idle");
+      setAccountSyncError(null);
+      return;
+    }
+    let cancelled = false;
+    setAccountSyncStatus("syncing");
+    setAccountSyncError(null);
+    const local = {
+      ...accountSettingsRef.current,
+      volume: loadVolume() ?? accountSettingsRef.current.volume,
+    };
+    void loadAccountSettings(userId)
+      .then(async (remote) => {
+        if (cancelled) return;
+        const next = remote
+          ? normalizeAccountSettings(remote, local)
+          : local;
+        const applied = {
+          ...next,
+          appSettings: normalizeAppSettings(next.appSettings),
+        };
+        if (remote) {
+          setAppSettings(applied.appSettings);
+          setView(applied.view);
+          setAudioVolume(applied.volume);
+          setLocale(applied.locale);
+          setHitsoundSkinSource(applied.hitsoundSkinSource);
+        } else {
+          await saveAccountSettings(userId, applied);
+        }
+        if (cancelled) return;
+        lastCloudSettingsRef.current = JSON.stringify(applied);
+        accountSettingsReadyUserRef.current = userId;
+        setAccountSyncStatus("synced");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setAccountSyncError(
+          error instanceof Error ? error.message : "Cloud settings sync failed.",
+        );
+        setAccountSyncStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser?.id, setAudioVolume, setLocale]);
+
+  useEffect(() => {
+    const userId = authUser?.id;
+    if (!userId || accountSettingsReadyUserRef.current !== userId) return;
+    const serialized = JSON.stringify(accountSettings);
+    if (serialized === lastCloudSettingsRef.current) return;
+    const version = ++accountSettingsSaveVersionRef.current;
+    const id = window.setTimeout(() => {
+      setAccountSyncStatus("syncing");
+      setAccountSyncError(null);
+      const save = accountSettingsSaveQueueRef.current
+        .catch(() => {})
+        .then(() => saveAccountSettings(userId, accountSettings));
+      accountSettingsSaveQueueRef.current = save.catch(() => {});
+      void save
+        .then(() => {
+          if (
+            authUserRef.current?.id !== userId ||
+            accountSettingsSaveVersionRef.current !== version
+          ) {
+            return;
+          }
+          lastCloudSettingsRef.current = serialized;
+          setAccountSyncStatus("synced");
+        })
+        .catch((error) => {
+          if (
+            authUserRef.current?.id !== userId ||
+            accountSettingsSaveVersionRef.current !== version
+          ) {
+            return;
+          }
+          setAccountSyncError(
+            error instanceof Error ? error.message : "Cloud settings sync failed.",
+          );
+          setAccountSyncStatus("error");
+        });
+    }, 800);
+    return () => window.clearTimeout(id);
+  }, [authUser?.id, accountSettings]);
+
   useEffect(() => {
     preloadUiSounds();
   }, []);
@@ -4971,21 +5163,7 @@ export default function App() {
                       : "bg-rose-500"
                 }`}
               />
-              <span className="text-slate-300">
-                {collab.status === "connected"
-                  ? "Live"
-                  : collab.status === "connecting"
-                    ? "Connecting…"
-                    : "Offline"}
-              </span>
-            </span>
-          )}
-          {cloudProjectId && canEdit && autoSave !== "idle" && (
-            <span
-              className="text-[11px] text-slate-500"
-              title="Changes auto-save to the cloud"
-            >
-              {autoSave === "saving" ? "Saving…" : "All changes saved"}
+              <span className="text-slate-300">Live</span>
             </span>
           )}
           {liveEnabled && collab.peers.length > 0 && (
@@ -5015,6 +5193,12 @@ export default function App() {
           )}
           {!hasProject && !sharedSlug && <NowPlaying music={menuMusic} />}
           {!hasProject && <LanguagePicker compact />}
+          {authUser && (
+            <AccountSyncIndicator
+              status={accountSyncStatus}
+              error={accountSyncError}
+            />
+          )}
           {authUser && (
             <NotificationInbox
               notifications={notifications}
@@ -5686,10 +5870,16 @@ export default function App() {
           hitsoundSource={hitsoundSkinSource}
           hitsoundSkin={hitsoundSkin}
           savedSkins={skinLibrary}
+          cloudSkins={cloudSkins}
+          cloudAvailable={!!authUser}
+          cloudLoading={cloudSkinsLoading}
           activeKeyCount={active.keyCount}
           onApplyPreset={onApplyPresetSkin}
           onApplySavedSkin={onApplyLocalSkin}
           onSkinFile={onSkinFile}
+          onUploadCloudSkin={onUploadCloudSkin}
+          onDownloadCloudSkin={onDownloadCloudSkin}
+          onDeleteCloudSkin={onDeleteCloudSkin}
           onClearSkin={onClearSkin}
           onUseDefaultHitsounds={onUseDefaultHitsounds}
           onUseVisualHitsounds={onUseVisualHitsounds}
@@ -6178,6 +6368,41 @@ export default function App() {
         onCancel={() => setConfirmResnap(false)}
       />
     </div>
+  );
+}
+
+function AccountSyncIndicator({
+  status,
+  error,
+}: {
+  status: "idle" | "syncing" | "synced" | "error";
+  error: string | null;
+}) {
+  const t = useT();
+  const label =
+    status === "syncing"
+      ? t("accountSync.syncing")
+      : status === "synced"
+        ? t("accountSync.synced")
+        : status === "error"
+          ? t("accountSync.error")
+          : t("accountSync.ready");
+  return (
+    <span
+      className="flex w-[7.75rem] shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-ink-700/42 px-2 py-1 text-[11px] font-medium text-slate-300 shadow-sm backdrop-blur-xl"
+      title={error ?? label}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          status === "syncing"
+            ? "animate-pulse bg-sky-400"
+            : status === "error"
+              ? "bg-rose-500"
+              : "bg-emerald-400"
+        }`}
+      />
+      <span className="truncate">{label}</span>
+    </span>
   );
 }
 

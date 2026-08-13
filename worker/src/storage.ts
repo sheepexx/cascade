@@ -20,6 +20,17 @@ type SharedMapStorageRow = {
   owner: string;
 };
 
+type UserSkinRow = {
+  id: string;
+  user_id: string;
+  slot: number;
+  filename: string;
+  storage_path: string;
+  sha256: string;
+  bytes: number | string;
+  updated_at: string;
+};
+
 type StorageListEntry = {
   id?: string | null;
   name?: string;
@@ -56,6 +67,34 @@ export async function handleStorageRoute(
     if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
     if (!auth.isAdmin) return storageJson({ error: "forbidden" }, 403, env);
     return adminStorageStats(env);
+  }
+
+  const userSkinUpload = url.pathname.match(
+    /^\/storage\/users\/skins\/([12])\/([0-9a-f]{64})\.osk$/i,
+  );
+  if (userSkinUpload && req.method === "PUT") {
+    const auth = await authenticate();
+    if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
+    return uploadUserSkin(
+      req,
+      Number(userSkinUpload[1]) as 1 | 2,
+      userSkinUpload[2].toLowerCase(),
+      url.searchParams.get("filename"),
+      auth,
+      env,
+    );
+  }
+
+  const userSkin = url.pathname.match(/^\/storage\/users\/skins\/([12])\/?$/i);
+  if (userSkin) {
+    const auth = await authenticate();
+    if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
+    const slot = Number(userSkin[1]) as 1 | 2;
+    if (req.method === "GET" || req.method === "HEAD") {
+      return getUserSkin(req, slot, auth, env);
+    }
+    if (req.method === "DELETE") return deleteUserSkin(slot, auth, env);
+    return storageJson({ error: "method not allowed" }, 405, env);
   }
 
   const projectRoot = url.pathname.match(
@@ -395,6 +434,142 @@ async function uploadObject(
     return storageJson({ error: "uploaded size did not match" }, 502, env);
   }
   return storageJson({ path: key, bytes: object.size, etag: object.httpEtag }, 200, env);
+}
+
+async function uploadUserSkin(
+  req: Request,
+  slot: 1 | 2,
+  sha256: string,
+  filename: string | null,
+  auth: StorageAuthContext,
+  env: WorkerEnv,
+): Promise<Response> {
+  if (!validSkinFilename(filename)) {
+    return storageJson({ error: "invalid skin filename" }, 400, env);
+  }
+  const previous = await fetchUserSkinRow(auth.uid, slot, env);
+  const storagePath = `users/${auth.uid}/skins/${slot}/${sha256}.osk`;
+  const uploadedResponse = await uploadObject(
+    req,
+    env.PROJECT_ASSETS,
+    storagePath,
+    false,
+    auth.uid,
+    env,
+  );
+  if (!uploadedResponse.ok) return uploadedResponse;
+  const uploaded = (await uploadedResponse.json()) as {
+    path: string;
+    bytes: number;
+    etag: string;
+  };
+  const params = new URLSearchParams({
+    on_conflict: "user_id,slot",
+    select: "id,user_id,slot,filename,storage_path,sha256,bytes,updated_at",
+  });
+  const databaseResponse = await supabaseRest(env, `/user_skins?${params}`, {
+    method: "POST",
+    headers: {
+      ...serviceHeaders(env),
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify({
+      user_id: auth.uid,
+      slot,
+      filename,
+      storage_path: storagePath,
+      sha256,
+      bytes: uploaded.bytes,
+    }),
+  });
+  if (!databaseResponse.ok) {
+    if (previous?.storage_path !== storagePath) {
+      await env.PROJECT_ASSETS.delete(storagePath);
+    }
+    return storageJson({ error: "could not save skin metadata" }, 502, env);
+  }
+  const rows = (await databaseResponse.json()) as UserSkinRow[];
+  const skin = rows[0];
+  if (!skin) return storageJson({ error: "could not verify skin metadata" }, 502, env);
+  if (previous && previous.storage_path !== storagePath) {
+    try {
+      await env.PROJECT_ASSETS.delete(previous.storage_path);
+    } catch (error) {
+      reportCleanupWarnings("user skin", previous.id, [errorMessage(error)]);
+    }
+  }
+  return storageJson({ skin }, 200, env);
+}
+
+async function getUserSkin(
+  req: Request,
+  slot: 1 | 2,
+  auth: StorageAuthContext,
+  env: WorkerEnv,
+): Promise<Response> {
+  const skin = await fetchUserSkinRow(auth.uid, slot, env);
+  if (!skin) return storageJson({ error: "skin slot is empty" }, 404, env);
+  const response = await serveR2Object(
+    env.PROJECT_ASSETS,
+    skin.storage_path,
+    req,
+    env,
+    false,
+  );
+  return response ?? storageJson({ error: "skin file not found" }, 404, env);
+}
+
+async function deleteUserSkin(
+  slot: 1 | 2,
+  auth: StorageAuthContext,
+  env: WorkerEnv,
+): Promise<Response> {
+  const params = new URLSearchParams({
+    user_id: `eq.${auth.uid}`,
+    slot: `eq.${slot}`,
+    select: "id,storage_path",
+  });
+  const databaseResponse = await supabaseRest(env, `/user_skins?${params}`, {
+    method: "DELETE",
+    headers: {
+      ...serviceHeaders(env),
+      Prefer: "return=representation",
+    },
+  });
+  if (!databaseResponse.ok) {
+    return storageJson({ error: "could not remove skin metadata" }, 502, env);
+  }
+  const rows = (await databaseResponse.json()) as Pick<UserSkinRow, "id" | "storage_path">[];
+  const skin = rows[0];
+  if (!skin) return storageJson({ deleted: true }, 200, env);
+  const warnings: string[] = [];
+  try {
+    await env.PROJECT_ASSETS.delete(skin.storage_path);
+  } catch (error) {
+    warnings.push(errorMessage(error));
+  }
+  reportCleanupWarnings("user skin", skin.id, warnings);
+  return storageJson({ deleted: true, warnings }, 200, env);
+}
+
+async function fetchUserSkinRow(
+  userId: string,
+  slot: 1 | 2,
+  env: WorkerEnv,
+): Promise<UserSkinRow | null> {
+  const params = new URLSearchParams({
+    user_id: `eq.${userId}`,
+    slot: `eq.${slot}`,
+    select: "id,user_id,slot,filename,storage_path,sha256,bytes,updated_at",
+    limit: "1",
+  });
+  const response = await supabaseRest(env, `/user_skins?${params}`, {
+    headers: serviceHeaders(env),
+  });
+  if (!response.ok) throw new Error("could not read user skin metadata");
+  const rows = (await response.json()) as UserSkinRow[];
+  return rows[0] ?? null;
 }
 
 async function serveR2Object(
@@ -839,6 +1014,12 @@ function allowedContentType(contentType: string): boolean {
     contentType === "application/zip" ||
     contentType === "application/x-zip-compressed"
   );
+}
+
+function validSkinFilename(filename: string | null): filename is string {
+  if (!filename || !/\.(osk|zip)$/i.test(filename)) return false;
+  if (filename.includes("/") || filename.includes("\\")) return false;
+  return new TextEncoder().encode(filename).byteLength <= 255;
 }
 
 function checksumFromProjectKey(

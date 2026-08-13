@@ -186,6 +186,202 @@ describe("project deletion", () => {
   }
 });
 
+describe("account skin storage", () => {
+  const owner = "6994f386-9685-416b-91c1-a9e47880d799";
+  const sha256 = "a".repeat(64);
+  const storagePath = `users/${owner}/skins/1/${sha256}.osk`;
+  const skin = {
+    id: "15dfbb4a-41d7-4a90-8213-3cb62649ae91",
+    user_id: owner,
+    slot: 1,
+    filename: "cloud-skin.osk",
+    storage_path: storagePath,
+    sha256,
+    bytes: 9,
+    updated_at: "2026-08-13T12:00:00.000Z",
+  };
+  const auth: StorageAuthContext = {
+    uid: owner,
+    isAdmin: false,
+    supabaseToken: "user-token",
+  };
+
+  it("stores a user-namespaced object and upserts its slot metadata", async () => {
+    const events: string[] = [];
+    const env = skinEnv(events);
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        events.push("metadata-upsert");
+        return jsonResponse([skin]);
+      }
+      events.push("metadata-read");
+      return jsonResponse([]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const request = new Request(
+      `https://worker.test/storage/users/skins/1/${sha256}.osk?filename=cloud-skin.osk`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Length": "9",
+          "Content-Type": "application/zip",
+        },
+        body: "skin-data",
+      },
+    );
+
+    const response = await handleStorageRoute(
+      request,
+      new URL(request.url),
+      env,
+      async () => auth,
+    );
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toEqual({ skin });
+    expect(events).toEqual(["metadata-read", `r2-put:${storagePath}`, "metadata-upsert"]);
+    const upsert = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(String(upsert?.[0])).toContain("on_conflict=user_id%2Cslot");
+    expect(JSON.parse(String(upsert?.[1]?.body))).toMatchObject({
+      user_id: owner,
+      slot: 1,
+      filename: "cloud-skin.osk",
+      storage_path: storagePath,
+      sha256,
+      bytes: 9,
+    });
+  });
+
+  it("requires an authenticated account before reading a skin slot", async () => {
+    const events: string[] = [];
+    const env = skinEnv(events);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const request = new Request("https://worker.test/storage/users/skins/1");
+
+    const response = await handleStorageRoute(
+      request,
+      new URL(request.url),
+      env,
+      async () => null,
+    );
+
+    expect(response?.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
+  });
+
+  it("resolves metadata without downloading the object for a HEAD request", async () => {
+    const events: string[] = [];
+    const env = skinEnv(events);
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse([skin])));
+    const request = new Request("https://worker.test/storage/users/skins/1", {
+      method: "HEAD",
+    });
+
+    const response = await handleStorageRoute(
+      request,
+      new URL(request.url),
+      env,
+      async () => auth,
+    );
+
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("Content-Length")).toBe("9");
+    expect(events).toEqual([`r2-head:${storagePath}`]);
+  });
+
+  it("deletes metadata before removing the stored object", async () => {
+    const events: string[] = [];
+    const env = skinEnv(events);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "DELETE") events.push("metadata-delete");
+        return jsonResponse([{ id: skin.id, storage_path: storagePath }]);
+      }),
+    );
+    const request = new Request("https://worker.test/storage/users/skins/1", {
+      method: "DELETE",
+    });
+
+    const response = await handleStorageRoute(
+      request,
+      new URL(request.url),
+      env,
+      async () => auth,
+    );
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toEqual({ deleted: true, warnings: [] });
+    expect(events).toEqual(["metadata-delete", `r2-delete:${storagePath}`]);
+  });
+
+  function skinEnv(events: string[]): WorkerEnv {
+    const object = (key: string): R2Object => ({
+      key,
+      version: "version",
+      size: 9,
+      etag: "etag",
+      httpEtag: '"etag"',
+      checksums: { toJSON: () => ({}) },
+      uploaded: new Date(0),
+      storageClass: "Standard",
+      writeHttpMetadata() {},
+    });
+    const bucket: R2Bucket = {
+      async head(key) {
+        events.push(`r2-head:${key}`);
+        return object(key);
+      },
+      async get() {
+        throw new Error("not implemented");
+      },
+      async put(key) {
+        events.push(`r2-put:${key}`);
+        return object(key);
+      },
+      async createMultipartUpload() {
+        throw new Error("not implemented");
+      },
+      resumeMultipartUpload() {
+        throw new Error("not implemented");
+      },
+      async list() {
+        return { objects: [], delimitedPrefixes: [], truncated: false };
+      },
+      async delete(keys) {
+        const values = typeof keys === "string" ? [keys] : keys;
+        for (const key of values) events.push(`r2-delete:${key}`);
+      },
+    };
+    return {
+      PROJECT_ASSETS: bucket,
+      SHARED_ASSETS: bucket,
+      CLIENT_ID: "60987",
+      FRONTEND_URL: "https://cascade.sheepex.net",
+      OSU_REDIRECT_URI:
+        "https://mania-editor.noahcraft01.workers.dev/auth/osu/callback",
+      SUPABASE_URL: "https://splqsxhwdusjeqthinxz.supabase.co",
+      SUPABASE_STORAGE_FALLBACK: "false",
+      SUPABASE_STORAGE_ALLOWANCE_BYTES: "1073741824",
+      R2_STORAGE_ALLOWANCE_BYTES: "10737418240",
+      MAX_ASSET_BYTES: "62914560",
+      CLIENT_SECRET: "client-secret",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_JWT_SECRET: "jwt-secret",
+      COOKIE_SECRET: "cookie-secret",
+    };
+  }
+
+  function jsonResponse(value: unknown): Response {
+    return new Response(JSON.stringify(value), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+});
+
 describe("r2BucketUsage", () => {
   it("adds object sizes across paginated bucket listings", async () => {
     const list = vi
