@@ -9,6 +9,7 @@ import {
   NewMapIcon,
   PackCreatorIcon,
   SampleMapsIcon,
+  SettingsIcon,
 } from "./ui/StartIcons";
 
 type MenuAction = {
@@ -159,6 +160,7 @@ export function StartScreen({
   onPackCreator,
   onTryMaps,
   onImport,
+  onSettings,
   children,
 }: {
   music: MenuMusic;
@@ -168,6 +170,7 @@ export function StartScreen({
   onPackCreator: () => void;
   onTryMaps: () => void;
   onImport: () => void;
+  onSettings: () => void;
   children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -241,6 +244,13 @@ export function StartScreen({
       icon: <ImportIcon className="h-7 w-7" />,
       color: "#3c3c46",
       onClick: onImport,
+    },
+    {
+      id: "settings",
+      label: t("menu.settings"),
+      icon: <SettingsIcon className="h-7 w-7" />,
+      color: "#367f8e",
+      onClick: onSettings,
     },
   ];
 

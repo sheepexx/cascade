@@ -51,7 +51,7 @@ export function AccountControl({
   compact = false,
 }: {
   onOpenMyMaps: () => void;
-  onOpenPresets: () => void;
+  onOpenPresets?: () => void;
   onOpenFeedback: () => void;
   onOpenAdmin: () => void;
   compact?: boolean;
@@ -235,9 +235,11 @@ export function AccountControl({
             <MenuItem onClick={() => choose(onOpenMyMaps)}>
               {t("account.myMaps")}
             </MenuItem>
-            <MenuItem onClick={() => choose(onOpenPresets)}>
-              {t("nav.presets")}
-            </MenuItem>
+            {onOpenPresets && (
+              <MenuItem onClick={() => choose(onOpenPresets)}>
+                {t("nav.presets")}
+              </MenuItem>
+            )}
             <MenuItem onClick={() => choose(onOpenFeedback)}>
               {t("account.feedback")}
             </MenuItem>

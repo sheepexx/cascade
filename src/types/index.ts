@@ -131,6 +131,7 @@ export type SongMeta = {
   artist: string;
   creator: string;
   tags?: string;
+  source?: string;
   /**
    * Original-script metadata. Kept separate from the romanised title/artist so
    * a round-trip through Cascade doesn't overwrite it — osu! stores both.
@@ -396,6 +397,7 @@ export type AppSettings = {
   waveformSensitivity: number;
   uiScale: number;
   playfieldScale: number;
+  noteHeightScale: number;
   longNoteBodyScale: number;
   hitsoundsEnabled: boolean;
   hitsoundSet: HitsoundSet;
@@ -405,6 +407,9 @@ export type AppSettings = {
   showWaveform: boolean;
   showTimingLines: boolean;
   difficultyPanelOpen: boolean;
+  showBottomTimeline: boolean;
+  showPpCounter: boolean;
+  showPatternTools: boolean;
   upscroll: boolean;
   svPreviewPlayback: boolean;
   bpmAffectsScroll: boolean;
@@ -457,6 +462,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   waveformSensitivity: 1,
   uiScale: 1,
   playfieldScale: 1.5,
+  noteHeightScale: 1.35,
   longNoteBodyScale: 0.75,
   hitsoundsEnabled: true,
   hitsoundSet: "normal",
@@ -466,6 +472,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showWaveform: false,
   showTimingLines: true,
   difficultyPanelOpen: true,
+  showBottomTimeline: true,
+  showPpCounter: true,
+  showPatternTools: true,
   upscroll: false,
   svPreviewPlayback: false,
   bpmAffectsScroll: false,

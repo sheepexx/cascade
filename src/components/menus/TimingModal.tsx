@@ -340,7 +340,7 @@ export const TimingModal = memo(function TimingModal({
         <section className="flex flex-col gap-2 rounded-xl border border-ink-600 bg-ink-700/40 p-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Offset (first red point)
+              Offset (first uninherited point)
             </h3>
             <span className="font-mono text-xs text-slate-300">
               {firstRed ? `${firstRed.time} ms · ${formatTime(firstRed.time)}` : "-"}
@@ -380,7 +380,7 @@ export const TimingModal = memo(function TimingModal({
                   setMarkerShift(0);
                 }}
               >
-                Shift red, green, preview and bookmarks
+                Shift timing points, preview and bookmarks
               </Button>
             </div>
           )}
@@ -406,24 +406,24 @@ export const TimingModal = memo(function TimingModal({
                   }`}
                 >
                   {kind === "red"
-                    ? `Timing · ${reds.length}`
-                    : `Effects · ${points.length - reds.length}`}
+                    ? `Uninherited · ${reds.length}`
+                    : `Inherited · ${points.length - reds.length}`}
                 </button>
               ))}
             </div>
             <div className="flex gap-2">
               <Button onClick={addRed} variant="primary">
-                + Red at playhead
+                + Uninherited
               </Button>
               <Button onClick={addGreen} variant="primary">
-                + Green at playhead
+                + Inherited
               </Button>
             </div>
           </div>
           <p className="text-[11px] text-slate-500">
             {pointTab === "red"
-              ? "Red points set BPM, meter and the beat grid."
-              : "Green points set scroll velocity (SV), volume and kiai. Select a row to edit its full settings."}
+              ? "Uninherited timing points set BPM, meter and the beat grid. They are shown in red."
+              : "Inherited timing points set scroll velocity (SV), volume and kiai. They are shown in green. Select a row to edit its full settings."}
           </p>
 
           {selectedPointIds.size > 0 && (
@@ -662,7 +662,7 @@ function PointRow({
             red ? "bg-rose-500/30 text-rose-200" : "bg-emerald-500/30 text-emerald-200"
           }`}
         >
-          {red ? "Red" : "Green"}
+          {red ? "Uninherited" : "Inherited"}
         </span>
         <span className="font-mono text-xs text-slate-200">
           {p.time} ms

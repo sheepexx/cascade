@@ -79,7 +79,7 @@ export function SettingsModal({
     onSmMeta?.({ ...sm, [key]: value });
 
   return (
-    <Modal open={open} onClose={onClose} title={t("mapSettings.title")}>
+    <Modal open={open} onClose={onClose} title={t("mapSettings.title")} width="max-w-xl">
       <div className="flex flex-col gap-6">
         <section>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -283,6 +283,24 @@ export function SettingsModal({
               onChange={(e) => set("artist", e.target.value)}
             />
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("mapSettings.fieldTitleUnicode")}>
+              <TextInput
+                value={meta.titleUnicode ?? ""}
+                onChange={(e) =>
+                  set("titleUnicode", e.target.value || undefined)
+                }
+              />
+            </Field>
+            <Field label={t("mapSettings.fieldArtistUnicode")}>
+              <TextInput
+                value={meta.artistUnicode ?? ""}
+                onChange={(e) =>
+                  set("artistUnicode", e.target.value || undefined)
+                }
+              />
+            </Field>
+          </div>
           <Field label={t("mapSettings.fieldCreator")}>
             <TextInput
               value={meta.creator}
@@ -294,6 +312,12 @@ export function SettingsModal({
               value={meta.tags ?? ""}
               onChange={(e) => set("tags", e.target.value)}
               placeholder={t("mapSettings.tagsPlaceholder")}
+            />
+          </Field>
+          <Field label={t("mapSettings.fieldSource")}>
+            <TextInput
+              value={meta.source ?? ""}
+              onChange={(e) => set("source", e.target.value || undefined)}
             />
           </Field>
           <p className="text-[11px] text-slate-500">

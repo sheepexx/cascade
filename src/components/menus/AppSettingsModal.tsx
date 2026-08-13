@@ -18,6 +18,8 @@ import {
 import { keyLabel, keybindWarnings } from "../../lib/playtestKeybinds";
 import { useLocale, type Locale, type MessageKey } from "../../lib/i18n";
 import { LOCALES } from "../../lib/i18n/core";
+import type { EditorKeybinds } from "../../lib/editorKeybinds";
+import { ShortcutsSettings } from "./ShortcutsSettings";
 
 type Props = {
   open: boolean;
@@ -26,8 +28,18 @@ type Props = {
   onUiScale: (value: number) => void;
   playfieldScale: number;
   onPlayfieldScale: (value: number) => void;
+  noteHeightScale: number;
+  onNoteHeightScale: (value: number) => void;
   longNoteBodyScale: number;
   onLongNoteBodyScale: (value: number) => void;
+  difficultyPanelOpen: boolean;
+  onDifficultyPanelOpen: (value: boolean) => void;
+  showBottomTimeline: boolean;
+  onShowBottomTimeline: (value: boolean) => void;
+  showPpCounter: boolean;
+  onShowPpCounter: (value: boolean) => void;
+  showPatternTools: boolean;
+  onShowPatternTools: (value: boolean) => void;
   hitsoundsEnabled: boolean;
   onHitsoundsEnabled: (value: boolean) => void;
   hitsoundVolume: number;
@@ -58,10 +70,12 @@ type Props = {
   onUiSoundsEnabled: (value: boolean) => void;
   uiSoundVolume: number;
   onUiSoundVolume: (value: number) => void;
+  editorKeybinds: EditorKeybinds;
+  onEditorKeybinds: (value: EditorKeybinds) => void;
   keyCount: number;
 };
 
-const TABS = ["Editor", "Playtest", "Audio", "Export"] as const;
+const TABS = ["Editor", "Playtest", "Audio", "Export", "Shortcuts"] as const;
 type Tab = (typeof TABS)[number];
 const SHOW_MANUAL_SKILL_TUNING = false;
 const ENABLE_MANUAL_SKILL_TUNING = false;
@@ -71,6 +85,7 @@ const TAB_LABELS: Record<Tab, MessageKey> = {
   Playtest: "settings.tabPlaytest",
   Audio: "settings.tabAudio",
   Export: "settings.tabExport",
+  Shortcuts: "settings.tabShortcuts",
 };
 
 export function AppSettingsModal({
@@ -80,8 +95,18 @@ export function AppSettingsModal({
   onUiScale,
   playfieldScale,
   onPlayfieldScale,
+  noteHeightScale,
+  onNoteHeightScale,
   longNoteBodyScale,
   onLongNoteBodyScale,
+  difficultyPanelOpen,
+  onDifficultyPanelOpen,
+  showBottomTimeline,
+  onShowBottomTimeline,
+  showPpCounter,
+  onShowPpCounter,
+  showPatternTools,
+  onShowPatternTools,
   hitsoundsEnabled,
   onHitsoundsEnabled,
   hitsoundVolume,
@@ -112,6 +137,8 @@ export function AppSettingsModal({
   onUiSoundsEnabled,
   uiSoundVolume,
   onUiSoundVolume,
+  editorKeybinds,
+  onEditorKeybinds,
   keyCount,
 }: Props) {
   const { locale, setLocale, t } = useLocale();
@@ -204,7 +231,7 @@ export function AppSettingsModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={t("settings.title")}>
+    <Modal open={open} onClose={onClose} title={t("settings.title")} width="max-w-4xl">
       {/* Floor the height so switching between a long tab (Playtest) and a
           short one (Audio) doesn't collapse the dialog. */}
       <div className="flex min-h-[min(30rem,60vh)] flex-col gap-5">
@@ -270,6 +297,37 @@ export function AppSettingsModal({
 
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.layout")}
+              </h3>
+              <div className="flex flex-col gap-3">
+                <SettingToggle
+                  label={t("settings.showDifficultyPanel")}
+                  checked={difficultyPanelOpen}
+                  onChange={onDifficultyPanelOpen}
+                />
+                <SettingToggle
+                  label={t("settings.showBottomTimeline")}
+                  checked={showBottomTimeline}
+                  onChange={onShowBottomTimeline}
+                />
+                <SettingToggle
+                  label={t("settings.showPpCounter")}
+                  checked={showPpCounter}
+                  onChange={onShowPpCounter}
+                />
+                <SettingToggle
+                  label={t("settings.showPatternTools")}
+                  checked={showPatternTools}
+                  onChange={onShowPatternTools}
+                />
+              </div>
+              <p className="mt-3 text-[11px] text-slate-500">
+                {t("settings.layoutHint")}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.playfield")}
               </h3>
               <div className="flex flex-col gap-2">
@@ -305,6 +363,24 @@ export function AppSettingsModal({
                 />
                 <p className="text-[11px] text-slate-500">
                   {t("settings.playfieldHint")}
+                </p>
+                <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                  <span>{t("settings.noteHeight")}</span>
+                  <span className="font-medium text-slate-200">
+                    {Math.round(noteHeightScale * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0.75}
+                  max={2}
+                  step={0.05}
+                  value={noteHeightScale}
+                  onChange={(e) => onNoteHeightScale(Number(e.target.value))}
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+                />
+                <p className="text-[11px] text-slate-500">
+                  {t("settings.noteHeightHint")}
                 </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
                   <span>{t("settings.waveformOnLane")}</span>
@@ -1044,6 +1120,13 @@ export function AppSettingsModal({
               </div>
             </section>
           </div>
+        )}
+
+        {tab === "Shortcuts" && (
+          <ShortcutsSettings
+            keybinds={editorKeybinds}
+            onKeybinds={onEditorKeybinds}
+          />
         )}
       </div>
     </Modal>

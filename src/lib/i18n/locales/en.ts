@@ -67,16 +67,28 @@ export const en = {
   "settings.tabPlaytest": "Playtest",
   "settings.tabAudio": "Audio",
   "settings.tabExport": "Export",
+  "settings.tabShortcuts": "Shortcuts",
   "settings.language": "Language",
   "settings.uiScale": "Interface scale",
   "settings.uiScaleHint":
     "Scales menus and controls for larger or higher-resolution displays. New installations start slightly larger on 2K-class screens.",
+
+  "settings.layout": "Editor layout",
+  "settings.showDifficultyPanel": "Difficulty and map stats panel",
+  "settings.showBottomTimeline": "Bottom timeline and SV tools",
+  "settings.showPpCounter": "Speed and PP panel",
+  "settings.showPatternTools": "Pattern preset tools",
+  "settings.layoutHint":
+    "Hide panels you do not use. Settings stays available in the editor header so you can restore them at any time.",
 
   "settings.playfield": "Playfield",
   "settings.backgroundDim": "Background dim",
   "settings.sizeZoom": "Size / zoom",
   "settings.playfieldHint":
     "Higher dim keeps the notefield easier to read. Size / zoom is visual only - also adjustable with the + / − keys.",
+  "settings.noteHeight": "Default note height",
+  "settings.noteHeightHint":
+    "Makes the built-in bar notes taller or shorter without changing their timing.",
   "settings.waveformOnLane": "Waveform on hit lane",
   "settings.waveformHint":
     "Overlays the song’s waveform on the lanes, in the editor and in playtest, so audio peaks line up with your notes. Handy for checking the offset. Toggle with W.",
@@ -194,8 +206,11 @@ export const en = {
   "mapSettings.metadata": "Metadata",
   "mapSettings.fieldTitle": "Title",
   "mapSettings.fieldArtist": "Artist",
+  "mapSettings.fieldTitleUnicode": "Title (Unicode)",
+  "mapSettings.fieldArtistUnicode": "Artist (Unicode)",
   "mapSettings.fieldCreator": "Creator",
   "mapSettings.fieldTags": "Tags",
+  "mapSettings.fieldSource": "Source",
   "mapSettings.tagsPlaceholder": "space-separated, e.g. stream jumpstream tech",
   "mapSettings.tagsHint":
     "Tags help players find your map in searches. Difficulty name & key count are set per difficulty in the Difficulty menu.",
@@ -441,6 +456,7 @@ export const en = {
   "menu.open": "Cascade menu",
   "menu.close": "Close menu",
   "menu.importMap": "Import map",
+  "menu.settings": "Settings",
   "menu.myMaps": "My Maps",
   "menu.newMap": "New map",
   "menu.packCreator": "Pack creator",

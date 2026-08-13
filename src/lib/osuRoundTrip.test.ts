@@ -26,6 +26,7 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
     artist: "Test Artist",
     creator: "Mapper",
     tags: "foo bar",
+    source: "Feedback collection",
   };
 
   const notes: ManiaNote[] = [
@@ -60,6 +61,10 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
 
   it("preserves song metadata and appends the Cascade tag", () => {
     expect(parsed.meta).toEqual({ ...meta, tags: "foo bar Cascade" });
+  });
+
+  it("writes the source field", () => {
+    expect(text).toContain("Source:Feedback collection");
   });
 
   it("keeps the map attached to its uploaded set", () => {

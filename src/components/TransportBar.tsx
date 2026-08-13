@@ -82,68 +82,8 @@ export function TransportBar({
   };
 
   return (
-    <div className="flex items-center gap-4 border-b border-white/10 bg-ink-800/55 px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl">
-      <div className="flex-1" />
-
-      {jumpOpen ? (
-        <input
-          ref={jumpInputRef}
-          value={jumpDraft}
-          onChange={(e) => {
-            setJumpDraft(e.target.value);
-            setJumpInvalid(false);
-          }}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Enter") submitJump();
-            else if (e.key === "Escape") onJumpOpenChange(false);
-          }}
-          onBlur={() => onJumpOpenChange(false)}
-          onFocus={(e) => e.currentTarget.select()}
-          placeholder="mm:ss.ms"
-          spellCheck={false}
-          className={`w-36 rounded border bg-ink-900/80 px-2 py-1 font-mono text-xs text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur transition-colors ${
-            jumpInvalid ? "border-red-400/80" : "border-accent/70"
-          }`}
-          title={t("transport.jumpTitle")}
-        />
-      ) : (
-        // Each half copies what it shows: the raw millisecond count for
-        // pasting into tools that take numbers, the mm:ss.ms timestamp for
-        // pasting into osu! or chat.
-        <span className="flex items-center rounded border border-white/5 bg-ink-900/55 font-mono text-xs shadow-inner shadow-black/10 backdrop-blur">
-          <button
-            onClick={() => copyValue(String(Math.round(currentTime)), "ms")}
-            className={`cursor-pointer rounded-l py-1 pl-2 pr-1 transition-colors hover:bg-white/10 ${
-              copied === "ms" ? "text-accent" : "text-slate-100"
-            }`}
-            title={t("transport.copyMs")}
-          >
-            {Math.round(currentTime)} ms
-          </button>
-          <span className="text-slate-500">/</span>
-          <button
-            onClick={() => copyValue(formatTime(currentTime), "timestamp")}
-            className={`cursor-pointer rounded-r py-1 pl-1 pr-2 transition-colors hover:bg-white/10 hover:text-slate-100 ${
-              copied === "timestamp" ? "text-accent" : "text-slate-500"
-            }`}
-            title={t("transport.copyTimestamp")}
-          >
-            {formatTime(currentTime)}
-          </button>
-        </span>
-      )}
-      {!jumpOpen && (
-        <button
-          onClick={() => onJumpOpenChange(true)}
-          className="cursor-pointer rounded border border-white/5 bg-ink-900/55 px-2 py-1 text-xs text-slate-400 shadow-inner shadow-black/10 backdrop-blur transition-colors hover:bg-white/10 hover:text-slate-100"
-          title={t("transport.jumpButton")}
-        >
-          Go to
-        </button>
-      )}
-
-      <div className="flex-1 flex items-center justify-end gap-4">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b border-white/10 bg-ink-800/55 px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl">
+      <div className="flex min-w-0 items-center gap-4">
         <label className="flex items-center gap-2 text-xs text-slate-400">
           Vol
           <input
@@ -176,6 +116,66 @@ export function TransportBar({
             {Math.round(hitsoundVolume * 100)}%
           </span>
         </label>
+      </div>
+
+      <div className="flex items-center justify-center gap-2">
+        {jumpOpen ? (
+          <input
+            ref={jumpInputRef}
+            value={jumpDraft}
+            onChange={(e) => {
+              setJumpDraft(e.target.value);
+              setJumpInvalid(false);
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") submitJump();
+              else if (e.key === "Escape") onJumpOpenChange(false);
+            }}
+            onBlur={() => onJumpOpenChange(false)}
+            onFocus={(e) => e.currentTarget.select()}
+            placeholder="mm:ss.ms"
+            spellCheck={false}
+            className={`w-36 rounded border bg-ink-900/80 px-2 py-1 font-mono text-xs text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur transition-colors ${
+              jumpInvalid ? "border-red-400/80" : "border-accent/70"
+            }`}
+            title={t("transport.jumpTitle")}
+          />
+        ) : (
+          <span className="flex items-center rounded border border-white/5 bg-ink-900/55 font-mono text-xs shadow-inner shadow-black/10 backdrop-blur">
+            <button
+              onClick={() => copyValue(String(Math.round(currentTime)), "ms")}
+              className={`cursor-pointer rounded-l py-1 pl-2 pr-1 transition-colors hover:bg-white/10 ${
+                copied === "ms" ? "text-accent" : "text-slate-100"
+              }`}
+              title={t("transport.copyMs")}
+            >
+              {Math.round(currentTime)} ms
+            </button>
+            <span className="text-slate-500">/</span>
+            <button
+              onClick={() => copyValue(formatTime(currentTime), "timestamp")}
+              className={`cursor-pointer rounded-r py-1 pl-1 pr-2 transition-colors hover:bg-white/10 hover:text-slate-100 ${
+                copied === "timestamp" ? "text-accent" : "text-slate-500"
+              }`}
+              title={t("transport.copyTimestamp")}
+            >
+              {formatTime(currentTime)}
+            </button>
+          </span>
+        )}
+        {!jumpOpen && (
+          <button
+            onClick={() => onJumpOpenChange(true)}
+            className="cursor-pointer rounded border border-white/5 bg-ink-900/55 px-2 py-1 text-xs text-slate-400 shadow-inner shadow-black/10 backdrop-blur transition-colors hover:bg-white/10 hover:text-slate-100"
+            title={t("transport.jumpButton")}
+          >
+            Go to
+          </button>
+        )}
+      </div>
+
+      <div className="flex min-w-0 items-center justify-end gap-4">
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
           {t("transport.snap")}

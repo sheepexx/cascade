@@ -12,6 +12,7 @@ BackgroundFile: bg.jpg
 Mode: Keys4
 Title: Test
 Artist: Artist
+Source: Album
 Tags: jack speed
 Creator: Mapper
 DifficultyName: Hard
@@ -37,7 +38,12 @@ HitObjects:
     Lane: 4
     EndTime: 1500
 `);
-    expect(parsed.meta).toMatchObject({ title: "Test", artist: "Artist", creator: "Mapper" });
+    expect(parsed.meta).toMatchObject({
+      title: "Test",
+      artist: "Artist",
+      creator: "Mapper",
+      source: "Album",
+    });
     expect(parsed.difficulty.keyCount).toBe(4);
     expect(parsed.difficulty.notes.map((note) => [note.column, note.startTime, note.endTime])).toEqual([
       [0, 500, undefined],
@@ -66,13 +72,14 @@ HitObjects:
       makeRedPoint(1000.5, 180),
     ];
     const source = buildQuaFile({
-      meta: { title: "Song", artist: "Artist", creator: "Mapper" },
+      meta: { title: "Song", artist: "Artist", creator: "Mapper", source: "Game" },
       difficulty,
       timingPoints: points,
       audioFilename: "song.ogg",
       bpmAffectsScroll: true,
     });
     const parsed = parseQuaFile(source);
+    expect(parsed.meta.source).toBe("Game");
     expect(parsed.difficulty.keyCount).toBe(7);
     expect(parsed.difficulty.notes.map((note) => [note.column, note.startTime, note.endTime])).toEqual([
       [0, 250, undefined],

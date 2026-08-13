@@ -103,6 +103,7 @@ type Props = {
   dimBackground: number;
   skin: ManiaKeymodeSkin | null;
   playfieldScale: number;
+  noteHeightScale: number;
   longNoteBodyScale: number;
   smoothScrolling?: boolean;
   upscroll?: boolean;
@@ -1005,10 +1006,12 @@ export function ManiaEditor(props: Props) {
       if (note.column < 0 || note.column >= keyCount) return null;
       const x = originX + note.column * laneWidth;
       const cr = skinColsRef.current[note.column];
+      const defaultNoteHeight =
+        NOTE_HEIGHT * (propsRef.current.noteHeightScale || 1);
       const spriteHeight = (img: HTMLImageElement | null | undefined) =>
         img && img.width > 0
           ? (laneWidth - 6) * (img.height / img.width)
-          : NOTE_HEIGHT;
+          : defaultNoteHeight;
 
       const up = propsRef.current.upscroll === true;
       if (note.endTime !== undefined && note.endTime > note.startTime) {
@@ -1570,6 +1573,8 @@ export function ManiaEditor(props: Props) {
     const heldLnIdsRef = propsRef.current.heldLnIdsRef;
     const consumedIdsRef = propsRef.current.consumedIdsRef;
     const missWindowMs = propsRef.current.missWindowMs ?? 0;
+    const defaultNoteHeight =
+      NOTE_HEIGHT * (propsRef.current.noteHeightScale || 1);
     const move = moveDragRef.current;
     // Derive the cull margin through yToTime so it stays 256px wide even when
     // SV compresses or stretches time near the screen edges.
@@ -1658,7 +1663,7 @@ export function ManiaEditor(props: Props) {
         const headH =
           headSprite && headSprite.width > 0
             ? (laneWidth - 6) * (headSprite.height / headSprite.width)
-            : NOTE_HEIGHT;
+            : defaultNoteHeight;
         const top = up ? headY + headH / 2 : Math.min(yEnd, headY);
         const bottom = up ? Math.max(yEnd, headY) : headY - headH / 2;
         if (bottom > top) {
@@ -1691,8 +1696,8 @@ export function ManiaEditor(props: Props) {
             const kiaiDefault = noteInKiai && !skinColour;
             const bodyW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
             ctx.fillStyle = kiaiDefault
-              ? "rgba(91,192,255,0.35)"
-              : "rgba(154,160,173,0.35)";
+              ? "rgba(91,192,255,0.68)"
+              : "rgba(154,160,173,0.68)";
             roundRect(
               ctx,
               x + laneWidth / 2 - bodyW / 2,
@@ -1706,7 +1711,7 @@ export function ManiaEditor(props: Props) {
               drawSprite(ctx, cr.tail, x, yEnd, laneWidth, up);
             } else {
               ctx.fillStyle = kiaiDefault ? "#5bc0ff" : "#9aa0ad";
-              roundRect(ctx, x + 3, up ? yEnd : yEnd - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
+              roundRect(ctx, x + 3, up ? yEnd : yEnd - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
               ctx.fill();
             }
           }
@@ -1715,14 +1720,16 @@ export function ManiaEditor(props: Props) {
           drawSprite(ctx, headSprite, x, headY, laneWidth, up);
         } else {
           ctx.fillStyle = color;
-          roundRect(ctx, x + 3, up ? headY : headY - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
+          roundRect(ctx, x + 3, up ? headY : headY - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
           ctx.fill();
           if (hitsoundModeRef.current) {
             drawHitsoundLetters(
               ctx,
               note.hitSound,
               x + laneWidth / 2,
-              up ? headY + NOTE_HEIGHT / 2 : headY - NOTE_HEIGHT / 2,
+              up
+                ? headY + defaultNoteHeight / 2
+                : headY - defaultNoteHeight / 2,
             );
           }
         }
@@ -1732,14 +1739,14 @@ export function ManiaEditor(props: Props) {
           drawSprite(ctx, cr.note, x, y, laneWidth, up);
         } else {
           ctx.fillStyle = color;
-          roundRect(ctx, x + 3, up ? y : y - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
+          roundRect(ctx, x + 3, up ? y : y - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
           ctx.fill();
           if (hitsoundModeRef.current) {
             drawHitsoundLetters(
               ctx,
               note.hitSound,
               x + laneWidth / 2,
-              up ? y + NOTE_HEIGHT / 2 : y - NOTE_HEIGHT / 2,
+              up ? y + defaultNoteHeight / 2 : y - defaultNoteHeight / 2,
             );
           }
         }
@@ -1782,7 +1789,7 @@ export function ManiaEditor(props: Props) {
       const top = Math.min(yStart, yEnd);
       const bottom = Math.max(yStart, yEnd);
       const previewW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
-      ctx.fillStyle = "rgba(154,160,173,0.25)";
+      ctx.fillStyle = "rgba(154,160,173,0.48)";
       roundRect(ctx, x + laneWidth / 2 - previewW / 2, top, previewW, Math.max(bottom - top, 2), 5);
       ctx.fill();
     }
@@ -1806,7 +1813,7 @@ export function ManiaEditor(props: Props) {
           drawSprite(ctx, ghost, x, y, laneWidth, up);
         } else {
           ctx.fillStyle = noteColor(col);
-          roundRect(ctx, x + 3, up ? y : y - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
+          roundRect(ctx, x + 3, up ? y : y - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
           ctx.fill();
         }
       }

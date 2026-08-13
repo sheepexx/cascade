@@ -86,6 +86,7 @@ export function parseQuaFile(source: string): ParsedQua {
     artist: text(root.Artist, "Unknown Artist"),
     creator: text(root.Creator, "Mapper"),
     tags: text(root.Tags),
+    source: text(root.Source),
   };
   const reds = array(root.TimingPoints)
     .map((point) => ({
@@ -243,7 +244,7 @@ export function buildQuaFile({
     Mode: `Keys${difficulty.keyCount}`,
     Title: meta.title,
     Artist: meta.artist,
-    Source: "",
+    Source: meta.source ?? "",
     Tags: meta.tags ?? "",
     Creator: meta.creator,
     DifficultyName: difficulty.name,

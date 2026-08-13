@@ -114,6 +114,7 @@ export function parseOsuFile(text: string): ParsedOsu {
     artist,
     creator: meta["Creator"] ?? "Mapper",
     tags: meta["Tags"] ?? "",
+    source: meta["Source"] ?? "",
     ...(titleUnicode && titleUnicode !== title ? { titleUnicode } : {}),
     ...(artistUnicode && artistUnicode !== artist ? { artistUnicode } : {}),
     ...(Number.isFinite(setId) && setId > 0 ? { beatmapSetId: setId } : {}),

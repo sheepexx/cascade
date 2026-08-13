@@ -143,7 +143,7 @@ export function buildOsuFile({
     `ArtistUnicode:${meta.artistUnicode ?? meta.artist}`,
     `Creator:${meta.creator}`,
     `Version:${difficulty.name}`,
-    "Source:",
+    `Source:${meta.source ?? ""}`,
     `Tags:${tagsWithCascade(meta.tags)}`,
     // Preserved from the import so an export updates the existing submission
     // rather than looking like a new one. Map Settings can override these with

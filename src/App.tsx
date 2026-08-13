@@ -226,14 +226,10 @@ import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
 import { sortedPoints } from "./lib/timing";
 import { hasSv } from "./lib/sv";
 import {
-  DEFAULT_EDITOR_KEYBINDS,
-  editorKeyLabel,
-  editorKeybindConflicts,
   matchesBind,
   normalizeEditorKeybinds,
   timelineZoomDirection,
   type EditorAction,
-  type EditorKeybinds,
 } from "./lib/editorKeybinds";
 import {
   fetchFeatureFlags,
@@ -272,7 +268,6 @@ type ModalId =
   | "difficulty"
   | "tools"
   | "aimod"
-  | "info"
   | "myMaps"
   | "presets"
   | "publishPreset"
@@ -1613,6 +1608,10 @@ export default function App() {
     meta.title !== DEFAULT_SONG_META.title ||
     meta.artist !== DEFAULT_SONG_META.artist ||
     meta.creator !== DEFAULT_SONG_META.creator ||
+    Boolean(meta.titleUnicode) ||
+    Boolean(meta.artistUnicode) ||
+    Boolean(meta.source) ||
+    Boolean(meta.tags) ||
     timingPoints.length !== 1 ||
     timingPoints[0]?.bpm !== 120 ||
     !hasDefaultDifficulty;
@@ -4822,9 +4821,11 @@ export default function App() {
                 {t("nav.tools")}
               </MenuButton>
               <MenuButton onClick={openAiMod}>{t("nav.aiMod")}</MenuButton>
-              <MenuButton onClick={() => setModal("presets")}>
-                {t("nav.presets")}
-              </MenuButton>
+              {appSettings.showPatternTools && (
+                <MenuButton onClick={() => setModal("presets")}>
+                  {t("nav.presets")}
+                </MenuButton>
+              )}
               <MenuButton onClick={() => setModal("skin")}>
                 {t("nav.skin")}
               </MenuButton>
@@ -4860,13 +4861,6 @@ export default function App() {
             aria-hidden={!hasProject}
           >
             <div className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="mr-1 hidden text-xs text-slate-500 2xl:inline">
-                {t("nav.mapStats", {
-                  keys: active.keyCount,
-                  notes: active.notes.length,
-                  holds,
-                })}
-              </span>
               {cloudProjectId && myRole === "viewer" && (
                 <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
                   {t("nav.viewOnly")}
@@ -5036,7 +5030,11 @@ export default function App() {
           <AccountControl
             compact
             onOpenMyMaps={() => setModal("myMaps")}
-            onOpenPresets={() => setModal("presets")}
+            onOpenPresets={
+              appSettings.showPatternTools
+                ? () => setModal("presets")
+                : undefined
+            }
             onOpenFeedback={() => setModal("feedback")}
             onOpenAdmin={() => setModal("admin")}
           />
@@ -5140,6 +5138,7 @@ export default function App() {
                 dimBackground={editorDimBackground}
                 skin={activeSkin}
                 playfieldScale={editorPlayfieldScale}
+                noteHeightScale={appSettings.noteHeightScale}
                 longNoteBodyScale={appSettings.longNoteBodyScale}
                 smoothScrolling={appSettings.smoothScrolling}
                 showTimingLines={appSettings.showTimingLines}
@@ -5170,7 +5169,9 @@ export default function App() {
                 hitsoundSources={hitsoundSources}
                 onCopyHitsounds={applyCopyHitsounds}
                 onPublishPattern={
-                  authUser && featureFlags.preset_publishing
+                  appSettings.showPatternTools &&
+                  authUser &&
+                  featureFlags.preset_publishing
                     ? handlePublishPattern
                     : undefined
                 }
@@ -5205,6 +5206,7 @@ export default function App() {
                 onPackCreator={() => setPackCreatorOpen(true)}
                 onTryMaps={() => setModal("sampleMaps")}
                 onImport={() => setModal("import")}
+                onSettings={() => setModal("settings")}
               >
                 <LandingCopy />
               </StartScreen>
@@ -5233,6 +5235,7 @@ export default function App() {
                       dimBackground={appSettings.dimBackground}
                       skin={referenceSkin}
                       playfieldScale={appSettings.playfieldScale}
+                      noteHeightScale={appSettings.noteHeightScale}
                       longNoteBodyScale={appSettings.longNoteBodyScale}
                       smoothScrolling={appSettings.smoothScrolling}
                       showTimingLines={appSettings.showTimingLines}
@@ -5309,24 +5312,17 @@ export default function App() {
                 onReturn={exitPlaytest}
               />
             )}
-            {audioFile && hasProject && !zenMode && !playtest.active && (
+            {audioFile &&
+              hasProject &&
+              appSettings.showPpCounter &&
+              !zenMode &&
+              !playtest.active && (
               <PPCounter
                 notes={active.notes}
                 keyCount={active.keyCount}
                 playbackRate={audio.playbackRate}
                 onPlaybackRateChange={audio.setPlaybackRate}
               />
-            )}
-            {!playtest.active && (
-              <button
-                type="button"
-                onClick={() => setModal("info")}
-                className="absolute bottom-3 left-3 z-30 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-ink-900/62 font-serif text-lg font-semibold text-slate-100 shadow-xl shadow-black/25 backdrop-blur-xl transition hover:border-slate-500/80 hover:bg-white/10"
-                aria-label="Open shortcuts and functions"
-                title="Shortcuts and functions"
-              >
-                i
-              </button>
             )}
             {hasProject && !zenMode && !playtest.active && eligibleRefs.length > 0 && (
               <div className="absolute left-3 top-[5.5rem] z-30 rounded-lg border border-white/10 bg-ink-900/62 shadow-xl shadow-black/20 backdrop-blur-xl">
@@ -5392,7 +5388,7 @@ export default function App() {
 
           <div
             className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
-              showChrome
+              showChrome && appSettings.showBottomTimeline
                 ? "max-h-24 translate-y-0 opacity-100"
                 : "pointer-events-none max-h-0 translate-y-4 opacity-0"
             }`}
@@ -5596,9 +5592,29 @@ export default function App() {
           onPlayfieldScale={(v) =>
             setAppSettings((s) => ({ ...s, playfieldScale: v }))
           }
+          noteHeightScale={appSettings.noteHeightScale}
+          onNoteHeightScale={(v) =>
+            setAppSettings((s) => ({ ...s, noteHeightScale: v }))
+          }
           longNoteBodyScale={appSettings.longNoteBodyScale}
           onLongNoteBodyScale={(v) =>
             setAppSettings((s) => ({ ...s, longNoteBodyScale: v }))
+          }
+          difficultyPanelOpen={appSettings.difficultyPanelOpen}
+          onDifficultyPanelOpen={(v) =>
+            setAppSettings((s) => ({ ...s, difficultyPanelOpen: v }))
+          }
+          showBottomTimeline={appSettings.showBottomTimeline}
+          onShowBottomTimeline={(v) =>
+            setAppSettings((s) => ({ ...s, showBottomTimeline: v }))
+          }
+          showPpCounter={appSettings.showPpCounter}
+          onShowPpCounter={(v) =>
+            setAppSettings((s) => ({ ...s, showPpCounter: v }))
+          }
+          showPatternTools={appSettings.showPatternTools}
+          onShowPatternTools={(v) =>
+            setAppSettings((s) => ({ ...s, showPatternTools: v }))
           }
           hitsoundsEnabled={appSettings.hitsoundsEnabled}
           onHitsoundsEnabled={(v) =>
@@ -5655,6 +5671,10 @@ export default function App() {
           uiSoundVolume={appSettings.uiSoundVolume}
           onUiSoundVolume={(v) =>
             setAppSettings((s) => ({ ...s, uiSoundVolume: v }))
+          }
+          editorKeybinds={editorKeybinds}
+          onEditorKeybinds={(value) =>
+            setAppSettings((s) => ({ ...s, editorKeybinds: value }))
           }
         />
       )}
@@ -5883,17 +5903,6 @@ export default function App() {
           onJump={handleAiModJump}
           unsnappedCount={aiModUnsnapped}
           onResnap={() => setConfirmResnap(true)}
-        />
-      )}
-
-      {modalMounted("info") && (
-        <InfoModal
-          open={modal === "info"}
-          onClose={close}
-          keybinds={editorKeybinds}
-          onKeybinds={(kb) =>
-            setAppSettings((s) => ({ ...s, editorKeybinds: kb }))
-          }
         />
       )}
 
@@ -6209,248 +6218,6 @@ function IconButton({
     >
       {children}
     </button>
-  );
-}
-
-function InfoModal({
-  open,
-  onClose,
-  keybinds,
-  onKeybinds,
-}: {
-  open: boolean;
-  onClose: () => void;
-  keybinds: EditorKeybinds;
-  onKeybinds: (keybinds: EditorKeybinds) => void;
-}) {
-  const [capturing, setCapturing] = useState<EditorAction | null>(null);
-  useEffect(() => {
-    if (!open) setCapturing(null);
-  }, [open]);
-  const bind = (action: EditorAction, code: string | null) => {
-    onKeybinds({
-      ...keybinds,
-      [action]: code ?? DEFAULT_EDITOR_KEYBINDS[action],
-    });
-  };
-  const conflicts = editorKeybindConflicts(keybinds);
-  const customized = (Object.keys(DEFAULT_EDITOR_KEYBINDS) as EditorAction[])
-    .some((a) => keybinds[a] !== DEFAULT_EDITOR_KEYBINDS[a]);
-  const row = (action: EditorAction, text: string) => (
-    <KeybindRow
-      action={action}
-      text={text}
-      keybinds={keybinds}
-      capturing={capturing}
-      onCapture={setCapturing}
-      onBind={bind}
-    />
-  );
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Shortcuts and functions"
-      width="max-w-3xl"
-    >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 bg-ink-700/35 px-3 py-2">
-        <p className="text-[11px] text-slate-400">
-          Highlighted keys are editable: click one, then press the new key.
-          Backspace restores the default, Esc cancels.
-        </p>
-        <button
-          type="button"
-          disabled={!customized}
-          onClick={() => onKeybinds({ ...DEFAULT_EDITOR_KEYBINDS })}
-          className="rounded-lg border border-white/10 bg-ink-700/60 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Reset all
-        </button>
-        {conflicts.length > 0 && (
-          <p className="w-full text-[11px] text-amber-300">
-            {conflicts.join(" · ")}
-          </p>
-        )}
-      </div>
-      <div className="grid gap-5 text-sm text-slate-300 md:grid-cols-2">
-        <InfoSection title="Playback">
-          {row("playPause", "Play or pause the song.")}
-          {row("slowMo", "Hold to ease playback to 25%; release for 100%.")}
-          {row("zenMode", "Toggle zen mode and hide editor chrome.")}
-          {row("volumeUp", "Raise volume by 5%.")}
-          {row("volumeDown", "Lower volume by 5%.")}
-          {row("playtestToggle", "Enter or leave playtest mode.")}
-          <InfoRow keys="Alt + wheel" text="Change volume over the notefield." />
-          <InfoRow keys="Speed buttons" text="Set playback rate to 25%, 50%, 75% or 100%." />
-        </InfoSection>
-
-        <InfoSection title="Editing">
-          <InfoRow keys="Q" text="Switch between Edit and Select modes." />
-          <InfoRow keys="Edit: click" text="Place a snapped note or replace an existing note." />
-          <InfoRow keys="Edit: drag" text="Create a long note from the drag range." />
-          <InfoRow keys="Select: click" text="Select a placed note." />
-          <InfoRow keys="Ctrl/Cmd + click" text="Toggle notes in the selection." />
-          <InfoRow keys="Select: drag" text="Move selected notes by lane and snap time." />
-          <InfoRow keys="Right click note" text="Delete that note, or the selected notes." />
-        </InfoSection>
-
-        <InfoSection title="Selection">
-          <InfoRow keys="Shift + drag" text="Box select notes. Near edges, the notefield autoscrolls." />
-          <InfoRow keys="Ctrl/Cmd + A" text="Select all notes in the active difficulty." />
-          <InfoRow keys="Ctrl/Cmd + C" text="Copy selected notes." />
-          <InfoRow keys="Ctrl/Cmd + X" text="Cut selected notes." />
-          <InfoRow keys="Ctrl/Cmd + V" text="Paste copied notes at the snapped playhead time." />
-          {row("mirrorSelection", "Mirror selected notes left↔right (flip columns).")}
-          {row("reverseSelection", "Reverse the selected notes in time.")}
-          {row("shuffleSelection", "Shuffle selected notes into random columns.")}
-          {row("scaleHalf", "Halve the selected pattern's timing.")}
-          {row("scaleDouble", "Double the selected pattern's timing.")}
-          <InfoRow keys="Delete / Backspace" text="Delete selected notes." />
-        </InfoSection>
-
-        <InfoSection title="Navigation">
-          <InfoRow keys="Wheel" text="Scrub the playhead by one snap step in the notefield." />
-          <InfoRow keys="Ctrl/Cmd + wheel" text="Change snap divisor without zooming the page." />
-          <InfoRow keys="Bottom timeline click/drag" text="Seek through the song." />
-          <InfoRow keys="Timeline wheel" text="Adjust waveform sensitivity." />
-          <InfoRow keys="Timestamp" text="Click the ms half of the time display to copy milliseconds, the mm:ss.ms half to copy the timestamp." />
-          {row("addBookmark", "Add a bookmark at the playhead.")}
-          {row("prevBookmark", "Jump to the previous bookmark.")}
-          {row("nextBookmark", "Jump to the next bookmark.")}
-          <InfoRow keys="Timeline bookmark controls" text="Name bookmarks and loop between two markers." />
-        </InfoSection>
-
-        <InfoSection title="Grid and display">
-          <InfoRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/48, or Free to place notes on any millisecond." />
-          {row("scrollSpeedDown", "Zoom the editor timeline out.")}
-          {row("scrollSpeedUp", "Zoom the editor timeline in.")}
-          {row("zoomIn", "Grow the playfield.")}
-          {row("zoomOut", "Shrink the playfield.")}
-          <InfoRow keys="Timeline zoom" text="Change the editor timeline scale. This is not exported." />
-          {row("toggleReceptors", "Toggle receptors on or off.")}
-          {row("waveformOverlay", "Toggle the waveform overlay on the hit lane (outside hitsound mode).")}
-          <InfoRow keys="PP counter" text="Shows max SS no-mod pp for the active difficulty." />
-          <InfoRow keys="Kiai" text="Kiai timing sections tint notes during preview." />
-        </InfoSection>
-
-        <InfoSection title="Hitsounds">
-          {row("hitsoundMode", "Toggle hitsound mode: shows the toolbar and per-note letters.")}
-          {row("whistleAdd", "In hitsound mode, add whistle to the selection.")}
-          {row("finishAdd", "In hitsound mode, add finish to the selection.")}
-          {row("clapAdd", "In hitsound mode, add clap to the selection.")}
-          <InfoRow keys="Sample set" text="Pick Auto, Normal, Soft or Drum for selected or new notes." />
-          <InfoRow keys="W F C labels" text="Letters on a note show its applied additions." />
-          <InfoRow keys="Playback" text="The map's hitsounds always play, even outside hitsound mode." />
-        </InfoSection>
-
-        <InfoSection title="Project">
-          <InfoRow keys="Ctrl/Cmd + S" text="Save progress locally." />
-          <InfoRow keys="Ctrl/Cmd + Z" text="Undo beatmap edits." />
-          <InfoRow keys="Ctrl/Cmd + Shift + Z" text="Redo beatmap edits." />
-          <InfoRow keys="Ctrl/Cmd + Y" text="Redo on Windows-style shortcuts." />
-          <InfoRow keys="New" text="Clear the current map and local project." />
-          <InfoRow keys="Export" text="Export the active .osu or package the mapset as .osz." />
-        </InfoSection>
-
-        <InfoSection title="Menus">
-          <InfoRow keys="Map Settings" text="Import .osz, add an .osu as a difficulty, set audio, background and metadata." />
-          <InfoRow keys="Timing" text="Edit red BPM points, green SV points, kiai, volume and tap BPM." />
-          <InfoRow keys="SV" text="Generate scroll velocity ramps, stutters and constants over a range." />
-          <InfoRow keys="Difficulty" text="Set name, key count, HP and OD for the active difficulty." />
-          <InfoRow keys="Tools" text="Apply Full LN or convert holds back to rice notes." />
-          <InfoRow keys="Skin" text="Apply presets, upload .osk skins or clear the current skin." />
-          <InfoRow keys="Settings" text="Adjust playfield scale, long-note body width and hitsound playback / volume." />
-        </InfoSection>
-
-        <InfoSection title="Difficulty list">
-          <InfoRow keys="Click difficulty" text="Switch the active difficulty." />
-          <InfoRow keys="Ctrl + Click" text="Select several difficulties to delete at once." />
-          <InfoRow keys="+" text="Add a new difficulty." />
-          <InfoRow keys="Duplicate" text="Copy a difficulty with its notes and timing." />
-          <InfoRow keys="Delete" text="Remove a difficulty (or all selected); hold to confirm in the dialog." />
-        </InfoSection>
-      </div>
-    </Modal>
-  );
-}
-
-function InfoSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-lg border border-ink-600 bg-ink-700/35 p-3">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {title}
-      </h3>
-      <div className="flex flex-col gap-1.5">{children}</div>
-    </section>
-  );
-}
-
-function InfoRow({ keys, text }: { keys: string; text: string }) {
-  return (
-    <div className="grid grid-cols-[8.5rem,1fr] gap-3 text-xs leading-5">
-      <div className="font-mono text-[11px] font-semibold text-slate-100">
-        {keys}
-      </div>
-      <div className="text-slate-400">{text}</div>
-    </div>
-  );
-}
-
-function KeybindRow({
-  action,
-  text,
-  keybinds,
-  capturing,
-  onCapture,
-  onBind,
-}: {
-  action: EditorAction;
-  text: string;
-  keybinds: EditorKeybinds;
-  capturing: EditorAction | null;
-  onCapture: (action: EditorAction | null) => void;
-  onBind: (action: EditorAction, code: string | null) => void;
-}) {
-  const isCapturing = capturing === action;
-  return (
-    <div className="grid grid-cols-[8.5rem,1fr] items-center gap-3 text-xs leading-5">
-      <button
-        type="button"
-        onClick={() => onCapture(isCapturing ? null : action)}
-        onKeyDown={(e) => {
-          if (!isCapturing) return;
-          e.preventDefault();
-          // Keep Escape from also closing the modal while capturing.
-          e.stopPropagation();
-          if (e.key === "Escape") onCapture(null);
-          else if (e.key === "Backspace" || e.key === "Delete") {
-            onBind(action, null);
-            onCapture(null);
-          } else {
-            onBind(action, e.code);
-            onCapture(null);
-          }
-        }}
-        onBlur={() => {
-          if (isCapturing) onCapture(null);
-        }}
-        className={`justify-self-start rounded-md border px-1.5 py-0.5 text-left font-mono text-[11px] font-semibold transition ${
-          isCapturing
-            ? "border-accent/80 bg-accent/20 text-slate-100"
-            : "border-white/10 bg-ink-700/60 text-slate-100 hover:border-accent/50"
-        }`}
-        title="Click to rebind"
-      >
-        {isCapturing ? "Press key" : editorKeyLabel(keybinds[action])}
-      </button>
-      <div className="text-slate-400">{text}</div>
-    </div>
   );
 }
 
