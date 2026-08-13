@@ -226,7 +226,8 @@ export function gridLinesInRange(
 
   for (let i = 0; i < reds.length; i++) {
     const tp = reds[i];
-    const segStart = tp.time;
+    const origin = tp.time;
+    const segStart = i === 0 ? -Infinity : origin;
     const segEnd = i + 1 < reds.length ? reds[i + 1].time : Infinity;
     const meter = Math.max(1, Math.round(tp.meter || 4));
 
@@ -237,15 +238,15 @@ export function gridLinesInRange(
     const visibleEnd = Math.min(segEnd, toTime);
     if (visibleEnd < visibleStart) continue;
 
-    const firstIdx = Math.ceil((visibleStart - segStart) / interval);
-    let lastIdx = Math.floor((visibleEnd - segStart) / interval);
-    if (i + 1 < reds.length && segStart + lastIdx * interval >= segEnd - 1e-6) {
+    const firstIdx = Math.ceil((visibleStart - origin) / interval);
+    let lastIdx = Math.floor((visibleEnd - origin) / interval);
+    if (i + 1 < reds.length && origin + lastIdx * interval >= segEnd - 1e-6) {
       lastIdx -= 1;
     }
     if (lastIdx - firstIdx > 20000) continue;
 
     for (let k = firstIdx; k <= lastIdx; k++) {
-      const time = segStart + k * interval;
+      const time = origin + k * interval;
       const idxInBeat = ((k % grid) + grid) % grid;
       const beatIdx = k / grid;
       const barline =

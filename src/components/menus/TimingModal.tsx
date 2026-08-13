@@ -27,6 +27,7 @@ type Props = {
   audioBuffer: AudioBuffer | null;
   /** Rate of the active difficulty; detection runs in audio-file time. */
   timeScale: number;
+  onShiftMarkers?: (deltaMs: number) => void;
 };
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
@@ -46,6 +47,7 @@ export const TimingModal = memo(function TimingModal({
   onSetPlaybackRate,
   audioBuffer,
   timeScale,
+  onShiftMarkers,
 }: Props) {
   const { tap, reset, bpm, offset, count } = useTapTempo(getCurrentTime);
   const [metronomeOn, setMetronomeOn] = useState(true);
@@ -55,6 +57,13 @@ export const TimingModal = memo(function TimingModal({
     null,
   );
   const [detectApplied, setDetectApplied] = useState(false);
+  const [pointTab, setPointTab] = useState<"red" | "green">("red");
+  const [expandedPointId, setExpandedPointId] = useState<string | null>(null);
+  const [selectedPointIds, setSelectedPointIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedPointShift, setSelectedPointShift] = useState(0);
+  const [markerShift, setMarkerShift] = useState(0);
 
   useEffect(() => {
     setDetection(null);
@@ -122,6 +131,9 @@ export const TimingModal = memo(function TimingModal({
 
   const points = sortedPoints(timingPoints);
   const reds = points.filter((p) => p.uninherited);
+  const visiblePoints = points.filter((p) =>
+    pointTab === "red" ? p.uninherited : !p.uninherited,
+  );
   const firstRed = reds[0] ?? null;
   const meter = Math.max(
     1,
@@ -173,6 +185,25 @@ export const TimingModal = memo(function TimingModal({
 
   const moveToPlayhead = (id: string) =>
     update(id, { time: Math.round(getCurrentTime()) });
+
+  const togglePointSelection = (id: string) =>
+    setSelectedPointIds((selected) => {
+      const next = new Set(selected);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const shiftSelectedPoints = (delta: number) => {
+    if (!delta || !selectedPointIds.size) return;
+    onTimingPoints(
+      timingPoints.map((point) =>
+        selectedPointIds.has(point.id)
+          ? { ...point, time: point.time + delta }
+          : point,
+      ),
+    );
+  };
 
   const setOffset = () => {
     if (!firstRed) return;
@@ -242,7 +273,7 @@ export const TimingModal = memo(function TimingModal({
   }, [bpm, offset, count]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Timing" width="max-w-2xl">
+    <Modal open={open} onClose={onClose} title="Timing" width="max-w-2xl" modeless>
       <div className="flex flex-col gap-6">
         <section className="flex flex-nowrap items-center gap-4 rounded-xl border border-ink-600 bg-ink-700/40 p-3">
           <div className="flex items-center gap-2">
@@ -332,13 +363,54 @@ export const TimingModal = memo(function TimingModal({
             </div>
             <span className="text-[11px] text-slate-500">ms</span>
           </div>
+          {onShiftMarkers && (
+            <div className="mt-2 flex flex-wrap items-end gap-2 border-t border-white/10 pt-3">
+              <Labeled label="Shift all markers (ms)">
+                <NumberInput
+                  value={markerShift}
+                  step={1}
+                  onChange={(e) => setMarkerShift(Number(e.target.value) || 0)}
+                  className="w-28 py-1"
+                />
+              </Labeled>
+              <Button
+                disabled={!markerShift}
+                onClick={() => {
+                  onShiftMarkers(markerShift);
+                  setMarkerShift(0);
+                }}
+              >
+                Shift red, green, preview and bookmarks
+              </Button>
+            </div>
+          )}
         </section>
 
         <section className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Timing points
-            </h3>
+            <div className="flex rounded-lg border border-ink-500/60 bg-ink-700/50 p-1">
+              {(["red", "green"] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => {
+                    setPointTab(kind);
+                    setExpandedPointId(null);
+                  }}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                    pointTab === kind
+                      ? kind === "red"
+                        ? "bg-rose-500/20 text-rose-200"
+                        : "bg-emerald-500/20 text-emerald-200"
+                      : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {kind === "red"
+                    ? `Timing · ${reds.length}`
+                    : `Effects · ${points.length - reds.length}`}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-2">
               <Button onClick={addRed} variant="primary">
                 + Red at playhead
@@ -349,16 +421,58 @@ export const TimingModal = memo(function TimingModal({
             </div>
           </div>
           <p className="text-[11px] text-slate-500">
-            Red points set BPM, meter and the beat grid. Green points set scroll
-            velocity (SV), volume and kiai. SV value = −100 / inheritedBeatLength.
+            {pointTab === "red"
+              ? "Red points set BPM, meter and the beat grid."
+              : "Green points set scroll velocity (SV), volume and kiai. Select a row to edit its full settings."}
           </p>
 
+          {selectedPointIds.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent/25 bg-accent/5 px-3 py-2 text-xs text-slate-300">
+              <span>{selectedPointIds.size} selected</span>
+              {OFFSET_NUDGES.map((delta) => (
+                <MiniButton key={delta} onClick={() => shiftSelectedPoints(delta)}>
+                  {delta > 0 ? `+${delta}` : delta} ms
+                </MiniButton>
+              ))}
+              <NumberInput
+                value={selectedPointShift}
+                step={1}
+                onChange={(event) =>
+                  setSelectedPointShift(Number(event.target.value) || 0)
+                }
+                className="ml-1 w-20 py-1"
+                aria-label="Selected timing point shift in milliseconds"
+              />
+              <MiniButton
+                onClick={() => {
+                  shiftSelectedPoints(selectedPointShift);
+                  setSelectedPointShift(0);
+                }}
+              >
+                Shift ms
+              </MiniButton>
+              <button
+                type="button"
+                onClick={() => setSelectedPointIds(new Set())}
+                className="ml-auto text-[11px] text-slate-500 hover:text-slate-300"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           <div className="flex max-h-[40vh] flex-col gap-2 overflow-y-auto pr-1">
-            {points.map((p, i) => (
+            {visiblePoints.map((p, i) => (
               <PointRow
                 key={p.id}
                 point={p}
                 index={i + 1}
+                expanded={expandedPointId === p.id}
+                selected={selectedPointIds.has(p.id)}
+                onExpand={() =>
+                  setExpandedPointId((id) => (id === p.id ? null : p.id))
+                }
+                onSelect={() => togglePointSelection(p.id)}
                 canDelete={!(p.uninherited && reds.length <= 1)}
                 onUpdate={(patch) => update(p.id, patch)}
                 onDelete={() => remove(p.id)}
@@ -503,6 +617,10 @@ export const TimingModal = memo(function TimingModal({
 function PointRow({
   point: p,
   index,
+  expanded,
+  selected,
+  onExpand,
+  onSelect,
   canDelete,
   onUpdate,
   onDelete,
@@ -511,6 +629,10 @@ function PointRow({
 }: {
   point: TimingPoint;
   index: number;
+  expanded: boolean;
+  selected: boolean;
+  onExpand: () => void;
+  onSelect: () => void;
   canDelete: boolean;
   onUpdate: (patch: Partial<TimingPoint>) => void;
   onDelete: () => void;
@@ -526,7 +648,14 @@ function PointRow({
           : "border-emerald-500/40 bg-emerald-950/20"
       }`}
     >
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onSelect}
+          aria-label={`Select point ${index}`}
+          className="h-3.5 w-3.5 accent-accent"
+        />
         <span className="w-5 text-center text-xs text-slate-500">{index}</span>
         <span
           className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
@@ -535,126 +664,161 @@ function PointRow({
         >
           {red ? "Red" : "Green"}
         </span>
+        <span className="font-mono text-xs text-slate-200">
+          {p.time} ms
+        </span>
+        <span className={red ? "text-xs text-rose-200" : "text-xs text-emerald-200"}>
+          {red ? `${p.bpm} BPM · ${p.meter}/4` : `${p.sv}× SV`}
+        </span>
+        <span className="text-[10px] text-slate-500">Vol {p.volume}</span>
+        {p.kiai && (
+          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-200">
+            Kiai
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={onExpand}
+          className="ml-auto rounded-md px-2 py-1 text-[10px] text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+        >
+          {expanded ? "Collapse" : "Edit"}
+        </button>
+      </div>
 
-        <Labeled label="Time (ms)">
-          <NumberInput
-            value={p.time}
-            step={1}
-            onChange={(e) =>
-              onUpdate({ time: Math.round(Number(e.target.value) || 0) })
-            }
-            className="w-24 py-1"
-          />
-        </Labeled>
-
-        {red ? (
-          <>
-            <Labeled label="BPM">
+      {expanded && (
+        <>
+          <div className="flex flex-wrap items-end gap-2 border-t border-white/10 pt-2">
+            <Labeled label="Time (ms)">
               <NumberInput
-                value={p.bpm}
+                value={p.time}
                 step={0.001}
-                min={1}
                 onChange={(e) =>
-                  onUpdate({ bpm: Math.max(1, Number(e.target.value) || 1) })
+                  onUpdate({ time: Number(e.target.value) || 0 })
                 }
                 className="w-24 py-1"
               />
             </Labeled>
-            <Labeled label="Meter">
+
+            {red ? (
+              <>
+                <Labeled label="BPM">
+                  <NumberInput
+                    value={p.bpm}
+                    step={0.001}
+                    min={1}
+                    onChange={(e) =>
+                      onUpdate({ bpm: Math.max(1, Number(e.target.value) || 1) })
+                    }
+                    className="w-24 py-1"
+                  />
+                </Labeled>
+                <Labeled label="Meter">
+                  <NumberInput
+                    value={p.meter}
+                    step={1}
+                    min={1}
+                    max={16}
+                    onChange={(e) =>
+                      onUpdate({
+                        meter: Math.max(
+                          1,
+                          Math.round(Number(e.target.value) || 4),
+                        ),
+                      })
+                    }
+                    className="w-16 py-1"
+                  />
+                </Labeled>
+              </>
+            ) : (
+              <>
+                <Labeled label="SV ×">
+                  <NumberInput
+                    value={p.sv}
+                    step={0.05}
+                    min={0.01}
+                    max={10}
+                    onChange={(e) =>
+                      onUpdate({ sv: clampSv(Number(e.target.value) || 1) })
+                    }
+                    className="w-20 py-1"
+                  />
+                </Labeled>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase text-slate-500">
+                    Presets
+                  </span>
+                  <div className="flex gap-1">
+                    {SV_PRESETS.map((sv) => (
+                      <MiniButton key={sv} onClick={() => onUpdate({ sv })}>
+                        {sv}
+                      </MiniButton>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <Labeled label="Vol">
               <NumberInput
-                value={p.meter}
+                value={p.volume}
                 step={1}
-                min={1}
-                max={16}
+                min={0}
+                max={100}
                 onChange={(e) =>
                   onUpdate({
-                    meter: Math.max(1, Math.round(Number(e.target.value) || 4)),
+                    volume: Math.max(
+                      0,
+                      Math.min(100, Math.round(Number(e.target.value) || 0)),
+                    ),
                   })
                 }
                 className="w-16 py-1"
               />
             </Labeled>
-          </>
-        ) : (
-          <>
-            <Labeled label="SV ×">
-              <NumberInput
-                value={p.sv}
-                step={0.05}
-                min={0.01}
-                max={10}
-                onChange={(e) =>
-                  onUpdate({ sv: clampSv(Number(e.target.value) || 1) })
-                }
-                className="w-20 py-1"
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-mono text-[10px] text-slate-500">
+              {formatTime(p.time)}
+              {!red && (
+                <> · {Math.round(svToBeatLength(p.sv) * 100) / 100}</>
+              )}
+            </span>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+              <Toggle
+                size="sm"
+                checked={p.kiai}
+                onChange={(v) => onUpdate({ kiai: v })}
+                aria-label="Kiai"
               />
-            </Labeled>
-            <div className="flex flex-col">
-              <span className="text-[10px] uppercase text-slate-500">Presets</span>
-              <div className="flex gap-1">
-                {SV_PRESETS.map((sv) => (
-                  <MiniButton key={sv} onClick={() => onUpdate({ sv })}>
-                    {sv}
-                  </MiniButton>
-                ))}
-              </div>
+              Kiai
             </div>
-          </>
-        )}
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+              <Toggle
+                size="sm"
+                checked={p.omitFirstBarline}
+                onChange={(v) => onUpdate({ omitFirstBarline: v })}
+                aria-label="Omit barline"
+              />
+              Omit barline
+            </div>
 
-        <Labeled label="Vol">
-          <NumberInput
-            value={p.volume}
-            step={1}
-            min={0}
-            max={100}
-            onChange={(e) =>
-              onUpdate({
-                volume: Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))),
-              })
-            }
-            className="w-16 py-1"
-          />
-        </Labeled>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="font-mono text-[10px] text-slate-500">
-          {formatTime(p.time)}
-          {!red && <> · {Math.round(svToBeatLength(p.sv) * 100) / 100}</>}
-        </span>
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
-          <Toggle
-            size="sm"
-            checked={p.kiai}
-            onChange={(v) => onUpdate({ kiai: v })}
-            aria-label="Kiai"
-          />
-          Kiai
-        </div>
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
-          <Toggle
-            size="sm"
-            checked={p.omitFirstBarline}
-            onChange={(v) => onUpdate({ omitFirstBarline: v })}
-            aria-label="Omit barline"
-          />
-          Omit barline
-        </div>
-
-        <div className="ml-auto flex gap-1">
-          <MiniButton onClick={onMove}>Move here</MiniButton>
-          <MiniButton onClick={onDuplicate}>Duplicate</MiniButton>
-          <button
-            onClick={onDelete}
-            disabled={!canDelete}
-            className="grid h-6 w-6 place-items-center rounded-lg text-slate-400 transition hover:bg-ink-600 hover:text-red-300 disabled:opacity-30"
-            title="Delete timing point"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+            <div className="ml-auto flex gap-1">
+              <MiniButton onClick={onMove}>Move here</MiniButton>
+              <MiniButton onClick={onDuplicate}>Duplicate</MiniButton>
+              <button
+                onClick={onDelete}
+                disabled={!canDelete}
+                className="grid h-6 w-6 place-items-center rounded-lg text-slate-400 transition hover:bg-ink-600 hover:text-red-300 disabled:opacity-30"
+                title="Delete timing point"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

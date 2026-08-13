@@ -120,7 +120,7 @@ describe("DEFAULT_SKILL", () => {
 
   it("mirrors what combineDans produces, so the pickers open on a real dan", () => {
     const regular = DAN_LADDERS["4k-regular"].levels.findIndex(
-      (l) => l.label === "5th",
+      (l) => l.label === "Alpha",
     );
     expect(
       combineDans(4, regular, 0, DEFAULT_SKILL.danSelections),
@@ -134,7 +134,7 @@ describe("DEFAULT_SKILL", () => {
     const skill = { ...DEFAULT_SKILL, enabled: true };
     const ladders = laddersForKeyCount(4);
     const regular = regularLevelForSkill(ladders.regular, skill);
-    expect(DAN_LADDERS[ladders.regular].levels[regular].label).toBe("5th");
+    expect(DAN_LADDERS[ladders.regular].levels[regular].label).toBe("Alpha");
     expect(lnLevelForSkill(ladders.ln, skill.lnProfile!.lnSkill)).toBe(0);
   });
 });

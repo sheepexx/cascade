@@ -42,7 +42,7 @@ export function ImportModal({
           <ImportCard
             icon={<ImportIcon className="h-6 w-6" />}
             title="Map file"
-            hint=".osz, .osu, .sm, .ssc or .zip"
+            hint=".osz, .osu, .sm, .ssc, .qua or .zip"
             onClick={() => fileRef.current?.click()}
           />
           {onFolder && (
@@ -58,7 +58,7 @@ export function ImportModal({
         <input
           ref={fileRef}
           type="file"
-          accept=".osz,.osu,.sm,.ssc,.zip"
+          accept=".osz,.osu,.sm,.ssc,.qua,.zip"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];

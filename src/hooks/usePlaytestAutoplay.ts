@@ -58,9 +58,9 @@ export function usePlaytestAutoplay({
   );
 
   const profile = useMemo(() => {
-    if (notes.length === 0) return EMPTY_PROFILE;
+    if (!humanize.enabled || notes.length === 0) return EMPTY_PROFILE;
     return computeSkillProfile(notes, keyCount, effectiveSkill, rate);
-  }, [effectiveSkill, notes, keyCount, rate]);
+  }, [effectiveSkill, humanize.enabled, notes, keyCount, rate]);
 
   const plan = useMemo(() => {
     if (!enabled || !active || notes.length === 0) return EMPTY_PLAN;

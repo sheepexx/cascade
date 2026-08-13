@@ -24,9 +24,27 @@ export function hasNoteCollision(
 }
 
 export function hasNoteCollisions(notes: ManiaNote[]): boolean {
-  for (let i = 0; i < notes.length; i++) {
-    for (let j = i + 1; j < notes.length; j++) {
-      if (notesCollide(notes[i], notes[j])) return true;
+  const columns = new Map<number, ManiaNote[]>();
+  for (const note of notes) {
+    const column = columns.get(note.column);
+    if (column) column.push(note);
+    else columns.set(note.column, [note]);
+  }
+  for (const column of columns.values()) {
+    column.sort(
+      (a, b) =>
+        a.startTime - b.startTime ||
+        noteEnd(b) - noteEnd(a) ||
+        a.id.localeCompare(b.id),
+    );
+    let lastStart = -Infinity;
+    let occupiedUntil = -Infinity;
+    for (const note of column) {
+      if (note.startTime === lastStart || note.startTime < occupiedUntil) {
+        return true;
+      }
+      lastStart = note.startTime;
+      occupiedUntil = Math.max(occupiedUntil, noteEnd(note));
     }
   }
   return false;

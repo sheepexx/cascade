@@ -1,4 +1,4 @@
-import { SNAP_DIVISORS, uid, type ManiaNote, type TimingPoint } from "../types";
+import { uid, type ManiaNote, type TimingPoint } from "../types";
 import { beatsBetween, timeAtBeatOffset } from "./timing";
 
 export type PatternNote = {
@@ -16,6 +16,7 @@ export type PatternNote = {
 };
 
 const SNAP_TOLERANCE_BEATS = 0.01;
+const PATTERN_SNAP_DIVISORS = [1, 2, 3, 4, 6, 8, 12, 16];
 
 function hitsoundOf(n: Partial<ManiaNote>): Partial<PatternNote> {
   return {
@@ -85,7 +86,7 @@ export function patternKeySpan(pattern: PatternNote[]): number {
 }
 
 function divisorFor(beats: number): number | null {
-  for (const divisor of SNAP_DIVISORS) {
+  for (const divisor of PATTERN_SNAP_DIVISORS) {
     const scaled = beats * divisor;
     if (Math.abs(scaled - Math.round(scaled)) <= SNAP_TOLERANCE_BEATS * divisor) {
       return divisor;

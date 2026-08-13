@@ -68,6 +68,9 @@ export const en = {
   "settings.tabAudio": "Audio",
   "settings.tabExport": "Export",
   "settings.language": "Language",
+  "settings.uiScale": "Interface scale",
+  "settings.uiScaleHint":
+    "Scales menus and controls for larger or higher-resolution displays. New installations start slightly larger on 2K-class screens.",
 
   "settings.playfield": "Playfield",
   "settings.backgroundDim": "Background dim",
@@ -245,6 +248,7 @@ export const en = {
   "file.exportOsu": "Export .osu",
   "file.exportOsz": "Export .osz",
   "file.exportSm": "Export .sm",
+  "file.exportQua": "Export .qua",
 
   "collab.live": "Live - edits sync in realtime",
   "collab.connecting": "Connecting to the live session…",
@@ -335,7 +339,7 @@ export const en = {
   "transport.hit": "Hit",
   "transport.snap": "Snap",
   "transport.snapFree": "Free",
-  "transport.scrollSpeed": "Scroll speed",
+  "transport.scrollSpeed": "Timeline zoom",
 
   "diffSidebar.title": "Difficulties",
   "diffSidebar.rateChanger": "Rate changer",

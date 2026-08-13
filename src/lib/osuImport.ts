@@ -129,7 +129,7 @@ export function parseOsuFile(text: string): ParsedOsu {
   for (const line of sections["TimingPoints"] ?? []) {
     const p = line.split(",");
     if (p.length < 2) continue;
-    const time = Math.round(Number(p[0]));
+    const time = Number(p[0]);
     const beatLength = Number(p[1]);
     if (!Number.isFinite(time) || !Number.isFinite(beatLength)) continue;
     const uninherited = p[6] === undefined ? 1 : Number(p[6]);

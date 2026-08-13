@@ -93,6 +93,12 @@ export function PresetBrowserModal({
         />
       </div>
 
+      <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
+        Presets are workflow helpers, not proof of rankability. Review and
+        adapt every pasted pattern yourself before using it in a map intended
+        for ranking.
+      </div>
+
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!filtered && !error && (
         <SkeletonMediaCards count={4} label="Loading presets" />

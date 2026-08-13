@@ -121,7 +121,7 @@ export function buildSvMap(
 
   const events = [...points].sort(svEventOrder);
   const segments: SvSegment[] = [];
-  let sv = 1;
+  let sv: number;
   let bpm = base || 120;
   let rate = 1;
   let warped = false;
@@ -486,6 +486,26 @@ export function easeProgress(easing: SvEasing, x: number): number {
 /** One green point holding `sv` from `start`. */
 export function constantSv(start: number, sv: number): TimingPoint[] {
   return [makeGreenPoint(start, sv)];
+}
+
+export function normalizationSv(
+  points: TimingPoint[],
+  start: number,
+  end: number,
+  baseBpm = dominantBpm(points),
+): TimingPoint[] {
+  if (!(end > start) || !(baseBpm > 0)) return [];
+  const changes = [
+    { time: start, bpm: activeTimingAt(start, points)?.bpm ?? baseBpm },
+    ...points
+      .filter(
+        (point) => point.uninherited && point.time > start && point.time < end,
+      )
+      .map((point) => ({ time: point.time, bpm: point.bpm })),
+  ];
+  return changes
+    .filter((change) => change.bpm > 0)
+    .map((change) => makeGreenPoint(change.time, baseBpm / change.bpm));
 }
 
 /**

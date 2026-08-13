@@ -267,7 +267,7 @@ function notesFromRows(
     for (let ri = 0; ri < rows.length; ri++) {
       const beatInMeasure = (ri / rowsPerMeasure) * 4;
       const currentBeat = beatsAccumulated + beatInMeasure;
-      const time = beatToMs(currentBeat, bpms, stops, offsetMs);
+      const time = Math.round(beatToMs(currentBeat, bpms, stops, offsetMs));
       const row = rows[ri];
 
       for (let col = 0; col < Math.min(row.length, keys); col++) {

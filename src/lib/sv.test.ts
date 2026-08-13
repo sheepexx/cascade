@@ -18,6 +18,7 @@ import {
   easeProgress,
   greensInRange,
   hasSv,
+  normalizationSv,
   rampSv,
   removeGreensInRange,
   stutterLowSv,
@@ -443,6 +444,19 @@ describe("generators", () => {
 
   it("stutter clamps the compensation at MIN_SV", () => {
     expect(stutterLowSv(10, 0.9)).toBe(MIN_SV);
+  });
+
+  it("normalizes BPM-driven scroll across timing changes", () => {
+    const points = [makeRedPoint(0, 120), makeRedPoint(1000, 240)];
+    const out = normalizationSv(points, 0, 2000, 120);
+    expect(out.map((point) => point.time)).toEqual([0, 1000]);
+    expect(out.map((point) => point.sv)).toEqual([1, 0.5]);
+    const map = buildSvMap([...points, ...out], {
+      bpmScroll: true,
+      baseBpm: 120,
+    });
+    expect(effectiveRateAt(map, 500)).toBeCloseTo(1);
+    expect(effectiveRateAt(map, 1500)).toBeCloseTo(1);
   });
 });
 

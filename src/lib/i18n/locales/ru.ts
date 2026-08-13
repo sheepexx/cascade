@@ -70,6 +70,9 @@ export const ru: PartialCatalog = {
   "settings.tabAudio": "Звук",
   "settings.tabExport": "Экспорт",
   "settings.language": "Язык",
+  "settings.uiScale": "Масштаб интерфейса",
+  "settings.uiScaleHint":
+    "Масштабирует меню и элементы управления для больших экранов с высоким разрешением.",
 
   "settings.playfield": "Игровое поле",
   "settings.backgroundDim": "Затемнение фона",
@@ -251,6 +254,7 @@ export const ru: PartialCatalog = {
   "file.exportOsu": "Экспорт .osu",
   "file.exportOsz": "Экспорт .osz",
   "file.exportSm": "Экспорт .sm",
+  "file.exportQua": "Экспорт .qua",
 
   "collab.live": "Live - изменения синхронизируются в реальном времени",
   "collab.connecting": "Подключение к live-сессии…",
@@ -349,7 +353,7 @@ export const ru: PartialCatalog = {
   "transport.hit": "Hit",
   "transport.snap": "Снап",
   "transport.snapFree": "Свободно",
-  "transport.scrollSpeed": "Скорость",
+  "transport.scrollSpeed": "Масштаб времени",
 
   "diffSidebar.title": "Сложности",
   "diffSidebar.rateChanger": "Смена рейта",

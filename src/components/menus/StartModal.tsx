@@ -967,7 +967,7 @@ function ProjectCard({
   thumbUrl?: string;
   thumbPending?: boolean;
   badge?: string;
-  sourceFormat?: "osu" | "sm";
+  sourceFormat?: "osu" | "sm" | "qua";
   participants?: ProjectParticipant[];
   actions?: React.ReactNode;
   selected?: boolean;
@@ -997,13 +997,17 @@ function ProjectCard({
               </div>
             }
           />
-          {sourceFormat && (
+          {sourceFormat === "qua" ? (
+            <span className="absolute left-2 top-2 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
+              qua
+            </span>
+          ) : sourceFormat ? (
             <img
               src={asset(`${sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`)}
               alt={sourceFormat === "sm" ? "Etterna Map" : "osu! Map"}
               className="absolute left-2 top-2 h-5 w-5 object-contain drop-shadow-md opacity-90"
             />
-          )}
+          ) : null}
           {badge && (
             <span className={`absolute ${sourceFormat ? "left-8" : "left-2"} top-2 rounded-md bg-accent/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow`}>
               {badge}

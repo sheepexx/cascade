@@ -142,6 +142,10 @@ export function PublishPresetModal({
               {pattern && <SnapBadge pattern={pattern} />}
             </div>
           </div>
+          <div className="rounded-lg border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
+            Saving or sharing a pattern does not make it rankable. Anyone using
+            it in a ranked map must review and adapt it themselves.
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"

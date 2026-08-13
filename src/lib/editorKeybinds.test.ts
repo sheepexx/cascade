@@ -5,6 +5,7 @@ import {
   editorKeybindConflicts,
   matchesBind,
   normalizeEditorKeybinds,
+  timelineZoomDirection,
 } from "./editorKeybinds";
 
 describe("normalizeEditorKeybinds", () => {
@@ -25,6 +26,19 @@ describe("normalizeEditorKeybinds", () => {
     expect(out.zenMode).toBe(DEFAULT_EDITOR_KEYBINDS.zenMode);
     expect("bogusAction" in out).toBe(false);
   });
+
+  it("migrates the old F3/F4 timeline and minus/plus playfield defaults", () => {
+    const out = normalizeEditorKeybinds({
+      scrollSpeedDown: "F3",
+      scrollSpeedUp: "F4",
+      zoomIn: "Equal",
+      zoomOut: "Minus",
+    });
+    expect(out.scrollSpeedDown).toBe("Minus");
+    expect(out.scrollSpeedUp).toBe("Equal");
+    expect(out.zoomOut).toBe("F3");
+    expect(out.zoomIn).toBe("F4");
+  });
 });
 
 describe("matchesBind", () => {
@@ -34,6 +48,17 @@ describe("matchesBind", () => {
     expect(matchesBind("NumpadSubtract", "Minus")).toBe(true);
     expect(matchesBind("KeyA", "KeyB")).toBe(false);
     expect(matchesBind("KeyA", "")).toBe(false);
+  });
+});
+
+describe("timelineZoomDirection", () => {
+  it("recognizes main-row and numpad symbols independently of key code", () => {
+    expect(timelineZoomDirection("-")).toBe(-1);
+    expect(timelineZoomDirection("Subtract")).toBe(-1);
+    expect(timelineZoomDirection("+")).toBe(1);
+    expect(timelineZoomDirection("=")).toBe(1);
+    expect(timelineZoomDirection("Add")).toBe(1);
+    expect(timelineZoomDirection("ß")).toBe(0);
   });
 });
 

@@ -42,12 +42,12 @@ export const DEFAULT_EDITOR_KEYBINDS: EditorKeybinds = {
   zenMode: "Tab",
   volumeUp: "ArrowUp",
   volumeDown: "ArrowDown",
-  scrollSpeedDown: "F3",
-  scrollSpeedUp: "F4",
+  scrollSpeedDown: "Minus",
+  scrollSpeedUp: "Equal",
   prevBookmark: "PageUp",
   nextBookmark: "PageDown",
-  zoomIn: "Equal",
-  zoomOut: "Minus",
+  zoomIn: "F4",
+  zoomOut: "F3",
   addBookmark: "KeyB",
   playtestToggle: "F5",
   toggleReceptors: "KeyR",
@@ -61,6 +61,13 @@ export const DEFAULT_EDITOR_KEYBINDS: EditorKeybinds = {
   whistleAdd: "KeyW",
   finishAdd: "KeyF",
   clapAdd: "KeyC",
+};
+
+const LEGACY_ZOOM_KEYBINDS = {
+  scrollSpeedDown: "F3",
+  scrollSpeedUp: "F4",
+  zoomIn: "Equal",
+  zoomOut: "Minus",
 };
 
 /**
@@ -110,14 +117,29 @@ export function matchesBind(code: string, bound: string): boolean {
   return (CODE_ALIASES[bound] ?? []).includes(code);
 }
 
+export function timelineZoomDirection(key: string): -1 | 0 | 1 {
+  if (key === "-" || key === "Subtract") return -1;
+  if (key === "+" || key === "=" || key === "Add") return 1;
+  return 0;
+}
+
 export function normalizeEditorKeybinds(
   input: Partial<Record<string, unknown>> | undefined,
 ): EditorKeybinds {
   const out = { ...DEFAULT_EDITOR_KEYBINDS };
   if (!input) return out;
+  const legacyZoomDefaults = Object.entries(LEGACY_ZOOM_KEYBINDS).every(
+    ([action, code]) => input[action] === code,
+  );
   for (const action of Object.keys(out) as EditorAction[]) {
     const v = input[action];
     if (typeof v === "string" && v) out[action] = v;
+  }
+  if (legacyZoomDefaults) {
+    out.scrollSpeedDown = DEFAULT_EDITOR_KEYBINDS.scrollSpeedDown;
+    out.scrollSpeedUp = DEFAULT_EDITOR_KEYBINDS.scrollSpeedUp;
+    out.zoomIn = DEFAULT_EDITOR_KEYBINDS.zoomIn;
+    out.zoomOut = DEFAULT_EDITOR_KEYBINDS.zoomOut;
   }
   return out;
 }

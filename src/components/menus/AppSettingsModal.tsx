@@ -22,6 +22,8 @@ import { LOCALES } from "../../lib/i18n/core";
 type Props = {
   open: boolean;
   onClose: () => void;
+  uiScale: number;
+  onUiScale: (value: number) => void;
   playfieldScale: number;
   onPlayfieldScale: (value: number) => void;
   longNoteBodyScale: number;
@@ -74,6 +76,8 @@ const TAB_LABELS: Record<Tab, MessageKey> = {
 export function AppSettingsModal({
   open,
   onClose,
+  uiScale,
+  onUiScale,
   playfieldScale,
   onPlayfieldScale,
   longNoteBodyScale,
@@ -134,6 +138,30 @@ export function AppSettingsModal({
       ladders.ln,
       effectiveSkill.lnProfile?.lnSkill ?? effectiveSkill.lnSkill,
     );
+
+  const setHumanizeEnabled = (enabled: boolean) => {
+    const humanize = { ...playtest.humanize, enabled };
+    if (!enabled) {
+      onPlaytest({ ...playtest, humanize });
+      return;
+    }
+    const alphaLevel = DAN_LADDERS[ladders.regular].levels.findIndex(
+      (level) => level.label === "Alpha",
+    );
+    onPlaytest({
+      ...playtest,
+      humanize,
+      skill:
+        alphaLevel >= 0
+          ? combineDans(
+              keyCount,
+              alphaLevel,
+              lnLevel,
+              playtest.skill.danSelections,
+            )
+          : playtest.skill,
+    });
+  };
 
   const patchSkill = (patch: Partial<SkillSettings>) => {
     const custom = Object.keys(patch).some((key) => key !== "enabled");
@@ -214,6 +242,30 @@ export function AppSettingsModal({
                   </option>
                 ))}
               </select>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.interface")}
+              </h3>
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>{t("settings.uiScale")}</span>
+                <span className="font-medium text-slate-200">
+                  {Math.round(uiScale * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0.75}
+                max={1.5}
+                step={0.05}
+                value={uiScale}
+                onChange={(e) => onUiScale(Number(e.target.value))}
+                className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+              />
+              <p className="mt-2 text-[11px] text-slate-500">
+                {t("settings.uiScaleHint")}
+              </p>
             </section>
 
             <section>
@@ -664,7 +716,7 @@ export function AppSettingsModal({
                 <SettingToggle
                   label={t("settings.humanize")}
                   checked={playtest.humanize.enabled}
-                  onChange={(v) => patchHumanize({ enabled: v })}
+                  onChange={setHumanizeEnabled}
                 />
                 <p className="-mt-1.5 text-[11px] text-slate-500">
                   {t("settings.humanizeHint")}

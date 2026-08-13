@@ -72,6 +72,30 @@ describe("hasNoteCollision / hasNoteCollisions", () => {
     const notes = [note("a", 0, 0, 200), note("b", 0, 100)];
     expect(hasNoteCollisions(notes)).toBe(true);
   });
+
+  it("matches pairwise collision semantics across mixed rice and long notes", () => {
+    let seed = 17;
+    const random = () => {
+      seed = (seed * 48271) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let run = 0; run < 100; run++) {
+      const notes = Array.from({ length: 80 }, (_, index) => {
+        const start = Math.floor(random() * 2000);
+        const duration = random() < 0.35 ? Math.floor(random() * 300) + 1 : 0;
+        return note(
+          `${run}-${index}`,
+          Math.floor(random() * 7),
+          start,
+          duration ? start + duration : undefined,
+        );
+      });
+      const pairwise = notes.some((a, i) =>
+        notes.slice(i + 1).some((b) => notesCollide(a, b)),
+      );
+      expect(hasNoteCollisions(notes)).toBe(pairwise);
+    }
+  });
 });
 
 describe("withoutNoteCollisions", () => {

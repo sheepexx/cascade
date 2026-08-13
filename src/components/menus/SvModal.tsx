@@ -19,6 +19,7 @@ import {
   defaultSvCurve,
   effectiveRateAt,
   greensInRange,
+  normalizationSv,
   removeGreensInRange,
   stutterLowSv,
   stutterSv,
@@ -44,12 +45,13 @@ type Props = {
   bookmarkLabels?: Record<string, string>;
 };
 
-type Tab = "constant" | "curve" | "stutter" | "remove";
+type Tab = "constant" | "curve" | "stutter" | "normalize" | "remove";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "constant", label: "Constant" },
   { id: "curve", label: "Curve" },
   { id: "stutter", label: "Stutter" },
+  { id: "normalize", label: "Normalize" },
   { id: "remove", label: "Remove" },
 ];
 
@@ -75,6 +77,8 @@ const TAB_HELP: Record<Tab, string> = {
     "Shapes the scroll speed across the range. Drag the keyframes and their handles, double-click the line to add one, Delete to remove.",
   stutter:
     "Bursts fast at the start of each cycle, then slows to compensate, so the chart never drifts out of place. A classic jump-scroll effect.",
+  normalize:
+    "Adds compensation at every BPM change so the visible scroll rate stays constant across the range.",
   remove: "Deletes every SV point inside the range, returning it to 1× scroll.",
 };
 
@@ -150,6 +154,8 @@ export function SvModal({
           peakPercent / 100,
           cycleBeats,
         );
+      case "normalize":
+        return normalizationSv(timingPoints, rangeStart, rangeEnd);
       case "remove":
         return [];
     }
@@ -421,7 +427,7 @@ export function SvModal({
   );
 
   return (
-    <Modal open={open} onClose={onClose} title="SV editor" width="max-w-2xl">
+    <Modal open={open} onClose={onClose} title="SV editor" width="max-w-2xl" modeless>
       {/* Generators have different control counts; floor the height so the
           preview and Apply button stay put when switching tabs. */}
       <div className="flex min-h-[min(34rem,66vh)] flex-col gap-4">
@@ -695,6 +701,13 @@ export function SvModal({
                 </span>
               )}
             </p>
+          </div>
+        )}
+
+        {tab === "normalize" && (
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-xs text-slate-300">
+            Compensation follows every red timing point in the range. This is
+            useful for BPM changes that should keep a steady visual speed.
           </div>
         )}
 

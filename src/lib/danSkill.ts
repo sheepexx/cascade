@@ -107,7 +107,7 @@ export const DAN_LADDERS: Record<DanLadderId, DanLadder> = {
 export const DAN_LADDER_IDS = Object.keys(DAN_LADDERS) as DanLadderId[];
 
 export const DEFAULT_DAN_SELECTIONS: Record<"4" | "7", DanSelection> = {
-  "4": { regularLevel: 7, lnLevel: 0 },
+  "4": { regularLevel: 13, lnLevel: 0 },
   "7": { regularLevel: 5, lnLevel: 5 },
 };
 

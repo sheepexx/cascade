@@ -70,6 +70,9 @@ export const ptBR: PartialCatalog = {
   "settings.tabAudio": "Áudio",
   "settings.tabExport": "Exportar",
   "settings.language": "Idioma",
+  "settings.uiScale": "Escala da interface",
+  "settings.uiScaleHint":
+    "Ajusta menus e controles para telas maiores ou de alta resolução.",
 
   "settings.playfield": "Área de jogo",
   "settings.backgroundDim": "Escurecer fundo",
@@ -247,6 +250,7 @@ export const ptBR: PartialCatalog = {
   "file.exportOsu": "Exportar .osu",
   "file.exportOsz": "Exportar .osz",
   "file.exportSm": "Exportar .sm",
+  "file.exportQua": "Exportar .qua",
 
   "collab.live": "Live - edições sincronizam em tempo real",
   "collab.connecting": "Conectando à sessão ao vivo…",
@@ -337,7 +341,7 @@ export const ptBR: PartialCatalog = {
   "transport.hit": "Hit",
   "transport.snap": "Snap",
   "transport.snapFree": "Livre",
-  "transport.scrollSpeed": "Velocidade",
+  "transport.scrollSpeed": "Zoom da linha do tempo",
 
   "diffSidebar.title": "Dificuldades",
   "diffSidebar.rateChanger": "Alterar rate",

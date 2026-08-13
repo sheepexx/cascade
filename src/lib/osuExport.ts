@@ -40,6 +40,10 @@ function formatHitObject(note: ManiaNote, keyCount: number): string {
 export const CASCADE_WATERMARK =
   "// Made with Cascade - https://cascade.sheepex.net";
 
+function formatDecimal(value: number): string {
+  return String(Number(value.toFixed(6)));
+}
+
 export function tagsWithCascade(tags: string | undefined): string {
   const list = (tags ?? "").split(/\s+/).filter(Boolean);
   if (!list.some((t) => t.toLowerCase() === "cascade")) list.push("Cascade");
@@ -68,15 +72,13 @@ export function buildOsuFile({
   const points = sortedPoints(
     timingPoints.length ? timingPoints : [makeRedPoint(0, 120)],
   );
-  const offset = Math.round(points[0].time);
-
   const timingLines = points.map((p) => {
     const beatLengthMs = p.uninherited
       ? 60000 / p.bpm
       : svToBeatLength(p.sv);
     const effects = (p.kiai ? 1 : 0) | (p.omitFirstBarline ? 8 : 0);
     return [
-      Math.round(p.time),
+      formatDecimal(p.time),
       beatLengthMs,
       Math.max(1, Math.round(p.meter || 4)),
       p.sampleSet,
@@ -108,8 +110,6 @@ export function buildOsuFile({
   const hitObjects = sortedNotes.map((n) =>
     formatHitObject(n, difficulty.keyCount),
   );
-
-  void offset;
 
   const lines = [
     "osu file format v14",

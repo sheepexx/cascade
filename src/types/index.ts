@@ -20,15 +20,15 @@ export const SAMPLE_SET_NAMES = ["auto", "normal", "soft", "drum"] as const;
 /** Free placement: notes land on the exact millisecond, with no grid. */
 export const FREE_SNAP = 0;
 
-export type SnapDivisor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 12 | 16 | 0;
+export type SnapDivisor = number;
 
 /**
- * Real beat divisors only. Anything that has to reason about a grid - pattern
- * snap detection, AiMod - works off this list, so free snap stays out of it.
+ * Real beat divisors offered by the editor. Free snap stays out of this list.
  */
-export const SNAP_DIVISORS: SnapDivisor[] = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16,
-];
+export const SNAP_DIVISORS: SnapDivisor[] = Array.from(
+  { length: 48 },
+  (_, index) => index + 1,
+);
 
 /** What the snap picker offers, in order: every divisor, then free. */
 export const SNAP_OPTIONS: SnapDivisor[] = [...SNAP_DIVISORS, FREE_SNAP];
@@ -83,7 +83,7 @@ export function makeRedPoint(
   return {
     ...TIMING_DEFAULTS,
     id: uid("tp"),
-    time: Math.round(time),
+    time: Number.isFinite(time) ? time : 0,
     uninherited: true,
     bpm,
     ...extra,
@@ -98,7 +98,7 @@ export function makeGreenPoint(
   return {
     ...TIMING_DEFAULTS,
     id: uid("tp"),
-    time: Math.round(time),
+    time: Number.isFinite(time) ? time : 0,
     uninherited: false,
     sv: clampSv(sv),
     ...extra,
@@ -109,7 +109,7 @@ export function normalizeTimingPoint(p: Partial<TimingPoint>): TimingPoint {
   return {
     ...TIMING_DEFAULTS,
     id: p.id ?? uid("tp"),
-    time: Math.round(p.time ?? 0),
+    time: typeof p.time === "number" && Number.isFinite(p.time) ? p.time : 0,
     uninherited: p.uninherited ?? true,
     bpm: p.bpm ?? TIMING_DEFAULTS.bpm,
     sv: clampSv(p.sv ?? TIMING_DEFAULTS.sv),
@@ -158,7 +158,7 @@ export type SmMeta = {
 
 export type Difficulty = {
   id: string;
-  sourceFormat?: "osu" | "sm";
+  sourceFormat?: "osu" | "sm" | "qua";
   smMeta?: SmMeta;
   name: string;
   audioFilename?: string;
@@ -349,12 +349,12 @@ export const SKILL_PRESETS: Record<SkillPresetName, SkillCapability> = {
 
 export const DEFAULT_SKILL: SkillSettings = {
   enabled: true,
-  jackNps: 5.44,
-  handNps: 8.91,
+  jackNps: 7.02,
+  handNps: 12.03,
   chordSize: 4,
-  lnSkill: 0.49,
-  staminaSec: 29.63,
-  recoverySec: 4.04,
+  lnSkill: 0.64,
+  staminaSec: 41.36,
+  recoverySec: 3.24,
   lnProfile: {
     jackNps: 4.55,
     handNps: 7.42,
@@ -364,7 +364,7 @@ export const DEFAULT_SKILL: SkillSettings = {
     recoverySec: 4.63,
   },
   danSelections: {
-    "4": { regularLevel: 7, lnLevel: 0 },
+    "4": { regularLevel: 13, lnLevel: 0 },
     "7": { regularLevel: 5, lnLevel: 5 },
   },
 };
@@ -394,6 +394,7 @@ export type PlaytestSettings = {
 
 export type AppSettings = {
   waveformSensitivity: number;
+  uiScale: number;
   playfieldScale: number;
   longNoteBodyScale: number;
   hitsoundsEnabled: boolean;
@@ -454,6 +455,7 @@ export type LoadedSkin = {
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   waveformSensitivity: 1,
+  uiScale: 1,
   playfieldScale: 1.5,
   longNoteBodyScale: 0.75,
   hitsoundsEnabled: true,

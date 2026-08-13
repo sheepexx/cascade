@@ -200,4 +200,16 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
     expect(green?.sv).toBeCloseTo(1.5, 6);
     expect(green?.kiai).toBe(true);
   });
+
+  it("preserves fractional timing offsets so snapped objects stay snapped", () => {
+    const fractional = [makeRedPoint(12.345, 177.7)];
+    const exported = buildOsuFile({
+      meta,
+      difficulty,
+      timingPoints: fractional,
+      audioFilename: "audio.mp3",
+    });
+    expect(exported).toContain("12.345,");
+    expect(parseOsuFile(exported).timingPoints[0].time).toBe(12.345);
+  });
 });

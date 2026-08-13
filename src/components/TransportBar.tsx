@@ -199,6 +199,19 @@ export function TransportBar({
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
           {t("transport.scrollSpeed")}
+          <button
+            type="button"
+            onClick={() =>
+              onView({
+                ...view,
+                scrollSpeed: Math.max(MIN_SCROLL_SPEED, view.scrollSpeed - 1),
+              })
+            }
+            className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-700 text-sm text-slate-300 transition hover:bg-ink-600 hover:text-white"
+            aria-label="Zoom out timeline"
+          >
+            −
+          </button>
           <input
             type="range"
             min={MIN_SCROLL_SPEED}
@@ -210,6 +223,19 @@ export function TransportBar({
             }
             className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
           />
+          <button
+            type="button"
+            onClick={() =>
+              onView({
+                ...view,
+                scrollSpeed: Math.min(MAX_SCROLL_SPEED, view.scrollSpeed + 1),
+              })
+            }
+            className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-700 text-sm text-slate-300 transition hover:bg-ink-600 hover:text-white"
+            aria-label="Zoom in timeline"
+          >
+            +
+          </button>
           <span className="w-9 font-mono text-slate-300">
             {view.scrollSpeed}
           </span>

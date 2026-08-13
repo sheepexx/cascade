@@ -69,6 +69,8 @@ export const zhCN: PartialCatalog = {
   "settings.tabAudio": "音频",
   "settings.tabExport": "导出",
   "settings.language": "语言",
+  "settings.uiScale": "界面缩放",
+  "settings.uiScaleHint": "为更大或更高分辨率的显示器缩放菜单和控件。",
 
   "settings.playfield": "游戏区域",
   "settings.backgroundDim": "背景变暗",
@@ -242,6 +244,7 @@ export const zhCN: PartialCatalog = {
   "file.exportOsu": "导出 .osu",
   "file.exportOsz": "导出 .osz",
   "file.exportSm": "导出 .sm",
+  "file.exportQua": "导出 .qua",
 
   "collab.live": "Live - 编辑实时同步",
   "collab.connecting": "正在连接实时会话…",
@@ -320,7 +323,7 @@ export const zhCN: PartialCatalog = {
   "transport.hit": "打击音",
   "transport.snap": "吸附",
   "transport.snapFree": "自由",
-  "transport.scrollSpeed": "滚动速度",
+  "transport.scrollSpeed": "时间轴缩放",
 
   "diffSidebar.title": "难度",
   "diffSidebar.rateChanger": "变速工具",

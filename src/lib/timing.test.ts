@@ -173,6 +173,15 @@ describe("gridLinesInRange", () => {
     const lines = gridLinesInRange(0, 1000, points, 1).map((l) => l.time);
     expect(lines).toEqual([0, 500, 750, 1000]);
   });
+
+  it("extrapolates the first timing grid backwards", () => {
+    const points = [makeRedPoint(1000, 120, { meter: 4 })];
+    const lines = gridLinesInRange(0, 1000, points, 1);
+    expect(lines.map((line) => line.time)).toEqual([0, 500, 1000]);
+    expect(lines.filter((line) => line.barline).map((line) => line.time)).toEqual([
+      1000,
+    ]);
+  });
 });
 
 describe("formatTime", () => {

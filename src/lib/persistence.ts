@@ -71,7 +71,7 @@ export type LocalProjectSummary = {
   updatedAt: number;
   difficultyCount: number;
   sizeBytes: number;
-  sourceFormat?: "osu" | "sm";
+  sourceFormat?: "osu" | "sm" | "qua";
   backgroundBlob?: Blob;
 };
 
@@ -189,15 +189,14 @@ function requestDb(): Promise<IDBDatabase> {
     }
 
     let settled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
     const settle = (run: () => void) => {
       if (settled) return;
       settled = true;
-      if (timer !== undefined) clearTimeout(timer);
+      clearTimeout(timer);
       run();
     };
 
-    timer = setTimeout(() => {
+    const timer = setTimeout(() => {
       settle(() =>
         reject(
           new Error(

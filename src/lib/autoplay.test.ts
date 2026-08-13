@@ -378,7 +378,15 @@ describe("planAutoplay with physical limits", () => {
   function playWithSkill(notes: ManiaNote[], keyCount = 4, s = skill) {
     const profile = computeSkillProfile(notes, keyCount, s);
     return planAutoplay(notes, {
-      humanize: { ...perfect, seed: 777 },
+      humanize: {
+        ...perfect,
+        enabled: true,
+        jitterMs: 0,
+        missChance: 0,
+        slipChance: 0,
+        releaseJitterMs: 0,
+        seed: 777,
+      },
       windows,
       releaseWindows,
       profile,
@@ -423,7 +431,9 @@ describe("planAutoplay with physical limits", () => {
   it("still plays a rate it can handle once spread across columns", () => {
     const jacked = playWithSkill(chart(14, 300, 1));
     const spread = playWithSkill(chart(14, 300, 4));
-    expect(jacked.plannedMisses.size).toBeGreaterThan(150);
+    expect(jacked.plannedMisses.size).toBeGreaterThan(
+      spread.plannedMisses.size + 100,
+    );
     expect(spread.plannedMisses.size).toBe(0);
   });
 
@@ -469,6 +479,23 @@ describe("planAutoplay with physical limits", () => {
     });
     expect(plannedMisses.size).toBe(0);
     expect(events).toHaveLength(200);
+  });
+
+  it("ignores the physical skill profile while humanize is disabled", () => {
+    const notes = chart(30, 300, 1);
+    const profile = computeSkillProfile(notes, 4, skill);
+    const { plannedMisses, events } = planAutoplay(notes, {
+      humanize: perfect,
+      windows,
+      releaseWindows,
+      profile,
+    });
+    expect(plannedMisses.size).toBe(0);
+    expect(events).toHaveLength(notes.length);
+    const startById = new Map(notes.map((note) => [note.id, note.startTime]));
+    expect(
+      events.every((event) => event.atMs === startById.get(event.noteId)),
+    ).toBe(true);
   });
 
   it("stays reproducible for a seed", () => {

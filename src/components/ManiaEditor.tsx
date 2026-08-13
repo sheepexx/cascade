@@ -36,7 +36,6 @@ import {
 import type { Waveform } from "../hooks/useWaveform";
 import { dialogIsOpen } from "../hooks/useDialog";
 import {
-  hasNoteCollision,
   hasNoteCollisions,
   withoutNoteCollisions,
 } from "../lib/noteCollision";
@@ -168,7 +167,10 @@ type DragState = {
   column: number;
   startTime: number;
   currentTime: number;
+  replace?: ManiaNote;
 };
+
+type InteractionMode = "edit" | "select";
 
 type SelectionDragState = {
   startX: number;
@@ -267,6 +269,9 @@ type ColumnRender = {
 };
 
 export function ManiaEditor(props: Props) {
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>("edit");
+  const interactionModeRef = useRef<InteractionMode>("edit");
+  interactionModeRef.current = interactionMode;
   const [shiftActive, setShiftActive] = useState(false);
   const [receptorsOn, setReceptorsOn] = useState(true);
   const receptorsOnRef = useRef(true);
@@ -467,11 +472,9 @@ export function ManiaEditor(props: Props) {
       ) {
         return false;
       }
-      const others = notes.filter((n) => !ids.has(n.id));
-      if (
-        hasNoteCollisions(moved) ||
-        moved.some((n) => hasNoteCollision(n, others))
-      ) {
+      const movedById = new Map(moved.map((note) => [note.id, note]));
+      const next = notes.map((n) => movedById.get(n.id) ?? n);
+      if (hasNoteCollisions(next)) {
         return false;
       }
       propsRef.current.onMoveNotes(moved);
@@ -599,6 +602,11 @@ export function ManiaEditor(props: Props) {
       const binds =
         propsRef.current.editorKeybinds ?? DEFAULT_EDITOR_KEYBINDS;
       const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
+      if (e.code === "KeyQ" && noMod && !isTyping(e.target)) {
+        e.preventDefault();
+        setInteractionMode((mode) => (mode === "edit" ? "select" : "edit"));
+        return;
+      }
       if (
         matchesBind(e.code, binds.toggleReceptors) &&
         noMod &&
@@ -1440,17 +1448,26 @@ export function ManiaEditor(props: Props) {
         const tp = greens[i];
         if (tp.time > lineHi) break;
         const y = timeToY(tp.time);
+        const markerRight = originX + playfieldWidth;
+        const markerLeft = Math.max(originX, markerRight - 28);
+        const label = `${tp.sv}× SV`;
         ctx.strokeStyle = "#2dd4bf";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([7, 4]);
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
+        ctx.moveTo(markerLeft, y);
+        ctx.lineTo(markerRight, y);
         ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = "#2dd4bf";
-        ctx.font = `11px ${CANVAS_FONT_STACK}`;
-        ctx.fillText(`${tp.sv}× SV`, 6, y + 12);
+        ctx.font = `600 12px ${CANVAS_FONT_STACK}`;
+        const labelWidth = ctx.measureText(label).width;
+        const labelX =
+          markerRight + labelWidth + 16 <= width
+            ? markerRight + 7
+            : markerLeft - labelWidth - 7;
+        ctx.fillStyle = "rgba(9,18,23,0.88)";
+        roundRect(ctx, labelX - 4, y - 9, labelWidth + 8, 18, 4);
+        ctx.fill();
+        ctx.fillStyle = "#5eead4";
+        ctx.fillText(label, labelX, y + 4);
       }
 
       if (previewTime >= 0) {
@@ -1776,18 +1793,19 @@ export function ManiaEditor(props: Props) {
       !propsRef.current.playtestMode &&
       !moveDragRef.current &&
       !selectionDragRef.current &&
-      !shiftActiveRef.current
+      !shiftActiveRef.current &&
+      interactionModeRef.current === "edit"
     ) {
       const col = columnAtX(mouseRef.current.x);
       if (col >= 0) {
         const t = yToTime(mouseRef.current.y);
         const x = mouseRef.current.x - laneWidth / 2;
         const y = timeToY(t);
-        const ghost = skinCols[0]?.note ?? null;
+        const ghost = skinCols[col]?.note ?? null;
         if (ghost) {
           drawSprite(ctx, ghost, x, y, laneWidth, up);
         } else {
-          ctx.fillStyle = noteColor(0);
+          ctx.fillStyle = noteColor(col);
           roundRect(ctx, x + 3, up ? y : y - NOTE_HEIGHT, laneWidth - 6, NOTE_HEIGHT, 4);
           ctx.fill();
         }
@@ -2123,7 +2141,12 @@ export function ManiaEditor(props: Props) {
     }
     const { x, y } = localPoint(e);
     if (props.readOnly && !(e.shiftKey || shiftActiveRef.current)) return;
-    if (e.shiftKey || shiftActiveRef.current) {
+    const hit = findNoteAt(x, y);
+    if (
+      e.shiftKey ||
+      shiftActiveRef.current ||
+      (interactionModeRef.current === "select" && !hit)
+    ) {
       e.preventDefault();
       dragRef.current = null;
       selectionDragRef.current = {
@@ -2140,8 +2163,23 @@ export function ManiaEditor(props: Props) {
       return;
     }
 
-    const hit = findNoteAt(x, y);
     if (hit) {
+      if (
+        interactionModeRef.current === "edit" &&
+        !e.ctrlKey &&
+        !e.metaKey
+      ) {
+        if (selectedNoteIdsRef.current.size) setSelection(new Set());
+        const { timingPoints, view } = propsRef.current;
+        const t = snapTime(hit.startTime, timingPoints, view.snapDivisor);
+        dragRef.current = {
+          column: hit.column,
+          startTime: t,
+          currentTime: t,
+          replace: hit,
+        };
+        return;
+      }
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const ids = new Set(selectedNoteIdsRef.current);
@@ -2283,10 +2321,12 @@ export function ManiaEditor(props: Props) {
 
     const start = Math.min(drag.startTime, drag.currentTime);
     const end = Math.max(drag.startTime, drag.currentTime);
-    const id = uid("n");
-    const hs: Partial<ManiaNote> = {};
-    if (propsRef.current.currentHitSound) hs.hitSound = propsRef.current.currentHitSound;
-    if (propsRef.current.currentSampleSet) hs.sampleSet = propsRef.current.currentSampleSet;
+    const id = drag.replace?.id ?? uid("n");
+    const hs: Partial<ManiaNote> = drag.replace ? hitsoundOf(drag.replace) : {};
+    if (!drag.replace && propsRef.current.currentHitSound)
+      hs.hitSound = propsRef.current.currentHitSound;
+    if (!drag.replace && propsRef.current.currentSampleSet)
+      hs.sampleSet = propsRef.current.currentSampleSet;
 
     const note: ManiaNote =
       end - start <= 0
@@ -2299,8 +2339,12 @@ export function ManiaEditor(props: Props) {
             ...hs,
           };
     if (!inBounds(start, end)) return;
-    if (!withoutNoteCollisions([note], propsRef.current.notes).length) return;
-    props.onPlaceNote(note);
+    const existing = drag.replace
+      ? propsRef.current.notes.filter((candidate) => candidate.id !== drag.replace?.id)
+      : propsRef.current.notes;
+    if (!withoutNoteCollisions([note], existing).length) return;
+    if (drag.replace) propsRef.current.onMoveNotes([note]);
+    else props.onPlaceNote(note);
   };
 
   const onMouseLeave = () => {
@@ -2503,7 +2547,11 @@ export function ManiaEditor(props: Props) {
       <canvas
         ref={canvasRef}
         className={`block h-full w-full touch-none ${
-          props.playtestMode ? "cursor-default" : "cursor-crosshair"
+          props.playtestMode
+            ? "cursor-default"
+            : interactionMode === "select"
+              ? "cursor-default"
+              : "cursor-crosshair"
         }`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -2521,6 +2569,31 @@ export function ManiaEditor(props: Props) {
           }`}
         >
           Multi selection active
+        </div>
+      )}
+
+      {!props.playtestMode && (
+        <div className="absolute left-3 top-12 z-20 flex select-none rounded-lg border border-white/10 bg-ink-800/90 p-1 text-[11px] shadow-lg backdrop-blur">
+          {(["edit", "select"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setInteractionMode(mode)}
+              className={`rounded-md px-2.5 py-1 font-medium capitalize transition ${
+                interactionMode === mode
+                  ? "bg-accent/25 text-accent"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              }`}
+              title={
+                mode === "edit"
+                  ? "Draw or replace notes"
+                  : "Click, drag, or box-select notes"
+              }
+            >
+              {mode}
+            </button>
+          ))}
+          <span className="self-center px-1 text-[9px] text-slate-600">Q</span>
         </div>
       )}
 

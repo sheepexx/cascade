@@ -37,6 +37,7 @@ import {
 } from "./components/menus/StartModal";
 import { MyMapsModal } from "./components/menus/MyMapsModal";
 import { ImportModal } from "./components/menus/ImportModal";
+import { NewMapModal } from "./components/menus/NewMapModal";
 import { StartScreen } from "./components/StartScreen";
 import { SharedMapPage } from "./components/SharedMapPage";
 import {
@@ -151,6 +152,7 @@ import { PackBrowserModal } from "./components/menus/PackBrowserModal";
 import { scanPackFromPicker, scanPackFromDrop, scanPackFromZip } from "./lib/smPackImport";
 import type { PackSong } from "./lib/smPackImport";
 import { downloadSmZip } from "./lib/smExport";
+import { downloadQua, parseQuaFile } from "./lib/qua";
 import {
   emptyJudgementCounts,
   judgeHitError,
@@ -222,6 +224,7 @@ import {
   editorKeybindConflicts,
   matchesBind,
   normalizeEditorKeybinds,
+  timelineZoomDirection,
   type EditorAction,
   type EditorKeybinds,
 } from "./lib/editorKeybinds";
@@ -244,10 +247,12 @@ import {
   bookmarkInDirection,
   bookmarkKey,
   loopAroundTime,
+  remapBookmarkLabels,
   sortedBookmarks,
 } from "./lib/bookmarks";
 
 type ModalId =
+  | "newMap"
   | "welcome"
   | "myProjects"
   | "import"
@@ -367,9 +372,19 @@ function normalizeAppSettings(
   prefs: Partial<AppSettings> | null,
 ): AppSettings {
   const playtestPrefs = prefs?.playtest as Partial<PlaytestSettings> | undefined;
+  const suggestedUiScale =
+    typeof window !== "undefined" &&
+    (window.innerWidth >= 2000 || window.innerHeight >= 1200)
+      ? 1.15
+      : 1;
+  const uiScale =
+    typeof prefs?.uiScale === "number" && Number.isFinite(prefs.uiScale)
+      ? Math.max(0.75, Math.min(1.5, prefs.uiScale))
+      : suggestedUiScale;
   return {
     ...DEFAULT_APP_SETTINGS,
     ...(prefs ?? {}),
+    uiScale,
     playtest: {
       ...DEFAULT_APP_SETTINGS.playtest,
       ...(playtestPrefs ?? {}),
@@ -507,6 +522,14 @@ export default function App() {
   const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
     ...normalizeAppSettings(loadPreferences()),
   }));
+  useEffect(() => {
+    const root = document.documentElement;
+    const previous = root.style.fontSize;
+    root.style.fontSize = `${16 * appSettings.uiScale}px`;
+    return () => {
+      root.style.fontSize = previous;
+    };
+  }, [appSettings.uiScale]);
   const [bgScope, setBgScope] = useState<BackgroundScope>("mapset");
   const [askBgScope, setAskBgScope] = useState(false);
   const [lnTicks, setLnTicks] = useState(1);
@@ -896,7 +919,7 @@ export default function App() {
   const sourceDurationRef = useRef(0);
   sourceDurationRef.current = audio.duration * audio.timeScale;
   const modalAtmosphereOpen =
-    (modal !== null && modal !== "timing") ||
+    (modal !== null && modal !== "timing" && modal !== "sv") ||
     askBgScope ||
     pendingImport !== null ||
     exportCheck !== null ||
@@ -2140,6 +2163,57 @@ export default function App() {
     }
   }, []);
 
+  const importQuaFile = useCallback(async (file: File) => {
+    importStartedRef.current = true;
+    setImportError(null);
+    setImportingMap(true);
+    try {
+      const map = parseQuaFile(await file.text());
+      setAudioFiles((previous) => {
+        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
+        return {};
+      });
+      setBgFiles((previous) => {
+        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
+        return {};
+      });
+      setVideoFiles((previous) => {
+        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
+        return {};
+      });
+      setCloudProjectId(null);
+      setCloudOwnerId(null);
+      setMyRole(null);
+      setReferenceId(null);
+      setProjectStarted(true);
+      setMeta(map.meta);
+      setTimingPoints(normalizeTimingPoints(map.timingPoints));
+      const difficulty = {
+        ...map.difficulty,
+        timingPoints: normalizeTimingPoints(map.difficulty.timingPoints),
+      };
+      setDifficulties([difficulty]);
+      setActiveId(difficulty.id);
+      setAppSettings((settings) => ({
+        ...settings,
+        bpmAffectsScroll: map.bpmAffectsScroll,
+      }));
+      setNeedsSongHint(true);
+      setPendingImport(null);
+      setModal(null);
+      setLocalProjectId(newLocalProjectId());
+      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
+        () => {},
+      );
+    } catch (error) {
+      setImportError(
+        error instanceof Error ? error.message : "Failed to import .qua file.",
+      );
+    } finally {
+      setImportingMap(false);
+    }
+  }, []);
+
   const requestImportSm = useCallback(
     (file: File) => {
       if (hasProjectContent) {
@@ -2149,6 +2223,14 @@ export default function App() {
       }
     },
     [hasProjectContent, importSmFile],
+  );
+
+  const requestImportQua = useCallback(
+    (file: File) => {
+      if (hasProjectContent) setPendingImport(file);
+      else void importQuaFile(file);
+    },
+    [hasProjectContent, importQuaFile],
   );
 
   const importPackSong = useCallback(
@@ -2286,6 +2368,39 @@ export default function App() {
   const applyTimingPoints = useCallback(
     (points: TimingPoint[]) => patchDifficulty(activeIdRef.current, { timingPoints: points }),
     [patchDifficulty],
+  );
+
+  const shiftTimingMarkers = useCallback(
+    (deltaMs: number) => {
+      if (!deltaMs || !canEditRef.current) return;
+      const id = activeIdRef.current;
+      markStructural();
+      setDifficulties((previous) =>
+        previous.map((difficulty) => {
+          if (difficulty.id !== id) return difficulty;
+          const mapTime = (time: number) => Math.max(0, time + deltaMs);
+          const bookmarks = difficulty.bookmarks?.map(mapTime);
+          return {
+            ...difficulty,
+            timingPoints: difficulty.timingPoints.map((point) => ({
+              ...point,
+              time: point.time + deltaMs,
+            })),
+            previewTime:
+              difficulty.previewTime >= 0
+                ? mapTime(difficulty.previewTime)
+                : difficulty.previewTime,
+            bookmarks,
+            bookmarkLabels: remapBookmarkLabels(
+              difficulty.bookmarks,
+              difficulty.bookmarkLabels,
+              mapTime,
+            ),
+          };
+        }),
+      );
+    },
+    [markStructural],
   );
 
   const runAutoTime = useCallback(() => {
@@ -3254,8 +3369,10 @@ export default function App() {
       const isTab = is("zenMode");
       const isUp = is("volumeUp");
       const isDown = is("volumeDown");
-      const isF3 = is("scrollSpeedDown");
-      const isF4 = is("scrollSpeedUp");
+      const symbolZoom = noMod ? timelineZoomDirection(e.key) : 0;
+      const isTimelineZoomOut =
+        is("scrollSpeedDown") || symbolZoom === -1;
+      const isTimelineZoomIn = is("scrollSpeedUp") || symbolZoom === 1;
       const isPreviousBookmark = is("prevBookmark");
       const isNextBookmark = is("nextBookmark");
       const isZoomIn = noMod && is("zoomIn");
@@ -3267,8 +3384,8 @@ export default function App() {
         !isTab &&
         !isUp &&
         !isDown &&
-        !isF3 &&
-        !isF4 &&
+        !isTimelineZoomOut &&
+        !isTimelineZoomIn &&
         !isPreviousBookmark &&
         !isNextBookmark &&
         !isZoomIn &&
@@ -3281,8 +3398,8 @@ export default function App() {
       if (
         !hasAudioRef.current &&
         !isTab &&
-        !isF3 &&
-        !isF4 &&
+        !isTimelineZoomOut &&
+        !isTimelineZoomIn &&
         !isZoomIn &&
         !isZoomOut
       )
@@ -3302,12 +3419,15 @@ export default function App() {
       }
       else if (isUp) audio.setVolume(audio.volume + 0.05);
       else if (isDown) audio.setVolume(audio.volume - 0.05);
-      else if (isF3 || isF4) {
+      else if (isTimelineZoomOut || isTimelineZoomIn) {
         setView((v) => ({
           ...v,
           scrollSpeed: Math.max(
             MIN_SCROLL_SPEED,
-            Math.min(MAX_SCROLL_SPEED, v.scrollSpeed + (isF4 ? 1 : -1)),
+            Math.min(
+              MAX_SCROLL_SPEED,
+              v.scrollSpeed + (isTimelineZoomIn ? 1 : -1),
+            ),
           ),
         }));
       } else if (isZoomIn || isZoomOut) {
@@ -3388,6 +3508,7 @@ export default function App() {
   const isOszFile = (f: File) => /\.(osz|zip)$/i.test(f.name);
   const isOskFile = (f: File) => /\.osk$/i.test(f.name);
   const isSmFile = (f: File) => /\.(sm|ssc)$/i.test(f.name);
+  const isQuaFile = (f: File) => /\.qua$/i.test(f.name);
 
   const resetFileDrag = useCallback(() => {
     dragDepthRef.current = 0;
@@ -3490,6 +3611,11 @@ export default function App() {
         requestImportSm(sm);
         return;
       }
+      const qua = files.find(isQuaFile);
+      if (qua) {
+        requestImportQua(qua);
+        return;
+      }
       const audioF = files.find(isAudioFile);
       if (audioF) {
         onAudioFile(audioF);
@@ -3502,7 +3628,7 @@ export default function App() {
       const videoF = files.find(isVideoFile);
       if (videoF) onVideoFile(videoF);
     },
-    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, requestImportSm, importPackSong, resetFileDrag],
+    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, requestImportSm, requestImportQua, importPackSong, resetFileDrag],
   );
 
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
@@ -3560,6 +3686,25 @@ export default function App() {
       setExporting(false);
     }
   }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id]);
+
+  const doExportQua = useCallback(() => {
+    if (!audioFile || (active.keyCount !== 4 && active.keyCount !== 7)) return;
+    downloadQua({
+      meta,
+      difficulty: active,
+      timingPoints: activeTimingPoints,
+      audioFilename: audioFile.name,
+      backgroundFilename: active.backgroundFilename,
+      bpmAffectsScroll: appSettings.bpmAffectsScroll,
+    });
+    playUiSound("mapExportDone");
+  }, [
+    audioFile,
+    active,
+    activeTimingPoints,
+    meta,
+    appSettings.bpmAffectsScroll,
+  ]);
 
   const doExportOsz = useCallback(async () => {
     if (Object.keys(audioFiles).length === 0) return;
@@ -3626,16 +3771,22 @@ export default function App() {
     () => requestExport(".sm", () => void doExportSm()),
     [requestExport, doExportSm],
   );
+  const handleExportQua = useCallback(
+    () => requestExport(".qua", doExportQua),
+    [requestExport, doExportQua],
+  );
 
   const importFile = useCallback(
     (file: File) => {
       if (/\.(sm|ssc)$/i.test(file.name)) {
         void importSmFile(file);
+      } else if (/\.qua$/i.test(file.name)) {
+        void importQuaFile(file);
       } else {
         void importMapFile(file);
       }
     },
-    [importSmFile, importMapFile],
+    [importSmFile, importQuaFile, importMapFile],
   );
 
   const confirmImportWithoutExport = useCallback(() => {
@@ -4206,7 +4357,7 @@ export default function App() {
     setModal(null);
   }, []);
 
-  const handleNew = useCallback((confirm = true) => {
+  const handleNew = useCallback(async (confirm = true, audioSource: File | null = null) => {
     if (confirm) {
       const confirmed = window.confirm(
         "Start a new map? This removes the current audio, background, notes and " +
@@ -4215,13 +4366,25 @@ export default function App() {
       if (!confirmed) return;
     }
 
+    let loadedAudio: LoadedFile | null = null;
+    if (audioSource) {
+      try {
+        loadedAudio = await loadFile(audioSource);
+      } catch (error) {
+        setImportError(
+          error instanceof Error ? error.message : "Failed to load the audio file.",
+        );
+        return;
+      }
+    }
+
     applyingHistoryRef.current = true;
     undoStackRef.current = [];
     redoStackRef.current = [];
 
     setAudioFiles((prev) => {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return {};
+      return loadedAudio ? { [loadedAudio.name]: loadedAudio } : {};
     });
     setBgFiles((prev) => {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
@@ -4233,6 +4396,7 @@ export default function App() {
     });
 
     const fresh = makeDifficulty("Normal", 4);
+    if (loadedAudio) fresh.audioFilename = loadedAudio.name;
     setProjectStarted(true);
     setMeta(DEFAULT_SONG_META);
     setTimingPoints(defaultTimingPoints());
@@ -4243,7 +4407,7 @@ export default function App() {
     setModal(null);
     setImportError(null);
     setSaveStatus(null);
-    setNeedsSongHint(true);
+    setNeedsSongHint(!loadedAudio);
     setLocalProjectId(newLocalProjectId());
     setCloudProjectId(null);
     setCloudOwnerId(null);
@@ -4252,6 +4416,12 @@ export default function App() {
     void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
       () => {},
     );
+
+    if (loadedAudio) {
+      setAutoTimeOpen(true);
+      setAutoTimeStatus("idle");
+      setAutoTimeResult(null);
+    }
 
   }, []);
 
@@ -4349,7 +4519,7 @@ export default function App() {
             <div className="mb-2 text-3xl">🎵</div>
             <p className="text-lg font-semibold text-slate-100">Drop to load</p>
             <p className="text-sm text-slate-400">
-              audio (.mp3 / .ogg) · image background · .osz / .sm / .ssc map (folder) · .osk skin
+              audio (.mp3 / .ogg) · image background · .osz / .sm / .ssc / .qua map (folder) · .osk skin
             </p>
           </div>
         </div>
@@ -4579,6 +4749,17 @@ export default function App() {
                     label: t("file.exportSm"),
                     disabled: !canExport,
                     onClick: handleExportSm,
+                  },
+                  {
+                    label: t("file.exportQua"),
+                    disabled:
+                      !canExport ||
+                      (active.keyCount !== 4 && active.keyCount !== 7),
+                    title:
+                      active.keyCount !== 4 && active.keyCount !== 7
+                        ? "Quaver supports 4K and 7K maps"
+                        : undefined,
+                    onClick: handleExportQua,
                   },
                 ]}
               />
@@ -4828,7 +5009,7 @@ export default function App() {
                 music={menuMusic}
                 onOpenChange={setMenuOpen}
                 onMyMaps={() => setModal("myProjects")}
-                onNewMap={() => handleNew(hasProjectContent)}
+                onNewMap={() => setModal("newMap")}
                 onPackCreator={() => setPackCreatorOpen(true)}
                 onTryMaps={() => setModal("sampleMaps")}
                 onImport={() => setModal("import")}
@@ -5075,6 +5256,13 @@ export default function App() {
 
       </div>
 
+      {modalMounted("newMap") && (
+        <NewMapModal
+          open={modal === "newMap"}
+          onClose={close}
+          onCreate={(audioSource) => handleNew(hasProjectContent, audioSource)}
+        />
+      )}
       {modalMounted("welcome") && (
         <WelcomeModal
           open={modal === "welcome"}
@@ -5085,7 +5273,7 @@ export default function App() {
               ? importFromOsu
               : undefined
           }
-          onNewMap={() => handleNew(hasProjectContent)}
+          onNewMap={() => setModal("newMap")}
           onTryMaps={() => setModal("sampleMaps")}
           onImportSmPack={onImportSmPack}
           onPackCreator={() => {
@@ -5102,7 +5290,7 @@ export default function App() {
           open={modal === "myProjects"}
           onClose={close}
           accountsEnabled={featureFlags.cloud_accounts}
-          onNewMap={() => handleNew(hasProjectContent)}
+          onNewMap={() => setModal("newMap")}
           onTryMaps={() => setModal("sampleMaps")}
           onOpenLocalProject={(id) => void loadLocalProject(id)}
           onOpenCloudProject={(id) => void loadCloudProject(id)}
@@ -5115,6 +5303,7 @@ export default function App() {
           onFile={(file) => {
             setModal(null);
             if (isSmFile(file)) void importSmFile(file);
+            else if (isQuaFile(file)) void importQuaFile(file);
             else void importMapFile(file);
           }}
           onFolder={
@@ -5207,6 +5396,8 @@ export default function App() {
           keyCount={active.keyCount}
           open={modal === "settings"}
           onClose={close}
+          uiScale={appSettings.uiScale}
+          onUiScale={(v) => setAppSettings((s) => ({ ...s, uiScale: v }))}
           playfieldScale={appSettings.playfieldScale}
           onPlayfieldScale={(v) =>
             setAppSettings((s) => ({ ...s, playfieldScale: v }))
@@ -5330,6 +5521,7 @@ export default function App() {
           onSetPlaybackRate={audio.setPlaybackRate}
           audioBuffer={waveform?.buffer ?? null}
           timeScale={activeRate}
+          onShiftMarkers={shiftTimingMarkers}
         />
       )}
       {modalMounted("sv") && featureFlags.sv_tools && (
@@ -5838,11 +6030,12 @@ function InfoModal({
         </InfoSection>
 
         <InfoSection title="Editing">
-          <InfoRow keys="Left click" text="Place a snapped note in an empty lane." />
-          <InfoRow keys="Left drag" text="Create a long note from the drag range." />
-          <InfoRow keys="Click note" text="Select a placed note." />
+          <InfoRow keys="Q" text="Switch between Edit and Select modes." />
+          <InfoRow keys="Edit: click" text="Place a snapped note or replace an existing note." />
+          <InfoRow keys="Edit: drag" text="Create a long note from the drag range." />
+          <InfoRow keys="Select: click" text="Select a placed note." />
           <InfoRow keys="Ctrl/Cmd + click" text="Toggle notes in the selection." />
-          <InfoRow keys="Drag selected" text="Move selected notes by lane and snap time." />
+          <InfoRow keys="Select: drag" text="Move selected notes by lane and snap time." />
           <InfoRow keys="Right click note" text="Delete that note, or the selected notes." />
         </InfoSection>
 
@@ -5873,12 +6066,12 @@ function InfoModal({
         </InfoSection>
 
         <InfoSection title="Grid and display">
-          <InfoRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/16, or Free to place notes on any millisecond." />
-          {row("scrollSpeedDown", "Decrease visual note scroll speed.")}
-          {row("scrollSpeedUp", "Increase visual note scroll speed.")}
+          <InfoRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/48, or Free to place notes on any millisecond." />
+          {row("scrollSpeedDown", "Zoom the editor timeline out.")}
+          {row("scrollSpeedUp", "Zoom the editor timeline in.")}
           {row("zoomIn", "Grow the playfield.")}
           {row("zoomOut", "Shrink the playfield.")}
-          <InfoRow keys="Scroll speed" text="Change visual note scroll speed. This is not exported." />
+          <InfoRow keys="Timeline zoom" text="Change the editor timeline scale. This is not exported." />
           {row("toggleReceptors", "Toggle receptors on or off.")}
           {row("waveformOverlay", "Toggle the waveform overlay on the hit lane (outside hitsound mode).")}
           <InfoRow keys="PP counter" text="Shows max SS no-mod pp for the active difficulty." />

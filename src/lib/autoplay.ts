@@ -184,8 +184,9 @@ export function planAutoplay(
   const seed = humanize.seed || ((Math.random() * 0xffffffff) | 0) || 1;
   const rng = createRng(seed);
   const human = humanize.enabled;
+  const activeProfile = human ? profile : null;
   const timingScale = Math.max(0.25, Math.min(4, rate));
-  const localizeHumanMisses = (profile?.loads.size ?? 0) > 0;
+  const localizeHumanMisses = (activeProfile?.loads.size ?? 0) > 0;
   const drift = makeDrift(rng);
 
   let columns = keyCount;
@@ -208,7 +209,9 @@ export function planAutoplay(
     const chord = playable.slice(index, end);
     index = end;
 
-    const loads = chord.map((note) => profile?.loads.get(note.id)?.load ?? 0);
+    const loads = chord.map(
+      (note) => activeProfile?.loads.get(note.id)?.load ?? 0,
+    );
     const sigmas = loads.map(
       (load) => (human ? humanize.jitterMs : 0) + loadJitterMs(load),
     );
