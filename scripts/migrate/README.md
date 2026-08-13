@@ -1,5 +1,8 @@
 # Supabase → VPS data migration
 
+For the separate Supabase Storage to Cloudflare R2 rollout, use
+[`../../docs/R2_MIGRATION.md`](../../docs/R2_MIGRATION.md).
+
 Moves your **data** (Postgres rows + Storage objects) from the hosted Supabase
 project to the self-hosted Supabase running on the VPS. It does **not** create
 schema - apply `supabase/migrations/*.sql` on the VPS first, which builds the

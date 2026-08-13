@@ -3,10 +3,15 @@ import { decodeAudioBlob, renderTrimmedAudio } from "./audioTrim";
 import { loadMp3Encoder } from "./lameEncoder";
 import { computeMapStats } from "./mapStats";
 import { computeStarRating } from "./starRating";
+import {
+  deleteSharedAssets,
+  deleteSharedUpload,
+  getSharedAssetUrl,
+  uploadSharedAsset,
+} from "./storage";
 import { activeTimingAt } from "./timing";
 import type { Difficulty, SongMeta, TimingPoint } from "../types";
 
-export const SHARED_BUCKET = "shared";
 export const PREVIEW_CLIP_MS = 10000;
 const PREVIEW_FADE_MS = 400;
 const PREVIEW_CLIP_NAME = "preview.mp3";
@@ -82,8 +87,7 @@ export function sharedMapUrl(slug: string): string {
 }
 
 function publicUrl(path: string | null): string | null {
-  if (!path) return null;
-  return supabase.storage.from(SHARED_BUCKET).getPublicUrl(path).data.publicUrl;
+  return getSharedAssetUrl(path);
 }
 
 function publicAudioUrls(
@@ -149,14 +153,6 @@ function extensionOf(name: string, fallback: string): string {
   return /^[a-z0-9]{1,5}$/.test(ext) ? ext : fallback;
 }
 
-async function upload(path: string, blob: Blob): Promise<string> {
-  const { error } = await supabase.storage
-    .from(SHARED_BUCKET)
-    .upload(path, blob, { upsert: true, contentType: blob.type || undefined });
-  if (error) throw new Error(error.message);
-  return path;
-}
-
 export async function makePreviewClip(
   audio: Blob,
   startMs: number,
@@ -189,9 +185,23 @@ export async function makePreviewClip(
 
 export async function publishSharedMap(params: PublishParams): Promise<string> {
   const { ownerId, projectId, data, audioFiles, background, card } = params;
+  const previewAudio =
+    audioFiles.find((audio) => audio.name === params.previewAudioName) ??
+    audioFiles[0] ??
+    null;
+  let previewClip: Awaited<ReturnType<typeof makePreviewClip>> = null;
+  if (previewAudio) {
+    await loadMp3Encoder().catch(() => {});
+    previewClip = await makePreviewClip(
+      previewAudio.blob,
+      params.previewStartMs ?? 0,
+    );
+  }
   const bytes =
     audioFiles.reduce((sum, audio) => sum + audio.blob.size, 0) +
-    (background?.blob.size ?? 0);
+    (background?.blob.size ?? 0) +
+    (card?.size ?? 0) +
+    (previewClip?.blob.size ?? 0);
   if (bytes > SHARED_BYTE_LIMIT) {
     throw new Error(
       `Shared assets are ${(bytes / 1048576).toFixed(0)} MB, over the ` +
@@ -200,60 +210,58 @@ export async function publishSharedMap(params: PublishParams): Promise<string> {
   }
 
   const slug = makeSlug();
-  const base = `${ownerId}/${slug}`;
-  const audioPaths: Record<string, string> = {};
-  for (const [index, audio] of audioFiles.entries()) {
-    audioPaths[audio.name] = await upload(
-      `${base}/audio-${index}.${extensionOf(audio.name, "mp3")}`,
-      audio.blob,
-    );
-  }
-  const previewAudio =
-    audioFiles.find((audio) => audio.name === params.previewAudioName) ??
-    audioFiles[0] ??
-    null;
-  const audioPath = previewAudio ? audioPaths[previewAudio.name] : null;
-  let previewClipStartMs: number | undefined;
-  if (previewAudio) {
-    await loadMp3Encoder().catch(() => {});
-    const clip = await makePreviewClip(
-      previewAudio.blob,
-      params.previewStartMs ?? 0,
-    );
-    if (clip) {
-      await upload(`${base}/${PREVIEW_CLIP_NAME}`, clip.blob);
-      previewClipStartMs = clip.startMs;
-    }
-  }
-  const bgPath = background
-    ? await upload(`${base}/bg.${extensionOf(background.name, "jpg")}`, background.blob)
-    : null;
-  const cardPath = card ? await upload(`${base}/card.png`, card) : null;
+  const uploaded: { path: string; bytes: number }[] = [];
+  const put = async (path: string, blob: Blob): Promise<string> => {
+    const storedPath = await uploadSharedAsset(slug, path, blob, projectId);
+    uploaded.push({ path: storedPath, bytes: blob.size });
+    return storedPath;
+  };
 
-  const summary = summarise(data);
-  const { error } = await supabase.from("shared_maps").insert({
-    slug,
-    project_id: projectId,
-    owner: ownerId,
-    title: data.meta.title || "Untitled",
-    artist: data.meta.artist || "",
-    creator: data.meta.creator || "",
-    data:
-      previewClipStartMs == null
-        ? data
-        : { ...data, previewClipStartMs },
-    audio_path: audioPath,
-    audio_paths: audioPaths,
-    bg_path: bgPath,
-    card_path: cardPath,
-    key_counts: summary.keyCounts,
-    star_rating: Number(summary.starRating.toFixed(2)),
-    length_ms: Math.round(summary.lengthMs),
-    bpm: summary.bpm == null ? null : Number(summary.bpm.toFixed(2)),
-    note_count: summary.noteCount,
-  });
-  if (error) throw new Error(error.message);
-  return slug;
+  try {
+    const audioPaths: Record<string, string> = {};
+    for (const [index, audio] of audioFiles.entries()) {
+      audioPaths[audio.name] = await put(
+        `audio-${index}.${extensionOf(audio.name, "mp3")}`,
+        audio.blob,
+      );
+    }
+    const audioPath = previewAudio ? audioPaths[previewAudio.name] : null;
+    if (previewClip) await put(PREVIEW_CLIP_NAME, previewClip.blob);
+    const bgPath = background
+      ? await put(`bg.${extensionOf(background.name, "jpg")}`, background.blob)
+      : null;
+    const cardPath = card ? await put("card.png", card) : null;
+
+    const summary = summarise(data);
+    const { error } = await supabase.from("shared_maps").insert({
+      slug,
+      project_id: projectId,
+      owner: ownerId,
+      title: data.meta.title || "Untitled",
+      artist: data.meta.artist || "",
+      creator: data.meta.creator || "",
+      data:
+        previewClip == null
+          ? data
+          : { ...data, previewClipStartMs: previewClip.startMs },
+      audio_path: audioPath,
+      audio_paths: audioPaths,
+      bg_path: bgPath,
+      card_path: cardPath,
+      key_counts: summary.keyCounts,
+      star_rating: Number(summary.starRating.toFixed(2)),
+      length_ms: Math.round(summary.lengthMs),
+      bpm: summary.bpm == null ? null : Number(summary.bpm.toFixed(2)),
+      note_count: summary.noteCount,
+      asset_count: uploaded.length,
+      asset_bytes: uploaded.reduce((sum, asset) => sum + asset.bytes, 0),
+    });
+    if (error) throw new Error(error.message);
+    return slug;
+  } catch (error) {
+    await deleteSharedUpload(slug).catch(() => {});
+    throw error;
+  }
 }
 
 export async function loadSharedMap(slug: string): Promise<SharedMap | null> {
@@ -335,8 +343,7 @@ export async function findSharedMapForProject(
 }
 
 export async function unpublishSharedMap(slug: string): Promise<void> {
-  const { error } = await supabase.from("shared_maps").delete().eq("slug", slug);
-  if (error) throw new Error(error.message);
+  await deleteSharedAssets(slug);
 }
 
 export async function countSharedView(slug: string): Promise<void> {

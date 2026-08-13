@@ -4,7 +4,9 @@ The editor is a static SPA on Vercel. Auth + storage are added via:
 
 - **Cloudflare Worker** (`worker/`) - handles osu! OAuth, holds secrets, mints a
   Supabase JWT. Already deployed at `https://mania-editor.noahcraft01.workers.dev/`.
-- **Supabase** - Postgres (data) + Storage (audio/bg) + Realtime collaboration.
+- **Supabase** - Postgres (data) + Realtime collaboration.
+- **Cloudflare R2** - private project assets and public shared-map assets. See
+  [`R2_MIGRATION.md`](./R2_MIGRATION.md) for setup and rollout.
 
 There is **no Supabase Auth user**. The Worker mints a Supabase-compatible JWT whose
 `sub` is a row id in `public.users`; Row-Level Security reads it as `auth.uid()`.
@@ -14,8 +16,8 @@ There is **no Supabase Auth user**. The Worker mints a Supabase-compatible JWT w
 1. Create a free project at supabase.com.
 2. Apply every file in [`supabase/migrations`](../supabase/migrations) in numeric
    order (with the Supabase CLI, or by pasting each file into the SQL editor).
-   These create the tables, RLS policies, private `maps` bucket, collaboration
-   channel authorization, and Realtime publications.
+   These create the tables, RLS policies, migration-era Storage buckets,
+   collaboration channel authorization, and Realtime publications.
 3. Collect these from **Project Settings**:
    - `Project URL` → `SUPABASE_URL` / `VITE_SUPABASE_URL`
    - `anon` key (API) → `VITE_SUPABASE_ANON_KEY`
@@ -71,8 +73,8 @@ Reload the app - an **Admin** entry appears in the account menu.
   `/auth/osu/callback` (upserts user, sets signed session cookie) → back to the app.
 - **Session**: the app calls Worker `/auth/session` (with credentials) on load and
   periodically; it returns the user + a fresh 1h Supabase token, applied to supabase-js.
-- **Cloud maps**: chart JSON in `projects.data`, audio/bg blobs in the `maps` bucket
-  (deduped by SHA-256), tracked in `project_assets`.
+- **Cloud maps**: chart JSON stays in `projects.data`; audio/background blobs use
+  the private `cascade-projects` R2 bucket and remain tracked in `project_assets`.
 - **Presets**: copy notes in the editor → "Save as preset…" → `pending`; an admin
   approves it in the Admin panel; approved presets show in the Preset browser for all.
 

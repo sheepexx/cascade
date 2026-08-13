@@ -1,4 +1,11 @@
-import { supabase, MAPS_BUCKET } from "./supabase";
+import { supabase } from "./supabase";
+import {
+  createProjectAssetUrls,
+  deleteProjectAsset,
+  deleteProjectWithAssets,
+  downloadProjectAsset,
+  uploadProjectAsset,
+} from "./storage";
 import type {
   BackgroundScope,
   Difficulty,
@@ -69,14 +76,11 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
           `or changed since it was added. Re-add it and save again.`,
       );
     }
-    const ext = asset.name.includes(".")
-      ? asset.name.slice(asset.name.lastIndexOf(".") + 1).toLowerCase()
-      : "bin";
+    const ext = extensionOf(asset.name);
     prepared.push({ ...asset, sha, ext });
   }
 
   const row = {
-    owner: ownerId,
     title: data.meta.title,
     artist: data.meta.artist,
     creator: data.meta.creator,
@@ -87,13 +91,14 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
   if (!id) {
     const { data: inserted, error } = await supabase
       .from("projects")
-      .insert(row)
+      .insert({ ...row, owner: ownerId })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
     id = inserted.id as string;
   }
 
+  const uploadedPaths: string[] = [];
   try {
     const assetRows: {
       project_id: string;
@@ -106,13 +111,8 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
 
     for (const asset of prepared) {
       const storagePath = `${id}/${asset.sha}.${asset.ext}`;
-      const { error: upErr } = await supabase.storage
-        .from(MAPS_BUCKET)
-        .upload(storagePath, asset.blob, {
-          upsert: true,
-          contentType: asset.blob.type || undefined,
-        });
-      if (upErr) throw new Error(upErr.message);
+      await uploadProjectAsset(id, storagePath, asset.blob);
+      uploadedPaths.push(storagePath);
       assetRows.push({
         project_id: id,
         kind: asset.kind,
@@ -123,11 +123,11 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
       });
     }
 
-    await supabase.from("project_assets").delete().eq("project_id", id);
-    if (assetRows.length) {
-      const { error } = await supabase.from("project_assets").insert(assetRows);
-      if (error) throw new Error(error.message);
-    }
+    const { data: obsolete, error: replaceError } = await supabase.rpc(
+      "replace_project_assets",
+      { p_project: id, p_assets: assetRows },
+    );
+    if (replaceError) throw new Error(replaceError.message);
 
     // For an existing collaborative project, publish the assets first and the
     // chart reference last. Peers can never observe a new filename before its
@@ -139,12 +139,20 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
         .eq("id", id);
       if (error) throw new Error(error.message);
     }
+
+    for (const row of (obsolete ?? []) as { obsolete_path: string }[]) {
+      await deleteProjectAsset(id, row.obsolete_path);
+    }
   } catch (err) {
     if (!projectId) {
       try {
-        await supabase.from("projects").delete().eq("id", id);
+        await deleteProjectWithAssets(id);
       } catch {
       }
+    } else {
+      await Promise.allSettled(
+        uploadedPaths.map((path) => deleteProjectAsset(id, path)),
+      );
     }
     throw err;
   }
@@ -219,15 +227,7 @@ export async function signedThumbUrls(
 ): Promise<Record<string, string>> {
   const unique = [...new Set(paths.filter(Boolean))];
   if (!unique.length) return {};
-  const { data, error } = await supabase.storage
-    .from(MAPS_BUCKET)
-    .createSignedUrls(unique, 60 * 60);
-  if (error) throw new Error(error.message);
-  const out: Record<string, string> = {};
-  for (const row of data ?? []) {
-    if (row.signedUrl && row.path) out[row.path] = row.signedUrl;
-  }
-  return out;
+  return createProjectAssetUrls(unique);
 }
 
 export type LoadedCloudProject = {
@@ -255,10 +255,7 @@ export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> 
   const audio: CloudAsset[] = [];
   const bg: CloudAsset[] = [];
   for (const a of assets ?? []) {
-    const { data: blob, error: dErr } = await supabase.storage
-      .from(MAPS_BUCKET)
-      .download(a.storage_path as string);
-    if (dErr || !blob) throw new Error(dErr?.message ?? "asset download failed");
+    const blob = await downloadProjectAsset(id, a.storage_path as string);
     const entry = { name: a.filename as string, blob };
     if (a.kind === "audio") audio.push(entry);
     else bg.push(entry);
@@ -279,33 +276,24 @@ export async function publishProjectAsset(
   asset: CloudAsset,
 ): Promise<void> {
   const sha = await sha256Hex(asset.blob);
-  const ext = asset.name.includes(".")
-    ? asset.name.slice(asset.name.lastIndexOf(".") + 1).toLowerCase()
-    : "bin";
+  const ext = extensionOf(asset.name);
   const storagePath = `${projectId}/${sha}.${ext}`;
-  const { error: upErr } = await supabase.storage
-    .from(MAPS_BUCKET)
-    .upload(storagePath, asset.blob, {
-      upsert: true,
-      contentType: asset.blob.type || undefined,
-    });
-  if (upErr) throw new Error(upErr.message);
-
-  await supabase
-    .from("project_assets")
-    .delete()
-    .eq("project_id", projectId)
-    .eq("kind", kind)
-    .eq("filename", asset.name);
-  const { error } = await supabase.from("project_assets").insert({
-    project_id: projectId,
-    kind,
-    filename: asset.name,
-    storage_path: storagePath,
-    sha256: sha,
-    bytes: asset.blob.size,
+  await uploadProjectAsset(projectId, storagePath, asset.blob);
+  const { data: obsolete, error } = await supabase.rpc("replace_project_asset", {
+    p_project: projectId,
+    p_kind: kind,
+    p_filename: asset.name,
+    p_storage_path: storagePath,
+    p_sha256: sha,
+    p_bytes: asset.blob.size,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    await deleteProjectAsset(projectId, storagePath).catch(() => {});
+    throw new Error(error.message);
+  }
+  for (const row of (obsolete ?? []) as { obsolete_path: string }[]) {
+    await deleteProjectAsset(projectId, row.obsolete_path);
+  }
 }
 
 export async function loadProjectAssets(
@@ -322,18 +310,18 @@ export async function loadProjectAssets(
 
   const out: (CloudAsset & { kind: "audio" | "bg" })[] = [];
   for (const a of rows ?? []) {
-    const { data: blob, error: dErr } = await supabase.storage
-      .from(MAPS_BUCKET)
-      .download(a.storage_path as string);
-    if (dErr || !blob) continue;
+    const blob = await downloadProjectAsset(
+      projectId,
+      a.storage_path as string,
+    ).catch(() => null);
+    if (!blob) continue;
     out.push({ name: a.filename as string, blob, kind: a.kind as "audio" | "bg" });
   }
   return out;
 }
 
 export async function deleteProjectCloud(id: string): Promise<void> {
-  const { error } = await supabase.from("projects").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await deleteProjectWithAssets(id);
 }
 
 export async function setProjectArchived(
@@ -353,4 +341,10 @@ async function sha256Hex(blob: Blob): Promise<string> {
   return [...new Uint8Array(digest)]
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function extensionOf(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  const extension = dot >= 0 ? filename.slice(dot + 1).toLowerCase() : "";
+  return /^[a-z0-9]{1,8}$/.test(extension) ? extension : "bin";
 }

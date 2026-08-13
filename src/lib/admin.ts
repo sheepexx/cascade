@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { deleteProjectWithAssets, deleteSharedAssets } from "./storage";
 
 export type AdminUser = {
   id: string;
@@ -139,23 +140,7 @@ export async function listAdminSharedMaps(
 export async function deleteSharedMapAdmin(
   preview: Pick<AdminSharedMap, "id" | "owner" | "slug">,
 ): Promise<void> {
-  const folder = `${preview.owner}/${preview.slug}`;
-  const { data: files, error: listError } = await supabase.storage
-    .from("shared")
-    .list(folder, { limit: 100 });
-  if (listError) throw new Error(listError.message);
-  const paths = (files ?? []).map((file) => `${folder}/${file.name}`);
-  if (paths.length) {
-    const { error: storageError } = await supabase.storage
-      .from("shared")
-      .remove(paths);
-    if (storageError) throw new Error(storageError.message);
-  }
-  const { error } = await supabase
-    .from("shared_maps")
-    .delete()
-    .eq("id", preview.id);
-  if (error) throw new Error(error.message);
+  await deleteSharedAssets(preview.slug);
 }
 
 export async function setUserAdmin(
@@ -176,8 +161,7 @@ export async function listAllProjects(): Promise<AdminProject[]> {
 }
 
 export async function deleteProjectAdmin(id: string): Promise<void> {
-  const { error } = await supabase.from("projects").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await deleteProjectWithAssets(id);
 }
 
 export type AdminEventStat = {

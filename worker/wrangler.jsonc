@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "mania-editor",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "CLIENT_ID": "60987",
+    "FRONTEND_URL": "https://cascade.sheepex.net",
+    "OSU_REDIRECT_URI": "https://mania-editor.noahcraft01.workers.dev/auth/osu/callback",
+    "SUPABASE_URL": "https://splqsxhwdusjeqthinxz.supabase.co",
+    "SUPABASE_STORAGE_FALLBACK": "true",
+    "MAX_ASSET_BYTES": "62914560"
+  },
+  "r2_buckets": [
+    {
+      "binding": "PROJECT_ASSETS",
+      "bucket_name": "cascade-projects"
+    },
+    {
+      "binding": "SHARED_ASSETS",
+      "bucket_name": "cascade-shared"
+    }
+  ]
+}

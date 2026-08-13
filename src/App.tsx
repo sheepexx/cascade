@@ -3788,6 +3788,7 @@ export default function App() {
 
     try {
       await cloudSavePromiseRef.current.catch(() => {});
+      const creatingProject = !cloudProjectId;
       const id = await saveProjectCloud({
         ownerId: authUser.id,
         projectId: cloudProjectId,
@@ -3810,8 +3811,10 @@ export default function App() {
         ),
       ]);
       setCloudProjectId(id);
-      setCloudOwnerId(authUser.id);
-      setMyRole("owner");
+      if (creatingProject) {
+        setCloudOwnerId(authUser.id);
+        setMyRole("owner");
+      }
       setCloudSaveStatus("saved");
       playUiSound("saveToCloudDone");
     } catch (err) {

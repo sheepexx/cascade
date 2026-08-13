@@ -11,3 +11,6 @@ dist-ssr
 
 # Migration secrets (service-role keys, DB passwords)
 scripts/migrate/.env
+worker/.dev.vars
+worker/.wrangler
+worker/.wrangler-dry-run

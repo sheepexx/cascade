@@ -1,15 +1,9 @@
 import { SignJWT, jwtVerify } from "jose";
-
-interface Env {
-  CLIENT_ID: string;
-  CLIENT_SECRET: string;
-  FRONTEND_URL: string;
-  OSU_REDIRECT_URI: string;
-  SUPABASE_URL: string;
-  SUPABASE_SERVICE_ROLE_KEY: string;
-  SUPABASE_JWT_SECRET: string;
-  COOKIE_SECRET: string;
-}
+import {
+  handleStorageRoute,
+  type StorageAuthContext,
+  type WorkerEnv,
+} from "./storage";
 
 type DbUser = {
   id: string;
@@ -26,7 +20,7 @@ const SESSION_TTL_DAYS = 30;
 const SUPABASE_TOKEN_TTL_SECONDS = 60 * 60;
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: WorkerEnv): Promise<Response> {
     const url = new URL(req.url);
 
     if (req.method === "OPTIONS") {
@@ -34,6 +28,10 @@ export default {
     }
 
     try {
+      const storageResponse = await handleStorageRoute(req, url, env, () =>
+        storageAuthContext(req, env),
+      );
+      if (storageResponse) return storageResponse;
       // Parameterized mirror routes can't be switch cases.
       const download = url.pathname.match(/^\/mirror\/(\d{1,10})$/);
       if (download && req.method === "GET") {
@@ -45,7 +43,7 @@ export default {
       }
       const shared = url.pathname.match(/^\/m\/([a-z0-9]{4,32})\/?$/i);
       if (shared && req.method === "GET") {
-        return await handleSharedMapPage(shared[1], env);
+        return await handleSharedMapPage(shared[1], url.origin, env);
       }
 
       switch (url.pathname) {
@@ -67,7 +65,7 @@ export default {
       return json({ error: message }, 500, env);
     }
   },
-};
+} satisfies ExportedHandler<WorkerEnv>;
 
 // Beatmap mirror proxy. The mirrors have inconsistent CORS, so the SPA
 // fetches through here; the worker tries each in order. A single mirror's 404
@@ -86,7 +84,7 @@ const BEATMAP_LOOKUPS = [
 
 async function handleMirrorDownload(
   setId: string,
-  env: Env,
+  env: WorkerEnv,
 ): Promise<Response> {
   let sawNotFound = false;
   for (const mirrorUrl of OSZ_MIRRORS) {
@@ -121,7 +119,7 @@ async function handleMirrorDownload(
 
 async function handleBeatmapLookup(
   beatmapId: string,
-  env: Env,
+  env: WorkerEnv,
 ): Promise<Response> {
   for (const lookupUrl of BEATMAP_LOOKUPS) {
     try {
@@ -144,7 +142,7 @@ async function handleBeatmapLookup(
   return json({ error: "beatmap not found" }, 404, env);
 }
 
-async function handleLogin(env: Env): Promise<Response> {
+async function handleLogin(env: WorkerEnv): Promise<Response> {
   const state = crypto.randomUUID();
   const authorize = new URL("https://osu.ppy.sh/oauth/authorize");
   authorize.searchParams.set("client_id", env.CLIENT_ID);
@@ -165,7 +163,7 @@ async function handleLogin(env: Env): Promise<Response> {
 async function handleCallback(
   req: Request,
   url: URL,
-  env: Env,
+  env: WorkerEnv,
 ): Promise<Response> {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -226,7 +224,7 @@ async function handleCallback(
   );
 }
 
-async function handleSession(req: Request, env: Env): Promise<Response> {
+async function handleSession(req: Request, env: WorkerEnv): Promise<Response> {
   const cookieToken = getCookie(req, SESSION_COOKIE);
   const headerToken = bearerToken(req);
   const uid =
@@ -247,12 +245,32 @@ async function handleSession(req: Request, env: Env): Promise<Response> {
   return json({ user, supabaseToken, sessionToken }, 200, env);
 }
 
+async function storageAuthContext(
+  req: Request,
+  env: WorkerEnv,
+): Promise<StorageAuthContext | null> {
+  const cookieToken = getCookie(req, SESSION_COOKIE);
+  const headerToken = bearerToken(req);
+  const uid =
+    (cookieToken && (await verifySession(env, cookieToken))) ||
+    (headerToken && (await verifySession(env, headerToken))) ||
+    null;
+  if (!uid) return null;
+  const user = await fetchUser(env, uid);
+  if (!user) return null;
+  return {
+    uid,
+    isAdmin: user.is_admin,
+    supabaseToken: await mintSupabaseToken(env, user),
+  };
+}
+
 // osu! profile covers are only reachable through the API, and the session
 // payload predates them, so the SPA asks for one on demand. Client-credentials
 // tokens last a day; keeping the last one avoids a token round-trip per open.
 let appToken: { value: string; expiresAt: number } | null = null;
 
-async function appAccessToken(env: Env): Promise<string | null> {
+async function appAccessToken(env: WorkerEnv): Promise<string | null> {
   if (appToken && appToken.expiresAt > Date.now() + 60_000)
     return appToken.value;
   const res = await fetch("https://osu.ppy.sh/oauth/token", {
@@ -278,7 +296,7 @@ async function appAccessToken(env: Env): Promise<string | null> {
   return appToken.value;
 }
 
-async function handleCover(req: Request, env: Env): Promise<Response> {
+async function handleCover(req: Request, env: WorkerEnv): Promise<Response> {
   const cookieToken = getCookie(req, SESSION_COOKIE);
   const headerToken = bearerToken(req);
   const uid =
@@ -307,14 +325,14 @@ async function handleCover(req: Request, env: Env): Promise<Response> {
   return json({ cover_url: cover }, 200, env);
 }
 
-function handleLogout(env: Env): Response {
+function handleLogout(env: WorkerEnv): Response {
   return json({ ok: true }, 200, env, [
     cookie(SESSION_COOKIE, "", { maxAge: 0 }),
   ]);
 }
 
 async function upsertUser(
-  env: Env,
+  env: WorkerEnv,
   fields: { osu_id: number; username: string; avatar_url: string | null },
 ): Promise<DbUser> {
   const body = {
@@ -340,7 +358,7 @@ async function upsertUser(
   return rows[0];
 }
 
-async function fetchUser(env: Env, id: string): Promise<DbUser | null> {
+async function fetchUser(env: WorkerEnv, id: string): Promise<DbUser | null> {
   const res = await fetch(
     `${env.SUPABASE_URL}/rest/v1/users?id=eq.${id}&select=id,osu_id,username,avatar_url,is_admin,last_signed_in_at`,
     {
@@ -355,7 +373,7 @@ async function fetchUser(env: Env, id: string): Promise<DbUser | null> {
   return rows[0] ?? null;
 }
 
-async function mintSupabaseToken(env: Env, user: DbUser): Promise<string> {
+async function mintSupabaseToken(env: WorkerEnv, user: DbUser): Promise<string> {
   const secret = new TextEncoder().encode(env.SUPABASE_JWT_SECRET);
   return new SignJWT({
     role: "authenticated",
@@ -369,7 +387,7 @@ async function mintSupabaseToken(env: Env, user: DbUser): Promise<string> {
     .sign(secret);
 }
 
-async function signSession(env: Env, uid: string): Promise<string> {
+async function signSession(env: WorkerEnv, uid: string): Promise<string> {
   const secret = new TextEncoder().encode(env.COOKIE_SECRET);
   return new SignJWT({ uid })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
@@ -378,7 +396,7 @@ async function signSession(env: Env, uid: string): Promise<string> {
     .sign(secret);
 }
 
-async function verifySession(env: Env, token: string): Promise<string | null> {
+async function verifySession(env: WorkerEnv, token: string): Promise<string | null> {
   try {
     const secret = new TextEncoder().encode(env.COOKIE_SECRET);
     const { payload } = await jwtVerify(token, secret);
@@ -395,11 +413,12 @@ function bearerToken(req: Request): string | null {
   return token || null;
 }
 
-function cors(env: Env): Record<string, string> {
+function cors(env: WorkerEnv): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": env.FRONTEND_URL,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET,HEAD,PUT,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Range, If-None-Match",
+    "Access-Control-Expose-Headers": "Content-Length, Content-Range, ETag, Accept-Ranges",
     "Access-Control-Allow-Credentials": "true",
     Vary: "Origin",
   };
@@ -417,7 +436,11 @@ type SharedMapRow = {
   bpm: number | string | null;
 };
 
-async function handleSharedMapPage(slug: string, env: Env): Promise<Response> {
+async function handleSharedMapPage(
+  slug: string,
+  assetOrigin: string,
+  env: WorkerEnv,
+): Promise<Response> {
   const shell = await fetch(`${env.FRONTEND_URL}/index.html`, {
     cf: { cacheTtl: 300 },
   });
@@ -446,7 +469,7 @@ async function handleSharedMapPage(slug: string, env: Env): Promise<Response> {
   const url = `${env.FRONTEND_URL}/m/${map.slug}`;
   const title = `${map.artist ? `${map.artist} - ` : ""}${map.title}`;
   const image = map.card_path
-    ? `${env.SUPABASE_URL}/storage/v1/object/public/shared/${map.card_path}`
+    ? `${assetOrigin}/storage/shared/${encodeObjectPath(map.card_path)}`
     : `${env.FRONTEND_URL}/og.png?v=2`;
   const bits: string[] = [];
   if (map.key_counts?.length) bits.push(map.key_counts.map((k) => `${k}K`).join(" · "));
@@ -474,6 +497,10 @@ function escapeAttr(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function encodeObjectPath(path: string): string {
+  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 function rewriteHead(
@@ -523,7 +550,7 @@ function rewriteHead(
 function json(
   body: unknown,
   status: number,
-  env: Env,
+  env: WorkerEnv,
   setCookies: string[] = [],
 ): Response {
   const headers = new Headers(cors(env));
@@ -532,7 +559,7 @@ function json(
   return new Response(JSON.stringify(body), { status, headers });
 }
 
-function redirect(location: string, env: Env, setCookies: string[]): Response {
+function redirect(location: string, env: WorkerEnv, setCookies: string[]): Response {
   const headers = new Headers(cors(env));
   headers.set("Location", location);
   for (const c of setCookies) headers.append("Set-Cookie", c);
