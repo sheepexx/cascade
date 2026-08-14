@@ -937,7 +937,7 @@ function FloatingPlayers({
         const online = p.online;
         const color = online ? "#3fdc8c" : "#78818f";
         const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
-        const tipAbove = slot.y <= 50;
+        const tipAbove = slot.y > 50;
         const profileUrl =
           p.osuId != null
             ? `https://osu.ppy.sh/users/${p.osuId}`
