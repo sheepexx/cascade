@@ -121,7 +121,13 @@ function PhoneStart({
   return (
     <div className="h-full overflow-y-auto">
       <div className="relative min-h-full overflow-hidden">
-        <MenuBackground url={music.track?.backgroundUrl ?? null} players={players ?? []} phone open={false} />
+        <MenuBackground
+          url={music.track?.backgroundUrl ?? null}
+          players={players ?? []}
+          phone
+          open={false}
+          viewportKey="phone"
+        />
 
         <div className="relative px-5 pt-14">
           <div className="flex flex-col items-center text-center">
@@ -301,7 +307,13 @@ export function StartScreen({
   return (
     <div className="h-full overflow-y-auto">
       <div className="relative grid min-h-full place-items-center overflow-hidden">
-        <MenuBackground url={music.track?.backgroundUrl ?? null} players={players ?? []} phone={false} open={open} />
+        <MenuBackground
+          url={music.track?.backgroundUrl ?? null}
+          players={players ?? []}
+          phone={false}
+          open={open}
+          viewportKey={`${layout.vw}x${layout.vh}`}
+        />
 
         <div
           aria-hidden
@@ -484,7 +496,7 @@ function measure() {
   const logoOpen = wide
     ? Math.min(LOGO_OPEN, Math.round(logoClosed * 0.68))
     : logoClosed;
-  return { wide, panel, logoOpen, logoClosed };
+  return { vw, vh, wide, panel, logoOpen, logoClosed };
 }
 
 function Panel({
@@ -562,11 +574,13 @@ function MenuBackground({
   players,
   phone,
   open,
+  viewportKey,
 }: {
   url: string | null;
   players: OnlinePlayer[];
   phone: boolean;
   open: boolean;
+  viewportKey: string;
 }) {
   const [layers, setLayers] = useState<{ id: number; url: string }[]>([]);
   const [clearing, setClearing] = useState(false);
@@ -683,17 +697,17 @@ function MenuBackground({
         ))}
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-ink-900/80 via-ink-900/66 to-ink-900/88" />
-      {open && <FloatingPlayers players={players} phone={phone} />}
+      {open && (
+        <FloatingPlayers key={viewportKey} players={players} phone={phone} />
+      )}
     </div>
   );
 }
 
-const FLOAT_DESKTOP_COUNT = 8;
-const FLOAT_PHONE_COUNT = 4;
+const FLOAT_MAX_COUNT = 4;
 // Faces swap in and out of the background layer on a gentle rhythm so the
 // menu never shows the same cast twice in a row.
 const FLOAT_ROTATE_MS = 9_000;
-const FLOAT_EXIT_MS = 400;
 
 // Faces keep at least this much distance (in px) between their centers, so
 // the scatter reads as spread out no matter where each one lands.
@@ -701,7 +715,16 @@ const FLOAT_MIN_GAP_DESKTOP = 190;
 const FLOAT_MIN_GAP_PHONE = 130;
 
 const FLOAT_TOP_GAP_PX = 110;
-const FLOAT_CENTER_GAP_PX = 100;
+const FLOAT_EDGE_GAP_PX = 18;
+const FLOAT_UI_GAP_PX = 18;
+const FLOAT_SLOT_ATTEMPTS = 120;
+
+type FloatRect = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
 
 type AvatarSlot = {
   x: number;
@@ -723,44 +746,112 @@ function hashId(id: string): number {
   return h >>> 0;
 }
 
-// Each face gets a fresh, fully random spot — no grid, no per-player caching —
-// so every entry lands somewhere new and the background never settles into a
-// fixed pattern. Candidates are rejected if they sit too close to another face
-// or on the central logo area. From there the slot drifts on a slow, smooth
-// loop (a gentle horizontal wander plus a small vertical bob), so the motion
-// reads as calm rather than busy.
-function makeSlot(phone: boolean, occupied: AvatarSlot[]): AvatarSlot {
+function rectsOverlap(a: FloatRect, b: FloatRect): boolean {
+  return (
+    a.left < b.right &&
+    a.right > b.left &&
+    a.top < b.bottom &&
+    a.bottom > b.top
+  );
+}
+
+function protectedMenuRects(vw: number, vh: number): FloatRect[] {
+  const { wide, panel, logoOpen, logoClosed } = measure();
+  const centerY = vh / 2;
+  const logoSize = wide ? logoOpen : logoClosed;
+  const logoRadius = logoSize * (0.5 + RING_RATIO) + FLOAT_UI_GAP_PX;
+  const logoCenterX = wide ? vw / 2 - panel : vw / 2;
+  const greetingBottom =
+    centerY -
+    (wide ? Math.max(BAR_HEIGHT / 2, logoOpen / 2) : logoClosed / 2) -
+    32;
+  const rects: FloatRect[] = [
+    {
+      left: logoCenterX - logoRadius,
+      top: centerY - logoRadius,
+      right: logoCenterX + logoRadius,
+      bottom: centerY + logoRadius,
+    },
+    {
+      left: vw / 2 - 230,
+      top: greetingBottom - 64,
+      right: vw / 2 + 230,
+      bottom: greetingBottom + FLOAT_UI_GAP_PX,
+    },
+    {
+      left: vw - 280,
+      top: vh - 52,
+      right: vw,
+      bottom: vh,
+    },
+  ];
+
+  if (wide) {
+    rects.push({
+      left: 0,
+      top: centerY - BAR_HEIGHT / 2 - FLOAT_UI_GAP_PX,
+      right: vw,
+      bottom: centerY + BAR_HEIGHT / 2 + FLOAT_UI_GAP_PX,
+    });
+  } else {
+    const actionsTop = centerY + logoClosed / 2 + 22;
+    rects.push({
+      left: 0,
+      top: actionsTop - FLOAT_UI_GAP_PX,
+      right: vw,
+      bottom: Math.min(vh, actionsTop + 230),
+    });
+  }
+
+  return rects;
+}
+
+function makeSlot(phone: boolean, occupied: AvatarSlot[]): AvatarSlot | null {
   const size = phone ? 34 + Math.random() * 8 : 48 + Math.random() * 8;
   const minGap = phone ? FLOAT_MIN_GAP_PHONE : FLOAT_MIN_GAP_DESKTOP;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const topPct = (FLOAT_TOP_GAP_PX / vh) * 100;
-  const centerPct = (FLOAT_CENTER_GAP_PX / vh) * 100;
-  let x = 8 + Math.random() * 84;
-  let y = 8 + Math.random() * 84;
-  for (let attempt = 0; attempt < 24; attempt++) {
-    const cx = 8 + Math.random() * 84;
-    const cy = 8 + Math.random() * 84;
-    if (cy < topPct || Math.abs(cy - 50) < centerPct) continue;
+  const driftX = phone ? 26 + Math.random() * 22 : 44 + Math.random() * 34;
+  const bobY = phone ? 12 + Math.random() * 10 : 18 + Math.random() * 14;
+  const travelWidth = size + driftX + 6;
+  const travelHeight = size + bobY + 6;
+  const minX = FLOAT_EDGE_GAP_PX;
+  const maxX = vw - FLOAT_EDGE_GAP_PX - travelWidth;
+  const minY = Math.max(FLOAT_EDGE_GAP_PX, FLOAT_TOP_GAP_PX);
+  const maxY = vh - FLOAT_EDGE_GAP_PX - travelHeight;
+  if (maxX < minX || maxY < minY) return null;
+
+  const protectedRects = protectedMenuRects(vw, vh);
+  let fallback: { x: number; y: number } | null = null;
+  for (let attempt = 0; attempt < FLOAT_SLOT_ATTEMPTS; attempt++) {
+    const px = minX + Math.random() * (maxX - minX);
+    const py = minY + Math.random() * (maxY - minY);
+    const travel: FloatRect = {
+      left: px,
+      top: py,
+      right: px + travelWidth,
+      bottom: py + travelHeight,
+    };
+    if (protectedRects.some((rect) => rectsOverlap(travel, rect))) continue;
+    fallback ??= { x: px, y: py };
     const farEnough = occupied.every((o) => {
-      const dx = ((cx - o.x) / 100) * vw;
-      const dy = ((cy - o.y) / 100) * vh;
+      const dx = px + size / 2 - ((o.x / 100) * vw + o.size / 2);
+      const dy = py + size / 2 - ((o.y / 100) * vh + o.size / 2);
       return Math.sqrt(dx * dx + dy * dy) >= minGap;
     });
     if (farEnough) {
-      x = cx;
-      y = cy;
+      fallback = { x: px, y: py };
       break;
     }
-    x = cx;
-    y = cy;
   }
+  if (!fallback) return null;
+
   return {
-    x,
-    y,
+    x: (fallback.x / vw) * 100,
+    y: (fallback.y / vh) * 100,
     size,
-    driftX: phone ? 26 + Math.random() * 22 : 44 + Math.random() * 34,
-    bobY: phone ? 12 + Math.random() * 10 : 18 + Math.random() * 14,
+    driftX,
+    bobY,
     tilt: (Math.random() - 0.5) * 4,
     duration: phone ? 26_000 + Math.random() * 14_000 : 36_000 + Math.random() * 20_000,
     delay: -Math.random() * 16_000,
@@ -787,15 +878,11 @@ function FloatingPlayers({
   phone: boolean;
 }) {
   const t = useT();
-  const limit = phone ? FLOAT_PHONE_COUNT : FLOAT_DESKTOP_COUNT;
-  const slotsRef = useRef<Map<string, AvatarSlot>>(new Map());
-  const exitTimersRef = useRef<Map<string, number>>(new Map());
+  const limit = FLOAT_MAX_COUNT;
+  const slotsRef = useRef<Map<string, AvatarSlot | null>>(new Map());
   const [shown, setShown] = useState<OnlinePlayer[]>([]);
-  const [leaving, setLeaving] = useState<OnlinePlayer[]>([]);
   const shownRef = useRef(shown);
   shownRef.current = shown;
-  const leavingRef = useRef(leaving);
-  leavingRef.current = leaving;
 
   // Only a subset of the roster floats at a time; every so often a face leaves
   // and a fresh one joins so the background never looks static.
@@ -805,75 +892,48 @@ function FloatingPlayers({
     setShown((prev) => {
       const keep = prev.filter((p) => players.some((q) => q.id === p.id));
       const fill = ordered
-        .filter(
-          (p) =>
-            !keep.some((q) => q.id === p.id) &&
-            !leavingRef.current.some((q) => q.id === p.id),
-        )
+        .filter((p) => !keep.some((q) => q.id === p.id))
         .slice(0, Math.max(0, limit - keep.length));
       return [...keep, ...fill];
     });
-    setLeaving((prev) => prev.filter((p) => players.some((q) => q.id === p.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, limit]);
 
   useEffect(() => {
     if (players.length <= limit) return;
-    const exitTimers = exitTimersRef.current;
     const swap = () => {
       const current = shownRef.current;
       if (current.length === 0) return;
-      const pool = ordered.filter(
-        (p) =>
-          !current.some((q) => q.id === p.id) &&
-          !leavingRef.current.some((q) => q.id === p.id),
-      );
+      const pool = ordered.filter((p) => !current.some((q) => q.id === p.id));
       if (pool.length === 0) return;
       const out = current[Math.floor(Math.random() * current.length)];
       const add = pool[Math.floor(Math.random() * pool.length)];
-      // Place the incoming face before it renders so it avoids every face that
-      // is currently on screen, including the one fading out.
       const used = [...slotsRef.current.entries()]
-        .filter(([id]) => id !== add.id)
-        .map(([, s]) => s);
+        .filter(([id, slot]) => id !== out.id && id !== add.id && slot !== null)
+        .map(([, slot]) => slot as AvatarSlot);
       slotsRef.current.set(add.id, makeSlot(phone, used));
+      slotsRef.current.delete(out.id);
       setShown((prev) => [...prev.filter((p) => p.id !== out.id), add]);
-      setLeaving((l) => [...l, out]);
-      const timer = window.setTimeout(() => {
-        exitTimers.delete(out.id);
-        setLeaving((l) => l.filter((p) => p.id !== out.id));
-        // Drop the slot so this face lands somewhere new when it comes back.
-        slotsRef.current.delete(out.id);
-      }, FLOAT_EXIT_MS);
-      exitTimers.set(out.id, timer);
     };
     const id = window.setInterval(swap, FLOAT_ROTATE_MS);
-    return () => {
-      window.clearInterval(id);
-      for (const timer of exitTimers.values()) {
-        window.clearTimeout(timer);
-      }
-      exitTimers.clear();
-    };
+    return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, limit]);
 
-  const rendered = [...leaving, ...shown];
   const occupied: AvatarSlot[] = [];
 
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 z-[35] overflow-hidden"
+      className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
     >
-      {rendered.map((p, i) => {
+      {shown.slice(0, limit).map((p, i) => {
         if (!slotsRef.current.has(p.id)) {
           slotsRef.current.set(p.id, makeSlot(phone, occupied));
         }
         const slot = slotsRef.current.get(p.id);
         if (!slot) return null;
         occupied.push(slot);
-        const out = leaving.some((q) => q.id === p.id);
         const online = p.online;
         const color = online ? "#3fdc8c" : "#78818f";
         const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
@@ -888,14 +948,14 @@ function FloatingPlayers({
             href={profileUrl}
             target={profileUrl ? "_blank" : undefined}
             rel="noopener noreferrer"
-            className={`${out ? "float-player-out" : "float-player-in"} group absolute pointer-events-auto`}
+            className="float-player-in group absolute pointer-events-auto"
             style={
               {
                 left: `${slot.x}%`,
                 top: `${slot.y}%`,
                 width: slot.size,
                 height: slot.size,
-                "--reveal-delay": `${out ? 0 : i * 70}ms`,
+                "--reveal-delay": `${i * 70}ms`,
               } as React.CSSProperties
             }
           >
