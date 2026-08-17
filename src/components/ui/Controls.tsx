@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { formatUiNumber } from "../../lib/formatUiNumber";
 
 export function Field({
   label,
@@ -22,7 +23,7 @@ export function Field({
 
 const inputBase =
   "rounded-lg bg-ink-700/65 border border-white/10 px-3 py-2 text-sm text-slate-100 " +
-  "outline-none shadow-inner shadow-black/10 backdrop-blur-sm transition focus:border-accent/70 focus:ring-1 focus:ring-accent/40";
+  "outline-none shadow-inner shadow-black/10 backdrop-blur-sm transition duration-150 focus:border-accent/70 focus:ring-1 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45";
 
 export function TextInput(
   props: React.InputHTMLAttributes<HTMLInputElement>,
@@ -42,9 +43,62 @@ export function NumberInput(
   );
 }
 
+export function PrecisionNumberInput({
+  value,
+  onValueChange,
+  maximumFractionDigits = 2,
+  onFocus,
+  onBlur,
+  ...props
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & {
+  value: number;
+  onValueChange: (value: number) => void;
+  maximumFractionDigits?: number;
+}) {
+  const digits = Math.max(0, Math.min(2, Math.trunc(maximumFractionDigits)));
+  const formatted = formatUiNumber(value, digits);
+  const [draft, setDraft] = useState(formatted);
+  const focusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!focusedRef.current) setDraft(formatted);
+  }, [formatted]);
+
+  return (
+    <NumberInput
+      {...props}
+      value={draft}
+      onFocus={(event) => {
+        focusedRef.current = true;
+        onFocus?.(event);
+      }}
+      onChange={(event) => {
+        const next = event.target.value;
+        setDraft(next);
+        if (next.trim() === "") return;
+        const parsed = Number(next);
+        if (Number.isFinite(parsed)) onValueChange(parsed);
+      }}
+      onBlur={(event) => {
+        focusedRef.current = false;
+        const parsed = Number(event.target.value);
+        if (event.target.value.trim() !== "" && Number.isFinite(parsed)) {
+          const rounded = Number(parsed.toFixed(digits));
+          onValueChange(rounded);
+          setDraft(formatUiNumber(rounded, digits));
+        } else {
+          setDraft(formatted);
+        }
+        onBlur?.(event);
+      }}
+    />
+  );
+}
+
 export function Button({
   variant = "ghost",
   className = "",
+  type = "button",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "ghost" | "accent";
@@ -59,8 +113,9 @@ export function Button({
   };
   return (
     <button
+      type={type}
       {...props}
-      className={`rounded-lg px-3 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${styles[variant]} ${className}`}
+      className={`rounded-lg px-3 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 ${styles[variant]} ${className}`}
     />
   );
 }
@@ -93,7 +148,7 @@ export function Toggle({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex ${dims.track} shrink-0 cursor-pointer items-center rounded-full border border-white/10 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`relative inline-flex ${dims.track} shrink-0 cursor-pointer items-center rounded-full border border-white/10 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-40 ${
         checked ? "bg-accent/90" : "bg-ink-600"
       }`}
     >
@@ -116,12 +171,12 @@ export function FileButton({
   onFile: (file: File) => void;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85">
+    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition duration-150 hover:bg-ink-500/85 focus-within:ring-2 focus-within:ring-accent/60 active:scale-[0.98]">
       {label}
       <input
         type="file"
         accept={accept}
-        className="hidden"
+        className="sr-only"
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) onFile(f);

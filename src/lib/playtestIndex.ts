@@ -38,6 +38,19 @@ export function firstNoteAtOrAfter(notes: ManiaNote[], time: number): number {
   return lo;
 }
 
+export function playtestStartWindow(
+  notes: ManiaNote[],
+  startTime: number,
+  leadInMs: number,
+) {
+  const skipBeforeTime = startTime + Math.max(0, leadInMs);
+  return {
+    first: firstNoteAtOrAfter(notes, startTime),
+    firstPlayable: firstNoteAtOrAfter(notes, skipBeforeTime),
+    skipBeforeTime,
+  };
+}
+
 export function nearestPlayableNote(
   notes: ManiaNote[],
   time: number,

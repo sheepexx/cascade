@@ -4,6 +4,7 @@ import {
   buildPlaytestNoteIndex,
   firstNoteAtOrAfter,
   nearestPlayableNote,
+  playtestStartWindow,
 } from "./playtestIndex";
 
 function note(id: string, column: number, startTime: number): ManiaNote {
@@ -32,6 +33,27 @@ describe("firstNoteAtOrAfter", () => {
   it("handles times outside the chart", () => {
     expect(firstNoteAtOrAfter(notes, 0)).toBe(0);
     expect(firstNoteAtOrAfter(notes, 500)).toBe(notes.length);
+  });
+});
+
+describe("playtestStartWindow", () => {
+  const notes = [
+    note("before", 0, 900),
+    note("skip-a", 0, 1000),
+    note("skip-b", 0, 2999),
+    note("play", 0, 3000),
+  ];
+
+  it("skips exactly the notes inside the lead-in window", () => {
+    expect(playtestStartWindow(notes, 1000, 2000)).toEqual({
+      first: 1,
+      firstPlayable: 3,
+      skipBeforeTime: 3000,
+    });
+  });
+
+  it("does not skip notes for a negative lead-in", () => {
+    expect(playtestStartWindow(notes, 1000, -1).firstPlayable).toBe(1);
   });
 });
 

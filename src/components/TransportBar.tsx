@@ -82,8 +82,8 @@ export function TransportBar({
   };
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b border-white/10 bg-ink-800/55 px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl">
-      <div className="flex min-w-0 items-center gap-4">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-white/10 bg-ink-800/55 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:gap-4 xl:px-4 xl:py-3">
+      <div className="order-1 flex min-w-0 items-center gap-2 xl:gap-4">
         <label className="flex items-center gap-2 text-xs text-slate-400">
           Vol
           <input
@@ -93,9 +93,9 @@ export function TransportBar({
             step={0.01}
             value={volume}
             onChange={(e) => setVolume(Number(e.target.value))}
-            className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+            className="h-1 w-14 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 xl:w-20"
           />
-          <span className="w-8 font-mono text-slate-300">
+          <span className="hidden w-7 font-mono text-slate-300 min-[900px]:inline-block xl:w-8">
             {Math.round(volume * 100)}%
           </span>
         </label>
@@ -109,16 +109,16 @@ export function TransportBar({
             step={0.01}
             value={hitsoundVolume}
             onChange={(e) => onHitsoundVolume(Number(e.target.value))}
-            className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+            className="h-1 w-14 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 xl:w-20"
             title={t("transport.hitsoundVolume")}
           />
-          <span className="w-8 font-mono text-slate-300">
+          <span className="hidden w-7 font-mono text-slate-300 min-[900px]:inline-block xl:w-8">
             {Math.round(hitsoundVolume * 100)}%
           </span>
         </label>
       </div>
 
-      <div className="flex items-center justify-center gap-2">
+      <div className="order-3 col-span-2 flex items-center justify-center gap-2 xl:order-2 xl:col-span-1">
         {jumpOpen ? (
           <input
             ref={jumpInputRef}
@@ -136,7 +136,7 @@ export function TransportBar({
             onFocus={(e) => e.currentTarget.select()}
             placeholder="mm:ss.ms"
             spellCheck={false}
-            className={`w-36 rounded border bg-ink-900/80 px-2 py-1 font-mono text-xs text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur transition-colors ${
+            className={`w-36 rounded border bg-ink-900/80 px-2 py-1 font-mono text-xs text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur transition-colors focus-visible:ring-2 focus-visible:ring-accent/50 ${
               jumpInvalid ? "border-red-400/80" : "border-accent/70"
             }`}
             title={t("transport.jumpTitle")}
@@ -144,8 +144,9 @@ export function TransportBar({
         ) : (
           <span className="flex items-center rounded border border-white/5 bg-ink-900/55 font-mono text-xs shadow-inner shadow-black/10 backdrop-blur">
             <button
+              type="button"
               onClick={() => copyValue(String(Math.round(currentTime)), "ms")}
-              className={`cursor-pointer rounded-l py-1 pl-2 pr-1 transition-colors hover:bg-white/10 ${
+              className={`cursor-pointer rounded-l py-1 pl-2 pr-1 transition duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:bg-white/15 ${
                 copied === "ms" ? "text-accent" : "text-slate-100"
               }`}
               title={t("transport.copyMs")}
@@ -154,8 +155,9 @@ export function TransportBar({
             </button>
             <span className="text-slate-500">/</span>
             <button
+              type="button"
               onClick={() => copyValue(formatTime(currentTime), "timestamp")}
-              className={`cursor-pointer rounded-r py-1 pl-1 pr-2 transition-colors hover:bg-white/10 hover:text-slate-100 ${
+              className={`cursor-pointer rounded-r py-1 pl-1 pr-2 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:bg-white/15 ${
                 copied === "timestamp" ? "text-accent" : "text-slate-500"
               }`}
               title={t("transport.copyTimestamp")}
@@ -166,8 +168,9 @@ export function TransportBar({
         )}
         {!jumpOpen && (
           <button
+            type="button"
             onClick={() => onJumpOpenChange(true)}
-            className="cursor-pointer rounded border border-white/5 bg-ink-900/55 px-2 py-1 text-xs text-slate-400 shadow-inner shadow-black/10 backdrop-blur transition-colors hover:bg-white/10 hover:text-slate-100"
+            className="cursor-pointer rounded border border-white/5 bg-ink-900/55 px-2 py-1 text-xs text-slate-400 shadow-inner shadow-black/10 backdrop-blur transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
             title={t("transport.jumpButton")}
           >
             Go to
@@ -175,10 +178,12 @@ export function TransportBar({
         )}
       </div>
 
-      <div className="flex min-w-0 items-center justify-end gap-4">
+      <div className="order-2 flex min-w-0 items-center justify-end gap-2 xl:order-3 xl:gap-4">
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
-          {t("transport.snap")}
+          <span className="hidden min-[900px]:inline">
+            {t("transport.snap")}
+          </span>
           <select
             value={view.snapDivisor}
             onChange={(e) =>
@@ -187,7 +192,7 @@ export function TransportBar({
                 snapDivisor: Number(e.target.value) as SnapDivisor,
               })
             }
-            className="rounded-md border border-white/10 bg-ink-700/70 px-2 py-1 text-slate-100 outline-none backdrop-blur-sm"
+            className="rounded-md border border-white/10 bg-ink-700/70 px-2 py-1 text-slate-100 outline-none backdrop-blur-sm transition focus-visible:border-accent/70 focus-visible:ring-2 focus-visible:ring-accent/40"
           >
             {SNAP_OPTIONS.map((d) => (
               <option key={d} value={d}>
@@ -198,7 +203,9 @@ export function TransportBar({
         </label>
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
-          {t("transport.scrollSpeed")}
+          <span className="hidden whitespace-nowrap xl:inline">
+            {t("transport.scrollSpeed")}
+          </span>
           <button
             type="button"
             onClick={() =>
@@ -207,7 +214,7 @@ export function TransportBar({
                 scrollSpeed: Math.max(MIN_SCROLL_SPEED, view.scrollSpeed - 1),
               })
             }
-            className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-700 text-sm text-slate-300 transition hover:bg-ink-600 hover:text-white"
+            className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-700 text-sm text-slate-300 transition duration-150 hover:bg-ink-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
             aria-label="Zoom out timeline"
           >
             −
@@ -221,7 +228,7 @@ export function TransportBar({
             onChange={(e) =>
               onView({ ...view, scrollSpeed: Number(e.target.value) })
             }
-            className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+            className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 xl:w-24"
           />
           <button
             type="button"
@@ -231,7 +238,7 @@ export function TransportBar({
                 scrollSpeed: Math.min(MAX_SCROLL_SPEED, view.scrollSpeed + 1),
               })
             }
-            className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-700 text-sm text-slate-300 transition hover:bg-ink-600 hover:text-white"
+            className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-700 text-sm text-slate-300 transition duration-150 hover:bg-ink-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
             aria-label="Zoom in timeline"
           >
             +

@@ -75,6 +75,9 @@ export const ru: PartialCatalog = {
     "Масштабирует меню и элементы управления для больших экранов с высоким разрешением.",
 
   "settings.playfield": "Игровое поле",
+  "settings.simplifyBottomTimeline": "Упростить нижнюю шкалу",
+  "settings.simplifyBottomTimelineHint":
+    "Скрывает BPM- и SV-слои, сохраняя плотность нот и закладки.",
   "settings.backgroundDim": "Затемнение фона",
   "settings.sizeZoom": "Размер / масштаб",
   "settings.playfieldHint":
@@ -237,6 +240,7 @@ export const ru: PartialCatalog = {
   "nav.presets": "Пресеты",
   "nav.skin": "Скин",
   "nav.settings": "Настройки",
+  "nav.more": "Ещё",
   "nav.file": "Файл",
   "nav.undo": "Отменить (Ctrl+Z)",
   "nav.redo": "Вернуть (Ctrl+Shift+Z)",
@@ -251,6 +255,8 @@ export const ru: PartialCatalog = {
 
   "file.newOpen": "Создать / открыть…",
   "file.saving": "Сохранение…",
+  "file.saved": "Сохранено",
+  "file.saveFailed": "Ошибка сохранения",
   "file.saveLocally": "Сохранить локально",
   "file.saveToCloud": "Сохранить в облако",
   "file.logInFirst": "Сначала войдите!",

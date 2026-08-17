@@ -282,6 +282,7 @@ import {
   buildPlaytestNoteIndex,
   firstNoteAtOrAfter,
   nearestPlayableNote,
+  playtestStartWindow,
   type PlaytestNoteIndex,
 } from "./lib/playtestIndex";
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
@@ -447,6 +448,7 @@ async function loadFile(file: File): Promise<LoadedFile> {
 }
 
 const LOCAL_AUTOSAVE_MS = 60000;
+const PLAYTEST_COUNTDOWN_MS = 2000;
 
 function describeSaveError(err: unknown): string | null {
   if (!(err instanceof Error)) return null;
@@ -464,6 +466,8 @@ type PlaytestRuntimeState = PlaytestState & {
   paused: boolean;
   autoplay: boolean;
   runKey: number;
+  countdownEndsAt: number | null;
+  skipBeforeTime: number;
 };
 
 const MAX_RECENT_PLAYTEST_RESULTS = 64;
@@ -475,6 +479,8 @@ function initialPlaytestState(): PlaytestRuntimeState {
     paused: false,
     autoplay: false,
     runKey: 0,
+    countdownEndsAt: null,
+    skipBeforeTime: 0,
     startTime: 0,
     score: 0,
     combo: 0,
@@ -1385,30 +1391,42 @@ export default function App() {
     [],
   );
 
-  const resetPlaytestRuntime = useCallback((startTime: number) => {
-    const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
-    const first = firstNoteAtOrAfter(index.sorted, startTime);
-    const headJudged = new Set<string>();
-    const tailJudged = new Set<string>();
-    for (let i = 0; i < first; i++) {
-      headJudged.add(index.sorted[i].id);
-      tailJudged.add(index.sorted[i].id);
-    }
-    playtestHeadJudgedRef.current = headJudged;
-    playtestTailJudgedRef.current = tailJudged;
-    playtestHeldLnRef.current = new Map();
-    playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
-    playtestConsumedRef.current = new Set();
-    playtestMissCursorRef.current = first;
-    playtestEndArmedRef.current = false;
-    setPlaytest((prev) => ({
-      ...initialPlaytestState(),
-      active: true,
-      startTime,
-      autoplay: prev.autoplay,
-      runKey: prev.runKey + 1,
-    }));
-  }, [active.keyCount, active.notes, ensurePlaytestNoteIndex]);
+  const resetPlaytestRuntime = useCallback(
+    (startTime: number, countdownEndsAt: number) => {
+      const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
+      const { first, firstPlayable, skipBeforeTime } = playtestStartWindow(
+        index.sorted,
+        startTime,
+        PLAYTEST_COUNTDOWN_MS,
+      );
+      const headJudged = new Set<string>();
+      const tailJudged = new Set<string>();
+      const consumed = new Set<string>();
+      for (let i = 0; i < firstPlayable; i++) {
+        const id = index.sorted[i].id;
+        headJudged.add(id);
+        tailJudged.add(id);
+        if (i >= first) consumed.add(id);
+      }
+      playtestHeadJudgedRef.current = headJudged;
+      playtestTailJudgedRef.current = tailJudged;
+      playtestHeldLnRef.current = new Map();
+      playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
+      playtestConsumedRef.current = consumed;
+      playtestMissCursorRef.current = firstPlayable;
+      playtestEndArmedRef.current = false;
+      setPlaytest((prev) => ({
+        ...initialPlaytestState(),
+        active: true,
+        startTime,
+        autoplay: prev.autoplay,
+        runKey: prev.runKey + 1,
+        countdownEndsAt,
+        skipBeforeTime,
+      }));
+    },
+    [active.keyCount, active.notes, ensurePlaytestNoteIndex],
+  );
 
   const registerPlaytestResult = useCallback((result: HitResult) => {
     if (result.judgement !== "miss") {
@@ -1479,7 +1497,8 @@ export default function App() {
   const handlePlaytestPress = useCallback(
     (column: number, atMs?: number, targetId?: string) => {
       const pt = playtestRef.current;
-      if (!pt.active || pt.ended || pt.paused) return;
+      if (!pt.active || pt.ended || pt.paused || pt.countdownEndsAt !== null)
+        return;
       const time = atMs ?? playtestInputTime();
       const windows = playtestWindowsRef.current;
       const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
@@ -1542,7 +1561,8 @@ export default function App() {
   const handlePlaytestRelease = useCallback(
     (column: number, atMs?: number, targetId?: string) => {
       const pt = playtestRef.current;
-      if (!pt.active || pt.ended || pt.paused) return;
+      if (!pt.active || pt.ended || pt.paused || pt.countdownEndsAt !== null)
+        return;
       const time = atMs ?? playtestInputTime();
       const held = targetId
         ? playtestHeldLnRef.current.get(targetId)
@@ -1565,7 +1585,14 @@ export default function App() {
 
   const exitPlaytest = useCallback(() => {
     pauseAudio();
-    setPlaytest((prev) => ({ ...prev, active: false, ended: false, paused: false }));
+    setPlaytest((prev) => ({
+      ...prev,
+      active: false,
+      ended: false,
+      paused: false,
+      countdownEndsAt: null,
+      skipBeforeTime: 0,
+    }));
     playtestHeadJudgedRef.current = new Set();
     playtestTailJudgedRef.current = new Set();
     playtestHeldLnRef.current = new Map();
@@ -1583,16 +1610,16 @@ export default function App() {
       void logAnalyticsEvent("playtest_started", authUserRef.current?.id).catch(
         () => {},
       );
-      resetPlaytestRuntime(clamped);
+      pauseAudio();
       setAudioPlaybackRate(clampPlaytestRate(playtestSettingsRef.current.rate));
       seekAudio(clamped);
-      playAudio();
+      resetPlaytestRuntime(clamped, performance.now() + PLAYTEST_COUNTDOWN_MS);
     },
     [
       audio.duration,
       audioFile,
       getCurrentTime,
-      playAudio,
+      pauseAudio,
       projectStarted,
       resetPlaytestRuntime,
       seekAudio,
@@ -1603,6 +1630,28 @@ export default function App() {
   const restartPlaytest = useCallback(() => {
     startPlaytest(playtestRef.current.startTime ?? 0);
   }, [startPlaytest]);
+
+  useEffect(() => {
+    const countdownEndsAt = playtest.countdownEndsAt;
+    if (!playtest.active || playtest.ended || countdownEndsAt === null) return;
+    const start = () => {
+      const current = playtestRef.current;
+      if (!current.active || current.countdownEndsAt !== countdownEndsAt) return;
+      setPlaytest((prev) =>
+        prev.active && prev.countdownEndsAt === countdownEndsAt
+          ? { ...prev, countdownEndsAt: null }
+          : prev,
+      );
+      playAudio();
+    };
+    const remaining = countdownEndsAt - performance.now();
+    if (remaining <= 0) {
+      start();
+      return;
+    }
+    const timer = window.setTimeout(start, remaining);
+    return () => window.clearTimeout(timer);
+  }, [playAudio, playtest.active, playtest.countdownEndsAt, playtest.ended]);
 
   const pausePlaytest = useCallback(() => {
     setPlaytest((prev) =>
@@ -1653,7 +1702,7 @@ export default function App() {
 
   const { heldCodes: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef } =
     usePlaytestInput({
-      active: playtest.active,
+      active: playtest.active && playtest.countdownEndsAt === null,
       paused: playtest.paused,
       keyCount: active.keyCount,
       keybinds: playtestSettings.keybinds,
@@ -1665,12 +1714,29 @@ export default function App() {
       onToggleAutoplay: toggleAutoplay,
     });
 
+  const playtestRunNotes = useMemo(() => {
+    if (
+      !playtest.active ||
+      playtest.skipBeforeTime <= (playtest.startTime ?? 0)
+    ) {
+      return active.notes;
+    }
+    return active.notes.filter(
+      (note) => note.startTime >= playtest.skipBeforeTime,
+    );
+  }, [
+    active.notes,
+    playtest.active,
+    playtest.skipBeforeTime,
+    playtest.startTime,
+  ]);
+
   const { summary: autoplaySummary, profile: skillProfile } = usePlaytestAutoplay({
     enabled: playtest.autoplay,
-    active: playtest.active,
+    active: playtest.active && playtest.countdownEndsAt === null,
     paused: playtest.paused,
     ended: playtest.ended,
-    notes: active.notes,
+    notes: playtestRunNotes,
     keyCount: active.keyCount,
     humanize: playtestSettings.humanize,
     skill: playtestSettings.skill,
@@ -1701,7 +1767,13 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!playtest.active || playtest.ended || playtest.paused) return;
+    if (
+      !playtest.active ||
+      playtest.ended ||
+      playtest.paused ||
+      playtest.countdownEndsAt !== null
+    )
+      return;
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
@@ -1721,7 +1793,7 @@ export default function App() {
       if (previousIndex?.source !== active.notes) {
         playtestMissCursorRef.current = firstNoteAtOrAfter(
           index.sorted,
-          playtestRef.current.startTime,
+          playtestRef.current.skipBeforeTime,
         );
       }
       while (playtestMissCursorRef.current < index.sorted.length) {
@@ -1770,7 +1842,12 @@ export default function App() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playtest.active, playtest.ended, playtest.paused]);
+  }, [
+    playtest.active,
+    playtest.countdownEndsAt,
+    playtest.ended,
+    playtest.paused,
+  ]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -4520,19 +4597,23 @@ export default function App() {
   ]);
 
   const handleSave = useCallback(async (silent = false) => {
-    if (!silent) {
-      setSaveStatus("saving");
-      requestPersistentStorage();
-    }
+    setSaveStatus("saving");
+    if (!silent) requestPersistentStorage();
     try {
       await saveProject(buildSavedProject(), localProjectId);
       setSaveErrorDetail(null);
-      if (!silent) setSaveStatus("saved");
+      setSaveStatus("saved");
     } catch (err) {
       setSaveErrorDetail(describeSaveError(err));
       setSaveStatus("error");
     }
   }, [buildSavedProject, localProjectId]);
+
+  useEffect(() => {
+    if (saveStatus !== "saved") return;
+    const timer = window.setTimeout(() => setSaveStatus(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [saveStatus]);
 
   const localAutosaveTimerRef = useRef<number | undefined>(undefined);
   useEffect(() => {
@@ -5221,7 +5302,7 @@ export default function App() {
       )}
 
       <header
-        className={`z-30 flex items-center justify-between gap-4 overflow-hidden border-white/10 bg-ink-800/65 px-5 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out ${
+        className={`z-30 flex items-center justify-between gap-2 overflow-hidden border-white/10 bg-ink-800/65 px-3 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out xl:gap-4 xl:px-5 ${
           hasProject ? "" : "absolute inset-x-0 top-0"
         } ${
           showHeader
@@ -5231,7 +5312,7 @@ export default function App() {
         aria-hidden={!showHeader}
         {...({ inert: !showHeader ? "" : undefined } as { inert?: string })}
       >
-        <div className="flex min-w-0 items-center gap-4">
+        <div className="flex min-w-0 items-center gap-2 xl:gap-4">
           <div className="flex shrink-0 items-center gap-2.5">
             <button
               type="button"
@@ -5247,7 +5328,7 @@ export default function App() {
                 onDragStart={(e) => e.preventDefault()}
                 className="h-8 w-8 select-none rounded-lg object-cover"
               />
-              <span className="text-sm font-semibold text-slate-100">
+              <span className="hidden text-sm font-semibold text-slate-100 min-[900px]:inline">
                 Cascade
               </span>
             </button>
@@ -5277,36 +5358,78 @@ export default function App() {
               <MenuButton onClick={() => setModal("difficulty")}>
                 {t("nav.difficulty")}
               </MenuButton>
-              <MenuButton onClick={() => setModal("tools")}>
-                {t("nav.tools")}
-              </MenuButton>
-              <MenuButton onClick={openAiMod}>{t("nav.aiMod")}</MenuButton>
-              {appSettings.showPatternTools && (
-                <MenuButton onClick={() => setModal("presets")}>
-                  {t("nav.presets")}
+              <div className="hidden items-center gap-1 xl:flex">
+                <MenuButton onClick={() => setModal("tools")}>
+                  {t("nav.tools")}
                 </MenuButton>
-              )}
-              <MenuButton onClick={() => setModal("skin")}>
-                {t("nav.skin")}
-              </MenuButton>
-              <MenuButton onClick={() => setModal("settings")}>
-                {t("nav.settings")}
-              </MenuButton>
-              <span className="mx-1 h-5 w-px bg-white/10" />
-              <IconButton
-                onClick={undo}
-                disabled={!canUndo}
-                title={t("nav.undo")}
-              >
-                ↶
-              </IconButton>
-              <IconButton
-                onClick={redo}
-                disabled={!canRedo}
-                title={t("nav.redo")}
-              >
-                ↷
-              </IconButton>
+                <MenuButton onClick={openAiMod}>{t("nav.aiMod")}</MenuButton>
+                {appSettings.showPatternTools && (
+                  <MenuButton onClick={() => setModal("presets")}>
+                    {t("nav.presets")}
+                  </MenuButton>
+                )}
+                <MenuButton onClick={() => setModal("skin")}>
+                  {t("nav.skin")}
+                </MenuButton>
+                <MenuButton onClick={() => setModal("settings")}>
+                  {t("nav.settings")}
+                </MenuButton>
+                <span className="mx-1 h-5 w-px bg-white/10" />
+                <IconButton
+                  onClick={undo}
+                  disabled={!canUndo}
+                  title={t("nav.undo")}
+                >
+                  ↶
+                </IconButton>
+                <IconButton
+                  onClick={redo}
+                  disabled={!canRedo}
+                  title={t("nav.redo")}
+                >
+                  ↷
+                </IconButton>
+              </div>
+              <div className="xl:hidden">
+                <Menu
+                  label={t("nav.more")}
+                  className="!px-2.5"
+                  items={[
+                    {
+                      label: t("nav.tools"),
+                      onClick: () => setModal("tools"),
+                    },
+                    { label: t("nav.aiMod"), onClick: openAiMod },
+                    ...(appSettings.showPatternTools
+                      ? [
+                          {
+                            label: t("nav.presets"),
+                            onClick: () => setModal("presets"),
+                          },
+                        ]
+                      : []),
+                    {
+                      label: t("nav.skin"),
+                      onClick: () => setModal("skin"),
+                    },
+                    {
+                      label: t("nav.settings"),
+                      onClick: () => setModal("settings"),
+                    },
+                    { separator: true as const },
+                    {
+                      label: t("nav.undo"),
+                      disabled: !canUndo,
+                      onClick: undo,
+                    },
+                    {
+                      label: t("nav.redo"),
+                      disabled: !canRedo,
+                      onClick: redo,
+                    },
+                  ]}
+                />
+              </div>
             </nav>
           </div>
         </div>
@@ -5353,6 +5476,47 @@ export default function App() {
                     </span>
                   )}
                 </IconButton>
+              )}
+              {saveStatus && (
+                <div
+                  role="status"
+                  aria-label={
+                    saveStatus === "saving"
+                      ? t("file.saving")
+                      : saveStatus === "saved"
+                        ? t("file.saved")
+                        : t("file.saveFailed")
+                  }
+                  title={
+                    saveStatus === "error" && saveErrorDetail
+                      ? `${t("file.saveFailed")}: ${saveErrorDetail}`
+                      : undefined
+                  }
+                  className={`hidden h-8 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium transition lg:flex xl:px-2.5 ${
+                    saveStatus === "saving"
+                      ? "border-amber-400/15 bg-amber-400/5 text-amber-200"
+                      : saveStatus === "saved"
+                        ? "border-emerald-400/15 bg-emerald-400/5 text-emerald-200"
+                        : "border-red-400/20 bg-red-400/10 text-red-200"
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      saveStatus === "saving"
+                        ? "animate-pulse bg-amber-300"
+                        : saveStatus === "saved"
+                          ? "bg-emerald-300"
+                          : "bg-red-300"
+                    }`}
+                  />
+                  <span className="hidden xl:inline">
+                    {saveStatus === "saving"
+                      ? t("file.saving")
+                      : saveStatus === "saved"
+                        ? t("file.saved")
+                        : t("file.saveFailed")}
+                  </span>
+                </div>
               )}
               <Menu
                 label={t("nav.file")}
@@ -5719,34 +5883,42 @@ export default function App() {
             </div>
             {hasProject && playtest.active && playtestSettings.showNpsGraph && (
               <MemoizedPlaytestNpsGraph
-                notes={active.notes}
+                notes={playtestRunNotes}
                 durationMs={audio.duration}
                 getCurrentTime={getEditorCurrentTime}
                 active={playtest.active}
-                running={!playtest.paused && !playtest.ended}
+                running={
+                  !playtest.paused &&
+                  !playtest.ended &&
+                  playtest.countdownEndsAt === null
+                }
                 label={t("runStats.nps")}
                 peakLabel={t("runStats.peakShort")}
               />
             )}
-            {hasProject && playtest.active && playtestSettings.showRunStats && (
-              <PlaytestRunStats
-                state={playtest}
-                notes={active.notes}
-                durationMs={audio.duration}
-                getCurrentTime={getEditorCurrentTime}
-                autoplay={playtest.autoplay}
-                autoplaySummary={autoplaySummary}
-                humanized={playtestSettings.humanize.enabled}
-                showNps={!playtestSettings.showNpsGraph}
-                skillProfile={skillProfile}
-                skillEnabled
-              />
-            )}
+            {hasProject &&
+              playtest.active &&
+              playtest.countdownEndsAt === null &&
+              playtestSettings.showRunStats && (
+                <PlaytestRunStats
+                  state={playtest}
+                  notes={playtestRunNotes}
+                  durationMs={audio.duration}
+                  getCurrentTime={getEditorCurrentTime}
+                  autoplay={playtest.autoplay}
+                  autoplaySummary={autoplaySummary}
+                  humanized={playtestSettings.humanize.enabled}
+                  showNps={!playtestSettings.showNpsGraph}
+                  skillProfile={skillProfile}
+                  skillEnabled
+                />
+              )}
             {hasProject && playtest.active && (
               <PlaytestOverlay
                 state={playtest}
                 ended={playtest.ended}
                 paused={playtest.paused}
+                countdownEndsAt={playtest.countdownEndsAt}
                 settings={playtestSettings}
                 windows={playtestWindows}
                 currentTimeMs={audio.currentTime}
@@ -5846,6 +6018,7 @@ export default function App() {
                 notes={active.notes}
                 timingPoints={activeTimingPoints}
                 svBpmScroll={appSettings.bpmAffectsScroll}
+                simplified={appSettings.simplifyBottomTimeline}
                 previewTime={active.previewTime}
                 duration={audio.duration}
                 getCurrentTime={getCurrentTime}
@@ -6052,6 +6225,10 @@ export default function App() {
           showBottomTimeline={appSettings.showBottomTimeline}
           onShowBottomTimeline={(v) =>
             setAppSettings((s) => ({ ...s, showBottomTimeline: v }))
+          }
+          simplifyBottomTimeline={appSettings.simplifyBottomTimeline}
+          onSimplifyBottomTimeline={(v) =>
+            setAppSettings((s) => ({ ...s, simplifyBottomTimeline: v }))
           }
           showPpCounter={appSettings.showPpCounter}
           onShowPpCounter={(v) =>
@@ -6433,25 +6610,18 @@ export default function App() {
       )}
 
       <div className="pointer-events-none fixed bottom-28 left-1/2 z-[65] flex w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 flex-col items-center gap-2">
-        {(saveStatus === "saved" || saveStatus === "error") && (
+        {saveStatus === "error" && (
           <TimedNotification
-            durationMs={saveStatus === "saved" ? 3000 : 5500}
+            durationMs={6500}
             onDismiss={() => setSaveStatus(null)}
             resetKey={`${saveStatus}:${saveErrorDetail ?? ""}`}
-            progressClassName={
-              saveStatus === "saved" ? "bg-emerald-400" : "bg-red-400"
-            }
-            className={`pointer-events-auto max-w-full rounded-lg border px-4 py-2 pb-3 text-sm shadow-lg ${
-              saveStatus === "saved"
-                ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
-                : "border-red-500/40 bg-red-950/90 text-red-200"
-            }`}
+            showClose
+            progressClassName="bg-red-400"
+            className="pointer-events-auto max-w-full rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 pb-3 text-sm text-red-200 shadow-lg"
           >
-            {saveStatus === "saved"
-              ? "Progress saved locally"
-              : saveErrorDetail
-                ? `Couldn't save progress (${saveErrorDetail})`
-                : "Couldn't save progress"}
+            {saveErrorDetail
+              ? `${t("file.saveFailed")} (${saveErrorDetail})`
+              : t("file.saveFailed")}
           </TimedNotification>
         )}
 
@@ -6652,8 +6822,9 @@ function MenuButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="rounded-md px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-slate-100"
+      className="rounded-md px-3 py-1.5 text-sm text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
     >
       {children}
     </button>
@@ -6673,10 +6844,11 @@ function IconButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="relative grid h-8 w-8 place-items-center rounded-md text-base text-slate-300 transition hover:bg-white/10 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+      className="relative grid h-8 w-8 place-items-center rounded-md text-base text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100"
     >
       {children}
     </button>

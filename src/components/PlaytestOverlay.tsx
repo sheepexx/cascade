@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { LoadedSkin, PlaytestSettings } from "../types";
 import { keyLabel } from "../lib/playtestKeybinds";
 import type {
@@ -27,6 +28,7 @@ export function PlaytestOverlay({
   state,
   ended,
   paused,
+  countdownEndsAt,
   settings,
   windows,
   currentTimeMs,
@@ -40,6 +42,7 @@ export function PlaytestOverlay({
   state: PlaytestState;
   ended: boolean;
   paused: boolean;
+  countdownEndsAt: number | null;
   settings: PlaytestSettings;
   windows: JudgementWindows;
   currentTimeMs: number;
@@ -51,6 +54,9 @@ export function PlaytestOverlay({
   onReturn: () => void;
 }) {
   if (!state.active) return null;
+  if (countdownEndsAt !== null) {
+    return <PlaytestCountdown endsAt={countdownEndsAt} />;
+  }
   const latest = state.hitResults[state.hitResults.length - 1] ?? null;
   const judged = state.judgedCount ?? judgementCount(state.judgements);
   const keys = settings.keybinds[keyCount] ?? [];
@@ -129,21 +135,21 @@ export function PlaytestOverlay({
               <button
                 type="button"
                 onClick={onContinue}
-                className="rounded-lg border border-accent-deep/40 bg-accent/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-soft/95"
+                className="rounded-lg border border-accent-deep/40 bg-accent/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 active:scale-[0.98]"
               >
                 Continue
               </button>
               <button
                 type="button"
                 onClick={onRetry}
-                className="rounded-lg border border-white/10 bg-ink-700/70 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-ink-600"
+                className="rounded-lg border border-white/10 bg-ink-700/70 px-3 py-2 text-sm font-medium text-slate-100 transition duration-150 hover:bg-ink-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
               >
                 Restart
               </button>
               <button
                 type="button"
                 onClick={onReturn}
-                className="rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+                className="rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-300 transition duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
               >
                 Go to editor
               </button>
@@ -182,14 +188,14 @@ export function PlaytestOverlay({
               <button
                 type="button"
                 onClick={onRetry}
-                className="rounded-lg border border-accent-deep/40 bg-accent/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-soft/95"
+                className="rounded-lg border border-accent-deep/40 bg-accent/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 active:scale-[0.98]"
               >
                 Retry
               </button>
               <button
                 type="button"
                 onClick={onReturn}
-                className="rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+                className="rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-300 transition duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
               >
                 Return to editor
               </button>
@@ -197,6 +203,47 @@ export function PlaytestOverlay({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function PlaytestCountdown({ endsAt }: { endsAt: number }) {
+  const [remaining, setRemaining] = useState(() =>
+    Math.max(0, endsAt - performance.now()),
+  );
+
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const next = Math.max(0, endsAt - performance.now());
+      setRemaining(next);
+      if (next > 0) raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, [endsAt]);
+
+  const seconds = Math.max(1, Math.ceil(remaining / 1000));
+  const progress = Math.max(0, Math.min(1, 1 - remaining / 2000));
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-ink-900/28 backdrop-blur-[2px]">
+      <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/10 bg-ink-900/76 px-10 py-7 text-center shadow-2xl backdrop-blur-xl">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-300">
+          Get ready
+        </span>
+        <div
+          className="grid h-24 w-24 place-items-center rounded-full p-1 shadow-[0_0_32px_rgba(91,192,255,0.2)]"
+          style={{
+            background: `conic-gradient(rgb(91 192 255) ${progress * 360}deg, rgb(255 255 255 / 0.09) 0deg)`,
+          }}
+        >
+          <div className="grid h-full w-full place-items-center rounded-full bg-ink-900 text-5xl font-black tabular-nums text-white">
+            {seconds}
+          </div>
+        </div>
+        <span className="text-xs text-slate-400">Early notes are skipped</span>
+      </div>
     </div>
   );
 }

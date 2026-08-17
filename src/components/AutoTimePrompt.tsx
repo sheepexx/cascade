@@ -1,6 +1,7 @@
 import type { BpmDetection } from "../lib/bpmDetect";
 import { Button } from "./ui/Controls";
 import { TimedNotification } from "./ui/TimedNotification";
+import { formatUiNumber } from "../lib/formatUiNumber";
 
 export type AutoTimeStatus = "idle" | "detecting" | "done" | "failed";
 
@@ -83,10 +84,10 @@ export function AutoTimePrompt({
         {status === "done" && result !== null ? (
           <div className="min-w-0">
             <div className="text-sm font-semibold text-emerald-300">
-              ✓ Timed at {result.bpm} BPM
+              ✓ Timed at {formatUiNumber(result.bpm)} BPM
             </div>
             <div className="mt-0.5 text-xs text-slate-400">
-              offset {result.offsetMs} ms · {confidenceLabel} · fine-tune in
+              offset {formatUiNumber(result.offsetMs)} ms · {confidenceLabel} · fine-tune in
               the Timing menu
             </div>
           </div>

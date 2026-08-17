@@ -75,6 +75,9 @@ export const de: PartialCatalog = {
     "Skaliert Menüs und Bedienelemente für größere oder hochauflösende Bildschirme.",
 
   "settings.playfield": "Spielfeld",
+  "settings.simplifyBottomTimeline": "Untere Zeitleiste vereinfachen",
+  "settings.simplifyBottomTimelineHint":
+    "Blendet BPM- und SV-Overlays aus, behält aber Notendichte und Lesezeichen bei.",
   "settings.backgroundDim": "Hintergrund abdunkeln",
   "settings.sizeZoom": "Größe / Zoom",
   "settings.playfieldHint":
@@ -235,6 +238,7 @@ export const de: PartialCatalog = {
   "nav.presets": "Presets",
   "nav.skin": "Skin",
   "nav.settings": "Einstellungen",
+  "nav.more": "Mehr",
   "nav.file": "Datei",
   "nav.undo": "Rückgängig (Strg+Z)",
   "nav.redo": "Wiederholen (Strg+Umschalt+Z)",
@@ -247,6 +251,8 @@ export const de: PartialCatalog = {
 
   "file.newOpen": "Neu / öffnen…",
   "file.saving": "Speichert…",
+  "file.saved": "Gespeichert",
+  "file.saveFailed": "Speichern fehlgeschlagen",
   "file.saveLocally": "Lokal speichern",
   "file.saveToCloud": "In der Cloud speichern",
   "file.logInFirst": "Melde dich zuerst an!",

@@ -51,11 +51,19 @@ export function Menu({
       setOpen(false);
     };
     const close = () => setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
     window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
     window.addEventListener("resize", close);
     window.addEventListener("scroll", close, true);
     return () => {
       window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", close);
       window.removeEventListener("scroll", close, true);
     };
@@ -67,7 +75,9 @@ export function Menu({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-slate-100 ${className}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${className}`}
       >
         {label}
         <span className="text-[10px] text-slate-500">▾</span>
@@ -77,6 +87,7 @@ export function Menu({
           <div
             ref={menuRef}
             style={{ position: "fixed", top: pos.top, right: pos.right }}
+            role="menu"
             className="z-[100] w-52 overflow-hidden rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl"
           >
             {items.map((item, i) =>
@@ -86,13 +97,14 @@ export function Menu({
                 <button
                   key={i}
                   type="button"
+                  role="menuitem"
                   disabled={item.disabled}
                   title={item.title}
                   onClick={() => {
                     setOpen(false);
                     item.onClick();
                   }}
-                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
+                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition duration-150 hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none active:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
                     item.danger ? "text-rose-300" : "text-slate-200"
                   }`}
                 >

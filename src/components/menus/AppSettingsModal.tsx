@@ -36,6 +36,8 @@ type Props = {
   onDifficultyPanelOpen: (value: boolean) => void;
   showBottomTimeline: boolean;
   onShowBottomTimeline: (value: boolean) => void;
+  simplifyBottomTimeline: boolean;
+  onSimplifyBottomTimeline: (value: boolean) => void;
   showPpCounter: boolean;
   onShowPpCounter: (value: boolean) => void;
   showPatternTools: boolean;
@@ -109,6 +111,8 @@ export function AppSettingsModal({
   onDifficultyPanelOpen,
   showBottomTimeline,
   onShowBottomTimeline,
+  simplifyBottomTimeline,
+  onSimplifyBottomTimeline,
   showPpCounter,
   onShowPpCounter,
   showPatternTools,
@@ -333,6 +337,17 @@ export function AppSettingsModal({
                   checked={showBottomTimeline}
                   onChange={onShowBottomTimeline}
                 />
+                <div className="ml-3 border-l border-white/10 pl-3">
+                  <SettingToggle
+                    label={t("settings.simplifyBottomTimeline")}
+                    checked={simplifyBottomTimeline}
+                    disabled={!showBottomTimeline}
+                    onChange={onSimplifyBottomTimeline}
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {t("settings.simplifyBottomTimelineHint")}
+                  </p>
+                </div>
                 <SettingToggle
                   label={t("settings.showPpCounter")}
                   checked={showPpCounter}
@@ -1263,15 +1278,24 @@ function SettingToggle({
   label,
   checked,
   onChange,
+  disabled = false,
 }: {
   label: string;
   checked: boolean;
   onChange: (value: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div
+      className={`flex items-center justify-between gap-3 ${disabled ? "opacity-45" : ""}`}
+    >
       <span>{label}</span>
-      <Toggle checked={checked} onChange={onChange} aria-label={label} />
+      <Toggle
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+        aria-label={label}
+      />
     </div>
   );
 }

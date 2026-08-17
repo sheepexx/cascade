@@ -92,6 +92,7 @@ type Props = {
   bookmarks?: number[];
   /** Include BPM in the scroll-rate lane, matching the editor setting. */
   svBpmScroll?: boolean;
+  simplified?: boolean;
   bookmarkLabels?: Record<string, string>;
   loopRange?: BookmarkLoopRange | null;
   loopEnabled?: boolean;
@@ -136,6 +137,7 @@ export function BottomTimeline({
   onCommentClick,
   bookmarks,
   svBpmScroll,
+  simplified = false,
   bookmarkLabels,
   loopRange,
   loopEnabled,
@@ -188,6 +190,7 @@ export function BottomTimeline({
     bookmarks: unknown;
     previewTime: number;
     svBpmScroll: boolean | undefined;
+    simplified: boolean;
   } | null>(null);
   const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [tip, setTip] = useState<{
@@ -232,6 +235,7 @@ export function BottomTimeline({
     onSensitivity,
     revealWaveform,
     svBpmScroll,
+    simplified,
     peers,
     comments,
     bookmarks,
@@ -255,6 +259,7 @@ export function BottomTimeline({
     onSensitivity,
     revealWaveform,
     svBpmScroll,
+    simplified,
     peers,
     comments,
     bookmarks,
@@ -308,6 +313,7 @@ export function BottomTimeline({
       sensitivity,
       revealWaveform,
       svBpmScroll,
+      simplified,
       peers,
       comments,
       bookmarks,
@@ -349,7 +355,8 @@ export function BottomTimeline({
       prev.duration !== duration ||
       prev.bookmarks !== bookmarks ||
       prev.previewTime !== previewTime ||
-      prev.svBpmScroll !== svBpmScroll;
+      prev.svBpmScroll !== svBpmScroll ||
+      prev.simplified !== simplified;
 
     const geometryDirty =
       !prev ||
@@ -428,7 +435,7 @@ export function BottomTimeline({
           }
         }
 
-        if (duration > 0) {
+        if (duration > 0 && !simplified) {
           for (const tp of timingPoints) {
             if (tp.time < 0 || tp.time > duration) continue;
             const tx = (tp.time / duration) * width;
@@ -447,7 +454,11 @@ export function BottomTimeline({
           }
         }
 
-        if (duration > 0 && hasSv(timingPoints, { bpmScroll: svBpmScroll })) {
+        if (
+          duration > 0 &&
+          !simplified &&
+          hasSv(timingPoints, { bpmScroll: svBpmScroll })
+        ) {
           // Stepped scroll-rate curve along the bottom of the wave band,
           // log-scaled so 0.5x dips read as clearly as 4x spikes. Drawn from
           // the same map the editor scrolls by, so BPM gimmicks show up here
@@ -542,6 +553,7 @@ export function BottomTimeline({
         bookmarks,
         previewTime,
         svBpmScroll,
+        simplified,
       };
     }
 

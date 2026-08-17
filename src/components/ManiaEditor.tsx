@@ -49,6 +49,7 @@ import {
 import { Menu } from "./ui/Menu";
 import { SnapBadge } from "./ui/SnapBadge";
 import { t } from "../lib/i18n/core";
+import { formatUiNumber } from "../lib/formatUiNumber";
 
 export type HitsoundSource = {
   id: string;
@@ -1425,7 +1426,7 @@ export function ManiaEditor(props: Props) {
         ctx.stroke();
         ctx.fillStyle = "#ff2d6f";
         ctx.font = `11px ${CANVAS_FONT_STACK}`;
-        ctx.fillText(`${tp.bpm} BPM`, 6, y - 4);
+        ctx.fillText(`${formatUiNumber(tp.bpm)} BPM`, 6, y - 4);
       }
 
       const greens = greenPoints(timingPoints);
@@ -1435,7 +1436,7 @@ export function ManiaEditor(props: Props) {
         const y = timeToY(tp.time);
         const markerRight = originX + playfieldWidth;
         const markerLeft = Math.max(originX, markerRight - 28);
-        const label = `${tp.sv}× SV`;
+        const label = `${formatUiNumber(tp.sv)}× SV`;
         ctx.strokeStyle = "#2dd4bf";
         ctx.lineWidth = 2;
         ctx.beginPath();

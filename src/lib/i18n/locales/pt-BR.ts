@@ -75,6 +75,9 @@ export const ptBR: PartialCatalog = {
     "Ajusta menus e controles para telas maiores ou de alta resolução.",
 
   "settings.playfield": "Área de jogo",
+  "settings.simplifyBottomTimeline": "Simplificar linha do tempo inferior",
+  "settings.simplifyBottomTimelineHint":
+    "Oculta as camadas de BPM e SV, mantendo a densidade de notas e os marcadores.",
   "settings.backgroundDim": "Escurecer fundo",
   "settings.sizeZoom": "Tamanho / zoom",
   "settings.playfieldHint":
@@ -235,6 +238,7 @@ export const ptBR: PartialCatalog = {
   "nav.presets": "Presets",
   "nav.skin": "Skin",
   "nav.settings": "Configurações",
+  "nav.more": "Mais",
   "nav.file": "Arquivo",
   "nav.undo": "Desfazer (Ctrl+Z)",
   "nav.redo": "Refazer (Ctrl+Shift+Z)",
@@ -247,6 +251,8 @@ export const ptBR: PartialCatalog = {
 
   "file.newOpen": "Novo / abrir…",
   "file.saving": "Salvando…",
+  "file.saved": "Salvo",
+  "file.saveFailed": "Falha ao salvar",
   "file.saveLocally": "Salvar localmente",
   "file.saveToCloud": "Salvar na nuvem",
   "file.logInFirst": "Entre primeiro!",

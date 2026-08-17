@@ -73,6 +73,9 @@ export const zhCN: PartialCatalog = {
   "settings.uiScaleHint": "为更大或更高分辨率的显示器缩放菜单和控件。",
 
   "settings.playfield": "游戏区域",
+  "settings.simplifyBottomTimeline": "简化底部时间轴",
+  "settings.simplifyBottomTimelineHint":
+    "隐藏 BPM 和 SV 叠层，同时保留音符密度和书签。",
   "settings.backgroundDim": "背景变暗",
   "settings.sizeZoom": "大小 / 缩放",
   "settings.playfieldHint":
@@ -230,6 +233,7 @@ export const zhCN: PartialCatalog = {
   "nav.presets": "预设",
   "nav.skin": "皮肤",
   "nav.settings": "设置",
+  "nav.more": "更多",
   "nav.file": "文件",
   "nav.undo": "撤销 (Ctrl+Z)",
   "nav.redo": "重做 (Ctrl+Shift+Z)",
@@ -241,6 +245,8 @@ export const zhCN: PartialCatalog = {
 
   "file.newOpen": "新建 / 打开…",
   "file.saving": "保存中…",
+  "file.saved": "已保存",
+  "file.saveFailed": "保存失败",
   "file.saveLocally": "保存到本地",
   "file.saveToCloud": "保存到云端",
   "file.logInFirst": "请先登录！",

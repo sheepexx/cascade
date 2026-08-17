@@ -76,6 +76,9 @@ export const en = {
   "settings.layout": "Editor layout",
   "settings.showDifficultyPanel": "Difficulty and map stats panel",
   "settings.showBottomTimeline": "Bottom timeline and SV tools",
+  "settings.simplifyBottomTimeline": "Simplify bottom timeline",
+  "settings.simplifyBottomTimelineHint":
+    "Hides BPM and SV overlays for a cleaner waveform while keeping note density and bookmarks.",
   "settings.showPpCounter": "Speed and PP panel",
   "settings.showPatternTools": "Pattern preset tools",
   "settings.layoutHint":
@@ -254,6 +257,7 @@ export const en = {
   "nav.presets": "Presets",
   "nav.skin": "Skin",
   "nav.settings": "Settings",
+  "nav.more": "More",
   "nav.file": "File",
   "nav.undo": "Undo (Ctrl+Z)",
   "nav.redo": "Redo (Ctrl+Shift+Z)",
@@ -266,6 +270,8 @@ export const en = {
 
   "file.newOpen": "New / open…",
   "file.saving": "Saving…",
+  "file.saved": "Saved",
+  "file.saveFailed": "Save failed",
   "file.saveLocally": "Save locally",
   "file.saveToCloud": "Save to cloud",
   "file.logInFirst": "Log in first!",

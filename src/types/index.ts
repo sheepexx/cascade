@@ -408,6 +408,7 @@ export type AppSettings = {
   showTimingLines: boolean;
   difficultyPanelOpen: boolean;
   showBottomTimeline: boolean;
+  simplifyBottomTimeline: boolean;
   showPpCounter: boolean;
   showPatternTools: boolean;
   upscroll: boolean;
@@ -475,6 +476,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showTimingLines: true,
   difficultyPanelOpen: true,
   showBottomTimeline: true,
+  simplifyBottomTimeline: false,
   showPpCounter: true,
   showPatternTools: true,
   upscroll: false,

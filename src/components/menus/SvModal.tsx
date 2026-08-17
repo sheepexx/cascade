@@ -29,7 +29,13 @@ import {
 } from "../../lib/sv";
 import { CurveEditor } from "../ui/CurveEditor";
 import { Modal } from "../ui/Modal";
-import { Button, Field, NumberInput, Toggle } from "../ui/Controls";
+import {
+  Button,
+  Field,
+  NumberInput,
+  PrecisionNumberInput,
+  Toggle,
+} from "../ui/Controls";
 
 type Props = {
   open: boolean;
@@ -574,15 +580,14 @@ export function SvModal({
                 />
               </Field>
               <Field label="Keyframe SV ×">
-                <NumberInput
+                <PrecisionNumberInput
                   min={MIN_SV}
                   max={MAX_SV}
                   step={0.1}
-                  value={Number(selectedKfValue.sv.toFixed(3))}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    if (Number.isFinite(v)) patchSelectedKf({ sv: clampSv(v) });
-                  }}
+                  value={selectedKfValue.sv}
+                  onValueChange={(value) =>
+                    patchSelectedKf({ sv: clampSv(value) })
+                  }
                 />
               </Field>
               <Button

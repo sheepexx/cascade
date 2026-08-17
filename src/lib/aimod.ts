@@ -1,6 +1,7 @@
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta, TimingPoint } from "../types";
 import { difficultyRate } from "./rateChange";
 import { activeTimingAt, beatLength, redPoints, sortedPoints } from "./timing";
+import { formatUiNumber } from "./formatUiNumber";
 
 // osu! only recognises objects snapped to one of these beat divisors. Notes on a
 // 1/5, 1/7, 1/9 or finer grid (or drifted off-grid by float rounding) are shown
@@ -305,7 +306,7 @@ export function runAiMod({
     const seenPoints = new Set<string>();
     for (const p of sortedPoints(points)) {
       if (p.uninherited && !(Number.isFinite(p.bpm) && p.bpm > 0))
-        badBpm.push({ time: p.time, label: `BPM is ${p.bpm}.` });
+        badBpm.push({ time: p.time, label: `BPM is ${formatUiNumber(p.bpm)}.` });
       const key = `${p.uninherited ? "red" : "green"}@${Math.round(p.time)}`;
       if (seenPoints.has(key))
         duplicatePoints.push({

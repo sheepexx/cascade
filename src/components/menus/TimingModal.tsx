@@ -12,7 +12,13 @@ import { useMetronome } from "../../hooks/useMetronome";
 import { formatTime, sortedPoints } from "../../lib/timing";
 import { detectBpmFromBuffer, type BpmDetection } from "../../lib/bpmDetect";
 import { Modal } from "../ui/Modal";
-import { Button, NumberInput, Toggle } from "../ui/Controls";
+import {
+  Button,
+  NumberInput,
+  PrecisionNumberInput,
+  Toggle,
+} from "../ui/Controls";
+import { formatUiNumber } from "../../lib/formatUiNumber";
 
 type Props = {
   open: boolean;
@@ -513,7 +519,8 @@ export const TimingModal = memo(function TimingModal({
             {detection !== null && detection !== "failed" && (
               <>
                 <span className="font-mono text-sm text-slate-100">
-                  {detection.bpm} BPM · offset {detection.offsetMs} ms
+                  {formatUiNumber(detection.bpm)} BPM · offset{" "}
+                  {formatUiNumber(detection.offsetMs)} ms
                 </span>
                 <span
                   className={`text-[11px] ${
@@ -668,7 +675,9 @@ function PointRow({
           {p.time} ms
         </span>
         <span className={red ? "text-xs text-rose-200" : "text-xs text-emerald-200"}>
-          {red ? `${p.bpm} BPM · ${p.meter}/4` : `${p.sv}× SV`}
+          {red
+            ? `${formatUiNumber(p.bpm)} BPM · ${p.meter}/4`
+            : `${formatUiNumber(p.sv)}× SV`}
         </span>
         <span className="text-[10px] text-slate-500">Vol {p.volume}</span>
         {p.kiai && (
@@ -702,12 +711,12 @@ function PointRow({
             {red ? (
               <>
                 <Labeled label="BPM">
-                  <NumberInput
+                  <PrecisionNumberInput
                     value={p.bpm}
-                    step={0.001}
+                    step={0.01}
                     min={1}
-                    onChange={(e) =>
-                      onUpdate({ bpm: Math.max(1, Number(e.target.value) || 1) })
+                    onValueChange={(value) =>
+                      onUpdate({ bpm: Math.max(1, value || 1) })
                     }
                     className="w-24 py-1"
                   />
@@ -733,13 +742,13 @@ function PointRow({
             ) : (
               <>
                 <Labeled label="SV ×">
-                  <NumberInput
+                  <PrecisionNumberInput
                     value={p.sv}
                     step={0.05}
                     min={0.01}
                     max={10}
-                    onChange={(e) =>
-                      onUpdate({ sv: clampSv(Number(e.target.value) || 1) })
+                    onValueChange={(value) =>
+                      onUpdate({ sv: clampSv(value || 1) })
                     }
                     className="w-20 py-1"
                   />
