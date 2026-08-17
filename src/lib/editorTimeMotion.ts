@@ -1,55 +1,66 @@
 import type { AudioSeekTransition } from "./audioSeek";
 
-const TIME_EASE = 40;
-const TIME_SETTLE_MS = 0.4;
+export const EDITOR_SEEK_GLIDE_MS = 180;
 
 export type EditorSeekMotion = {
   renderedTime: number;
+  smoothFrom: number | null;
   smoothTarget: number | null;
 };
 
 /**
  * Applies an explicit seek to the editor's visual clock.
  *
- * Absolute seeks (timeline, bookmark, jump-to-time, comments) must land on the
- * requested frame. Only locally initiated snap-wheel movement is allowed to
- * glide, and repeated wheel input catches up to the previous target first so
- * visual lag can never accumulate across many events.
+ * Smooth seeks use a fixed wall-clock duration, regardless of distance.
+ * Repeated input rebases from the currently rendered frame, so retargeting is
+ * continuous and the final input still has a strict completion deadline.
  */
 export function applyEditorSeek(
   renderedTime: number,
-  previousSmoothTarget: number | null,
   targetTime: number,
   transition: AudioSeekTransition,
   allowSmooth: boolean,
 ): EditorSeekMotion {
   if (!Number.isFinite(targetTime)) {
-    return { renderedTime, smoothTarget: previousSmoothTarget };
+    return {
+      renderedTime,
+      smoothFrom: null,
+      smoothTarget: null,
+    };
   }
   if (transition !== "smooth" || !allowSmooth) {
-    return { renderedTime: targetTime, smoothTarget: null };
+    return {
+      renderedTime: targetTime,
+      smoothFrom: null,
+      smoothTarget: null,
+    };
+  }
+  if (Math.abs(targetTime - renderedTime) < 0.001) {
+    return {
+      renderedTime: targetTime,
+      smoothFrom: null,
+      smoothTarget: null,
+    };
   }
   return {
-    renderedTime: previousSmoothTarget ?? renderedTime,
+    renderedTime,
+    smoothFrom: renderedTime,
     smoothTarget: targetTime,
   };
 }
 
-/** Advances the short snap-line glide using real elapsed wall time. */
+/** Advances a bounded ease-out glide using total wall time since the seek. */
 export function nextEditorRenderTime(
-  renderedTime: number,
+  fromTime: number,
   targetTime: number,
-  elapsedSeconds: number,
+  elapsedMs: number,
   smooth: boolean,
 ): number {
-  if (!Number.isFinite(targetTime)) return renderedTime;
-  const delta = targetTime - renderedTime;
-  if (!smooth || Math.abs(delta) < TIME_SETTLE_MS) return targetTime;
+  if (!Number.isFinite(targetTime)) return fromTime;
+  if (!smooth || !Number.isFinite(fromTime)) return targetTime;
 
-  // A stalled/heavy frame must catch up instead of turning a 150 ms glide into
-  // several seconds. One second is already effectively a full exponential
-  // settle and merely guards against an unbounded tab-resume delta.
-  const dt = Math.min(1, Math.max(0, elapsedSeconds));
-  const next = renderedTime + delta * (1 - Math.exp(-TIME_EASE * dt));
-  return Math.abs(targetTime - next) < TIME_SETTLE_MS ? targetTime : next;
+  const progress = Math.min(1, Math.max(0, elapsedMs / EDITOR_SEEK_GLIDE_MS));
+  if (progress >= 1) return targetTime;
+  const eased = 1 - Math.pow(1 - progress, 3);
+  return fromTime + (targetTime - fromTime) * eased;
 }

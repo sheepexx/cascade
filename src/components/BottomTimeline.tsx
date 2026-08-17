@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
+import type { AudioSeekTransition } from "../lib/audioSeek";
 import { kiaiRanges } from "../lib/timing";
 import { buildSvMap, hasSv } from "../lib/sv";
 import {
@@ -73,7 +74,7 @@ type Props = {
   getCurrentTime: () => number;
   isPlaying: boolean;
   seekRevision: number;
-  onSeek: (ms: number) => void;
+  onSeek: (ms: number, transition?: AudioSeekTransition) => void;
   sensitivity: number;
   onSensitivity: (value: number) => void;
   revealWaveform: boolean;
@@ -819,13 +820,13 @@ export function BottomTimeline({
   }, []);
 
   const seekFromEvent = useCallback(
-    (clientX: number) => {
+    (clientX: number, transition: AudioSeekTransition = "instant") => {
       const canvas = canvasRef.current;
       const { duration } = propsRef.current;
       if (!canvas || !(duration > 0) || !Number.isFinite(duration)) return;
       const rect = canvas.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      onSeek(ratio * duration);
+      onSeek(ratio * duration, transition);
       scheduleDrawRef.current();
     },
     [onSeek],
@@ -918,7 +919,7 @@ export function BottomTimeline({
     draggingRef.current = true;
     dragStartXRef.current = e.clientX;
     dragMovedRef.current = false;
-    seekFromEvent(e.clientX);
+    seekFromEvent(e.clientX, "smooth");
     lastScrubSeekRef.current = performance.now();
   };
 
@@ -1137,7 +1138,7 @@ export function BottomTimeline({
       pendingSeekXRef.current = null;
       if (clientX !== null) {
         lastScrubSeekRef.current = now;
-        seekFromEvent(clientX);
+        seekFromEvent(clientX, "instant");
       }
     };
     const scheduleSeek = (clientX: number) => {
@@ -1168,7 +1169,7 @@ export function BottomTimeline({
           Math.abs(e.clientX - dragStartXRef.current) >= 0.5;
         if (moved) {
           lastScrubSeekRef.current = performance.now();
-          seekFromEvent(e.clientX);
+          seekFromEvent(e.clientX, "instant");
         }
       }
       draggingRef.current = false;

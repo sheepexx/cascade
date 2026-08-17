@@ -107,6 +107,7 @@ export function useAudio(
   const [seekSignal, setSeekSignal] = useState<AudioSeekSignal>({
     revision: 0,
     transition: "instant",
+    targetTime: 0,
   });
   const playbackRateRef = useRef(1);
   const rateTransitionRef = useRef<RateTransition | null>(null);
@@ -411,6 +412,11 @@ export function useAudio(
     setCurrentTime(0);
     setIsPlaying(false);
     setDuration(0);
+    setSeekSignal((previous) => ({
+      revision: previous.revision + 1,
+      transition: "instant",
+      targetTime: 0,
+    }));
     hasKnownDurationRef.current = false;
     if (!audio) return;
     if (!src) {
@@ -626,6 +632,7 @@ export function useAudio(
             : ms;
       const clamped = Math.max(0, Math.min(ms, max));
       if (!Number.isFinite(clamped)) return;
+      const acceptedMapTime = clamped / timeScaleRef.current;
       // Drop the anchor so the jump is not eased across.
       clockRef.current.reset();
 
@@ -639,6 +646,7 @@ export function useAudio(
         setSeekSignal((previous) => ({
           revision: previous.revision + 1,
           transition,
+          targetTime: acceptedMapTime,
         }));
         return;
       }
@@ -651,6 +659,7 @@ export function useAudio(
       setSeekSignal((previous) => ({
         revision: previous.revision + 1,
         transition,
+        targetTime: acceptedMapTime,
       }));
     },
     [duration, stopWeb, startWeb, webAudioActive],
