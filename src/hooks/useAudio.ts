@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   DUCK_FILTER_HZ,
   MIX_RAMP_SECONDS,
@@ -10,6 +16,7 @@ import type {
   AudioSeekSignal,
   AudioSeekTransition,
 } from "../lib/audioSeek";
+import { createSeekVisualClock } from "../lib/seekVisualClock";
 
 const RATE_RAMP_SECONDS = 0.34;
 const CLOCK_UI_INTERVAL_MS = 100;
@@ -95,6 +102,7 @@ export function useAudio(
   // quantum and HTMLMediaElement.currentTime is coarser still, so the raw
   // reading repeats for several frames at a high refresh rate.
   const clockRef = useRef(createPlaybackClock());
+  const seekVisualClockRef = useRef(createSeekVisualClock());
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -371,6 +379,7 @@ export function useAudio(
     const region = regionRef.current;
     const regionStartMs = Math.max(0, region?.startMs ?? 0);
     if (positionRef.current * 1000 >= durMs - 1) {
+      seekVisualClockRef.current.cancel();
       positionRef.current = regionStartMs / 1000;
     }
 
@@ -380,6 +389,7 @@ export function useAudio(
     source.connect(fadeGainRef.current ?? filterRef.current ?? gain);
     scheduleFadeEnvelope(ctx, positionRef.current, durMs);
     source.onended = () => {
+      seekVisualClockRef.current.cancel();
       sourceRef.current = null;
       positionRef.current = durMs / 1000;
       currentTimeRef.current = durMs;
@@ -461,7 +471,10 @@ export function useAudio(
     };
     const onEnded = () => {
       // A seek away from EOF can race an already queued media event.
-      if (audio.ended) setIsPlaying(false);
+      if (audio.ended) {
+        seekVisualClockRef.current.cancel();
+        setIsPlaying(false);
+      }
     };
     const onPause = () => {
       if (!webAudioActive()) setIsPlaying(false);
@@ -499,6 +512,7 @@ export function useAudio(
       if (endMs != null && next >= endMs) {
         const region = regionRef.current;
         if (region?.loop) {
+          seekVisualClockRef.current.cancel();
           next = Math.max(0, region.startMs ?? 0);
           positionRef.current = next / 1000;
           currentTimeRef.current = next;
@@ -512,6 +526,7 @@ export function useAudio(
           rafRef.current = requestAnimationFrame(tick);
           return;
         }
+        seekVisualClockRef.current.cancel();
         next = endMs;
         positionRef.current = next / 1000;
         currentTimeRef.current = next;
@@ -549,6 +564,7 @@ export function useAudio(
       const endMs = region.endMs;
       const posMs = positionRef.current * 1000;
       if (posMs < startMs - 1 || (endMs != null && posMs >= endMs - 1)) {
+        seekVisualClockRef.current.cancel();
         positionRef.current = startMs / 1000;
         currentTimeRef.current = startMs;
         setCurrentTime(startMs);
@@ -618,52 +634,6 @@ export function useAudio(
     };
     elementRateRafRef.current = requestAnimationFrame(step);
   }, []);
-
-  const seek = useCallback(
-    (mapMs: number, transition: AudioSeekTransition = "instant") => {
-      if (!Number.isFinite(mapMs)) return;
-      const ms = mapMs * timeScaleRef.current;
-      const audio = audioRef.current;
-      const max =
-        Number.isFinite(duration) && duration > 0
-          ? duration
-          : audio && Number.isFinite(audio.duration)
-            ? audio.duration * 1000
-            : ms;
-      const clamped = Math.max(0, Math.min(ms, max));
-      if (!Number.isFinite(clamped)) return;
-      const acceptedMapTime = clamped / timeScaleRef.current;
-      // Drop the anchor so the jump is not eased across.
-      clockRef.current.reset();
-
-      if (webAudioActive()) {
-        const wasPlaying = sourceRef.current !== null;
-        stopWeb(false);
-        positionRef.current = clamped / 1000;
-        currentTimeRef.current = clamped;
-        setCurrentTime(clamped);
-        if (wasPlaying) startWeb();
-        setSeekSignal((previous) => ({
-          revision: previous.revision + 1,
-          transition,
-          targetTime: acceptedMapTime,
-        }));
-        return;
-      }
-      positionRef.current = clamped / 1000;
-      currentTimeRef.current = clamped;
-      setCurrentTime(clamped);
-      if (audio) {
-        audio.currentTime = clamped / 1000;
-      }
-      setSeekSignal((previous) => ({
-        revision: previous.revision + 1,
-        transition,
-        targetTime: acceptedMapTime,
-      }));
-    },
-    [duration, stopWeb, startWeb, webAudioActive],
-  );
 
   /**
    * Moves the audio graph onto `target` (an already-composed effective rate),
@@ -789,7 +759,10 @@ export function useAudio(
   const getCurrentTime = useCallback(() => {
     const audioMs = (() => {
       if (webAudioActive() && sourceRef.current) {
-        return webPosition() * 1000 - outputLatencyMs() * syncLivePlaybackRate();
+        return (
+          webPosition() * 1000 -
+          outputLatencyMs() * syncLivePlaybackRate()
+        );
       }
       const audio = audioRef.current;
       if (!webAudioActive() && audio && !audio.paused) {
@@ -813,6 +786,83 @@ export function useAudio(
     webAudioActive,
     effectiveRate,
   ]);
+
+  const getVisualCurrentTime = useCallback(
+    (frameNow = performance.now()) =>
+      seekVisualClockRef.current.read(getCurrentTime(), frameNow),
+    [getCurrentTime],
+  );
+
+  const isVisualSeekActive = useCallback(
+    (frameNow = performance.now()) =>
+      seekVisualClockRef.current.active(frameNow),
+    [],
+  );
+
+  const cancelVisualSeek = useCallback(() => {
+    seekVisualClockRef.current.cancel();
+  }, []);
+
+  const seek = useCallback(
+    (mapMs: number, transition: AudioSeekTransition = "instant") => {
+      if (!Number.isFinite(mapMs)) return;
+      const ms = mapMs * timeScaleRef.current;
+      const audio = audioRef.current;
+      const max =
+        Number.isFinite(duration) && duration > 0
+          ? duration
+          : audio && Number.isFinite(audio.duration)
+            ? audio.duration * 1000
+            : ms;
+      const clamped = Math.max(0, Math.min(ms, max));
+      if (!Number.isFinite(clamped)) return;
+      const acceptedMapTime = clamped / timeScaleRef.current;
+      const now = performance.now();
+      const previousVisualTime = seekVisualClockRef.current.read(
+        getCurrentTime(),
+        now,
+      );
+      // Drop the interpolation anchor so the actual audio jump remains exact.
+      clockRef.current.reset();
+
+      if (webAudioActive()) {
+        const wasPlaying = sourceRef.current !== null;
+        stopWeb(false);
+        positionRef.current = clamped / 1000;
+        currentTimeRef.current = clamped;
+        setCurrentTime(clamped);
+        if (wasPlaying) startWeb();
+      } else {
+        positionRef.current = clamped / 1000;
+        currentTimeRef.current = clamped;
+        setCurrentTime(clamped);
+        if (audio) audio.currentTime = clamped / 1000;
+      }
+
+      seekVisualClockRef.current.begin(
+        previousVisualTime,
+        getCurrentTime(),
+        transition,
+        now,
+      );
+      setSeekSignal((previous) => ({
+        revision: previous.revision + 1,
+        transition,
+        targetTime: acceptedMapTime,
+      }));
+    },
+    [
+      duration,
+      stopWeb,
+      startWeb,
+      webAudioActive,
+      getCurrentTime,
+    ],
+  );
+
+  useLayoutEffect(() => {
+    seekVisualClockRef.current.cancel();
+  }, [src, scale]);
 
   useEffect(() => {
     return () => {
@@ -844,6 +894,9 @@ export function useAudio(
     /** Rate the source file is actually played at, for video/visual sync. */
     effectiveRate: clampEffectiveRate(playbackRate * scale),
     getCurrentTime,
+    getVisualCurrentTime,
+    isVisualSeekActive,
+    cancelVisualSeek,
     play,
     pause,
     toggle,

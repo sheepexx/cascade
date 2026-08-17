@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   TIMELINE_DRAG_SLOP_PX,
   timelineDragStarted,
+  timelineSeekTransition,
 } from "./timelineInput";
 
 describe("timeline input", () => {
@@ -15,5 +16,11 @@ describe("timeline input", () => {
   it("starts scrubbing at the drag threshold in either direction", () => {
     expect(timelineDragStarted(100, 100 + TIMELINE_DRAG_SLOP_PX)).toBe(true);
     expect(timelineDragStarted(100, 100 - TIMELINE_DRAG_SLOP_PX)).toBe(true);
+  });
+
+  it("keeps clicks and every deliberate drag phase visually smooth", () => {
+    expect(timelineSeekTransition("press")).toBe("smooth");
+    expect(timelineSeekTransition("drag")).toBe("scrub");
+    expect(timelineSeekTransition("release")).toBe("scrub");
   });
 });

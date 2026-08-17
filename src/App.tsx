@@ -33,6 +33,7 @@ import { renderShareCard } from "./lib/shareCard";
 import { NowPlaying } from "./components/NowPlaying";
 import { useMenuMusic } from "./hooks/useMenuMusic";
 import { dialogIsOpen } from "./hooks/useDialog";
+import type { AudioSeekTransition } from "./lib/audioSeek";
 const loadEditorWorkspace = () => import("./components/EditorWorkspace");
 const BottomTimeline = lazy(() =>
   loadEditorWorkspace().then((m) => ({ default: m.BottomTimeline })),
@@ -1073,13 +1074,29 @@ export default function App() {
   const currentTimeRef = useRef(audio.getCurrentTime());
   currentTimeRef.current = audio.getCurrentTime();
   const getCurrentTime = audio.getCurrentTime;
-  const seekAudio = audio.seek;
+  const getVisualCurrentTime = audio.getVisualCurrentTime;
+  const isVisualSeekActive = audio.isVisualSeekActive;
+  const audioSeek = audio.seek;
+  const smoothScrollingRef = useRef(appSettings.smoothScrolling);
+  smoothScrollingRef.current = appSettings.smoothScrolling;
+  const seekAudio = useCallback(
+    (time: number, transition: AudioSeekTransition = "instant") =>
+      audioSeek(
+        time,
+        smoothScrollingRef.current ? transition : "instant",
+      ),
+    [audioSeek],
+  );
   const playAudio = audio.play;
   const pauseAudio = audio.pause;
   const toggleAudio = audio.toggle;
   const setAudioVolume = audio.setVolume;
   const setAudioPlaybackRate = audio.setPlaybackRate;
   const setAudioAmbientDucking = audio.setAmbientDucking;
+  const cancelVisualSeek = audio.cancelVisualSeek;
+  useEffect(() => {
+    if (!appSettings.smoothScrolling) cancelVisualSeek();
+  }, [appSettings.smoothScrolling, cancelVisualSeek]);
   const audioVolumeRef = useRef(audio.volume);
   audioVolumeRef.current = audio.volume;
   const changeEditorVolume = useCallback(
@@ -1934,6 +1951,11 @@ export default function App() {
   const getEditorCurrentTime = useCallback(
     () => getCurrentTime() + playtestVisualOffset,
     [getCurrentTime, playtestVisualOffset],
+  );
+  const getEditorVisualCurrentTime = useCallback(
+    (frameNow?: number) =>
+      getVisualCurrentTime(frameNow) + playtestVisualOffset,
+    [getVisualCurrentTime, playtestVisualOffset],
   );
   const editorView = useMemo(
     () =>
@@ -3143,7 +3165,7 @@ export default function App() {
         currentTimeRef.current,
         direction,
       );
-      if (target !== null) seekAudio(target);
+      if (target !== null) seekAudio(target, "smooth");
     },
     [seekAudio],
   );
@@ -3163,7 +3185,7 @@ export default function App() {
   }, []);
   const openTimelineComment = useCallback(
     (time: number) => {
-      seekAudio(time);
+      seekAudio(time, "smooth");
       setCommentsOpen(true);
     },
     [seekAudio],
@@ -5743,6 +5765,8 @@ export default function App() {
                 bookmarks={active.bookmarks}
                 view={editorView}
                 getCurrentTime={getEditorCurrentTime}
+                getVisualCurrentTime={getEditorVisualCurrentTime}
+                isVisualSeekActive={isVisualSeekActive}
                 isPlaying={audio.isPlaying}
                 seekSignal={audio.seekSignal}
                 backgroundUrl={activeBg?.url ?? null}
@@ -5839,6 +5863,8 @@ export default function App() {
                       previewTime={referenceDiff.previewTime}
                       view={view}
                       getCurrentTime={getCurrentTime}
+                      getVisualCurrentTime={getVisualCurrentTime}
+                      isVisualSeekActive={isVisualSeekActive}
                       isPlaying={audio.isPlaying}
                       seekSignal={audio.seekSignal}
                       backgroundUrl={null}
@@ -6024,6 +6050,8 @@ export default function App() {
                 previewTime={active.previewTime}
                 duration={audio.duration}
                 getCurrentTime={getCurrentTime}
+                getVisualCurrentTime={getVisualCurrentTime}
+                isVisualSeekActive={isVisualSeekActive}
                 isPlaying={audio.isPlaying}
                 seekSignal={audio.seekSignal}
                 smoothScrolling={appSettings.smoothScrolling}
