@@ -8,7 +8,7 @@ import {
 import { createPlaybackClock } from "../lib/playbackClock";
 
 const RATE_RAMP_SECONDS = 0.34;
-const CLOCK_UI_INTERVAL_MS = 50;
+const CLOCK_UI_INTERVAL_MS = 100;
 
 const MIN_EFFECTIVE_RATE = 0.0625;
 const MAX_EFFECTIVE_RATE = 8;

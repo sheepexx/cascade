@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { computeWaveformPeaks } from "../lib/waveform";
 
 export type Waveform = {
   peaks: Float32Array;
@@ -32,26 +33,7 @@ export function useWaveform(
       .then((audioBuffer) => {
         if (cancelled) return;
         const channel = audioBuffer.getChannelData(0);
-        const blockSize = Math.max(1, Math.floor(channel.length / buckets));
-        const peaks = new Float32Array(buckets);
-
-        for (let i = 0; i < buckets; i++) {
-          const start = i * blockSize;
-          let sumSq = 0;
-          for (let j = 0; j < blockSize; j++) {
-            const v = channel[start + j] ?? 0;
-            sumSq += v * v;
-          }
-          peaks[i] = Math.sqrt(sumSq / blockSize);
-        }
-
-        const sorted = Array.from(peaks).sort((a, b) => a - b);
-        const ref = sorted[Math.floor(sorted.length * 0.95)] || 1;
-        if (ref > 0) {
-          for (let i = 0; i < peaks.length; i++) {
-            peaks[i] = Math.min(1, peaks[i] / ref);
-          }
-        }
+        const peaks = computeWaveformPeaks(channel, buckets);
 
         setWaveform({
           peaks,

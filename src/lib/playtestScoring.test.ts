@@ -3,6 +3,8 @@ import type { HitResult, JudgementCounts } from "./playtestJudgements";
 import {
   addJudgement,
   accuracyFromCounts,
+  judgementCount,
+  scoreFromCounts,
   scoreFromResults,
 } from "./playtestScoring";
 
@@ -61,5 +63,18 @@ describe("scoreFromResults", () => {
 
   it("gives zero score for all misses", () => {
     expect(scoreFromResults([result("miss"), result("miss")])).toBe(0);
+  });
+});
+
+describe("count-based scoring", () => {
+  it("tracks the judged total without retaining every hit result", () => {
+    expect(judgementCount(counts({ max: 2, "200": 1, miss: 3 }))).toBe(6);
+  });
+
+  it("matches result-based scoring", () => {
+    const results = [result("max"), result("300"), result("100"), result("miss")];
+    expect(scoreFromCounts(counts({ max: 1, "300": 1, "100": 1, miss: 1 }))).toBe(
+      scoreFromResults(results),
+    );
   });
 });

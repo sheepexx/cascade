@@ -30,6 +30,8 @@ export type PlaytestState = {
   unstableRate: number;
   judgements: JudgementCounts;
   hitResults: HitResult[];
+  judgedCount?: number;
+  meanError?: number;
   currentHealth?: number;
 };
 

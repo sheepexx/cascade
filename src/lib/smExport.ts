@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta, TimingPoint } from "../types";
 import { makeRedPoint } from "../types";
 import { sortedPoints, redPoints } from "./timing";
@@ -358,12 +357,15 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
     difficulties: rawArgs.difficulties.filter((d) => !isRateDifficulty(d)),
   };
 
-  // Bring up the MP3 encoder before any audio is baked; without it every
-  // re-encode falls back to WAV.
-  await loadMp3Encoder().catch((err: unknown) => {
-    console.error("MP3 encoder unavailable, audio will be exported as WAV:", err);
-  });
-
+  const [, { default: JSZip }] = await Promise.all([
+    loadMp3Encoder().catch((err: unknown) => {
+      console.error(
+        "MP3 encoder unavailable, audio will be exported as WAV:",
+        err,
+      );
+    }),
+    import("jszip"),
+  ]);
   const zip = new JSZip();
 
   for (const diff of args.difficulties) {

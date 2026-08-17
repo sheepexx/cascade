@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { listLocalTracks, loadVolume, type LocalTrack } from "../lib/persistence";
+import {
+  listLocalTrackSummaries,
+  loadLocalTrack,
+  loadVolume,
+  type LocalTrack,
+  type LocalTrackSummary,
+} from "../lib/persistence";
 import {
   DUCK_FILTER_HZ,
   DUCK_VOLUME_FACTOR,
@@ -82,7 +88,8 @@ function toMenuTrack(row: LocalTrack): MenuTrack {
 }
 
 export function useMenuMusic(enabled: boolean): MenuMusic {
-  const [playlist, setPlaylist] = useState<MenuTrack[]>([]);
+  const [playlist, setPlaylist] = useState<LocalTrackSummary[]>([]);
+  const [track, setTrack] = useState<MenuTrack | null>(null);
   const [index, setIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -93,7 +100,6 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   const duckedRef = useRef(false);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const levelsRef = useRef(new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)));
-  const urlsRef = useRef<string[]>([]);
   const wantsPlayRef = useRef(true);
   const resumeOnEnableRef = useRef(true);
   const volumeRef = useRef(MENU_VOLUME);
@@ -111,40 +117,55 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   );
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setPlaylist([]);
+      setIndex(0);
+      return;
+    }
     let cancelled = false;
-    let mine: string[] = [];
-    listLocalTracks()
+    listLocalTrackSummaries()
       .then((rows) => {
         if (cancelled) return;
-        const made = shuffle(rows).map(toMenuTrack);
-        mine = made.flatMap((t) =>
-          t.backgroundUrl ? [t.audioUrl, t.backgroundUrl] : [t.audioUrl],
-        );
-        urlsRef.current.push(...mine);
-        setPlaylist(made);
+        setPlaylist(shuffle(rows));
         setIndex(0);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
-      if (mine.length === 0) return;
-      setPlaylist([]);
-      setIndex(0);
-      for (const url of mine) URL.revokeObjectURL(url);
-      urlsRef.current = urlsRef.current.filter((u) => !mine.includes(u));
     };
   }, [enabled]);
 
-  useEffect(
-    () => () => {
-      for (const url of urlsRef.current) URL.revokeObjectURL(url);
-      urlsRef.current = [];
-    },
-    [],
-  );
+  const selected = playlist.length ? playlist[index % playlist.length] : null;
 
-  const track = playlist.length ? playlist[index % playlist.length] : null;
+  useEffect(() => {
+    setTrack(null);
+    if (!enabled || !selected) return;
+    let cancelled = false;
+    let urls: string[] = [];
+    loadLocalTrack(selected.id)
+      .then((row) => {
+        if (cancelled) return;
+        if (!row) {
+          setPlaylist((items) => items.filter((item) => item.id !== selected.id));
+          setIndex(0);
+          return;
+        }
+        const next = toMenuTrack(row);
+        urls = next.backgroundUrl
+          ? [next.audioUrl, next.backgroundUrl]
+          : [next.audioUrl];
+        setTrack(next);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPlaylist((items) => items.filter((item) => item.id !== selected.id));
+        setIndex(0);
+      });
+    return () => {
+      cancelled = true;
+      for (const url of urls) URL.revokeObjectURL(url);
+    };
+  }, [enabled, selected]);
 
   const connect = useCallback((el: HTMLAudioElement) => {
     const Ctor =
@@ -192,6 +213,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
     resumeOnEnableRef.current = wantsPlayRef.current;
     wantsPlayRef.current = false;
     audioRef.current?.pause();
+    void ctxRef.current?.suspend().catch(() => {});
   }, [enabled]);
 
   useEffect(() => {
@@ -264,7 +286,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       if (audioRef.current === el) audioRef.current = null;
       setIsPlaying(false);
     };
-  }, [enabled, track, index, connect, fade]);
+  }, [enabled, track, connect, fade]);
 
   useEffect(
     () => () => {

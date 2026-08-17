@@ -23,6 +23,7 @@ export function PlaytestNpsGraph({
   durationMs,
   getCurrentTime,
   active,
+  running = active,
   label,
   peakLabel,
 }: {
@@ -30,6 +31,7 @@ export function PlaytestNpsGraph({
   durationMs: number;
   getCurrentTime: () => number;
   active: boolean;
+  running?: boolean;
   label: string;
   peakLabel: string;
 }) {
@@ -46,7 +48,7 @@ export function PlaytestNpsGraph({
   clock.current = getCurrentTime;
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !running) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -169,7 +171,7 @@ export function PlaytestNpsGraph({
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [active, series, label, peakLabel]);
+  }, [active, running, series, label, peakLabel]);
 
   if (!active) return null;
 

@@ -20,6 +20,7 @@ const MAIN_REVEAL_MS = 300;
 const WAVEFORM_REVEAL_DELAY_MS = MAIN_REVEAL_MS;
 const WAVEFORM_REVEAL_MS = 700;
 const RESIZE_SETTLE_MS = 90;
+const SCRUB_SEEK_INTERVAL_MS = 32;
 
 type TrimGeom = {
   sx: number;
@@ -69,8 +70,8 @@ type Props = {
   timingPoints: TimingPoint[];
   previewTime: number;
   duration: number;
-  currentTime: number;
   getCurrentTime: () => number;
+  isPlaying: boolean;
   onSeek: (ms: number) => void;
   sensitivity: number;
   onSensitivity: (value: number) => void;
@@ -124,8 +125,8 @@ export function BottomTimeline({
   timingPoints,
   previewTime,
   duration,
-  currentTime,
   getCurrentTime,
+  isPlaying,
   onSeek,
   sensitivity,
   onSensitivity,
@@ -161,6 +162,10 @@ export function BottomTimeline({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const sizeRef = useRef({ width: 800, dpr: 1 });
   const draggingRef = useRef(false);
+  const seekRafRef = useRef(0);
+  const pendingSeekXRef = useRef<number | null>(null);
+  const lastScrubSeekRef = useRef(0);
+  const scheduleDrawRef = useRef<() => void>(() => {});
   const trimDragRef = useRef<
     "start" | "end" | "fadeIn" | "fadeOut" | null
   >(null);
@@ -175,7 +180,6 @@ export function BottomTimeline({
     dpr: number;
     waveform: Waveform | null;
     sensitivity: number;
-    revealWidth: number;
     notes: unknown;
     timingPoints: unknown;
     duration: number;
@@ -183,7 +187,6 @@ export function BottomTimeline({
     previewTime: number;
     svBpmScroll: boolean | undefined;
   } | null>(null);
-  const lastWidthRef = useRef(0);
   const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [tip, setTip] = useState<{
     x: number;
@@ -221,11 +224,12 @@ export function BottomTimeline({
     timingPoints,
     previewTime,
     duration,
-    currentTime,
     getCurrentTime,
+    isPlaying,
     sensitivity,
     onSensitivity,
     revealWaveform,
+    svBpmScroll,
     peers,
     comments,
     bookmarks,
@@ -243,11 +247,12 @@ export function BottomTimeline({
     timingPoints,
     previewTime,
     duration,
-    currentTime,
     getCurrentTime,
+    isPlaying,
     sensitivity,
     onSensitivity,
     revealWaveform,
+    svBpmScroll,
     peers,
     comments,
     bookmarks,
@@ -283,6 +288,7 @@ export function BottomTimeline({
       revealedWaveformRef.current = waveform;
       waveformRevealStartRef.current = performance.now();
     }
+    scheduleDrawRef.current();
   }, [revealWaveform, waveform]);
 
   const draw = useCallback(() => {
@@ -299,6 +305,7 @@ export function BottomTimeline({
       getCurrentTime,
       sensitivity,
       revealWaveform,
+      svBpmScroll,
       peers,
       comments,
       bookmarks,
@@ -331,9 +338,6 @@ export function BottomTimeline({
     }
 
     const prev = staticSigRef.current;
-    const widthInMotion = !!prev && lastWidthRef.current !== width;
-    lastWidthRef.current = width;
-
     const dataDirty =
       !prev ||
       prev.waveform !== waveform ||
@@ -348,10 +352,9 @@ export function BottomTimeline({
     const geometryDirty =
       !prev ||
       prev.width !== width ||
-      prev.dpr !== dpr ||
-      prev.revealWidth !== Math.round(revealWidth);
+      prev.dpr !== dpr;
 
-    const staticDirty = dataDirty || (geometryDirty && !widthInMotion);
+    const staticDirty = dataDirty || geometryDirty;
 
     if (staticDirty) {
       let sc = staticLayerRef.current;
@@ -373,10 +376,6 @@ export function BottomTimeline({
 
         if (waveform) {
           const { peaks } = waveform;
-          sctx.save();
-          sctx.beginPath();
-          sctx.rect(0, WAVE_TOP, revealWidth, WAVE_H);
-          sctx.clip();
           sctx.fillStyle = "rgba(91,192,255,0.55)";
           for (let x = 0; x < width; x++) {
             const idx = Math.floor((x / width) * peaks.length);
@@ -384,7 +383,6 @@ export function BottomTimeline({
             const h = Math.max(1, amp * (WAVE_H / 2));
             sctx.fillRect(x, midY - h, 1, h * 2);
           }
-          sctx.restore();
         } else {
           sctx.fillStyle = "#272733";
           sctx.fillRect(0, midY - 1, width, 2);
@@ -536,7 +534,6 @@ export function BottomTimeline({
         dpr,
         waveform,
         sensitivity,
-        revealWidth: Math.round(revealWidth),
         notes,
         timingPoints,
         duration,
@@ -548,6 +545,10 @@ export function BottomTimeline({
 
     if (staticLayerRef.current) {
       ctx.drawImage(staticLayerRef.current, 0, 0, width, HEIGHT);
+    }
+    if (waveform && revealWidth < width) {
+      ctx.fillStyle = "#16161d";
+      ctx.fillRect(revealWidth, WAVE_TOP, width - revealWidth, WAVE_H);
     }
 
     if (duration > 0 && loopRange && loopRange.endMs > loopRange.startMs) {
@@ -696,6 +697,7 @@ export function BottomTimeline({
           if (!img) {
             img = new Image();
             img.decoding = "async";
+            img.onload = () => scheduleDrawRef.current();
             img.src = p.avatar;
             cache.set(p.avatar, img);
           }
@@ -732,13 +734,37 @@ export function BottomTimeline({
 
   useEffect(() => {
     let raf = 0;
-    const loop = () => {
-      draw();
-      raf = requestAnimationFrame(loop);
+    let stopped = false;
+    const shouldAnimate = () => {
+      const { waveform, revealWaveform, isPlaying } = propsRef.current;
+      if (isPlaying) return true;
+      const revealStart = waveformRevealStartRef.current;
+      return (
+        !!waveform &&
+        revealWaveform &&
+        revealStart > 0 &&
+        performance.now() - revealStart <
+          WAVEFORM_REVEAL_DELAY_MS + WAVEFORM_REVEAL_MS
+      );
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    const schedule = () => {
+      if (!stopped && !raf) raf = requestAnimationFrame(loop);
+    };
+    const loop = () => {
+      raf = 0;
+      draw();
+      if (shouldAnimate()) schedule();
+    };
+    scheduleDrawRef.current = schedule;
+    schedule();
+    return () => {
+      stopped = true;
+      scheduleDrawRef.current = () => {};
+      cancelAnimationFrame(raf);
+    };
   }, [draw]);
+
+  useEffect(() => scheduleDrawRef.current());
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -754,6 +780,7 @@ export function BottomTimeline({
       const bh = Math.max(1, Math.floor(HEIGHT * dpr));
       if (canvas.width !== bw) canvas.width = bw;
       if (canvas.height !== bh) canvas.height = bh;
+      scheduleDrawRef.current();
     };
 
     const measure = () => {
@@ -781,6 +808,7 @@ export function BottomTimeline({
       const rect = canvas.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       onSeek(ratio * duration);
+      scheduleDrawRef.current();
     },
     [onSeek],
   );
@@ -1077,14 +1105,40 @@ export function BottomTimeline({
   }, []);
 
   useEffect(() => {
+    const flushSeek = (now: number) => {
+      if (now - lastScrubSeekRef.current < SCRUB_SEEK_INTERVAL_MS) {
+        seekRafRef.current = requestAnimationFrame(flushSeek);
+        return;
+      }
+      seekRafRef.current = 0;
+      const clientX = pendingSeekXRef.current;
+      pendingSeekXRef.current = null;
+      if (clientX !== null) {
+        lastScrubSeekRef.current = now;
+        seekFromEvent(clientX);
+      }
+    };
+    const scheduleSeek = (clientX: number) => {
+      pendingSeekXRef.current = clientX;
+      if (!seekRafRef.current) {
+        seekRafRef.current = requestAnimationFrame(flushSeek);
+      }
+    };
     const onMove = (e: MouseEvent) => {
       if (trimDragRef.current) {
         applyTrimDrag(trimDragRef.current, e.clientX);
         return;
       }
-      if (draggingRef.current) seekFromEvent(e.clientX);
+      if (draggingRef.current) scheduleSeek(e.clientX);
     };
-    const onUp = () => {
+    const onUp = (e: MouseEvent) => {
+      if (draggingRef.current) {
+        pendingSeekXRef.current = null;
+        cancelAnimationFrame(seekRafRef.current);
+        seekRafRef.current = 0;
+        lastScrubSeekRef.current = performance.now();
+        seekFromEvent(e.clientX);
+      }
       draggingRef.current = false;
       if (trimDragRef.current) {
         trimDragRef.current = null;
@@ -1094,6 +1148,9 @@ export function BottomTimeline({
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
+      pendingSeekXRef.current = null;
+      cancelAnimationFrame(seekRafRef.current);
+      seekRafRef.current = 0;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };

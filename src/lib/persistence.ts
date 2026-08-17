@@ -94,6 +94,11 @@ export type LocalTrack = {
   updatedAt: number;
 };
 
+export type LocalTrackSummary = Omit<
+  LocalTrack,
+  "audioBlob" | "backgroundBlob"
+>;
+
 type MediaPayload = Pick<
   SavedProject,
   "audioFiles" | "audio" | "backgroundFiles" | "videoFiles" | "background" | "skin"
@@ -484,6 +489,33 @@ function trackKiai(project: SavedProject): KiaiRange[] {
   return kiaiRanges(trackPoints(project), Number.POSITIVE_INFINITY);
 }
 
+function localTrackSummary(
+  id: string,
+  project: SavedProject,
+): LocalTrackSummary | null {
+  if (!isTimed(project)) return null;
+  return {
+    id,
+    title: project.meta.title,
+    artist: project.meta.artist,
+    previewTime: trackPreviewTime(project),
+    ...trackBeat(project),
+    kiai: trackKiai(project),
+    updatedAt: project.savedAt,
+  };
+}
+
+function localTrack(id: string, project: SavedProject): LocalTrack | null {
+  const summary = localTrackSummary(id, project);
+  const audioBlob = pickTrackAudio(project);
+  if (!summary || !audioBlob) return null;
+  return {
+    ...summary,
+    audioBlob,
+    backgroundBlob: pickLocalBackground(project),
+  };
+}
+
 export async function countLocalProjects(): Promise<number> {
   return withStore<number>("readonly", (store, resolve) => {
     const keysReq = store.getAllKeys();
@@ -491,6 +523,53 @@ export async function countLocalProjects(): Promise<number> {
       resolve(keysReq.result.filter((key) => projectIdFromKey(key)).length);
     };
   });
+}
+
+export async function listLocalTrackSummaries(): Promise<LocalTrackSummary[]> {
+  return withStore<LocalTrackSummary[]>("readonly", (store, resolve) => {
+    const keysReq = store.getAllKeys();
+    keysReq.onsuccess = () => {
+      const projectKeys = keysReq.result.filter((key) => projectIdFromKey(key));
+      if (!projectKeys.length) {
+        resolve([]);
+        return;
+      }
+
+      const rows: LocalTrackSummary[] = [];
+      let pending = projectKeys.length;
+      const done = () => {
+        pending -= 1;
+        if (pending === 0) {
+          rows.sort((a, b) => b.updatedAt - a.updatedAt);
+          resolve(rows);
+        }
+      };
+
+      for (const key of projectKeys) {
+        const req = store.get(key);
+        req.onsuccess = () => {
+          const project = req.result as SavedProject | undefined;
+          const id = projectIdFromKey(key);
+          if (
+            !id ||
+            !project ||
+            (project.version !== LEGACY_VERSION && project.version !== VERSION)
+          ) {
+            done();
+            return;
+          }
+          const summary = localTrackSummary(id, project);
+          if (summary) rows.push(summary);
+          done();
+        };
+      }
+    };
+  });
+}
+
+export async function loadLocalTrack(id: string): Promise<LocalTrack | null> {
+  const project = await loadProject(id);
+  return project ? localTrack(id, project) : null;
 }
 
 export async function listLocalTracks(): Promise<LocalTrack[]> {
@@ -523,22 +602,12 @@ export async function listLocalTracks(): Promise<LocalTrack[]> {
             return;
           }
           const add = (full: SavedProject) => {
-            const audioBlob = pickTrackAudio(full);
-            if (!audioBlob || !isTimed(full)) {
+            const row = localTrack(id, full);
+            if (!row) {
               done();
               return;
             }
-            rows.push({
-              id,
-              title: full.meta.title,
-              artist: full.meta.artist,
-              audioBlob,
-              backgroundBlob: pickLocalBackground(full),
-              previewTime: trackPreviewTime(full),
-              ...trackBeat(full),
-              kiai: trackKiai(full),
-              updatedAt: full.savedAt,
-            });
+            rows.push(row);
             done();
           };
 

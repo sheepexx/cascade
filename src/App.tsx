@@ -1,6 +1,7 @@
 import {
   Fragment,
   lazy,
+  memo,
   Suspense,
   useCallback,
   useEffect,
@@ -8,21 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { ManiaEditor } from "./components/ManiaEditor";
-import { TransportBar } from "./components/TransportBar";
-import { BottomTimeline } from "./components/BottomTimeline";
-import { DifficultySidebar } from "./components/DifficultySidebar";
-import { PPCounter } from "./components/PPCounter";
-import { SettingsModal } from "./components/menus/SettingsModal";
-import { AppSettingsModal } from "./components/menus/AppSettingsModal";
-import { SkinModal } from "./components/menus/SkinModal";
-import { DifficultyModal } from "./components/menus/DifficultyModal";
-import { TimingModal } from "./components/menus/TimingModal";
-import { SvModal } from "./components/menus/SvModal";
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
-import { ToolsModal } from "./components/menus/ToolsModal";
 import { ExportValidationModal } from "./components/menus/ExportValidationModal";
-import { AiModModal } from "./components/menus/AiModModal";
 import {
   runAiMod,
   resnapNotes,
@@ -30,17 +18,9 @@ import {
   type AiModReport,
   type AiModIssue,
 } from "./lib/aimod";
-import {
-  WelcomeModal,
-  SampleMapsModal,
-  type SampleMap,
-} from "./components/menus/StartModal";
-import { MyMapsModal } from "./components/menus/MyMapsModal";
-import { ImportModal } from "./components/menus/ImportModal";
-import { NewMapModal } from "./components/menus/NewMapModal";
+import type { SampleMap } from "./components/menus/StartModal";
 import { StartScreen } from "./components/StartScreen";
 import { useOnlinePresence } from "./hooks/useOnlinePresence";
-import { SharedMapPage } from "./components/SharedMapPage";
 import {
   findSharedMapForProject,
   publishSharedMap,
@@ -53,6 +33,132 @@ import { renderShareCard } from "./lib/shareCard";
 import { NowPlaying } from "./components/NowPlaying";
 import { useMenuMusic } from "./hooks/useMenuMusic";
 import { dialogIsOpen } from "./hooks/useDialog";
+const loadEditorWorkspace = () => import("./components/EditorWorkspace");
+const BottomTimeline = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.BottomTimeline })),
+);
+const CommentsSidebar = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.CommentsSidebar })),
+);
+const DifficultySidebar = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.DifficultySidebar })),
+);
+const ManiaEditor = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.ManiaEditor })),
+);
+const PlaytestNpsGraph = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.PlaytestNpsGraph })),
+);
+const PlaytestOverlay = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.PlaytestOverlay })),
+);
+const PlaytestRunStats = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.PlaytestRunStats })),
+);
+const PPCounter = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.PPCounter })),
+);
+const TransportBar = lazy(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.TransportBar })),
+);
+const SharedMapPage = lazy(() =>
+  import("./components/SharedMapPage").then((m) => ({
+    default: m.SharedMapPage,
+  })),
+);
+const SettingsModal = lazy(() =>
+  import("./components/menus/SettingsModal").then((m) => ({
+    default: m.SettingsModal,
+  })),
+);
+const AppSettingsModal = lazy(() =>
+  import("./components/menus/AppSettingsModal").then((m) => ({
+    default: m.AppSettingsModal,
+  })),
+);
+const SkinModal = lazy(() =>
+  import("./components/menus/SkinModal").then((m) => ({
+    default: m.SkinModal,
+  })),
+);
+const DifficultyModal = lazy(() =>
+  import("./components/menus/DifficultyModal").then((m) => ({
+    default: m.DifficultyModal,
+  })),
+);
+const TimingModal = lazy(() =>
+  import("./components/menus/TimingModal").then((m) => ({
+    default: m.TimingModal,
+  })),
+);
+const SvModal = lazy(() =>
+  import("./components/menus/SvModal").then((m) => ({ default: m.SvModal })),
+);
+const ToolsModal = lazy(() =>
+  import("./components/menus/ToolsModal").then((m) => ({
+    default: m.ToolsModal,
+  })),
+);
+const AiModModal = lazy(() =>
+  import("./components/menus/AiModModal").then((m) => ({
+    default: m.AiModModal,
+  })),
+);
+const WelcomeModal = lazy(() =>
+  import("./components/menus/StartModal").then((m) => ({
+    default: m.WelcomeModal,
+  })),
+);
+const SampleMapsModal = lazy(() =>
+  import("./components/menus/StartModal").then((m) => ({
+    default: m.SampleMapsModal,
+  })),
+);
+const MyMapsModal = lazy(() =>
+  import("./components/menus/MyMapsModal").then((m) => ({
+    default: m.MyMapsModal,
+  })),
+);
+const ImportModal = lazy(() =>
+  import("./components/menus/ImportModal").then((m) => ({
+    default: m.ImportModal,
+  })),
+);
+const NewMapModal = lazy(() =>
+  import("./components/menus/NewMapModal").then((m) => ({
+    default: m.NewMapModal,
+  })),
+);
+const PresetBrowserModal = lazy(() =>
+  import("./components/menus/PresetBrowserModal").then((m) => ({
+    default: m.PresetBrowserModal,
+  })),
+);
+const PublishPresetModal = lazy(() =>
+  import("./components/menus/PublishPresetModal").then((m) => ({
+    default: m.PublishPresetModal,
+  })),
+);
+const FeedbackModal = lazy(() =>
+  import("./components/menus/FeedbackModal").then((m) => ({
+    default: m.FeedbackModal,
+  })),
+);
+const ShareModal = lazy(() =>
+  import("./components/menus/ShareModal").then((m) => ({
+    default: m.ShareModal,
+  })),
+);
+const PackBrowserModal = lazy(() =>
+  import("./components/menus/PackBrowserModal").then((m) => ({
+    default: m.PackBrowserModal,
+  })),
+);
+const AutoTimePrompt = lazy(() =>
+  import("./components/AutoTimePrompt").then((m) => ({
+    default: m.AutoTimePrompt,
+  })),
+);
 const PackCreator = lazy(() =>
   import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
 );
@@ -61,12 +167,6 @@ import {
   SampleMapsIcon,
   UsersIcon,
 } from "./components/ui/StartIcons";
-import { PresetBrowserModal } from "./components/menus/PresetBrowserModal";
-import { PublishPresetModal } from "./components/menus/PublishPresetModal";
-import { FeedbackModal } from "./components/menus/FeedbackModal";
-import { ShareModal } from "./components/menus/ShareModal";
-import { CommentsSidebar } from "./components/CommentsSidebar";
-import { PlaytestOverlay } from "./components/PlaytestOverlay";
 import {
   createRateDifficulty as makeRateDifficulty,
   difficultyRate,
@@ -116,7 +216,6 @@ import {
 } from "./components/InviteNotifications";
 import {
   playUiSound,
-  preloadUiSounds,
   setUiSoundsEnabled,
   setUiSoundVolume,
 } from "./lib/uiSounds";
@@ -146,8 +245,6 @@ import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
 import { usePlaytestInput } from "./hooks/usePlaytestInput";
 import { usePlaytestAutoplay } from "./hooks/usePlaytestAutoplay";
-import { PlaytestNpsGraph } from "./components/PlaytestNpsGraph";
-import { PlaytestRunStats } from "./components/PlaytestRunStats";
 import { fullLongNotes, fullRiceNotes, copyHitsounds, countHitsounds } from "./lib/noteTools";
 import {
   hasNoteCollisions,
@@ -155,7 +252,6 @@ import {
   withoutNoteCollisions,
 } from "./lib/noteCollision";
 import { downloadOsu } from "./lib/osuExport";
-import { downloadOsz } from "./lib/oszExport";
 import {
   adoptOsuDifficulty,
   importOsz,
@@ -165,13 +261,8 @@ import {
   type ParsedOsu,
 } from "./lib/osuImport";
 import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
-import { importOsk } from "./lib/skinImport";
 import { parseSmFile } from "./lib/smImport";
-import { PackBrowserModal } from "./components/menus/PackBrowserModal";
-import { scanPackFromPicker, scanPackFromDrop, scanPackFromZip } from "./lib/smPackImport";
 import type { PackSong } from "./lib/smPackImport";
-import { downloadSmZip } from "./lib/smExport";
-import { downloadQua, parseQuaFile } from "./lib/qua";
 import {
   emptyJudgementCounts,
   judgeHitError,
@@ -185,8 +276,14 @@ import {
 import {
   accuracyFromCounts,
   addJudgement,
-  scoreFromResults,
+  scoreFromCounts,
 } from "./lib/playtestScoring";
+import {
+  buildPlaytestNoteIndex,
+  firstNoteAtOrAfter,
+  nearestPlayableNote,
+  type PlaytestNoteIndex,
+} from "./lib/playtestIndex";
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
 import {
   loadProject,
@@ -256,7 +353,7 @@ import {
   type ProgressFn,
   type ProgressReport,
 } from "./lib/progress";
-import { AutoTimePrompt, type AutoTimeStatus } from "./components/AutoTimePrompt";
+import type { AutoTimeStatus } from "./components/AutoTimePrompt";
 import { useMountedModals } from "./hooks/useMountedModals";
 import {
   bookmarkInDirection,
@@ -265,6 +362,25 @@ import {
   remapBookmarkLabels,
   sortedBookmarks,
 } from "./lib/bookmarks";
+
+const MemoizedManiaEditor = memo(ManiaEditor);
+const MemoizedBottomTimeline = memo(BottomTimeline);
+const MemoizedDifficultySidebar = memo(DifficultySidebar);
+const MemoizedPPCounter = memo(PPCounter);
+const MemoizedPlaytestNpsGraph = memo(PlaytestNpsGraph);
+
+function LazyLoadingFallback() {
+  return (
+    <div
+      role="status"
+      className="pointer-events-none fixed inset-0 z-[90] grid place-items-center bg-ink-900/35 backdrop-blur-sm"
+    >
+      <span className="rounded-xl border border-white/10 bg-ink-800/95 px-4 py-2 text-sm font-medium text-slate-200 shadow-xl">
+        Loading…
+      </span>
+    </div>
+  );
+}
 
 type ModalId =
   | "newMap"
@@ -350,6 +466,8 @@ type PlaytestRuntimeState = PlaytestState & {
   runKey: number;
 };
 
+const MAX_RECENT_PLAYTEST_RESULTS = 64;
+
 function initialPlaytestState(): PlaytestRuntimeState {
   return {
     active: false,
@@ -365,6 +483,8 @@ function initialPlaytestState(): PlaytestRuntimeState {
     unstableRate: 0,
     judgements: emptyJudgementCounts(),
     hitResults: [],
+    judgedCount: 0,
+    meanError: 0,
   };
 }
 
@@ -558,6 +678,9 @@ export default function App() {
     null,
   );
   const [importingMap, setImportingMap] = useState(false);
+  useEffect(() => {
+    if (importingMap) void loadEditorWorkspace();
+  }, [importingMap]);
   // Long jobs report a 0-1 ratio plus a label so the loader can say what it is
   // actually doing instead of spinning indefinitely.
   const [importProgress, setImportProgress] = useState<ProgressReport | null>(
@@ -642,14 +765,13 @@ export default function App() {
   );
   const playtestRef = useRef(playtest);
   playtestRef.current = playtest;
-  const [playtestConsumedIds, setPlaytestConsumedIds] = useState<Set<string>>(
-    () => new Set(),
-  );
   const playtestConsumedRef = useRef<Set<string>>(new Set());
   const playtestHeadJudgedRef = useRef<Set<string>>(new Set());
   const playtestTailJudgedRef = useRef<Set<string>>(new Set());
   const playtestHeldLnRef = useRef<Map<string, ManiaNote>>(new Map());
   const playtestErrStatsRef = useRef({ n: 0, sum: 0, sumSq: 0 });
+  const playtestNoteIndexRef = useRef<PlaytestNoteIndex | null>(null);
+  const playtestMissCursorRef = useRef(0);
   const playtestEndArmedRef = useRef(false);
   const difficultiesRef = useRef(difficulties);
   difficultiesRef.current = difficulties;
@@ -946,7 +1068,24 @@ export default function App() {
   currentTimeRef.current = audio.getCurrentTime();
   const getCurrentTime = audio.getCurrentTime;
   const seekAudio = audio.seek;
+  const playAudio = audio.play;
+  const pauseAudio = audio.pause;
+  const toggleAudio = audio.toggle;
   const setAudioVolume = audio.setVolume;
+  const setAudioPlaybackRate = audio.setPlaybackRate;
+  const setAudioAmbientDucking = audio.setAmbientDucking;
+  const audioVolumeRef = useRef(audio.volume);
+  audioVolumeRef.current = audio.volume;
+  const changeEditorVolume = useCallback(
+    (delta: number) => setAudioVolume(audioVolumeRef.current + delta),
+    [setAudioVolume],
+  );
+  const toggleWaveformOverlay = useCallback(() => {
+    setAppSettings((settings) => ({
+      ...settings,
+      showWaveform: !settings.showWaveform,
+    }));
+  }, []);
 
   useEffect(() => {
     if (!activeBookmarkLoop?.enabled) return;
@@ -985,8 +1124,8 @@ export default function App() {
     return skin?.hitsounds ?? null;
   }, [hitsoundSkin, hitsoundSkinSource, skin]);
 
-  const playtestHitsounds = useHitsounds(
-    audio.getCurrentTime,
+  const { playNote: playtestHitsound } = useHitsounds(
+    getCurrentTime,
     audio.isPlaying && !playtest.active,
     active.notes,
     active.timingPoints?.length ? active.timingPoints : timingPoints,
@@ -994,6 +1133,7 @@ export default function App() {
     appSettings.hitsoundsEnabled,
     modalAtmosphereActive,
     effectiveHitsounds,
+    audio.duration > 0,
   );
 
   useEffect(() => {
@@ -1008,7 +1148,7 @@ export default function App() {
 
   useEffect(() => {
     if (!cloudProjectId) return;
-    const id = window.setTimeout(() => {
+    const savePosition = () => {
       try {
         localStorage.setItem(
           `mania:pos:${cloudProjectId}`,
@@ -1019,16 +1159,20 @@ export default function App() {
         );
       } catch {
       }
-    }, 600);
-    return () => window.clearTimeout(id);
-  }, [cloudProjectId, activeId, audio.currentTime]);
+    };
+    const id = window.setInterval(savePosition, 1000);
+    return () => {
+      window.clearInterval(id);
+      savePosition();
+    };
+  }, [cloudProjectId, activeId]);
 
   useEffect(() => {
     if (pendingSeekRef.current != null && audio.duration > 0) {
-      audio.seek(Math.min(pendingSeekRef.current, audio.duration));
+      seekAudio(Math.min(pendingSeekRef.current, audio.duration));
       pendingSeekRef.current = null;
     }
-  }, [audio.duration, audio]);
+  }, [audio.duration, seekAudio]);
 
   const autoSaveTimerRef = useRef<number | undefined>(undefined);
   useEffect(() => {
@@ -1228,22 +1372,35 @@ export default function App() {
   const playtestReleaseWindowsRef = useRef(playtestReleaseWindows);
   playtestReleaseWindowsRef.current = playtestReleaseWindows;
 
+  const ensurePlaytestNoteIndex = useCallback(
+    (notes: ManiaNote[], keyCount: number): PlaytestNoteIndex => {
+      const existing = playtestNoteIndexRef.current;
+      if (existing?.source === notes && existing.keyCount === keyCount) {
+        return existing;
+      }
+      const next = buildPlaytestNoteIndex(notes, keyCount);
+      playtestNoteIndexRef.current = next;
+      return next;
+    },
+    [],
+  );
+
   const resetPlaytestRuntime = useCallback((startTime: number) => {
+    const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
+    const first = firstNoteAtOrAfter(index.sorted, startTime);
     const headJudged = new Set<string>();
     const tailJudged = new Set<string>();
-    for (const n of active.notes) {
-      if (n.startTime < startTime) {
-        headJudged.add(n.id);
-        tailJudged.add(n.id);
-      }
+    for (let i = 0; i < first; i++) {
+      headJudged.add(index.sorted[i].id);
+      tailJudged.add(index.sorted[i].id);
     }
     playtestHeadJudgedRef.current = headJudged;
     playtestTailJudgedRef.current = tailJudged;
     playtestHeldLnRef.current = new Map();
     playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
     playtestConsumedRef.current = new Set();
+    playtestMissCursorRef.current = first;
     playtestEndArmedRef.current = false;
-    setPlaytestConsumedIds(new Set());
     setPlaytest((prev) => ({
       ...initialPlaytestState(),
       active: true,
@@ -1251,7 +1408,7 @@ export default function App() {
       autoplay: prev.autoplay,
       runKey: prev.runKey + 1,
     }));
-  }, [active.notes]);
+  }, [active.keyCount, active.notes, ensurePlaytestNoteIndex]);
 
   const registerPlaytestResult = useCallback((result: HitResult) => {
     if (result.judgement !== "miss") {
@@ -1266,7 +1423,10 @@ export default function App() {
     setPlaytest((prev) => {
       if (!prev.active) return prev;
       const judgements = addJudgement(prev.judgements, result.judgement);
-      const hitResults = [...prev.hitResults, result];
+      const hitResults = [
+        ...prev.hitResults.slice(-(MAX_RECENT_PLAYTEST_RESULTS - 1)),
+        result,
+      ];
       const combo =
         result.judgement === "miss" ? 0 : Math.min(prev.combo + 1, 99999);
       const maxCombo = Math.max(prev.maxCombo, combo);
@@ -1277,8 +1437,10 @@ export default function App() {
         judgements,
         hitResults,
         accuracy: accuracyFromCounts(judgements),
-        score: scoreFromResults(hitResults),
+        score: scoreFromCounts(judgements),
         unstableRate,
+        judgedCount: (prev.judgedCount ?? 0) + 1,
+        meanError: mean,
       };
     });
   }, []);
@@ -1286,15 +1448,14 @@ export default function App() {
   const consumePlaytestNote = useCallback((id: string) => {
     if (playtestConsumedRef.current.has(id)) return;
     playtestConsumedRef.current.add(id);
-    setPlaytestConsumedIds(new Set(playtestConsumedRef.current));
   }, []);
 
   const playtestInputTime = useCallback(() => {
-    const raw = audio.getCurrentTime();
+    const raw = getCurrentTime();
     return playtestSettings.offsetMode === "audio"
       ? raw + playtestSettings.offsetMs
       : raw;
-  }, [audio, playtestSettings.offsetMode, playtestSettings.offsetMs]);
+  }, [getCurrentTime, playtestSettings.offsetMode, playtestSettings.offsetMs]);
 
   const missPlaytestPart = useCallback(
     (
@@ -1321,18 +1482,24 @@ export default function App() {
       if (!pt.active || pt.ended || pt.paused) return;
       const time = atMs ?? playtestInputTime();
       const windows = playtestWindowsRef.current;
-      const available = active.notes.filter(
-        (n) =>
-          n.column === column &&
-          !playtestConsumedRef.current.has(n.id) &&
-          !playtestHeadJudgedRef.current.has(n.id),
-      );
-      const candidate = targetId
-        ? available.find((n) => n.id === targetId)
-        : available.sort(
-            (a, b) =>
-              Math.abs(a.startTime - time) - Math.abs(b.startTime - time),
-          )[0];
+      const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
+      const unavailable = (note: ManiaNote) =>
+        playtestConsumedRef.current.has(note.id) ||
+        playtestHeadJudgedRef.current.has(note.id);
+      let candidate: ManiaNote | null = null;
+      if (targetId) {
+        const targeted = index.byId.get(targetId);
+        if (targeted && targeted.column === column && !unavailable(targeted)) {
+          candidate = targeted;
+        }
+      } else {
+        candidate = nearestPlayableNote(
+          index.byColumn[column] ?? [],
+          time,
+          windows.miss,
+          unavailable,
+        );
+      }
       if (!candidate) return;
 
       const hitError = time - candidate.startTime;
@@ -1350,7 +1517,7 @@ export default function App() {
         judgement,
         part,
       });
-      playtestHitsounds.playNote(candidate);
+      playtestHitsound(candidate);
 
       if (candidate.endTime !== undefined && judgement !== "miss") {
         playtestHeldLnRef.current.set(candidate.id, candidate);
@@ -1363,8 +1530,10 @@ export default function App() {
     },
     [
       active.notes,
+      active.keyCount,
       consumePlaytestNote,
-      playtestHitsounds,
+      ensurePlaytestNoteIndex,
+      playtestHitsound,
       playtestInputTime,
       registerPlaytestResult,
     ],
@@ -1375,10 +1544,11 @@ export default function App() {
       const pt = playtestRef.current;
       if (!pt.active || pt.ended || pt.paused) return;
       const time = atMs ?? playtestInputTime();
-      const heldNotes = [...playtestHeldLnRef.current.values()];
       const held = targetId
-        ? heldNotes.find((n) => n.id === targetId)
-        : heldNotes.find((n) => n.column === column);
+        ? playtestHeldLnRef.current.get(targetId)
+        : [...playtestHeldLnRef.current.values()].find(
+            (note) => note.column === column,
+          );
       if (!held || held.endTime === undefined) return;
       const releaseWindows = playtestReleaseWindowsRef.current;
       const droppedEarly = time < held.endTime - releaseWindows.miss;
@@ -1394,18 +1564,18 @@ export default function App() {
   );
 
   const exitPlaytest = useCallback(() => {
-    audio.pause();
+    pauseAudio();
     setPlaytest((prev) => ({ ...prev, active: false, ended: false, paused: false }));
     playtestHeadJudgedRef.current = new Set();
     playtestTailJudgedRef.current = new Set();
     playtestHeldLnRef.current = new Map();
     playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
     playtestConsumedRef.current = new Set();
-    setPlaytestConsumedIds(new Set());
-  }, [audio]);
+    playtestMissCursorRef.current = 0;
+  }, [pauseAudio]);
 
   const startPlaytest = useCallback(
-    (startTime = audio.getCurrentTime()) => {
+    (startTime = getCurrentTime()) => {
       if (!audioFile || !projectStarted) return;
       const clamped = Math.max(0, Math.min(startTime, audio.duration || startTime));
       setModal(null);
@@ -1414,11 +1584,20 @@ export default function App() {
         () => {},
       );
       resetPlaytestRuntime(clamped);
-      audio.setPlaybackRate(clampPlaytestRate(playtestSettingsRef.current.rate));
-      audio.seek(clamped);
-      audio.play();
+      setAudioPlaybackRate(clampPlaytestRate(playtestSettingsRef.current.rate));
+      seekAudio(clamped);
+      playAudio();
     },
-    [audio, audioFile, projectStarted, resetPlaytestRuntime],
+    [
+      audio.duration,
+      audioFile,
+      getCurrentTime,
+      playAudio,
+      projectStarted,
+      resetPlaytestRuntime,
+      seekAudio,
+      setAudioPlaybackRate,
+    ],
   );
 
   const restartPlaytest = useCallback(() => {
@@ -1431,8 +1610,8 @@ export default function App() {
         ? { ...prev, paused: true }
         : prev,
     );
-    audio.pause();
-  }, [audio]);
+    pauseAudio();
+  }, [pauseAudio]);
 
   const resumePlaytest = useCallback(() => {
     setPlaytest((prev) =>
@@ -1440,8 +1619,8 @@ export default function App() {
         ? { ...prev, paused: false }
         : prev,
     );
-    if (playtestRef.current.active && !playtestRef.current.ended) audio.play();
-  }, [audio]);
+    if (playtestRef.current.active && !playtestRef.current.ended) playAudio();
+  }, [playAudio]);
 
   const togglePlaytestPause = useCallback(() => {
     const pt = playtestRef.current;
@@ -1507,6 +1686,7 @@ export default function App() {
   const playtestTickRef = useRef({
     audio,
     active,
+    ensurePlaytestNoteIndex,
     playtestInputTime,
     missPlaytestPart,
     consumePlaytestNote,
@@ -1514,6 +1694,7 @@ export default function App() {
   playtestTickRef.current = {
     audio,
     active,
+    ensurePlaytestNoteIndex,
     playtestInputTime,
     missPlaytestPart,
     consumePlaytestNote,
@@ -1527,6 +1708,7 @@ export default function App() {
       const {
         audio,
         active,
+        ensurePlaytestNoteIndex,
         playtestInputTime,
         missPlaytestPart,
         consumePlaytestNote,
@@ -1534,11 +1716,21 @@ export default function App() {
       const time = playtestInputTime();
       const windows = playtestWindowsRef.current;
       const releaseWindows = playtestReleaseWindowsRef.current;
-      for (const note of active.notes) {
-        if (playtestConsumedRef.current.has(note.id)) continue;
+      const previousIndex = playtestNoteIndexRef.current;
+      const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
+      if (previousIndex?.source !== active.notes) {
+        playtestMissCursorRef.current = firstNoteAtOrAfter(
+          index.sorted,
+          playtestRef.current.startTime,
+        );
+      }
+      while (playtestMissCursorRef.current < index.sorted.length) {
+        const note = index.sorted[playtestMissCursorRef.current];
+        if (time <= note.startTime + windows.miss) break;
+        playtestMissCursorRef.current += 1;
         if (
-          !playtestHeadJudgedRef.current.has(note.id) &&
-          time > note.startTime + windows.miss
+          !playtestConsumedRef.current.has(note.id) &&
+          !playtestHeadJudgedRef.current.has(note.id)
         ) {
           playtestHeadJudgedRef.current.add(note.id);
           playtestTailJudgedRef.current.add(note.id);
@@ -1549,12 +1741,11 @@ export default function App() {
             note.endTime === undefined ? "rice" : "ln-head",
             note.startTime,
           );
-          continue;
         }
+      }
+      for (const note of playtestHeldLnRef.current.values()) {
         if (
           note.endTime !== undefined &&
-          playtestHeadJudgedRef.current.has(note.id) &&
-          !playtestTailJudgedRef.current.has(note.id) &&
           time > note.endTime + releaseWindows.miss
         ) {
           playtestTailJudgedRef.current.add(note.id);
@@ -1588,11 +1779,11 @@ export default function App() {
       e.preventDefault();
       if (playtestRef.current.active) exitPlaytest();
       else if (!modalRef.current && featureFlagsRef.current.playtest)
-        startPlaytest(audio.getCurrentTime());
+        startPlaytest(getCurrentTime());
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [audio, startPlaytest, exitPlaytest]);
+  }, [exitPlaytest, getCurrentTime, startPlaytest]);
 
   const eligibleRefs = useMemo(() => {
     const resolve = (d: Difficulty): string | null => {
@@ -1663,17 +1854,9 @@ export default function App() {
     playtest.active && playtestSettings.offsetMode === "visual"
       ? playtestSettings.offsetMs
       : 0;
-  const editorCurrentTime = audio.currentTime + playtestVisualOffset;
   const getEditorCurrentTime = useCallback(
     () => getCurrentTime() + playtestVisualOffset,
     [getCurrentTime, playtestVisualOffset],
-  );
-  const editorNotes = useMemo(
-    () =>
-      playtest.active
-        ? active.notes.filter((note) => !playtestConsumedIds.has(note.id))
-        : active.notes,
-    [active.notes, playtest.active, playtestConsumedIds],
   );
   const editorView = useMemo(
     () =>
@@ -1836,6 +2019,7 @@ export default function App() {
       setSkinError(null);
       try {
         const snapshot = await snapshotBlob(blob);
+        const { importOsk } = await import("./lib/skinImport");
         const loaded = await importOsk(snapshot, fileName);
         applyLoadedSkin(loaded, target);
         if (saveToLibrary) {
@@ -2126,6 +2310,7 @@ export default function App() {
       if (/\.zip$/i.test(file.name)) {
         setImportingMap(true);
         try {
+          const { scanPackFromZip } = await import("./lib/smPackImport");
           const songs = await scanPackFromZip(file);
           if (songs.length > 0) {
             setScannedPackSongs(songs);
@@ -2133,7 +2318,14 @@ export default function App() {
             setModal("packBrowser");
             return;
           }
-        } catch {
+        } catch (error) {
+          setImportingMap(false);
+          setImportError(
+            error instanceof Error
+              ? `Could not scan the archive: ${error.message}`
+              : "Could not scan the archive.",
+          );
+          return;
         }
         setImportingMap(false);
       }
@@ -2268,6 +2460,7 @@ export default function App() {
     setImportError(null);
     setImportingMap(true);
     try {
+      const { parseQuaFile } = await import("./lib/qua");
       const map = parseQuaFile(await file.text());
       setAudioFiles((previous) => {
         Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
@@ -2570,6 +2763,7 @@ export default function App() {
       const dirHandle = await (window as unknown as {
         showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>;
       }).showDirectoryPicker();
+      const { scanPackFromPicker } = await import("./lib/smPackImport");
       const songs = await scanPackFromPicker(dirHandle);
       setScannedPackSongs(songs);
       if (songs.length === 0) {
@@ -2705,6 +2899,8 @@ export default function App() {
 
   const menuMusicEnabled = !hasProject && !packCreatorOpen && !sharedSlug;
   const menuMusic = useMenuMusic(menuMusicEnabled);
+  const toggleMenuMusic = menuMusic.toggle;
+  const setMenuMusicDucking = menuMusic.setAmbientDucking;
   const onlinePlayers = useOnlinePresence(
     () => {
       const title = meta.title.trim();
@@ -2747,9 +2943,9 @@ export default function App() {
       if (issue.diffId && issue.diffId !== activeIdRef.current)
         setActiveId(issue.diffId);
       const target = time ?? issue.time;
-      if (target !== undefined) audio.seek(Math.max(0, target));
+      if (target !== undefined) seekAudio(Math.max(0, target));
     },
-    [audio],
+    [seekAudio],
   );
 
   const handleResnap = useCallback(() => {
@@ -2870,9 +3066,38 @@ export default function App() {
         currentTimeRef.current,
         direction,
       );
-      if (target !== null) audio.seek(target);
+      if (target !== null) seekAudio(target);
     },
-    [audio],
+    [seekAudio],
+  );
+  const seekPreviousBookmark = useCallback(
+    () => seekBookmark("previous"),
+    [seekBookmark],
+  );
+  const seekNextBookmark = useCallback(
+    () => seekBookmark("next"),
+    [seekBookmark],
+  );
+  const setWaveformSensitivity = useCallback((value: number) => {
+    setAppSettings((settings) => ({
+      ...settings,
+      waveformSensitivity: value,
+    }));
+  }, []);
+  const openTimelineComment = useCallback(
+    (time: number) => {
+      seekAudio(time);
+      setCommentsOpen(true);
+    },
+    [seekAudio],
+  );
+  const queueDifficultyDelete = useCallback(
+    (ids: string[]) => setPendingDeleteDiffIds(ids),
+    [],
+  );
+  const renameDifficulty = useCallback(
+    (id: string, name: string) => patchDifficulty(id, { name }),
+    [patchDifficulty],
   );
 
   const setBookmarkLoopStart = useCallback((ms: number) => {
@@ -3630,9 +3855,6 @@ export default function App() {
   }, [authUser?.id, accountSettings]);
 
   useEffect(() => {
-    preloadUiSounds();
-  }, []);
-  useEffect(() => {
     setUiSoundsEnabled(appSettings.uiSoundsEnabled);
   }, [appSettings.uiSoundsEnabled]);
   useEffect(() => {
@@ -3669,11 +3891,13 @@ export default function App() {
       await refreshSkinLibrary();
       const rec = await loadSkinBlob().catch(() => null);
       if (!cancelled && rec) {
+        const { importOsk } = await import("./lib/skinImport");
         const loaded = await importOsk(rec.blob, rec.name).catch(() => null);
         if (!cancelled && loaded) setSkin(loaded);
       }
       const hitsoundRec = await loadHitsoundSkinBlob().catch(() => null);
       if (!cancelled && hitsoundRec) {
+        const { importOsk } = await import("./lib/skinImport");
         const loaded = await importOsk(hitsoundRec.blob, hitsoundRec.name).catch(
           () => null,
         );
@@ -3707,7 +3931,7 @@ export default function App() {
 
   useEffect(() => {
     const v = loadVolume();
-    if (v !== null) audio.setVolume(v);
+    if (v !== null) setAudioVolume(v);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
@@ -3786,14 +4010,14 @@ export default function App() {
       else if (isNextBookmark) seekBookmark("next");
       else if (isBookmark) {
         if (!e.repeat) addBookmark(Math.round(currentTimeRef.current));
-      } else if (isSpace) audio.toggle();
+      } else if (isSpace) toggleAudio();
       else if (isSlow) {
         if (slowHeldRef.current || e.repeat) return;
         slowHeldRef.current = true;
-        audio.setPlaybackRate(0.25);
+        setAudioPlaybackRate(0.25);
       }
-      else if (isUp) audio.setVolume(audio.volume + 0.05);
-      else if (isDown) audio.setVolume(audio.volume - 0.05);
+      else if (isUp) setAudioVolume(audioVolumeRef.current + 0.05);
+      else if (isDown) setAudioVolume(audioVolumeRef.current - 0.05);
       else if (isTimelineZoomOut || isTimelineZoomIn) {
         setView((v) => ({
           ...v,
@@ -3825,12 +4049,12 @@ export default function App() {
         return;
       slowHeldRef.current = false;
       e.preventDefault();
-      audio.setPlaybackRate(1);
+      setAudioPlaybackRate(1);
     };
     const onBlur = () => {
       if (!slowHeldRef.current) return;
       slowHeldRef.current = false;
-      audio.setPlaybackRate(1);
+      setAudioPlaybackRate(1);
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -3840,7 +4064,14 @@ export default function App() {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [audio, askBgScope, addBookmark, seekBookmark]);
+  }, [
+    addBookmark,
+    askBgScope,
+    seekBookmark,
+    setAudioPlaybackRate,
+    setAudioVolume,
+    toggleAudio,
+  ]);
 
   useEffect(() => {
     const onBareAlt = (e: KeyboardEvent) => {
@@ -3950,6 +4181,7 @@ export default function App() {
         if (entries.some((entry) => entry.isDirectory)) {
           setImportingMap(true);
           try {
+            const { scanPackFromDrop } = await import("./lib/smPackImport");
             const songs = await scanPackFromDrop(entries);
             if (songs.length === 1) {
               importPackSong(songs[0]);
@@ -4015,12 +4247,12 @@ export default function App() {
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
 
   useEffect(() => {
-    audio.setAmbientDucking(modalAtmosphereActive);
-  }, [audio.setAmbientDucking, modalAtmosphereActive]);
+    setAudioAmbientDucking(modalAtmosphereActive);
+  }, [setAudioAmbientDucking, modalAtmosphereActive]);
 
   useEffect(() => {
-    menuMusic.setAmbientDucking(modalAtmosphereOpen);
-  }, [menuMusic.setAmbientDucking, modalAtmosphereOpen]);
+    setMenuMusicDucking(modalAtmosphereOpen);
+  }, [setMenuMusicDucking, modalAtmosphereOpen]);
 
   useEffect(() => {
     if (!menuMusicEnabled) return;
@@ -4029,11 +4261,11 @@ export default function App() {
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       if (isTypingTarget(e.target)) return;
       e.preventDefault();
-      menuMusic.toggle();
+      toggleMenuMusic();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [menuMusicEnabled, menuMusic.toggle]);
+  }, [menuMusicEnabled, toggleMenuMusic]);
 
   const doExportOsu = useCallback(() => {
     if (!audioFile) return;
@@ -4053,7 +4285,9 @@ export default function App() {
   const doExportSm = useCallback(async () => {
     if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
+    setImportError(null);
     try {
+      const { downloadSmZip } = await import("./lib/smExport");
       await downloadSmZip({
         meta,
         difficulties,
@@ -4063,22 +4297,38 @@ export default function App() {
       });
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_sm", authUser?.id).catch(() => {});
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? `StepMania export failed: ${error.message}`
+          : "StepMania export failed.",
+      );
     } finally {
       setExporting(false);
     }
   }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id]);
 
-  const doExportQua = useCallback(() => {
+  const doExportQua = useCallback(async () => {
     if (!audioFile || (active.keyCount !== 4 && active.keyCount !== 7)) return;
-    downloadQua({
-      meta,
-      difficulty: active,
-      timingPoints: activeTimingPoints,
-      audioFilename: audioFile.name,
-      backgroundFilename: active.backgroundFilename,
-      bpmAffectsScroll: appSettings.bpmAffectsScroll,
-    });
-    playUiSound("mapExportDone");
+    setImportError(null);
+    try {
+      const { downloadQua } = await import("./lib/qua");
+      downloadQua({
+        meta,
+        difficulty: active,
+        timingPoints: activeTimingPoints,
+        audioFilename: audioFile.name,
+        backgroundFilename: active.backgroundFilename,
+        bpmAffectsScroll: appSettings.bpmAffectsScroll,
+      });
+      playUiSound("mapExportDone");
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? `Quaver export failed: ${error.message}`
+          : "Quaver export failed.",
+      );
+    }
   }, [
     audioFile,
     active,
@@ -4090,8 +4340,10 @@ export default function App() {
   const doExportOsz = useCallback(async () => {
     if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
+    setImportError(null);
     setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
     try {
+      const { downloadOsz } = await import("./lib/oszExport");
       await downloadOsz({
         meta,
         difficulties,
@@ -4106,6 +4358,12 @@ export default function App() {
       });
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? `OSZ export failed: ${error.message}`
+          : "OSZ export failed.",
+      );
     } finally {
       setExporting(false);
       setExportProgress(null);
@@ -4971,6 +5229,7 @@ export default function App() {
             : "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
         }`}
         aria-hidden={!showHeader}
+        {...({ inert: !showHeader ? "" : undefined } as { inert?: string })}
       >
         <div className="flex min-w-0 items-center gap-4">
           <div className="flex shrink-0 items-center gap-2.5">
@@ -5001,6 +5260,7 @@ export default function App() {
                 : "pointer-events-none max-w-0 -translate-x-3 opacity-0"
             }`}
             aria-hidden={!hasProject}
+            {...({ inert: !hasProject ? "" : undefined } as { inert?: string })}
           >
             <nav className="flex items-center gap-1 whitespace-nowrap">
               <MenuButton onClick={() => setModal("mapSettings")}>
@@ -5227,6 +5487,7 @@ export default function App() {
         </div>
       </header>
 
+      <Suspense fallback={<LazyLoadingFallback />}>
       <div className="flex min-h-0 flex-1">
         <div className="relative z-10 shrink-0">
           <div
@@ -5236,19 +5497,21 @@ export default function App() {
             aria-hidden={!diffPanelShown}
           >
             <div className="h-full w-60">
-              <DifficultySidebar
-                difficulties={difficulties}
-                activeId={active.id}
-                onSelect={setActiveId}
-                onAdd={addDifficulty}
-                onDuplicate={duplicateDifficulty}
-                onDelete={(ids) => setPendingDeleteDiffIds(ids)}
-                onRename={(id, name) => patchDifficulty(id, { name })}
-                onCreateRate={createRateDifficulty}
-                canEdit={canEdit}
-                songDurationMs={audio.duration > 0 ? audio.duration : null}
-                peers={liveEnabled ? collab.peers : undefined}
-              />
+              {showChrome && (
+                <MemoizedDifficultySidebar
+                  difficulties={difficulties}
+                  activeId={active.id}
+                  onSelect={setActiveId}
+                  onAdd={addDifficulty}
+                  onDuplicate={duplicateDifficulty}
+                  onDelete={queueDifficultyDelete}
+                  onRename={renameDifficulty}
+                  onCreateRate={createRateDifficulty}
+                  canEdit={canEdit}
+                  songDurationMs={audio.duration > 0 ? audio.duration : null}
+                  peers={liveEnabled ? collab.peers : undefined}
+                />
+              )}
             </div>
           </div>
 
@@ -5290,30 +5553,31 @@ export default function App() {
             }`}
             aria-hidden={!showChrome}
           >
-            <TransportBar
-              audio={audio}
-              view={view}
-              onView={setView}
-              hitsoundVolume={appSettings.hitsoundVolume}
-              onHitsoundVolume={(v) =>
-                setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
-              }
-              jumpOpen={jumpToTimeOpen}
-              onJumpOpenChange={setJumpToTimeOpen}
-            />
+            {showChrome && (
+              <TransportBar
+                audio={audio}
+                view={view}
+                onView={setView}
+                hitsoundVolume={appSettings.hitsoundVolume}
+                onHitsoundVolume={(v) =>
+                  setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
+                }
+                jumpOpen={jumpToTimeOpen}
+                onJumpOpenChange={setJumpToTimeOpen}
+              />
+            )}
           </div>
           <div className="relative min-h-0 flex-1">
             <div className="flex h-full w-full">
             <div className="relative min-w-0 flex-1">
             {hasProject ? (
-              <ManiaEditor
-                notes={editorNotes}
+              <MemoizedManiaEditor
+                notes={active.notes}
                 keyCount={active.keyCount}
                 timingPoints={activeTimingPoints}
                 previewTime={active.previewTime}
                 bookmarks={active.bookmarks}
                 view={editorView}
-                currentTime={editorCurrentTime}
                 getCurrentTime={getEditorCurrentTime}
                 isPlaying={audio.isPlaying}
                 backgroundUrl={activeBg?.url ?? null}
@@ -5346,8 +5610,8 @@ export default function App() {
                 onDeleteNotes={deleteNotes}
                 onMoveNotes={moveNotes}
                 onView={setView}
-                onSeek={audio.seek}
-                onVolumeChange={(delta) => audio.setVolume(audio.volume + delta)}
+                onSeek={seekAudio}
+                onVolumeChange={changeEditorVolume}
                 currentHitSound={currentHitSound}
                 currentSampleSet={currentSampleSet}
                 onCurrentHitSound={setCurrentHitSound}
@@ -5369,12 +5633,7 @@ export default function App() {
                 pressedColumnsRef={playtestPressedColumnsRef}
                 hitPositionOffset={playtestSettings.hitPositionOffset}
                 waveformOverlay={appSettings.showWaveform ? waveform : null}
-                onToggleWaveformOverlay={() =>
-                  setAppSettings((s) => ({
-                    ...s,
-                    showWaveform: !s.showWaveform,
-                  }))
-                }
+                onToggleWaveformOverlay={toggleWaveformOverlay}
                 missWindowMs={playtestWindows.miss}
                 hideHints={playtest.active}
                 songEndMs={audio.duration}
@@ -5408,13 +5667,12 @@ export default function App() {
               {referenceDiff && (
                 <>
                   <div className="pointer-events-none h-full w-full opacity-60">
-                    <ManiaEditor
+                    <MemoizedManiaEditor
                       notes={referenceDiff.notes}
                       keyCount={referenceDiff.keyCount}
                       timingPoints={referenceTimingPoints}
                       previewTime={referenceDiff.previewTime}
                       view={view}
-                      currentTime={audio.currentTime}
                       getCurrentTime={getCurrentTime}
                       isPlaying={audio.isPlaying}
                       backgroundUrl={null}
@@ -5460,11 +5718,12 @@ export default function App() {
             </div>
             </div>
             {hasProject && playtest.active && playtestSettings.showNpsGraph && (
-              <PlaytestNpsGraph
+              <MemoizedPlaytestNpsGraph
                 notes={active.notes}
                 durationMs={audio.duration}
                 getCurrentTime={getEditorCurrentTime}
                 active={playtest.active}
+                running={!playtest.paused && !playtest.ended}
                 label={t("runStats.nps")}
                 peakLabel={t("runStats.peakShort")}
               />
@@ -5483,7 +5742,7 @@ export default function App() {
                 skillEnabled
               />
             )}
-            {hasProject && (
+            {hasProject && playtest.active && (
               <PlaytestOverlay
                 state={playtest}
                 ended={playtest.ended}
@@ -5504,11 +5763,11 @@ export default function App() {
               appSettings.showPpCounter &&
               !zenMode &&
               !playtest.active && (
-              <PPCounter
+              <MemoizedPPCounter
                 notes={active.notes}
                 keyCount={active.keyCount}
                 playbackRate={audio.playbackRate}
-                onPlaybackRateChange={audio.setPlaybackRate}
+                onPlaybackRateChange={setAudioPlaybackRate}
               />
             )}
             {hasProject && !zenMode && !playtest.active && eligibleRefs.length > 0 && (
@@ -5552,7 +5811,7 @@ export default function App() {
                   id: d.id,
                   name: d.name,
                 }))}
-                onSeek={audio.seek}
+                onSeek={seekAudio}
                 canModerate={myRole === "owner" || myRole === "editor"}
                 ownerId={cloudOwnerId}
                 onCommentsChange={(c: Comment[]) =>
@@ -5581,56 +5840,55 @@ export default function App() {
             }`}
             aria-hidden={!showChrome}
           >
-            <BottomTimeline
-              waveform={waveform}
-              notes={active.notes}
-              timingPoints={activeTimingPoints}
-              svBpmScroll={appSettings.bpmAffectsScroll}
-              previewTime={active.previewTime}
-              duration={audio.duration}
-              currentTime={audio.currentTime}
-              getCurrentTime={getCurrentTime}
-              onSeek={audio.seek}
-              sensitivity={appSettings.waveformSensitivity}
-              onSensitivity={(v) =>
-                setAppSettings((s) => ({ ...s, waveformSensitivity: v }))
-              }
-              revealWaveform={hasProject}
-              peers={collab.peers}
-              comments={activeCommentMarkers}
-              onCommentClick={(ms) => {
-                audio.seek(ms);
-                setCommentsOpen(true);
-              }}
-              bookmarks={active.bookmarks}
-              bookmarkLabels={active.bookmarkLabels}
-              loopRange={activeBookmarkLoop}
-              loopEnabled={activeBookmarkLoop?.enabled}
-              onSetPreviewPoint={canEdit ? setPreviewPoint : undefined}
-              onAddBookmark={canEdit ? addBookmark : undefined}
-              onRenameBookmark={canEdit ? renameBookmark : undefined}
-              onRemoveBookmark={canEdit ? removeBookmark : undefined}
-              onPreviousBookmark={() => seekBookmark("previous")}
-              onNextBookmark={() => seekBookmark("next")}
-              onSetLoopStart={setBookmarkLoopStart}
-              onSetLoopEnd={setBookmarkLoopEnd}
-              onToggleLoop={toggleBookmarkLoop}
-              onClearLoop={clearBookmarkLoop}
-              trimStart={active.trimStartMs}
-              trimEnd={active.trimEndMs}
-              fadeIn={active.fadeInMs}
-              fadeOut={active.fadeOutMs}
-              onSetTrimStart={canEdit ? setTrimStart : undefined}
-              onSetTrimEnd={canEdit ? setTrimEnd : undefined}
-              onSetFadeIn={canEdit ? setFadeIn : undefined}
-              onSetFadeOut={canEdit ? setFadeOut : undefined}
-            />
+            {showChrome && appSettings.showBottomTimeline && (
+              <MemoizedBottomTimeline
+                waveform={waveform}
+                notes={active.notes}
+                timingPoints={activeTimingPoints}
+                svBpmScroll={appSettings.bpmAffectsScroll}
+                previewTime={active.previewTime}
+                duration={audio.duration}
+                getCurrentTime={getCurrentTime}
+                isPlaying={audio.isPlaying}
+                onSeek={seekAudio}
+                sensitivity={appSettings.waveformSensitivity}
+                onSensitivity={setWaveformSensitivity}
+                revealWaveform={hasProject}
+                peers={collab.peers}
+                comments={activeCommentMarkers}
+                onCommentClick={openTimelineComment}
+                bookmarks={active.bookmarks}
+                bookmarkLabels={active.bookmarkLabels}
+                loopRange={activeBookmarkLoop}
+                loopEnabled={activeBookmarkLoop?.enabled}
+                onSetPreviewPoint={canEdit ? setPreviewPoint : undefined}
+                onAddBookmark={canEdit ? addBookmark : undefined}
+                onRenameBookmark={canEdit ? renameBookmark : undefined}
+                onRemoveBookmark={canEdit ? removeBookmark : undefined}
+                onPreviousBookmark={seekPreviousBookmark}
+                onNextBookmark={seekNextBookmark}
+                onSetLoopStart={setBookmarkLoopStart}
+                onSetLoopEnd={setBookmarkLoopEnd}
+                onToggleLoop={toggleBookmarkLoop}
+                onClearLoop={clearBookmarkLoop}
+                trimStart={active.trimStartMs}
+                trimEnd={active.trimEndMs}
+                fadeIn={active.fadeInMs}
+                fadeOut={active.fadeOutMs}
+                onSetTrimStart={canEdit ? setTrimStart : undefined}
+                onSetTrimEnd={canEdit ? setTrimEnd : undefined}
+                onSetFadeIn={canEdit ? setFadeIn : undefined}
+                onSetFadeOut={canEdit ? setFadeOut : undefined}
+              />
+            )}
           </div>
         </main>
       </div>
+      </Suspense>
 
       </div>
 
+      <Suspense fallback={<LazyLoadingFallback />}>
       {modalMounted("newMap") && (
         <NewMapModal
           open={modal === "newMap"}
@@ -5695,7 +5953,7 @@ export default function App() {
         />
       )}
       {packCreatorEverOpenedRef.current && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<LazyLoadingFallback />}>
           <PackCreator
             jpegQuality={
               appSettings.exportPngBackgroundsAsJpeg
@@ -5914,15 +6172,17 @@ export default function App() {
           onCropToBrackets={applyCropToBrackets}
         />
       )}
-      <AutoTimePrompt
-        open={autoTimeOpen}
-        status={autoTimeStatus}
-        ready={!!waveform?.buffer}
-        fileName={audioFile?.name ?? null}
-        result={autoTimeResult}
-        onRun={runAutoTime}
-        onDismiss={() => setAutoTimeOpen(false)}
-      />
+      {autoTimeOpen && (
+        <AutoTimePrompt
+          open
+          status={autoTimeStatus}
+          ready={!!waveform?.buffer}
+          fileName={audioFile?.name ?? null}
+          result={autoTimeResult}
+          onRun={runAutoTime}
+          onDismiss={() => setAutoTimeOpen(false)}
+        />
+      )}
       {modalMounted("timing") && (
         <TimingModal
           open={modal === "timing"}
@@ -5932,8 +6192,8 @@ export default function App() {
           isPlaying={audio.isPlaying}
           playbackRate={audio.playbackRate}
           getCurrentTime={getCurrentTime}
-          onToggle={audio.toggle}
-          onSetPlaybackRate={audio.setPlaybackRate}
+          onToggle={toggleAudio}
+          onSetPlaybackRate={setAudioPlaybackRate}
           audioBuffer={waveform?.buffer ?? null}
           timeScale={activeRate}
           onShiftMarkers={shiftTimingMarkers}
@@ -6108,7 +6368,7 @@ export default function App() {
       )}
 
       {adminEverOpenedRef.current && modalMounted("admin") && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<LazyLoadingFallback />}>
           <AdminPanel
             open={modal === "admin"}
             onClose={close}
@@ -6146,6 +6406,7 @@ export default function App() {
           scanning={scanningPack}
         />
       )}
+      </Suspense>
 
       {peerNotice && (
         <TimedNotification

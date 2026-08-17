@@ -58,9 +58,11 @@ export function usePlaytestAutoplay({
   );
 
   const profile = useMemo(() => {
-    if (!humanize.enabled || notes.length === 0) return EMPTY_PROFILE;
+    if (!enabled || !active || !humanize.enabled || notes.length === 0) {
+      return EMPTY_PROFILE;
+    }
     return computeSkillProfile(notes, keyCount, effectiveSkill, rate);
-  }, [effectiveSkill, humanize.enabled, notes, keyCount, rate]);
+  }, [active, effectiveSkill, enabled, humanize.enabled, notes, keyCount, rate]);
 
   const plan = useMemo(() => {
     if (!enabled || !active || notes.length === 0) return EMPTY_PLAN;
@@ -99,7 +101,12 @@ export function usePlaytestAutoplay({
     {
       const now = handlers.current.getCurrentTime();
       let lo = 0;
-      while (lo < plan.events.length && plan.events[lo].atMs <= now) lo++;
+      let hi = plan.events.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (plan.events[mid].atMs <= now) lo = mid + 1;
+        else hi = mid;
+      }
       cursorRef.current = lo;
     }
 
@@ -115,7 +122,12 @@ export function usePlaytestAutoplay({
         time < plan.events[cursorRef.current - 1].atMs
       ) {
         let lo = 0;
-        while (lo < plan.events.length && plan.events[lo].atMs <= time) lo++;
+        let hi = plan.events.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (plan.events[mid].atMs <= time) lo = mid + 1;
+          else hi = mid;
+        }
         cursorRef.current = lo;
       }
 

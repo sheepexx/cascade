@@ -31,9 +31,7 @@ export function addJudgement(
 }
 
 export function accuracyFromCounts(counts: JudgementCounts): number {
-  const total =
-    counts.max + counts["300"] + counts["200"] + counts["100"] + counts["50"] +
-    counts.miss;
+  const total = judgementCount(counts);
   if (total === 0) return 100;
   const weighted = (Object.keys(counts) as ManiaJudgement[]).reduce(
     (sum, j) => sum + counts[j] * ACCURACY_WEIGHTS[j],
@@ -42,13 +40,32 @@ export function accuracyFromCounts(counts: JudgementCounts): number {
   return (weighted / (total * ACCURACY_WEIGHTS.max)) * 100;
 }
 
-export function scoreFromResults(results: HitResult[]): number {
-  if (!results.length) return 0;
-  const weighted = results.reduce(
-    (sum, r) => sum + JUDGEMENT_WEIGHTS[r.judgement],
+export function judgementCount(counts: JudgementCounts): number {
+  return (
+    counts.max +
+    counts["300"] +
+    counts["200"] +
+    counts["100"] +
+    counts["50"] +
+    counts.miss
+  );
+}
+
+export function scoreFromCounts(counts: JudgementCounts): number {
+  const total = judgementCount(counts);
+  if (total === 0) return 0;
+  const weighted = (Object.keys(counts) as ManiaJudgement[]).reduce(
+    (sum, judgement) => sum + counts[judgement] * JUDGEMENT_WEIGHTS[judgement],
     0,
   );
-  return Math.round((weighted / (results.length * JUDGEMENT_WEIGHTS.max)) * 1_000_000);
+  return Math.round((weighted / (total * JUDGEMENT_WEIGHTS.max)) * 1_000_000);
+}
+
+export function scoreFromResults(results: HitResult[]): number {
+  if (!results.length) return 0;
+  const counts = emptyJudgementCounts();
+  for (const result of results) counts[result.judgement] += 1;
+  return scoreFromCounts(counts);
 }
 
 export function initialCounts(): JudgementCounts {

@@ -34,6 +34,7 @@ import {
   type PatternNote,
 } from "../lib/patterns";
 import type { Waveform } from "../hooks/useWaveform";
+import { computeWaveformOverlay } from "../lib/waveform";
 import { dialogIsOpen } from "../hooks/useDialog";
 import {
   hasNoteCollisions,
@@ -87,7 +88,6 @@ type Props = {
   timingPoints: TimingPoint[];
   previewTime: number;
   view: ViewState;
-  currentTime: number;
   getCurrentTime: () => number;
   isPlaying: boolean;
   backgroundUrl: string | null;
@@ -328,10 +328,12 @@ export function ManiaEditor(props: Props) {
   propsRef.current = props;
   const dirtyRef = useRef(true);
   dirtyRef.current = true;
+  const scheduleFrameRef = useRef<() => void>(() => {});
   const markDirty = useCallback(() => {
     dirtyRef.current = true;
+    scheduleFrameRef.current();
   }, []);
-  const renderTimeRef = useRef(props.currentTime);
+  const renderTimeRef = useRef(props.getCurrentTime());
   const liveCurrentTime = useCallback(() => renderTimeRef.current, []);
   const smoothScrollSpeedRef = useRef(props.view.scrollSpeed);
   const smoothScaleRef = useRef(props.playfieldScale || 1);
@@ -1059,45 +1061,25 @@ export function ManiaEditor(props: Props) {
   const sortedNotesRef = useRef(sortedNotes);
   sortedNotesRef.current = sortedNotes;
 
-  const overlayPeaks = useMemo(() => {
-    const buffer = props.waveformOverlay?.buffer;
-    if (!buffer) return null;
-    const channel = buffer.getChannelData(0);
-    const targetBucketMs = 2;
-    const bucketSamples = Math.max(
-      1,
-      Math.round((buffer.sampleRate * targetBucketMs) / 1000),
-    );
-    // A bucket is a whole number of samples, so it is rarely exactly 2ms (88
-    // samples at 44.1kHz is 1.9955ms). Measuring it back off the sample rate
-    // keeps the overlay from drifting ~1ms per 440ms against the audio.
-    const bucketMs = (bucketSamples / buffer.sampleRate) * 1000;
-    const count = Math.ceil(channel.length / bucketSamples);
-    const peaks = new Float32Array(count);
-    for (let i = 0; i < count; i++) {
-      const start = i * bucketSamples;
-      const end = Math.min(channel.length, start + bucketSamples);
-      let sumSq = 0;
-      for (let j = start; j < end; j++) sumSq += channel[j] * channel[j];
-      peaks[i] = Math.sqrt(sumSq / Math.max(1, end - start));
-    }
-    const raw = Float32Array.from(peaks);
-    for (let i = 0; i < count; i++) {
-      const from = Math.max(0, i - 2);
-      const to = Math.min(count - 1, i + 2);
-      let sum = 0;
-      for (let j = from; j <= to; j++) sum += raw[j];
-      peaks[i] = sum / (to - from + 1);
-    }
-    const sorted = Float32Array.from(peaks).sort();
-    const ref = sorted[Math.floor(sorted.length * 0.95)] || 1;
-    if (ref > 0) {
-      for (let i = 0; i < peaks.length; i++) {
-        peaks[i] = Math.min(1, peaks[i] / ref);
-      }
-    }
-    return { peaks, bucketMs };
-  }, [props.waveformOverlay]);
+  const overlayBuffer = props.waveformOverlay?.buffer ?? null;
+  const [overlayPeaks, setOverlayPeaks] = useState<Awaited<
+    ReturnType<typeof computeWaveformOverlay>
+  >>(null);
+  useEffect(() => {
+    setOverlayPeaks(null);
+    if (!overlayBuffer) return;
+    let cancelled = false;
+    void computeWaveformOverlay(
+      overlayBuffer.getChannelData(0),
+      overlayBuffer.sampleRate,
+      { shouldCancel: () => cancelled },
+    ).then((result) => {
+      if (!cancelled) setOverlayPeaks(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [overlayBuffer]);
   const overlayPeaksRef = useRef(overlayPeaks);
   overlayPeaksRef.current = overlayPeaks;
 
@@ -1891,9 +1873,10 @@ export function ManiaEditor(props: Props) {
 
   useEffect(() => {
     let raf = 0;
+    let stopped = false;
     const animating = () => {
       const p = propsRef.current;
-      if (p.isPlaying || p.playtestMode) return true;
+      if (p.isPlaying) return true;
       const video = videoRef.current;
       if (video && !video.paused && video.readyState >= 2) return true;
       const fadeStart = bgFadeStartRef.current;
@@ -1903,10 +1886,15 @@ export function ManiaEditor(props: Props) {
           BACKGROUND_FADE_DELAY_MS + BACKGROUND_FADE_MS
       );
     };
+    const schedule = () => {
+      if (!stopped && !raf) raf = requestAnimationFrame(loop);
+    };
     const loop = () => {
+      raf = 0;
       const moving = updateSmoothMotion();
       const hud = fpsHudRef.current;
-      if (dirtyRef.current || moving || hud.show || animating()) {
+      const animated = animating();
+      if (dirtyRef.current || moving || hud.show || animated) {
         dirtyRef.current = false;
         if (hud.show) {
           const t0 = performance.now();
@@ -1922,11 +1910,18 @@ export function ManiaEditor(props: Props) {
           draw();
         }
       }
-      raf = requestAnimationFrame(loop);
+      if (moving || hud.show || animated || dirtyRef.current) schedule();
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    scheduleFrameRef.current = schedule;
+    schedule();
+    return () => {
+      stopped = true;
+      scheduleFrameRef.current = () => {};
+      cancelAnimationFrame(raf);
+    };
   }, [draw, updateSmoothMotion]);
+
+  useEffect(markDirty);
 
   useEffect(() => {
     const wrap = wrapRef.current;

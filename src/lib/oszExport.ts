@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import type {
   Difficulty,
   LoadedFile,
@@ -56,11 +55,15 @@ export async function buildOsz({
   const progress = new ProgressSplitter([1, 2, 10, 6], onProgress);
 
   progress.phase("Starting up the audio encoder");
-  // Bring up the MP3 encoder before any audio is baked; without it every
-  // re-encode falls back to WAV.
-  await loadMp3Encoder().catch((err: unknown) => {
-    console.error("MP3 encoder unavailable, audio will be exported as WAV:", err);
-  });
+  const [, { default: JSZip }] = await Promise.all([
+    loadMp3Encoder().catch((err: unknown) => {
+      console.error(
+        "MP3 encoder unavailable, audio will be exported as WAV:",
+        err,
+      );
+    }),
+    import("jszip"),
+  ]);
   progress.advance();
 
   const zip = new JSZip();

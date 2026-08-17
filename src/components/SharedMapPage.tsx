@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { useT } from "../lib/i18n";
-import { buildOsz } from "../lib/oszExport";
 import { SharedMapPreview } from "./SharedMapPreview";
 import { cardChips, formatLength } from "../lib/shareCard";
 import { computeStarRating, starColor, starTextOn } from "../lib/starRating";
@@ -43,6 +42,7 @@ export function SharedMapPage({
   const [busy, setBusy] = useState<"open" | "download" | null>(null);
   const [access, setAccess] = useState<"idle" | "sending" | "sent">("idle");
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [previewDifficultyId, setPreviewDifficultyId] = useState<string | null>(
     null,
   );
@@ -178,15 +178,21 @@ export function SharedMapPage({
     if (!audioSources.length && map.audioUrl) {
       audioSources.push([legacyAudioName, map.audioUrl]);
     }
-    const [audioResults, background] = await Promise.all([
-      Promise.all(
-        audioSources.map(([name, url]) => fetchAsset(url, name)),
-      ),
-      fetchAsset(map.backgroundUrl, "background.jpg"),
+    const [{ buildOsz }, [audioResults, background]] = await Promise.all([
+      import("../lib/oszExport"),
+      Promise.all([
+        Promise.all(
+          audioSources.map(([name, url]) => fetchAsset(url, name)),
+        ),
+        fetchAsset(map.backgroundUrl, "background.jpg"),
+      ]),
     ]);
     const audio = audioResults.filter(
       (file): file is LoadedFile => file !== null,
     );
+    if (audioSources.length > 0 && audio.length !== audioSources.length) {
+      throw new Error("One or more map audio files could not be downloaded.");
+    }
     const legacyAudio = Object.keys(map.audioUrls).length ? null : audio[0];
     const difficulties = map.data.difficulties.map((d) => ({
       ...d,
@@ -207,9 +213,14 @@ export function SharedMapPage({
   const open = useCallback(async () => {
     if (!map || busy) return;
     setBusy("open");
+    setActionError(null);
     try {
       const blob = await makeOsz();
       if (blob) onOpen(new File([blob], `${map.title || "map"}.osz`));
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Could not open this map.",
+      );
     } finally {
       setBusy(null);
     }
@@ -218,6 +229,7 @@ export function SharedMapPage({
   const download = useCallback(async () => {
     if (!map || busy) return;
     setBusy("download");
+    setActionError(null);
     try {
       const blob = await makeOsz();
       if (!blob) return;
@@ -227,6 +239,10 @@ export function SharedMapPage({
       a.download = `${map.artist ? `${map.artist} - ` : ""}${map.title || "map"}.osz`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Could not download this map.",
+      );
     } finally {
       setBusy(null);
     }
@@ -388,6 +404,9 @@ export function SharedMapPage({
 
           {accessError && (
             <p className="mt-3 text-sm text-rose-400">{accessError}</p>
+          )}
+          {actionError && (
+            <p className="mt-3 text-sm text-rose-400">{actionError}</p>
           )}
 
           <p className="mt-10 text-xs text-slate-500">

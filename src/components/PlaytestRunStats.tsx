@@ -5,6 +5,7 @@ import type { AutoplayPlanSummary } from "../lib/autoplay";
 import { STRAIN_THRESHOLD, type SkillProfile } from "../lib/playerSkill";
 import type { PlaytestState } from "../lib/playtestJudgements";
 import { useT } from "../lib/i18n";
+import { judgementCount } from "../lib/playtestScoring";
 
 const LIVE_REFRESH_MS = 120;
 
@@ -46,12 +47,13 @@ export function PlaytestRunStats({
     return () => window.clearInterval(id);
   }, [series, getCurrentTime]);
 
-  const judged = state.hitResults.length;
+  const judged = state.judgedCount ?? judgementCount(state.judgements);
   const meanError = useMemo(() => {
+    if (state.meanError !== undefined) return state.meanError;
     const scored = state.hitResults.filter((r) => r.judgement !== "miss");
     if (scored.length === 0) return 0;
     return scored.reduce((sum, r) => sum + r.hitError, 0) / scored.length;
-  }, [state.hitResults]);
+  }, [state.hitResults, state.meanError]);
 
   return (
     <div className="pointer-events-none absolute left-3 top-3 z-30 w-[13.5rem] rounded-xl border border-white/10 bg-ink-900/55 p-2.5 text-[11px] shadow-xl shadow-black/25 backdrop-blur-xl">

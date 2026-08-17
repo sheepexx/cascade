@@ -371,6 +371,37 @@ describe("project media records", () => {
     expect(rows[0].kiai).toEqual([{ start: 0, end: Infinity }]);
   });
 
+  it("lists lightweight track metadata and loads media only for one track", async () => {
+    installStore();
+    const {
+      saveProject,
+      listLocalTrackSummaries,
+      loadLocalTrack,
+    } = await freshPersistence();
+
+    await saveProject(
+      project({
+        audioFiles: [{ name: "a.mp3", blob: bytes(32) }],
+        difficulties: [
+          {
+            id: "d1",
+            audioFilename: "a.mp3",
+            timingPoints: [makeRedPoint(0, 160)],
+          },
+        ],
+      } as Partial<SavedProject>),
+      "abc",
+    );
+
+    const summaries = await listLocalTrackSummaries();
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0]).not.toHaveProperty("audioBlob");
+    expect(summaries[0].bpm).toBe(160);
+
+    const loaded = await loadLocalTrack("abc");
+    expect(loaded?.audioBlob.size).toBe(32);
+  });
+
   it("rewrites media after a clear so the next save is self-contained", async () => {
     const { puts } = installStore();
     const { saveProject, clearProject } = await freshPersistence();

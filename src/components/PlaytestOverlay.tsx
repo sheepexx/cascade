@@ -7,6 +7,7 @@ import type {
   ManiaJudgement,
   PlaytestState,
 } from "../lib/playtestJudgements";
+import { judgementCount } from "../lib/playtestScoring";
 
 const ORDER: ManiaJudgement[] = ["max", "300", "200", "100", "50", "miss"];
 
@@ -51,6 +52,7 @@ export function PlaytestOverlay({
 }) {
   if (!state.active) return null;
   const latest = state.hitResults[state.hitResults.length - 1] ?? null;
+  const judged = state.judgedCount ?? judgementCount(state.judgements);
   const keys = settings.keybinds[keyCount] ?? [];
 
   return (
@@ -72,13 +74,13 @@ export function PlaytestOverlay({
       </div>
 
       {settings.showJudgements && latest && (
-        <div key={`${latest.noteId}:${latest.part}:${state.hitResults.length}`} className="playtest-judgement absolute left-1/2 top-[42%] -translate-x-1/2">
+        <div key={`${latest.noteId}:${latest.part}:${judged}`} className="playtest-judgement absolute left-1/2 top-[42%] -translate-x-1/2">
           <Judgement result={latest} skin={skin} enabled={settings.useSkinJudgements} />
         </div>
       )}
 
       {settings.showHitError && latest && latest.judgement !== "miss" && (
-        <div key={`err:${state.hitResults.length}`} className="playtest-hit-error absolute left-1/2 top-[50%] -translate-x-1/2 rounded bg-ink-900/60 px-2 py-1 text-xs font-medium text-slate-200 backdrop-blur">
+        <div key={`err:${judged}`} className="playtest-hit-error absolute left-1/2 top-[50%] -translate-x-1/2 rounded bg-ink-900/60 px-2 py-1 text-xs font-medium text-slate-200 backdrop-blur">
           {latest.hitError > 0 ? "+" : ""}
           {Math.round(latest.hitError)} ms
         </div>
@@ -169,7 +171,7 @@ export function PlaytestOverlay({
               <ResultStat label="Accuracy" value={`${state.accuracy.toFixed(2)}%`} />
               <ResultStat label="Max combo" value={String(state.maxCombo)} />
               <ResultStat label="Score" value={state.score.toLocaleString()} />
-              <ResultStat label="Judgements" value={String(state.hitResults.length)} />
+              <ResultStat label="Judgements" value={String(judged)} />
             </div>
             <div className="mt-4 grid grid-cols-3 gap-1.5 text-xs">
               {ORDER.map((j) => (

@@ -32,6 +32,7 @@ export function useHitsounds(
   enabled: boolean,
   ducked: boolean,
   skinHitsounds: LoadedSkin["hitsounds"] | null,
+  ready: boolean,
 ) {
   const ctxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
@@ -63,7 +64,7 @@ export function useHitsounds(
     return s.enabled ? effectiveAudioPower(s.volume, s.ducked) : 0;
   }, []);
 
-  const ensureCtx = useCallback((): AudioContext | null => {
+  const ensureCtx = useCallback((resume = true): AudioContext | null => {
     let ctx = ctxRef.current;
     if (!ctx) {
       const Ctor =
@@ -88,7 +89,7 @@ export function useHitsounds(
       filterRef.current = filter;
       masterGainRef.current = masterGain;
     }
-    if (ctx.state === "suspended") void ctx.resume();
+    if (resume && ctx.state === "suspended") void ctx.resume();
     return ctx;
   }, [currentMixPower]);
 
@@ -114,13 +115,17 @@ export function useHitsounds(
   );
 
   useEffect(() => {
+    if (!enabled || !ready) {
+      eventsRef.current = [];
+      return;
+    }
     const events: { time: number; note: ManiaNote }[] = [];
     for (const n of notes) {
       events.push({ time: n.startTime, note: n });
     }
     events.sort((a, b) => a.time - b.time);
     eventsRef.current = events;
-  }, [notes]);
+  }, [enabled, notes, ready]);
 
   useEffect(() => {
     if (!enabled) lastTimeRef.current = null;
@@ -230,114 +235,70 @@ export function useHitsounds(
   );
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !ready) return;
+    let cancelled = false;
+    let timer = 0;
+    let idleId: number | null = null;
+    const requestIdle = (
+      window as typeof window & {
+        requestIdleCallback?: (callback: () => void) => number;
+        cancelIdleCallback?: (id: number) => void;
+      }
+    ).requestIdleCallback;
+    const cancelIdle = (
+      window as typeof window & {
+        cancelIdleCallback?: (id: number) => void;
+      }
+    ).cancelIdleCallback;
+    const prioritized = [
+      "normal-hitnormal",
+      "soft-hitnormal",
+      "drum-hitnormal",
+      ...DEFAULT_SAMPLE_BASES,
+      ...Object.keys(stateRef.current.skinHitsounds ?? {}),
+    ];
+    const bases = [...new Set(prioritized)];
+    let index = 0;
+
+    const schedule = (callback: () => void) => {
+      if (requestIdle) {
+        idleId = requestIdle.call(window, callback);
+      } else {
+        timer = window.setTimeout(callback, 50);
+      }
+    };
+    const warmNext = () => {
+      idleId = null;
+      if (cancelled || index >= bases.length) return;
+      if (stateRef.current.isPlaying) {
+        timer = window.setTimeout(() => schedule(warmNext), 250);
+        return;
+      }
+      const ctx = ensureCtx(false);
+      if (!ctx) return;
+      getBuffer(ctx, bases[index++]);
+      applyOutputMix(0.01);
+      schedule(warmNext);
+    };
+
+    timer = window.setTimeout(() => schedule(warmNext), 500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (idleId !== null && cancelIdle) cancelIdle.call(window, idleId);
+    };
+  }, [enabled, ready, skinHitsounds, ensureCtx, getBuffer, applyOutputMix]);
+
+  useEffect(() => {
+    if (!enabled || !ready || !isPlaying) {
       lastTimeRef.current = null;
       return;
     }
 
     let raf = 0;
 
-    const sourceFor = (
-      base: string,
-      fallbackBase = base.replace(/\d+$/, ""),
-    ):
-      | { key: string; load: () => Promise<ArrayBuffer> }
-      | null => {
-      const skinSamples = stateRef.current.skinHitsounds;
-      const skinHit = skinSamples?.[base] ?? skinSamples?.[fallbackBase];
-      if (skinHit) {
-        const key = `skin:${skinSamples?.[base] ? base : fallbackBase}`;
-        return { key, load: () => skinHit.arrayBuffer() };
-      }
-      if (DEFAULT_SAMPLE_BASES.includes(fallbackBase)) {
-        return {
-          key: `default:${fallbackBase}`,
-          load: () => fetch(sampleUrl(fallbackBase)).then((r) => r.arrayBuffer()),
-        };
-      }
-      return null;
-    };
-
-    const getBuffer = (ctx: AudioContext, base: string): AudioBuffer | null => {
-      const source = sourceFor(base);
-      if (!source) return null;
-      const { key } = source;
-      const existing = buffersRef.current.get(key);
-      if (existing) return existing;
-      if (!loadingRef.current.has(key)) {
-        loadingRef.current.add(key);
-        void source
-          .load()
-          .then((buf) => ctx.decodeAudioData(buf))
-          .then((decoded) => buffersRef.current.set(key, decoded))
-          .catch(() => {
-          })
-          .finally(() => loadingRef.current.delete(key));
-      }
-      return null;
-    };
-
-    const playSample = (
-      ctx: AudioContext,
-      setPrefix: string,
-      sound: string,
-      sampleIndex: number,
-      gainValue: number,
-    ) => {
-      if (gainValue <= 0) return;
-      const indexSuffix = sampleIndex > 1 ? String(sampleIndex) : "";
-      const buffer = getBuffer(ctx, `${setPrefix}-hit${sound}${indexSuffix}`);
-      if (!buffer) return;
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      const gain = ctx.createGain();
-      gain.gain.value = gainValue;
-      src.connect(gain).connect(
-        filterRef.current ?? masterGainRef.current ?? ctx.destination,
-      );
-      src.start();
-    };
-
-    const playNote = (note: ManiaNote) => {
-      const ctx = ensureCtx();
-      if (!ctx) return;
-      const s = stateRef.current;
-      const tp = activeTimingAt(note.startTime, s.timingPoints);
-      const normalSet = note.sampleSet || tp.sampleSet || 1;
-      const additionSet = note.additionSet || normalSet;
-      const normalPrefix = SET_PREFIX[normalSet] ?? "normal";
-      const additionPrefix = SET_PREFIX[additionSet] ?? "normal";
-      const sampleIndex = note.sampleIndex || tp.sampleIndex || 0;
-      const volPct = note.sampleVolume || tp.volume || 100;
-      const gainValue = volPct / 100;
-      if (gainValue <= 0) return;
-
-      playSample(ctx, normalPrefix, "normal", sampleIndex, gainValue);
-      const adds = note.hitSound ?? 0;
-      if (adds & HITSOUND_WHISTLE)
-        playSample(ctx, additionPrefix, "whistle", sampleIndex, gainValue);
-      if (adds & HITSOUND_FINISH)
-        playSample(ctx, additionPrefix, "finish", sampleIndex, gainValue);
-      if (adds & HITSOUND_CLAP)
-        playSample(ctx, additionPrefix, "clap", sampleIndex, gainValue);
-    };
-
-    const warm = ensureCtx();
-    if (warm) {
-      for (const base of DEFAULT_SAMPLE_BASES) getBuffer(warm, base);
-      for (const base of Object.keys(stateRef.current.skinHitsounds ?? {})) {
-        getBuffer(warm, base);
-      }
-      applyOutputMix(0.01);
-    }
-
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      const s = stateRef.current;
-      if (!s.isPlaying) {
-        lastTimeRef.current = null;
-        return;
-      }
       const cur = getCurrentTime();
       const last = lastTimeRef.current;
       lastTimeRef.current = cur;
@@ -362,16 +323,20 @@ export function useHitsounds(
     };
 
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [enabled, ensureCtx, applyOutputMix, skinHitsounds, getCurrentTime]);
+    return () => {
+      cancelAnimationFrame(raf);
+      lastTimeRef.current = null;
+    };
+  }, [enabled, getCurrentTime, isPlaying, playNote, ready]);
 
   useEffect(() => {
+    const buffers = buffersRef.current;
     return () => {
       void ctxRef.current?.close();
       ctxRef.current = null;
       masterGainRef.current = null;
       filterRef.current = null;
-      buffersRef.current.clear();
+      buffers.clear();
     };
   }, []);
 

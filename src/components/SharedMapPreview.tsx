@@ -95,6 +95,10 @@ export function SharedMapPreview({
 
   useEffect(() => stop, [stop]);
 
+  useEffect(() => {
+    stop();
+  }, [audioUrl, clipStartsAtZero, keyCount, notes, preservePitch, rate, startMs, stop]);
+
   const draw = useCallback(
     (nowMs: number) => {
       const canvas = canvasRef.current;
@@ -259,6 +263,7 @@ export function SharedMapPreview({
       audio.preservesPitch = preservePitch;
       audioRef.current = audio;
       audio.addEventListener("ended", stop, { once: true });
+      audio.addEventListener("error", stop, { once: true });
       audio.addEventListener("playing", () => {
         if (audioRef.current !== audio) return;
         mediaTimeRef.current = audio.currentTime;
