@@ -162,6 +162,8 @@ export function BottomTimeline({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const sizeRef = useRef({ width: 800, dpr: 1 });
   const draggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragMovedRef = useRef(false);
   const seekRafRef = useRef(0);
   const pendingSeekXRef = useRef<number | null>(null);
   const lastScrubSeekRef = useRef(0);
@@ -898,7 +900,10 @@ export function BottomTimeline({
       }
     }
     draggingRef.current = true;
+    dragStartXRef.current = e.clientX;
+    dragMovedRef.current = false;
     seekFromEvent(e.clientX);
+    lastScrubSeekRef.current = performance.now();
   };
 
   const hasMenuActions = !!onSetPreviewPoint || !!onAddBookmark;
@@ -1105,7 +1110,8 @@ export function BottomTimeline({
   }, []);
 
   useEffect(() => {
-    const flushSeek = (now: number) => {
+    const flushSeek = () => {
+      const now = performance.now();
       if (now - lastScrubSeekRef.current < SCRUB_SEEK_INTERVAL_MS) {
         seekRafRef.current = requestAnimationFrame(flushSeek);
         return;
@@ -1129,17 +1135,28 @@ export function BottomTimeline({
         applyTrimDrag(trimDragRef.current, e.clientX);
         return;
       }
-      if (draggingRef.current) scheduleSeek(e.clientX);
+      if (draggingRef.current) {
+        if (Math.abs(e.clientX - dragStartXRef.current) >= 0.5) {
+          dragMovedRef.current = true;
+        }
+        scheduleSeek(e.clientX);
+      }
     };
     const onUp = (e: MouseEvent) => {
       if (draggingRef.current) {
         pendingSeekXRef.current = null;
         cancelAnimationFrame(seekRafRef.current);
         seekRafRef.current = 0;
-        lastScrubSeekRef.current = performance.now();
-        seekFromEvent(e.clientX);
+        const moved =
+          dragMovedRef.current ||
+          Math.abs(e.clientX - dragStartXRef.current) >= 0.5;
+        if (moved) {
+          lastScrubSeekRef.current = performance.now();
+          seekFromEvent(e.clientX);
+        }
       }
       draggingRef.current = false;
+      dragMovedRef.current = false;
       if (trimDragRef.current) {
         trimDragRef.current = null;
         trimHoverRef.current = null;
