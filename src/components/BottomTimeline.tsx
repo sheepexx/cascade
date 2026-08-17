@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
-import type { AudioSeekTransition } from "../lib/audioSeek";
+import type {
+  AudioSeekSignal,
+  AudioSeekTransition,
+} from "../lib/audioSeek";
+import {
+  applyEditorSeek,
+  nextEditorRenderTime,
+} from "../lib/editorTimeMotion";
+import { timelineDragStarted } from "../lib/timelineInput";
 import { kiaiRanges } from "../lib/timing";
 import { buildSvMap, hasSv } from "../lib/sv";
 import {
@@ -73,7 +81,8 @@ type Props = {
   duration: number;
   getCurrentTime: () => number;
   isPlaying: boolean;
-  seekRevision: number;
+  seekSignal: AudioSeekSignal;
+  smoothScrolling: boolean;
   onSeek: (ms: number, transition?: AudioSeekTransition) => void;
   sensitivity: number;
   onSensitivity: (value: number) => void;
@@ -130,7 +139,8 @@ export function BottomTimeline({
   duration,
   getCurrentTime,
   isPlaying,
-  seekRevision,
+  seekSignal,
+  smoothScrolling,
   onSeek,
   sensitivity,
   onSensitivity,
@@ -173,6 +183,11 @@ export function BottomTimeline({
   const pendingSeekXRef = useRef<number | null>(null);
   const lastScrubSeekRef = useRef(0);
   const scheduleDrawRef = useRef<() => void>(() => {});
+  const renderTimeRef = useRef(getCurrentTime());
+  const smoothSeekFromRef = useRef<number | null>(null);
+  const smoothSeekTargetRef = useRef<number | null>(null);
+  const smoothSeekStartedAtRef = useRef(0);
+  const seenSeekRevisionRef = useRef(seekSignal.revision);
   const trimDragRef = useRef<
     "start" | "end" | "fadeIn" | "fadeOut" | null
   >(null);
@@ -234,7 +249,8 @@ export function BottomTimeline({
     duration,
     getCurrentTime,
     isPlaying,
-    seekRevision,
+    seekSignal,
+    smoothScrolling,
     sensitivity,
     onSensitivity,
     revealWaveform,
@@ -259,7 +275,8 @@ export function BottomTimeline({
     duration,
     getCurrentTime,
     isPlaying,
-    seekRevision,
+    seekSignal,
+    smoothScrolling,
     sensitivity,
     onSensitivity,
     revealWaveform,
@@ -290,6 +307,58 @@ export function BottomTimeline({
     onSetFadeOut,
   };
 
+  const applyVisualSeek = useCallback(
+    (targetTime: number, transition: AudioSeekTransition) => {
+      const allowSmooth =
+        transition === "smooth" &&
+        propsRef.current.smoothScrolling &&
+        !propsRef.current.isPlaying;
+      const next = applyEditorSeek(
+        renderTimeRef.current,
+        targetTime,
+        transition,
+        allowSmooth,
+      );
+      renderTimeRef.current = next.renderedTime;
+      smoothSeekFromRef.current = next.smoothFrom;
+      smoothSeekTargetRef.current = next.smoothTarget;
+      const now = performance.now();
+      smoothSeekStartedAtRef.current = next.smoothTarget === null ? 0 : now;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const signal = seekSignal;
+    if (signal.revision === seenSeekRevisionRef.current) return;
+    seenSeekRevisionRef.current = signal.revision;
+    const allowSmooth =
+      signal.transition === "smooth" && smoothScrolling && !isPlaying;
+    const targetTime = allowSmooth ? signal.targetTime : getCurrentTime();
+    const locallyPrimed =
+      allowSmooth &&
+      smoothSeekFromRef.current !== null &&
+      smoothSeekTargetRef.current !== null &&
+      Math.abs(smoothSeekTargetRef.current - targetTime) < 0.5;
+    if (!locallyPrimed) applyVisualSeek(targetTime, signal.transition);
+    scheduleDrawRef.current();
+  }, [
+    seekSignal,
+    smoothScrolling,
+    isPlaying,
+    getCurrentTime,
+    applyVisualSeek,
+  ]);
+
+  useEffect(() => {
+    const targetTime = getCurrentTime();
+    if (Number.isFinite(targetTime)) renderTimeRef.current = targetTime;
+    smoothSeekFromRef.current = null;
+    smoothSeekTargetRef.current = null;
+    smoothSeekStartedAtRef.current = 0;
+    scheduleDrawRef.current();
+  }, [getCurrentTime, isPlaying]);
+
   useEffect(() => {
     if (!revealWaveform || !waveform) {
       waveformRevealStartRef.current = 0;
@@ -314,7 +383,6 @@ export function BottomTimeline({
       timingPoints,
       previewTime,
       duration,
-      getCurrentTime,
       sensitivity,
       revealWaveform,
       svBpmScroll,
@@ -585,7 +653,7 @@ export function BottomTimeline({
     }
 
     if (duration > 0) {
-      const currentTime = getCurrentTime();
+      const currentTime = renderTimeRef.current;
       const px = (currentTime / duration) * width;
       ctx.fillStyle = "rgba(255,93,177,0.10)";
       ctx.fillRect(0, WAVE_TOP, px, WAVE_H);
@@ -751,6 +819,41 @@ export function BottomTimeline({
     ctx.restore();
   }, []);
 
+  const updateVisualTime = useCallback(() => {
+    const liveTargetTime = propsRef.current.getCurrentTime();
+    if (!Number.isFinite(liveTargetTime)) return false;
+    const current = renderTimeRef.current;
+    const smoothFrom = smoothSeekFromRef.current;
+    const pendingSmoothTarget = smoothSeekTargetRef.current;
+    const shouldSmooth =
+      propsRef.current.smoothScrolling &&
+      !propsRef.current.isPlaying &&
+      smoothFrom !== null &&
+      pendingSmoothTarget !== null;
+    if (
+      !propsRef.current.isPlaying &&
+      !shouldSmooth &&
+      pendingSmoothTarget === null
+    ) {
+      return false;
+    }
+
+    const targetTime = shouldSmooth ? pendingSmoothTarget : liveTargetTime;
+    const next = nextEditorRenderTime(
+      smoothFrom ?? current,
+      targetTime,
+      performance.now() - smoothSeekStartedAtRef.current,
+      shouldSmooth,
+    );
+    renderTimeRef.current = next;
+    if (next === targetTime) {
+      smoothSeekFromRef.current = null;
+      smoothSeekTargetRef.current = null;
+      smoothSeekStartedAtRef.current = 0;
+    }
+    return current !== next || (shouldSmooth && next !== targetTime);
+  }, []);
+
   useEffect(() => {
     let raf = 0;
     let stopped = false;
@@ -771,8 +874,9 @@ export function BottomTimeline({
     };
     const loop = () => {
       raf = 0;
+      const moving = updateVisualTime();
       draw();
-      if (shouldAnimate()) schedule();
+      if (moving || shouldAnimate()) schedule();
     };
     scheduleDrawRef.current = schedule;
     schedule();
@@ -781,7 +885,7 @@ export function BottomTimeline({
       scheduleDrawRef.current = () => {};
       cancelAnimationFrame(raf);
     };
-  }, [draw]);
+  }, [draw, updateVisualTime]);
 
   useEffect(() => scheduleDrawRef.current());
 
@@ -826,10 +930,12 @@ export function BottomTimeline({
       if (!canvas || !(duration > 0) || !Number.isFinite(duration)) return;
       const rect = canvas.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      onSeek(ratio * duration, transition);
+      const targetTime = ratio * duration;
+      applyVisualSeek(targetTime, transition);
+      onSeek(targetTime, transition);
       scheduleDrawRef.current();
     },
-    [onSeek],
+    [applyVisualSeek, onSeek],
   );
 
   const hitTrimHandle = useCallback(
@@ -1153,10 +1259,13 @@ export function BottomTimeline({
         return;
       }
       if (draggingRef.current) {
-        if (Math.abs(e.clientX - dragStartXRef.current) >= 0.5) {
+        if (
+          !dragMovedRef.current &&
+          timelineDragStarted(dragStartXRef.current, e.clientX)
+        ) {
           dragMovedRef.current = true;
         }
-        scheduleSeek(e.clientX);
+        if (dragMovedRef.current) scheduleSeek(e.clientX);
       }
     };
     const onUp = (e: MouseEvent) => {
@@ -1166,7 +1275,7 @@ export function BottomTimeline({
         seekRafRef.current = 0;
         const moved =
           dragMovedRef.current ||
-          Math.abs(e.clientX - dragStartXRef.current) >= 0.5;
+          timelineDragStarted(dragStartXRef.current, e.clientX);
         if (moved) {
           lastScrubSeekRef.current = performance.now();
           seekFromEvent(e.clientX, "instant");

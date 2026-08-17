@@ -1,6 +1,6 @@
 import type { AudioSeekTransition } from "./audioSeek";
 
-export const EDITOR_SEEK_GLIDE_MS = 180;
+export const EDITOR_SEEK_GLIDE_MS = 240;
 
 export type EditorSeekMotion = {
   renderedTime: number;
@@ -61,6 +61,8 @@ export function nextEditorRenderTime(
 
   const progress = Math.min(1, Math.max(0, elapsedMs / EDITOR_SEEK_GLIDE_MS));
   if (progress >= 1) return targetTime;
-  const eased = 1 - Math.pow(1 - progress, 3);
+  // Ease-out sine keeps the first painted frame close enough to the origin
+  // that the motion reads as a glide, without adding a sluggish ease-in delay.
+  const eased = Math.sin((progress * Math.PI) / 2);
   return fromTime + (targetTime - fromTime) * eased;
 }

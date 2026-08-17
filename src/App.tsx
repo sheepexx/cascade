@@ -6025,7 +6025,8 @@ export default function App() {
                 duration={audio.duration}
                 getCurrentTime={getCurrentTime}
                 isPlaying={audio.isPlaying}
-                seekRevision={audio.seekSignal.revision}
+                seekSignal={audio.seekSignal}
+                smoothScrolling={appSettings.smoothScrolling}
                 onSeek={seekAudio}
                 sensitivity={appSettings.waveformSensitivity}
                 onSensitivity={setWaveformSensitivity}

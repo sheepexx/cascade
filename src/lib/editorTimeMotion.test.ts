@@ -91,6 +91,15 @@ describe("editor seek motion", () => {
     expect(next).toBeLessThan(180_000);
   });
 
+  it("does not front-load most of the jump into the first 50 ms", () => {
+    const from = 1_000;
+    const target = 181_000;
+    const next = nextEditorRenderTime(from, target, 50, true);
+    const progress = (next - from) / (target - from);
+    expect(progress).toBeGreaterThan(0);
+    expect(progress).toBeLessThan(0.4);
+  });
+
   it("snaps when smooth scrolling is disabled", () => {
     expect(applyEditorSeek(1_000, 180_000, "smooth", false)).toEqual({
       renderedTime: 180_000,
