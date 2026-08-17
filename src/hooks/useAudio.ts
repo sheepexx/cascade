@@ -6,6 +6,10 @@ import {
   effectiveAudioPower,
 } from "../lib/audioAtmosphere";
 import { createPlaybackClock } from "../lib/playbackClock";
+import type {
+  AudioSeekSignal,
+  AudioSeekTransition,
+} from "../lib/audioSeek";
 
 const RATE_RAMP_SECONDS = 0.34;
 const CLOCK_UI_INTERVAL_MS = 100;
@@ -100,6 +104,10 @@ export function useAudio(
   const [volume, setVolumeState] = useState(0.2);
   const volumeRef = useRef(0.2);
   const [playbackRate, setPlaybackRateState] = useState(1);
+  const [seekSignal, setSeekSignal] = useState<AudioSeekSignal>({
+    revision: 0,
+    transition: "instant",
+  });
   const playbackRateRef = useRef(1);
   const rateTransitionRef = useRef<RateTransition | null>(null);
   const elementVolumeRafRef = useRef<number | null>(null);
@@ -445,7 +453,10 @@ export function useAudio(
       const d = audio.duration;
       if (Number.isFinite(d) && d > 0) setDuration(d * 1000);
     };
-    const onEnded = () => setIsPlaying(false);
+    const onEnded = () => {
+      // A seek away from EOF can race an already queued media event.
+      if (audio.ended) setIsPlaying(false);
+    };
     const onPause = () => {
       if (!webAudioActive()) setIsPlaying(false);
     };
@@ -603,7 +614,7 @@ export function useAudio(
   }, []);
 
   const seek = useCallback(
-    (mapMs: number) => {
+    (mapMs: number, transition: AudioSeekTransition = "instant") => {
       if (!Number.isFinite(mapMs)) return;
       const ms = mapMs * timeScaleRef.current;
       const audio = audioRef.current;
@@ -625,14 +636,22 @@ export function useAudio(
         currentTimeRef.current = clamped;
         setCurrentTime(clamped);
         if (wasPlaying) startWeb();
+        setSeekSignal((previous) => ({
+          revision: previous.revision + 1,
+          transition,
+        }));
         return;
       }
       positionRef.current = clamped / 1000;
+      currentTimeRef.current = clamped;
+      setCurrentTime(clamped);
       if (audio) {
         audio.currentTime = clamped / 1000;
-        currentTimeRef.current = clamped;
-        setCurrentTime(clamped);
       }
+      setSeekSignal((previous) => ({
+        revision: previous.revision + 1,
+        transition,
+      }));
     },
     [duration, stopWeb, startWeb, webAudioActive],
   );
@@ -812,6 +831,7 @@ export function useAudio(
     volume,
     playbackRate,
     timeScale: scale,
+    seekSignal,
     /** Rate the source file is actually played at, for video/visual sync. */
     effectiveRate: clampEffectiveRate(playbackRate * scale),
     getCurrentTime,

@@ -5744,6 +5744,7 @@ export default function App() {
                 view={editorView}
                 getCurrentTime={getEditorCurrentTime}
                 isPlaying={audio.isPlaying}
+                seekSignal={audio.seekSignal}
                 backgroundUrl={activeBg?.url ?? null}
                 videoUrl={activeVideo?.url ?? null}
                 videoOffsetMs={active.videoOffsetMs ?? 0}
@@ -5839,6 +5840,7 @@ export default function App() {
                       view={view}
                       getCurrentTime={getCurrentTime}
                       isPlaying={audio.isPlaying}
+                      seekSignal={audio.seekSignal}
                       backgroundUrl={null}
                       videoUrl={null}
                       dimBackground={appSettings.dimBackground}
@@ -6023,6 +6025,7 @@ export default function App() {
                 duration={audio.duration}
                 getCurrentTime={getCurrentTime}
                 isPlaying={audio.isPlaying}
+                seekRevision={audio.seekSignal.revision}
                 onSeek={seekAudio}
                 sensitivity={appSettings.waveformSensitivity}
                 onSensitivity={setWaveformSensitivity}

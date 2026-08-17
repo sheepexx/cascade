@@ -34,6 +34,10 @@ import {
   type PatternNote,
 } from "../lib/patterns";
 import type { Waveform } from "../hooks/useWaveform";
+import type {
+  AudioSeekSignal,
+  AudioSeekTransition,
+} from "../lib/audioSeek";
 import { computeWaveformOverlay } from "../lib/waveform";
 import { dialogIsOpen } from "../hooks/useDialog";
 import {
@@ -50,6 +54,10 @@ import { Menu } from "./ui/Menu";
 import { SnapBadge } from "./ui/SnapBadge";
 import { t } from "../lib/i18n/core";
 import { formatUiNumber } from "../lib/formatUiNumber";
+import {
+  applyEditorSeek,
+  nextEditorRenderTime,
+} from "../lib/editorTimeMotion";
 
 export type HitsoundSource = {
   id: string;
@@ -77,7 +85,6 @@ const BOUND_TRIM_RGB = "245,158,11";
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
-const SCROLL_TIME_EASE = 20;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
 const CANVAS_FONT_STACK =
@@ -91,6 +98,7 @@ type Props = {
   view: ViewState;
   getCurrentTime: () => number;
   isPlaying: boolean;
+  seekSignal?: AudioSeekSignal;
   backgroundUrl: string | null;
   videoUrl?: string | null;
   videoOffsetMs?: number;
@@ -115,7 +123,7 @@ type Props = {
   onDeleteNotes: (ids: string[]) => void;
   onMoveNotes: (notes: ManiaNote[]) => void;
   onView: (view: ViewState) => void;
-  onSeek: (ms: number) => void;
+  onSeek: (ms: number, transition?: AudioSeekTransition) => void;
   onVolumeChange: (delta: number) => void;
   currentHitSound: number;
   currentSampleSet: number;
@@ -309,6 +317,7 @@ export function ManiaEditor(props: Props) {
   const bgFadeStartRef = useRef(0);
   const parallaxRef = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoSeekTargetRef = useRef<number | null>(null);
   const skinColsRef = useRef<ColumnRender[]>([]);
   const shiftActiveRef = useRef(false);
   const selectedNoteIdsRef = useRef<Set<string>>(new Set());
@@ -335,12 +344,79 @@ export function ManiaEditor(props: Props) {
     scheduleFrameRef.current();
   }, []);
   const renderTimeRef = useRef(props.getCurrentTime());
+  const smoothSeekTargetRef = useRef<number | null>(null);
+  const seenSeekRevisionRef = useRef(props.seekSignal?.revision ?? 0);
+  const pendingInteractiveSeekRef = useRef<{
+    time: number;
+    transition: AudioSeekTransition;
+  } | null>(null);
+  const interactiveSeekRafRef = useRef(0);
   const liveCurrentTime = useCallback(() => renderTimeRef.current, []);
   const smoothScrollSpeedRef = useRef(props.view.scrollSpeed);
   const smoothScaleRef = useRef(props.playfieldScale || 1);
   const lastMotionFrameRef = useRef(
     typeof performance !== "undefined" ? performance.now() : 0,
   );
+
+  const flushInteractiveSeek = useCallback(() => {
+    if (interactiveSeekRafRef.current) {
+      cancelAnimationFrame(interactiveSeekRafRef.current);
+      interactiveSeekRafRef.current = 0;
+    }
+    const pending = pendingInteractiveSeekRef.current;
+    pendingInteractiveSeekRef.current = null;
+    if (pending) propsRef.current.onSeek(pending.time, pending.transition);
+  }, []);
+
+  const scheduleInteractiveSeek = useCallback(
+    (time: number, transition: AudioSeekTransition) => {
+      pendingInteractiveSeekRef.current = { time, transition };
+      if (!interactiveSeekRafRef.current) {
+        interactiveSeekRafRef.current = requestAnimationFrame(
+          flushInteractiveSeek,
+        );
+      }
+    },
+    [flushInteractiveSeek],
+  );
+
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(interactiveSeekRafRef.current);
+      interactiveSeekRafRef.current = 0;
+      pendingInteractiveSeekRef.current = null;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const signal = props.seekSignal;
+    if (!signal || signal.revision === seenSeekRevisionRef.current) return;
+    seenSeekRevisionRef.current = signal.revision;
+
+    const targetTime = propsRef.current.getCurrentTime();
+    const allowSmooth =
+      signal.transition === "smooth" &&
+      propsRef.current.smoothScrolling !== false &&
+      !propsRef.current.isPlaying;
+    const next = applyEditorSeek(
+      renderTimeRef.current,
+      smoothSeekTargetRef.current,
+      targetTime,
+      signal.transition,
+      allowSmooth,
+    );
+    renderTimeRef.current = next.renderedTime;
+    smoothSeekTargetRef.current = next.smoothTarget;
+    lastMotionFrameRef.current = performance.now();
+
+    if (!allowSmooth) {
+      cancelAnimationFrame(interactiveSeekRafRef.current);
+      interactiveSeekRafRef.current = 0;
+      pendingInteractiveSeekRef.current = null;
+    }
+    markDirty();
+  }, [props.seekSignal, markDirty]);
   // SV warp eases in/out so toggling playback never snaps note positions.
   // The anchor (scroll position of the playhead) is computed once per frame;
   // timeToY/yToTime would otherwise pay a second binary search per call.
@@ -778,6 +854,7 @@ export function ManiaEditor(props: Props) {
   useEffect(() => {
     if (!props.videoUrl) {
       videoRef.current = null;
+      videoSeekTargetRef.current = null;
       return;
     }
     const video = document.createElement("video");
@@ -785,16 +862,23 @@ export function ManiaEditor(props: Props) {
     video.muted = true;
     video.playsInline = true;
     video.preload = "auto";
+    const onSeeked = () => {
+      videoSeekTargetRef.current = null;
+      markDirty();
+    };
     video.addEventListener("loadeddata", markDirty);
-    video.addEventListener("seeked", markDirty);
+    video.addEventListener("seeked", onSeeked);
     videoRef.current = video;
     return () => {
       video.removeEventListener("loadeddata", markDirty);
-      video.removeEventListener("seeked", markDirty);
+      video.removeEventListener("seeked", onSeeked);
       video.pause();
       video.removeAttribute("src");
       video.load();
-      if (videoRef.current === video) videoRef.current = null;
+      if (videoRef.current === video) {
+        videoRef.current = null;
+        videoSeekTargetRef.current = null;
+      }
     };
   }, [props.videoUrl, markDirty]);
 
@@ -843,25 +927,30 @@ export function ManiaEditor(props: Props) {
   const updateSmoothMotion = useCallback(() => {
     const now = performance.now();
     const last = lastMotionFrameRef.current || now;
-    const dt = Math.min(0.08, Math.max(0, (now - last) / 1000));
+    const elapsedSeconds = Math.max(0, (now - last) / 1000);
+    const dt = Math.min(0.08, elapsedSeconds);
     lastMotionFrameRef.current = now;
     let moving = false;
 
     const targetTime = propsRef.current.getCurrentTime();
-    const smooth = propsRef.current.smoothScrolling !== false;
-    if (!smooth || propsRef.current.isPlaying) {
-      if (renderTimeRef.current !== targetTime) moving = true;
-      renderTimeRef.current = targetTime;
-    } else if (Number.isFinite(targetTime)) {
+    if (Number.isFinite(targetTime)) {
       const cur = renderTimeRef.current;
-      const delta = targetTime - cur;
-      if (Math.abs(delta) < 0.4) {
-        if (cur !== targetTime) moving = true;
-        renderTimeRef.current = targetTime;
-      } else {
-        renderTimeRef.current =
-          cur + delta * (1 - Math.exp(-SCROLL_TIME_EASE * dt));
-        moving = true;
+      const pendingSmoothTarget = smoothSeekTargetRef.current;
+      const shouldSmooth =
+        propsRef.current.smoothScrolling !== false &&
+        !propsRef.current.isPlaying &&
+        pendingSmoothTarget !== null &&
+        Math.abs(pendingSmoothTarget - targetTime) < 0.5;
+      const next = nextEditorRenderTime(
+        cur,
+        targetTime,
+        elapsedSeconds,
+        shouldSmooth,
+      );
+      if (cur !== next) moving = true;
+      renderTimeRef.current = next;
+      if (next === targetTime) {
+        smoothSeekTargetRef.current = null;
       }
     }
 
@@ -1160,25 +1249,30 @@ export function ManiaEditor(props: Props) {
       const inRange =
         targetSec >= 0 &&
         (!Number.isFinite(video.duration) || targetSec < video.duration);
+      const seekVideoToLatest = (tolerance: number) => {
+        const requested = videoSeekTargetRef.current;
+        if (
+          Math.abs(video.currentTime - targetSec) <= tolerance ||
+          (requested !== null && Math.abs(requested - targetSec) <= tolerance)
+        ) {
+          return;
+        }
+        try {
+          video.currentTime = targetSec;
+          videoSeekTargetRef.current = targetSec;
+        } catch {
+        }
+      };
       if (propsRef.current.isPlaying && inRange) {
         if (video.paused) {
-          video.currentTime = targetSec;
+          seekVideoToLatest(0.05);
           void video.play().catch(() => {});
-        } else if (
-          !video.seeking &&
-          Math.abs(video.currentTime - targetSec) > 0.2
-        ) {
-          video.currentTime = targetSec;
+        } else {
+          seekVideoToLatest(0.2);
         }
       } else {
         if (!video.paused) video.pause();
-        if (
-          inRange &&
-          !video.seeking &&
-          Math.abs(video.currentTime - targetSec) > 0.05
-        ) {
-          video.currentTime = targetSec;
-        }
+        if (inRange) seekVideoToLatest(0.05);
       }
       if (inRange) videoFrame = video;
     }
@@ -2430,7 +2524,7 @@ export function ManiaEditor(props: Props) {
       // Deliberately time-domain (ignores SV warp) so scrub speed is steady.
       const msPerPx = -scrollDir() / ppms();
       scrub.time = Math.max(0, scrub.time - msPerPx * dy);
-      propsRef.current.onSeek(scrub.time);
+      scheduleInteractiveSeek(scrub.time, "instant");
       return;
     }
     onMouseMove(e);
@@ -2456,7 +2550,10 @@ export function ManiaEditor(props: Props) {
     } catch {
     }
     if (scrubRef.current) {
-      if (pts.size < 2) scrubRef.current = null;
+      if (pts.size < 2) {
+        flushInteractiveSeek();
+        scrubRef.current = null;
+      }
       return;
     }
     onMouseUp(e);
@@ -2473,6 +2570,7 @@ export function ManiaEditor(props: Props) {
       return;
     }
     activePointersRef.current.delete(e.pointerId);
+    if (scrubRef.current) flushInteractiveSeek();
     scrubRef.current = null;
     if (activePointersRef.current.size === 0) onMouseLeave();
   };
@@ -2483,7 +2581,6 @@ export function ManiaEditor(props: Props) {
   };
 
   const onWheel = (e: React.WheelEvent) => {
-    markDirty();
     if (props.playtestMode) {
       e.preventDefault();
       return;
@@ -2511,7 +2608,9 @@ export function ManiaEditor(props: Props) {
       return;
     }
     const { timingPoints, view } = propsRef.current;
-    const currentTime = propsRef.current.getCurrentTime();
+    const currentTime =
+      pendingInteractiveSeekRef.current?.time ??
+      propsRef.current.getCurrentTime();
     const dir: 1 | -1 = e.deltaY < 0 ? -1 : 1;
     const firstStep = stepToSnap(currentTime, timingPoints, view.snapDivisor, dir);
     // While playing, playback keeps advancing between reading the time and the
@@ -2521,7 +2620,7 @@ export function ManiaEditor(props: Props) {
     const target = propsRef.current.isPlaying
       ? stepToSnap(firstStep, timingPoints, view.snapDivisor, dir)
       : firstStep;
-    props.onSeek(target);
+    scheduleInteractiveSeek(target, "smooth");
   };
 
   const selectedNotes =

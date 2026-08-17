@@ -72,6 +72,7 @@ type Props = {
   duration: number;
   getCurrentTime: () => number;
   isPlaying: boolean;
+  seekRevision: number;
   onSeek: (ms: number) => void;
   sensitivity: number;
   onSensitivity: (value: number) => void;
@@ -128,6 +129,7 @@ export function BottomTimeline({
   duration,
   getCurrentTime,
   isPlaying,
+  seekRevision,
   onSeek,
   sensitivity,
   onSensitivity,
@@ -231,6 +233,7 @@ export function BottomTimeline({
     duration,
     getCurrentTime,
     isPlaying,
+    seekRevision,
     sensitivity,
     onSensitivity,
     revealWaveform,
@@ -255,6 +258,7 @@ export function BottomTimeline({
     duration,
     getCurrentTime,
     isPlaying,
+    seekRevision,
     sensitivity,
     onSensitivity,
     revealWaveform,
