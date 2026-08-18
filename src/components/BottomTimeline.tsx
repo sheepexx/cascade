@@ -28,7 +28,6 @@ const MAIN_REVEAL_MS = 300;
 const WAVEFORM_REVEAL_DELAY_MS = MAIN_REVEAL_MS;
 const WAVEFORM_REVEAL_MS = 700;
 const RESIZE_SETTLE_MS = 90;
-const SCRUB_SEEK_INTERVAL_MS = 32;
 
 type TrimGeom = {
   sx: number;
@@ -184,7 +183,6 @@ export function BottomTimeline({
   const dragMovedRef = useRef(false);
   const seekRafRef = useRef(0);
   const pendingSeekXRef = useRef<number | null>(null);
-  const lastScrubSeekRef = useRef(0);
   const scheduleDrawRef = useRef<() => void>(() => {});
   const renderTimeRef = useRef(
     smoothScrolling ? getVisualCurrentTime() : getCurrentTime(),
@@ -974,7 +972,6 @@ export function BottomTimeline({
     dragStartXRef.current = e.clientX;
     dragMovedRef.current = false;
     seekFromEvent(e.clientX, timelineSeekTransition("press"));
-    lastScrubSeekRef.current = performance.now();
   };
 
   const hasMenuActions = !!onSetPreviewPoint || !!onAddBookmark;
@@ -1182,16 +1179,10 @@ export function BottomTimeline({
 
   useEffect(() => {
     const flushSeek = () => {
-      const now = performance.now();
-      if (now - lastScrubSeekRef.current < SCRUB_SEEK_INTERVAL_MS) {
-        seekRafRef.current = requestAnimationFrame(flushSeek);
-        return;
-      }
       seekRafRef.current = 0;
       const clientX = pendingSeekXRef.current;
       pendingSeekXRef.current = null;
       if (clientX !== null) {
-        lastScrubSeekRef.current = now;
         seekFromEvent(clientX, timelineSeekTransition("drag"));
       }
     };
@@ -1225,7 +1216,6 @@ export function BottomTimeline({
           dragMovedRef.current ||
           timelineDragStarted(dragStartXRef.current, e.clientX);
         if (moved) {
-          lastScrubSeekRef.current = performance.now();
           seekFromEvent(e.clientX, timelineSeekTransition("release"));
         }
       }

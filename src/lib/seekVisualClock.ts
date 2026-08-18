@@ -1,29 +1,21 @@
 import type { AudioSeekTransition } from "./audioSeek";
 
-export const SEEK_GLIDE_MS = 300;
-export const SCRUB_GLIDE_MS = 110;
-
-type VisualSeekMotion = {
-  fromOffset: number;
-  startedAt: number;
-  duration: number;
-};
+export const SEEK_EASE_PER_SECOND = 18;
+export const SCRUB_EASE_PER_SECOND = 30;
+export const SEEK_SETTLE_MS = 0.4;
 
 export type SeekVisualClock = ReturnType<typeof createSeekVisualClock>;
 
-function transitionDuration(transition: AudioSeekTransition): number {
-  if (transition === "smooth") return SEEK_GLIDE_MS;
-  if (transition === "scrub") return SCRUB_GLIDE_MS;
+function transitionEase(transition: AudioSeekTransition): number {
+  if (transition === "smooth") return SEEK_EASE_PER_SECOND;
+  if (transition === "scrub") return SCRUB_EASE_PER_SECOND;
   return 0;
 }
 
-/**
- * Builds a visual clock that trails an immediate audio seek by a bounded,
- * decaying offset. Since the offset is applied to the live clock, playback can
- * continue underneath the glide without a catch-up snap at the deadline.
- */
 export function createSeekVisualClock() {
-  let motion: VisualSeekMotion | null = null;
+  let offset = 0;
+  let ease = 0;
+  let lastAt = Number.NaN;
   let cachedAt = Number.NaN;
   let cachedVisual = Number.NaN;
 
@@ -32,31 +24,26 @@ export function createSeekVisualClock() {
     cachedVisual = Number.NaN;
   };
 
+  const advance = (now: number) => {
+    if (offset === 0) {
+      lastAt = now;
+      return;
+    }
+    const last = Number.isFinite(lastAt) ? lastAt : now;
+    const dt = Math.max(0, (now - last) / 1000);
+    lastAt = now;
+    offset *= Math.exp(-ease * dt);
+    if (Math.abs(offset) < SEEK_SETTLE_MS) {
+      offset = 0;
+      ease = 0;
+    }
+  };
+
   const read = (liveTime: number, now: number): number => {
     if (!Number.isFinite(liveTime)) return liveTime;
-    // Every rAF callback in a document receives the same timestamp. Cache by
-    // that timestamp so independent canvases cannot drift within one frame,
-    // even if the underlying AudioContext advances between their callbacks.
     if (now === cachedAt) return cachedVisual;
-    if (!motion) {
-      cachedAt = now;
-      cachedVisual = liveTime;
-      return liveTime;
-    }
-
-    const progress = Math.min(
-      1,
-      Math.max(0, (now - motion.startedAt) / motion.duration),
-    );
-    if (progress >= 1) {
-      motion = null;
-      cachedAt = now;
-      cachedVisual = liveTime;
-      return liveTime;
-    }
-
-    const residual = 1 - Math.sin((progress * Math.PI) / 2);
-    const visual = liveTime + motion.fromOffset * residual;
+    advance(now);
+    const visual = offset === 0 ? liveTime : liveTime + offset;
     cachedAt = now;
     cachedVisual = visual;
     return visual;
@@ -68,33 +55,34 @@ export function createSeekVisualClock() {
     transition: AudioSeekTransition,
     now: number,
   ) => {
-    const duration = transitionDuration(transition);
-    const fromOffset = previousVisualTime - nextLiveTime;
+    const nextEase = transitionEase(transition);
+    const nextOffset = previousVisualTime - nextLiveTime;
     if (
-      duration <= 0 ||
-      !Number.isFinite(fromOffset) ||
-      Math.abs(fromOffset) < 0.001
+      nextEase <= 0 ||
+      !Number.isFinite(nextOffset) ||
+      Math.abs(nextOffset) < SEEK_SETTLE_MS
     ) {
-      motion = null;
+      offset = 0;
+      ease = 0;
     } else {
-      motion = { fromOffset, startedAt: now, duration };
+      offset = nextOffset;
+      ease = nextEase;
     }
+    lastAt = now;
     clearCache();
   };
 
   const cancel = () => {
-    motion = null;
+    offset = 0;
+    ease = 0;
+    lastAt = Number.NaN;
     clearCache();
   };
 
   const active = (now: number): boolean => {
-    if (!motion) return false;
-    if (now - motion.startedAt >= motion.duration) {
-      motion = null;
-      clearCache();
-      return false;
-    }
-    return true;
+    if (offset === 0) return false;
+    advance(now);
+    return offset !== 0;
   };
 
   return { read, begin, cancel, active };
