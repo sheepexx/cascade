@@ -37,3 +37,15 @@ export function playfieldScaleFromWheel(
     ) / 100
   );
 }
+
+export const VOLUME_STEP = 0.05;
+
+export function volumeFromWheel(current: number, deltaY: number): number {
+  const direction = wheelDirection(deltaY);
+  const safeCurrent = Number.isFinite(current) ? current : 0;
+  return (
+    Math.round(
+      Math.max(0, Math.min(1, safeCurrent + direction * VOLUME_STEP)) * 100,
+    ) / 100
+  );
+}

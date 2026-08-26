@@ -79,6 +79,12 @@ describe("normalizeAccountSettings", () => {
         { appSettings: { altWheelAction: "volume" } },
         fallback,
       ).appSettings.altWheelAction,
+    ).toBe("volume");
+    expect(
+      normalizeAccountSettings(
+        { appSettings: { altWheelAction: "nonsense" } },
+        fallback,
+      ).appSettings.altWheelAction,
     ).toBe("interfaceScale");
   });
 });

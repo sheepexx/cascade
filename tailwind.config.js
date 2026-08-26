@@ -1,3 +1,5 @@
+import plugin from "tailwindcss/plugin";
+
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
@@ -46,5 +48,15 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Interface-scale-aware counterparts to `min-[900px]:`, `lg:` and `xl:`. Media
+    // queries cannot see the scaled root font size, so these key off the
+    // attributes set from src/lib/uiBreakpoints.ts instead. `:where()` keeps
+    // specificity at zero so normal utility ordering still applies.
+    plugin(({ addVariant }) => {
+      addVariant("uimd", ":where(html[data-uimd]) &");
+      addVariant("uilg", ":where(html[data-uilg]) &");
+      addVariant("uixl", ":where(html[data-uixl]) &");
+    }),
+  ],
 };

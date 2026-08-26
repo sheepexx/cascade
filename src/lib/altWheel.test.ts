@@ -5,6 +5,7 @@ import {
   MIN_PLAYFIELD_SCALE,
   playfieldScaleFromWheel,
   timelineZoomFromWheel,
+  volumeFromWheel,
 } from "./altWheel";
 
 describe("timelineZoomFromWheel", () => {
@@ -32,5 +33,29 @@ describe("playfieldScaleFromWheel", () => {
     expect(playfieldScaleFromWheel(MIN_PLAYFIELD_SCALE, 1)).toBe(
       MIN_PLAYFIELD_SCALE,
     );
+  });
+});
+
+describe("volumeFromWheel", () => {
+  it("changes volume in five-percent steps", () => {
+    expect(volumeFromWheel(0.5, -1)).toBe(0.55);
+    expect(volumeFromWheel(0.5, 1)).toBe(0.45);
+  });
+
+  it("stays within the mute-to-full range", () => {
+    expect(volumeFromWheel(1, -1)).toBe(1);
+    expect(volumeFromWheel(0, 1)).toBe(0);
+  });
+
+  it("holds steady when the wheel reports no movement", () => {
+    expect(volumeFromWheel(0.42, 0)).toBe(0.42);
+  });
+
+  it("avoids floating point drift across steps", () => {
+    expect(volumeFromWheel(0.15, -1)).toBe(0.2);
+  });
+
+  it("falls back to muted for a non-finite current volume", () => {
+    expect(volumeFromWheel(Number.NaN, -1)).toBe(0.05);
   });
 });

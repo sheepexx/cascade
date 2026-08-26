@@ -842,6 +842,10 @@ export function useAudio(
     setVolumeState(clamped);
   }, [applyOutputMix]);
 
+  // Alt+wheel can fire several times per frame, so it needs the committed
+  // volume rather than the value React has rendered so far.
+  const getVolume = useCallback(() => volumeRef.current, []);
+
   const setAmbientDucking = useCallback(
     (ducked: boolean) => {
       if (ambientDuckedRef.current === ducked) return;
@@ -994,6 +998,7 @@ export function useAudio(
     seek,
     setPlaybackRate,
     setVolume,
+    getVolume,
     setAmbientDucking,
   };
 }

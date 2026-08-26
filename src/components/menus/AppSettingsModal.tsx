@@ -103,6 +103,7 @@ const ALT_WHEEL_OPTIONS: {
   { value: "interfaceScale", label: "settings.altWheelInterface" },
   { value: "timelineZoom", label: "settings.altWheelTimeline" },
   { value: "playfieldScale", label: "settings.altWheelPlayfield" },
+  { value: "volume", label: "settings.altWheelVolume" },
 ];
 
 const TAB_LABELS: Record<Tab, MessageKey> = {

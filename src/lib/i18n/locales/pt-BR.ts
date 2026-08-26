@@ -79,6 +79,7 @@ export const ptBR: PartialCatalog = {
   "settings.altWheelInterface": "Tamanho da interface",
   "settings.altWheelTimeline": "Zoom da linha do tempo",
   "settings.altWheelPlayfield": "Tamanho da área de jogo",
+  "settings.altWheelVolume": "Volume da música",
 
   "settings.playfield": "Área de jogo",
   "settings.simplifyBottomTimeline": "Simplificar linha do tempo inferior",

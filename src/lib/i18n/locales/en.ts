@@ -77,6 +77,7 @@ export const en = {
   "settings.altWheelInterface": "Interface size",
   "settings.altWheelTimeline": "Timeline zoom",
   "settings.altWheelPlayfield": "Playfield size",
+  "settings.altWheelVolume": "Music volume",
 
   "settings.layout": "Editor layout",
   "settings.showDifficultyPanel": "Difficulty and map stats panel",

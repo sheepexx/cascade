@@ -82,8 +82,8 @@ export function TransportBar({
   };
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-white/10 bg-ink-800/55 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:gap-4 xl:px-4 xl:py-3">
-      <div className="order-1 flex min-w-0 items-center gap-2 xl:gap-4">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-white/10 bg-ink-800/55 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl uixl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] uixl:gap-4 uixl:px-4 uixl:py-3">
+      <div className="order-1 flex min-w-0 items-center gap-2 uixl:gap-4">
         <label className="flex items-center gap-2 text-xs text-slate-400">
           Vol
           <input
@@ -93,9 +93,9 @@ export function TransportBar({
             step={0.01}
             value={volume}
             onChange={(e) => setVolume(Number(e.target.value))}
-            className="h-1 w-14 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 xl:w-20"
+            className="h-1 w-14 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 uixl:w-20"
           />
-          <span className="hidden w-7 font-mono text-slate-300 min-[900px]:inline-block xl:w-8">
+          <span className="hidden w-7 font-mono text-slate-300 uimd:inline-block uixl:w-8">
             {Math.round(volume * 100)}%
           </span>
         </label>
@@ -109,16 +109,16 @@ export function TransportBar({
             step={0.01}
             value={hitsoundVolume}
             onChange={(e) => onHitsoundVolume(Number(e.target.value))}
-            className="h-1 w-14 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 xl:w-20"
+            className="h-1 w-14 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 uixl:w-20"
             title={t("transport.hitsoundVolume")}
           />
-          <span className="hidden w-7 font-mono text-slate-300 min-[900px]:inline-block xl:w-8">
+          <span className="hidden w-7 font-mono text-slate-300 uimd:inline-block uixl:w-8">
             {Math.round(hitsoundVolume * 100)}%
           </span>
         </label>
       </div>
 
-      <div className="order-3 col-span-2 flex items-center justify-center gap-2 xl:order-2 xl:col-span-1">
+      <div className="order-3 col-span-2 flex items-center justify-center gap-2 uixl:order-2 uixl:col-span-1">
         {jumpOpen ? (
           <input
             ref={jumpInputRef}
@@ -178,10 +178,10 @@ export function TransportBar({
         )}
       </div>
 
-      <div className="order-2 flex min-w-0 items-center justify-end gap-2 xl:order-3 xl:gap-4">
+      <div className="order-2 flex min-w-0 items-center justify-end gap-2 uixl:order-3 uixl:gap-4">
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
-          <span className="hidden min-[900px]:inline">
+          <span className="hidden uimd:inline">
             {t("transport.snap")}
           </span>
           <select
@@ -203,7 +203,7 @@ export function TransportBar({
         </label>
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
-          <span className="hidden whitespace-nowrap xl:inline">
+          <span className="hidden whitespace-nowrap uixl:inline">
             {t("transport.scrollSpeed")}
           </span>
           <button
@@ -228,7 +228,7 @@ export function TransportBar({
             onChange={(e) =>
               onView({ ...view, scrollSpeed: Number(e.target.value) })
             }
-            className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 xl:w-24"
+            className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 uixl:w-24"
           />
           <button
             type="button"

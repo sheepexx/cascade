@@ -79,6 +79,7 @@ export const ru: PartialCatalog = {
   "settings.altWheelInterface": "Размер интерфейса",
   "settings.altWheelTimeline": "Масштаб шкалы времени",
   "settings.altWheelPlayfield": "Размер игрового поля",
+  "settings.altWheelVolume": "Громкость музыки",
 
   "settings.playfield": "Игровое поле",
   "settings.simplifyBottomTimeline": "Упростить нижнюю шкалу",

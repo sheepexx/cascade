@@ -397,6 +397,7 @@ export const ALT_WHEEL_ACTIONS = [
   "interfaceScale",
   "timelineZoom",
   "playfieldScale",
+  "volume",
 ] as const;
 
 export type AltWheelAction = (typeof ALT_WHEEL_ACTIONS)[number];

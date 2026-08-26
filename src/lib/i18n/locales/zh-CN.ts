@@ -76,6 +76,7 @@ export const zhCN: PartialCatalog = {
   "settings.altWheelInterface": "界面大小",
   "settings.altWheelTimeline": "时间轴缩放",
   "settings.altWheelPlayfield": "游戏区域大小",
+  "settings.altWheelVolume": "音乐音量",
 
   "settings.playfield": "游戏区域",
   "settings.simplifyBottomTimeline": "简化底部时间轴",

@@ -5,6 +5,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -346,8 +347,13 @@ import {
 } from "./lib/editorKeybinds";
 import { clampUiScale, uiScaleFromWheel } from "./lib/uiScale";
 import {
+  clearUiBreakpointAttributes,
+  syncUiBreakpointAttributes,
+} from "./lib/uiBreakpoints";
+import {
   playfieldScaleFromWheel,
   timelineZoomFromWheel,
+  volumeFromWheel,
 } from "./lib/altWheel";
 import {
   fetchFeatureFlags,
@@ -679,11 +685,19 @@ export default function App() {
   }));
   const appSettingsRef = useRef(appSettings);
   appSettingsRef.current = appSettings;
-  useEffect(() => {
+  // Layout effect so the scaled font size and the breakpoint attributes land
+  // before first paint, instead of flashing an unscaled/compact header.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const previous = root.style.fontSize;
     root.style.fontSize = `${16 * appSettings.uiScale}px`;
+    const syncBreakpoints = () =>
+      syncUiBreakpointAttributes(root, window.innerWidth, appSettings.uiScale);
+    syncBreakpoints();
+    window.addEventListener("resize", syncBreakpoints);
     return () => {
+      window.removeEventListener("resize", syncBreakpoints);
+      clearUiBreakpointAttributes(root);
       root.style.fontSize = previous;
     };
   }, [appSettings.uiScale]);
@@ -1083,6 +1097,10 @@ export default function App() {
     activeRate,
     active.preservePitch === true,
   );
+  // Alt+wheel runs from a window listener mounted once, so it needs a live
+  // handle on the controller rather than the render-time closure.
+  const audioCtlRef = useRef(audio);
+  audioCtlRef.current = audio;
   const currentTimeRef = useRef(audio.getCurrentTime());
   currentTimeRef.current = audio.getCurrentTime();
   const getCurrentTime = audio.getCurrentTime;
@@ -1379,6 +1397,11 @@ export default function App() {
                 e.deltaY,
               ),
             }));
+          } else if (action === "volume") {
+            const controller = audioCtlRef.current;
+            controller.setVolume(
+              volumeFromWheel(controller.getVolume(), e.deltaY),
+            );
           } else {
             setAppSettings((settings) => ({
               ...settings,
@@ -5364,7 +5387,7 @@ export default function App() {
       )}
 
       <header
-        className={`z-30 flex items-center justify-between gap-2 overflow-hidden border-white/10 bg-ink-800/65 px-3 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out xl:gap-4 xl:px-5 ${
+        className={`z-30 flex items-center justify-between gap-2 overflow-hidden border-white/10 bg-ink-800/65 px-3 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out uixl:gap-4 uixl:px-5 ${
           hasProject ? "" : "absolute inset-x-0 top-0"
         } ${
           showHeader
@@ -5374,7 +5397,7 @@ export default function App() {
         aria-hidden={!showHeader}
         {...({ inert: !showHeader ? "" : undefined } as { inert?: string })}
       >
-        <div className="flex min-w-0 items-center gap-2 xl:gap-4">
+        <div className="flex min-w-0 items-center gap-2 uixl:gap-4">
           <div className="flex shrink-0 items-center gap-2.5">
             <button
               type="button"
@@ -5390,7 +5413,7 @@ export default function App() {
                 onDragStart={(e) => e.preventDefault()}
                 className="h-8 w-8 select-none rounded-lg object-cover"
               />
-              <span className="hidden text-sm font-semibold text-slate-100 min-[900px]:inline">
+              <span className="hidden text-sm font-semibold text-slate-100 uimd:inline">
                 Cascade
               </span>
             </button>
@@ -5420,7 +5443,7 @@ export default function App() {
               <MenuButton onClick={() => setModal("difficulty")}>
                 {t("nav.difficulty")}
               </MenuButton>
-              <div className="hidden items-center gap-1 xl:flex">
+              <div className="hidden items-center gap-1 uixl:flex">
                 <MenuButton onClick={() => setModal("tools")}>
                   {t("nav.tools")}
                 </MenuButton>
@@ -5452,7 +5475,7 @@ export default function App() {
                   ↷
                 </IconButton>
               </div>
-              <div className="xl:hidden">
+              <div className="uixl:hidden">
                 <Menu
                   label={t("nav.more")}
                   className="!px-2.5"
@@ -5554,7 +5577,7 @@ export default function App() {
                       ? `${t("file.saveFailed")}: ${saveErrorDetail}`
                       : undefined
                   }
-                  className={`hidden h-8 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium transition lg:flex xl:px-2.5 ${
+                  className={`hidden h-8 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium transition uilg:flex uixl:px-2.5 ${
                     saveStatus === "saving"
                       ? "border-amber-400/15 bg-amber-400/5 text-amber-200"
                       : saveStatus === "saved"
@@ -5571,7 +5594,7 @@ export default function App() {
                           : "bg-red-300"
                     }`}
                   />
-                  <span className="hidden xl:inline">
+                  <span className="hidden uixl:inline">
                     {saveStatus === "saving"
                       ? t("file.saving")
                       : saveStatus === "saved"

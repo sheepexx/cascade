@@ -30,6 +30,7 @@ export function ShortcutsSettings({
     interfaceScale: "interface size",
     timelineZoom: "timeline zoom",
     playfieldScale: "playfield size",
+    volume: "music volume",
   }[altWheelAction];
   const customized = (Object.keys(DEFAULT_EDITOR_KEYBINDS) as EditorAction[])
     .some((action) => keybinds[action] !== DEFAULT_EDITOR_KEYBINDS[action]);

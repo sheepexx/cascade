@@ -79,6 +79,7 @@ export const de: PartialCatalog = {
   "settings.altWheelInterface": "Oberflächengröße",
   "settings.altWheelTimeline": "Zeitleisten-Zoom",
   "settings.altWheelPlayfield": "Spielfeldgröße",
+  "settings.altWheelVolume": "Musiklautstärke",
 
   "settings.playfield": "Spielfeld",
   "settings.simplifyBottomTimeline": "Untere Zeitleiste vereinfachen",
