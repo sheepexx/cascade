@@ -5,6 +5,7 @@ import {
   editorKeybindConflicts,
   matchesBind,
   normalizeEditorKeybinds,
+  snapDivisorForBind,
   timelineZoomDirection,
 } from "./editorKeybinds";
 
@@ -48,6 +49,31 @@ describe("matchesBind", () => {
     expect(matchesBind("NumpadSubtract", "Minus")).toBe(true);
     expect(matchesBind("KeyA", "KeyB")).toBe(false);
     expect(matchesBind("KeyA", "")).toBe(false);
+  });
+
+  it("keeps the default snap shortcuts on the number row", () => {
+    expect(matchesBind("Digit6", DEFAULT_EDITOR_KEYBINDS.snap6)).toBe(true);
+    expect(matchesBind("Numpad6", DEFAULT_EDITOR_KEYBINDS.snap6)).toBe(false);
+    expect(DEFAULT_EDITOR_KEYBINDS).not.toHaveProperty("snap9");
+  });
+});
+
+describe("snapDivisorForBind", () => {
+  it("maps 0 to free snap and 1-8 to their divisors", () => {
+    expect(snapDivisorForBind("Digit0", DEFAULT_EDITOR_KEYBINDS)).toBe(0);
+    for (let divisor = 1; divisor <= 8; divisor++) {
+      expect(
+        snapDivisorForBind(`Digit${divisor}`, DEFAULT_EDITOR_KEYBINDS),
+      ).toBe(divisor);
+    }
+    expect(snapDivisorForBind("Digit9", DEFAULT_EDITOR_KEYBINDS)).toBeNull();
+    expect(snapDivisorForBind("Numpad6", DEFAULT_EDITOR_KEYBINDS)).toBeNull();
+  });
+
+  it("uses customized bindings", () => {
+    const binds = { ...DEFAULT_EDITOR_KEYBINDS, snap6: "KeyG" };
+    expect(snapDivisorForBind("KeyG", binds)).toBe(6);
+    expect(snapDivisorForBind("Digit6", binds)).toBeNull();
   });
 });
 

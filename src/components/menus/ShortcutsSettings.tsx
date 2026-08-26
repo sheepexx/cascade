@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   DEFAULT_EDITOR_KEYBINDS,
+  EDITOR_SNAP_ACTIONS,
   editorKeyLabel,
   editorKeybindConflicts,
   type EditorAction,
@@ -26,6 +27,7 @@ export function ShortcutsSettings({
     .some((action) => keybinds[action] !== DEFAULT_EDITOR_KEYBINDS[action]);
   const row = (action: EditorAction, text: string) => (
     <KeybindRow
+      key={action}
       action={action}
       text={text}
       keybinds={keybinds}
@@ -64,7 +66,6 @@ export function ShortcutsSettings({
           {row("volumeUp", "Raise volume by 5%.")}
           {row("volumeDown", "Lower volume by 5%.")}
           {row("playtestToggle", "Enter or leave playtest mode.")}
-          <ShortcutRow keys="Alt + wheel" text="Change volume over the notefield." />
           <ShortcutRow keys="Speed buttons" text="Set playback rate to 25%, 50%, 75% or 100%." />
         </ShortcutSection>
 
@@ -106,10 +107,17 @@ export function ShortcutsSettings({
 
         <ShortcutSection title="Grid and display">
           <ShortcutRow keys="Snap" text="Choose the grid divisor from 1/1 through 1/48, or Free for any millisecond." />
+          {EDITOR_SNAP_ACTIONS.map(({ action, divisor }) =>
+            row(
+              action,
+              divisor === 0 ? "Set Free snap." : `Set 1/${divisor} snap.`,
+            ),
+          )}
           {row("scrollSpeedDown", "Zoom the editor timeline out.")}
           {row("scrollSpeedUp", "Zoom the editor timeline in.")}
           {row("zoomIn", "Grow the playfield.")}
           {row("zoomOut", "Shrink the playfield.")}
+          <ShortcutRow keys="Alt + wheel" text="Change the interface scale." />
           <ShortcutRow keys="Timeline zoom" text="Change the editor timeline scale. This is not exported." />
           {row("toggleReceptors", "Toggle receptors on or off.")}
           {row("waveformOverlay", "Toggle the waveform overlay on the hit lane.")}

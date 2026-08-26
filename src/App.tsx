@@ -339,9 +339,11 @@ import { hasSv } from "./lib/sv";
 import {
   matchesBind,
   normalizeEditorKeybinds,
+  snapDivisorForBind,
   timelineZoomDirection,
   type EditorAction,
 } from "./lib/editorKeybinds";
+import { clampUiScale, uiScaleFromWheel } from "./lib/uiScale";
 import {
   fetchFeatureFlags,
   loadCachedFlags,
@@ -522,7 +524,7 @@ function normalizeAppSettings(
       : 1;
   const uiScale =
     typeof prefs?.uiScale === "number" && Number.isFinite(prefs.uiScale)
-      ? Math.max(0.75, Math.min(1.5, prefs.uiScale))
+      ? clampUiScale(prefs.uiScale)
       : suggestedUiScale;
   return {
     ...DEFAULT_APP_SETTINGS,
@@ -1099,10 +1101,6 @@ export default function App() {
   }, [appSettings.smoothScrolling, cancelVisualSeek]);
   const audioVolumeRef = useRef(audio.volume);
   audioVolumeRef.current = audio.volume;
-  const changeEditorVolume = useCallback(
-    (delta: number) => setAudioVolume(audioVolumeRef.current + delta),
-    [setAudioVolume],
-  );
   const toggleWaveformOverlay = useCallback(() => {
     setAppSettings((settings) => ({
       ...settings,
@@ -1354,7 +1352,15 @@ export default function App() {
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) e.preventDefault();
+      if (e.altKey) {
+        e.preventDefault();
+        if (e.deltaY !== 0) {
+          setAppSettings((settings) => ({
+            ...settings,
+            uiScale: uiScaleFromWheel(settings.uiScale, e.deltaY),
+          }));
+        }
+      } else if (e.ctrlKey || e.metaKey) e.preventDefault();
     };
     window.addEventListener("contextmenu", onContextMenu);
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -4077,6 +4083,7 @@ export default function App() {
       const isZoomOut = noMod && is("zoomOut");
       const isSlow = noMod && is("slowMo");
       const isBookmark = noMod && is("addBookmark");
+      const snapDivisor = noMod ? snapDivisorForBind(e.code, binds) : null;
       if (
         !isSpace &&
         !isTab &&
@@ -4089,7 +4096,8 @@ export default function App() {
         !isZoomIn &&
         !isZoomOut &&
         !isSlow &&
-        !isBookmark
+        !isBookmark &&
+        snapDivisor === null
       )
         return;
       if (shouldIgnoreHotkey(e)) return;
@@ -4099,7 +4107,8 @@ export default function App() {
         !isTimelineZoomOut &&
         !isTimelineZoomIn &&
         !isZoomIn &&
-        !isZoomOut
+        !isZoomOut &&
+        snapDivisor === null
       )
         return;
       e.preventDefault();
@@ -4117,6 +4126,9 @@ export default function App() {
       }
       else if (isUp) setAudioVolume(audioVolumeRef.current + 0.05);
       else if (isDown) setAudioVolume(audioVolumeRef.current - 0.05);
+      else if (snapDivisor !== null) {
+        setView((v) => ({ ...v, snapDivisor }));
+      }
       else if (isTimelineZoomOut || isTimelineZoomIn) {
         setView((v) => ({
           ...v,
@@ -5800,7 +5812,6 @@ export default function App() {
                 onMoveNotes={moveNotes}
                 onView={setView}
                 onSeek={seekAudio}
-                onVolumeChange={changeEditorVolume}
                 currentHitSound={currentHitSound}
                 currentSampleSet={currentSampleSet}
                 onCurrentHitSound={setCurrentHitSound}
@@ -5893,7 +5904,6 @@ export default function App() {
                       onMoveNotes={noop}
                       onView={noop}
                       onSeek={noop}
-                      onVolumeChange={noop}
                       currentHitSound={0}
                       currentSampleSet={0}
                       onCurrentHitSound={noop}

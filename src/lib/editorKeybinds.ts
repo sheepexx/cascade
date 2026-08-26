@@ -1,5 +1,19 @@
 import { keyLabel } from "./playtestKeybinds";
 
+export const EDITOR_SNAP_ACTIONS = [
+  { action: "snapFree", divisor: 0 },
+  { action: "snap1", divisor: 1 },
+  { action: "snap2", divisor: 2 },
+  { action: "snap3", divisor: 3 },
+  { action: "snap4", divisor: 4 },
+  { action: "snap5", divisor: 5 },
+  { action: "snap6", divisor: 6 },
+  { action: "snap7", divisor: 7 },
+  { action: "snap8", divisor: 8 },
+] as const;
+
+export type EditorSnapAction = (typeof EDITOR_SNAP_ACTIONS)[number]["action"];
+
 // Rebindable single-key editor shortcuts, keyed by KeyboardEvent.code like the
 // playtest lane binds. Ctrl/Cmd combos (save, undo, copy...) and structural
 // keys (Escape, Shift, Delete, arrows) stay fixed — they're listed in the info
@@ -23,6 +37,7 @@ export type EditorAction =
   | "toggleReceptors"
   | "hitsoundMode"
   | "waveformOverlay"
+  | EditorSnapAction
   // Only with a selection.
   | "mirrorSelection"
   | "reverseSelection"
@@ -53,6 +68,15 @@ export const DEFAULT_EDITOR_KEYBINDS: EditorKeybinds = {
   toggleReceptors: "KeyR",
   hitsoundMode: "KeyH",
   waveformOverlay: "KeyW",
+  snapFree: "Digit0",
+  snap1: "Digit1",
+  snap2: "Digit2",
+  snap3: "Digit3",
+  snap4: "Digit4",
+  snap5: "Digit5",
+  snap6: "Digit6",
+  snap7: "Digit7",
+  snap8: "Digit8",
   mirrorSelection: "KeyM",
   reverseSelection: "KeyF",
   shuffleSelection: "KeyS",
@@ -93,6 +117,7 @@ const CONFLICT_GROUPS: EditorAction[][] = [
     "toggleReceptors",
     "hitsoundMode",
     "waveformOverlay",
+    ...EDITOR_SNAP_ACTIONS.map(({ action }) => action),
   ],
   [
     "mirrorSelection",
@@ -115,6 +140,16 @@ export function matchesBind(code: string, bound: string): boolean {
   if (!bound) return false;
   if (code === bound) return true;
   return (CODE_ALIASES[bound] ?? []).includes(code);
+}
+
+export function snapDivisorForBind(
+  code: string,
+  binds: EditorKeybinds,
+): number | null {
+  for (const { action, divisor } of EDITOR_SNAP_ACTIONS) {
+    if (matchesBind(code, binds[action])) return divisor;
+  }
+  return null;
 }
 
 export function timelineZoomDirection(key: string): -1 | 0 | 1 {

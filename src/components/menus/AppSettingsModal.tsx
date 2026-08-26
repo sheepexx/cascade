@@ -20,6 +20,11 @@ import { useLocale, type Locale, type MessageKey } from "../../lib/i18n";
 import { LOCALES } from "../../lib/i18n/core";
 import type { EditorKeybinds } from "../../lib/editorKeybinds";
 import { ShortcutsSettings } from "./ShortcutsSettings";
+import {
+  MAX_UI_SCALE,
+  MIN_UI_SCALE,
+  UI_SCALE_STEP,
+} from "../../lib/uiScale";
 
 type Props = {
   open: boolean;
@@ -310,9 +315,9 @@ export function AppSettingsModal({
               </div>
               <input
                 type="range"
-                min={0.75}
-                max={1.5}
-                step={0.05}
+                min={MIN_UI_SCALE}
+                max={MAX_UI_SCALE}
+                step={UI_SCALE_STEP}
                 value={uiScale}
                 onChange={(e) => onUiScale(Number(e.target.value))}
                 className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"

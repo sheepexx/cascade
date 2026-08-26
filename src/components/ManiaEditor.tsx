@@ -131,7 +131,6 @@ type Props = {
   onMoveNotes: (notes: ManiaNote[]) => void;
   onView: (view: ViewState) => void;
   onSeek: (ms: number, transition?: AudioSeekTransition) => void;
-  onVolumeChange: (delta: number) => void;
   currentHitSound: number;
   currentSampleSet: number;
   onCurrentHitSound: (value: number) => void;
@@ -2613,6 +2612,10 @@ export function ManiaEditor(props: Props) {
       e.preventDefault();
       return;
     }
+    if (e.altKey) {
+      e.preventDefault();
+      return;
+    }
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       const { view } = propsRef.current;
@@ -2631,10 +2634,6 @@ export function ManiaEditor(props: Props) {
       return;
     }
 
-    if (e.altKey) {
-      props.onVolumeChange(e.deltaY < 0 ? 0.05 : -0.05);
-      return;
-    }
     const { timingPoints, view } = propsRef.current;
     const currentTime =
       pendingInteractiveSeekRef.current?.time ??

@@ -1163,6 +1163,7 @@ export function BottomTimeline({
     if (!canvas) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (e.altKey) return;
       const { sensitivity, onSensitivity } = propsRef.current;
       const dir = e.deltaY < 0 ? 1 : -1;
       const next = Math.round(
