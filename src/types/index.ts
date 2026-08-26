@@ -393,9 +393,22 @@ export type PlaytestSettings = {
   skill: SkillSettings;
 };
 
+export const ALT_WHEEL_ACTIONS = [
+  "interfaceScale",
+  "timelineZoom",
+  "playfieldScale",
+] as const;
+
+export type AltWheelAction = (typeof ALT_WHEEL_ACTIONS)[number];
+
+export function isAltWheelAction(value: unknown): value is AltWheelAction {
+  return ALT_WHEEL_ACTIONS.some((action) => action === value);
+}
+
 export type AppSettings = {
   waveformSensitivity: number;
   uiScale: number;
+  altWheelAction: AltWheelAction;
   playfieldScale: number;
   noteHeightScale: number;
   longNoteBodyScale: number;
@@ -464,6 +477,7 @@ export type LoadedSkin = {
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   waveformSensitivity: 1,
   uiScale: 1,
+  altWheelAction: "interfaceScale",
   playfieldScale: 1.5,
   noteHeightScale: 1.35,
   longNoteBodyScale: 0.75,

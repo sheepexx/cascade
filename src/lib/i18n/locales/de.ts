@@ -73,6 +73,12 @@ export const de: PartialCatalog = {
   "settings.uiScale": "Oberflächenskalierung",
   "settings.uiScaleHint":
     "Skaliert Menüs und Bedienelemente für größere oder hochauflösende Bildschirme.",
+  "settings.altWheelAction": "Aktion für Alt + Mausrad",
+  "settings.altWheelHint":
+    "Legt fest, was beim Scrollen mit gedrückter Alt-Taste angepasst wird.",
+  "settings.altWheelInterface": "Oberflächengröße",
+  "settings.altWheelTimeline": "Zeitleisten-Zoom",
+  "settings.altWheelPlayfield": "Spielfeldgröße",
 
   "settings.playfield": "Spielfeld",
   "settings.simplifyBottomTimeline": "Untere Zeitleiste vereinfachen",

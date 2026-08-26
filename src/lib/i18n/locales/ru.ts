@@ -73,6 +73,12 @@ export const ru: PartialCatalog = {
   "settings.uiScale": "Масштаб интерфейса",
   "settings.uiScaleHint":
     "Масштабирует меню и элементы управления для больших экранов с высоким разрешением.",
+  "settings.altWheelAction": "Действие Alt + колесо",
+  "settings.altWheelHint":
+    "Выберите, что изменяется при прокрутке с зажатой клавишей Alt.",
+  "settings.altWheelInterface": "Размер интерфейса",
+  "settings.altWheelTimeline": "Масштаб шкалы времени",
+  "settings.altWheelPlayfield": "Размер игрового поля",
 
   "settings.playfield": "Игровое поле",
   "settings.simplifyBottomTimeline": "Упростить нижнюю шкалу",

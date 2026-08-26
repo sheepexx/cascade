@@ -53,6 +53,7 @@ describe("normalizeAccountSettings", () => {
     );
 
     expect(normalized.appSettings.uiScale).toBe(1.2);
+    expect(normalized.appSettings.altWheelAction).toBe("interfaceScale");
     expect(normalized.appSettings.playtest.zoom).toBe(2);
     expect(normalized.appSettings.playtest.humanize.enabled).toBe(true);
     expect(normalized.appSettings.playtest.humanize.biasMs).toBe(
@@ -64,5 +65,20 @@ describe("normalizeAccountSettings", () => {
     expect(normalized.appSettings.editorKeybinds).toEqual(
       DEFAULT_APP_SETTINGS.editorKeybinds,
     );
+  });
+
+  it("keeps valid Alt-wheel actions and replaces invalid ones", () => {
+    expect(
+      normalizeAccountSettings(
+        { appSettings: { altWheelAction: "timelineZoom" } },
+        fallback,
+      ).appSettings.altWheelAction,
+    ).toBe("timelineZoom");
+    expect(
+      normalizeAccountSettings(
+        { appSettings: { altWheelAction: "volume" } },
+        fallback,
+      ).appSettings.altWheelAction,
+    ).toBe("interfaceScale");
   });
 });

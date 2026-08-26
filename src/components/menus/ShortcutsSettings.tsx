@@ -7,13 +7,16 @@ import {
   type EditorAction,
   type EditorKeybinds,
 } from "../../lib/editorKeybinds";
+import type { AltWheelAction } from "../../types";
 
 export function ShortcutsSettings({
   keybinds,
   onKeybinds,
+  altWheelAction,
 }: {
   keybinds: EditorKeybinds;
   onKeybinds: (keybinds: EditorKeybinds) => void;
+  altWheelAction: AltWheelAction;
 }) {
   const [capturing, setCapturing] = useState<EditorAction | null>(null);
   const bind = (action: EditorAction, code: string | null) => {
@@ -23,6 +26,11 @@ export function ShortcutsSettings({
     });
   };
   const conflicts = editorKeybindConflicts(keybinds);
+  const altWheelTarget = {
+    interfaceScale: "interface size",
+    timelineZoom: "timeline zoom",
+    playfieldScale: "playfield size",
+  }[altWheelAction];
   const customized = (Object.keys(DEFAULT_EDITOR_KEYBINDS) as EditorAction[])
     .some((action) => keybinds[action] !== DEFAULT_EDITOR_KEYBINDS[action]);
   const row = (action: EditorAction, text: string) => (
@@ -117,7 +125,10 @@ export function ShortcutsSettings({
           {row("scrollSpeedUp", "Zoom the editor timeline in.")}
           {row("zoomIn", "Grow the playfield.")}
           {row("zoomOut", "Shrink the playfield.")}
-          <ShortcutRow keys="Alt + wheel" text="Change the interface scale." />
+          <ShortcutRow
+            keys="Alt + wheel"
+            text={`Change ${altWheelTarget}; configure it in Editor settings.`}
+          />
           <ShortcutRow keys="Timeline zoom" text="Change the editor timeline scale. This is not exported." />
           {row("toggleReceptors", "Toggle receptors on or off.")}
           {row("waveformOverlay", "Toggle the waveform overlay on the hit lane.")}

@@ -72,6 +72,11 @@ export const en = {
   "settings.uiScale": "Interface scale",
   "settings.uiScaleHint":
     "Scales menus and controls for larger or higher-resolution displays. New installations start slightly larger on 2K-class screens.",
+  "settings.altWheelAction": "Alt + wheel action",
+  "settings.altWheelHint": "Choose what holding Alt while scrolling adjusts.",
+  "settings.altWheelInterface": "Interface size",
+  "settings.altWheelTimeline": "Timeline zoom",
+  "settings.altWheelPlayfield": "Playfield size",
 
   "settings.layout": "Editor layout",
   "settings.showDifficultyPanel": "Difficulty and map stats panel",

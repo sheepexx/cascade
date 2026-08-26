@@ -73,6 +73,12 @@ export const ptBR: PartialCatalog = {
   "settings.uiScale": "Escala da interface",
   "settings.uiScaleHint":
     "Ajusta menus e controles para telas maiores ou de alta resolução.",
+  "settings.altWheelAction": "Ação de Alt + roda",
+  "settings.altWheelHint":
+    "Escolha o que é ajustado ao rolar com a tecla Alt pressionada.",
+  "settings.altWheelInterface": "Tamanho da interface",
+  "settings.altWheelTimeline": "Zoom da linha do tempo",
+  "settings.altWheelPlayfield": "Tamanho da área de jogo",
 
   "settings.playfield": "Área de jogo",
   "settings.simplifyBottomTimeline": "Simplificar linha do tempo inferior",

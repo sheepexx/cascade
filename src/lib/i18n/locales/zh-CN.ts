@@ -71,6 +71,11 @@ export const zhCN: PartialCatalog = {
   "settings.language": "语言",
   "settings.uiScale": "界面缩放",
   "settings.uiScaleHint": "为更大或更高分辨率的显示器缩放菜单和控件。",
+  "settings.altWheelAction": "Alt + 滚轮操作",
+  "settings.altWheelHint": "选择按住 Alt 滚动时要调整的项目。",
+  "settings.altWheelInterface": "界面大小",
+  "settings.altWheelTimeline": "时间轴缩放",
+  "settings.altWheelPlayfield": "游戏区域大小",
 
   "settings.playfield": "游戏区域",
   "settings.simplifyBottomTimeline": "简化底部时间轴",

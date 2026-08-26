@@ -316,6 +316,7 @@ import {
   MAX_SCROLL_SPEED,
   MIN_SCROLL_SPEED,
   defaultTimingPoints,
+  isAltWheelAction,
   makeDifficulty,
   makeRedPoint,
   normalizeTimingPoints,
@@ -344,6 +345,10 @@ import {
   type EditorAction,
 } from "./lib/editorKeybinds";
 import { clampUiScale, uiScaleFromWheel } from "./lib/uiScale";
+import {
+  playfieldScaleFromWheel,
+  timelineZoomFromWheel,
+} from "./lib/altWheel";
 import {
   fetchFeatureFlags,
   loadCachedFlags,
@@ -530,6 +535,9 @@ function normalizeAppSettings(
     ...DEFAULT_APP_SETTINGS,
     ...(prefs ?? {}),
     uiScale,
+    altWheelAction: isAltWheelAction(prefs?.altWheelAction)
+      ? prefs.altWheelAction
+      : DEFAULT_APP_SETTINGS.altWheelAction,
     playtest: {
       ...DEFAULT_APP_SETTINGS.playtest,
       ...(playtestPrefs ?? {}),
@@ -669,6 +677,8 @@ export default function App() {
   const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
     ...normalizeAppSettings(loadPreferences()),
   }));
+  const appSettingsRef = useRef(appSettings);
+  appSettingsRef.current = appSettings;
   useEffect(() => {
     const root = document.documentElement;
     const previous = root.style.fontSize;
@@ -1355,10 +1365,26 @@ export default function App() {
       if (e.altKey) {
         e.preventDefault();
         if (e.deltaY !== 0) {
-          setAppSettings((settings) => ({
-            ...settings,
-            uiScale: uiScaleFromWheel(settings.uiScale, e.deltaY),
-          }));
+          const action = appSettingsRef.current.altWheelAction;
+          if (action === "timelineZoom") {
+            setView((current) => ({
+              ...current,
+              scrollSpeed: timelineZoomFromWheel(current.scrollSpeed, e.deltaY),
+            }));
+          } else if (action === "playfieldScale") {
+            setAppSettings((settings) => ({
+              ...settings,
+              playfieldScale: playfieldScaleFromWheel(
+                settings.playfieldScale,
+                e.deltaY,
+              ),
+            }));
+          } else {
+            setAppSettings((settings) => ({
+              ...settings,
+              uiScale: uiScaleFromWheel(settings.uiScale, e.deltaY),
+            }));
+          }
         }
       } else if (e.ctrlKey || e.metaKey) e.preventDefault();
     };
@@ -6248,6 +6274,10 @@ export default function App() {
           onClose={close}
           uiScale={appSettings.uiScale}
           onUiScale={(v) => setAppSettings((s) => ({ ...s, uiScale: v }))}
+          altWheelAction={appSettings.altWheelAction}
+          onAltWheelAction={(v) =>
+            setAppSettings((s) => ({ ...s, altWheelAction: v }))
+          }
           playfieldScale={appSettings.playfieldScale}
           onPlayfieldScale={(v) =>
             setAppSettings((s) => ({ ...s, playfieldScale: v }))

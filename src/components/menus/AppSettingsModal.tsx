@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Toggle } from "../ui/Controls";
 import type {
+  AltWheelAction,
   HumanizeSettings,
   PlaytestSettings,
   SkillSettings,
@@ -31,6 +32,8 @@ type Props = {
   onClose: () => void;
   uiScale: number;
   onUiScale: (value: number) => void;
+  altWheelAction: AltWheelAction;
+  onAltWheelAction: (value: AltWheelAction) => void;
   playfieldScale: number;
   onPlayfieldScale: (value: number) => void;
   noteHeightScale: number;
@@ -93,6 +96,15 @@ type Tab = (typeof TABS)[number];
 const SHOW_MANUAL_SKILL_TUNING = false;
 const ENABLE_MANUAL_SKILL_TUNING = false;
 
+const ALT_WHEEL_OPTIONS: {
+  value: AltWheelAction;
+  label: MessageKey;
+}[] = [
+  { value: "interfaceScale", label: "settings.altWheelInterface" },
+  { value: "timelineZoom", label: "settings.altWheelTimeline" },
+  { value: "playfieldScale", label: "settings.altWheelPlayfield" },
+];
+
 const TAB_LABELS: Record<Tab, MessageKey> = {
   Editor: "settings.tabEditor",
   Playtest: "settings.tabPlaytest",
@@ -106,6 +118,8 @@ export function AppSettingsModal({
   onClose,
   uiScale,
   onUiScale,
+  altWheelAction,
+  onAltWheelAction,
   playfieldScale,
   onPlayfieldScale,
   noteHeightScale,
@@ -324,6 +338,27 @@ export function AppSettingsModal({
               />
               <p className="mt-2 text-[11px] text-slate-500">
                 {t("settings.uiScaleHint")}
+              </p>
+              <label className="mt-4 block">
+                <span className="text-xs text-slate-400">
+                  {t("settings.altWheelAction")}
+                </span>
+                <select
+                  value={altWheelAction}
+                  onChange={(e) =>
+                    onAltWheelAction(e.target.value as AltWheelAction)
+                  }
+                  className="mt-2 w-full rounded-lg border border-ink-500/60 bg-ink-700 px-2 py-2 text-sm text-slate-100"
+                >
+                  {ALT_WHEEL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {t(option.label)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="mt-2 text-[11px] text-slate-500">
+                {t("settings.altWheelHint")}
               </p>
             </section>
 
@@ -1190,6 +1225,7 @@ export function AppSettingsModal({
           <ShortcutsSettings
             keybinds={editorKeybinds}
             onKeybinds={onEditorKeybinds}
+            altWheelAction={altWheelAction}
           />
         )}
       </div>

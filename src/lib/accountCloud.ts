@@ -11,6 +11,7 @@ import {
   MAX_SCROLL_SPEED,
   MIN_SCROLL_SPEED,
   SNAP_OPTIONS,
+  isAltWheelAction,
   type AppSettings,
   type HitsoundSkinSource,
   type ViewState,
@@ -80,6 +81,9 @@ export function normalizeAccountSettings(
     ? {
         ...DEFAULT_APP_SETTINGS,
         ...rawApp,
+        altWheelAction: isAltWheelAction(rawApp.altWheelAction)
+          ? rawApp.altWheelAction
+          : DEFAULT_APP_SETTINGS.altWheelAction,
         editorKeybinds: stringRecord(rawApp.editorKeybinds)
           ? rawApp.editorKeybinds
           : DEFAULT_APP_SETTINGS.editorKeybinds,
