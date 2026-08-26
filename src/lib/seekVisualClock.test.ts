@@ -115,6 +115,17 @@ describe("seek visual clock", () => {
     expect(clock.read(30_000, 31)).toBe(30_000);
   });
 
+  it("freezes a transition at its current displayed position", () => {
+    const clock = createSeekVisualClock();
+    clock.begin(1_000, 100_000, "smooth", 0);
+    const frozen = clock.freeze(100_000, 40);
+
+    expect(frozen).toBeGreaterThan(1_000);
+    expect(frozen).toBeLessThan(100_000);
+    expect(clock.active(40)).toBe(false);
+    expect(clock.read(frozen, 1_000)).toBe(frozen);
+  });
+
   it("ignores sub-pixel offsets rather than easing them", () => {
     const clock = createSeekVisualClock();
     clock.begin(10_000, 10_000 + SEEK_SETTLE_MS / 2, "smooth", 0);

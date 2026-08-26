@@ -79,11 +79,17 @@ export function createSeekVisualClock() {
     clearCache();
   };
 
+  const freeze = (liveTime: number, now: number): number => {
+    const visual = read(liveTime, now);
+    cancel();
+    return visual;
+  };
+
   const active = (now: number): boolean => {
     if (offset === 0) return false;
     advance(now);
     return offset !== 0;
   };
 
-  return { read, begin, cancel, active };
+  return { read, begin, cancel, freeze, active };
 }

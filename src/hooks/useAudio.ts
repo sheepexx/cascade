@@ -11,7 +11,11 @@ import {
   NORMAL_FILTER_HZ,
   effectiveAudioPower,
 } from "../lib/audioAtmosphere";
-import { createPlaybackClock } from "../lib/playbackClock";
+import {
+  createPlaybackClock,
+  latencyCompensatedPosition,
+  sourcePositionForAudible,
+} from "../lib/playbackClock";
 import type {
   AudioSeekSignal,
   AudioSeekTransition,
@@ -97,6 +101,7 @@ export function useAudio(
   const positionRef = useRef(0);
   const startCtxTimeRef = useRef(0);
   const startOffsetRef = useRef(0);
+  const audibleStartPositionRef = useRef(0);
   const manualStopRef = useRef(false);
   // Shared by both backends: the Web Audio context ticks once per render
   // quantum and HTMLMediaElement.currentTime is coarser still, so the raw
@@ -305,6 +310,27 @@ export function useAudio(
     return positionRef.current;
   }, [positionAtCtxTime, syncLivePlaybackRate]);
 
+  const outputLatencyMs = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (!ctx) return 0;
+    const lat =
+      typeof ctx.outputLatency === "number" && ctx.outputLatency > 0
+        ? ctx.outputLatency
+        : ctx.baseLatency || 0;
+    return lat * 1000;
+  }, []);
+
+  const audibleWebPosition = useCallback(
+    (sourceSeconds: number): number =>
+      latencyCompensatedPosition(
+        sourceSeconds,
+        outputLatencyMs() / 1000,
+        syncLivePlaybackRate(),
+        audibleStartPositionRef.current,
+      ),
+    [outputLatencyMs, syncLivePlaybackRate],
+  );
+
   const stopWeb = useCallback(
     (savePosition: boolean) => {
       const source = sourceRef.current;
@@ -381,7 +407,13 @@ export function useAudio(
     if (positionRef.current * 1000 >= durMs - 1) {
       seekVisualClockRef.current.cancel();
       positionRef.current = regionStartMs / 1000;
+      currentTimeRef.current = regionStartMs;
     }
+
+    audibleStartPositionRef.current = Math.max(
+      regionStartMs / 1000,
+      Math.min(positionRef.current, currentTimeRef.current / 1000),
+    );
 
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
@@ -588,25 +620,98 @@ export function useAudio(
   }, [startWeb, webAudioActive, effectiveRate]);
 
   const pause = useCallback(() => {
-    clockRef.current.reset();
+    const now = performance.now();
     const audio = audioRef.current;
     const webWasPlaying = sourceRef.current !== null;
+    const visualWasMoving = seekVisualClockRef.current.active(now);
+    const liveRate = syncLivePlaybackRate();
+    const latencySeconds = outputLatencyMs() / 1000;
+    let resumePosition = positionRef.current;
+    let liveAudioPosition = currentTimeRef.current / 1000;
+
     if (webWasPlaying) {
-      stopWeb(true);
+      resumePosition = webPosition();
+      liveAudioPosition = latencyCompensatedPosition(
+        resumePosition,
+        latencySeconds,
+        liveRate,
+        audibleStartPositionRef.current,
+      );
+    } else if (audio && !audio.paused) {
+      resumePosition = clockRef.current.read(
+        audio.currentTime,
+        effectiveRate(),
+        now,
+      );
+      liveAudioPosition = resumePosition;
     }
-    if (audio && !audio.paused) {
-      if (!webWasPlaying) positionRef.current = audio.currentTime;
-      audio.pause();
+
+    const liveMapTime =
+      (liveAudioPosition * 1000) / timeScaleRef.current;
+    const frozenMapTime = seekVisualClockRef.current.freeze(liveMapTime, now);
+    if (visualWasMoving) {
+      const frozenAudioPosition =
+        (frozenMapTime * timeScaleRef.current) / 1000;
+      resumePosition = webWasPlaying
+        ? sourcePositionForAudible(
+            frozenAudioPosition,
+            latencySeconds,
+            liveRate,
+          )
+        : frozenAudioPosition;
     }
-    setCurrentTime(positionRef.current * 1000);
-    currentTimeRef.current = positionRef.current * 1000;
+
+    const regionStart = Math.max(0, regionRef.current?.startMs ?? 0) / 1000;
+    const audioDuration =
+      Number.isFinite(duration) && duration > 0
+        ? duration / 1000
+        : audio && Number.isFinite(audio.duration)
+          ? audio.duration
+          : Number.POSITIVE_INFINITY;
+    const regionEnd = Math.min(
+      audioDuration,
+      (regionRef.current?.endMs ?? Number.POSITIVE_INFINITY) / 1000,
+    );
+    resumePosition = Math.max(
+      regionStart,
+      Math.min(regionEnd, resumePosition),
+    );
+
+    clockRef.current.reset();
+    if (webWasPlaying) stopWeb(false);
+    if (audio && !audio.paused) audio.pause();
+    positionRef.current = resumePosition;
+    if (audio && Number.isFinite(resumePosition)) {
+      audio.currentTime = resumePosition;
+    }
+
+    const frozenAudioPosition = webWasPlaying
+      ? latencyCompensatedPosition(
+          resumePosition,
+          latencySeconds,
+          liveRate,
+          visualWasMoving ? regionStart : audibleStartPositionRef.current,
+        )
+      : resumePosition;
+    const frozenAudioMs = frozenAudioPosition * 1000;
+    setCurrentTime(frozenAudioMs);
+    currentTimeRef.current = frozenAudioMs;
     setIsPlaying(false);
-  }, [stopWeb]);
+  }, [
+    duration,
+    effectiveRate,
+    outputLatencyMs,
+    stopWeb,
+    syncLivePlaybackRate,
+    webPosition,
+  ]);
 
   const toggle = useCallback(() => {
-    if (isPlaying) pause();
+    const audio = audioRef.current;
+    const playing = sourceRef.current !== null || !!audio && !audio.paused;
+    if (playing) pause();
     else play();
-  }, [isPlaying, play, pause]);
+  }, [play, pause]);
 
   const rampElementRate = useCallback((target: number, seconds: number) => {
     const audio = audioRef.current;
@@ -746,23 +851,10 @@ export function useAudio(
     [applyOutputMix],
   );
 
-  const outputLatencyMs = useCallback(() => {
-    const ctx = ctxRef.current;
-    if (!ctx) return 0;
-    const lat =
-      typeof ctx.outputLatency === "number" && ctx.outputLatency > 0
-        ? ctx.outputLatency
-        : ctx.baseLatency || 0;
-    return lat * 1000;
-  }, []);
-
   const getCurrentTime = useCallback(() => {
     const audioMs = (() => {
       if (webAudioActive() && sourceRef.current) {
-        return (
-          webPosition() * 1000 -
-          outputLatencyMs() * syncLivePlaybackRate()
-        );
+        return audibleWebPosition(webPosition()) * 1000;
       }
       const audio = audioRef.current;
       if (!webAudioActive() && audio && !audio.paused) {
@@ -781,8 +873,7 @@ export function useAudio(
     return audioMs / timeScaleRef.current;
   }, [
     webPosition,
-    outputLatencyMs,
-    syncLivePlaybackRate,
+    audibleWebPosition,
     webAudioActive,
     effectiveRate,
   ]);

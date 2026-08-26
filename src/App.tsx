@@ -4144,7 +4144,9 @@ export default function App() {
       else if (isNextBookmark) seekBookmark("next");
       else if (isBookmark) {
         if (!e.repeat) addBookmark(Math.round(currentTimeRef.current));
-      } else if (isSpace) toggleAudio();
+      } else if (isSpace) {
+        if (!e.repeat) toggleAudio();
+      }
       else if (isSlow) {
         if (slowHeldRef.current || e.repeat) return;
         slowHeldRef.current = true;

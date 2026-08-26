@@ -97,7 +97,7 @@ export const TimingModal = memo(function TimingModal({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.code !== "Space" && e.key !== " ") return;
+      if (e.repeat || (e.code !== "Space" && e.key !== " ")) return;
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName;
       if (

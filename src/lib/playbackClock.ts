@@ -27,6 +27,36 @@ const RESYNC_SECONDS = 0.5;
 /** How hard each update pulls the extrapolation back toward the truth. */
 const BLEND = 0.3;
 
+export function latencyCompensatedPosition(
+  sourceSeconds: number,
+  outputLatencySeconds: number,
+  rate: number,
+  minimumSeconds = 0,
+): number {
+  const safeLatency =
+    Number.isFinite(outputLatencySeconds) && outputLatencySeconds > 0
+      ? outputLatencySeconds
+      : 0;
+  const safeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+  return Math.max(
+    minimumSeconds,
+    sourceSeconds - safeLatency * safeRate,
+  );
+}
+
+export function sourcePositionForAudible(
+  audibleSeconds: number,
+  outputLatencySeconds: number,
+  rate: number,
+): number {
+  const safeLatency =
+    Number.isFinite(outputLatencySeconds) && outputLatencySeconds > 0
+      ? outputLatencySeconds
+      : 0;
+  const safeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+  return audibleSeconds + safeLatency * safeRate;
+}
+
 export function createPlaybackClock(): PlaybackClock {
   let started = false;
   let lastSource = 0;

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { createPlaybackClock } from "./playbackClock";
+import {
+  createPlaybackClock,
+  latencyCompensatedPosition,
+  sourcePositionForAudible,
+} from "./playbackClock";
 
 /**
  * Drive a clock through `frames` of 144Hz playback against a backend that only
@@ -98,5 +102,31 @@ describe("createPlaybackClock", () => {
       expect(out).toBeGreaterThanOrEqual(prev);
       prev = out;
     }
+  });
+});
+
+describe("output latency position conversion", () => {
+  it("keeps the displayed position identical across pause and resume", () => {
+    const source = 12;
+    const latency = 0.05;
+    const rate = 1.5;
+    const audible = latencyCompensatedPosition(source, latency, rate);
+    const resumedSource = sourcePositionForAudible(audible, latency, rate);
+
+    expect(audible).toBeCloseTo(11.925, 8);
+    expect(resumedSource).toBeCloseTo(source, 8);
+    expect(
+      latencyCompensatedPosition(resumedSource, latency, rate),
+    ).toBeCloseTo(audible, 8);
+  });
+
+  it("preserves map time when an audio source has a time scale", () => {
+    const audioSeconds = latencyCompensatedPosition(12, 0.05, 1.5);
+    expect((audioSeconds * 1000) / 1.2).toBeCloseTo(9_937.5, 8);
+  });
+
+  it("never reports a point before the playback region", () => {
+    expect(latencyCompensatedPosition(5.02, 0.05, 1, 5)).toBe(5);
+    expect(latencyCompensatedPosition(0.02, 0.05, 1)).toBe(0);
   });
 });
