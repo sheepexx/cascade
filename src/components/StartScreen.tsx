@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
+import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { useAuth } from "../lib/auth";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
@@ -31,7 +32,6 @@ const PANEL_MIN = 104;
 const BG_FADE_MS = 900;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
-const PHONE_MAX_WIDTH = 720;
 const RING_RATIO = 0.42;
 const ROUNDS = 3;
 const BARS = 32;
@@ -85,29 +85,6 @@ const KIAI_GLOW_STOPS = Array.from({ length: 13 }, (_, i) => {
 const KIAI_GLOW_LEFT = `linear-gradient(to right, ${KIAI_GLOW_STOPS})`;
 const KIAI_GLOW_RIGHT = `linear-gradient(to left, ${KIAI_GLOW_STOPS})`;
 
-function isPhoneViewport(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia?.("(pointer: coarse)").matches === true &&
-    window.innerWidth < PHONE_MAX_WIDTH
-  );
-}
-
-export function usePhoneViewport(): boolean {
-  const [phone, setPhone] = useState(isPhoneViewport);
-  useEffect(() => {
-    const update = () => setPhone(isPhoneViewport());
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
-    };
-  }, []);
-  return phone;
-}
-
 function PhoneStart({
   music,
   players,
@@ -129,7 +106,9 @@ function PhoneStart({
           viewportKey="phone"
         />
 
-        <div className="relative px-5 pt-14">
+        {/* Clears the floating header, which on phones is the only way to
+            reach sign-in and the account menu. */}
+        <div className="relative px-5 pt-24">
           <div className="flex flex-col items-center text-center">
             <img
               src="/logo.png?v=3"

@@ -21,6 +21,7 @@ import {
 } from "./lib/aimod";
 import type { SampleMap } from "./components/menus/StartModal";
 import { StartScreen } from "./components/StartScreen";
+import { usePhoneViewport } from "./hooks/usePhoneViewport";
 import { useOnlinePresence } from "./hooks/useOnlinePresence";
 import {
   findSharedMapForProject,
@@ -674,6 +675,7 @@ export default function App() {
   }, []);
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const phoneViewport = usePhoneViewport();
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const [pendingDeleteDiffIds, setPendingDeleteDiffIds] = useState<
     string[] | null
@@ -1996,7 +1998,6 @@ export default function App() {
   const showChrome = hasProject && !zenMode && !playtest.active;
   const diffPanelOpen = appSettings.difficultyPanelOpen !== false;
   const diffPanelShown = showChrome && diffPanelOpen;
-  const showHeader = !zenMode && (hasProject || menuOpen);
   const showChromeRef = useRef(showChrome);
   showChromeRef.current = showChrome;
   const playtestVisualOffset =
@@ -2287,6 +2288,13 @@ export default function App() {
   const [sharedSlug, setSharedSlug] = useState<string | null>(() =>
     typeof location === "undefined" ? null : slugFromPath(location.pathname),
   );
+
+  // Phones never open the radial start menu, so without the phone clause the
+  // header — and with it sign-in, the account menu and the admin panel —
+  // would be unreachable on mobile. The shared-map page draws its own
+  // Cascade header, so the floating one would collide with it there.
+  const showHeader =
+    !zenMode && (hasProject || menuOpen || (phoneViewport && !sharedSlug));
 
   const importMapFile = useCallback(async (
     file: File,

@@ -125,7 +125,7 @@ export function AccountControl({
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: PointerEvent) => {
       const t = e.target as Node;
       if (
         ref.current?.contains(t) ||
@@ -135,11 +135,13 @@ export function AccountControl({
       setOpen(false);
     };
     const onScrollOrResize = () => setOpen(false);
-    window.addEventListener("mousedown", onDown);
+    // pointerdown rather than mousedown so a tap outside closes the menu on
+    // touch devices, where emulated mouse events are not guaranteed.
+    window.addEventListener("pointerdown", onDown);
     window.addEventListener("resize", onScrollOrResize);
     window.addEventListener("scroll", onScrollOrResize, true);
     return () => {
-      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("pointerdown", onDown);
       window.removeEventListener("resize", onScrollOrResize);
       window.removeEventListener("scroll", onScrollOrResize, true);
     };

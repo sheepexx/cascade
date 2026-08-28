@@ -80,37 +80,43 @@ export function AdminPanel({
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-ink-900">
-      <header className="flex items-center justify-between border-b border-ink-600 bg-ink-800 px-5 py-3">
-        <div className="flex items-center gap-4">
-          <h1 className="text-sm font-semibold text-slate-100">Admin</h1>
-          <nav className="flex items-center gap-1">
-            {([
-              "stats",
-              "presets",
-              "users",
-              "projects",
-              "previews",
-              "feedback",
-              "notifications",
-              "settings",
-            ] as Tab[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`rounded-md px-3 py-1.5 text-sm capitalize transition ${
-                  tab === t
-                    ? "bg-ink-600 text-slate-100"
-                    : "text-slate-300 hover:bg-ink-700"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </nav>
-        </div>
-        <Button onClick={onClose}>Close</Button>
+      {/* Eight tabs never fit a phone. Below `sm` the title and Close take the
+          first row and the tab strip gets a full-width row of its own that
+          scrolls sideways; from `sm` up the three sit on one line as before. */}
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink-600 bg-ink-800 px-3 py-3 sm:flex-nowrap sm:px-5">
+        <h1 className="shrink-0 text-sm font-semibold text-slate-100">Admin</h1>
+        <Button
+          onClick={onClose}
+          className="order-1 ml-auto shrink-0 sm:order-3"
+        >
+          Close
+        </Button>
+        <nav className="order-2 -mx-3 flex w-full items-center gap-1 overflow-x-auto px-3 sm:mx-0 sm:w-auto sm:min-w-0 sm:flex-1 sm:px-0">
+          {([
+            "stats",
+            "presets",
+            "users",
+            "projects",
+            "previews",
+            "feedback",
+            "notifications",
+            "settings",
+          ] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm capitalize transition ${
+                tab === t
+                  ? "bg-ink-600 text-slate-100"
+                  : "text-slate-300 hover:bg-ink-700"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </nav>
       </header>
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-5">
         {tab === "stats" && <StatsTab />}
         {tab === "presets" && <PresetsTab />}
         {tab === "users" && <UsersTab />}
@@ -198,37 +204,39 @@ function StatsTab() {
               </p>
             )}
             {events && events.length > 0 && (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="pb-2 font-medium">Event</th>
-                    <th className="pb-2 text-right font-medium">7 days</th>
-                    <th className="pb-2 text-right font-medium">30 days</th>
-                    <th className="pb-2 text-right font-medium">All time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((row) => (
-                    <tr
-                      key={row.event_type}
-                      className="border-t border-ink-600/60"
-                    >
-                      <td className="py-1.5 font-mono text-xs text-slate-200">
-                        {row.event_type}
-                      </td>
-                      <td className="py-1.5 text-right font-mono text-xs text-slate-400">
-                        {row.last_7d}
-                      </td>
-                      <td className="py-1.5 text-right font-mono text-xs text-slate-400">
-                        {row.last_30d}
-                      </td>
-                      <td className="py-1.5 text-right font-mono text-xs text-slate-300">
-                        {row.total}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[26rem] text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="pb-2 font-medium">Event</th>
+                      <th className="pb-2 text-right font-medium">7 days</th>
+                      <th className="pb-2 text-right font-medium">30 days</th>
+                      <th className="pb-2 text-right font-medium">All time</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {events.map((row) => (
+                      <tr
+                        key={row.event_type}
+                        className="border-t border-ink-600/60"
+                      >
+                        <td className="py-1.5 font-mono text-xs text-slate-200">
+                          {row.event_type}
+                        </td>
+                        <td className="py-1.5 text-right font-mono text-xs text-slate-400">
+                          {row.last_7d}
+                        </td>
+                        <td className="py-1.5 text-right font-mono text-xs text-slate-400">
+                          {row.last_30d}
+                        </td>
+                        <td className="py-1.5 text-right font-mono text-xs text-slate-300">
+                          {row.total}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
           <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
@@ -810,38 +818,40 @@ function UserDetail({
           </p>
         )}
         {events && events.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                <th className="pb-2 font-medium">Event</th>
-                <th className="pb-2 text-right font-medium">7 days</th>
-                <th className="pb-2 text-right font-medium">30 days</th>
-                <th className="pb-2 text-right font-medium">All time</th>
-                <th className="pb-2 text-right font-medium">Last</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((row) => (
-                <tr key={row.event_type} className="border-t border-ink-600/60">
-                  <td className="py-1.5 font-mono text-xs text-slate-200">
-                    {row.event_type}
-                  </td>
-                  <td className="py-1.5 text-right font-mono text-xs text-slate-400">
-                    {row.last_7d}
-                  </td>
-                  <td className="py-1.5 text-right font-mono text-xs text-slate-400">
-                    {row.last_30d}
-                  </td>
-                  <td className="py-1.5 text-right font-mono text-xs text-slate-300">
-                    {row.total}
-                  </td>
-                  <td className="py-1.5 text-right text-xs text-slate-500">
-                    {formatMoment(row.last_at)}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[26rem] text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="pb-2 font-medium">Event</th>
+                  <th className="pb-2 text-right font-medium">7 days</th>
+                  <th className="pb-2 text-right font-medium">30 days</th>
+                  <th className="pb-2 text-right font-medium">All time</th>
+                  <th className="pb-2 text-right font-medium">Last</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {events.map((row) => (
+                  <tr key={row.event_type} className="border-t border-ink-600/60">
+                    <td className="py-1.5 font-mono text-xs text-slate-200">
+                      {row.event_type}
+                    </td>
+                    <td className="py-1.5 text-right font-mono text-xs text-slate-400">
+                      {row.last_7d}
+                    </td>
+                    <td className="py-1.5 text-right font-mono text-xs text-slate-400">
+                      {row.last_30d}
+                    </td>
+                    <td className="py-1.5 text-right font-mono text-xs text-slate-300">
+                      {row.total}
+                    </td>
+                    <td className="py-1.5 text-right text-xs text-slate-500">
+                      {formatMoment(row.last_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

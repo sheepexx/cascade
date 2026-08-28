@@ -75,9 +75,9 @@ export function MyMapsModal({
           {maps.map((m) => (
             <li
               key={m.id}
-              className="flex items-center gap-3 rounded-xl border border-ink-500/60 bg-ink-700/40 p-3"
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-500/60 bg-ink-700/40 p-3"
             >
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-48">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-semibold text-slate-100">
                     {m.title || "Untitled"}
@@ -96,22 +96,26 @@ export function MyMapsModal({
                   saved {new Date(m.updated_at).toLocaleString()}
                 </div>
               </div>
-              <Button
-                variant="accent"
-                onClick={() => onSelect(m.id)}
-                disabled={busyId !== null}
-              >
-                Open
-              </Button>
-              {user && m.owner === user.id && (
+              {/* Kept together so the pair wraps below the details on a phone
+                  instead of squeezing the title down to a few characters. */}
+              <div className="flex shrink-0 items-center gap-2">
                 <Button
-                  onClick={() => setConfirmId(m.id)}
+                  variant="accent"
+                  onClick={() => onSelect(m.id)}
                   disabled={busyId !== null}
-                  title="Delete this saved map"
                 >
-                  {busyId === m.id ? "…" : "Delete"}
+                  Open
                 </Button>
-              )}
+                {user && m.owner === user.id && (
+                  <Button
+                    onClick={() => setConfirmId(m.id)}
+                    disabled={busyId !== null}
+                    title="Delete this saved map"
+                  >
+                    {busyId === m.id ? "…" : "Delete"}
+                  </Button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
