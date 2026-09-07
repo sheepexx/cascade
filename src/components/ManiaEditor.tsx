@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -35,11 +36,8 @@ import {
   matchesBind,
   type EditorKeybinds,
 } from "../lib/editorKeybinds";
-import {
-  notesToPattern,
-  patternToNotes,
-  type PatternNote,
-} from "../lib/patterns";
+import { notesToPattern, type PatternNote } from "../lib/patterns";
+import { isClipboardTextTarget, prepareNotePaste } from "../lib/editorClipboard";
 import type { Waveform } from "../hooks/useWaveform";
 import {
   consumeLocalSeekSignal,
@@ -140,6 +138,7 @@ type Props = {
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
   pendingClip?: { id: string; pattern: PatternNote[] } | null;
   readOnly?: boolean;
+  keyboardShortcuts?: boolean;
   playtestMode?: boolean;
   heldLnIdsRef?: { readonly current: { has(id: string): boolean } };
   consumedIdsRef?: { readonly current: { has(id: string): boolean } };
@@ -301,6 +300,13 @@ export function ManiaEditor(props: Props) {
   const [selectionCount, setSelectionCount] = useState(0);
   const [clipboard, setClipboard] = useState<Clip | null>(null);
   const [history, setHistory] = useState<Clip[]>([]);
+  const [clipboardStatus, setClipboardStatus] = useState("");
+
+  useEffect(() => {
+    if (!clipboardStatus) return;
+    const timer = window.setTimeout(() => setClipboardStatus(""), 6000);
+    return () => window.clearTimeout(timer);
+  }, [clipboardStatus]);
 
   useEffect(() => {
     if (hitsoundMode) {
@@ -328,7 +334,10 @@ export function ManiaEditor(props: Props) {
   const shiftActiveRef = useRef(false);
   const selectedNoteIdsRef = useRef<Set<string>>(new Set());
   const clipboardRef = useRef<Clip | null>(null);
-  clipboardRef.current = clipboard;
+  const activateClip = useCallback((clip: Clip | null) => {
+    clipboardRef.current = clip;
+    setClipboard(clip);
+  }, []);
 
   const lastPendingClipRef = useRef<string | null>(null);
   useEffect(() => {
@@ -336,9 +345,10 @@ export function ManiaEditor(props: Props) {
     if (!pc || pc.id === lastPendingClipRef.current) return;
     lastPendingClipRef.current = pc.id;
     const clip: Clip = { id: pc.id, notes: pc.pattern };
-    setClipboard(clip);
+    activateClip(clip);
     setHistory((prev) => [clip, ...prev].slice(0, 8));
-  }, [props.pendingClip]);
+    setClipboardStatus(`Copied ${clip.notes.length} notes from preset.`);
+  }, [props.pendingClip, activateClip]);
 
   const propsRef = useRef(props);
   propsRef.current = props;
@@ -486,6 +496,7 @@ export function ManiaEditor(props: Props) {
   const setSelection = useCallback((ids: Set<string>) => {
     selectedNoteIdsRef.current = ids;
     setSelectionCount(ids.size);
+    markDirty();
     const report = propsRef.current.onSelectionRange;
     if (!report) return;
     if (!ids.size) {
@@ -503,7 +514,15 @@ export function ManiaEditor(props: Props) {
     report(
       Number.isFinite(start) ? { start, end, count: ids.size } : null,
     );
-  }, []);
+  }, [markDirty]);
+
+  useLayoutEffect(() => {
+    const selected = selectedNoteIdsRef.current;
+    if (!selected.size) return;
+    setSelection(
+      new Set(props.notes.filter((n) => selected.has(n.id)).map((n) => n.id)),
+    );
+  }, [props.notes, setSelection]);
 
   useEffect(() => {
     if (!props.playtestMode) return;
@@ -526,35 +545,34 @@ export function ManiaEditor(props: Props) {
   const copySelection = useCallback((): Clip | null => {
     const { notes, timingPoints } = propsRef.current;
     const selected = notes.filter((n) => selectedNoteIdsRef.current.has(n.id));
-    if (!selected.length) return null;
+    if (!selected.length) {
+      setClipboardStatus("Select notes to copy.");
+      return null;
+    }
     const clip: Clip = {
       id: uid("clip"),
       notes: notesToPattern(selected, timingPoints),
     };
-    setClipboard(clip);
+    activateClip(clip);
     setHistory((prev) => [clip, ...prev].slice(0, 8));
+    setClipboardStatus(
+      `Copied ${selected.length} note${selected.length === 1 ? "" : "s"}.`,
+    );
     return clip;
-  }, []);
+  }, [activateClip]);
 
   const deleteSelection = useCallback(() => {
+    if (propsRef.current.readOnly) return;
     const ids = [...selectedNoteIdsRef.current];
     if (!ids.length) return;
     propsRef.current.onDeleteNotes(ids);
     setSelection(new Set());
-  }, [liveCurrentTime, setSelection]);
+  }, [setSelection]);
 
   const cutSelection = useCallback(() => {
+    if (propsRef.current.readOnly) return;
     if (copySelection()) deleteSelection();
   }, [copySelection, deleteSelection]);
-
-  const mirrorSelection = useCallback(() => {
-    const ids = selectedNoteIdsRef.current;
-    if (!ids.size) return;
-    const { notes, keyCount } = propsRef.current;
-    const selected = notes.filter((n) => ids.has(n.id));
-    if (!selected.length) return;
-    propsRef.current.onMoveNotes(mirrorColumns(selected, keyCount));
-  }, []);
 
   /**
    * Run a transform over the selected notes and commit it, unless the result
@@ -565,6 +583,7 @@ export function ManiaEditor(props: Props) {
     (
       transform: (selected: ManiaNote[], keyCount: number) => ManiaNote[],
     ): boolean => {
+      if (propsRef.current.readOnly) return false;
       const ids = selectedNoteIdsRef.current;
       if (!ids.size) return false;
       const { notes, keyCount } = propsRef.current;
@@ -572,9 +591,19 @@ export function ManiaEditor(props: Props) {
       if (!selected.length) return false;
       const moved = transform(selected, keyCount);
       if (moved === selected) return false;
+      const boundedIds = new Set(
+        selected
+          .filter((n) => inBounds(n.startTime, n.endTime ?? n.startTime))
+          .map((n) => n.id),
+      );
       if (
         moved.some(
-          (n) => n.startTime < 0 || n.column < 0 || n.column >= keyCount,
+          (n) =>
+            n.startTime < 0 ||
+            n.column < 0 ||
+            n.column >= keyCount ||
+            (!inBounds(n.startTime, n.endTime ?? n.startTime) &&
+              boundedIds.has(n.id)),
         )
       ) {
         return false;
@@ -587,8 +616,12 @@ export function ManiaEditor(props: Props) {
       propsRef.current.onMoveNotes(moved);
       return true;
     },
-    [],
+    [inBounds],
   );
+
+  const mirrorSelection = useCallback(() => {
+    transformSelection(mirrorColumns);
+  }, [transformSelection]);
 
   const reverseSelection = useCallback(() => {
     transformSelection((selected) => reverseTime(selected));
@@ -639,23 +672,32 @@ export function ManiaEditor(props: Props) {
   );
 
   const paste = useCallback(() => {
+    if (propsRef.current.readOnly) return;
     const clip = clipboardRef.current;
-    if (!clip) return;
+    if (!clip) {
+      setClipboardStatus("Copy some notes before pasting.");
+      return;
+    }
     const { timingPoints, view, keyCount, notes } = propsRef.current;
-    const currentTime = liveCurrentTime();
-    const base = snapTime(currentTime, timingPoints, view.snapDivisor);
-    const newNotes: ManiaNote[] = withoutNoteCollisions(
-      patternToNotes(clip.notes, base, keyCount, timingPoints).filter((n) =>
-        inBounds(n.startTime, n.endTime ?? n.startTime),
-      ),
+    const currentTime =
+      pendingInteractiveSeekRef.current?.time ?? propsRef.current.getCurrentTime();
+    const result = prepareNotePaste(
+      clip.notes,
+      currentTime,
+      keyCount,
+      timingPoints,
+      view.snapDivisor,
       notes,
+      playableBounds(propsRef.current),
     );
-    if (!newNotes.length) return;
-    propsRef.current.onAddNotes(newNotes);
-    setSelection(new Set(newNotes.map((n) => n.id)));
-  }, [inBounds, setSelection]);
+    setClipboardStatus(result.message);
+    if (!result.notes.length) return;
+    propsRef.current.onAddNotes(result.notes);
+    setSelection(new Set(result.notes.map((n) => n.id)));
+  }, [setSelection]);
 
   const toggleAddition = useCallback((bit: number) => {
+    if (propsRef.current.readOnly) return;
     const ids = selectedNoteIdsRef.current;
     if (ids.size) {
       const selected = propsRef.current.notes.filter((n) => ids.has(n.id));
@@ -671,6 +713,7 @@ export function ManiaEditor(props: Props) {
   }, []);
 
   const setSampleSet = useCallback((set: number) => {
+    if (propsRef.current.readOnly) return;
     propsRef.current.onCurrentSampleSet(set);
     const ids = selectedNoteIdsRef.current;
     if (ids.size) {
@@ -684,6 +727,7 @@ export function ManiaEditor(props: Props) {
   }, []);
 
   useEffect(() => {
+    if (props.keyboardShortcuts === false) return;
     const setShift = (active: boolean) => {
       shiftActiveRef.current = active;
       setShiftActive(active);
@@ -808,7 +852,12 @@ export function ManiaEditor(props: Props) {
           return;
         }
       }
-      if (!(e.ctrlKey || e.metaKey) || isTyping(e.target)) return;
+      if (
+        !(e.ctrlKey || e.metaKey) ||
+        e.altKey ||
+        dialogIsOpen() ||
+        isClipboardTextTarget(e.target)
+      ) return;
       const key = e.key.toLowerCase();
       if (key === "c") {
         if (copySelection()) e.preventDefault();
@@ -821,10 +870,8 @@ export function ManiaEditor(props: Props) {
           cutSelection();
         }
       } else if (key === "v") {
-        if (clipboardRef.current) {
-          e.preventDefault();
-          paste();
-        }
+        e.preventDefault();
+        paste();
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -850,6 +897,10 @@ export function ManiaEditor(props: Props) {
       window.removeEventListener("blur", onBlur);
     };
   }, [
+    props.keyboardShortcuts,
+    deleteSelection,
+    markDirty,
+    setSelection,
     copySelection,
     cutSelection,
     paste,
@@ -2263,6 +2314,8 @@ export function ManiaEditor(props: Props) {
       e.preventDefault();
       return;
     }
+    e.preventDefault();
+    canvasRef.current?.focus({ preventScroll: true });
     const { x, y } = localPoint(e);
     if (props.readOnly && !(e.shiftKey || shiftActiveRef.current)) return;
     const hit = findNoteAt(x, y);
@@ -2483,7 +2536,7 @@ export function ManiaEditor(props: Props) {
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (props.playtestMode) return;
+    if (props.playtestMode || props.readOnly) return;
     const { x, y } = localPoint(e);
     const note = findNoteAt(x, y);
     if (!note) return;
@@ -2675,6 +2728,8 @@ export function ManiaEditor(props: Props) {
     >
       <canvas
         ref={canvasRef}
+        tabIndex={props.keyboardShortcuts === false ? -1 : 0}
+        aria-label="Note editor"
         className={`block h-full w-full touch-none ${
           props.playtestMode
             ? "cursor-default"
@@ -2689,6 +2744,11 @@ export function ManiaEditor(props: Props) {
         onPointerLeave={onPointerLeave}
         onWheel={onWheel}
       />
+      {!props.playtestMode && clipboardStatus && (
+        <div role="status" className="pointer-events-none absolute bottom-14 left-3 right-3 z-20 mx-auto w-fit max-w-md rounded-md border border-ink-600 bg-ink-900/95 px-3 py-2 text-xs text-slate-200 shadow-lg">
+          {clipboardStatus}
+        </div>
+      )}
       {!props.hideHints && !props.playtestMode && (
         <div
           className={`pointer-events-none absolute right-3 top-3 select-none rounded-md border border-yellow-300/40 bg-yellow-500/15 px-3 py-1.5 text-xs font-medium text-yellow-100 shadow-lg transition-[opacity,transform] duration-150 ${
@@ -2739,11 +2799,16 @@ export function ManiaEditor(props: Props) {
       )}
 
       {selectionCount > 0 && !props.playtestMode && (
-        <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 select-none items-center gap-1 rounded-lg border border-yellow-300/30 bg-ink-800/92 p-1 text-[11px] text-slate-200 shadow-xl backdrop-blur">
+        <div className="absolute left-1/2 top-3 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 select-none flex-wrap items-center justify-center gap-1 rounded-lg border border-yellow-300/30 bg-ink-800/92 p-1 text-[11px] text-slate-200 shadow-xl backdrop-blur">
           <span className="font-medium text-yellow-200">
             {selectionCount} selected
           </span>
           <span className="mx-0.5 h-4 w-px bg-white/10" />
+          <SelectionActionButton
+            label="Copy"
+            title="Copy selection (Ctrl+C)"
+            onClick={copySelection}
+          />
           <SelectionActionButton
             label="←"
             title="Move one lane left (Left Arrow)"
@@ -2806,8 +2871,9 @@ export function ManiaEditor(props: Props) {
               <button
                 type="button"
                 onClick={() => {
-                  setClipboard(null);
+                  activateClip(null);
                   setHistory([]);
+                  setClipboardStatus("");
                 }}
                 className="rounded px-1 py-0.5 text-[10px] text-slate-500 transition hover:bg-ink-600 hover:text-slate-200"
                 title="Clear the clipboard and pasteboard history"
@@ -2827,6 +2893,15 @@ export function ManiaEditor(props: Props) {
                 </span>
                 <SnapBadge pattern={clipboard.notes} />
               </div>
+              <button
+                type="button"
+                onClick={paste}
+                disabled={props.readOnly}
+                className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-ink-600 disabled:opacity-40"
+                title="Paste at the playhead (Ctrl+V)"
+              >
+                Paste at playhead
+              </button>
               {props.onPublishPattern && (
                 <button
                   type="button"
@@ -2856,7 +2931,10 @@ export function ManiaEditor(props: Props) {
                 {history.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => setClipboard(item)}
+                    onClick={() => {
+                      activateClip(item);
+                      setClipboardStatus(`${item.notes.length} notes ready to paste.`);
+                    }}
                     className={`flex items-center gap-2 rounded-md border px-1.5 py-1 text-left transition ${
                       item.id === clipboard?.id
                         ? "border-yellow-300/50 bg-yellow-500/10"
@@ -2982,7 +3060,7 @@ function HitsoundAddBtn({
 
 type ClipPreviewSize = "small" | "normal" | "large";
 
-function ClipPreview({
+const ClipPreview = memo(function ClipPreview({
   clip,
   keyCount,
   size = "normal",
@@ -2995,52 +3073,44 @@ function ClipPreview({
   const w = Math.max(1, keyCount) * cellW;
   const h = size === "small" ? 22 : size === "large" ? 160 : 44;
   const pad = size === "large" ? 6 : 3;
-  const maxTime = Math.max(
-    1,
-    ...clip.notes.map((n) => n.endTime ?? n.startTime),
-  );
-  const ty = (t: number) => h - pad - (t / maxTime) * (h - 2 * pad);
   const riceH = size === "large" ? 6 : 3;
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.ceil(w * dpr);
+    canvas.height = Math.ceil(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const maxTime = clip.notes.reduce(
+      (max, n) => Math.max(max, n.endTime ?? n.startTime),
+      1,
+    );
+    const ty = (time: number) => h - pad - (time / maxTime) * (h - 2 * pad);
+    for (const n of clip.notes) {
+      const x = n.column * cellW + 0.5;
+      const hold = n.endTime !== undefined && n.endTime > n.startTime;
+      const top = hold ? ty(n.endTime!) : ty(n.startTime) - riceH / 2;
+      const height = hold ? Math.max(2, ty(n.startTime) - top) : riceH;
+      ctx.fillStyle = hold
+        ? "rgba(232,104,104,0.85)"
+        : n.column % 2 === 0 ? "#e9e9f0" : "#5bc0ff";
+      roundRect(ctx, x, top, cellW - 1, height, 1);
+      ctx.fill();
+    }
+  }, [clip, cellW, w, h, pad, riceH]);
   return (
-    <svg
+    <canvas
+      ref={ref}
       width={w}
       height={h}
+      style={{ width: w, height: h }}
       className="shrink-0 rounded bg-ink-900/70"
       aria-hidden
-    >
-      {clip.notes.map((n, i) => {
-        const x = n.column * cellW + 0.5;
-        if (n.endTime !== undefined && n.endTime > n.startTime) {
-          const top = ty(n.endTime);
-          const bottom = ty(n.startTime);
-          return (
-            <rect
-              key={i}
-              x={x}
-              y={top}
-              width={cellW - 1}
-              height={Math.max(2, bottom - top)}
-              rx={1}
-              fill="#e86868"
-              opacity={0.85}
-            />
-          );
-        }
-        return (
-          <rect
-            key={i}
-            x={x}
-            y={ty(n.startTime) - riceH / 2}
-            width={cellW - 1}
-            height={riceH}
-            rx={1}
-            fill={n.column % 2 === 0 ? "#e9e9f0" : "#5bc0ff"}
-          />
-        );
-      })}
-    </svg>
+    />
   );
-}
+});
 
 function SelectionActionButton({
   label,

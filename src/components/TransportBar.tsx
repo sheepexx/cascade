@@ -225,6 +225,7 @@ export function TransportBar({
             max={MAX_SCROLL_SPEED}
             step={1}
             value={view.scrollSpeed}
+            aria-label="Timeline zoom"
             onChange={(e) =>
               onView({ ...view, scrollSpeed: Number(e.target.value) })
             }

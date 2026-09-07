@@ -34,7 +34,7 @@ export function notesToPattern(
   points: TimingPoint[],
 ): PatternNote[] {
   if (!notes.length) return [];
-  const anchor = Math.min(...notes.map((n) => n.startTime));
+  const anchor = notes.reduce((min, n) => Math.min(min, n.startTime), Infinity);
   return notes
     .map((n) => {
       const note: PatternNote = {

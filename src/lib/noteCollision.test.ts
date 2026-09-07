@@ -99,6 +99,51 @@ describe("hasNoteCollision / hasNoteCollisions", () => {
 });
 
 describe("withoutNoteCollisions", () => {
+  it("keeps long-note tail adjacency in the indexed path", () => {
+    const existing = [note("hold", 0, 0, 100)];
+    const otherNotes = Array.from({ length: 33 }, (_, i) => note(`other${i}`, 1, i * 100));
+    const candidates = [
+      note("inside", 0, 99),
+      note("tail", 0, 100, 200),
+      note("stacked", 0, 100),
+      note("next", 0, 200),
+      ...otherNotes,
+    ];
+    expect(withoutNoteCollisions(candidates, existing).map((n) => n.id)).toEqual([
+      "tail", "next", ...otherNotes.map((n) => n.id),
+    ]);
+  });
+
+  it("matches ordered pairwise filtering for unsorted notes, duplicate IDs and existing overlaps", () => {
+    let seed = 23;
+    const random = () => {
+      seed = (seed * 48271) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let run = 0; run < 100; run++) {
+      const makeNotes = () => Array.from({ length: 80 }, () => {
+        const start = Math.floor(random() * 50) * 10;
+        return note(`id${Math.floor(random() * 100)}`, Math.floor(random() * 4), start,
+          random() < 0.4 ? start + Math.floor(random() * 15) * 10 : undefined);
+      });
+      const existing = makeNotes();
+      const candidates = makeNotes();
+      const expected: ManiaNote[] = [];
+      for (const n of candidates) {
+        if (!hasNoteCollision(n, existing) && !hasNoteCollision(n, expected)) expected.push(n);
+      }
+      expect(withoutNoteCollisions(candidates, existing)).toEqual(expected);
+    }
+  });
+
+  it("accepts a large paste without changing input order or arrays", () => {
+    const existing = Array.from({ length: 20000 }, (_, i) => note(`e${i}`, i % 4, i * 10));
+    const candidates = Array.from({ length: 5000 }, (_, i) => note(`n${i}`, i % 4, 200000 + i * 10)).reverse();
+    expect(withoutNoteCollisions(candidates, existing)).toEqual(candidates);
+    expect(existing[0].id).toBe("e0");
+    expect(candidates[0].id).toBe("n4999");
+  });
+
   it("drops candidates that collide with existing or earlier-accepted notes", () => {
     const existing = [note("e", 0, 0)];
     const candidates = [

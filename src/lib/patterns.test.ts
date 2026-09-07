@@ -19,6 +19,14 @@ function snapped(bpm: number, divisor: number, count: number): ManiaNote[] {
 }
 
 describe("pattern snap preservation", () => {
+  it("copies selections larger than the JavaScript argument limit", () => {
+    const notes = Array.from({ length: 150000 }, (_, i) => note(i % 4, 1000 + i));
+    const pattern = notesToPattern(notes, at(120));
+    expect(pattern).toHaveLength(150000);
+    expect(pattern[0].startTime).toBe(0);
+    expect(pattern[149999].startTime).toBe(149999);
+  });
+
   it("re-spaces a 1/4 pattern for the target BPM instead of copying milliseconds", () => {
     const pattern = notesToPattern(snapped(180, 4, 4), at(180));
     const pasted = patternToNotes(pattern, 1000, 4, at(150));

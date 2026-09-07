@@ -5968,6 +5968,7 @@ export default function App() {
                       onCurrentHitSound={noop}
                       onCurrentSampleSet={noop}
                       readOnly
+                      keyboardShortcuts={false}
                       hideHints
                     />
                   </div>
