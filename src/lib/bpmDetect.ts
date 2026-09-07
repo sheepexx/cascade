@@ -37,6 +37,9 @@ const INTEGER_SNAP = 0.035;
 const LP_CUTOFF_HZ = 180;
 /** Bass onsets drive the phase only when they carry this share of the mass. */
 const BASS_MIN_RATIO = 0.05;
+const OFFBEAT_DOUBLE_RATIO = 0.18;
+const DOWNBEAT_METER = 4;
+const DOWNBEAT_MARGIN = 1.25;
 
 export type BpmDetection = {
   bpm: number;
@@ -183,6 +186,30 @@ export function detectBpmFromChannel(
       if (Math.abs(shift) <= 1) bpm += shift * BPM_STEP;
     }
   }
+  const beatLevelSupport = (
+    candidateBpm: number,
+    arr: Float32Array,
+  ): { on: number; off: number } => {
+    const beatFrames = (60 / candidateBpm) * framesPerSec;
+    const { phaseFrames } = comb(candidateBpm, arr);
+    let on = 0;
+    let off = 0;
+    let count = 0;
+    for (let f = phaseFrames; f + beatFrames <= frames; f += beatFrames) {
+      on += sampleAt(arr, f);
+      off += sampleAt(arr, f + beatFrames / 2);
+      count += 1;
+    }
+    if (count === 0) return { on: 0, off: 0 };
+    return { on: on / count, off: off / count };
+  };
+
+  while (bpm * 2 <= MAX_BPM) {
+    const { on, off } = beatLevelSupport(bpm, onsets);
+    if (on <= 0 || off < on * OFFBEAT_DOUBLE_RATIO) break;
+    bpm *= 2;
+  }
+
   const rounded = Math.round(bpm);
   if (Math.abs(bpm - rounded) <= INTEGER_SNAP) bpm = rounded;
   else bpm = Math.round(bpm * 1000) / 1000;
@@ -221,9 +248,33 @@ export function detectBpmFromChannel(
       break;
     }
   }
+  const msToFrame = (ms: number): number =>
+    ((ms / 1000) * sampleRate - WIN / 2) / HOP;
+  const barMass = (startMs: number): number => {
+    let sum = 0;
+    for (let ms = startMs; msToFrame(ms) < frames; ms += beatMs * DOWNBEAT_METER) {
+      sum += sampleAt(phaseOnsets, msToFrame(ms));
+    }
+    return sum;
+  };
+  const barMasses: number[] = [];
+  for (let k = 0; k < DOWNBEAT_METER; k++) {
+    barMasses.push(barMass(offsetMs + k * beatMs));
+  }
+  const barTotal = barMasses.reduce((a, b) => a + b, 0);
+  let downbeat = 0;
+  for (let k = 1; k < DOWNBEAT_METER; k++) {
+    if (barMasses[k] > barMasses[downbeat]) downbeat = k;
+  }
+  const barAverage = barTotal / DOWNBEAT_METER;
+  const onDownbeat =
+    barAverage > 0 && barMasses[downbeat] > barAverage * DOWNBEAT_MARGIN;
+  if (onDownbeat) offsetMs += downbeat * beatMs;
+
+  const step = onDownbeat ? beatMs * DOWNBEAT_METER : beatMs;
   if (firstOnsetMs !== null) {
-    offsetMs += beatMs * Math.round((firstOnsetMs - offsetMs) / beatMs);
-    while (offsetMs < 0) offsetMs += beatMs;
+    offsetMs += step * Math.round((firstOnsetMs - offsetMs) / step);
+    while (offsetMs < 0) offsetMs += step;
   }
   offsetMs = Math.round(offsetMs);
 

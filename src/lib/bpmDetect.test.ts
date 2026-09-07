@@ -96,7 +96,108 @@ function droppedBeatTrack(
   return data;
 }
 
+function kitTrack(
+  bpm: number,
+  offsetMs: number,
+  seconds: number,
+  backbeatGain: number,
+  hatGain: number,
+): Float32Array {
+  let state = 0x9e3779b9;
+  const rand = () =>
+    ((state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 0xffffffff) * 2 - 1;
+  const n = Math.floor(SR * seconds);
+  const data = new Float32Array(n);
+  const beat = (60 / bpm) * SR;
+  const add = (at: number, len: number, f: (i: number) => number) => {
+    const s = Math.round(at);
+    for (let i = 0; i < len && s + i < n; i++) if (s + i >= 0) data[s + i] += f(i);
+  };
+  let b = 0;
+  for (let t = (offsetMs / 1000) * SR; t < n; t += beat, b++) {
+    if (b % 2 === 0) {
+      add(t, 4000, (i) => 0.9 * Math.sin((2 * Math.PI * 52 * i) / SR) * Math.exp(-i / 1400));
+    } else {
+      add(t, 3000, (i) => backbeatGain * rand() * Math.exp(-i / 700));
+    }
+    if (hatGain > 0) {
+      for (const k of [0, 0.5]) {
+        add(t + k * beat, 900, (i) => hatGain * rand() * Math.exp(-i / 160));
+      }
+    }
+  }
+  return data;
+}
+
+function barTrack(
+  bpm: number,
+  downbeatMs: number,
+  seconds: number,
+  pickupBeats: number,
+): Float32Array {
+  let state = 0x1234567;
+  const rand = () =>
+    ((state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 0xffffffff) * 2 - 1;
+  const n = Math.floor(SR * seconds);
+  const data = new Float32Array(n);
+  const beat = (60 / bpm) * SR;
+  const add = (at: number, len: number, f: (i: number) => number) => {
+    const s = Math.round(at);
+    for (let i = 0; i < len && s + i < n; i++) if (s + i >= 0) data[s + i] += f(i);
+  };
+  for (let p = 1; p <= pickupBeats; p++) {
+    add((downbeatMs / 1000) * SR - p * beat, 900, (i) => 0.2 * rand() * Math.exp(-i / 160));
+  }
+  let b = 0;
+  for (let t = (downbeatMs / 1000) * SR; t < n; t += beat, b++) {
+    const inBar = b % 4;
+    if (inBar === 0) {
+      add(t, 5000, (i) => Math.sin((2 * Math.PI * 48 * i) / SR) * Math.exp(-i / 1700));
+    } else if (inBar === 2) {
+      add(t, 3500, (i) => 0.42 * Math.sin((2 * Math.PI * 52 * i) / SR) * Math.exp(-i / 1000));
+    } else {
+      add(t, 2500, (i) => 0.3 * rand() * Math.exp(-i / 600));
+    }
+    add(t + beat / 2, 800, (i) => 0.1 * rand() * Math.exp(-i / 150));
+  }
+  return data;
+}
+
+function barError(offsetMs: number, downbeatMs: number, bpm: number): number {
+  const barMs = (60000 / bpm) * 4;
+  return Math.abs(
+    ((((offsetMs - downbeatMs) % barMs) + barMs + barMs / 2) % barMs) - barMs / 2,
+  );
+}
+
 describe("detectBpmFromChannel", () => {
+  it("puts the offset on the bar downbeat, not just any beat", () => {
+    const result = detectBpmFromChannel(barTrack(150, 2000, 45, 0), SR)!;
+    expect(result.bpm).toBe(150);
+    expect(barError(result.offsetMs, 2000, 150)).toBeLessThanOrEqual(30);
+  });
+
+  it("skips a pickup and still lands on the downbeat", () => {
+    const result = detectBpmFromChannel(barTrack(174, 900, 45, 2), SR)!;
+    expect(result.bpm).toBe(174);
+    expect(barError(result.offsetMs, 900, 174)).toBeLessThanOrEqual(30);
+  });
+
+  it("reads the full tempo when the backbeat is quieter than the kick", () => {
+    const result = detectBpmFromChannel(kitTrack(174, 312, 40, 0.5, 0.16), SR)!;
+    expect(result.bpm).toBe(174);
+  });
+
+  it("does not double a slow tempo whose midpoints only carry hats", () => {
+    const result = detectBpmFromChannel(kitTrack(100, 400, 40, 0.55, 0.3), SR)!;
+    expect(result.bpm).toBe(100);
+  });
+
+  it("does not double when the midpoints are empty", () => {
+    const result = detectBpmFromChannel(kitTrack(92, 250, 40, 0.55, 0), SR)!;
+    expect(result.bpm).toBe(92);
+  });
+
   it("finds an integer BPM from a plain click track", () => {
     const result = detectBpmFromChannel(clickTrack(170, 500, 25), SR);
     expect(result).not.toBeNull();
