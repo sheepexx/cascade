@@ -23,7 +23,23 @@ export const DESKTOP_ORIGINS = [
   "tauri://localhost",
 ];
 
-export const DESKTOP_AUTH_REDIRECT = "cascade://auth";
+// The desktop app listens on an ephemeral loopback port and passes it here.
+// Only the port survives the round trip - it is carried inside the signed
+// state that is also held in an HttpOnly cookie, and the redirect is rebuilt
+// from scratch, so this can never be steered at an arbitrary host.
+const MIN_LOOPBACK_PORT = 1024;
+const MAX_LOOPBACK_PORT = 65535;
+
+export function parseLoopbackPort(raw: string | null): number | null {
+  if (!raw || !/^\d{4,5}$/.test(raw)) return null;
+  const port = Number(raw);
+  if (port < MIN_LOOPBACK_PORT || port > MAX_LOOPBACK_PORT) return null;
+  return port;
+}
+
+export function loopbackRedirect(port: number, session: string): string {
+  return `http://127.0.0.1:${port}/callback?session=${encodeURIComponent(session)}`;
+}
 
 export function resolveAllowedOrigin(
   requestOrigin: string | null,
@@ -186,21 +202,21 @@ async function handleBeatmapLookup(
   return json({ error: "beatmap not found" }, 404, env);
 }
 
-const DESKTOP_STATE_SUFFIX = ".desktop";
-
-export function isDesktopState(state: string): boolean {
-  return state.endsWith(DESKTOP_STATE_SUFFIX);
+export function desktopState(port: number): string {
+  return `${crypto.randomUUID()}.desktop.${port}`;
 }
 
-export function desktopSessionRedirect(session: string): string {
-  return `${DESKTOP_AUTH_REDIRECT}?session=${encodeURIComponent(session)}`;
+export function desktopPortFromState(state: string): number | null {
+  const match = /\.desktop\.(\d{4,5})$/.exec(state);
+  return match ? parseLoopbackPort(match[1]) : null;
 }
 
 async function handleLogin(url: URL, env: WorkerEnv): Promise<Response> {
-  const desktop = url.searchParams.get("client") === "desktop";
-  const state = desktop
-    ? `${crypto.randomUUID()}${DESKTOP_STATE_SUFFIX}`
-    : crypto.randomUUID();
+  const port =
+    url.searchParams.get("client") === "desktop"
+      ? parseLoopbackPort(url.searchParams.get("port"))
+      : null;
+  const state = port === null ? crypto.randomUUID() : desktopState(port);
   const authorize = new URL("https://osu.ppy.sh/oauth/authorize");
   authorize.searchParams.set("client_id", env.CLIENT_ID);
   authorize.searchParams.set("redirect_uri", env.OSU_REDIRECT_URI);
@@ -271,8 +287,9 @@ async function handleCallback(
   });
 
   const session = await signSession(env, user.id);
-  if (isDesktopState(state)) {
-    return redirect(desktopSessionRedirect(session), env, [
+  const desktopPort = desktopPortFromState(state);
+  if (desktopPort !== null) {
+    return redirect(loopbackRedirect(desktopPort, session), env, [
       cookie(STATE_COOKIE, "", { maxAge: 0 }),
     ]);
   }

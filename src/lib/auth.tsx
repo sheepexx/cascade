@@ -9,7 +9,7 @@ import {
 } from "react";
 import { setSupabaseToken } from "./supabase";
 import { isDesktopApp } from "./pwa";
-import { openDesktopLogin, watchDesktopLogin } from "./desktopAuth";
+import { startDesktopLogin, watchDesktopLogin } from "./desktopAuth";
 
 export type AuthUser = {
   id: string;
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(() => {
     if (isDesktopApp()) {
-      void openDesktopLogin().catch((err) => {
+      void startDesktopLogin().catch((err) => {
         console.error("[cascade] could not open the osu! login", err);
       });
       return;

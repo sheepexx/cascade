@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DESKTOP_ORIGINS,
-  desktopSessionRedirect,
-  isDesktopState,
+  desktopPortFromState,
+  desktopState,
+  loopbackRedirect,
+  parseLoopbackPort,
   resolveAllowedOrigin,
 } from "./index";
 import type { WorkerEnv } from "./storage";
@@ -33,16 +35,50 @@ describe("allowed origins", () => {
   });
 });
 
-describe("desktop oauth round trip", () => {
-  it("marks only desktop state", () => {
-    expect(isDesktopState("abc.desktop")).toBe(true);
-    expect(isDesktopState("abc")).toBe(false);
-    expect(isDesktopState("desktop.abc")).toBe(false);
+describe("loopback port parsing", () => {
+  it.each(["1024", "51234", "65535"])("accepts %s", (raw) => {
+    expect(parseLoopbackPort(raw)).toBe(Number(raw));
   });
 
-  it("hands the session to the app over the custom scheme", () => {
-    expect(desktopSessionRedirect("tok en/+1")).toBe(
-      "cascade://auth?session=tok%20en%2F%2B1",
+  it.each([
+    null,
+    "",
+    "80",
+    "443",
+    "1023",
+    "65536",
+    "99999",
+    "12a4",
+    "-5000",
+    "5000.5",
+    " 5000",
+    "5000; rm -rf",
+  ])("rejects %s", (raw) => {
+    expect(parseLoopbackPort(raw)).toBeNull();
+  });
+});
+
+describe("desktop oauth round trip", () => {
+  it("carries the port through the state", () => {
+    const state = desktopState(51234);
+    expect(state).toMatch(/^[0-9a-f-]{36}.desktop.51234$/);
+    expect(desktopPortFromState(state)).toBe(51234);
+  });
+
+  it.each([
+    "plain-uuid",
+    "uuid.desktop",
+    "uuid.desktop.80",
+    "uuid.desktop.99999",
+    "uuid.desktop.abcd",
+    "uuid.desktop.51234.evil",
+  ])("reads no port from %s", (state) => {
+    expect(desktopPortFromState(state)).toBeNull();
+  });
+
+  it("only ever builds a loopback url", () => {
+    expect(loopbackRedirect(51234, "tok en/+1")).toBe(
+      "http://127.0.0.1:51234/callback?session=tok%20en%2F%2B1",
     );
   });
 });
