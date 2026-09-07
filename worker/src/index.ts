@@ -14,6 +14,40 @@ type DbUser = {
   last_signed_in_at?: string | null;
 };
 
+// The desktop build runs the same SPA inside a Tauri webview, whose origin is
+// not the site. It authenticates with a bearer token rather than the session
+// cookie, so echoing these back is enough to let it reach the API.
+export const DESKTOP_ORIGINS = [
+  "http://tauri.localhost",
+  "https://tauri.localhost",
+  "tauri://localhost",
+];
+
+export const DESKTOP_AUTH_REDIRECT = "cascade://auth";
+
+export function resolveAllowedOrigin(
+  requestOrigin: string | null,
+  env: WorkerEnv,
+): string {
+  if (!requestOrigin) return env.FRONTEND_URL;
+  if (requestOrigin === env.FRONTEND_URL) return requestOrigin;
+  if (DESKTOP_ORIGINS.includes(requestOrigin)) return requestOrigin;
+  return env.FRONTEND_URL;
+}
+
+function applyAllowedOrigin(
+  res: Response,
+  req: Request,
+  env: WorkerEnv,
+): Response {
+  const allowed = resolveAllowedOrigin(req.headers.get("Origin"), env);
+  if (res.headers.get("Access-Control-Allow-Origin") === allowed) return res;
+  const out = new Response(res.body, res);
+  out.headers.set("Access-Control-Allow-Origin", allowed);
+  out.headers.set("Vary", "Origin");
+  return out;
+}
+
 const SESSION_COOKIE = "me_session";
 const STATE_COOKIE = "me_oauth_state";
 const SESSION_TTL_DAYS = 30;
@@ -21,6 +55,12 @@ const SUPABASE_TOKEN_TTL_SECONDS = 60 * 60;
 
 export default {
   async fetch(req: Request, env: WorkerEnv): Promise<Response> {
+    return applyAllowedOrigin(await route(req, env), req, env);
+  },
+} satisfies ExportedHandler<WorkerEnv>;
+
+async function route(req: Request, env: WorkerEnv): Promise<Response> {
+  {
     const url = new URL(req.url);
 
     if (req.method === "OPTIONS") {
@@ -48,7 +88,7 @@ export default {
 
       switch (url.pathname) {
         case "/auth/osu/login":
-          return await handleLogin(env);
+          return await handleLogin(url, env);
         case "/auth/osu/callback":
           return await handleCallback(req, url, env);
         case "/auth/session":
@@ -68,8 +108,8 @@ export default {
       const message = err instanceof Error ? err.message : "internal error";
       return json({ error: message }, 500, env);
     }
-  },
-} satisfies ExportedHandler<WorkerEnv>;
+  }
+}
 
 // Beatmap mirror proxy. The mirrors have inconsistent CORS, so the SPA
 // fetches through here; the worker tries each in order. A single mirror's 404
@@ -146,8 +186,21 @@ async function handleBeatmapLookup(
   return json({ error: "beatmap not found" }, 404, env);
 }
 
-async function handleLogin(env: WorkerEnv): Promise<Response> {
-  const state = crypto.randomUUID();
+const DESKTOP_STATE_SUFFIX = ".desktop";
+
+export function isDesktopState(state: string): boolean {
+  return state.endsWith(DESKTOP_STATE_SUFFIX);
+}
+
+export function desktopSessionRedirect(session: string): string {
+  return `${DESKTOP_AUTH_REDIRECT}?session=${encodeURIComponent(session)}`;
+}
+
+async function handleLogin(url: URL, env: WorkerEnv): Promise<Response> {
+  const desktop = url.searchParams.get("client") === "desktop";
+  const state = desktop
+    ? `${crypto.randomUUID()}${DESKTOP_STATE_SUFFIX}`
+    : crypto.randomUUID();
   const authorize = new URL("https://osu.ppy.sh/oauth/authorize");
   authorize.searchParams.set("client_id", env.CLIENT_ID);
   authorize.searchParams.set("redirect_uri", env.OSU_REDIRECT_URI);
@@ -218,6 +271,11 @@ async function handleCallback(
   });
 
   const session = await signSession(env, user.id);
+  if (isDesktopState(state)) {
+    return redirect(desktopSessionRedirect(session), env, [
+      cookie(STATE_COOKIE, "", { maxAge: 0 }),
+    ]);
+  }
   return redirect(
     `${env.FRONTEND_URL}/?auth=ok#session=${encodeURIComponent(session)}`,
     env,

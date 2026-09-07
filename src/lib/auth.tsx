@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import { setSupabaseToken } from "./supabase";
+import { isDesktopApp } from "./pwa";
+import { openDesktopLogin, watchDesktopLogin } from "./desktopAuth";
 
 export type AuthUser = {
   id: string;
@@ -94,6 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(() => {
+    if (isDesktopApp()) {
+      void openDesktopLogin();
+      return;
+    }
     window.location.href = `${WORKER}/auth/osu/login`;
   }, []);
 
@@ -123,6 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
     void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    void watchDesktopLogin((session) => {
+      storeSessionToken(session);
+      void refresh();
+    });
   }, [refresh]);
 
   const userRef = useRef<AuthUser | null>(null);
