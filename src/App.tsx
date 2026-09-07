@@ -209,6 +209,7 @@ import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
 import { LanguagePicker } from "./components/LanguagePicker";
 import { setLaunchFileConsumer } from "./lib/pwa";
+import { siteAsset } from "./lib/siteAssets";
 import { usePwa } from "./hooks/usePwa";
 import { InstallAppButton } from "./components/InstallAppButton";
 import { NotificationInbox } from "./components/NotificationInbox";
@@ -2953,7 +2954,7 @@ export default function App() {
       setModal(null);
       setImportingMap(true);
       try {
-        const res = await fetch(`${import.meta.env.BASE_URL}${map.osz}`);
+        const res = await fetch(siteAsset(map.osz));
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const name = map.osz.split("/").pop() ?? `${map.id}.osz`;

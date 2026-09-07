@@ -1,7 +1,7 @@
 {
   "name": "cascade",
   "private": true,
-  "version": "1.2.243",
+  "version": "1.2.244",
   "type": "module",
   "description": "Cascade - a browser-based osu!mania beatmap editor",
   "scripts": {
@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "desktop": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:build": "tauri build",
+    "build:desktop": "npm run build && node scripts/prune-desktop-dist.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

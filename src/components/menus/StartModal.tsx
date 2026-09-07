@@ -24,6 +24,7 @@ import {
   type LocalProjectSummary,
 } from "../../lib/persistence";
 import { formatBytes } from "../../lib/progress";
+import { siteAsset } from "../../lib/siteAssets";
 import {
   ArchiveIcon,
   NewMapIcon,
@@ -49,7 +50,7 @@ export type SampleMap = {
   difficulties: SampleDifficulty[];
 };
 
-const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+const asset = siteAsset;
 
 const MAX_CARDS = 9;
 const CARD_COUNT_KEY = "mania:card-counts";
