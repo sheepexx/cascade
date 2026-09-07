@@ -14,7 +14,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-deep-link = "2"
 tauri-plugin-opener = "2"
 
-[target."cfg(any(target_os = "macos", windows, target_os = "linux"))".dependencies]
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [profile.release]
