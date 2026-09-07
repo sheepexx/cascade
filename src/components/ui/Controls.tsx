@@ -158,6 +158,80 @@ export function Button({
   );
 }
 
+export function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+  className = "",
+}: {
+  options: { value: T; label: ReactNode }[];
+  value: T;
+  onChange: (value: T) => void;
+  className?: string;
+}) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const measure = () => {
+      const active = list.querySelector<HTMLElement>(`[data-segment="${value}"]`);
+      if (!active) return;
+      setPill((prev) =>
+        prev?.left === active.offsetLeft && prev.width === active.offsetWidth
+          ? prev
+          : { left: active.offsetLeft, width: active.offsetWidth },
+      );
+    };
+    measure();
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(list);
+    return () => observer?.disconnect();
+  }, [value, options.length]);
+
+  useEffect(() => {
+    if (pill) setSettled(true);
+  }, [pill]);
+
+  return (
+    <div
+      ref={listRef}
+      role="tablist"
+      className={`relative flex gap-1 rounded-xl border border-white/10 bg-ink-700/40 p-1 ${className}`}
+    >
+      {pill && (
+        <span
+          aria-hidden
+          className={`segmented-pill absolute inset-y-1 rounded-lg bg-accent/90 shadow-sm ${
+            settled ? "" : "!transition-none"
+          }`}
+          style={{ left: pill.left, width: pill.width }}
+        />
+      )}
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="tab"
+          aria-selected={value === option.value}
+          data-segment={option.value}
+          onClick={() => onChange(option.value)}
+          className={`relative z-10 flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+            value === option.value
+              ? "text-white"
+              : "text-slate-300 hover:text-slate-100"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Toggle({
   checked,
   onChange,

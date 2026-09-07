@@ -70,6 +70,9 @@ export function TimedNotification({
 
   if (!mounted) return null;
 
+  const selfPositioned =
+    placement === "bottom-center" || placement === "top-center";
+
   const timed = typeof durationMs === "number" && durationMs > 0;
   const progressStyle = timed
     ? ({ "--notification-duration": `${durationMs}ms` } as CSSProperties)
@@ -80,7 +83,9 @@ export function TimedNotification({
       key={cycle}
       data-placement={placement}
       data-state={exiting ? "out" : "in"}
-      className={`notification-shell relative overflow-hidden ${className}`}
+      className={`notification-shell ${
+        selfPositioned ? "" : "relative"
+      } overflow-hidden ${className}`}
       role="status"
       aria-live="polite"
       onAnimationEnd={(event) => {

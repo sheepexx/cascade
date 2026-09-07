@@ -105,9 +105,16 @@ export function AutoTimePrompt({
             <div className="text-sm font-semibold text-slate-100">
               Auto-time this song?
             </div>
-            <div className="mt-0.5 max-w-[16rem] truncate text-xs text-slate-400">
-              {fileName ? `${fileName} · ` : ""}detects BPM and offset from the
-              audio
+            <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
+              {fileName && (
+                <>
+                  <span className="max-w-[12rem] truncate">{fileName}</span>
+                  <span aria-hidden>·</span>
+                </>
+              )}
+              <span className="whitespace-nowrap">
+                detects BPM and offset from the audio
+              </span>
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal } from "../ui/Modal";
-import { Select, Toggle } from "../ui/Controls";
+import { SegmentedControl, Select, Toggle } from "../ui/Controls";
 import type {
   AltWheelAction,
   HumanizeSettings,
@@ -282,22 +282,14 @@ export function AppSettingsModal({
             />
           </div>
         )}
-        <div className="flex gap-1 rounded-xl border border-white/10 bg-ink-700/40 p-1">
-          {TABS.map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => setTab(name)}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                tab === name
-                  ? "bg-accent/90 text-white shadow-sm"
-                  : "text-slate-300 hover:bg-white/5"
-              }`}
-            >
-              {t(TAB_LABELS[name])}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={tab}
+          onChange={setTab}
+          options={TABS.map((name) => ({
+            value: name,
+            label: t(TAB_LABELS[name]),
+          }))}
+        />
 
         {tab === "Editor" && (
           <div className="flex flex-col gap-6">
