@@ -24,7 +24,7 @@ export function PPCounter({
   }, [notes, keyCount]);
 
   return (
-    <div className="absolute bottom-3 right-3 flex select-none items-center gap-2 transition-opacity duration-300">
+    <div className="absolute bottom-3 right-3 flex select-none items-stretch gap-2 transition-opacity duration-300">
       <div className="flex items-center gap-1.5 rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 shadow-xl shadow-black/25 backdrop-blur-xl">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">
           Speed
@@ -46,8 +46,8 @@ export function PPCounter({
         </div>
       </div>
 
-      <div className="pointer-events-none rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 text-right shadow-xl shadow-black/25 backdrop-blur-xl">
-        <div className="flex items-baseline gap-1.5">
+      <div className="pointer-events-none flex flex-col justify-center rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 text-right shadow-xl shadow-black/25 backdrop-blur-xl">
+        <div className="flex items-baseline justify-end gap-1.5">
           <span className="text-base font-bold leading-none tabular-nums text-slate-100">
             {Math.round(pp)}
           </span>

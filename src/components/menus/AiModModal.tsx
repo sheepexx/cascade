@@ -169,7 +169,7 @@ export function AiModModal({
                             isOpen ? "" : "-rotate-90"
                           }`}
                         />
-                        <span className="flex-1 text-slate-200 hover:text-white">
+                        <span className="flex-1 text-slate-200 transition duration-150 hover:text-white">
                           {issue.message}
                         </span>
                         <span className="shrink-0 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-slate-300">

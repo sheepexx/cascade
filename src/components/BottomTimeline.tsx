@@ -1338,7 +1338,7 @@ export function BottomTimeline({
             type="button"
             onClick={onPreviousBookmark}
             disabled={!onPreviousBookmark}
-            className="rounded px-1.5 py-1 text-amber-300 hover:bg-white/10 disabled:opacity-40"
+            className="rounded px-1.5 py-1 text-amber-300 transition duration-150 hover:bg-white/10 disabled:opacity-40"
             title="Previous bookmark (Page Up)"
           >
             ‹ ⚑
@@ -1347,7 +1347,7 @@ export function BottomTimeline({
             type="button"
             onClick={onNextBookmark}
             disabled={!onNextBookmark}
-            className="rounded px-1.5 py-1 text-amber-300 hover:bg-white/10 disabled:opacity-40"
+            className="rounded px-1.5 py-1 text-amber-300 transition duration-150 hover:bg-white/10 disabled:opacity-40"
             title="Next bookmark (Page Down)"
           >
             ⚑ ›

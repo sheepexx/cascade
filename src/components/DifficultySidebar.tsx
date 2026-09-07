@@ -428,7 +428,7 @@ function DiffRow({
             e.stopPropagation();
             onDuplicate();
           }}
-          className="text-[10px] text-slate-400 hover:text-slate-200"
+          className="text-[10px] text-slate-400 transition duration-150 hover:text-slate-200"
         >
           Duplicate
         </button>
@@ -444,7 +444,7 @@ function DiffRow({
                 ? t("diffSidebar.deleteManyTitle", { count: selectionCount })
                 : t("diffSidebar.deleteOneTitle")
             }
-            className="rounded px-1 py-0.5 text-[10px] text-slate-400 hover:text-red-300"
+            className="rounded px-1 py-0.5 text-[10px] text-slate-400 transition duration-150 hover:text-red-300"
           >
             {selected && selectionCount > 1
               ? t("diffSidebar.deleteMany", { count: selectionCount })

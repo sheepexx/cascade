@@ -415,7 +415,7 @@ function CommentThread({
           {canModify(root) && (
             <button
               onClick={() => onResolve(!root.resolved)}
-              className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 hover:bg-ink-600 hover:text-slate-200"
+              className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 transition duration-150 hover:bg-ink-600 hover:text-slate-200"
             >
               {root.resolved ? "Reopen" : "Resolve"}
             </button>
@@ -423,7 +423,7 @@ function CommentThread({
           {canModify(root) && (
             <button
               onClick={() => setPendingDelete({ id: root.id, isReply: false })}
-              className="rounded px-1.5 py-0.5 text-[10px] text-rose-300 hover:bg-ink-600"
+              className="rounded px-1.5 py-0.5 text-[10px] text-rose-300 transition duration-150 hover:bg-ink-600"
             >
               Delete
             </button>
@@ -537,7 +537,7 @@ function CommentBody({
         {canEdit && !editing && (
           <button
             onClick={() => setEditing(true)}
-            className="ml-auto text-[9px] font-normal text-slate-500 hover:text-slate-300"
+            className="ml-auto text-[9px] font-normal text-slate-500 transition duration-150 hover:text-slate-300"
           >
             edit
           </button>
@@ -566,7 +566,7 @@ function CommentBody({
                 setDraft(c.body);
                 setEditing(false);
               }}
-              className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 hover:bg-ink-600"
+              className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 transition duration-150 hover:bg-ink-600"
             >
               Cancel
             </button>

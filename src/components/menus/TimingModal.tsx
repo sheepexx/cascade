@@ -461,7 +461,7 @@ export const TimingModal = memo(function TimingModal({
               <button
                 type="button"
                 onClick={() => setSelectedPointIds(new Set())}
-                className="ml-auto text-[11px] text-slate-500 hover:text-slate-300"
+                className="ml-auto text-[11px] text-slate-500 transition duration-150 hover:text-slate-300"
               >
                 Clear
               </button>
