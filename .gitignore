@@ -15,3 +15,7 @@ worker/.dev.vars
 worker/.wrangler
 worker/.wrangler-dry-run
 .env
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/

@@ -22,6 +22,12 @@ export function subscribePwa(fn: () => void): () => void {
   };
 }
 
+export function isDesktopApp(): boolean {
+  return (
+    typeof window !== "undefined" && "__TAURI_INTERNALS__" in (window as object)
+  );
+}
+
 export function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
   return (
@@ -33,7 +39,7 @@ export function isStandalone(): boolean {
 }
 
 export function canInstall(): boolean {
-  return deferredPrompt !== null;
+  return deferredPrompt !== null && !isDesktopApp();
 }
 
 export function isUpdateReady(): boolean {
@@ -70,7 +76,7 @@ export function setLaunchFileConsumer(fn: (files: File[]) => void): () => void {
 }
 
 export function initPwa(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || isDesktopApp()) return;
 
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
