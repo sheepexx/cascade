@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal } from "../ui/Modal";
-import { Toggle } from "../ui/Controls";
+import { Select, Toggle } from "../ui/Controls";
 import type {
   AltWheelAction,
   HumanizeSettings,
@@ -305,17 +305,17 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.language")}
               </h3>
-              <select
+              <Select
+                className="w-full"
                 value={locale}
                 onChange={(e) => setLocale(e.target.value as Locale)}
-                className="w-full rounded-lg border border-ink-500/60 bg-ink-700 px-2 py-2 text-sm text-slate-100"
               >
                 {LOCALES.map((option) => (
                   <option key={option.code} value={option.code}>
                     {option.nativeName}
                   </option>
                 ))}
-              </select>
+              </Select>
             </section>
 
             <section>
@@ -344,19 +344,19 @@ export function AppSettingsModal({
                 <span className="text-xs text-slate-400">
                   {t("settings.altWheelAction")}
                 </span>
-                <select
+                <Select
+                  className="mt-2 w-full"
                   value={altWheelAction}
                   onChange={(e) =>
                     onAltWheelAction(e.target.value as AltWheelAction)
                   }
-                  className="mt-2 w-full rounded-lg border border-ink-500/60 bg-ink-700 px-2 py-2 text-sm text-slate-100"
                 >
                   {ALT_WHEEL_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {t(option.label)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <p className="mt-2 text-[11px] text-slate-500">
                 {t("settings.altWheelHint")}
@@ -707,18 +707,17 @@ export function AppSettingsModal({
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <span>{t("settings.offsetMode")}</span>
-                <select
+                <Select
                   value={playtest.offsetMode}
                   onChange={(e) =>
                     patchPlaytest({
                       offsetMode: e.target.value === "audio" ? "audio" : "visual",
                     })
                   }
-                  className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
                 >
                   <option value="visual">{t("settings.offsetVisual")}</option>
                   <option value="audio">{t("settings.offsetAudio")}</option>
-                </select>
+                </Select>
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <div className="flex items-center justify-between">
@@ -813,20 +812,20 @@ export function AppSettingsModal({
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   {t("settings.keybinds")}
                 </span>
-                <select
+                <Select
+                  size="sm"
                   value={keyMode}
                   onChange={(e) => {
                     setCapturing(null);
                     setKeyMode(Number(e.target.value));
                   }}
-                  className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1.5 text-sm text-slate-100 outline-none"
                 >
                   {Array.from({ length: 18 }, (_, i) => i + 1).map((keys) => (
                     <option key={keys} value={keys}>
                       {keys}K
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {Array.from({ length: keyMode }, (_, i) => (
@@ -903,35 +902,33 @@ export function AppSettingsModal({
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="flex flex-col gap-1 text-xs text-slate-400">
                       <span>{t("settings.danRegular")}</span>
-                      <select
+                      <Select
                         value={regularLevel}
                         onChange={(e) =>
                           setDanSkill(Number(e.target.value), lnLevel)
                         }
-                        className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
                       >
                         {DAN_LADDERS[ladders.regular].levels.map((lvl, i) => (
                           <option key={lvl.label} value={i}>
                             {lvl.label}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                     <label className="flex flex-col gap-1 text-xs text-slate-400">
                       <span>{t("settings.danLn")}</span>
-                      <select
+                      <Select
                         value={lnLevel}
                         onChange={(e) =>
                           setDanSkill(regularLevel, Number(e.target.value))
                         }
-                        className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
                       >
                         {DAN_LADDERS[ladders.ln].levels.map((lvl, i) => (
                           <option key={lvl.label} value={i}>
                             {lvl.label}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                   </div>
                   <p className="-mt-1 text-[11px] text-slate-500">

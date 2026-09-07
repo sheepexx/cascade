@@ -34,6 +34,7 @@ import {
   Field,
   NumberInput,
   PrecisionNumberInput,
+  Select,
   Toggle,
 } from "../ui/Controls";
 
@@ -399,7 +400,7 @@ export function SvModal({
           setApplied(false);
           e.target.value = "";
         }}
-        className="w-9 shrink-0 rounded-lg border border-white/10 bg-ink-700/65 px-1 text-center text-sm text-slate-300 outline-none transition hover:border-accent/50 focus:border-accent/70"
+        className="w-9 shrink-0 appearance-none rounded-lg border border-white/10 bg-ink-700/65 px-1 text-center text-sm text-slate-300 outline-none transition hover:border-accent/50 focus:border-accent/70"
       >
         <option value="">🔖</option>
         {/* Names repeat often, so every entry carries its timestamp. */}
@@ -614,7 +615,7 @@ export function SvModal({
                 label="Segment shape"
                 hint="Applies a preset to the whole curve."
               >
-                <select
+                <Select
                   value={matchedPreset ?? ""}
                   onChange={(e) => {
                     const preset = e.target.value as SvEasing;
@@ -637,7 +638,7 @@ export function SvModal({
                       {EASING_LABELS[id]}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
               <Field label="Point spacing">
                 <div className="flex gap-1">

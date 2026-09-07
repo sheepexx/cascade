@@ -95,6 +95,44 @@ export function PrecisionNumberInput({
   );
 }
 
+export function Select({
+  size = "md",
+  className = "",
+  children,
+  ...props
+}: Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
+  size?: "sm" | "md";
+}) {
+  const dims =
+    size === "sm"
+      ? { field: "py-1.5 pl-2.5 pr-7 text-xs", icon: "right-2 h-3 w-3" }
+      : { field: "py-2 pl-3 pr-8 text-sm", icon: "right-2.5 h-3.5 w-3.5" };
+  return (
+    <span className={`relative inline-flex min-w-0 ${className}`}>
+      <select
+        {...props}
+        className={`w-full min-w-0 appearance-none rounded-lg border border-white/10 bg-ink-700/65 ${dims.field} text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition duration-150 hover:border-white/20 hover:bg-ink-600/70 focus-visible:border-accent/70 focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45`}
+      >
+        {children}
+      </select>
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400 ${dims.icon}`}
+      >
+        <path
+          d="M6 9L12 15L18 9"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </svg>
+    </span>
+  );
+}
+
 export function Button({
   variant = "ghost",
   className = "",

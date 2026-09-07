@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
+import { CloseIcon } from "./ui/Icons";
 import type {
   AudioSeekSignal,
   AudioSeekTransition,
@@ -1376,10 +1377,10 @@ export function BottomTimeline({
             <button
               type="button"
               onClick={onClearLoop}
-              className="rounded px-1 py-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
+              className="grid h-5 w-5 place-items-center rounded text-slate-500 transition hover:bg-white/10 hover:text-slate-200"
               title="Clear loop range"
             >
-              ✕
+              <CloseIcon className="h-3 w-3" />
             </button>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
+import { CloseIcon } from "../ui/Icons";
 import {
   clampSv,
   makeGreenPoint,
@@ -822,7 +823,7 @@ function PointRow({
                 className="grid h-6 w-6 place-items-center rounded-lg text-slate-400 transition hover:bg-ink-600 hover:text-red-300 disabled:opacity-30"
                 title="Delete timing point"
               >
-                ✕
+                <CloseIcon className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>

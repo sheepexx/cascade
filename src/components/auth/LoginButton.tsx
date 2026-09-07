@@ -4,6 +4,7 @@ import { sessionAuthHeaders, useAuth } from "../../lib/auth";
 import { useT } from "../../lib/i18n";
 import { Button } from "../ui/Controls";
 import { Skeleton } from "../ui/Skeleton";
+import { ChevronDownIcon } from "../ui/Icons";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
 const MENU_EXIT_MS = 160;
@@ -188,7 +189,11 @@ export function AccountControl({
         <span className="max-w-[8rem] truncate text-sm font-medium text-slate-100">
           {user.username}
         </span>
-        <span className="text-[10px] text-slate-400">▾</span>
+        <ChevronDownIcon
+          className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
+        />
       </button>
 
       {mounted &&

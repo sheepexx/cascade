@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDownIcon } from "../ui/Icons";
 import {
   AIMOD_CATEGORIES,
   formatAiModObjects,
@@ -163,9 +164,11 @@ export function AiModModal({
                         className="flex flex-1 items-start gap-2 text-left"
                         aria-expanded={isOpen}
                       >
-                        <span className="w-3 shrink-0 text-center text-[11px] leading-5 text-slate-400">
-                          {isOpen ? "▾" : "▸"}
-                        </span>
+                        <ChevronDownIcon
+                          className={`mt-0.5 h-3 w-3 shrink-0 text-slate-400 transition-transform duration-200 ${
+                            isOpen ? "" : "-rotate-90"
+                          }`}
+                        />
                         <span className="flex-1 text-slate-200 hover:text-white">
                           {issue.message}
                         </span>

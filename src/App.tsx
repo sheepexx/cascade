@@ -170,6 +170,7 @@ import {
   SampleMapsIcon,
   UsersIcon,
 } from "./components/ui/StartIcons";
+import { RedoIcon, UndoIcon } from "./components/ui/Icons";
 import {
   createRateDifficulty as makeRateDifficulty,
   difficultyRate,
@@ -5473,14 +5474,14 @@ export default function App() {
                   disabled={!canUndo}
                   title={t("nav.undo")}
                 >
-                  ↶
+                  <UndoIcon className="h-4 w-4" />
                 </IconButton>
                 <IconButton
                   onClick={redo}
                   disabled={!canRedo}
                   title={t("nav.redo")}
                 >
-                  ↷
+                  <RedoIcon className="h-4 w-4" />
                 </IconButton>
               </div>
               <div className="uixl:hidden">

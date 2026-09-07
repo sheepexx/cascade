@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/Controls";
 import { Modal } from "../ui/Modal";
+import { MusicNoteIcon } from "../ui/Icons";
 
 type Props = {
   open: boolean;
@@ -81,7 +82,7 @@ export function NewMapModal({ open, onClose, onCreate }: Props) {
                 : "border-ink-500 bg-ink-700/35 hover:border-accent/70 hover:bg-ink-700/60"
           }`}
         >
-          <span className="text-3xl">♪</span>
+          <MusicNoteIcon className="h-8 w-8 text-slate-400" />
           <span className="mt-3 text-sm font-semibold text-slate-100">
             {audio ? audio.name : "Choose or drop audio"}
           </span>

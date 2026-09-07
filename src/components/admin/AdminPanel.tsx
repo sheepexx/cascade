@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, TextInput } from "../ui/Controls";
+import { Button, Select, TextInput } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
 import {
   SkeletonMediaCards,
@@ -1105,17 +1105,17 @@ function ProjectsTab() {
           </div>
           <label className="flex items-center gap-2 text-xs text-slate-400">
             Sort
-            <select
+            <Select
+              size="sm"
               value={sort}
               onChange={(e) => setSort(e.target.value as ProjectSort)}
-              className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1.5 text-sm text-slate-100 outline-none"
             >
               <option value="last_activity">Last activity</option>
               <option value="updated">Last saved</option>
               <option value="storage">Storage</option>
               <option value="participants">People</option>
               <option value="title">Title</option>
-            </select>
+            </Select>
           </label>
         </div>
       )}
@@ -1271,17 +1271,17 @@ function PreviewsTab() {
             />
             <label className="flex items-center gap-2 text-xs text-slate-400">
               Sort
-              <select
+              <Select
+                size="sm"
                 value={sort}
                 onChange={(event) => setSort(event.target.value as PreviewSort)}
-                className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1.5 text-sm text-slate-100 outline-none"
               >
                 <option value="last_view">Latest view</option>
                 <option value="created">Published</option>
                 <option value="storage">Storage</option>
                 <option value="views">Views</option>
                 <option value="title">Title</option>
-              </select>
+              </Select>
             </label>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { CloseIcon } from "./Icons";
 import {
   useEffect,
   useRef,
@@ -99,10 +100,10 @@ export function TimedNotification({
         <button
           type="button"
           onClick={() => dismiss()}
-          className="absolute right-2 top-1.5 z-10 rounded px-1 text-current opacity-60 transition hover:bg-white/10 hover:opacity-100"
+          className="absolute right-2 top-1.5 z-10 grid h-5 w-5 place-items-center rounded text-current opacity-60 transition hover:bg-white/10 hover:opacity-100"
           aria-label="Dismiss notification"
         >
-          ✕
+          <CloseIcon className="h-3 w-3" />
         </button>
       )}
       {showProgress && (

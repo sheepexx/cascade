@@ -12,6 +12,7 @@ import {
   type SharedMap,
 } from "../lib/sharedMap";
 import type { LoadedFile } from "../types";
+import { Select } from "./ui/Controls";
 
 async function fetchAsset(
   url: string | null,
@@ -336,10 +337,10 @@ export function SharedMapPage({
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("shared.difficulty")}
               </span>
-              <select
+              <Select
+                className="w-full"
                 value={preview.id}
                 onChange={(event) => setPreviewDifficultyId(event.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-ink-800 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
               >
                 {previewOptions.map((option) => (
                   <option key={option.id} value={option.id}>
@@ -347,7 +348,7 @@ export function SharedMapPage({
                     ★ {option.starRating.toFixed(2)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
 

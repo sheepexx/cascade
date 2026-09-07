@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useDialog } from "../../hooks/useDialog";
+import { useScrollEdges } from "../../hooks/useScrollEdges";
+import { CloseIcon } from "./Icons";
 
 type Props = {
   open: boolean;
@@ -35,6 +37,7 @@ export function Modal({
     null,
   );
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  const { ref: bodyRef, edges } = useScrollEdges<HTMLDivElement>();
 
   useEffect(() => {
     if (!modeless) return;
@@ -182,10 +185,29 @@ export function Modal({
               className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition duration-150 hover:bg-white/10 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
               aria-label="Close"
             >
-              ✕
+              <CloseIcon className="h-4 w-4" />
             </button>
           </header>
-          <div className="flex-1 overflow-y-auto p-5">{children}</div>
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <div
+              ref={bodyRef}
+              className="min-h-0 flex-1 overflow-y-auto p-5"
+            >
+              {children}
+            </div>
+            <div
+              aria-hidden
+              className={`pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-ink-800 to-transparent transition-opacity duration-200 ${
+                edges.top ? "opacity-100" : "opacity-0"
+              }`}
+            />
+            <div
+              aria-hidden
+              className={`pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink-800 to-transparent transition-opacity duration-200 ${
+                edges.bottom ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          </div>
           {footer && (
             <footer className="flex justify-end gap-2 border-t border-white/10 bg-ink-700 px-5 py-3.5">
               {footer}

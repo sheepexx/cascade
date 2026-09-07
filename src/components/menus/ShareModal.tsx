@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
-import { Button, TextInput } from "../ui/Controls";
+import { Button, Select, TextInput } from "../ui/Controls";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { SkeletonRows } from "../ui/Skeleton";
 import { useT } from "../../lib/i18n";
@@ -112,14 +112,13 @@ export function ShareModal({
                 placeholder={t("share.usernamePlaceholder")}
               />
             </label>
-            <select
+            <Select
               value={role}
               onChange={(e) => setRole(e.target.value as CollabRole)}
-              className="rounded-lg border border-ink-500/60 bg-ink-700 px-2 py-2 text-sm text-slate-100"
             >
               <option value="editor">{t("share.roleEditor")}</option>
               <option value="viewer">{t("share.roleViewer")}</option>
-            </select>
+            </Select>
             <Button variant="accent" onClick={() => void invite()} disabled={busy}>
               {busy ? "…" : t("share.invite")}
             </Button>
@@ -205,16 +204,16 @@ export function ShareModal({
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-200">
                       {c.username ?? c.user_id.slice(0, 8)}
                     </span>
-                    <select
+                    <Select
+                      size="sm"
                       value={c.role}
                       onChange={(e) =>
                         changeRole(c, e.target.value as CollabRole)
                       }
-                      className="rounded-md border border-ink-500/60 bg-ink-700 px-2 py-1 text-xs text-slate-100"
                     >
                       <option value="editor">{t("share.roleEditor")}</option>
                       <option value="viewer">{t("share.roleViewer")}</option>
-                    </select>
+                    </Select>
                     <Button
                       onClick={() => setConfirmUser(c)}
                       title={t("share.removeTitle", {

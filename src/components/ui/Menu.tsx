@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { ChevronDownIcon } from "./Icons";
 
 export type MenuItem =
   | {
@@ -80,7 +81,11 @@ export function Menu({
         className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${className}`}
       >
         {label}
-        <span className="text-[10px] text-slate-500">▾</span>
+        <ChevronDownIcon
+          className={`h-3 w-3 text-slate-500 transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
+        />
       </button>
       {open &&
         createPortal(

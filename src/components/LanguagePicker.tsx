@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocale } from "../lib/i18n";
 import { LOCALES } from "../lib/i18n/core";
+import { ChevronDownIcon } from "./ui/Icons";
 
 export function LanguagePicker({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, t } = useLocale();
@@ -58,7 +59,11 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
         <span className="text-sm font-medium uppercase">
           {current.code.split("-")[0]}
         </span>
-        <span className="text-[10px] text-slate-400">▾</span>
+        <ChevronDownIcon
+          className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
+        />
       </button>
 
       {open &&

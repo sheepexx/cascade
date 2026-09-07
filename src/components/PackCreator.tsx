@@ -27,7 +27,8 @@ import {
   scanPackFromZip,
 } from "../lib/smPackImport";
 import { MAX_KEYS, MIN_KEYS } from "../types";
-import { Button, Field, TextInput, Toggle } from "./ui/Controls";
+import { Button, Field, Select, TextInput, Toggle } from "./ui/Controls";
+import { CloseIcon } from "./ui/Icons";
 import { PackCreatorItem } from "./PackCreatorItem";
 import { PackCreatorValidation } from "./PackCreatorValidation";
 import { PackProjectBrowser } from "./PackProjectBrowser";
@@ -37,10 +38,6 @@ import { playUiSound } from "../lib/uiSounds";
 import { useAuth } from "../lib/auth";
 import { logAnalyticsEvent } from "../lib/analytics";
 import type { ProgressReport } from "../lib/progress";
-
-const selectClass =
-  "w-full rounded-lg bg-ink-700/65 border border-white/10 px-3 py-2 text-sm text-slate-100 " +
-  "outline-none shadow-inner shadow-black/10 backdrop-blur-sm transition focus:border-accent/70";
 
 const EXIT_MS = 220;
 
@@ -509,7 +506,7 @@ export function PackCreator({
                           onClick={() => removeItem(item.id)}
                           className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-300 opacity-40 transition hover:bg-rose-600/80 hover:text-white group-hover:opacity-100"
                         >
-                          ✕
+                          <CloseIcon className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </li>
@@ -624,8 +621,8 @@ export function PackCreator({
                     label="Artist field mode"
                     hint="How the exported Artist field is filled."
                   >
-                    <select
-                      className={selectClass}
+                    <Select
+                      className="w-full"
                       value={metadata.artistMode}
                       onChange={(e) => {
                         setMetadata((m) => ({
@@ -642,7 +639,7 @@ export function PackCreator({
                         Keep original artist per map
                       </option>
                       <option value="custom-shared">Custom shared artist</option>
-                    </select>
+                    </Select>
                   </Field>
                   {metadata.artistMode === "custom-shared" && (
                     <Field label="Custom shared artist">
@@ -668,8 +665,8 @@ export function PackCreator({
                     label="Creator field mode"
                     hint="How the exported Creator field is filled."
                   >
-                    <select
-                      className={selectClass}
+                    <Select
+                      className="w-full"
                       value={settings.creatorFieldMode}
                       onChange={(e) => {
                         setSettings((s) => ({
@@ -689,7 +686,7 @@ export function PackCreator({
                       <option value="original">
                         Original mapper per difficulty
                       </option>
-                    </select>
+                    </Select>
                   </Field>
                   {settings.creatorFieldMode === "original" && (
                     <p className="rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
@@ -755,8 +752,8 @@ export function PackCreator({
               {settings.placeholderEnabled ? (
                 <div className="flex flex-col gap-2.5">
                   <Field label="Audio source">
-                    <select
-                      className={selectClass}
+                    <Select
+                      className="w-full"
                       value={settings.placeholderAudioItemId ?? ""}
                       onChange={(e) =>
                         setSettings((s) => ({
@@ -772,7 +769,7 @@ export function PackCreator({
                           {it.originalAudioFilename}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </Field>
                   <Field label={`Key count (${MIN_KEYS}-${MAX_KEYS})`}>
                     <TextInput

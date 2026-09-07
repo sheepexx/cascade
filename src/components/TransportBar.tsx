@@ -10,6 +10,7 @@ import {
 import type { AudioController } from "../hooks/useAudio";
 import { formatTime, parseTimestamp } from "../lib/timing";
 import { useT } from "../lib/i18n";
+import { Select } from "./ui/Controls";
 type Props = {
   audio: AudioController;
   view: ViewState;
@@ -184,7 +185,8 @@ export function TransportBar({
           <span className="hidden uimd:inline">
             {t("transport.snap")}
           </span>
-          <select
+          <Select
+            size="sm"
             value={view.snapDivisor}
             onChange={(e) =>
               onView({
@@ -192,14 +194,13 @@ export function TransportBar({
                 snapDivisor: Number(e.target.value) as SnapDivisor,
               })
             }
-            className="rounded-md border border-white/10 bg-ink-700/70 px-2 py-1 text-slate-100 outline-none backdrop-blur-sm transition focus-visible:border-accent/70 focus-visible:ring-2 focus-visible:ring-accent/40"
           >
             {SNAP_OPTIONS.map((d) => (
               <option key={d} value={d}>
                 {d === FREE_SNAP ? t("transport.snapFree") : `1/${d}`}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="flex items-center gap-2 text-xs text-slate-400">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Toggle } from "./ui/Controls";
 import { HoldConfirmDialog } from "./ui/HoldConfirmDialog";
 import { SkeletonRows } from "./ui/Skeleton";
+import { CloseIcon } from "./ui/Icons";
 import {
   listComments,
   addComment,
@@ -209,10 +210,10 @@ export function CommentsSidebar({
           </h2>
           <button
             onClick={onClose}
-            className="grid h-6 w-6 place-items-center rounded text-slate-400 hover:bg-ink-600 hover:text-slate-200"
+            className="grid h-6 w-6 place-items-center rounded text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"
             aria-label="Close comments"
           >
-            ✕
+            <CloseIcon className="h-3.5 w-3.5" />
           </button>
         </div>
         <div className="mt-2 flex items-center justify-between gap-2">
