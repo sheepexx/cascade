@@ -208,6 +208,9 @@ import { Modal } from "./components/ui/Modal";
 import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
 import { LanguagePicker } from "./components/LanguagePicker";
+import { setLaunchFileConsumer } from "./lib/pwa";
+import { usePwa } from "./hooks/usePwa";
+import { InstallAppButton } from "./components/InstallAppButton";
 import { NotificationInbox } from "./components/NotificationInbox";
 const AdminPanel = lazy(() =>
   import("./components/admin/AdminPanel").then((m) => ({
@@ -735,6 +738,7 @@ export default function App() {
   >(null);
   const [saveErrorDetail, setSaveErrorDetail] = useState<string | null>(null);
   const [needsSongHint, setNeedsSongHint] = useState(false);
+  const { updateReady: pwaUpdateReady, applyPendingUpdate } = usePwa();
   const [localProjectId, setLocalProjectId] = useState(newLocalProjectId);
   const [exportCheck, setExportCheck] = useState<{
     result: ValidationResult;
@@ -4340,41 +4344,8 @@ export default function App() {
     };
   }, [resetFileDrag]);
 
-  const onDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      resetFileDrag();
-
-      if (e.dataTransfer.items?.length) {
-        const entries = Array.from(e.dataTransfer.items)
-          .map((item) => item.webkitGetAsEntry())
-          .filter((entry): entry is FileSystemEntry => !!entry);
-        if (entries.some((entry) => entry.isDirectory)) {
-          setImportingMap(true);
-          try {
-            const { scanPackFromDrop } = await import("./lib/smPackImport");
-            const songs = await scanPackFromDrop(entries);
-            if (songs.length === 1) {
-              importPackSong(songs[0]);
-              setImportingMap(false);
-              return;
-            }
-            if (songs.length > 1) {
-              setScannedPackSongs(songs);
-              setImportingMap(false);
-              setModal("packBrowser");
-              return;
-            }
-          } catch {
-            setImportError("Failed to read the dropped folder.");
-            setImportingMap(false);
-            return;
-          }
-          setImportingMap(false);
-        }
-      }
-
-      const files = Array.from(e.dataTransfer.files);
+  const openFiles = useCallback(
+    (files: File[]) => {
       const osk = files.find(isOskFile);
       if (osk) {
         void onSkinFile(osk, "visual");
@@ -4412,7 +4383,48 @@ export default function App() {
       const videoF = files.find(isVideoFile);
       if (videoF) onVideoFile(videoF);
     },
-    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, openOsuFiles, requestImportSm, requestImportQua, importPackSong, resetFileDrag],
+    [onAudioFile, onBackgroundFile, onVideoFile, onSkinFile, importArchive, openOsuFiles, requestImportSm, requestImportQua],
+  );
+
+  useEffect(() => setLaunchFileConsumer(openFiles), [openFiles]);
+
+  const onDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      resetFileDrag();
+
+      if (e.dataTransfer.items?.length) {
+        const entries = Array.from(e.dataTransfer.items)
+          .map((item) => item.webkitGetAsEntry())
+          .filter((entry): entry is FileSystemEntry => !!entry);
+        if (entries.some((entry) => entry.isDirectory)) {
+          setImportingMap(true);
+          try {
+            const { scanPackFromDrop } = await import("./lib/smPackImport");
+            const songs = await scanPackFromDrop(entries);
+            if (songs.length === 1) {
+              importPackSong(songs[0]);
+              setImportingMap(false);
+              return;
+            }
+            if (songs.length > 1) {
+              setScannedPackSongs(songs);
+              setImportingMap(false);
+              setModal("packBrowser");
+              return;
+            }
+          } catch {
+            setImportError("Failed to read the dropped folder.");
+            setImportingMap(false);
+            return;
+          }
+          setImportingMap(false);
+        }
+      }
+
+      openFiles(Array.from(e.dataTransfer.files));
+    },
+    [openFiles, importPackSong, resetFileDrag],
   );
 
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
@@ -5718,6 +5730,7 @@ export default function App() {
             </div>
           )}
           {!hasProject && !sharedSlug && <NowPlaying music={menuMusic} />}
+          {!hasProject && <InstallAppButton />}
           {!hasProject && <LanguagePicker compact />}
           {authUser && (
             <NotificationInbox
@@ -6731,6 +6744,24 @@ export default function App() {
               : t("file.saveFailed")}
           </TimedNotification>
         )}
+
+        <TimedNotification
+          open={pwaUpdateReady}
+          durationMs={null}
+          resetKey="pwa-update"
+          showClose
+          progressClassName="bg-accent"
+          className="pointer-events-auto flex max-w-full items-center gap-3 rounded-lg border border-white/10 bg-ink-800/95 py-2 pb-3 pl-4 pr-9 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
+        >
+          <span>A new version of Cascade is ready.</span>
+          <button
+            type="button"
+            onClick={applyPendingUpdate}
+            className="shrink-0 rounded-md bg-accent/90 px-2.5 py-1 text-xs font-semibold text-white transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
+          >
+            Reload
+          </button>
+        </TimedNotification>
 
         <TimedNotification
           open={needsSongHint && !audioFile}

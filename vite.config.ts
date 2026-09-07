@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 import pkg from "./package.json";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
@@ -67,7 +68,34 @@ function avatarApiPlugin() {
 }
 
 export default defineConfig({
-  plugins: [react(), avatarApiPlugin()],
+  plugins: [
+    react(),
+    avatarApiPlugin(),
+    VitePWA({
+      registerType: "prompt",
+      injectRegister: null,
+      manifest: false,
+      manifestFilename: "site.webmanifest",
+      workbox: {
+        globPatterns: [
+          "index.html",
+          "assets/**/*.{js,css,woff,woff2}",
+          "hitsounds/**/*.wav",
+          "favicon.png",
+          "logo.png",
+          "logo-maskable.png",
+          "icon-192.png",
+          "icon-512.png",
+        ],
+        globIgnores: ["maps/**", "og*.png", "**/*.map"],
+        navigateFallback: null,
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/],
+        cleanupOutdatedCaches: true,
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
+      devOptions: { enabled: false },
+    }),
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },

@@ -12,7 +12,10 @@ import App from "./App";
 import { AuthProvider } from "./lib/auth";
 import { LocaleProvider, preloadLocale } from "./lib/i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { initPwa } from "./lib/pwa";
 import "./index.css";
+
+initPwa();
 
 void preloadLocale().then(() => {
   ReactDOM.createRoot(document.getElementById("root")!).render(

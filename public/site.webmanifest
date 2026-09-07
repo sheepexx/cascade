@@ -2,29 +2,62 @@
   "name": "Cascade",
   "short_name": "Cascade",
   "description": "Online osu!mania, StepMania, and Etterna editor and mania map viewer for creating, previewing, importing, converting, and exporting mania beatmaps.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "landscape",
   "background_color": "#0b0d12",
   "theme_color": "#0b0d12",
+  "launch_handler": { "client_mode": "focus-existing" },
   "icons": [
     {
-      "src": "/favicon.png?v=3",
-      "sizes": "96x96",
+      "src": "/icon-192.png?v=4",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo.png?v=3",
-      "sizes": "640x640",
+      "src": "/icon-512.png?v=4",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo-maskable.png?v=3",
+      "src": "/logo-maskable.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/x-osu-archive": [".osz"],
+        "application/x-osu-beatmap": [".osu"],
+        "application/x-stepmania": [".sm", ".ssc"],
+        "application/x-quaver": [".qua"]
+      },
+      "icons": [
+        { "src": "/icon-192.png?v=4", "sizes": "192x192", "type": "image/png" }
+      ],
+      "launch_type": "single-client"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New map",
+      "short_name": "New map",
+      "url": "/?action=new",
+      "icons": [{ "src": "/icon-192.png?v=4", "sizes": "192x192" }]
+    },
+    {
+      "name": "My maps",
+      "short_name": "My maps",
+      "url": "/?action=my-maps",
+      "icons": [{ "src": "/icon-192.png?v=4", "sizes": "192x192" }]
     }
   ],
   "categories": ["music", "productivity", "utilities"]
