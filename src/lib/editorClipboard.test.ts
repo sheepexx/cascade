@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeRedPoint, type ManiaNote } from "../types";
-import { isClipboardTextTarget, prepareNotePaste } from "./editorClipboard";
+import { isClipboardTextTarget, positionPatternForDrop, prepareNotePaste } from "./editorClipboard";
 import { notesToPattern } from "./patterns";
 
 const points = [makeRedPoint(0, 120)];
@@ -10,6 +10,55 @@ const source: ManiaNote[] = [
 ];
 const pattern = notesToPattern(source, points);
 const bounds = { lo: 0, hi: 10000 };
+
+describe("clipboard drop positioning", () => {
+  it("anchors the leftmost used lane to the drop lane without changing timing or hitsounds", () => {
+    const shifted = positionPatternForDrop(pattern, 2, 4)!;
+    expect(shifted.map((n) => n.column)).toEqual([2, 3]);
+    expect(shifted[0]).toEqual({ ...pattern[0], column: 2 });
+    expect(shifted[1]).toEqual({ ...pattern[1], column: 3 });
+    expect(pattern.map((n) => n.column)).toEqual([0, 1]);
+  });
+
+  it("clamps against the right edge to keep the whole pattern", () => {
+    expect(positionPatternForDrop(pattern, 3, 4)?.map((n) => n.column)).toEqual([2, 3]);
+  });
+
+  it("preserves gaps between used lanes", () => {
+    const sparse = [{ column: 3, startTime: 0 }, { column: 5, startTime: 250 }];
+    expect(positionPatternForDrop(sparse, 1, 4)?.map((n) => n.column)).toEqual([1, 3]);
+  });
+
+  it("fits a narrow pattern copied from a higher key count", () => {
+    expect(positionPatternForDrop([{ column: 6, startTime: 0 }], 1, 4)).toEqual([
+      { column: 1, startTime: 0 },
+    ]);
+  });
+
+  it("rejects a pattern wider than the target without dropping any lanes", () => {
+    expect(positionPatternForDrop([{ column: 0, startTime: 0 }, { column: 4, startTime: 0 }], 0, 4)).toBeNull();
+  });
+
+  it.each([-1, 4, 0.5, NaN])("rejects an invalid destination lane %s", (column) => {
+    expect(positionPatternForDrop(pattern, column, 4)).toBeNull();
+  });
+
+  it("rejects empty patterns and malformed source lanes", () => {
+    expect(positionPatternForDrop([], 0, 4)).toBeNull();
+    expect(positionPatternForDrop([{ column: NaN, startTime: 0 }], 0, 4)).toBeNull();
+    expect(positionPatternForDrop([{ column: -1, startTime: 0 }], 0, 4)).toBeNull();
+  });
+
+  it("prepares the shifted pattern using the normal paste rules", () => {
+    const shifted = positionPatternForDrop(pattern, 2, 4)!;
+    const existing = [{ id: "occupied", column: 2, startTime: 5000 }];
+    const result = prepareNotePaste(shifted, 5030, 4, points, 4, existing, bounds);
+    expect(result.candidates.map((n) => n.column)).toEqual([2, 3]);
+    expect(result.notes).toHaveLength(1);
+    expect(result.notes[0]).toMatchObject({ column: 3, startTime: 5125, endTime: 5500 });
+    expect(result.message).toContain("1 overlapping");
+  });
+});
 
 describe("note clipboard keyboard targets", () => {
   it.each(["range", "checkbox", "radio", "button", "color"])(

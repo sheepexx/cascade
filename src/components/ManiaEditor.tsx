@@ -37,7 +37,12 @@ import {
   type EditorKeybinds,
 } from "../lib/editorKeybinds";
 import { notesToPattern, type PatternNote } from "../lib/patterns";
-import { isClipboardTextTarget, prepareNotePaste } from "../lib/editorClipboard";
+import {
+  isClipboardTextTarget,
+  NOTE_CLIP_DRAG_TYPE,
+  positionPatternForDrop,
+  prepareNotePaste,
+} from "../lib/editorClipboard";
 import type { Waveform } from "../hooks/useWaveform";
 import {
   consumeLocalSeekSignal,
@@ -215,6 +220,20 @@ type MoveDragState = {
 type Clip = {
   id: string;
   notes: PatternNote[];
+};
+
+type ClipDropPreview = {
+  clip: Clip;
+  column: number;
+  base: number;
+  notes: ManiaNote[];
+  timingPoints: TimingPoint[];
+  keyCount: number;
+  snapDivisor: number;
+  lo: number;
+  hi: number;
+  result: ReturnType<typeof prepareNotePaste>;
+  acceptedIds: Set<string>;
 };
 
 function hitsoundOf(n: {
@@ -485,6 +504,8 @@ export function ManiaEditor(props: Props) {
   const dragRef = useRef<DragState | null>(null);
   const selectionDragRef = useRef<SelectionDragState | null>(null);
   const moveDragRef = useRef<MoveDragState | null>(null);
+  const draggedClipRef = useRef<Clip | null>(null);
+  const clipDropPreviewRef = useRef<ClipDropPreview | null>(null);
   const selectionAutoscrollTimeRef = useRef<number | null>(null);
   const selectionAutoscrollRafRef = useRef(0);
   const boxSelectCapturedRef = useRef(false);
@@ -492,6 +513,25 @@ export function ManiaEditor(props: Props) {
     new Map(),
   );
   const scrubRef = useRef<{ time: number; lastMidY: number } | null>(null);
+
+  const clearClipDrag = useCallback(() => {
+    draggedClipRef.current = null;
+    clipDropPreviewRef.current = null;
+    markDirty();
+  }, [markDirty]);
+
+  useEffect(() => {
+    window.addEventListener("dragend", clearClipDrag);
+    window.addEventListener("blur", clearClipDrag);
+    return () => {
+      window.removeEventListener("dragend", clearClipDrag);
+      window.removeEventListener("blur", clearClipDrag);
+    };
+  }, [clearClipDrag]);
+
+  useEffect(() => {
+    if (props.readOnly || props.playtestMode) clearClipDrag();
+  }, [props.readOnly, props.playtestMode, clearClipDrag]);
 
   const setSelection = useCallback((ids: Set<string>) => {
     selectedNoteIdsRef.current = ids;
@@ -1936,6 +1976,23 @@ export function ManiaEditor(props: Props) {
     if (hitPosOffset) ctx.restore();
     if (clipAtLine) ctx.restore();
 
+    const clipPreview = clipDropPreviewRef.current;
+    if (clipPreview && !propsRef.current.readOnly && !playtest) {
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 3]);
+      for (const note of clipPreview.result.candidates) {
+        const bounds = noteBounds(note, laneWidth, originX);
+        if (!bounds || bounds.y > height || bounds.y + bounds.h < 0) continue;
+        const accepted = clipPreview.acceptedIds.has(note.id);
+        ctx.fillStyle = accepted ? "rgba(45,212,191,0.3)" : "rgba(248,113,113,0.3)";
+        ctx.strokeStyle = accepted ? "#2dd4bf" : "#f87171";
+        ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
+        ctx.strokeRect(bounds.x, bounds.y, bounds.w, bounds.h);
+      }
+      ctx.restore();
+    }
+
     const drag = dragRef.current;
     if (drag) {
       const x = originX + drag.column * laneWidth;
@@ -1953,6 +2010,7 @@ export function ManiaEditor(props: Props) {
       mouseRef.current.inside &&
       !propsRef.current.readOnly &&
       !propsRef.current.playtestMode &&
+      !draggedClipRef.current &&
       !moveDragRef.current &&
       !selectionDragRef.current &&
       !shiftActiveRef.current &&
@@ -2703,6 +2761,98 @@ export function ManiaEditor(props: Props) {
     scheduleInteractiveSeek(target, "smooth");
   };
 
+  const onClipDragStart = (e: React.DragEvent<HTMLElement>, clip: Clip) => {
+    if (propsRef.current.readOnly || propsRef.current.playtestMode || !clip.notes.length) {
+      e.preventDefault();
+      return;
+    }
+    if (!positionPatternForDrop(clip.notes, 0, propsRef.current.keyCount)) {
+      e.preventDefault();
+      setClipboardStatus("This pattern is wider than the current playfield.");
+      return;
+    }
+    e.stopPropagation();
+    e.dataTransfer.setData(NOTE_CLIP_DRAG_TYPE, clip.id);
+    e.dataTransfer.effectAllowed = "copy";
+    draggedClipRef.current = clip;
+    clipDropPreviewRef.current = null;
+    dragRef.current = null;
+    moveDragRef.current = null;
+    selectionDragRef.current = null;
+    mouseRef.current.inside = false;
+    setClipboardStatus("Drop onto a lane to paste. Red notes cannot be placed.");
+    markDirty();
+  };
+
+  const clipDropAt = (x: number, y: number): ClipDropPreview | null => {
+    const clip = draggedClipRef.current;
+    const p = propsRef.current;
+    const column = columnAtX(x);
+    if (!clip || p.readOnly || p.playtestMode || column < 0 || y < 0 || y > sizeRef.current.height) {
+      return null;
+    }
+    const base = snapTime(yToTime(y), p.timingPoints, p.view.snapDivisor);
+    const { lo, hi } = playableBounds(p);
+    const cached = clipDropPreviewRef.current;
+    if (
+      cached && cached.clip === clip && cached.column === column &&
+      cached.base === base && cached.notes === p.notes &&
+      cached.timingPoints === p.timingPoints && cached.keyCount === p.keyCount &&
+      cached.snapDivisor === p.view.snapDivisor && cached.lo === lo && cached.hi === hi
+    ) return cached;
+    const pattern = positionPatternForDrop(clip.notes, column, p.keyCount);
+    if (!pattern) return null;
+    const result = prepareNotePaste(
+      pattern, base, p.keyCount, p.timingPoints, p.view.snapDivisor, p.notes, { lo, hi },
+    );
+    return {
+      clip, column, base, notes: p.notes, timingPoints: p.timingPoints,
+      keyCount: p.keyCount, snapDivisor: p.view.snapDivisor, lo, hi, result,
+      acceptedIds: new Set(result.notes.map((n) => n.id)),
+    };
+  };
+
+  const onClipDragOver = (e: React.DragEvent<HTMLCanvasElement>) => {
+    if (!e.dataTransfer.types.includes(NOTE_CLIP_DRAG_TYPE)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const { x, y } = localPoint(e);
+    const preview = clipDropAt(x, y);
+    e.dataTransfer.dropEffect = preview?.result.notes.length ? "copy" : "none";
+    if (preview !== clipDropPreviewRef.current) {
+      clipDropPreviewRef.current = preview;
+      markDirty();
+    }
+  };
+
+  const onClipDragLeave = (e: React.DragEvent<HTMLCanvasElement>) => {
+    if (!e.dataTransfer.types.includes(NOTE_CLIP_DRAG_TYPE)) return;
+    e.stopPropagation();
+    clipDropPreviewRef.current = null;
+    markDirty();
+  };
+
+  const onClipDrop = (e: React.DragEvent<HTMLCanvasElement>) => {
+    if (!e.dataTransfer.types.includes(NOTE_CLIP_DRAG_TYPE)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const clip = draggedClipRef.current;
+    if (!clip || e.dataTransfer.getData(NOTE_CLIP_DRAG_TYPE) !== clip.id) {
+      clearClipDrag();
+      return;
+    }
+    const { x, y } = localPoint(e);
+    const preview = clipDropAt(x, y);
+    clearClipDrag();
+    if (!preview) return;
+    setClipboardStatus(preview.result.message);
+    if (!preview.result.notes.length) return;
+    activateClip(clip);
+    propsRef.current.onAddNotes(preview.result.notes);
+    setSelection(new Set(preview.result.notes.map((n) => n.id)));
+    canvasRef.current?.focus({ preventScroll: true });
+  };
+
   const selectedNotes =
     selectionCount > 0
       ? props.notes.filter((n) => selectedNoteIdsRef.current.has(n.id))
@@ -2743,6 +2893,9 @@ export function ManiaEditor(props: Props) {
         onPointerCancel={onPointerCancel}
         onPointerLeave={onPointerLeave}
         onWheel={onWheel}
+        onDragOver={onClipDragOver}
+        onDragLeave={onClipDragLeave}
+        onDrop={onClipDrop}
       />
       {!props.playtestMode && clipboardStatus && (
         <div role="status" className="pointer-events-none absolute bottom-14 left-3 right-3 z-20 mx-auto w-fit max-w-md rounded-md border border-ink-600 bg-ink-900/95 px-3 py-2 text-xs text-slate-200 shadow-lg">
@@ -2885,7 +3038,13 @@ export function ManiaEditor(props: Props) {
           </div>
           {clipboard ? (
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5">
+              <div
+                draggable={!props.readOnly}
+                onDragStart={(e) => onClipDragStart(e, clipboard)}
+                onDragEnd={clearClipDrag}
+                title="Drag onto the playfield to paste at a time and lane"
+                className={`flex items-center gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5 ${props.readOnly ? "" : "cursor-grab active:cursor-grabbing"}`}
+              >
                 <ClipThumb clip={clipboard} keyCount={props.keyCount} />
                 <span className="min-w-0 text-[10px] text-slate-400">
                   {clipboard.notes.length} note
@@ -2893,6 +3052,9 @@ export function ManiaEditor(props: Props) {
                 </span>
                 <SnapBadge pattern={clipboard.notes} />
               </div>
+              {!props.readOnly && (
+                <span className="text-center text-[10px] text-slate-400">Drag onto the playfield</span>
+              )}
               <button
                 type="button"
                 onClick={paste}
@@ -2931,6 +3093,10 @@ export function ManiaEditor(props: Props) {
                 {history.map((item) => (
                   <button
                     key={item.id}
+                    draggable={!props.readOnly}
+                    onDragStart={(e) => onClipDragStart(e, item)}
+                    onDragEnd={clearClipDrag}
+                    title="Select this pattern, or drag it onto the playfield"
                     onClick={() => {
                       activateClip(item);
                       setClipboardStatus(`${item.notes.length} notes ready to paste.`);

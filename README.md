@@ -61,6 +61,10 @@ that part. Without the env vars the app simply runs with accounts disabled.
 
 ## Shortcuts
 
+Copied notes can be dragged from the Clipboard card or any Pasteboard history
+entry onto the playfield. The preview snaps to the hovered time and lane, with
+blocked notes shown in red. Dropping adds a copy that can be undone with Ctrl+Z.
+
 Single-key shortcuts are the defaults and can all be rebound: open the info
 button in the bottom-left corner, click a key and press a new one. The Ctrl
 combos are fixed.

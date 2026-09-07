@@ -3,6 +3,29 @@ import { withoutNoteCollisions } from "./noteCollision";
 import { patternToNotes, type PatternNote } from "./patterns";
 import { snapTime } from "./timing";
 
+export const NOTE_CLIP_DRAG_TYPE = "application/x-cascade-note-clip";
+
+export function positionPatternForDrop(
+  pattern: PatternNote[],
+  column: number,
+  keyCount: number,
+): PatternNote[] | null {
+  if (!pattern.length || !Number.isInteger(column) || column < 0 || column >= keyCount) {
+    return null;
+  }
+  let left = Infinity;
+  let right = -Infinity;
+  for (const note of pattern) {
+    if (!Number.isInteger(note.column) || note.column < 0) return null;
+    left = Math.min(left, note.column);
+    right = Math.max(right, note.column);
+  }
+  const span = right - left + 1;
+  if (span > keyCount) return null;
+  const delta = Math.min(column, keyCount - span) - left;
+  return pattern.map((note) => ({ ...note, column: note.column + delta }));
+}
+
 export function isClipboardTextTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
   if (element?.isContentEditable) return true;
@@ -46,6 +69,7 @@ export function prepareNotePaste(
     ? `Pasted ${notes.length} note${notes.length === 1 ? "" : "s"}.`
     : "Nothing pasted.";
   return {
+    candidates,
     notes,
     message: skipped.length ? `${message} Skipped ${skipped.join("; ")}.` : message,
   };
