@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Manager, Window};
+use tauri::{Manager, WebviewWindow};
 
-fn focus(window: &Window) {
+fn focus(window: &WebviewWindow) {
     let _ = window.unminimize();
     let _ = window.show();
     let _ = window.set_focus();
@@ -11,7 +11,7 @@ fn focus(window: &Window) {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            if let Some(window) = app.get_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
                 focus(&window);
             }
         }))
