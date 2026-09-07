@@ -5,7 +5,11 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:allow-open-url",
-    "deep-link:default"
+    "deep-link:default",
+    "opener:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://*" }, { "url": "http://*" }]
+    }
   ]
 }

@@ -3,6 +3,11 @@ import { isDesktopApp } from "./pwa";
 const WORKER = import.meta.env.VITE_WORKER_URL;
 
 export function desktopLoginUrl(): string {
+  if (!WORKER) {
+    throw new Error(
+      "This build has no VITE_WORKER_URL, so it cannot reach the account service.",
+    );
+  }
   return `${WORKER}/auth/osu/login?client=desktop`;
 }
 
@@ -17,8 +22,9 @@ export function sessionFromDeepLink(url: string): string | null {
 }
 
 export async function openDesktopLogin(): Promise<void> {
+  const url = desktopLoginUrl();
   const { openUrl } = await import("@tauri-apps/plugin-opener");
-  await openUrl(desktopLoginUrl());
+  await openUrl(url);
 }
 
 export async function watchDesktopLogin(

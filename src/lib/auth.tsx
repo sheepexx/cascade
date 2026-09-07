@@ -97,7 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(() => {
     if (isDesktopApp()) {
-      void openDesktopLogin();
+      void openDesktopLogin().catch((err) => {
+        console.error("[cascade] could not open the osu! login", err);
+      });
       return;
     }
     window.location.href = `${WORKER}/auth/osu/login`;

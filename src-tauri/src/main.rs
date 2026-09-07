@@ -23,7 +23,11 @@ fn main() {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 let _ = app.deep_link().register_all();
             }
-            let _ = app;
+            if std::env::var("CASCADE_DEVTOOLS").is_ok() {
+                if let Some(window) = app.get_webview_window("main") {
+                    window.open_devtools();
+                }
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
