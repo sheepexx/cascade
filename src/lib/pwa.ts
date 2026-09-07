@@ -75,8 +75,29 @@ export function setLaunchFileConsumer(fn: (files: File[]) => void): () => void {
   };
 }
 
+function openExternalLinksInBrowser(): void {
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      const anchor = (event.target as HTMLElement | null)?.closest?.("a");
+      const href = anchor?.getAttribute("href");
+      if (!href || !/^https?:\/\//i.test(href)) return;
+      event.preventDefault();
+      void import("@tauri-apps/plugin-opener").then(({ openUrl }) =>
+        openUrl(href),
+      );
+    },
+    true,
+  );
+}
+
 export function initPwa(): void {
-  if (typeof window === "undefined" || isDesktopApp()) return;
+  if (typeof window === "undefined") return;
+  if (isDesktopApp()) {
+    openExternalLinksInBrowser();
+    return;
+  }
 
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();

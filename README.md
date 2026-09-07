@@ -59,6 +59,24 @@ Supabase project plus the OAuth worker; see
 [docs/BACKEND_SETUP.md](docs/BACKEND_SETUP.md) if you want to self-host
 that part. Without the env vars the app simply runs with accounts disabled.
 
+## Desktop app
+
+Cascade also ships as a Windows desktop app built with Tauri. It installs from
+an .msi or .exe, runs in its own window without any browser chrome, and works
+offline. The installer stays small because it uses the WebView2 runtime that
+Windows already provides instead of bundling a browser.
+
+Installers are built in CI, not locally: push a tag that starts with
+`desktop-v`, or run the "Desktop build" workflow by hand, and the .msi and
+.exe are attached to a draft GitHub release.
+
+Building locally needs the Rust toolchain and the MSVC build tools:
+
+```bash
+npm run desktop         # dev window against the vite dev server
+npm run desktop:build   # installers in src-tauri/target/release/bundle
+```
+
 ## Shortcuts
 
 Copied notes can be dragged from the Clipboard card or any Pasteboard history
