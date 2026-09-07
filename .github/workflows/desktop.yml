@@ -50,9 +50,12 @@ jobs:
 
       - name: Collect installers
         shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
         run: |
           mkdir -p out
           find src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*-setup.exe" \) -exec cp {} out/ \;
+          cp src-tauri/target/release/cascade.exe "out/Cascade_${VERSION}_portable.exe"
           ls -la out
 
       - uses: actions/upload-artifact@v4
@@ -67,6 +70,8 @@ jobs:
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('desktop-v{0}', steps.version.outputs.value) }}
           name: Cascade ${{ steps.version.outputs.value }}
-          files: out/*
+          files: |
+            out/*.msi
+            out/*-setup.exe
           draft: true
           generate_release_notes: true
