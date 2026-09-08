@@ -261,6 +261,22 @@ function recordDesktopDownload(
   );
 }
 
+export async function desktopDownloadEnabled(env: WorkerEnv): Promise<boolean> {
+  try {
+    const response = await supabaseRest(
+      env,
+      "/feature_flags?key=eq.desktop_download&select=enabled",
+      { headers: serviceHeaders(env) },
+    );
+    if (!response.ok) return true;
+    const rows = (await response.json()) as { enabled?: boolean }[];
+    if (!Array.isArray(rows) || rows.length === 0) return true;
+    return rows[0]?.enabled !== false;
+  } catch {
+    return true;
+  }
+}
+
 export async function handleDesktopRoute(
   req: Request,
   url: URL,
@@ -272,6 +288,12 @@ export async function handleDesktopRoute(
 
   const key = decodeSafePath(url.pathname.slice("/desktop/".length));
   if (!key) return storageJson({ error: "invalid object path" }, 400, env, true);
+
+  if (key === "latest.json" && !(await desktopDownloadEnabled(env))) {
+    const gated = storageJson({ files: {} }, 200, env, true);
+    gated.headers.set("Cache-Control", "public, max-age=60");
+    return gated;
+  }
 
   const response = await serveR2Object(env.SHARED_ASSETS, `desktop/${key}`, req, env, true);
   if (!response) return storageJson({ error: "not found" }, 404, env, true);

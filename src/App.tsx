@@ -5997,7 +5997,9 @@ export default function App() {
             </div>
           )}
           {!hasProject && !sharedSlug && <NowPlaying music={menuMusic} />}
-          {!hasProject && <DesktopDownloadLink />}
+          {!hasProject && featureFlags.desktop_download && (
+            <DesktopDownloadLink />
+          )}
           {!hasProject && <LanguagePicker compact />}
           {authUser && (
             <NotificationInbox

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   countableDesktopDownload,
+  desktopDownloadEnabled,
   desktopDownloadTarget,
   downloadOs,
   handleDesktopRoute,
@@ -123,8 +124,17 @@ describe("handleDesktopRoute", () => {
   });
 
   it("leaves the manifests uncounted and short-cached", async () => {
-    const fetchMock = vi.fn(async () => new Response(null, { status: 201 }));
-    vi.stubGlobal("fetch", fetchMock);
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo) => {
+        urls.push(String(input));
+        return new Response(JSON.stringify([{ enabled: true }]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
 
     for (const name of ["latest.json", "update.json"]) {
       const request = new Request(`https://worker.test/desktop/${name}`);
@@ -136,7 +146,58 @@ describe("handleDesktopRoute", () => {
       );
       expect(response?.headers.get("Cache-Control")).toBe("public, max-age=60");
     }
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(urls.some((url) => url.includes("desktop_downloads"))).toBe(false);
+  });
+
+  it("hides the manifest while the download flag is off", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify([{ enabled: false }]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    const request = new Request("https://worker.test/desktop/latest.json");
+    const response = await handleDesktopRoute(
+      request,
+      new URL(request.url),
+      desktopEnv(),
+      { waitUntil: () => {} } as unknown as ExecutionContext,
+    );
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toEqual({ files: {} });
+  });
+
+  it("still serves an installer directly while the flag is off", async () => {
+    const pending: Promise<unknown>[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify([{ enabled: false }]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    const request = new Request(`https://worker.test/desktop/${key}`);
+    const response = await handleDesktopRoute(
+      request,
+      new URL(request.url),
+      desktopEnv(),
+      {
+        waitUntil: (p: Promise<unknown>) => {
+          pending.push(p);
+        },
+      } as unknown as ExecutionContext,
+    );
+
+    expect(response?.status).toBe(200);
+    await Promise.all(pending);
   });
 
   it("still serves the file when the counter fails", async () => {
@@ -193,4 +254,48 @@ describe("handleDesktopRoute", () => {
       COOKIE_SECRET: "cookie-secret",
     };
   }
+});
+
+describe("desktopDownloadEnabled", () => {
+  function flagEnv(): WorkerEnv {
+    return {
+      SUPABASE_URL: "https://splqsxhwdusjeqthinxz.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    } as unknown as WorkerEnv;
+  }
+
+  function respond(body: unknown, status = 200) {
+    return vi.fn(async () =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  }
+
+  it("gates the download when an admin switched the flag off", async () => {
+    vi.stubGlobal("fetch", respond([{ enabled: false }]));
+    await expect(desktopDownloadEnabled(flagEnv())).resolves.toBe(false);
+  });
+
+  it("allows the download when the flag is on", async () => {
+    vi.stubGlobal("fetch", respond([{ enabled: true }]));
+    await expect(desktopDownloadEnabled(flagEnv())).resolves.toBe(true);
+  });
+
+  it("fails open when the flag row or the database is unavailable", async () => {
+    vi.stubGlobal("fetch", respond([]));
+    await expect(desktopDownloadEnabled(flagEnv())).resolves.toBe(true);
+
+    vi.stubGlobal("fetch", respond({ error: "nope" }, 500));
+    await expect(desktopDownloadEnabled(flagEnv())).resolves.toBe(true);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("offline");
+      }),
+    );
+    await expect(desktopDownloadEnabled(flagEnv())).resolves.toBe(true);
+  });
 });

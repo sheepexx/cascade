@@ -10,7 +10,8 @@ export type FeatureFlagKey =
   | "preset_publishing"
   | "beatmap_import"
   | "sv_tools"
-  | "playtest";
+  | "playtest"
+  | "desktop_download";
 
 export type FeatureFlags = Record<FeatureFlagKey, boolean>;
 
@@ -21,6 +22,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   beatmap_import: true,
   sv_tools: true,
   playtest: true,
+  desktop_download: false,
 };
 
 /** Labels for the admin panel. */
@@ -31,6 +33,7 @@ export const FEATURE_FLAG_INFO: { key: FeatureFlagKey; label: string }[] = [
   { key: "beatmap_import", label: "osu! beatmap import" },
   { key: "sv_tools", label: "SV editor" },
   { key: "playtest", label: "Playtest mode" },
+  { key: "desktop_download", label: "Desktop app download" },
 ];
 
 const CACHE_KEY = "mania:featureFlags";
