@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 
-pub const APP_ID: &str = "";
+pub const APP_ID: &str = "1546880430970638359";
 pub const LARGE_IMAGE: &str = "cascade";
 pub const LARGE_TEXT: &str = "Cascade";
 pub const MINIMAL_DETAILS: &str = "In the editor";
