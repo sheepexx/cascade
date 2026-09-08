@@ -15,6 +15,8 @@ import type {
   TimingPoint,
 } from "../types";
 import { kiaiRanges, type KiaiRange } from "./timing";
+// Type-only in the other direction, so this pair does not cycle at runtime.
+import { mirrorProject } from "./projectVault";
 
 const DB_NAME = "mania-editor";
 const STORE = "project";
@@ -34,6 +36,12 @@ const LOCALE_KEY = "mania-editor:locale";
 
 const projectKey = (id?: string | null) =>
   !id || id === KEY ? KEY : `local:${id}`;
+
+/**
+ * The key a project is stored and mirrored under. Callers that need to reach the
+ * on-disk mirror must use this rather than the raw local id.
+ */
+export const projectStorageKey = projectKey;
 
 const projectIdFromKey = (key: IDBValidKey) => {
   if (key === KEY) return KEY;
@@ -345,6 +353,27 @@ export async function saveProject(
   });
 
   lastMediaSignature.set(key, signature);
+
+  // The on-disk mirror trails IndexedDB rather than gating it: a project that
+  // saved must stay saved even if the folder is read-only or gone.
+  void mirrorSavedProject(project, key, !mediaUnchanged);
+}
+
+/**
+ * Writes the desktop copy of a project. Deliberately fire-and-forget — the
+ * authoritative save has already happened by the time this runs, and the web
+ * build drops it entirely.
+ */
+async function mirrorSavedProject(
+  project: SavedProject,
+  key: string,
+  mediaChanged: boolean,
+): Promise<void> {
+  try {
+    await mirrorProject(project, key, mediaChanged);
+  } catch {
+    // A mirror that cannot be written is not worth surfacing on every autosave.
+  }
 }
 
 export async function loadProject(localId: string = KEY): Promise<SavedProject | null> {

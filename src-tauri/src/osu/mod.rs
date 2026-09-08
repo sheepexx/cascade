@@ -36,16 +36,23 @@ fn config_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
 }
 
 #[cfg(windows)]
+fn watcher(app: &tauri::AppHandle) -> tauri::State<'_, memory::Watcher> {
+    use tauri::Manager;
+    app.state::<memory::Watcher>()
+}
+
+#[cfg(windows)]
 fn locate(app: &tauri::AppHandle) -> Option<(std::path::PathBuf, std::path::PathBuf)> {
     let dir = config_dir(app);
-    let root = install::discover_root(dir.as_deref()).or_else(memory::running_root)?;
+    let root = install::discover_root(dir.as_deref())
+        .or_else(|| watcher(app).running_root())?;
     let songs = install::songs_for(&root);
     Some((root, songs))
 }
 
 #[cfg(windows)]
 fn status_for(app: &tauri::AppHandle) -> OsuStatus {
-    let running = memory::is_running();
+    let running = watcher(app).poll().running;
     let chosen = config_dir(app)
         .as_deref()
         .and_then(install::read_override)
@@ -125,15 +132,71 @@ pub fn osu_forget_root(app: tauri::AppHandle) -> Result<OsuStatus, String> {
 }
 
 #[tauri::command]
-pub fn osu_selected_map() -> Result<serde_json::Value, String> {
+pub fn osu_selected_map(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     #[cfg(windows)]
     {
-        let map = memory::selected_map()?;
+        let map = watcher(&app).selected_map()?;
         serde_json::to_value(map).map_err(|err| err.to_string())
     }
     #[cfg(not(windows))]
     {
+        let _ = app;
         Err(WINDOWS_ONLY.to_string())
+    }
+}
+
+/// Event carrying a changed connection snapshot to the frontend.
+pub const LIVE_EVENT: &str = "cascade://osu-live";
+
+/// Watches osu! in the background and emits [`LIVE_EVENT`] whenever what it can
+/// see changes: the client opening or closing, and the map song select sits on.
+/// Only changes are emitted, so an idle osu! costs the frontend nothing.
+pub fn spawn_watcher(app: tauri::AppHandle) {
+    #[cfg(windows)]
+    {
+        use tauri::{Emitter, Manager};
+
+        // Registered here rather than in main so the Windows-only type stays
+        // inside this module. Commands only run once setup has returned.
+        app.manage(memory::Watcher::default());
+
+        std::thread::spawn(move || {
+            let mut last: Option<memory::Live> = None;
+            loop {
+                let live = app.state::<memory::Watcher>().poll();
+                let pause = live.interval();
+                if last.as_ref() != Some(&live) {
+                    let _ = app.emit(LIVE_EVENT, &live);
+                    last = Some(live);
+                }
+                std::thread::sleep(pause);
+            }
+        });
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = app;
+    }
+}
+
+/// The current connection snapshot. The watcher also pushes this on the
+/// `cascade://osu-live` event whenever it changes; this is for the first read
+/// when a window mounts.
+#[tauri::command]
+pub fn osu_live(app: tauri::AppHandle) -> serde_json::Value {
+    #[cfg(windows)]
+    {
+        serde_json::to_value(watcher(&app).poll()).unwrap_or(serde_json::Value::Null)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = app;
+        serde_json::json!({
+            "running": false,
+            "connected": false,
+            "map": null,
+            "problem": null,
+        })
     }
 }
 

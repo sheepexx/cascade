@@ -105,6 +105,16 @@ cannot do:
   clobbered
 - **Import from osu!** reads the map you have selected in song select and opens
   it in the editor
+- **Live osu! detection**: Cascade watches for the client in the background and
+  says so when it connects, whichever of the two started first. While osu! sits
+  in song select, the main menu and the new-map and import dialogs offer to open
+  the map you are hovering, in one click
+- **Projects on disk**: every save also writes
+  `Documents/Cascade/Projects/<map>/`, so maps can be backed up, synced or
+  opened by hand instead of living only in the browser's storage
+- **Version history** keeps the last 20 autosaves of each map, so an edit that
+  got saved over is still recoverable. Restoring swaps the notes and timing back
+  and leaves the audio alone
 - **Skins in osu!** loads any skin already installed in your osu! folder,
   without exporting an `.osk` first
 - **Open with Cascade** for `.osu`, `.osz`, `.sm`, `.ssc`, `.qua` and `.osk`

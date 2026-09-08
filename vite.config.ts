@@ -117,4 +117,12 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  server: {
+    watch: {
+      // Vite must not walk into the Rust build output. Cargo holds the binary
+      // locked while it writes it, and watching it crashes the dev server with
+      // EBUSY, taking `tauri dev` down with it.
+      ignored: ["**/src-tauri/**"],
+    },
+  },
 });

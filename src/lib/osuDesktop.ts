@@ -21,6 +21,27 @@ export type OsuSelectedMap = {
   osuRoot: string | null;
 };
 
+/**
+ * What the native watcher can currently see. `running` without `connected`
+ * means osu! is open but unreadable, which the UI phrases differently from osu!
+ * being closed.
+ */
+export type OsuLive = {
+  running: boolean;
+  connected: boolean;
+  map: OsuSelectedMap | null;
+  problem: string | null;
+};
+
+export const OSU_LIVE_EVENT = "cascade://osu-live";
+
+export const OSU_OFFLINE: OsuLive = {
+  running: false,
+  connected: false,
+  map: null,
+  problem: null,
+};
+
 const OFFLINE: OsuStatus = {
   supported: false,
   installed: false,
@@ -45,6 +66,42 @@ export async function osuStatus(): Promise<OsuStatus> {
   } catch {
     return OFFLINE;
   }
+}
+
+export async function osuLive(): Promise<OsuLive> {
+  if (!isDesktopApp()) return OSU_OFFLINE;
+  try {
+    const invoke = await invoker();
+    return await invoke<OsuLive>("osu_live");
+  } catch {
+    return OSU_OFFLINE;
+  }
+}
+
+/**
+ * Subscribes to osu! connection changes. The native side only emits when
+ * something actually changed, so this stays quiet while osu! sits still.
+ * Delivers the current snapshot immediately so callers need not also poll.
+ */
+export async function watchOsuLive(
+  onLive: (live: OsuLive) => void,
+): Promise<() => void> {
+  if (!isDesktopApp()) return () => {};
+
+  let stopped = false;
+  void osuLive().then((live) => {
+    if (!stopped) onLive(live);
+  });
+
+  const { listen } = await import("@tauri-apps/api/event");
+  const unlisten = await listen<OsuLive>(OSU_LIVE_EVENT, (event) => {
+    if (!stopped) onLive(event.payload);
+  });
+
+  return () => {
+    stopped = true;
+    unlisten();
+  };
 }
 
 export async function osuChooseRoot(): Promise<OsuStatus> {

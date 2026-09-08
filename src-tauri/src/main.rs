@@ -7,6 +7,7 @@ use std::time::Duration;
 mod launch;
 mod osu;
 mod presence;
+mod vault;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
@@ -142,6 +143,7 @@ fn main() {
             launch::take_launch_files,
             launch::read_launch_file,
             osu::osu_status,
+            osu::osu_live,
             osu::osu_selected_map,
             osu::osu_read_map,
             osu::osu_send_map,
@@ -149,11 +151,16 @@ fn main() {
             osu::osu_list_skins,
             osu::osu_read_skin,
             osu::osu_choose_root,
-            osu::osu_forget_root
+            osu::osu_forget_root,
+            vault::vault_save,
+            vault::vault_history,
+            vault::vault_restore,
+            vault::vault_reveal
         ])
         .setup(|app| {
             let paths = launch::launch_paths(std::env::args());
             launch::queue(app.state::<launch::Pending>().inner(), paths);
+            osu::spawn_watcher(app.handle().clone());
             if std::env::var("CASCADE_DEVTOOLS").is_ok() {
                 if let Some(window) = app.get_webview_window("main") {
                     window.open_devtools();

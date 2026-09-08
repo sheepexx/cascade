@@ -26,6 +26,9 @@ tauri-plugin-process = { version = "2" }
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
 rosu-mem = "3"
+# Must track the version rosu-mem uses, so the HANDLE it hands back is the same
+# type we close.
+windows = { version = "0.48", features = ["Win32_Foundation"] }
 
 [profile.release]
 codegen-units = 1

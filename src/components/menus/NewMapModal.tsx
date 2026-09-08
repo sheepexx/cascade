@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "../ui/Controls";
 import { Modal } from "../ui/Modal";
 import { MusicNoteIcon } from "../ui/Icons";
@@ -7,9 +7,11 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onCreate: (audio: File | null) => Promise<void>;
+  /** Offer to open the map osu! is sitting on, when there is one. */
+  banner?: ReactNode;
 };
 
-export function NewMapModal({ open, onClose, onCreate }: Props) {
+export function NewMapModal({ open, onClose, onCreate, banner }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [audio, setAudio] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,6 +44,7 @@ export function NewMapModal({ open, onClose, onCreate }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Create a new map" width="max-w-xl">
       <div className="flex flex-col gap-4">
+        {banner}
         <div>
           <h3 className="text-base font-semibold text-slate-100">
             Start with the song

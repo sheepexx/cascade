@@ -23,6 +23,8 @@ import type { SampleMap } from "./components/menus/StartModal";
 import { StartScreen } from "./components/StartScreen";
 import { usePhoneViewport } from "./hooks/usePhoneViewport";
 import { useOnlinePresence } from "./hooks/useOnlinePresence";
+import { useOsuLive } from "./hooks/useOsuLive";
+import { OsuOpenPrompt } from "./components/OsuOpenPrompt";
 import {
   findSharedMapForProject,
   publishSharedMap,
@@ -145,6 +147,11 @@ const PublishPresetModal = lazy(() =>
 const FeedbackModal = lazy(() =>
   import("./components/menus/FeedbackModal").then((m) => ({
     default: m.FeedbackModal,
+  })),
+);
+const HistoryModal = lazy(() =>
+  import("./components/menus/HistoryModal").then((m) => ({
+    default: m.HistoryModal,
   })),
 );
 const ShareModal = lazy(() =>
@@ -321,9 +328,11 @@ import {
   loadVolume,
   saveViewPreferences,
   loadViewPreferences,
+  projectStorageKey,
   type SavedSkinBlob,
   type SavedProject,
 } from "./lib/persistence";
+import { restoreSnapshot } from "./lib/projectVault";
 import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_SONG_META,
@@ -429,6 +438,7 @@ type ModalId =
   | "presets"
   | "publishPreset"
   | "feedback"
+  | "history"
   | "admin"
   | "share"
   | "packBrowser"
@@ -726,6 +736,11 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [osuBusy, setOsuBusy] = useState(false);
+  const {
+    live: osuLive,
+    connectedAt: osuConnectedAt,
+    acknowledge: acknowledgeOsu,
+  } = useOsuLive();
   const [osuApp, setOsuApp] = useState<OsuStatus | null>(null);
   const [desktopUpdate, setDesktopUpdate] = useState<DesktopUpdate | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -4839,6 +4854,21 @@ export default function App() {
     }
   }, [ensureOsuFolder, hasProjectContent, importMapFile, t]);
 
+  // Offered wherever the user is about to choose a map from somewhere else, so
+  // the one already open in song select is one click away.
+  const osuSelected = osuLive.connected ? osuLive.map : null;
+  const osuPrompt = osuSelected ? (
+    <OsuOpenPrompt
+      map={osuSelected}
+      busy={osuBusy || importingMap}
+      onOpen={() => {
+        // Harmless on the start screen, where no dialog is open.
+        setModal(null);
+        void handleLoadFromOsu();
+      }}
+    />
+  ) : null;
+
   const importFile = useCallback(
     (file: File) => {
       if (/\.(sm|ssc)$/i.test(file.name)) {
@@ -4942,6 +4972,27 @@ export default function App() {
     videoFiles,
     skin,
   ]);
+
+  const projectVaultKey = projectStorageKey(localProjectId);
+
+  const handleRestoreSnapshot = useCallback(
+    async (stamp: string) => {
+      const snapshot = await restoreSnapshot(projectVaultKey, stamp);
+      const current = buildSavedProject();
+      applySavedProject({
+        ...snapshot,
+        // Snapshots hold the chart only, so keep the media that is loaded.
+        // Restoring notes and timing must never drop the audio.
+        audioFiles: current.audioFiles,
+        audio: current.audio,
+        backgroundFiles: current.backgroundFiles,
+        videoFiles: current.videoFiles,
+        background: current.background,
+        skin: current.skin,
+      });
+    },
+    [projectVaultKey, buildSavedProject, applySavedProject],
+  );
 
   const handleSave = useCallback(async (silent = false) => {
     setSaveStatus("saving");
@@ -5918,6 +5969,16 @@ export default function App() {
                         : undefined,
                     onClick: handleExportQua,
                   },
+                  ...(isDesktopApp()
+                    ? [
+                        { separator: true as const },
+                        {
+                          label: t("file.versionHistory"),
+                          disabled: !hasProject,
+                          onClick: () => setModal("history"),
+                        },
+                      ]
+                    : []),
                   ...(osuApp?.supported
                     ? [
                         { separator: true as const },
@@ -6453,6 +6514,7 @@ export default function App() {
           open={modal === "newMap"}
           onClose={close}
           onCreate={(audioSource) => handleNew(hasProjectContent, audioSource)}
+          banner={osuPrompt}
         />
       )}
       {modalMounted("welcome") && (
@@ -6476,6 +6538,14 @@ export default function App() {
           onOpenCloudProject={(id) => void loadCloudProject(id)}
         />
       )}
+      {modalMounted("history") && (
+        <HistoryModal
+          open={modal === "history"}
+          onClose={close}
+          storageKey={projectVaultKey}
+          onRestore={handleRestoreSnapshot}
+        />
+      )}
       {modalMounted("myProjects") && (
         <WelcomeModal
           projectsOnly
@@ -6492,6 +6562,7 @@ export default function App() {
         <ImportModal
           open={modal === "import"}
           onClose={close}
+          banner={osuPrompt}
           onFile={(file) => {
             setModal(null);
             if (isSmFile(file)) void importSmFile(file);
@@ -6978,6 +7049,28 @@ export default function App() {
         />
       )}
       </Suspense>
+
+      {osuConnectedAt !== null && (
+        <TimedNotification
+          durationMs={3000}
+          onDismiss={acknowledgeOsu}
+          resetKey={osuConnectedAt}
+          placement="top-center"
+          progressClassName="bg-accent"
+          className="fixed left-1/2 top-16 z-[60] flex items-center gap-2 rounded-full border border-white/10 bg-ink-800/90 py-1.5 pb-2.5 pl-3 pr-4 text-sm text-slate-100 shadow-2xl backdrop-blur-2xl"
+        >
+          <span aria-hidden>🎯</span>
+          {t("osu.connected")}
+        </TimedNotification>
+      )}
+
+      {!hasProject && !sharedSlug && osuPrompt && (
+        <div className="fixed bottom-6 left-1/2 z-[55] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2">
+          <div className="rounded-lg bg-ink-800/90 shadow-2xl backdrop-blur-2xl">
+            {osuPrompt}
+          </div>
+        </div>
+      )}
 
       {peerNotice && (
         <TimedNotification

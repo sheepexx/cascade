@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { FolderIcon, ImportIcon } from "../ui/StartIcons";
@@ -9,12 +9,15 @@ export function ImportModal({
   onFile,
   onFolder,
   onImportFromOsu,
+  banner,
 }: {
   open: boolean;
   onClose: () => void;
   onFile: (file: File) => void;
   onFolder?: () => void;
   onImportFromOsu?: (input: string) => Promise<void>;
+  /** Offer to open the map osu! is sitting on, when there is one. */
+  banner?: ReactNode;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [link, setLink] = useState("");
@@ -38,6 +41,7 @@ export function ImportModal({
   return (
     <Modal open={open} title="Import a map" onClose={onClose} width="max-w-lg">
       <div className="flex flex-col gap-3">
+        {banner}
         <div className="grid gap-3 sm:grid-cols-2">
           <ImportCard
             icon={<ImportIcon className="h-6 w-6" />}
