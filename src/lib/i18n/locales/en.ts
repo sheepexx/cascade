@@ -139,6 +139,12 @@ export const en = {
   "settings.hideStatus": "Hide my status",
   "settings.presenceHint":
     "Floating avatars on the menu show who's online and what they're working on. Hiding your status keeps you invisible to others while you browse.",
+  "settings.discordPresence": "Discord status",
+  "settings.discordDetailed": "Show the map",
+  "settings.discordMinimal": "Only show Cascade",
+  "settings.discordOff": "Off",
+  "settings.discordPresenceHint":
+    "Shows what you are working on in Discord. \"Only show Cascade\" hides the song, difficulty and whether you are playtesting.",
 
   "settings.scrollSpeed": "Scroll speed",
   "settings.rate": "Rate",
@@ -289,6 +295,13 @@ export const en = {
   "file.exportQua": "Export .qua",
   "file.importIntoOsu": "Import into osu!",
   "file.importFromOsu": "Import from osu!",
+  "file.syncToOsu": "Save into osu! Songs",
+  "file.syncToOsuHint": "Writes the map straight into your Songs folder. Press F5 in song select to reload it.",
+  "osu.synced": "Saved into your osu! Songs folder. Press F5 in song select.",
+  "osu.syncFailed": "Could not save into your osu! Songs folder.",
+  "update.available": "Cascade {version} is available.",
+  "update.install": "Update",
+  "update.installing": "Updating…",
   "osu.sent": "Sent to osu!",
   "osu.loaded": "Loaded {name} from osu!",
   "osu.sendFailed": "Could not hand the map to osu!.",

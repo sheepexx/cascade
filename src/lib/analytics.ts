@@ -18,7 +18,8 @@ export type AnalyticsEventType =
   | "skin_imported"
   | "collab_joined"
   | "export_to_osu"
-  | "import_from_osu";
+  | "import_from_osu"
+  | "sync_to_osu";
 
 export type AnalyticsPlatform = "web" | "desktop";
 

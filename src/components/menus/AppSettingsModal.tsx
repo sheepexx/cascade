@@ -10,6 +10,7 @@ import {
 } from "../../lib/osuDesktop";
 import type {
   AltWheelAction,
+  DiscordPresenceMode,
   HumanizeSettings,
   PlaytestSettings,
   SkillSettings,
@@ -52,6 +53,8 @@ type Props = {
   showBottomTimeline: boolean;
   onShowBottomTimeline: (value: boolean) => void;
   simplifyBottomTimeline: boolean;
+  discordPresence: DiscordPresenceMode;
+  onDiscordPresence: (mode: DiscordPresenceMode) => void;
   onSimplifyBottomTimeline: (value: boolean) => void;
   showPpCounter: boolean;
   onShowPpCounter: (value: boolean) => void;
@@ -140,6 +143,8 @@ export function AppSettingsModal({
   onShowBottomTimeline,
   simplifyBottomTimeline,
   onSimplifyBottomTimeline,
+  discordPresence,
+  onDiscordPresence,
   showPpCounter,
   onShowPpCounter,
   showPatternTools,
@@ -623,6 +628,33 @@ export function AppSettingsModal({
               <p className="mt-3 text-[11px] text-slate-500">
                 {t("settings.presenceHint")}
               </p>
+              {isDesktopApp() && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-300">
+                    <span>{t("settings.discordPresence")}</span>
+                    <Select
+                      value={discordPresence}
+                      onChange={(e) =>
+                        onDiscordPresence(
+                          e.target.value as DiscordPresenceMode,
+                        )
+                      }
+                      className="w-40"
+                    >
+                      <option value="detailed">
+                        {t("settings.discordDetailed")}
+                      </option>
+                      <option value="minimal">
+                        {t("settings.discordMinimal")}
+                      </option>
+                      <option value="off">{t("settings.discordOff")}</option>
+                    </Select>
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {t("settings.discordPresenceHint")}
+                  </p>
+                </div>
+              )}
             </section>
           </div>
         )}

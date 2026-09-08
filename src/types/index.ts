@@ -157,6 +157,8 @@ export type SmMeta = {
   listnotes?: string;
 };
 
+export type DiscordPresenceMode = "off" | "minimal" | "detailed";
+
 export type Difficulty = {
   id: string;
   sourceFormat?: "osu" | "sm" | "qua";
@@ -431,6 +433,7 @@ export type AppSettings = {
   localAutosaveEnabled: boolean;
   exportPngBackgroundsAsJpeg: boolean;
   exportJpegQuality: number;
+  discordPresence: DiscordPresenceMode;
   uiSoundsEnabled: boolean;
   uiSoundVolume: number;
   showMenuPlayers: boolean;
@@ -498,6 +501,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   svPreviewPlayback: false,
   bpmAffectsScroll: false,
   localAutosaveEnabled: true,
+  discordPresence: "detailed",
   exportPngBackgroundsAsJpeg: true,
   exportJpegQuality: 0.9,
   uiSoundsEnabled: true,

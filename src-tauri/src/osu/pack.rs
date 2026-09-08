@@ -15,7 +15,7 @@ pub fn is_packable(name: &str) -> bool {
     !lower.starts_with('.')
 }
 
-pub fn pack_folder(dir: &Path) -> Result<Vec<u8>, String> {
+pub fn pack_folder(dir: &Path, required_ext: Option<&str>) -> Result<Vec<u8>, String> {
     let entries = fs::read_dir(dir).map_err(|err| format!("Cannot read the map folder: {err}"))?;
 
     let mut files: Vec<PathBuf> = Vec::new();
@@ -45,13 +45,12 @@ pub fn pack_folder(dir: &Path) -> Result<Vec<u8>, String> {
     }
 
     if files.is_empty() {
-        return Err("That map folder is empty.".to_string());
+        return Err("That folder is empty.".to_string());
     }
-    if !files
-        .iter()
-        .any(|path| has_extension(path, "osu"))
-    {
-        return Err("That folder has no .osu difficulty in it.".to_string());
+    if let Some(ext) = required_ext {
+        if !files.iter().any(|path| has_extension(path, ext)) {
+            return Err(format!("That folder has no .{ext} file in it."));
+        }
     }
 
     files.sort();
@@ -147,7 +146,7 @@ mod tests {
         fs::write(dir.join("audio.mp3"), b"not really audio").unwrap();
         fs::write(dir.join("story.osb"), b"skipped").unwrap();
 
-        let bytes = pack_folder(&dir).unwrap();
+        let bytes = pack_folder(&dir, Some("osu")).unwrap();
         let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
         let mut names: Vec<String> = (0..archive.len())
             .map(|i| archive.by_index(i).unwrap().name().to_string())
@@ -165,7 +164,7 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("audio.mp3"), b"audio").unwrap();
 
-        let err = pack_folder(&dir).unwrap_err();
+        let err = pack_folder(&dir, Some("osu")).unwrap_err();
         assert!(err.contains(".osu"), "unexpected error: {err}");
 
         let _ = fs::remove_dir_all(&dir);

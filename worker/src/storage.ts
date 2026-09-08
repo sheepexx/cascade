@@ -283,7 +283,7 @@ export async function handleDesktopRoute(
     else void record;
   }
 
-  if (key !== "latest.json") return response;
+  if (key !== "latest.json" && key !== "update.json") return response;
 
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", "public, max-age=60");
