@@ -4624,8 +4624,21 @@ export default function App() {
     [requestExport, doExportQua],
   );
 
+  const ensureOsuFolder = useCallback(async () => {
+    const { osuStatus: readStatus, osuChooseRoot } = await import(
+      "./lib/osuDesktop"
+    );
+    const current = await readStatus();
+    setOsuApp(current);
+    if (current.installed) return true;
+    const picked = await osuChooseRoot();
+    setOsuApp(picked);
+    return picked.installed;
+  }, []);
+
   const doSendToOsu = useCallback(async () => {
     if (Object.keys(audioFiles).length === 0) return;
+    if (!(await ensureOsuFolder())) return;
     setOsuBusy(true);
     setImportError(null);
     setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
@@ -4670,6 +4683,7 @@ export default function App() {
     timingPoints,
     appSettings.exportPngBackgroundsAsJpeg,
     appSettings.exportJpegQuality,
+    ensureOsuFolder,
     t,
   ]);
 
@@ -4679,6 +4693,7 @@ export default function App() {
   );
 
   const handleLoadFromOsu = useCallback(async () => {
+    if (!(await ensureOsuFolder())) return;
     setOsuBusy(true);
     setImportError(null);
     try {
@@ -4706,7 +4721,7 @@ export default function App() {
     } finally {
       setOsuBusy(false);
     }
-  }, [hasProjectContent, importMapFile, t]);
+  }, [ensureOsuFolder, hasProjectContent, importMapFile, t]);
 
   const importFile = useCallback(
     (file: File) => {

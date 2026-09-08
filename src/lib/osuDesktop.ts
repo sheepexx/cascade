@@ -4,6 +4,7 @@ export type OsuStatus = {
   supported: boolean;
   installed: boolean;
   running: boolean;
+  chosen: boolean;
   root: string | null;
   songs: string | null;
 };
@@ -24,6 +25,7 @@ const OFFLINE: OsuStatus = {
   supported: false,
   installed: false,
   running: false,
+  chosen: false,
   root: null,
   songs: null,
 };
@@ -43,6 +45,18 @@ export async function osuStatus(): Promise<OsuStatus> {
   } catch {
     return OFFLINE;
   }
+}
+
+export async function osuChooseRoot(): Promise<OsuStatus> {
+  if (!isDesktopApp()) throw new Error(NOT_DESKTOP);
+  const invoke = await invoker();
+  return await invoke<OsuStatus>("osu_choose_root");
+}
+
+export async function osuForgetRoot(): Promise<OsuStatus> {
+  if (!isDesktopApp()) throw new Error(NOT_DESKTOP);
+  const invoke = await invoker();
+  return await invoke<OsuStatus>("osu_forget_root");
 }
 
 export async function osuSelectedMap(): Promise<OsuSelectedMap> {

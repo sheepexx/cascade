@@ -277,6 +277,12 @@ export const de: PartialCatalog = {
   "osu.loadFailed": "Die Map konnte nicht aus osu! gelesen werden.",
   "osu.notInstalled": "Cascade hat deine osu!-Installation nicht gefunden.",
   "osu.notRunning": "Starte osu! und wähle zuerst eine Map in der Songauswahl.",
+  "settings.osuFolder": "osu!-Ordner",
+  "settings.osuFolderMissing": "Noch nicht gefunden",
+  "settings.osuFolderChoose": "Ordner wählen…",
+  "settings.osuFolderReset": "Automatisch suchen",
+  "settings.osuFolderHint": "Cascade findet osu! normalerweise selbst. Wähle den Ordner manuell, falls es am falschen Ort sucht.",
+  "osu.folderFailed": "Der osu!-Ordner konnte nicht gesetzt werden.",
 
   "collab.live": "Live - Änderungen werden in Echtzeit synchronisiert",
   "collab.connecting": "Verbindung zur Live-Sitzung wird hergestellt…",

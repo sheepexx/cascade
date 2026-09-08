@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
-import { SegmentedControl, Select, Toggle } from "../ui/Controls";
+import { Button, SegmentedControl, Select, Toggle } from "../ui/Controls";
+import { isDesktopApp } from "../../lib/pwa";
+import {
+  osuChooseRoot,
+  osuForgetRoot,
+  osuStatus,
+  type OsuStatus,
+} from "../../lib/osuDesktop";
 import type {
   AltWheelAction,
   HumanizeSettings,
@@ -1208,6 +1215,7 @@ export function AppSettingsModal({
                 </p>
               </div>
             </section>
+            <OsuFolderSection />
           </div>
         )}
 
@@ -1220,6 +1228,64 @@ export function AppSettingsModal({
         )}
       </div>
     </Modal>
+  );
+}
+
+function OsuFolderSection() {
+  const { t } = useLocale();
+  const [status, setStatus] = useState<OsuStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    let live = true;
+    void osuStatus().then((next) => {
+      if (live) setStatus(next);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  if (!status?.supported) return null;
+
+  const run = (fn: () => Promise<OsuStatus>) => {
+    setBusy(true);
+    setError(null);
+    fn()
+      .then(setStatus)
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : t("osu.folderFailed")),
+      )
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <section>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {t("settings.osuFolder")}
+      </h3>
+      <p className="break-all text-xs text-slate-300">
+        {status.root ?? (
+          <span className="text-slate-500">{t("settings.osuFolderMissing")}</span>
+        )}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button onClick={() => run(osuChooseRoot)} disabled={busy}>
+          {t("settings.osuFolderChoose")}
+        </Button>
+        {status.chosen && (
+          <Button onClick={() => run(osuForgetRoot)} disabled={busy}>
+            {t("settings.osuFolderReset")}
+          </Button>
+        )}
+      </div>
+      {error && <p className="mt-2 text-[11px] text-rose-400">{error}</p>}
+      <p className="mt-2 text-[11px] text-slate-500">
+        {t("settings.osuFolderHint")}
+      </p>
+    </section>
   );
 }
 

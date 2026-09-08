@@ -270,6 +270,12 @@ export const zhCN: PartialCatalog = {
   "osu.loadFailed": "无法从 osu! 读取谱面。",
   "osu.notInstalled": "Cascade 没有找到你的 osu! 安装。",
   "osu.notRunning": "请先启动 osu! 并在选歌界面选中一张谱面。",
+  "settings.osuFolder": "osu! 文件夹",
+  "settings.osuFolderMissing": "尚未找到",
+  "settings.osuFolderChoose": "选择文件夹…",
+  "settings.osuFolderReset": "自动检测",
+  "settings.osuFolderHint": "Cascade 通常能自己找到 osu!。如果它找错了地方，可以手动选择文件夹。",
+  "osu.folderFailed": "无法设置 osu! 文件夹。",
 
   "collab.live": "Live - 编辑实时同步",
   "collab.connecting": "正在连接实时会话…",

@@ -277,6 +277,12 @@ export const ptBR: PartialCatalog = {
   "osu.loadFailed": "Não foi possível ler o mapa do osu!.",
   "osu.notInstalled": "O Cascade não encontrou sua instalação do osu!.",
   "osu.notRunning": "Abra o osu! e escolha um mapa na seleção de músicas primeiro.",
+  "settings.osuFolder": "Pasta do osu!",
+  "settings.osuFolderMissing": "Ainda não encontrada",
+  "settings.osuFolderChoose": "Escolher pasta…",
+  "settings.osuFolderReset": "Detectar automaticamente",
+  "settings.osuFolderHint": "O Cascade costuma encontrar o osu! sozinho. Escolha a pasta manualmente se ele procurar no lugar errado.",
+  "osu.folderFailed": "Não foi possível definir a pasta do osu!.",
 
   "collab.live": "Live - edições sincronizam em tempo real",
   "collab.connecting": "Conectando à sessão ao vivo…",

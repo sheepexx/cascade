@@ -281,6 +281,12 @@ export const ru: PartialCatalog = {
   "osu.loadFailed": "Не удалось прочитать карту из osu!.",
   "osu.notInstalled": "Cascade не нашёл установленный osu!.",
   "osu.notRunning": "Запусти osu! и сначала выбери карту в меню выбора песни.",
+  "settings.osuFolder": "Папка osu!",
+  "settings.osuFolderMissing": "Пока не найдена",
+  "settings.osuFolderChoose": "Выбрать папку…",
+  "settings.osuFolderReset": "Искать автоматически",
+  "settings.osuFolderHint": "Обычно Cascade находит osu! сам. Укажи папку вручную, если он ищет не там.",
+  "osu.folderFailed": "Не удалось задать папку osu!.",
 
   "collab.live": "Live - изменения синхронизируются в реальном времени",
   "collab.connecting": "Подключение к live-сессии…",

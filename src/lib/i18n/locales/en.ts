@@ -295,6 +295,12 @@ export const en = {
   "osu.loadFailed": "Could not read the map from osu!.",
   "osu.notInstalled": "Cascade could not find your osu! installation.",
   "osu.notRunning": "Start osu! and pick a map in song select first.",
+  "settings.osuFolder": "osu! folder",
+  "settings.osuFolderMissing": "Not found yet",
+  "settings.osuFolderChoose": "Choose folder…",
+  "settings.osuFolderReset": "Use auto-detect",
+  "settings.osuFolderHint": "Cascade finds osu! on its own. Pick the folder yourself if it looks in the wrong place.",
+  "osu.folderFailed": "Could not set the osu! folder.",
 
   "collab.live": "Live - edits sync in realtime",
   "collab.connecting": "Connecting to the live session…",

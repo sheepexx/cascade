@@ -119,9 +119,64 @@ pub fn osz_file_name(requested: &str) -> String {
     with_ext
 }
 
+pub const OVERRIDE_FILE: &str = "osu-root.txt";
+
+pub fn validate_root(path: &Path) -> Result<PathBuf, String> {
+    let root = if path
+        .file_name()
+        .map(|name| name.eq_ignore_ascii_case("osu!.exe"))
+        .unwrap_or(false)
+    {
+        path.parent().unwrap_or(path)
+    } else {
+        path
+    };
+    if !root.join("osu!.exe").is_file() {
+        return Err("That folder does not contain osu!.exe.".to_string());
+    }
+    Ok(root.to_path_buf())
+}
+
+pub fn read_override(config_dir: &Path) -> Option<PathBuf> {
+    let text = std::fs::read_to_string(config_dir.join(OVERRIDE_FILE)).ok()?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    validate_root(Path::new(trimmed)).ok()
+}
+
+pub fn write_override(config_dir: &Path, root: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(config_dir)
+        .map_err(|err| format!("Cannot save the osu! folder: {err}"))?;
+    let text = root
+        .to_str()
+        .ok_or_else(|| "That path cannot be saved.".to_string())?;
+    std::fs::write(config_dir.join(OVERRIDE_FILE), text)
+        .map_err(|err| format!("Cannot save the osu! folder: {err}"))
+}
+
+pub fn clear_override(config_dir: &Path) -> Result<(), String> {
+    match std::fs::remove_file(config_dir.join(OVERRIDE_FILE)) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(format!("Cannot forget the osu! folder: {err}")),
+    }
+}
+
 #[cfg(windows)]
-pub fn discover_root() -> Option<PathBuf> {
-    from_registry().or_else(local_appdata_root)
+pub fn dialog_start_dir() -> Option<PathBuf> {
+    let base = PathBuf::from(std::env::var_os("LOCALAPPDATA")?);
+    let osu = base.join("osu!");
+    Some(if osu.is_dir() { osu } else { base })
+}
+
+#[cfg(windows)]
+pub fn discover_root(config_dir: Option<&Path>) -> Option<PathBuf> {
+    config_dir
+        .and_then(read_override)
+        .or_else(from_registry)
+        .or_else(local_appdata_root)
 }
 
 #[cfg(windows)]
@@ -265,6 +320,62 @@ mod tests {
         assert_eq!(safe_folder("C:\\Windows"), None);
         assert_eq!(safe_folder(".hidden"), None);
         assert_eq!(safe_folder("   "), None);
+    }
+
+    #[test]
+    fn accepts_either_the_osu_folder_or_the_exe_itself() {
+        let dir = std::env::temp_dir().join(format!("cascade-root-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("osu!.exe"), b"stub").unwrap();
+
+        assert_eq!(validate_root(&dir).unwrap(), dir);
+        assert_eq!(validate_root(&dir.join("osu!.exe")).unwrap(), dir);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn refuses_a_folder_without_osu() {
+        let dir = std::env::temp_dir().join(format!("cascade-noroot-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        assert!(validate_root(&dir).is_err());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn remembers_and_forgets_a_chosen_folder() {
+        let base = std::env::temp_dir().join(format!("cascade-cfg-{}", std::process::id()));
+        let osu = base.join("osu-install");
+        let config = base.join("config");
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&osu).unwrap();
+        std::fs::write(osu.join("osu!.exe"), b"stub").unwrap();
+
+        assert_eq!(read_override(&config), None);
+        write_override(&config, &osu).unwrap();
+        assert_eq!(read_override(&config), Some(osu.clone()));
+        clear_override(&config).unwrap();
+        assert_eq!(read_override(&config), None);
+        clear_override(&config).unwrap();
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn ignores_a_saved_folder_that_no_longer_has_osu() {
+        let base = std::env::temp_dir().join(format!("cascade-stale-{}", std::process::id()));
+        let config = base.join("config");
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(config.join(OVERRIDE_FILE), "C:\\gone\\osu!").unwrap();
+
+        assert_eq!(read_override(&config), None);
+
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]

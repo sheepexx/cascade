@@ -111,12 +111,15 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             start_oauth_listener,
             osu::osu_status,
             osu::osu_selected_map,
             osu::osu_read_map,
-            osu::osu_send_map
+            osu::osu_send_map,
+            osu::osu_choose_root,
+            osu::osu_forget_root
         ])
         .setup(|app| {
             if std::env::var("CASCADE_DEVTOOLS").is_ok() {
