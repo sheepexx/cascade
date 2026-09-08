@@ -10,7 +10,7 @@
     <title>Privacy Policy | Cascade</title>
     <meta
       name="description"
-      content="What data Cascade stores when you use the editor, log in with osu! or save maps to the cloud, and how to get it removed."
+      content="What data Cascade stores when you use the editor in the browser or the Windows app, log in with osu! or save maps to the cloud, and how to get it removed."
     />
     <style>
       :root { color-scheme: dark; }
@@ -43,34 +43,69 @@
       </header>
 
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: 13 August 2026</p>
+      <p class="updated">Last updated: 8 September 2026</p>
 
       <p>
-        Cascade is a browser-based osu!mania beatmap editor at
-        <a href="https://cascade.sheepex.net">cascade.sheepex.net</a>. You can
-        use the whole editor without an account; everything you make stays on
-        your device unless you log in. Account settings sync automatically
-        after login, while projects and skins are uploaded only when you choose
-        their cloud actions. This page explains what is stored where, and how
-        to get it removed.
+        Cascade is an osu!mania beatmap editor at
+        <a href="https://cascade.sheepex.net">cascade.sheepex.net</a>, available
+        in the browser and as a Windows app. Both run the same editor and this
+        policy covers both. You can use the whole editor without an account;
+        everything you make stays on your device unless you log in. Account
+        settings sync automatically after login, while projects and skins are
+        uploaded only when you choose their cloud actions. This page explains
+        what is stored where, and how to get it removed.
       </p>
 
       <h2>Using the editor without an account</h2>
       <ul>
         <li>
           Projects, autosaves, imported audio/skins and your editor settings
-          are stored locally in your browser (localStorage / IndexedDB). They
-          never leave your device and we cannot see them. Clearing your
-          browser's site data removes them.
+          are stored locally on your device (localStorage / IndexedDB, kept in
+          the app's own data folder in the Windows app). They never leave your
+          device and we cannot see them. Clearing this site's data, or
+          uninstalling the app, removes them.
         </li>
         <li>
-          We record a small anonymous usage event when a project is created or
-          a map is exported: the event type, your browser name and version,
-          and your operating system name. No account, no IP address and no
-          map content is included in these events.
+          We record a small usage event when the editor is opened,
+          when a project is created and when a feature such as an export or an
+          import is used. Each event holds the event type, the browser or
+          embedded webview name and version, your operating system name,
+          whether it came from the website or the Windows app, and the Cascade
+          version you are running. No IP address and no map content is included
+          in these events. If you are logged in, the event is linked to your
+          account so we can see which build you are on and support you; if you
+          are not, it is stored with no account attached.
         </li>
         <li>We use no advertising and no third-party tracking scripts.</li>
       </ul>
+
+      <h2>The Windows app</h2>
+      <p>
+        The desktop app is the same editor in a native window. It uses the same
+        account, the same cloud features and the same usage events described
+        above, with two differences you should know about:
+      </p>
+      <ul>
+        <li>
+          Its usage events are marked as coming from the app rather than the
+          website, and carry the app version, so we can see which builds are
+          still in use and stop supporting old ones sensibly.
+        </li>
+        <li>
+          Downloading an installer is counted. We store the version, which
+          installer it was (setup, MSI or portable) and the operating system
+          name from the request, and nothing else. No IP address, no account
+          and no device identifier is kept with it, so a download cannot be
+          traced back to a person. The installers themselves are served from
+          Cloudflare R2.
+        </li>
+      </ul>
+      <p>
+        The app has no auto-updater, no crash reporting and no background
+        reporting. It never sends us your file paths, your installed programs
+        or anything else about your PC, and it only talks to our services when
+        you use a feature that needs them.
+      </p>
 
       <h2>If you log in with osu!</h2>
       <p>
@@ -113,7 +148,8 @@
       <p>
         Cascade runs on three infrastructure providers, which process data on
         our behalf: <strong>Supabase</strong> (database),
-        <strong>Cloudflare</strong> (login/session service and file storage) and
+        <strong>Cloudflare</strong> (login/session service, file storage and
+        desktop installer hosting) and
         <strong>Vercel</strong> (site hosting). Like any web host, they may
         keep short-lived technical logs (including IP addresses) to run and
         secure their services.
@@ -130,7 +166,10 @@
           <a href="mailto:contact@sheepex.net">contact@sheepex.net</a> from
           any address, naming your osu! username, and we will remove it.
         </li>
-        <li>Local data: clear this site's data in your browser.</li>
+        <li>
+          Local data: clear this site's data in your browser, or uninstall the
+          Windows app and delete its data folder.
+        </li>
       </ul>
 
       <h2>Changes and contact</h2>

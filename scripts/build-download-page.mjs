@@ -156,6 +156,9 @@ const STYLE = `      :root {
       .langs { margin: 0; line-height: 2; }
       .langs a { color: var(--muted); }
       .langs a:hover { color: var(--text); }
+      .legal { margin: 6px 0 0; }
+      .legal a { color: var(--muted); }
+      .legal a:hover { color: var(--text); }
       @media (max-width: 600px) {
         .shell { padding: 20px 20px 32px; }
         .hero { padding: 44px 0 28px; }
@@ -285,6 +288,7 @@ ${notes(c.notes)}
 
       <footer>
 ${langBar(locale)}
+        <p class="legal"><a href="/privacy">${esc(c.privacyLink)}</a></p>
       </footer>
     </div>
     <script src="/download.js" defer></script>

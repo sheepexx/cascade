@@ -60,6 +60,7 @@ export const CONTENT = {
     noticeEmpty: "No desktop build is published yet. Check back soon.",
     noticeOther:
       "You are not on Windows. The desktop app is Windows-only for now, but the browser version works everywhere.",
+    privacyLink: "Privacy policy",
   },
 
   de: {
@@ -120,6 +121,7 @@ export const CONTENT = {
     noticeEmpty: "Es ist noch kein Desktop-Build veröffentlicht. Schau bald wieder vorbei.",
     noticeOther:
       "Du bist nicht auf Windows. Die Desktop-App gibt es vorerst nur für Windows, die Browser-Version läuft aber überall.",
+    privacyLink: "Datenschutzerklärung",
   },
 
   ru: {
@@ -180,6 +182,7 @@ export const CONTENT = {
     noticeEmpty: "Десктопных сборок пока нет. Загляни немного позже.",
     noticeOther:
       "У тебя не Windows. Десктопное приложение пока только для Windows, но версия в браузере работает везде.",
+    privacyLink: "Политика конфиденциальности",
   },
 
   "zh-CN": {
@@ -239,6 +242,7 @@ export const CONTENT = {
     noticeEmpty: "还没有发布桌面版，过一阵子再来看看。",
     noticeOther:
       "你现在不在 Windows 上。桌面版目前只有 Windows，不过浏览器版本到哪里都能用。",
+    privacyLink: "隐私政策",
   },
 
   "pt-BR": {
@@ -299,5 +303,6 @@ export const CONTENT = {
     noticeEmpty: "Nenhuma build de desktop foi publicada ainda. Volte a conferir em breve.",
     noticeOther:
       "Você não está no Windows. O app de desktop é só para Windows por enquanto, mas a versão no navegador funciona em todo lugar.",
+    privacyLink: "Política de privacidade",
   },
 };

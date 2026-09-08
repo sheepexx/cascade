@@ -1,6 +1,8 @@
 import { supabase } from "./supabase";
+import { isDesktopApp } from "./pwa";
 
 export type AnalyticsEventType =
+  | "app_opened"
   | "export_osu"
   | "export_osz"
   | "export_sm"
@@ -16,11 +18,21 @@ export type AnalyticsEventType =
   | "skin_imported"
   | "collab_joined";
 
+export type AnalyticsPlatform = "web" | "desktop";
+
 type BrowserInfo = {
   browser: string;
   browser_version: string | null;
   os: string | null;
 };
+
+export function analyticsPlatform(): AnalyticsPlatform {
+  return isDesktopApp() ? "desktop" : "web";
+}
+
+export function analyticsAppVersion(): string | null {
+  return typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : null;
+}
 
 export async function logAnalyticsEvent(
   eventType: AnalyticsEventType,
@@ -33,6 +45,8 @@ export async function logAnalyticsEvent(
     browser: info.browser,
     browser_version: info.browser_version,
     os: info.os,
+    platform: analyticsPlatform(),
+    app_version: analyticsAppVersion(),
   });
   if (error) throw new Error(error.message);
 }

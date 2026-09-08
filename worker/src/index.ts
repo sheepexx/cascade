@@ -71,12 +71,20 @@ const SESSION_TTL_DAYS = 30;
 const SUPABASE_TOKEN_TTL_SECONDS = 60 * 60;
 
 export default {
-  async fetch(req: Request, env: WorkerEnv): Promise<Response> {
-    return applyAllowedOrigin(await route(req, env), req, env);
+  async fetch(
+    req: Request,
+    env: WorkerEnv,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
+    return applyAllowedOrigin(await route(req, env, ctx), req, env);
   },
 } satisfies ExportedHandler<WorkerEnv>;
 
-async function route(req: Request, env: WorkerEnv): Promise<Response> {
+async function route(
+  req: Request,
+  env: WorkerEnv,
+  ctx?: ExecutionContext,
+): Promise<Response> {
   {
     const url = new URL(req.url);
 
@@ -89,7 +97,7 @@ async function route(req: Request, env: WorkerEnv): Promise<Response> {
         storageAuthContext(req, env),
       );
       if (storageResponse) return storageResponse;
-      const desktopResponse = await handleDesktopRoute(req, url, env);
+      const desktopResponse = await handleDesktopRoute(req, url, env, ctx);
       if (desktopResponse) return desktopResponse;
       // Parameterized mirror routes can't be switch cases.
       const download = url.pathname.match(/^\/mirror\/(\d{1,10})$/);

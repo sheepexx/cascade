@@ -595,7 +595,11 @@ function hasDraggedFiles(dataTransfer: DataTransfer | null): boolean {
 const TRIM_BROADCAST_MS = 90;
 
 export default function App() {
-  const { user: authUser, refresh: refreshAuth } = useAuth();
+  const {
+    user: authUser,
+    loading: authLoading,
+    refresh: refreshAuth,
+  } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
   const [timingPoints, setTimingPoints] = useState<TimingPoint[]>(
@@ -830,6 +834,14 @@ export default function App() {
   timingPointsRef.current = timingPoints;
   const authUserRef = useRef(authUser);
   authUserRef.current = authUser;
+  const appOpenLoggedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || appOpenLoggedRef.current) return;
+    appOpenLoggedRef.current = true;
+    void logAnalyticsEvent("app_opened", authUserRef.current?.id).catch(
+      () => {},
+    );
+  }, [authLoading]);
   const refreshCloudSkins = useCallback(async () => {
     const userId = authUserRef.current?.id;
     if (!userId) {

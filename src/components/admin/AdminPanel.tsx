@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { Button, Select, TextInput } from "../ui/Controls";
 import { PatternPreview } from "../ui/PatternPreview";
 import {
@@ -17,7 +23,10 @@ import {
   type PresetStatus,
 } from "../../lib/presets";
 import {
+  adminAppVersionStats,
+  adminDesktopDownloads,
   adminEventStats,
+  adminPlatformStats,
   adminUserEvents,
   adminUserProjects,
   deleteSharedMapAdmin,
@@ -25,10 +34,16 @@ import {
   getStorageStats,
   listAdminSharedMaps,
   listUserSummaries,
+  platformRank,
   setUserAdmin,
   listAllProjects,
   deleteProjectAdmin,
+  userPlatform,
+  type AdminAppVersionStat,
+  type AdminDesktopDownloadStat,
   type AdminEventStat,
+  type AdminPlatform,
+  type AdminPlatformStat,
   type AdminStats,
   type AdminStorageStats,
   type AdminUserEvent,
@@ -149,6 +164,11 @@ function StatsTab() {
   const [storage, setStorage] = useState<AdminStorageStats | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [events, setEvents] = useState<AdminEventStat[] | null>(null);
+  const [platforms, setPlatforms] = useState<AdminPlatformStat[] | null>(null);
+  const [versions, setVersions] = useState<AdminAppVersionStat[] | null>(null);
+  const [downloads, setDownloads] = useState<
+    AdminDesktopDownloadStat[] | null
+  >(null);
   const { error, setError } = useAsyncError();
 
   useEffect(() => {
@@ -156,6 +176,9 @@ function StatsTab() {
     setStorage(null);
     setStorageError(null);
     setEvents(null);
+    setPlatforms(null);
+    setVersions(null);
+    setDownloads(null);
     setError(null);
     getAdminStats()
       .then(setStats)
@@ -166,6 +189,15 @@ function StatsTab() {
     adminEventStats()
       .then(setEvents)
       .catch(() => setEvents([]));
+    adminPlatformStats()
+      .then(setPlatforms)
+      .catch(() => setPlatforms([]));
+    adminAppVersionStats()
+      .then(setVersions)
+      .catch(() => setVersions([]));
+    adminDesktopDownloads()
+      .then(setDownloads)
+      .catch(() => setDownloads([]));
     getStorageStats()
       .then(setStorage)
       .catch((e) =>
@@ -189,7 +221,21 @@ function StatsTab() {
               label="Local projects created"
               value={stats.localProjectsCreated}
             />
+            <StatCard
+              label="Desktop downloads"
+              value={sumBy(downloads, (row) => row.total)}
+            />
+            <StatCard
+              label="Desktop app users (30 days)"
+              value={
+                platforms?.find((row) => row.platform === "desktop")
+                  ?.users_30d ?? 0
+              }
+            />
           </div>
+          <PlatformSection stats={platforms} />
+          <DesktopDownloadSection stats={downloads} />
+          <AppVersionSection stats={versions} />
           <StorageStatsSection stats={storage} error={storageError} />
           <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -275,6 +321,224 @@ function StatCard({ label, value }: { label: string; value: number }) {
       </div>
       <div className="mt-2 text-2xl font-semibold text-slate-100">{value}</div>
     </div>
+  );
+}
+
+function sumBy<T>(rows: T[] | null, pick: (row: T) => number): number {
+  return (rows ?? []).reduce((total, row) => total + Number(pick(row) || 0), 0);
+}
+
+const PLATFORM_STYLE: Record<AdminPlatform, string> = {
+  desktop: "bg-emerald-500/15 text-emerald-300",
+  both: "bg-sky-500/15 text-sky-300",
+  web: "bg-ink-600 text-slate-300",
+  unknown: "bg-ink-700 text-slate-500",
+};
+
+function PlatformBadge({ platform }: { platform: string }) {
+  const style =
+    PLATFORM_STYLE[platform as AdminPlatform] ?? PLATFORM_STYLE.unknown;
+  return (
+    <span
+      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style}`}
+    >
+      {platform}
+    </span>
+  );
+}
+
+type AdminColumn<T> = {
+  label: string;
+  right?: boolean;
+  render: (row: T) => ReactNode;
+};
+
+function AdminSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function AdminTable<T>({
+  columns,
+  rows,
+  rowKey,
+}: {
+  columns: AdminColumn<T>[];
+  rows: T[];
+  rowKey: (row: T) => string;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[26rem] text-sm">
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+            {columns.map((col) => (
+              <th
+                key={col.label}
+                className={`pb-2 font-medium ${col.right ? "text-right" : ""}`}
+              >
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={rowKey(row)} className="border-t border-ink-600/60">
+              {columns.map((col) => (
+                <td
+                  key={col.label}
+                  className={`py-1.5 text-xs ${
+                    col.right
+                      ? "text-right font-mono text-slate-400"
+                      : "text-slate-200"
+                  }`}
+                >
+                  {col.render(row)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const MIGRATION_HINT = "Nothing recorded yet (or migration 0025 isn't applied).";
+
+function PlatformSection({ stats }: { stats: AdminPlatformStat[] | null }) {
+  return (
+    <AdminSection title="Web vs desktop">
+      {!stats && (
+        <SkeletonTable rows={2} columns={6} label="Loading platform split" />
+      )}
+      {stats && stats.length === 0 && (
+        <p className="text-sm text-slate-500">{MIGRATION_HINT}</p>
+      )}
+      {stats && stats.length > 0 && (
+        <AdminTable
+          rows={stats}
+          rowKey={(row) => row.platform}
+          columns={[
+            {
+              label: "Platform",
+              render: (row) => <PlatformBadge platform={row.platform} />,
+            },
+            { label: "Accounts", right: true, render: (row) => row.users },
+            {
+              label: "Accounts 30d",
+              right: true,
+              render: (row) => row.users_30d,
+            },
+            { label: "Events 7d", right: true, render: (row) => row.events_7d },
+            {
+              label: "Events 30d",
+              right: true,
+              render: (row) => row.events_30d,
+            },
+            { label: "All time", right: true, render: (row) => row.events },
+            {
+              label: "Last",
+              right: true,
+              render: (row) => formatMoment(row.last_at),
+            },
+          ]}
+        />
+      )}
+    </AdminSection>
+  );
+}
+
+function DesktopDownloadSection({
+  stats,
+}: {
+  stats: AdminDesktopDownloadStat[] | null;
+}) {
+  return (
+    <AdminSection title="Desktop downloads">
+      {!stats && (
+        <SkeletonTable rows={3} columns={5} label="Loading downloads" />
+      )}
+      {stats && stats.length === 0 && (
+        <p className="text-sm text-slate-500">
+          No installer downloads recorded yet.
+        </p>
+      )}
+      {stats && stats.length > 0 && (
+        <p className="mb-3 text-[11px] text-slate-500">
+          {sumBy(stats, (row) => row.total)} all time ·{" "}
+          {sumBy(stats, (row) => row.last_30d)} in 30 days ·{" "}
+          {sumBy(stats, (row) => row.last_7d)} in 7 days
+        </p>
+      )}
+      {stats && stats.length > 0 && (
+        <AdminTable
+          rows={stats}
+          rowKey={(row) => `${row.version}-${row.asset}`}
+          columns={[
+            { label: "Version", render: (row) => `v${row.version}` },
+            { label: "Installer", render: (row) => row.asset },
+            { label: "7 days", right: true, render: (row) => row.last_7d },
+            { label: "30 days", right: true, render: (row) => row.last_30d },
+            { label: "All time", right: true, render: (row) => row.total },
+            {
+              label: "Last",
+              right: true,
+              render: (row) => formatMoment(row.last_at),
+            },
+          ]}
+        />
+      )}
+    </AdminSection>
+  );
+}
+
+function AppVersionSection({ stats }: { stats: AdminAppVersionStat[] | null }) {
+  return (
+    <AdminSection title="App versions in use">
+      {!stats && <SkeletonTable rows={3} columns={5} label="Loading versions" />}
+      {stats && stats.length === 0 && (
+        <p className="text-sm text-slate-500">{MIGRATION_HINT}</p>
+      )}
+      {stats && stats.length > 0 && (
+        <AdminTable
+          rows={stats}
+          rowKey={(row) => `${row.platform}-${row.app_version}`}
+          columns={[
+            {
+              label: "Platform",
+              render: (row) => <PlatformBadge platform={row.platform} />,
+            },
+            { label: "Version", render: (row) => `v${row.app_version}` },
+            { label: "Accounts", right: true, render: (row) => row.users },
+            {
+              label: "Events 30d",
+              right: true,
+              render: (row) => row.events_30d,
+            },
+            { label: "All time", right: true, render: (row) => row.events },
+            {
+              label: "Last",
+              right: true,
+              render: (row) => formatMoment(row.last_at),
+            },
+          ]}
+        />
+      )}
+    </AdminSection>
   );
 }
 
@@ -406,6 +670,7 @@ function PresetsTab() {
 
 type UserSortKey =
   | "username"
+  | "platform"
   | "osu_id"
   | "created_at"
   | "last_seen"
@@ -418,6 +683,7 @@ type UserSortKey =
 
 const USER_COLUMNS: { key: UserSortKey; label: string; right?: boolean }[] = [
   { key: "username", label: "User" },
+  { key: "platform", label: "Client" },
   { key: "osu_id", label: "osu! id", right: true },
   { key: "created_at", label: "Joined", right: true },
   { key: "last_seen", label: "Last seen", right: true },
@@ -442,6 +708,7 @@ function userSortValue(
   key: UserSortKey,
 ): number | string {
   if (key === "username") return u.username.toLowerCase();
+  if (key === "platform") return platformRank(u);
   if (key === "created_at") return new Date(u.created_at).getTime();
   if (key === "last_seen") return lastSeenAt(u);
   return Number(u[key] ?? 0);
@@ -491,7 +758,8 @@ function UsersTab() {
       ? users.filter(
           (u) =>
             u.username.toLowerCase().includes(needle) ||
-            String(u.osu_id).includes(needle),
+            String(u.osu_id).includes(needle) ||
+            userPlatform(u) === needle,
         )
       : users;
     return [...filtered].sort((a, b) => {
@@ -549,7 +817,7 @@ function UsersTab() {
           <TextInput
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or osu! id"
+            placeholder="Search name, osu! id or client"
             className="w-56"
           />
         </div>
@@ -604,6 +872,16 @@ function UsersTab() {
                       {u.is_admin && (
                         <span className="shrink-0 rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase text-accent">
                           admin
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-1.5 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <PlatformBadge platform={userPlatform(u)} />
+                      {u.desktop_version && (
+                        <span className="font-mono text-[10px] text-slate-500">
+                          v{u.desktop_version}
                         </span>
                       )}
                     </div>
@@ -670,6 +948,10 @@ function formatLastSeen(u: AdminUserSummary): string {
 function formatMoment(value: string | null): string {
   if (!value) return "never";
   return new Date(value).toLocaleString();
+}
+
+function formatVersion(value: string | null): string {
+  return value ? `v${value}` : "unknown";
 }
 
 function UserDetail({
@@ -765,6 +1047,7 @@ function UserDetail({
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <PlatformBadge platform={userPlatform(user)} />
           {user.is_admin && (
             <span className="rounded bg-accent/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-accent">
               admin
@@ -791,6 +1074,8 @@ function UserDetail({
         <StatCard label="Presets" value={Number(user.preset_count)} />
         <StatCard label="Comments" value={Number(user.comment_count)} />
         <StatCard label="Collaborations" value={Number(user.collab_count)} />
+        <StatCard label="Desktop events" value={Number(user.desktop_events)} />
+        <StatCard label="Web events" value={Number(user.web_events)} />
         {previews && (
           <StatCard label="Public previews" value={previews.length} />
         )}
@@ -799,6 +1084,10 @@ function UserDetail({
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-ink-600 bg-ink-800 px-4 py-3 text-[11px] text-slate-500">
         <span>storage {formatBytes(Number(user.storage_bytes))}</span>
         <span>last event {formatMoment(user.last_event_at)}</span>
+        <span>last client {user.last_platform ?? "unknown"}</span>
+        <span>app version {formatVersion(user.last_app_version)}</span>
+        <span>desktop version {formatVersion(user.desktop_version)}</span>
+        <span>last desktop {formatMoment(user.last_desktop_at)}</span>
         <span>browser {user.last_browser ?? "unknown"}</span>
         <span>os {user.last_os ?? "unknown"}</span>
         <span>feedback {Number(user.feedback_count)}</span>

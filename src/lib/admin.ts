@@ -42,6 +42,8 @@ export type AdminStats = {
   browsers: { browser: string; count: number }[];
 };
 
+export type AdminPlatform = "web" | "desktop" | "both" | "unknown";
+
 export type AdminUserSummary = AdminUser & {
   event_count: number;
   events_7d: number;
@@ -56,7 +58,61 @@ export type AdminUserSummary = AdminUser & {
   feedback_count: number;
   last_browser: string | null;
   last_os: string | null;
+  desktop_events: number;
+  web_events: number;
+  last_platform: string | null;
+  last_app_version: string | null;
+  desktop_version: string | null;
+  last_desktop_at: string | null;
 };
+
+export type AdminPlatformStat = {
+  platform: string;
+  users: number;
+  users_30d: number;
+  events: number;
+  events_7d: number;
+  events_30d: number;
+  last_at: string | null;
+};
+
+export type AdminAppVersionStat = {
+  platform: string;
+  app_version: string;
+  users: number;
+  events: number;
+  events_30d: number;
+  last_at: string | null;
+};
+
+export type AdminDesktopDownloadStat = {
+  version: string;
+  asset: string;
+  last_7d: number;
+  last_30d: number;
+  total: number;
+  last_at: string | null;
+};
+
+export function userPlatform(user: AdminUserSummary): AdminPlatform {
+  const desktop = Number(user.desktop_events) > 0;
+  const web = Number(user.web_events) > 0;
+  if (desktop && web) return "both";
+  if (desktop) return "desktop";
+  if (web) return "web";
+  return "unknown";
+}
+
+const PLATFORM_ORDER: Record<AdminPlatform, number> = {
+  desktop: 3,
+  both: 2,
+  web: 1,
+  unknown: 0,
+};
+
+export function platformRank(user: AdminUserSummary): number {
+  return PLATFORM_ORDER[userPlatform(user)];
+}
 
 export type AdminUserEvent = {
   event_type: string;
@@ -182,6 +238,26 @@ export async function adminEventStats(): Promise<AdminEventStat[]> {
   const { data, error } = await supabase.rpc("admin_event_stats");
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminEventStat[];
+}
+
+export async function adminPlatformStats(): Promise<AdminPlatformStat[]> {
+  const { data, error } = await supabase.rpc("admin_platform_stats");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AdminPlatformStat[];
+}
+
+export async function adminAppVersionStats(): Promise<AdminAppVersionStat[]> {
+  const { data, error } = await supabase.rpc("admin_app_version_stats");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AdminAppVersionStat[];
+}
+
+export async function adminDesktopDownloads(): Promise<
+  AdminDesktopDownloadStat[]
+> {
+  const { data, error } = await supabase.rpc("admin_desktop_download_stats");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AdminDesktopDownloadStat[];
 }
 
 export async function getAdminStats(): Promise<AdminStats> {

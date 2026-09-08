@@ -200,10 +200,72 @@ export async function handleStorageRoute(
   return storageJson({ error: "not found" }, 404, env);
 }
 
+export type DesktopDownload = {
+  version: string;
+  asset: "setup" | "msi" | "portable" | "other";
+};
+
+const CRAWLER_RE = /bot|crawl|spider|slurp|preview|facebookexternalhit/i;
+
+export function desktopDownloadTarget(key: string): DesktopDownload | null {
+  const match = /^(\d+\.\d+\.\d+)\/([^/]+)$/.exec(key);
+  if (!match) return null;
+  const [, version, file] = match;
+  if (/-setup\.exe$/i.test(file)) return { version, asset: "setup" };
+  if (/\.msi$/i.test(file)) return { version, asset: "msi" };
+  if (/_portable\.exe$/i.test(file)) return { version, asset: "portable" };
+  return { version, asset: "other" };
+}
+
+export function countableDesktopDownload(
+  req: Request,
+  key: string,
+  status: number,
+): DesktopDownload | null {
+  if (req.method !== "GET" || status !== 200) return null;
+  if (req.headers.has("Range")) return null;
+  if (CRAWLER_RE.test(req.headers.get("User-Agent") ?? "")) return null;
+  return desktopDownloadTarget(key);
+}
+
+export function downloadOs(userAgent: string | null): string | null {
+  const ua = userAgent ?? "";
+  if (/Windows/i.test(ua)) return "Windows";
+  if (/Mac OS X|Macintosh/i.test(ua)) return "macOS";
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Linux/i.test(ua)) return "Linux";
+  return null;
+}
+
+function recordDesktopDownload(
+  download: DesktopDownload,
+  req: Request,
+  env: WorkerEnv,
+): Promise<void> {
+  return supabaseRest(env, "/desktop_downloads", {
+    method: "POST",
+    headers: {
+      ...serviceHeaders(env),
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({
+      version: download.version,
+      asset: download.asset,
+      os: downloadOs(req.headers.get("User-Agent")),
+    }),
+  }).then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
 export async function handleDesktopRoute(
   req: Request,
   url: URL,
   env: WorkerEnv,
+  ctx?: ExecutionContext,
 ): Promise<Response | null> {
   if (!url.pathname.startsWith("/desktop/")) return null;
   if (req.method !== "GET" && req.method !== "HEAD") return null;
@@ -213,6 +275,14 @@ export async function handleDesktopRoute(
 
   const response = await serveR2Object(env.SHARED_ASSETS, `desktop/${key}`, req, env, true);
   if (!response) return storageJson({ error: "not found" }, 404, env, true);
+
+  const download = countableDesktopDownload(req, key, response.status);
+  if (download) {
+    const record = recordDesktopDownload(download, req, env);
+    if (ctx) ctx.waitUntil(record);
+    else void record;
+  }
+
   if (key !== "latest.json") return response;
 
   const headers = new Headers(response.headers);
