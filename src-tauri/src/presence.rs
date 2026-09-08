@@ -6,7 +6,7 @@ use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 pub const APP_ID: &str = "1546880430970638359";
 pub const LARGE_IMAGE: &str = "cascade";
 pub const LARGE_TEXT: &str = "Cascade";
-pub const MINIMAL_DETAILS: &str = "In the editor";
+pub const MINIMAL_DETAILS: &str = "Using Cascade";
 pub const MAX_FIELD: usize = 128;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -159,7 +159,7 @@ mod tests {
             Some("Camellia - Ghost"),
             Some("Playtesting [Insane] 7K"),
         );
-        assert_eq!(details, Some(MINIMAL_DETAILS.to_string()));
+        assert_eq!(details, Some("Using Cascade".to_string()));
         assert_eq!(state, None);
     }
 

@@ -867,6 +867,7 @@ export default function App() {
     const timer = window.setTimeout(() => {
       void updatePresence({
         mode: appSettings.discordPresence,
+        projectOpen: projectStarted,
         song: projectStarted ? `${meta.artist} - ${meta.title}`.trim() : null,
         difficulty: active?.name ?? null,
         keyCount: active?.keyCount ?? null,

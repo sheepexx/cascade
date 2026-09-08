@@ -3,6 +3,7 @@ import { isDesktopApp } from "./pwa";
 
 export type PresenceInput = {
   mode: DiscordPresenceMode;
+  projectOpen: boolean;
   song: string | null;
   difficulty: string | null;
   keyCount: number | null;
@@ -11,12 +12,13 @@ export type PresenceInput = {
 
 export function presenceDetails(input: PresenceInput): string | null {
   if (input.mode !== "detailed") return null;
+  if (!input.projectOpen) return "In the main menu";
   const song = input.song?.trim();
   return song ? song : "In the editor";
 }
 
 export function presenceState(input: PresenceInput): string | null {
-  if (input.mode !== "detailed") return null;
+  if (input.mode !== "detailed" || !input.projectOpen) return null;
   const verb = input.playtesting ? "Playtesting" : "Editing";
   const parts: string[] = [verb];
   const difficulty = input.difficulty?.trim();
