@@ -1,19 +1,12 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import {
   applyPendingUpdate,
-  canInstall,
   isStandalone,
   isUpdateReady,
-  promptInstall,
   subscribePwa,
 } from "../lib/pwa";
 
 export function usePwa() {
-  const installable = useSyncExternalStore(
-    subscribePwa,
-    canInstall,
-    () => false,
-  );
   const updateReady = useSyncExternalStore(
     subscribePwa,
     isUpdateReady,
@@ -25,9 +18,5 @@ export function usePwa() {
     () => false,
   );
 
-  const install = useCallback(() => {
-    void promptInstall();
-  }, []);
-
-  return { installable, updateReady, standalone, install, applyPendingUpdate };
+  return { updateReady, standalone, applyPendingUpdate };
 }

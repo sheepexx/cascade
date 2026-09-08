@@ -67,10 +67,28 @@ function avatarApiPlugin() {
   };
 }
 
+function cleanUrlsPlugin() {
+  return {
+    name: "clean-urls",
+    async configureServer(server: any) {
+      // @ts-expect-error node builtin types are not installed
+      const { existsSync } = await import("node:fs");
+      server.middlewares.use((req: any, _res: any, next: any) => {
+        const [path, query] = (req.url || "").split("?");
+        if (path && !path.includes(".") && existsSync(`public${path}.html`)) {
+          req.url = `${path}.html${query ? `?${query}` : ""}`;
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
     avatarApiPlugin(),
+    cleanUrlsPlugin(),
     VitePWA({
       registerType: "prompt",
       injectRegister: null,

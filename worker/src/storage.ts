@@ -200,6 +200,26 @@ export async function handleStorageRoute(
   return storageJson({ error: "not found" }, 404, env);
 }
 
+export async function handleDesktopRoute(
+  req: Request,
+  url: URL,
+  env: WorkerEnv,
+): Promise<Response | null> {
+  if (!url.pathname.startsWith("/desktop/")) return null;
+  if (req.method !== "GET" && req.method !== "HEAD") return null;
+
+  const key = decodeSafePath(url.pathname.slice("/desktop/".length));
+  if (!key) return storageJson({ error: "invalid object path" }, 400, env, true);
+
+  const response = await serveR2Object(env.SHARED_ASSETS, `desktop/${key}`, req, env, true);
+  if (!response) return storageJson({ error: "not found" }, 404, env, true);
+  if (key !== "latest.json") return response;
+
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "public, max-age=60");
+  return new Response(response.body, { status: response.status, headers });
+}
+
 async function adminStorageStats(env: WorkerEnv): Promise<Response> {
   const [projects, r2Shared, maps, supabaseShared] = await Promise.all([
     r2BucketUsage(env.PROJECT_ASSETS),

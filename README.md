@@ -67,8 +67,9 @@ offline. The installer stays small because it uses the WebView2 runtime that
 Windows already provides instead of bundling a browser.
 
 Installers are built in CI, not locally: push a tag that starts with
-`desktop-v`, or run the "Desktop build" workflow by hand, and the .msi and
-.exe are attached to a draft GitHub release.
+`desktop-v`, or run the "Desktop build" workflow by hand with the release
+input checked, and the .msi and .exe are uploaded to the download page at
+`/download`.
 
 Building locally needs the Rust toolchain and the MSVC build tools:
 

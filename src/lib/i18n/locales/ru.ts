@@ -259,6 +259,8 @@ export const ru: PartialCatalog = {
   "nav.commentsUnread.few": "Комментарии ({count} непрочитанных)",
   "nav.commentsUnread.many": "Комментарии ({count} непрочитанных)",
   "nav.commentsUnread.other": "Комментарии ({count} непрочитанных)",
+  "nav.desktopApp": "Десктоп-версия",
+  "nav.desktopAppTitle": "Скачать Cascade для Windows",
 
   "file.newOpen": "Создать / открыть…",
   "file.saving": "Сохранение…",

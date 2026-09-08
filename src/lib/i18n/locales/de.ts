@@ -255,6 +255,8 @@ export const de: PartialCatalog = {
   "nav.comments": "Kommentare",
   "nav.commentsUnread.one": "Kommentare ({count} ungelesen)",
   "nav.commentsUnread.other": "Kommentare ({count} ungelesen)",
+  "nav.desktopApp": "Desktop-App",
+  "nav.desktopAppTitle": "Cascade für Windows herunterladen",
 
   "file.newOpen": "Neu / öffnen…",
   "file.saving": "Speichert…",

@@ -211,7 +211,7 @@ import { LanguagePicker } from "./components/LanguagePicker";
 import { setLaunchFileConsumer } from "./lib/pwa";
 import { siteAsset } from "./lib/siteAssets";
 import { usePwa } from "./hooks/usePwa";
-import { InstallAppButton } from "./components/InstallAppButton";
+import { DesktopDownloadLink } from "./components/DesktopDownloadLink";
 import { NotificationInbox } from "./components/NotificationInbox";
 const AdminPanel = lazy(() =>
   import("./components/admin/AdminPanel").then((m) => ({
@@ -5731,7 +5731,7 @@ export default function App() {
             </div>
           )}
           {!hasProject && !sharedSlug && <NowPlaying music={menuMusic} />}
-          {!hasProject && <InstallAppButton />}
+          {!hasProject && <DesktopDownloadLink />}
           {!hasProject && <LanguagePicker compact />}
           {authUser && (
             <NotificationInbox

@@ -273,6 +273,8 @@ export const en = {
   "nav.comments": "Comments",
   "nav.commentsUnread.one": "Comments ({count} unread)",
   "nav.commentsUnread.other": "Comments ({count} unread)",
+  "nav.desktopApp": "Desktop app",
+  "nav.desktopAppTitle": "Download Cascade for Windows",
 
   "file.newOpen": "New / open…",
   "file.saving": "Saving…",

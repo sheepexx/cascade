@@ -255,6 +255,8 @@ export const ptBR: PartialCatalog = {
   "nav.comments": "Comentários",
   "nav.commentsUnread.one": "Comentários ({count} não lido)",
   "nav.commentsUnread.other": "Comentários ({count} não lidos)",
+  "nav.desktopApp": "App de desktop",
+  "nav.desktopAppTitle": "Baixar o Cascade para Windows",
 
   "file.newOpen": "Novo / abrir…",
   "file.saving": "Salvando…",

@@ -248,6 +248,8 @@ export const zhCN: PartialCatalog = {
   "nav.shareTitle": "分享 - 邀请协作者",
   "nav.comments": "评论",
   "nav.commentsUnread.other": "评论（{count} 条未读）",
+  "nav.desktopApp": "桌面版",
+  "nav.desktopAppTitle": "下载 Windows 版 Cascade",
 
   "file.newOpen": "新建 / 打开…",
   "file.saving": "保存中…",

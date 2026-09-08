@@ -2,6 +2,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LOCALES, PAGES, UI, urlFor } from "./landing-content.mjs";
+import {
+  CONTENT as DOWNLOAD,
+  SLUG as DOWNLOAD_SLUG,
+} from "./download-content.mjs";
 
 const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -106,7 +110,8 @@ function footerLinks(slug, locale) {
   const legacy = UI[locale].legacy.map(
     (l) => `<a href="${l.href}">${l.label}</a>`,
   );
-  return [home, ...others, ...legacy].join(" ·\n          ");
+  const download = `<a href="${urlFor(DOWNLOAD_SLUG, locale)}">${DOWNLOAD[locale].navLabel}</a>`;
+  return [home, ...others, ...legacy, download].join(" ·\n          ");
 }
 
 function render(page, locale) {

@@ -1,12 +1,6 @@
-type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
-
 type LaunchParams = { files?: FileSystemFileHandle[] };
 type LaunchQueue = { setConsumer: (fn: (params: LaunchParams) => void) => void };
 
-let deferredPrompt: InstallPromptEvent | null = null;
 let updateReady = false;
 let applyUpdate: ((reload?: boolean) => Promise<void>) | null = null;
 
@@ -38,23 +32,8 @@ export function isStandalone(): boolean {
   );
 }
 
-export function canInstall(): boolean {
-  return deferredPrompt !== null && !isDesktopApp();
-}
-
 export function isUpdateReady(): boolean {
   return updateReady;
-}
-
-export async function promptInstall(): Promise<boolean> {
-  const event = deferredPrompt;
-  if (!event) return false;
-  await event.prompt();
-  const { outcome } = await event.userChoice;
-  if (outcome !== "accepted") return false;
-  deferredPrompt = null;
-  notify();
-  return true;
 }
 
 export function applyPendingUpdate(): void {
@@ -98,16 +77,6 @@ export function initPwa(): void {
     openExternalLinksInBrowser();
     return;
   }
-
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredPrompt = event as InstallPromptEvent;
-    notify();
-  });
-  window.addEventListener("appinstalled", () => {
-    deferredPrompt = null;
-    notify();
-  });
 
   const queue = (window as { launchQueue?: LaunchQueue }).launchQueue;
   queue?.setConsumer((params) => {

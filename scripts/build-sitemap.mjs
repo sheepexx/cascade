@@ -6,6 +6,7 @@ import {
   PAGES as LANDING_PAGES,
   urlFor,
 } from "./landing-content.mjs";
+import { SLUG as DOWNLOAD_SLUG } from "./download-content.mjs";
 
 const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -30,9 +31,17 @@ const LOCALISED_HOMES = Object.keys(LOCALES)
     changefreq: "weekly",
   }));
 
+const DOWNLOAD = Object.keys(LOCALES).map((locale) => ({
+  path: urlFor(DOWNLOAD_SLUG, locale),
+  updated: "2026-09-08",
+  priority: locale === "en" ? "0.8" : "0.6",
+  changefreq: "weekly",
+}));
+
 const PAGES = [
   { path: "/", updated: HOME_UPDATED, priority: "1.0", changefreq: "weekly" },
   ...LOCALISED_HOMES,
+  ...DOWNLOAD,
   {
     path: "/how-to-make-an-osu-mania-map",
     updated: "2026-08-12",

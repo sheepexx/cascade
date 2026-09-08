@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import {
+  handleDesktopRoute,
   handleStorageRoute,
   type StorageAuthContext,
   type WorkerEnv,
@@ -88,6 +89,8 @@ async function route(req: Request, env: WorkerEnv): Promise<Response> {
         storageAuthContext(req, env),
       );
       if (storageResponse) return storageResponse;
+      const desktopResponse = await handleDesktopRoute(req, url, env);
+      if (desktopResponse) return desktopResponse;
       // Parameterized mirror routes can't be switch cases.
       const download = url.pathname.match(/^\/mirror\/(\d{1,10})$/);
       if (download && req.method === "GET") {

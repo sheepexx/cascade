@@ -7,12 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: "Publish a GitHub release with the installers"
+        description: "Publish the installers for download"
         type: boolean
         default: false
-
-permissions:
-  contents: write
 
 jobs:
   build:
@@ -64,14 +61,43 @@ jobs:
           path: out/*
           if-no-files-found: error
 
-      - name: Publish release
+      - name: Publish to R2
         if: startsWith(github.ref, 'refs/tags/desktop-v') || inputs.release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('desktop-v{0}', steps.version.outputs.value) }}
-          name: Cascade ${{ steps.version.outputs.value }}
-          files: |
-            out/*.msi
-            out/*-setup.exe
-          draft: true
-          generate_release_notes: true
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -eu
+          setup=$(basename out/*-setup.exe)
+          msi=$(basename out/*.msi)
+          portable=$(basename out/*_portable.exe)
+
+          for f in "$setup" "$msi" "$portable"; do
+            npx --yes wrangler@4.122.0 r2 object put \
+              "cascade-shared/desktop/${VERSION}/${f}" \
+              --file "out/${f}" --content-type application/octet-stream
+          done
+
+          node -e '
+            const fs = require("fs");
+            const [setup, msi, portable, version] = process.argv.slice(1);
+            const size = (name) => fs.statSync(`out/${name}`).size;
+            fs.writeFileSync(
+              "out/latest.json",
+              JSON.stringify({
+                version,
+                publishedAt: new Date().toISOString(),
+                files: {
+                  setup: { name: setup, size: size(setup) },
+                  msi: { name: msi, size: size(msi) },
+                  portable: { name: portable, size: size(portable) },
+                },
+              }),
+            );
+          ' "$setup" "$msi" "$portable" "$VERSION"
+
+          npx --yes wrangler@4.122.0 r2 object put \
+            "cascade-shared/desktop/latest.json" \
+            --file out/latest.json --content-type application/json
