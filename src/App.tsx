@@ -210,6 +210,7 @@ import { AccountControl } from "./components/auth/LoginButton";
 import { LanguagePicker } from "./components/LanguagePicker";
 import { isDesktopApp, setLaunchFileConsumer } from "./lib/pwa";
 import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
+import { watchLaunchFiles } from "./lib/desktopFiles";
 import { siteAsset } from "./lib/siteAssets";
 import { usePwa } from "./hooks/usePwa";
 import { DesktopDownloadLink } from "./components/DesktopDownloadLink";
@@ -4413,6 +4414,20 @@ export default function App() {
   );
 
   useEffect(() => setLaunchFileConsumer(openFiles), [openFiles]);
+
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    let stop: (() => void) | null = null;
+    let live = true;
+    void watchLaunchFiles(openFiles).then((unlisten) => {
+      if (live) stop = unlisten;
+      else unlisten();
+    });
+    return () => {
+      live = false;
+      stop?.();
+    };
+  }, [openFiles]);
 
   const onDrop = useCallback(
     async (e: React.DragEvent) => {

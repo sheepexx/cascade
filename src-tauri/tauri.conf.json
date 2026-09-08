@@ -46,6 +46,43 @@
     "copyright": "sheepex",
     "publisher": "sheepex",
     "homepage": "https://cascade.sheepex.net",
+    "fileAssociations": [
+      {
+        "ext": ["osz"],
+        "name": "osu-beatmap-archive",
+        "description": "osu! beatmap archive",
+        "mimeType": "application/x-osu-archive",
+        "role": "Editor"
+      },
+      {
+        "ext": ["osu"],
+        "name": "osu-beatmap",
+        "description": "osu! beatmap difficulty",
+        "mimeType": "application/x-osu-beatmap",
+        "role": "Editor"
+      },
+      {
+        "ext": ["sm", "ssc"],
+        "name": "stepmania-chart",
+        "description": "StepMania chart",
+        "mimeType": "application/x-stepmania",
+        "role": "Editor"
+      },
+      {
+        "ext": ["qua"],
+        "name": "quaver-map",
+        "description": "Quaver map",
+        "mimeType": "application/x-quaver",
+        "role": "Editor"
+      },
+      {
+        "ext": ["osk"],
+        "name": "osu-skin",
+        "description": "osu! skin",
+        "mimeType": "application/x-osu-skin",
+        "role": "Editor"
+      }
+    ],
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper" },
       "nsis": { "installMode": "currentUser" }

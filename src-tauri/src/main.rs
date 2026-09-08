@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{Ipv4Addr, TcpListener, TcpStream};
 use std::time::Duration;
 
+mod launch;
 mod osu;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -105,15 +106,22 @@ fn start_oauth_listener(app: AppHandle) -> Result<u16, String> {
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let paths = launch::launch_paths(argv);
+            if launch::queue(app.state::<launch::Pending>().inner(), paths) {
+                let _ = app.emit(launch::OPEN_EVENT, ());
+            }
             if let Some(window) = app.get_webview_window("main") {
                 focus(&window);
             }
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(launch::Pending::default())
         .invoke_handler(tauri::generate_handler![
             start_oauth_listener,
+            launch::take_launch_files,
+            launch::read_launch_file,
             osu::osu_status,
             osu::osu_selected_map,
             osu::osu_read_map,
@@ -122,6 +130,8 @@ fn main() {
             osu::osu_forget_root
         ])
         .setup(|app| {
+            let paths = launch::launch_paths(std::env::args());
+            launch::queue(app.state::<launch::Pending>().inner(), paths);
             if std::env::var("CASCADE_DEVTOOLS").is_ok() {
                 if let Some(window) = app.get_webview_window("main") {
                     window.open_devtools();
