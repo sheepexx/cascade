@@ -61,6 +61,12 @@ jobs:
           path: out/*
           if-no-files-found: error
 
+      - name: Use Node 22 for wrangler
+        if: startsWith(github.ref, 'refs/tags/desktop-v') || inputs.release
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Publish to R2
         if: startsWith(github.ref, 'refs/tags/desktop-v') || inputs.release
         shell: bash
