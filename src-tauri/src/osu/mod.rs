@@ -4,6 +4,8 @@ mod install;
 mod memory;
 #[cfg(windows)]
 mod pack;
+#[cfg(windows)]
+mod sync;
 
 use serde::Serialize;
 use tauri::ipc::{Request, Response};
@@ -149,7 +151,7 @@ pub fn osu_read_map(app: tauri::AppHandle, folder: String) -> Result<Response, S
         if !install::within(&songs, &dir) {
             return Err("That map folder is outside your osu! Songs folder.".to_string());
         }
-        Ok(Response::new(pack::pack_folder(&dir)?))
+        Ok(Response::new(pack::pack_folder(&dir, Some("osu"))?))
     }
     #[cfg(not(windows))]
     {
@@ -159,28 +161,111 @@ pub fn osu_read_map(app: tauri::AppHandle, folder: String) -> Result<Response, S
 }
 
 #[tauri::command]
+pub fn osu_list_skins(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    #[cfg(windows)]
+    {
+        let (root, _) = locate(&app).ok_or_else(|| NOT_FOUND.to_string())?;
+        let skins = root.join("Skins");
+        if !skins.is_dir() {
+            return Ok(Vec::new());
+        }
+        let entries =
+            std::fs::read_dir(&skins).map_err(|err| format!("Cannot read your skins: {err}"))?;
+        let mut names: Vec<String> = entries
+            .flatten()
+            .filter(|entry| entry.path().is_dir())
+            .filter_map(|entry| entry.file_name().to_str().map(str::to_string))
+            .filter(|name| install::safe_folder(name).is_some())
+            .collect();
+        names.sort_by_key(|name| name.to_lowercase());
+        Ok(names)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = app;
+        Err(WINDOWS_ONLY.to_string())
+    }
+}
+
+#[tauri::command]
+pub fn osu_read_skin(app: tauri::AppHandle, name: String) -> Result<Response, String> {
+    #[cfg(windows)]
+    {
+        let (root, _) = locate(&app).ok_or_else(|| NOT_FOUND.to_string())?;
+        let skins = root.join("Skins");
+        let safe = install::safe_folder(&name)
+            .ok_or_else(|| "That skin name is not valid.".to_string())?;
+        let dir = skins.join(safe);
+        if !dir.is_dir() {
+            return Err("That skin is not in your osu! Skins folder any more.".to_string());
+        }
+        if !install::within(&skins, &dir) {
+            return Err("That skin is outside your osu! Skins folder.".to_string());
+        }
+        Ok(Response::new(pack::pack_folder(&dir, None)?))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (app, name);
+        Err(WINDOWS_ONLY.to_string())
+    }
+}
+
+#[tauri::command]
+pub fn osu_sync_map(app: tauri::AppHandle, request: Request<'_>) -> Result<String, String> {
+    #[cfg(windows)]
+    {
+        let bytes = archive_body(&request)?;
+        let folder = header_name(&request);
+        let (_, songs) = locate(&app).ok_or_else(|| NOT_FOUND.to_string())?;
+        if !songs.is_dir() {
+            return Err("Your osu! Songs folder is not where Cascade expected it.".to_string());
+        }
+        let dir = sync::sync_archive(&songs, &folder, bytes)?;
+        if !install::within(&songs, &dir) {
+            return Err("That map folder is outside your osu! Songs folder.".to_string());
+        }
+        Ok(dir.to_string_lossy().to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (app, request);
+        Err(WINDOWS_ONLY.to_string())
+    }
+}
+
+#[cfg(windows)]
+fn archive_body<'a>(request: &'a Request<'_>) -> Result<&'a [u8], String> {
+    use tauri::ipc::InvokeBody;
+
+    let bytes = match request.body() {
+        InvokeBody::Raw(bytes) => bytes,
+        InvokeBody::Json(_) => {
+            return Err("Cascade sent the map in the wrong format.".to_string())
+        }
+    };
+    if bytes.is_empty() {
+        return Err("The exported map came out empty.".to_string());
+    }
+    Ok(bytes)
+}
+
+#[cfg(windows)]
+fn header_name(request: &Request<'_>) -> String {
+    request
+        .headers()
+        .get("x-cascade-name")
+        .and_then(|value| value.to_str().ok())
+        .and_then(crate::urlencoding_decode)
+        .unwrap_or_default()
+}
+
+#[tauri::command]
 pub fn osu_send_map(app: tauri::AppHandle, request: Request<'_>) -> Result<String, String> {
     #[cfg(windows)]
     {
-        use tauri::ipc::InvokeBody;
-
-        let bytes = match request.body() {
-            InvokeBody::Raw(bytes) => bytes,
-            InvokeBody::Json(_) => {
-                return Err("Cascade sent the map in the wrong format.".to_string())
-            }
-        };
-        if bytes.is_empty() {
-            return Err("The exported map came out empty.".to_string());
-        }
-
-        let requested = request
-            .headers()
-            .get("x-cascade-name")
-            .and_then(|value| value.to_str().ok())
-            .and_then(crate::urlencoding_decode)
-            .unwrap_or_default();
-        let file_name = install::osz_file_name(&requested);
+        let bytes = archive_body(&request)?;
+        let file_name = install::osz_file_name(&header_name(&request));
 
         let (root, _) = locate(&app).ok_or_else(|| NOT_FOUND.to_string())?;
         let exe = root.join("osu!.exe");

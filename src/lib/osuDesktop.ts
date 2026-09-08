@@ -87,6 +87,41 @@ export async function osuSendMap(
   });
 }
 
+export async function osuSyncMap(
+  archive: Blob,
+  folder: string,
+): Promise<string> {
+  if (!isDesktopApp()) throw new Error(NOT_DESKTOP);
+  const invoke = await invoker();
+  const bytes = new Uint8Array(await archive.arrayBuffer());
+  return await invoke<string>("osu_sync_map", bytes, {
+    headers: { "x-cascade-name": encodeURIComponent(folder) },
+  });
+}
+
+export async function osuListSkins(): Promise<string[]> {
+  if (!isDesktopApp()) return [];
+  const invoke = await invoker();
+  return await invoke<string[]>("osu_list_skins");
+}
+
+export async function osuReadSkin(name: string): Promise<File> {
+  if (!isDesktopApp()) throw new Error(NOT_DESKTOP);
+  const invoke = await invoker();
+  const bytes = await invoke<ArrayBuffer | Uint8Array | number[]>(
+    "osu_read_skin",
+    { name },
+  );
+  return new File([toBuffer(bytes)], `${name}.osk`, {
+    type: "application/x-osu-skin",
+  });
+}
+
+export function osuFolderName(artist: string, title: string): string {
+  const name = [artist, title].map((part) => part.trim()).filter(Boolean);
+  return name.length ? name.join(" - ") : "Cascade map";
+}
+
 export function osuMapLabel(map: OsuSelectedMap): string {
   const song = [map.artist, map.title].filter(Boolean).join(" - ");
   const name = song || map.folder;

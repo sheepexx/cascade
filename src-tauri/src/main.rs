@@ -126,6 +126,9 @@ fn main() {
             osu::osu_selected_map,
             osu::osu_read_map,
             osu::osu_send_map,
+            osu::osu_sync_map,
+            osu::osu_list_skins,
+            osu::osu_read_skin,
             osu::osu_choose_root,
             osu::osu_forget_root
         ])

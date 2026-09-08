@@ -4707,6 +4707,61 @@ export default function App() {
     [requestExport, doSendToOsu],
   );
 
+  const doSyncToOsu = useCallback(async () => {
+    if (Object.keys(audioFiles).length === 0) return;
+    if (!(await ensureOsuFolder())) return;
+    setOsuBusy(true);
+    setImportError(null);
+    setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
+    try {
+      const [{ buildOsz }, { osuSyncMap, osuFolderName }] = await Promise.all([
+        import("./lib/oszExport"),
+        import("./lib/osuDesktop"),
+      ]);
+      const archive = await buildOsz({
+        meta,
+        difficulties,
+        timingPoints,
+        audioFiles,
+        bgFiles,
+        videoFiles,
+        jpegQuality: appSettings.exportPngBackgroundsAsJpeg
+          ? appSettings.exportJpegQuality
+          : undefined,
+        onProgress: setExportProgress,
+      });
+      await osuSyncMap(archive, osuFolderName(meta.artist, meta.title));
+      playUiSound("mapExportDone");
+      setImportNotice(t("osu.synced"));
+      void logAnalyticsEvent("sync_to_osu", authUserRef.current?.id).catch(
+        () => {},
+      );
+    } catch (error) {
+      setImportError(
+        error instanceof Error ? error.message : t("osu.syncFailed"),
+      );
+    } finally {
+      setOsuBusy(false);
+      setExportProgress(null);
+    }
+  }, [
+    audioFiles,
+    difficulties,
+    bgFiles,
+    videoFiles,
+    meta,
+    timingPoints,
+    appSettings.exportPngBackgroundsAsJpeg,
+    appSettings.exportJpegQuality,
+    ensureOsuFolder,
+    t,
+  ]);
+
+  const handleSyncToOsu = useCallback(
+    () => requestExport("into Songs", () => void doSyncToOsu()),
+    [requestExport, doSyncToOsu],
+  );
+
   const handleLoadFromOsu = useCallback(async () => {
     if (!(await ensureOsuFolder())) return;
     setOsuBusy(true);
@@ -5827,6 +5882,12 @@ export default function App() {
                             ? t("osu.notInstalled")
                             : undefined,
                           onClick: handleSendToOsu,
+                        },
+                        {
+                          label: t("file.syncToOsu"),
+                          disabled: !canExport || osuBusy || exporting,
+                          title: t("file.syncToOsuHint"),
+                          onClick: handleSyncToOsu,
                         },
                         {
                           label: t("file.importFromOsu"),
