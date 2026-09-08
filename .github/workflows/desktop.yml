@@ -83,7 +83,7 @@ jobs:
           for f in "$setup" "$msi" "$portable"; do
             npx --yes wrangler@4.122.0 r2 object put \
               "cascade-shared/desktop/${VERSION}/${f}" \
-              --file "out/${f}" --content-type application/octet-stream
+              --file "out/${f}" --content-type application/octet-stream --remote
           done
 
           node -e '
@@ -106,4 +106,4 @@ jobs:
 
           npx --yes wrangler@4.122.0 r2 object put \
             "cascade-shared/desktop/latest.json" \
-            --file out/latest.json --content-type application/json
+            --file out/latest.json --content-type application/json --remote
