@@ -69,17 +69,15 @@
       return;
     }
 
-    var pill = document.querySelector("[data-version]");
-    if (pill && manifest.version) pill.textContent = "v" + manifest.version;
+    var version = document.querySelector("[data-version]");
+    if (version && manifest.version) version.textContent = "v" + manifest.version;
 
     var released = formatDate(manifest.publishedAt);
     var slot = document.querySelector("[data-date]");
-    var sep = document.querySelector("[data-date-sep]");
     var template = shell.getAttribute("data-released");
     if (slot && released && template) {
       slot.textContent = template.replace("{date}", released);
       slot.hidden = false;
-      if (sep) sep.hidden = false;
     }
   }
 

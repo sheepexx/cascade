@@ -12,74 +12,47 @@ export const CONTENT = {
     ogTitle: "Cascade for Windows",
     ogDescription:
       "The osu!mania editor as a desktop app. Installer, MSI or portable exe, all 64-bit Windows.",
-    eyebrow: "Windows desktop app",
-    h1: "Cascade, on your desktop",
-    lead: "The same editor you already use in the browser, in a window of its own. Every keystroke goes to the playfield, your maps sit on your machine, and it keeps working when the connection does not.",
+    h1: "Cascade for Windows",
+    lead: "Edit your maps offline in a separate window.",
     specs: "Windows 10 and 11 · 64-bit",
     versionPending: "Latest build",
     releasedLabel: "Released {date}",
-    recommended: "Recommended",
     cards: {
       setup: {
         name: "Installer",
-        kind: ".exe installer",
-        text: "Sets Cascade up for your user account and puts it in the Start menu. Pick this one if you are not sure.",
+        kind: ".exe",
+        text: "Installs Cascade and adds it to your Start menu.",
         cta: "Download installer",
       },
       msi: {
         name: "MSI package",
-        kind: ".msi package",
-        text: "The same app as a Windows Installer package, for machines that roll software out through MSI.",
+        kind: ".msi",
+        text: "For deployment through Windows Installer.",
         cta: "Download MSI",
       },
       portable: {
         name: "Portable",
-        kind: "portable .exe",
-        text: "One executable, no installer, nothing written to Program Files. Run it from a folder or a USB stick.",
+        kind: ".exe",
+        text: "Run it from any folder. No installation needed.",
         cta: "Download portable",
       },
     },
-    featuresTitle: "What the desktop app adds",
-    features: [
-      {
-        name: "A window of its own",
-        text: "No tabs, no browser shortcuts stealing your keys. Every hotkey lands in the editor.",
-      },
-      {
-        name: "Works offline",
-        text: "The editor ships inside the app. Open it on a plane and keep charting.",
-      },
-      {
-        name: "Same account, same maps",
-        text: "Sign in with osu! and your cloud maps, collabs and comments follow you between the browser and the desktop.",
-      },
-      {
-        name: "More room to chart",
-        text: "Without browser chrome eating the top of the screen, the playfield gets the space back.",
-      },
-    ],
     notesTitle: "Before you install",
     notes: [
       {
-        name: "Windows will warn you once",
+        name: "Windows SmartScreen",
         text: "The builds are not code-signed yet, so SmartScreen shows “Windows protected your PC”. Choose More info, then Run anyway.",
       },
       {
-        name: "WebView2 comes along",
+        name: "WebView2",
         text: "The installers fetch Microsoft’s WebView2 runtime when it is missing. Windows 11 already has it, and the portable exe needs it too.",
       },
       {
         name: "Updating",
         text: "Download the newer build and run it over the old one. Your settings and local maps stay where they are.",
       },
-      {
-        name: "macOS and Linux",
-        text: "Not yet. Until then Cascade runs in any current browser on those systems.",
-      },
     ],
     webTitle: "Not on Windows?",
-    webLead:
-      "Cascade runs in any modern browser with the same editor, the same cloud maps and nothing to install.",
     webCta: "Open the web editor",
     browserLink: "Open in browser",
     noticeError:
@@ -99,74 +72,47 @@ export const CONTENT = {
     ogTitle: "Cascade für Windows",
     ogDescription:
       "Der osu!mania-Editor als Desktop-App. Installer, MSI oder portable EXE, alles für 64-Bit-Windows.",
-    eyebrow: "Windows-Desktop-App",
-    h1: "Cascade auf deinem Desktop",
-    lead: "Derselbe Editor wie im Browser, nur in einem eigenen Fenster. Jeder Tastendruck landet im Playfield, deine Maps liegen auf deinem Rechner, und der Editor läuft weiter, wenn die Verbindung mal weg ist.",
+    h1: "Cascade für Windows",
+    lead: "Bearbeite deine Maps offline in einem eigenen Fenster.",
     specs: "Windows 10 und 11 · 64-Bit",
     versionPending: "Neuester Build",
     releasedLabel: "Veröffentlicht am {date}",
-    recommended: "Empfohlen",
     cards: {
       setup: {
         name: "Installer",
-        kind: ".exe-Installer",
-        text: "Richtet Cascade für dein Benutzerkonto ein und legt einen Eintrag im Startmenü an. Nimm den hier, wenn du unsicher bist.",
+        kind: ".exe",
+        text: "Installiert Cascade und legt einen Eintrag im Startmenü an.",
         cta: "Installer laden",
       },
       msi: {
         name: "MSI-Paket",
-        kind: ".msi-Paket",
-        text: "Dieselbe App als Windows-Installer-Paket, für Rechner, die Software über MSI verteilen.",
+        kind: ".msi",
+        text: "Für die Verteilung über Windows Installer.",
         cta: "MSI laden",
       },
       portable: {
         name: "Portable Version",
-        kind: "portable .exe",
-        text: "Eine einzige Datei, kein Installer, nichts in den Programmordnern. Läuft aus einem Ordner oder vom USB-Stick.",
+        kind: ".exe",
+        text: "Aus einem beliebigen Ordner starten, ohne Installation.",
         cta: "Portable laden",
       },
     },
-    featuresTitle: "Was die Desktop-App bringt",
-    features: [
-      {
-        name: "Ein eigenes Fenster",
-        text: "Keine Tabs, keine Browser-Shortcuts, die dir Tasten wegnehmen. Jedes Kürzel landet im Editor.",
-      },
-      {
-        name: "Läuft offline",
-        text: "Der Editor steckt in der App. Öffne ihn im Flugzeug und mappe weiter.",
-      },
-      {
-        name: "Gleicher Account, gleiche Maps",
-        text: "Melde dich mit osu! an, und deine Cloud-Maps, Collabs und Kommentare folgen dir zwischen Browser und Desktop.",
-      },
-      {
-        name: "Mehr Platz zum Mappen",
-        text: "Ohne Browserleiste am oberen Rand bekommt das Playfield den Platz zurück.",
-      },
-    ],
     notesTitle: "Vor dem Installieren",
     notes: [
       {
-        name: "Windows warnt dich einmal",
+        name: "Windows SmartScreen",
         text: "Die Builds sind noch nicht signiert, deshalb zeigt SmartScreen „Der Computer wurde durch Windows geschützt“. Wähl Weitere Informationen und dann Trotzdem ausführen.",
       },
       {
-        name: "WebView2 kommt mit",
+        name: "WebView2",
         text: "Die Installer laden Microsofts WebView2-Runtime nach, falls sie fehlt. Windows 11 bringt sie schon mit, und die portable EXE braucht sie ebenfalls.",
       },
       {
         name: "Aktualisieren",
         text: "Lade den neueren Build und führe ihn über den alten aus. Einstellungen und lokale Maps bleiben, wo sie sind.",
       },
-      {
-        name: "macOS und Linux",
-        text: "Noch nicht. Bis dahin läuft Cascade dort in jedem aktuellen Browser.",
-      },
     ],
     webTitle: "Nicht auf Windows?",
-    webLead:
-      "Cascade läuft in jedem modernen Browser, mit demselben Editor, denselben Cloud-Maps und ganz ohne Installation.",
     webCta: "Editor im Browser öffnen",
     browserLink: "Im Browser öffnen",
     noticeError:
@@ -186,74 +132,47 @@ export const CONTENT = {
     ogTitle: "Cascade для Windows",
     ogDescription:
       "Редактор osu!mania как десктопное приложение. Установщик, MSI или портативный exe, всё для 64-битной Windows.",
-    eyebrow: "Десктопное приложение для Windows",
-    h1: "Cascade у тебя на рабочем столе",
-    lead: "Тот же редактор, что и в браузере, только в отдельном окне. Каждое нажатие уходит на плейфилд, карты лежат на твоём компьютере, а редактор работает дальше, даже когда связь пропала.",
+    h1: "Cascade для Windows",
+    lead: "Редактируй карты офлайн в отдельном окне.",
     specs: "Windows 10 и 11 · 64 бита",
     versionPending: "Последняя сборка",
     releasedLabel: "Опубликовано {date}",
-    recommended: "Рекомендуем",
     cards: {
       setup: {
         name: "Установщик",
-        kind: "установщик .exe",
-        text: "Ставит Cascade для твоей учётной записи и добавляет его в меню «Пуск». Бери этот вариант, если сомневаешься.",
+        kind: ".exe",
+        text: "Устанавливает Cascade и добавляет его в меню «Пуск».",
         cta: "Скачать установщик",
       },
       msi: {
         name: "Пакет MSI",
-        kind: "пакет .msi",
-        text: "То же приложение в виде пакета Windows Installer, для машин, где софт разворачивают через MSI.",
+        kind: ".msi",
+        text: "Для развёртывания через Windows Installer.",
         cta: "Скачать MSI",
       },
       portable: {
         name: "Портативная версия",
-        kind: "портативный .exe",
-        text: "Один исполняемый файл, без установщика и без записи в Program Files. Запускай из папки или с флешки.",
+        kind: ".exe",
+        text: "Запускай из любой папки, без установки.",
         cta: "Скачать портативную",
       },
     },
-    featuresTitle: "Что даёт десктопное приложение",
-    features: [
-      {
-        name: "Отдельное окно",
-        text: "Никаких вкладок и браузерных сочетаний, которые забирают клавиши. Каждый хоткей попадает в редактор.",
-      },
-      {
-        name: "Работает офлайн",
-        text: "Редактор лежит внутри приложения. Открывай его в самолёте и мапай дальше.",
-      },
-      {
-        name: "Тот же аккаунт, те же карты",
-        text: "Войди через osu!, и облачные карты, коллабы и комментарии переезжают за тобой между браузером и десктопом.",
-      },
-      {
-        name: "Больше места для мапинга",
-        text: "Без браузерной панели сверху плейфилд забирает это место себе.",
-      },
-    ],
     notesTitle: "Перед установкой",
     notes: [
       {
-        name: "Windows один раз предупредит",
+        name: "Windows SmartScreen",
         text: "Сборки пока без подписи, поэтому SmartScreen показывает «Система Windows защитила ваш компьютер». Нажми «Подробнее», затем «Выполнить в любом случае».",
       },
       {
-        name: "WebView2 подтянется сам",
+        name: "WebView2",
         text: "Установщики докачивают среду WebView2 от Microsoft, если её нет. В Windows 11 она уже есть, и портативному exe она тоже нужна.",
       },
       {
         name: "Обновление",
         text: "Скачай свежую сборку и поставь её поверх старой. Настройки и локальные карты останутся на месте.",
       },
-      {
-        name: "macOS и Linux",
-        text: "Пока нет. До тех пор Cascade работает там в любом современном браузере.",
-      },
     ],
     webTitle: "Не на Windows?",
-    webLead:
-      "Cascade работает в любом современном браузере: тот же редактор, те же облачные карты и ничего не нужно ставить.",
     webCta: "Открыть редактор в браузере",
     browserLink: "Открыть в браузере",
     noticeError:
@@ -273,74 +192,47 @@ export const CONTENT = {
     ogTitle: "Windows 版 Cascade",
     ogDescription:
       "osu!mania 编辑器的桌面版。安装程序、MSI 或便携版 exe，均为 64 位 Windows。",
-    eyebrow: "Windows 桌面应用",
-    h1: "把 Cascade 放到桌面上",
-    lead: "和你在浏览器里用的是同一个编辑器，只是有了自己的窗口。每一次按键都进入谱面，谱面文件留在你的机器上，断网了也照样能编。",
+    h1: "Windows 版 Cascade",
+    lead: "在独立窗口中离线编辑谱面。",
     specs: "Windows 10 与 11 · 64 位",
     versionPending: "最新版本",
     releasedLabel: "发布于 {date}",
-    recommended: "推荐",
     cards: {
       setup: {
         name: "安装程序",
-        kind: ".exe 安装程序",
-        text: "为当前用户安装 Cascade 并加入开始菜单。拿不准就选这个。",
+        kind: ".exe",
+        text: "安装 Cascade 并添加到开始菜单。",
         cta: "下载安装程序",
       },
       msi: {
         name: "MSI 安装包",
-        kind: ".msi 安装包",
-        text: "同一个应用的 Windows Installer 包，适合通过 MSI 分发软件的机器。",
+        kind: ".msi",
+        text: "用于通过 Windows Installer 部署。",
         cta: "下载 MSI",
       },
       portable: {
         name: "便携版",
-        kind: "便携版 .exe",
-        text: "一个可执行文件，不用安装，也不往 Program Files 写东西。放在文件夹或 U 盘里直接运行。",
+        kind: ".exe",
+        text: "从任意文件夹直接运行，无需安装。",
         cta: "下载便携版",
       },
     },
-    featuresTitle: "桌面版多了什么",
-    features: [
-      {
-        name: "独立窗口",
-        text: "没有标签页，浏览器快捷键也抢不走按键。每个热键都落在编辑器里。",
-      },
-      {
-        name: "可离线使用",
-        text: "编辑器就装在应用里。在飞机上打开它，继续做谱。",
-      },
-      {
-        name: "同一个账号，同一批谱面",
-        text: "用 osu! 登录，云端谱面、协作和评论会跟着你在浏览器和桌面之间走。",
-      },
-      {
-        name: "更大的编辑空间",
-        text: "顶部不再被浏览器界面占掉，这块地方还给谱面。",
-      },
-    ],
     notesTitle: "安装之前",
     notes: [
       {
-        name: "Windows 会提醒你一次",
+        name: "Windows SmartScreen",
         text: "构建还没有代码签名，所以 SmartScreen 会显示“Windows 已保护你的电脑”。点击“更多信息”，再点“仍要运行”。",
       },
       {
-        name: "WebView2 会一并处理",
+        name: "WebView2",
         text: "缺少时安装程序会自动获取微软的 WebView2 运行时。Windows 11 自带，便携版 exe 同样需要它。",
       },
       {
         name: "更新",
         text: "下载新版本并覆盖旧的运行一遍。设置和本地谱面都会留在原处。",
       },
-      {
-        name: "macOS 和 Linux",
-        text: "暂时还没有。在那之前，Cascade 在这些系统上的现代浏览器里照样可用。",
-      },
     ],
     webTitle: "不用 Windows？",
-    webLead:
-      "Cascade 在任何现代浏览器里都能跑，同一个编辑器、同一批云端谱面，什么都不用装。",
     webCta: "打开网页版编辑器",
     browserLink: "在浏览器中打开",
     noticeError: "现在连不上下载服务器，稍后刷新页面再试。",
@@ -359,74 +251,47 @@ export const CONTENT = {
     ogTitle: "Cascade para Windows",
     ogDescription:
       "O editor de osu!mania como app de desktop. Instalador, MSI ou exe portátil, tudo para Windows 64 bits.",
-    eyebrow: "App de desktop para Windows",
-    h1: "Cascade no seu desktop",
-    lead: "O mesmo editor que você já usa no navegador, agora em uma janela só dele. Cada tecla vai para o playfield, seus mapas ficam na sua máquina e ele continua funcionando quando a conexão cai.",
+    h1: "Cascade para Windows",
+    lead: "Edite seus mapas offline em uma janela própria.",
     specs: "Windows 10 e 11 · 64 bits",
     versionPending: "Versão mais recente",
     releasedLabel: "Publicado em {date}",
-    recommended: "Recomendado",
     cards: {
       setup: {
         name: "Instalador",
-        kind: "instalador .exe",
-        text: "Instala o Cascade na sua conta de usuário e coloca ele no menu Iniciar. Escolha este se estiver na dúvida.",
+        kind: ".exe",
+        text: "Instala o Cascade e adiciona ao menu Iniciar.",
         cta: "Baixar instalador",
       },
       msi: {
         name: "Pacote MSI",
-        kind: "pacote .msi",
-        text: "O mesmo app como pacote do Windows Installer, para máquinas que distribuem software por MSI.",
+        kind: ".msi",
+        text: "Para distribuição pelo Windows Installer.",
         cta: "Baixar MSI",
       },
       portable: {
         name: "Portátil",
-        kind: ".exe portátil",
-        text: "Um executável, sem instalador e sem escrever nada em Arquivos de Programas. Rode de uma pasta ou de um pendrive.",
+        kind: ".exe",
+        text: "Execute de qualquer pasta, sem instalar.",
         cta: "Baixar portátil",
       },
     },
-    featuresTitle: "O que o app de desktop acrescenta",
-    features: [
-      {
-        name: "Uma janela só dele",
-        text: "Sem abas e sem atalhos do navegador roubando suas teclas. Todo atalho cai no editor.",
-      },
-      {
-        name: "Funciona offline",
-        text: "O editor vem dentro do app. Abra no avião e continue mapeando.",
-      },
-      {
-        name: "Mesma conta, mesmos mapas",
-        text: "Entre com o osu! e seus mapas na nuvem, colabs e comentários acompanham você entre o navegador e o desktop.",
-      },
-      {
-        name: "Mais espaço para mapear",
-        text: "Sem a barra do navegador comendo o topo da tela, o playfield recupera esse espaço.",
-      },
-    ],
     notesTitle: "Antes de instalar",
     notes: [
       {
-        name: "O Windows vai avisar uma vez",
+        name: "Windows SmartScreen",
         text: "As builds ainda não são assinadas, então o SmartScreen mostra “O Windows protegeu o seu PC”. Clique em Mais informações e depois em Executar assim mesmo.",
       },
       {
-        name: "O WebView2 vem junto",
+        name: "WebView2",
         text: "Os instaladores baixam o runtime WebView2 da Microsoft quando ele não está presente. O Windows 11 já tem, e o exe portátil também precisa dele.",
       },
       {
         name: "Atualizar",
         text: "Baixe a build mais nova e rode por cima da antiga. Suas configurações e mapas locais continuam onde estão.",
       },
-      {
-        name: "macOS e Linux",
-        text: "Ainda não. Até lá, o Cascade roda nesses sistemas em qualquer navegador atual.",
-      },
     ],
     webTitle: "Não está no Windows?",
-    webLead:
-      "O Cascade roda em qualquer navegador moderno com o mesmo editor, os mesmos mapas na nuvem e nada para instalar.",
     webCta: "Abrir o editor no navegador",
     browserLink: "Abrir no navegador",
     noticeError:
