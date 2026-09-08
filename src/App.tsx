@@ -4674,7 +4674,7 @@ export default function App() {
   ]);
 
   const handleSendToOsu = useCallback(
-    () => requestExport("osu!", () => void doSendToOsu()),
+    () => requestExport("to osu!", () => void doSendToOsu()),
     [requestExport, doSendToOsu],
   );
 
@@ -4690,12 +4690,15 @@ export default function App() {
       const file = new File([archive], `${selected.folder}.osz`, {
         type: "application/x-osu-archive",
       });
-      setImportNotice(t("osu.loaded", { name: osuMapLabel(selected) }));
+      if (hasProjectContent) {
+        setPendingImport(file);
+      } else {
+        await importMapFile(file);
+        setImportNotice(t("osu.loaded", { name: osuMapLabel(selected) }));
+      }
       void logAnalyticsEvent("import_from_osu", authUserRef.current?.id).catch(
         () => {},
       );
-      if (hasProjectContent) setPendingImport(file);
-      else await importMapFile(file);
     } catch (error) {
       setImportError(
         error instanceof Error ? error.message : t("osu.loadFailed"),
