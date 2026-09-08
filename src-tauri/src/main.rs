@@ -4,6 +4,8 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{Ipv4Addr, TcpListener, TcpStream};
 use std::time::Duration;
 
+mod osu;
+
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 const OAUTH_EVENT: &str = "cascade://oauth-session";
@@ -33,7 +35,7 @@ fn session_from_request(line: &str) -> Option<String> {
     None
 }
 
-fn urlencoding_decode(raw: &str) -> Option<String> {
+pub(crate) fn urlencoding_decode(raw: &str) -> Option<String> {
     let bytes = raw.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -109,7 +111,16 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![start_oauth_listener])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            start_oauth_listener,
+            osu::osu_status,
+            osu::osu_selected_map,
+            osu::osu_read_map,
+            osu::osu_send_map,
+            osu::osu_choose_root,
+            osu::osu_forget_root
+        ])
         .setup(|app| {
             if std::env::var("CASCADE_DEVTOOLS").is_ok() {
                 if let Some(window) = app.get_webview_window("main") {

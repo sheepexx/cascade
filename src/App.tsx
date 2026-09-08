@@ -208,7 +208,8 @@ import { Modal } from "./components/ui/Modal";
 import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
 import { LanguagePicker } from "./components/LanguagePicker";
-import { setLaunchFileConsumer } from "./lib/pwa";
+import { isDesktopApp, setLaunchFileConsumer } from "./lib/pwa";
+import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
 import { siteAsset } from "./lib/siteAssets";
 import { usePwa } from "./hooks/usePwa";
 import { DesktopDownloadLink } from "./components/DesktopDownloadLink";
@@ -717,6 +718,8 @@ export default function App() {
   const [lnTicks, setLnTicks] = useState(1);
   const [importError, setImportError] = useState<string | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [osuBusy, setOsuBusy] = useState(false);
+  const [osuApp, setOsuApp] = useState<OsuStatus | null>(null);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const [pendingOsuDiffs, setPendingOsuDiffs] = useState<OsuEntry[] | null>(
     null,
@@ -834,6 +837,16 @@ export default function App() {
   timingPointsRef.current = timingPoints;
   const authUserRef = useRef(authUser);
   authUserRef.current = authUser;
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    let live = true;
+    void osuStatus().then((status) => {
+      if (live) setOsuApp(status);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const appOpenLoggedRef = useRef(false);
   useEffect(() => {
     if (authLoading || appOpenLoggedRef.current) return;
@@ -4611,6 +4624,105 @@ export default function App() {
     [requestExport, doExportQua],
   );
 
+  const ensureOsuFolder = useCallback(async () => {
+    const { osuStatus: readStatus, osuChooseRoot } = await import(
+      "./lib/osuDesktop"
+    );
+    const current = await readStatus();
+    setOsuApp(current);
+    if (current.installed) return true;
+    const picked = await osuChooseRoot();
+    setOsuApp(picked);
+    return picked.installed;
+  }, []);
+
+  const doSendToOsu = useCallback(async () => {
+    if (Object.keys(audioFiles).length === 0) return;
+    if (!(await ensureOsuFolder())) return;
+    setOsuBusy(true);
+    setImportError(null);
+    setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
+    try {
+      const [{ buildOsz }, { setFilename }, { osuSendMap }] = await Promise.all([
+        import("./lib/oszExport"),
+        import("./lib/osuExport"),
+        import("./lib/osuDesktop"),
+      ]);
+      const archive = await buildOsz({
+        meta,
+        difficulties,
+        timingPoints,
+        audioFiles,
+        bgFiles,
+        videoFiles,
+        jpegQuality: appSettings.exportPngBackgroundsAsJpeg
+          ? appSettings.exportJpegQuality
+          : undefined,
+        onProgress: setExportProgress,
+      });
+      await osuSendMap(archive, setFilename(meta));
+      playUiSound("mapExportDone");
+      setImportNotice(t("osu.sent"));
+      void logAnalyticsEvent("export_to_osu", authUserRef.current?.id).catch(
+        () => {},
+      );
+    } catch (error) {
+      setImportError(
+        error instanceof Error ? error.message : t("osu.sendFailed"),
+      );
+    } finally {
+      setOsuBusy(false);
+      setExportProgress(null);
+    }
+  }, [
+    audioFiles,
+    difficulties,
+    bgFiles,
+    videoFiles,
+    meta,
+    timingPoints,
+    appSettings.exportPngBackgroundsAsJpeg,
+    appSettings.exportJpegQuality,
+    ensureOsuFolder,
+    t,
+  ]);
+
+  const handleSendToOsu = useCallback(
+    () => requestExport("to osu!", () => void doSendToOsu()),
+    [requestExport, doSendToOsu],
+  );
+
+  const handleLoadFromOsu = useCallback(async () => {
+    if (!(await ensureOsuFolder())) return;
+    setOsuBusy(true);
+    setImportError(null);
+    try {
+      const { osuSelectedMap, osuReadMap, osuMapLabel } = await import(
+        "./lib/osuDesktop"
+      );
+      const selected = await osuSelectedMap();
+      const archive = await osuReadMap(selected.folder);
+      const file = new File([archive], `${selected.folder}.osz`, {
+        type: "application/x-osu-archive",
+      });
+      if (hasProjectContent) {
+        setPendingImport(file);
+      } else {
+        await importMapFile(file);
+        setImportNotice(t("osu.loaded", { name: osuMapLabel(selected) }));
+      }
+      void logAnalyticsEvent("import_from_osu", authUserRef.current?.id).catch(
+        () => {},
+      );
+    } catch (error) {
+      setImportError(
+        error instanceof Error ? error.message : t("osu.loadFailed"),
+      );
+    } finally {
+      setOsuBusy(false);
+    }
+  }, [ensureOsuFolder, hasProjectContent, importMapFile, t]);
+
   const importFile = useCallback(
     (file: File) => {
       if (/\.(sm|ssc)$/i.test(file.name)) {
@@ -5690,6 +5802,27 @@ export default function App() {
                         : undefined,
                     onClick: handleExportQua,
                   },
+                  ...(osuApp?.supported
+                    ? [
+                        { separator: true as const },
+                        {
+                          label: t("file.importIntoOsu"),
+                          disabled: !canExport || osuBusy || exporting,
+                          title: !osuApp.installed
+                            ? t("osu.notInstalled")
+                            : undefined,
+                          onClick: handleSendToOsu,
+                        },
+                        {
+                          label: t("file.importFromOsu"),
+                          disabled: osuBusy || importingMap,
+                          title: !osuApp.running
+                            ? t("osu.notRunning")
+                            : undefined,
+                          onClick: () => void handleLoadFromOsu(),
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </div>
