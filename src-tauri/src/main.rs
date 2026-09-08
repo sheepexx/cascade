@@ -6,6 +6,7 @@ use std::time::Duration;
 
 mod launch;
 mod osu;
+mod presence;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
@@ -104,6 +105,20 @@ fn start_oauth_listener(app: AppHandle) -> Result<u16, String> {
     Ok(port)
 }
 
+#[tauri::command]
+fn presence_update(
+    presence: tauri::State<'_, presence::Presence>,
+    mode: String,
+    details: Option<String>,
+    state: Option<String>,
+) -> Result<(), String> {
+    presence.apply(
+        presence::parse_mode(&mode),
+        details.as_deref(),
+        state.as_deref(),
+    )
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -120,8 +135,10 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(launch::Pending::default())
+        .manage(presence::Presence::default())
         .invoke_handler(tauri::generate_handler![
             start_oauth_listener,
+            presence_update,
             launch::take_launch_files,
             launch::read_launch_file,
             osu::osu_status,

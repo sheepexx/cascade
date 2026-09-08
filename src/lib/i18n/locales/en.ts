@@ -139,6 +139,12 @@ export const en = {
   "settings.hideStatus": "Hide my status",
   "settings.presenceHint":
     "Floating avatars on the menu show who's online and what they're working on. Hiding your status keeps you invisible to others while you browse.",
+  "settings.discordPresence": "Discord status",
+  "settings.discordDetailed": "Show the map",
+  "settings.discordMinimal": "Only show Cascade",
+  "settings.discordOff": "Off",
+  "settings.discordPresenceHint":
+    "Shows what you are working on in Discord. \"Only show Cascade\" hides the song, difficulty and whether you are playtesting.",
 
   "settings.scrollSpeed": "Scroll speed",
   "settings.rate": "Rate",

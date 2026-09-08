@@ -211,6 +211,7 @@ import { LanguagePicker } from "./components/LanguagePicker";
 import { isDesktopApp, setLaunchFileConsumer } from "./lib/pwa";
 import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
+import { updatePresence } from "./lib/discordPresence";
 import {
   checkDesktopUpdate,
   installDesktopUpdate,
@@ -860,6 +861,28 @@ export default function App() {
       live = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    const timer = window.setTimeout(() => {
+      void updatePresence({
+        mode: appSettings.discordPresence,
+        song: projectStarted ? `${meta.artist} - ${meta.title}`.trim() : null,
+        difficulty: active?.name ?? null,
+        keyCount: active?.keyCount ?? null,
+        playtesting: playtest.active,
+      }).catch(() => {});
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [
+    appSettings.discordPresence,
+    projectStarted,
+    meta.artist,
+    meta.title,
+    active?.name,
+    active?.keyCount,
+    playtest.active,
+  ]);
 
   const applyDesktopUpdate = useCallback(() => {
     setUpdating(true);
@@ -6589,6 +6612,10 @@ export default function App() {
           showBottomTimeline={appSettings.showBottomTimeline}
           onShowBottomTimeline={(v) =>
             setAppSettings((s) => ({ ...s, showBottomTimeline: v }))
+          }
+          discordPresence={appSettings.discordPresence}
+          onDiscordPresence={(v) =>
+            setAppSettings((s) => ({ ...s, discordPresence: v }))
           }
           simplifyBottomTimeline={appSettings.simplifyBottomTimeline}
           onSimplifyBottomTimeline={(v) =>
