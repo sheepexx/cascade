@@ -30,8 +30,18 @@
       "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: asset: http://asset.localhost; media-src 'self' blob: data: https: asset: http://asset.localhost; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRBREQ1Qjc1NjFDRDczNTIKUldSU2M4MWhkVnZkU21UZ0ttSG1Tb3MzRTd3a2xGekFqOUMzQ25PeXZIcFhXc2pycTVDV0ZybXYK",
+      "endpoints": [
+        "https://mania-editor.noahcraft01.workers.dev/desktop/update.json"
+      ],
+      "windows": { "installMode": "passive" }
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
       "icons/32x32.png",

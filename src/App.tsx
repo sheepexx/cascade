@@ -211,6 +211,11 @@ import { LanguagePicker } from "./components/LanguagePicker";
 import { isDesktopApp, setLaunchFileConsumer } from "./lib/pwa";
 import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
+import {
+  checkDesktopUpdate,
+  installDesktopUpdate,
+  type DesktopUpdate,
+} from "./lib/desktopUpdate";
 import { siteAsset } from "./lib/siteAssets";
 import { usePwa } from "./hooks/usePwa";
 import { DesktopDownloadLink } from "./components/DesktopDownloadLink";
@@ -721,6 +726,8 @@ export default function App() {
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [osuBusy, setOsuBusy] = useState(false);
   const [osuApp, setOsuApp] = useState<OsuStatus | null>(null);
+  const [desktopUpdate, setDesktopUpdate] = useState<DesktopUpdate | null>(null);
+  const [updating, setUpdating] = useState(false);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const [pendingOsuDiffs, setPendingOsuDiffs] = useState<OsuEntry[] | null>(
     null,
@@ -844,9 +851,24 @@ export default function App() {
     void osuStatus().then((status) => {
       if (live) setOsuApp(status);
     });
+    void checkDesktopUpdate()
+      .then((update) => {
+        if (live) setDesktopUpdate(update);
+      })
+      .catch(() => {});
     return () => {
       live = false;
     };
+  }, []);
+
+  const applyDesktopUpdate = useCallback(() => {
+    setUpdating(true);
+    void installDesktopUpdate().catch((error: unknown) => {
+      setUpdating(false);
+      setImportError(
+        error instanceof Error ? error.message : "The update failed to install.",
+      );
+    });
   }, []);
   const appOpenLoggedRef = useRef(false);
   useEffect(() => {
@@ -6966,6 +6988,28 @@ export default function App() {
               : t("file.saveFailed")}
           </TimedNotification>
         )}
+
+        <TimedNotification
+          open={!!desktopUpdate}
+          durationMs={null}
+          resetKey="desktop-update"
+          showClose
+          onDismiss={() => setDesktopUpdate(null)}
+          progressClassName="bg-accent"
+          className="pointer-events-auto flex max-w-full items-center gap-3 rounded-lg border border-white/10 bg-ink-800/95 py-2 pb-3 pl-4 pr-9 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
+        >
+          <span>
+            {t("update.available", { version: desktopUpdate?.version ?? "" })}
+          </span>
+          <button
+            type="button"
+            onClick={applyDesktopUpdate}
+            disabled={updating}
+            className="shrink-0 rounded-md bg-accent/90 px-2.5 py-1 text-xs font-semibold text-white transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] disabled:opacity-60"
+          >
+            {updating ? t("update.installing") : t("update.install")}
+          </button>
+        </TimedNotification>
 
         <TimedNotification
           open={pwaUpdateReady}

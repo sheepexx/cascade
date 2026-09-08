@@ -44,6 +44,8 @@ jobs:
           VITE_WORKER_URL: ${{ vars.VITE_WORKER_URL }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Collect installers
         shell: bash
@@ -51,7 +53,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.value }}
         run: |
           mkdir -p out
-          find src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*-setup.exe" \) -exec cp {} out/ \;
+          find src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*-setup.exe" -o -name "*-setup.exe.sig" \) -exec cp {} out/ \;
           cp src-tauri/target/release/cascade.exe "out/Cascade_${VERSION}_portable.exe"
           ls -la out
 
@@ -88,13 +90,14 @@ jobs:
 
           node -e '
             const fs = require("fs");
-            const [setup, msi, portable, version] = process.argv.slice(1);
+            const [setup, msi, portable, version, worker] = process.argv.slice(1);
             const size = (name) => fs.statSync(`out/${name}`).size;
+            const publishedAt = new Date().toISOString();
             fs.writeFileSync(
               "out/latest.json",
               JSON.stringify({
                 version,
-                publishedAt: new Date().toISOString(),
+                publishedAt,
                 files: {
                   setup: { name: setup, size: size(setup) },
                   msi: { name: msi, size: size(msi) },
@@ -102,8 +105,31 @@ jobs:
                 },
               }),
             );
-          ' "$setup" "$msi" "$portable" "$VERSION"
+            const sig = `out/${setup}.sig`;
+            if (!fs.existsSync(sig)) {
+              throw new Error(`missing updater signature: ${sig}`);
+            }
+            fs.writeFileSync(
+              "out/update.json",
+              JSON.stringify({
+                version,
+                pub_date: publishedAt,
+                platforms: {
+                  "windows-x86_64": {
+                    signature: fs.readFileSync(sig, "utf8").trim(),
+                    url: `${worker}/desktop/${version}/${setup}`,
+                  },
+                },
+              }),
+            );
+          ' "$setup" "$msi" "$portable" "$VERSION" "https://mania-editor.noahcraft01.workers.dev"
 
           npx --yes wrangler@4.122.0 r2 object put \
-            "cascade-shared/desktop/latest.json" \
-            --file out/latest.json --content-type application/json --remote
+            "cascade-shared/desktop/${VERSION}/${setup}.sig" \
+            --file "out/${setup}.sig" --content-type text/plain --remote
+
+          for f in latest.json update.json; do
+            npx --yes wrangler@4.122.0 r2 object put \
+              "cascade-shared/desktop/${f}" \
+              --file "out/${f}" --content-type application/json --remote
+          done

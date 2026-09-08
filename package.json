@@ -1,7 +1,7 @@
 {
   "name": "cascade",
   "private": true,
-  "version": "1.2.260",
+  "version": "1.2.261",
   "type": "module",
   "description": "Cascade - a browser-based osu!mania beatmap editor",
   "scripts": {
@@ -22,6 +22,8 @@
     "@supabase/supabase-js": "^2.108.2",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-opener": "^2.5.5",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.11.0",
     "jszip": "^3.10.1",
     "lamejs": "^1.2.1",
     "react": "^18.3.1",

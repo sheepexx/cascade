@@ -102,7 +102,11 @@ describe("handleDesktopRoute", () => {
       request,
       new URL(request.url),
       desktopEnv(),
-      { waitUntil: (p: Promise<unknown>) => pending.push(p) } as ExecutionContext,
+      {
+        waitUntil: (p: Promise<unknown>) => {
+          pending.push(p);
+        },
+      } as unknown as ExecutionContext,
     );
 
     expect(response?.status).toBe(200);
@@ -118,19 +122,20 @@ describe("handleDesktopRoute", () => {
     });
   });
 
-  it("leaves the manifest uncounted", async () => {
+  it("leaves the manifests uncounted and short-cached", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const request = new Request("https://worker.test/desktop/latest.json");
-    const response = await handleDesktopRoute(
-      request,
-      new URL(request.url),
-      desktopEnv(),
-      { waitUntil: () => {} } as unknown as ExecutionContext,
-    );
-
-    expect(response?.headers.get("Cache-Control")).toBe("public, max-age=60");
+    for (const name of ["latest.json", "update.json"]) {
+      const request = new Request(`https://worker.test/desktop/${name}`);
+      const response = await handleDesktopRoute(
+        request,
+        new URL(request.url),
+        desktopEnv(),
+        { waitUntil: () => {} } as unknown as ExecutionContext,
+      );
+      expect(response?.headers.get("Cache-Control")).toBe("public, max-age=60");
+    }
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -148,7 +153,11 @@ describe("handleDesktopRoute", () => {
       request,
       new URL(request.url),
       desktopEnv(),
-      { waitUntil: (p: Promise<unknown>) => pending.push(p) } as ExecutionContext,
+      {
+        waitUntil: (p: Promise<unknown>) => {
+          pending.push(p);
+        },
+      } as unknown as ExecutionContext,
     );
 
     expect(response?.status).toBe(200);
