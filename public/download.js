@@ -45,29 +45,63 @@
     }
   }
 
+  function detect() {
+    var data = navigator.userAgentData;
+    var hint = (data && data.platform) || "";
+    var raw = hint || navigator.platform || navigator.userAgent || "";
+    if (/android/i.test(navigator.userAgent || "")) return null;
+    if (/win/i.test(raw)) return "windows";
+    if (/mac|darwin|iphone|ipad|ipod/i.test(raw)) return "macos";
+    if (/linux|x11|cros|bsd/i.test(raw)) return "linux";
+    return null;
+  }
+
+  function platformsOf(manifest) {
+    if (manifest.platforms) return manifest.platforms;
+    return manifest.files ? { windows: manifest.files } : {};
+  }
+
   function fill(manifest) {
-    var files = manifest.files || {};
+    var groups = platformsOf(manifest);
+    var base = WORKER + "/desktop/" + manifest.version + "/";
     var found = 0;
 
-    Object.keys(files).forEach(function (id) {
-      var file = files[id];
-      if (!file || !file.name) return;
-      found += 1;
+    Object.keys(groups).forEach(function (os) {
+      var files = groups[os] || {};
+      Object.keys(files).forEach(function (id) {
+        var file = files[id];
+        if (!file || !file.name) return;
+        found += 1;
 
-      var href = MANIFEST.replace(/latest\.json$/, "") + manifest.version + "/" + file.name;
-      var links = document.querySelectorAll('[data-asset="' + id + '"]');
-      for (var i = 0; i < links.length; i++) links[i].href = href;
+        var href = base + encodeURIComponent(file.name);
+        var key = os + "." + id;
+        var links = document.querySelectorAll('[data-asset="' + key + '"]');
+        for (var i = 0; i < links.length; i++) links[i].href = href;
 
-      var size = document.querySelector('[data-size="' + id + '"]');
-      if (size && typeof file.size === "number") {
-        size.textContent = formatSize(file.size);
-        size.hidden = false;
-      }
+        var sizes = document.querySelectorAll('[data-size="' + key + '"]');
+        for (var j = 0; j < sizes.length; j++) {
+          if (typeof file.size !== "number") continue;
+          sizes[j].textContent = formatSize(file.size);
+          sizes[j].hidden = false;
+        }
+      });
     });
 
     if (!found) {
       say("empty");
       return;
+    }
+
+    var cards = document.querySelectorAll(".download [data-asset]");
+    for (var k = 0; k < cards.length; k++) {
+      if (cards[k].getAttribute("href") !== "#") continue;
+      var card = cards[k].closest(".download");
+      if (card) card.hidden = true;
+    }
+
+    var sections = document.querySelectorAll("[data-platform]");
+    for (var s = 0; s < sections.length; s++) {
+      if (!sections[s].querySelector(".download:not([hidden])")) sections[s].hidden = true;
     }
 
     var version = document.querySelector("[data-version]");
@@ -82,12 +116,23 @@
     }
   }
 
-  var platform =
-    (navigator.userAgentData && navigator.userAgentData.platform) ||
-    navigator.platform ||
-    navigator.userAgent ||
-    "";
-  if (!/win/i.test(platform)) say("other");
+  function promote(os) {
+    var section = document.querySelector('[data-platform="' + os + '"]');
+    var list = document.querySelector("[data-platforms]");
+    if (!section || !list) return;
+    section.setAttribute("data-detected", "");
+    list.insertBefore(section, list.firstChild);
+
+    var primary = section.querySelector("[data-asset]");
+    var cta = document.querySelector("[data-asset-primary]");
+    if (primary && cta) {
+      cta.setAttribute("data-asset", primary.getAttribute("data-asset"));
+      if (primary.getAttribute("href") !== "#") cta.href = primary.getAttribute("href");
+    }
+  }
+
+  var detected = detect();
+  if (!detected) say("other");
 
   fetch(MANIFEST)
     .then(function (res) {
@@ -96,8 +141,12 @@
       return res.json();
     })
     .then(function (manifest) {
-      if (manifest) fill(manifest);
-      else say("empty");
+      if (!manifest) {
+        say("empty");
+        return;
+      }
+      fill(manifest);
+      if (detected) promote(detected);
     })
     .catch(function () {
       say("error");

@@ -13,32 +13,32 @@
     <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/download" />
     <meta name="theme-color" content="#0b0b10" />
     <meta name="robots" content="index, follow" />
-    <title>Скачать Cascade для Windows | редактор osu!mania</title>
-    <meta name="description" content="Десктопное приложение Cascade для Windows. Установщик, пакет MSI или один портативный exe. Тот же редактор osu!mania, StepMania и Etterna, в отдельном окне и с работой офлайн." />
-    <meta name="keywords" content="cascade скачать, редактор osu!mania скачать, mania редактор windows, osu mania десктоп, stepmania редактор скачать, vsrg редактор windows" />
+    <title>Скачать Cascade для Windows, macOS и Linux | редактор osu!mania</title>
+    <meta name="description" content="Десктопное приложение Cascade для Windows, macOS и Linux. Установщик, MSI, портативный exe, образ диска, AppImage, deb или rpm. Тот же редактор osu!mania, StepMania и Etterna, в отдельном окне и с работой офлайн." />
+    <meta name="keywords" content="cascade скачать, редактор osu!mania скачать, mania редактор windows, osu mania редактор mac, mania редактор linux, osu mania десктоп, stepmania редактор скачать, vsrg редактор" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cascade" />
     <meta property="og:locale" content="ru_RU" />
-    <meta property="og:title" content="Cascade для Windows" />
-    <meta property="og:description" content="Редактор osu!mania как десктопное приложение. Установщик, MSI или портативный exe, всё для 64-битной Windows." />
+    <meta property="og:title" content="Cascade для десктопа" />
+    <meta property="og:description" content="Редактор osu!mania как десктопное приложение для Windows, macOS и Linux." />
     <meta property="og:url" content="https://cascade.sheepex.net/ru/download" />
     <meta property="og:image" content="https://cascade.sheepex.net/og-ru.png?v=2" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Cascade, редактор osu!mania в браузере" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Cascade для Windows" />
-    <meta name="twitter:description" content="Редактор osu!mania как десктопное приложение. Установщик, MSI или портативный exe, всё для 64-битной Windows." />
+    <meta name="twitter:title" content="Cascade для десктопа" />
+    <meta name="twitter:description" content="Редактор osu!mania как десктопное приложение для Windows, macOS и Linux." />
     <meta name="twitter:image" content="https://cascade.sheepex.net/og-ru.png?v=2" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "Cascade",
-        "description": "Редактор osu!mania как десктопное приложение. Установщик, MSI или портативный exe, всё для 64-битной Windows.",
+        "description": "Редактор osu!mania как десктопное приложение для Windows, macOS и Linux.",
         "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "Windows 10, Windows 11",
-        "softwareVersion": "1.2.280",
+        "operatingSystem": "Windows 10, Windows 11, macOS 11, Linux",
+        "softwareVersion": "1.2.281",
         "url": "https://cascade.sheepex.net/ru/download",
         "downloadUrl": "https://cascade.sheepex.net/ru/download",
         "publisher": {
@@ -66,7 +66,7 @@
           {
             "@type": "ListItem",
             "position": 2,
-            "name": "Скачать для Windows",
+            "name": "Скачать",
             "item": "https://cascade.sheepex.net/ru/download"
           }
         ]
@@ -202,7 +202,13 @@
       .lead { margin: 0; font-size: 1rem; }
       .hero-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 16px 0 0; font-size: 0.8rem; }
       .release { margin: 8px 0 0; font-size: 0.8rem; }
-      .downloads { border-top: 1px solid var(--line); }
+      .platform { margin-top: 34px; }
+      .platform:first-child { margin-top: 0; }
+      .platform-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+      .platform-name { margin: 0; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .platform-specs { margin: 0; font-size: 0.8rem; }
+      .platform[data-detected] .platform-name::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 9px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+      .downloads { margin-top: 12px; border-top: 1px solid var(--line); }
       .download { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--line); }
       .download h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 0; color: var(--text); font-size: 1.1rem; font-weight: 700; }
       .kind { color: var(--muted); font-size: 0.8rem; font-weight: 400; }
@@ -252,7 +258,7 @@
     <div class="shell"
       data-notice-error="Сервер загрузок сейчас недоступен. Попробуй обновить страницу через минуту."
       data-notice-empty="Десктопных сборок пока нет. Загляни немного позже."
-      data-notice-other="У тебя не Windows. Десктопное приложение пока только для Windows, но версия в браузере работает везде."
+      data-notice-other="Не удалось определить твою систему. Выбери подходящую сборку или открой версию в браузере."
       data-released="Опубликовано {date}"
     >
       <header class="top">
@@ -265,48 +271,112 @@
 
       <main>
       <section class="hero">
-        <h1>Cascade для Windows</h1>
+        <h1>Cascade для десктопа</h1>
         <p class="lead">Редактируй карты офлайн в отдельном окне.</p>
         <p class="hero-meta">
           <span data-version>Последняя сборка</span>
           <span aria-hidden="true">·</span>
-          <span>Windows 10 и 11 · 64 бита</span>
+          <span>Windows, macOS и Linux · 64 бита</span>
         </p>
         <p class="release" data-date hidden></p>
       </section>
 
-      <section class="downloads">
-        <article class="download">
-          <div>
-            <h2>Установщик <span class="kind">.exe</span></h2>
-            <p class="description">Устанавливает Cascade и добавляет его в меню «Пуск».</p>
-          </div>
-          <div class="download-action">
-            <a class="btn primary" href="#" data-asset="setup">Скачать установщик</a>
-            <p class="size" data-size="setup" hidden></p>
-          </div>
-        </article>
-        <article class="download">
-          <div>
-            <h2>Пакет MSI <span class="kind">.msi</span></h2>
-            <p class="description">Для развёртывания через Windows Installer.</p>
-          </div>
-          <div class="download-action">
-            <a class="btn" href="#" data-asset="msi">Скачать MSI</a>
-            <p class="size" data-size="msi" hidden></p>
-          </div>
-        </article>
-        <article class="download">
-          <div>
-            <h2>Портативная версия <span class="kind">.exe</span></h2>
-            <p class="description">Запускай из любой папки, без установки.</p>
-          </div>
-          <div class="download-action">
-            <a class="btn" href="#" data-asset="portable">Скачать портативную</a>
-            <p class="size" data-size="portable" hidden></p>
-          </div>
-        </article>
+      <div class="platforms" data-platforms>
+      <section class="platform" data-platform="windows">
+        <div class="platform-head">
+          <h2 class="platform-name">Windows</h2>
+          <p class="platform-specs">Windows 10 и 11 · 64 бита</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>Установщик <span class="kind">.exe</span></h2>
+              <p class="description">Устанавливает Cascade и добавляет его в меню «Пуск».</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="windows.setup">Скачать установщик</a>
+              <p class="size" data-size="windows.setup" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>Пакет MSI <span class="kind">.msi</span></h2>
+              <p class="description">Для развёртывания через Windows Installer.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="windows.msi">Скачать MSI</a>
+              <p class="size" data-size="windows.msi" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>Портативная версия <span class="kind">.exe</span></h2>
+              <p class="description">Запускай из любой папки, без установки.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="windows.portable">Скачать портативную</a>
+              <p class="size" data-size="windows.portable" hidden></p>
+            </div>
+          </article>
+        </div>
       </section>
+      <section class="platform" data-platform="macos">
+        <div class="platform-head">
+          <h2 class="platform-name">macOS</h2>
+          <p class="platform-specs">macOS 11 или новее · Intel и Apple Silicon</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>Образ диска <span class="kind">.dmg</span></h2>
+              <p class="description">Одна универсальная сборка для Intel и Apple Silicon.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="macos.dmg">Скачать образ диска</a>
+              <p class="size" data-size="macos.dmg" hidden></p>
+            </div>
+          </article>
+        </div>
+      </section>
+      <section class="platform" data-platform="linux">
+        <div class="platform-head">
+          <h2 class="platform-name">Linux</h2>
+          <p class="platform-specs">64 бита · AppImage, deb или rpm</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>AppImage <span class="kind">.AppImage</span></h2>
+              <p class="description">Работает в большинстве дистрибутивов без установки.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="linux.appimage">Скачать AppImage</a>
+              <p class="size" data-size="linux.appimage" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>Пакет Debian <span class="kind">.deb</span></h2>
+              <p class="description">Для Debian, Ubuntu и производных.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="linux.deb">Скачать deb</a>
+              <p class="size" data-size="linux.deb" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>Пакет RPM <span class="kind">.rpm</span></h2>
+              <p class="description">Для Fedora, openSUSE и производных.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="linux.rpm">Скачать rpm</a>
+              <p class="size" data-size="linux.rpm" hidden></p>
+            </div>
+          </article>
+        </div>
+      </section>
+      </div>
       <p class="notice" data-notice hidden></p>
 
       <section class="showcase">
@@ -346,7 +416,7 @@
           <figcaption>Создавайте постоянный, плавный или stutter SV на участке, с предпросмотром так, как это играет osu!mania.</figcaption>
         </figure>
         <p class="showcase-cta">
-          <a class="btn primary" href="#" data-asset="setup">Скачать для Windows</a>
+          <a class="btn primary" href="#" data-asset="windows.setup" data-asset-primary>Скачать Cascade</a>
         </p>
       </section>
 
@@ -362,13 +432,25 @@
             <p>Установщики докачивают среду WebView2 от Microsoft, если её нет. В Windows 11 она уже есть, и портативному exe она тоже нужна.</p>
           </div>
           <div class="item">
+            <h3>macOS Gatekeeper</h3>
+            <p>Сборка для macOS пока не подписана Apple, поэтому первый запуск блокируется. Нажми на Cascade в «Программах» правой кнопкой и выбери «Открыть», либо разреши запуск в «Системных настройках», раздел «Конфиденциальность и безопасность».</p>
+          </div>
+          <div class="item">
+            <h3>Запуск AppImage</h3>
+            <p>Перед первым запуском сделай файл исполняемым командой chmod +x. Пакеты deb и rpm ставятся обычным способом.</p>
+          </div>
+          <div class="item">
+            <h3>Интеграция с osu!</h3>
+            <p>Чтение карты, открытой в osu!, работает только в Windows. Всё остальное в редакторе одинаково на всех трёх системах.</p>
+          </div>
+          <div class="item">
             <h3>Обновление</h3>
             <p>Cascade проверяет обновления при запуске и ставит их в один клик с быстрым перезапуском. Эта страница нужна только для первой установки.</p>
           </div>
         </div>
       </details>
 
-      <p class="web">Не на Windows? <a href="/ru">Открыть редактор в браузере</a></p>
+      <p class="web">Лучше в браузере? <a href="/ru">Открыть редактор в браузере</a></p>
       </main>
 
       <footer>
