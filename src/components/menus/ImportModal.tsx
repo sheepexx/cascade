@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { FolderIcon, ImportIcon } from "../ui/StartIcons";
+import { InfoTip } from "../ui/Tooltip";
 
 export function ImportModal({
   open,
@@ -97,10 +98,9 @@ export function ImportModal({
           </div>
         )}
 
-        <p className="text-[11px] text-slate-500">
-          You can also drag a map file, an audio file or a song folder anywhere
-          onto the page. With a map open, dropping .osu files of the same song
-          adds them as difficulties, no audio file needed.
+        <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+          You can also drop files anywhere on the page.
+          <InfoTip content="Drag a map file, an audio file or a song folder onto the page. With a map open, dropping .osu files of the same song adds them as difficulties, no audio file needed." />
         </p>
       </div>
     </Modal>

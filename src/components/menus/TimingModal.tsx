@@ -20,6 +20,7 @@ import {
   Toggle,
 } from "../ui/Controls";
 import { formatUiNumber } from "../../lib/formatUiNumber";
+import { InfoTip } from "../ui/Tooltip";
 
 type Props = {
   open: boolean;
@@ -491,14 +492,10 @@ export const TimingModal = memo(function TimingModal({
         </section>
 
         <section className="rounded-xl border border-ink-600 bg-ink-700/40 p-4">
-          <h3 className="mb-1 text-sm font-semibold text-slate-200">
+          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
             Auto-detect from audio
+            <InfoTip content="Scans the song for a steady beat and estimates BPM and offset. Works best on music with a clear rhythm; double-check the result against the metronome." />
           </h3>
-          <p className="mb-3 text-xs text-slate-400">
-            Scans the song for a steady beat and estimates BPM and offset. Works
-            best on music with a clear rhythm; double-check the result against
-            the metronome.
-          </p>
           <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="accent"
@@ -552,17 +549,13 @@ export const TimingModal = memo(function TimingModal({
         </section>
 
         <section className="rounded-xl border border-ink-600 bg-ink-700/40 p-4">
-          <h3 className="mb-1 text-sm font-semibold text-slate-200">
+          <h3 className="mb-4 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
             Click to the beat
+            <InfoTip content={<>
+              <p className="m-0">Play the song, then tap every beat: click the pad or press T.</p>
+              <p className="mt-2">The BPM and offset are fit from your taps and lock in automatically once you stop. The more beats in a row, the more accurate.</p>
+            </>} />
           </h3>
-          <p className="mb-4 text-xs text-slate-400">
-            Play the song, then tap every beat - click the pad or press{" "}
-            <kbd className="rounded bg-ink-600 px-1 py-0.5 text-[10px] text-slate-300">
-              T
-            </kbd>
-            . The BPM and offset are fit from your taps and lock in automatically
-            once you stop. The more beats in a row, the more accurate.
-          </p>
 
           <div className="flex items-center gap-4">
             <button

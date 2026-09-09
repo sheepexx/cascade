@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/Controls";
 import { Modal } from "../ui/Modal";
 import { MusicNoteIcon } from "../ui/Icons";
+import { InfoTip } from "../ui/Tooltip";
 
 type Props = {
   open: boolean;
@@ -43,13 +44,10 @@ export function NewMapModal({ open, onClose, onCreate }: Props) {
     <Modal open={open} onClose={onClose} title="Create a new map" width="max-w-xl">
       <div className="flex flex-col gap-4">
         <div>
-          <h3 className="text-base font-semibold text-slate-100">
+          <h3 className="flex items-center gap-1.5 text-base font-semibold text-slate-100">
             Start with the song
+            <InfoTip content="Audio defines the map timeline, waveform, timing and preview. Pick it now so the editor can set everything up before you place notes." />
           </h3>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400">
-            Audio defines the map timeline, waveform, timing and preview. Pick
-            it now so the editor can set everything up before you place notes.
-          </p>
         </div>
 
         <button

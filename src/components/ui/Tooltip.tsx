@@ -21,11 +21,13 @@ export function Tooltip({
   children,
   delayMs = TOOLTIP_DELAY_MS,
   className = "",
+  underline = true,
 }: {
   content: ReactNode;
   children: ReactNode;
   delayMs?: number;
   className?: string;
+  underline?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({
@@ -115,7 +117,11 @@ export function Tooltip({
         onMouseLeave={hide}
         onFocus={() => show(true)}
         onBlur={hide}
-        className={`cursor-help decoration-slate-600 decoration-dotted underline-offset-4 outline-none transition-colors hover:decoration-slate-400 focus-visible:decoration-accent [text-decoration-line:underline] ${className}`}
+        className={`cursor-help outline-none transition-colors ${
+          underline
+            ? "decoration-slate-600 decoration-dotted underline-offset-4 hover:decoration-slate-400 focus-visible:decoration-accent [text-decoration-line:underline]"
+            : ""
+        } ${className}`}
       >
         {children}
       </span>
@@ -143,5 +149,25 @@ export function Tooltip({
           document.body,
         )}
     </>
+  );
+}
+
+export function InfoTip({
+  content,
+  className = "",
+}: {
+  content: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Tooltip content={content} underline={false} className={`align-middle ${className}`}>
+      <span
+        role="img"
+        aria-label="More information"
+        className="inline-flex h-3.5 w-3.5 select-none items-center justify-center rounded-full border border-white/20 text-[9px] font-semibold leading-none text-slate-400 transition-colors hover:border-white/45 hover:text-slate-200"
+      >
+        i
+      </span>
+    </Tooltip>
   );
 }

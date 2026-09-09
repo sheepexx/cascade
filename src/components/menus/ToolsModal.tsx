@@ -1,5 +1,6 @@
 import type { SnapDivisor } from "../../types";
 import { snapTickDivisor } from "../../lib/timing";
+import { InfoTip } from "../ui/Tooltip";
 import { Modal } from "../ui/Modal";
 import { Button, Field, NumberInput } from "../ui/Controls";
 
@@ -39,17 +40,16 @@ export function ToolsModal({
   return (
     <Modal open={open} onClose={onClose} title="Tools">
       <div className="flex flex-col gap-4">
-        <p className="text-[11px] text-slate-500">
-          Operate on the active difficulty ({riceCount} rice · {holdCount}{" "}
-          holds). Undoable with Ctrl+Z.
+        <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+          Active difficulty: {riceCount} rice · {holdCount} holds
+          <InfoTip content="Every tool here changes only the active difficulty, and each change is undoable with Ctrl+Z." />
         </p>
 
         <div className="rounded-xl border border-ink-500/60 bg-ink-700/40 p-3">
-          <div className="mb-2 text-sm font-medium text-slate-200">Full LN</div>
-          <p className="mb-3 text-[11px] text-slate-500">
-            Turns every note into a long note ending a set number of ticks
-            before the next note in its lane. Existing holds only get longer.
-          </p>
+          <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-slate-200">
+            Full LN
+            <InfoTip content="Turns every note into a long note ending a set number of ticks before the next note in its lane. Existing holds only get longer." />
+          </div>
           <Field label={`Gap (ticks @ 1/${snapTickDivisor(snapDivisor)})`}>
             <NumberInput
               min={0}
@@ -83,13 +83,11 @@ export function ToolsModal({
         </div>
 
         <div className="rounded-xl border border-ink-500/60 bg-ink-700/40 p-3">
-          <div className="mb-2 text-sm font-medium text-slate-200">
+          <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-200">
             Crop to brackets
+            <InfoTip content="Deletes every note that starts outside the trim brackets and trims any hold running past the end bracket, the same cut the .osz export bakes in." />
           </div>
           <p className="mb-3 text-[11px] text-slate-500">
-            Deletes every note that starts outside the trim brackets and trims
-            any hold running past the end bracket - the same cut the .osz export
-            bakes in.{" "}
             {!trimActive
               ? "Set the trim brackets on the timeline first."
               : cropTotal === 0

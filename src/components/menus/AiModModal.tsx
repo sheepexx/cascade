@@ -9,6 +9,7 @@ import {
   type AiModReport,
 } from "../../lib/aimod";
 import { describeCorpusBucket, patternCorpus } from "../../lib/patternCorpus";
+import { InfoTip } from "../ui/Tooltip";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 
@@ -87,9 +88,15 @@ export function AiModModal({
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
-          <Button variant="accent" onClick={onRefresh}>
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="accent" onClick={onRefresh}>
+              Refresh
+            </Button>
+            <InfoTip content={<>
+              <p className="m-0">Checks metadata, timing, object structure and pattern strain across the loaded mapset.</p>
+              <p className="mt-2">Unsnapped objects are the usual reason a perfectly timed converted map shows as off-grid in osu!. Resnap moves them onto the nearest valid beat divisor.</p>
+            </>} />
+          </div>
           <div className="flex gap-6 rounded-xl border border-white/10 bg-ink-700/40 px-4 py-2 text-sm">
             <Summary label="Difficulty" value={activeDiffName} />
             <Summary
@@ -106,14 +113,28 @@ export function AiModModal({
         </div>
 
         {report && <section className="rounded-xl border border-teal-300/20 bg-teal-300/5 p-4">
-          <div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold text-slate-100">Ranking readiness</h3>
+          <div className="flex items-start justify-between gap-4"><div><h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">Ranking readiness <InfoTip content={<>
+            <p className="m-0">Heuristic guidance, not a probability of being ranked. The set score uses its lowest difficulty score.</p>
+            <p className="mt-2">Patterns are compared against {patternCorpus.source.difficulties} difficulties from {patternCorpus.source.mapsets} mapsets ranked between {patternCorpus.source.rankedFrom} and {patternCorpus.source.rankedTo}, so "unusual" means rare among them, not wrong.</p>
+            <p className="mt-2">Jacks, anchors and asymmetry can be intentional. Musical interpretation, difficulty spread and full ranking criteria still need human review.</p>
+          </>} /></h3>
             <p className={`mt-1 text-xs ${report.errors ? "text-amber-200" : "text-teal-200"}`}>{report.errors ? `${report.errors} structural issue${report.errors === 1 ? "" : "s"} to fix before review` : "No automatic structural blockers found"}</p></div>
             <div className="text-right"><strong className="text-xl text-teal-100">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-xs text-slate-500"> / 100</span>}</strong><p className="text-[10px] text-slate-400">Pattern review score</p></div>
           </div>
-          <p className="mt-3 text-[11px] text-slate-400">Heuristic guidance, not a probability of being ranked. The set score uses its lowest difficulty score. Patterns are compared against {patternCorpus.source.difficulties} difficulties from {patternCorpus.source.mapsets} mapsets ranked between {patternCorpus.source.rankedFrom} and {patternCorpus.source.rankedTo}, so "unusual" means rare among them, not wrong. Jacks, anchors and asymmetry can be intentional. Musical interpretation, difficulty spread and full ranking criteria still need human review.</p>
           <ul className="mt-3 flex flex-col gap-2">{report.quality.difficulties.map(d => <li key={d.id} className="rounded-lg bg-black/15 p-2 text-xs">
-            <div className="flex justify-between gap-3"><span className="text-slate-200">{d.name} <span className="text-[10px] text-slate-500">judged as {d.tier}</span></span><span className="text-teal-200">{d.score === null ? "Too few notes to score" : `${d.score}/100`}</span></div>
-            <p className="mt-1 text-[10px] text-slate-500">{d.comparison.bucket === null ? "No comparable ranked maps at this key count and density." : `Compared with ${describeCorpusBucket(d.comparison.bucket)} · ${d.comparison.outliers.length ? `Above their usual range: ${d.comparison.outliers.map(o => o.label).join(", ")}. Review the musical intent.` : "Pattern metrics within their usual range."}`}</p>
+            <div className="flex justify-between gap-3"><span className="text-slate-200">{d.name} <span className="whitespace-nowrap text-[10px] text-slate-500">judged as {d.tier} <InfoTip content={<>
+              <p className="m-0">Estimated from this difficulty's star rating, not from its name, and it decides which ranking criteria guidelines apply.</p>
+              <p className="mt-2">It agrees with how mappers name difficulties about 4 times in 5, so check this first if a guideline looks wrong for the level.</p>
+            </>} /></span></span><span className="text-teal-200">{d.score === null ? "Too few notes to score" : `${d.score}/100`}</span></div>
+            <p className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-500">
+              {d.comparison.bucket === null ? "No comparable ranked maps" : d.comparison.outliers.length ? `Above the usual range: ${d.comparison.outliers.map(o => o.label).join(", ")}` : "Within the usual range"}
+              <InfoTip content={d.comparison.bucket === null
+                ? <p className="m-0">The reference set has no ranked maps at this key count and density, so no pattern comparison was made.</p>
+                : <>
+                  <p className="m-0">Compared with {describeCorpusBucket(d.comparison.bucket)}.</p>
+                  {d.comparison.outliers.length > 0 && <p className="mt-2">These sit above the 90th percentile of those maps. Review the musical intent before changing anything.</p>}
+                </>} />
+            </p>
           </li>)}</ul>
         </section>}
         <div className="flex flex-wrap gap-1 border-b border-white/10 pb-2">
@@ -246,12 +267,6 @@ export function AiModModal({
           </ul>
         )}
 
-        <p className="text-[11px] text-slate-500">
-          Checks metadata, timing, object structure and pattern strain across the loaded mapset.
-          Unsnapped objects are the usual reason a perfectly-timed converted map
-          shows as off-grid in osu - Resnap moves them onto the nearest valid
-          beat divisor.
-        </p>
       </div>
     </Modal>
   );

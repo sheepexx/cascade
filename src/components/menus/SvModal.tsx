@@ -37,6 +37,7 @@ import {
   Select,
   Toggle,
 } from "../ui/Controls";
+import { InfoTip } from "../ui/Tooltip";
 
 type Props = {
   open: boolean;
@@ -438,11 +439,12 @@ export function SvModal({
       {/* Generators have different control counts; floor the height so the
           preview and Apply button stay put when switching tabs. */}
       <div className="flex min-h-[min(34rem,66vh)] flex-col gap-4">
-        <p className="text-[11px] text-slate-500">
-          Scroll velocity (SV) changes how fast notes travel without touching
-          their timing. Preview follows time-based scroll (like Quaver); turn on
-          &ldquo;Preview SV while playing&rdquo; in Settings or press F5 to feel
-          it. Undo with Ctrl+Z.
+        <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+          Scroll velocity changes how fast notes travel without touching their timing.
+          <InfoTip content={<>
+            <p className="m-0">Preview follows time-based scroll, like Quaver.</p>
+            <p className="mt-2">Turn on &ldquo;Preview SV while playing&rdquo; in Settings or press F5 to feel it. Undo with Ctrl+Z.</p>
+          </>} />
         </p>
 
         <div className="flex gap-1 rounded-xl border border-ink-500/60 bg-ink-700/40 p-1">
