@@ -86,6 +86,48 @@ function Playfield({
   );
 }
 
+function Lane({ x, width = 40 }: { x: number; width?: number }) {
+  return (
+    <rect x={x} y={16} width={width} height={H - 20} fill={WELL} rx={2} />
+  );
+}
+
+const HEAD = 18;
+
+function ArrowH({ x1, x2, y }: { x1: number; x2: number; y: number }) {
+  const heads = x2 - x1 >= HEAD;
+  return (
+    <g stroke={ACCENT} strokeWidth={1.3} fill="none" strokeLinecap="round">
+      <line x1={x1} y1={y} x2={x2} y2={y} />
+      <line x1={x1} y1={y - 4} x2={x1} y2={y + 4} />
+      <line x1={x2} y1={y - 4} x2={x2} y2={y + 4} />
+      {heads && (
+        <>
+          <polyline points={`${x1 + 5},${y - 3} ${x1 + 1},${y} ${x1 + 5},${y + 3}`} />
+          <polyline points={`${x2 - 5},${y - 3} ${x2 - 1},${y} ${x2 - 5},${y + 3}`} />
+        </>
+      )}
+    </g>
+  );
+}
+
+function ArrowV({ y1, y2, x }: { y1: number; y2: number; x: number }) {
+  const heads = y2 - y1 >= HEAD;
+  return (
+    <g stroke={ACCENT} strokeWidth={1.3} fill="none" strokeLinecap="round">
+      <line x1={x} y1={y1} x2={x} y2={y2} />
+      <line x1={x - 4} y1={y1} x2={x + 4} y2={y1} />
+      <line x1={x - 4} y1={y2} x2={x + 4} y2={y2} />
+      {heads && (
+        <>
+          <polyline points={`${x - 3},${y1 + 5} ${x},${y1 + 1} ${x + 3},${y1 + 5}`} />
+          <polyline points={`${x - 3},${y2 - 5} ${x},${y2 - 1} ${x + 3},${y2 - 5}`} />
+        </>
+      )}
+    </g>
+  );
+}
+
 function Highlight({
   x,
   y,
@@ -178,19 +220,20 @@ export function SettingDiagram({
       return (
         <Frame>
           <Playfield x={x} width={width} />
-          {note(x + 2, 22, width / 4 - 4, 5)}
-          {note(x + width / 2 + 2, 40, width / 4 - 4, 5, NOTE_ALT)}
+          {note(x + 2, 26, width / 4 - 4, 5)}
+          {note(x + width / 2 + 2, 42, width / 4 - 4, 5, NOTE_ALT)}
+          <ArrowH x1={x} x2={x + width} y={14} />
         </Frame>
       );
     }
     case "noteHeight": {
-      const h = value == null ? 6 : Math.max(3, Math.min(14, (value / 100) * 6));
+      const h = value == null ? 9 : Math.max(4, Math.min(20, (value / 100) * 9));
       return (
         <Frame>
           <Playfield />
-          {note(42, 16, 12, h)}
-          {note(56, 32, 12, h, NOTE_ALT)}
-          {note(70, 48, 12, h)}
+          {note(44, 10, 12, h)}
+          {note(58, 36, 12, h, NOTE_ALT)}
+          <ArrowV x={38} y1={10} y2={10 + h} />
         </Frame>
       );
     }
@@ -236,53 +279,81 @@ export function SettingDiagram({
     case "smoothScrolling":
       return (
         <Frame>
-          <text x={26} y={14} fontSize={7} fill={MUTED} textAnchor="middle">
+          <text x={34} y={13} fontSize={7} fill={MUTED} textAnchor="middle">
             off
           </text>
-          <text x={104} y={14} fontSize={7} fill={ACCENT} textAnchor="middle">
+          <text x={102} y={13} fontSize={7} fill={ACCENT} textAnchor="middle">
             on
           </text>
-          {[0, 1, 2, 3].map((i) => (
-            <rect key={i} x={14} y={24 + i * 12} width={24} height={4} rx={1.5} fill={MUTED} />
-          ))}
-          {[0, 1, 2, 3].map((i) => (
-            <rect key={i} x={92} y={22 + i * 12.5} width={24} height={4} rx={1.5} fill={ACCENT} />
-          ))}
-          <line x1={68} y1={8} x2={68} y2={H - 6} stroke={LINE} strokeDasharray="2 3" />
+          <line x1={12} y1={62} x2={58} y2={62} stroke={LINE} strokeWidth={1} />
+          <line x1={12} y1={62} x2={12} y2={20} stroke={LINE} strokeWidth={1} />
+          <polyline
+            points="12,58 23,58 23,45 34,45 34,32 45,32 45,20 56,20"
+            fill="none"
+            stroke={MUTED}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+          <line x1={80} y1={62} x2={126} y2={62} stroke={LINE} strokeWidth={1} />
+          <line x1={80} y1={62} x2={80} y2={20} stroke={LINE} strokeWidth={1} />
+          <line
+            x1={80}
+            y1={58}
+            x2={124}
+            y2={20}
+            stroke={ACCENT}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <text x={34} y={71} fontSize={6} fill={MUTED} textAnchor="middle">
+            jumps
+          </text>
+          <text x={102} y={71} fontSize={6} fill={MUTED} textAnchor="middle">
+            glides
+          </text>
         </Frame>
       );
     case "svPreview":
       return (
         <Frame>
-          <Playfield>
-            {note(42, 12, 52, 3, MUTED)}
-            {note(42, 22, 52, 3, MUTED)}
-            {note(42, 36, 52, 3, NOTE)}
-            {note(42, 44, 52, 3, NOTE)}
-            {note(42, 52, 52, 3, NOTE)}
-          </Playfield>
-          <text x={20} y={22} fontSize={7} fill={MUTED} textAnchor="middle">
-            1.0x
+          <text x={34} y={13} fontSize={7} fill={MUTED} textAnchor="middle">
+            off
           </text>
-          <text x={20} y={48} fontSize={7} fill={ACCENT} textAnchor="middle">
-            2.0x
+          <text x={102} y={13} fontSize={7} fill={ACCENT} textAnchor="middle">
+            on
           </text>
+          <Lane x={14} />
+          {[20, 30, 40, 50, 60].map((y) => note(16, y, 36, 4, MUTED))}
+          <Lane x={82} />
+          {[20, 26, 32, 44, 60].map((y) => note(84, y, 36, 4, NOTE))}
+          <line
+            x1={82}
+            y1={38}
+            x2={122}
+            y2={38}
+            stroke={ACCENT}
+            strokeWidth={1.2}
+            strokeDasharray="3 2"
+          />
         </Frame>
       );
     case "bpmScroll":
       return (
         <Frame>
-          <Playfield>
-            {[10, 18, 26].map((y) => note(42, y, 52, 3, MUTED))}
-            <line x1={40} y1={33} x2={96} y2={33} stroke={ACCENT} strokeWidth={1.4} />
-            {[38, 43, 48, 53, 58].map((y) => note(42, y, 52, 2.5, NOTE))}
-          </Playfield>
-          <text x={20} y={22} fontSize={7} fill={MUTED} textAnchor="middle">
-            120
+          <text x={34} y={13} fontSize={7} fill={MUTED} textAnchor="middle">
+            off
           </text>
-          <text x={20} y={50} fontSize={7} fill={ACCENT} textAnchor="middle">
-            240
+          <text x={102} y={13} fontSize={7} fill={ACCENT} textAnchor="middle">
+            on
           </text>
+          <Lane x={14} />
+          {[20, 30, 40].map((y) => note(16, y, 36, 4, MUTED))}
+          <line x1={14} y1={45} x2={54} y2={45} stroke={ACCENT} strokeWidth={1.2} />
+          {[49, 54, 59, 64].map((y) => note(16, y, 36, 3, MUTED))}
+          <Lane x={82} />
+          {[20, 30, 40].map((y) => note(84, y, 36, 4, NOTE))}
+          <line x1={82} y1={45} x2={122} y2={45} stroke={ACCENT} strokeWidth={1.2} />
+          {[50, 60].map((y) => note(84, y, 36, 4, NOTE))}
         </Frame>
       );
     case "scrollDirection":
@@ -324,7 +395,7 @@ export function SettingDiagram({
         </Frame>
       );
     case "bodyWidth": {
-      const w = value == null ? 10 : Math.max(4, Math.min(14, (value / 100) * 12));
+      const w = value == null ? 14 : Math.max(5, Math.min(26, (value / 100) * 15));
       return (
         <Frame>
           <Playfield>
@@ -337,9 +408,10 @@ export function SettingDiagram({
               fill={NOTE_ALT}
               opacity={0.5}
             />
-            {note(62, 12, 12, 5, NOTE_ALT)}
-            {note(62, 50, 12, 5, NOTE_ALT)}
+            {note(68 - w / 2, 12, w, 5, NOTE_ALT)}
+            {note(68 - w / 2, 50, w, 5, NOTE_ALT)}
           </Playfield>
+          <ArrowH x1={68 - w / 2} x2={68 + w / 2} y={35} />
         </Frame>
       );
     }
@@ -379,7 +451,7 @@ export function SettingDiagram({
             <rect key={x} x={x - 5} y={H / 2 + 5} width={10} height={8} rx={1.5} fill={ACCENT} />
           ))}
           <text x={W / 2} y={H - 6} fontSize={7} fill={MUTED} textAnchor="middle">
-            audio shifted
+            nudged
           </text>
         </Frame>
       );

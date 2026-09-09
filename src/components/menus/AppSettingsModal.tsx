@@ -328,20 +328,17 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.interface")}
               </h3>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <Tip text={t("settings.uiScaleHint")} diagram="uiScale" value={uiScale}>{t("settings.uiScale")}</Tip>
-                <span className="font-medium text-slate-200">
-                  {Math.round(uiScale * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
+              <SliderRow
+                label={t("settings.uiScale")}
+                tip={t("settings.uiScaleHint")}
+                diagram="uiScale"
+                diagramValue={uiScale}
+                display={`${Math.round(uiScale * 100)}%`}
                 min={MIN_UI_SCALE}
                 max={MAX_UI_SCALE}
                 step={UI_SCALE_STEP}
                 value={uiScale}
-                onChange={(e) => onUiScale(Number(e.target.value))}
-                className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+                onChange={onUiScale}
               />
               <label className="mt-4 block">
                 <span className="text-xs text-slate-400">
@@ -465,50 +462,41 @@ export function AppSettingsModal({
                 {t("settings.playfield")}
               </h3>
               <div className="flex flex-col gap-2">
-                <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-                  <Tip text={t("settings.playfieldHint")} diagram="backgroundDim" value={dimBackground}>{t("settings.backgroundDim")}</Tip>
-                  <span className="font-medium text-slate-200">
-                    {Math.round(dimBackground)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
+                <SliderRow
+                  label={t("settings.backgroundDim")}
+                  tip={t("settings.playfieldHint")}
+                  diagram="backgroundDim"
+                  diagramValue={dimBackground}
+                  display={`${Math.round(dimBackground)}%`}
                   min={0}
                   max={100}
                   step={1}
                   value={dimBackground}
-                  onChange={(e) => onDimBackground(Number(e.target.value))}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+                  onChange={onDimBackground}
                 />
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <Tip text={t("settings.playfieldHint")} diagram="sizeZoom" value={playfieldScale * 100}>{t("settings.sizeZoom")}</Tip>
-                  <span className="font-medium text-slate-200">
-                    {Math.round(playfieldScale * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
+                <SliderRow
+                  label={t("settings.sizeZoom")}
+                  tip={t("settings.playfieldHint")}
+                  diagram="sizeZoom"
+                  diagramValue={playfieldScale * 100}
+                  display={`${Math.round(playfieldScale * 100)}%`}
                   min={0.5}
                   max={2.5}
                   step={0.05}
                   value={playfieldScale}
-                  onChange={(e) => onPlayfieldScale(Number(e.target.value))}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+                  onChange={onPlayfieldScale}
                 />
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-                  <Tip text={t("settings.noteHeightHint")} diagram="noteHeight" value={noteHeightScale * 100}>{t("settings.noteHeight")}</Tip>
-                  <span className="font-medium text-slate-200">
-                    {Math.round(noteHeightScale * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
+                <SliderRow
+                  label={t("settings.noteHeight")}
+                  tip={t("settings.noteHeightHint")}
+                  diagram="noteHeight"
+                  diagramValue={noteHeightScale * 100}
+                  display={`${Math.round(noteHeightScale * 100)}%`}
                   min={0.75}
                   max={2}
                   step={0.05}
                   value={noteHeightScale}
-                  onChange={(e) => onNoteHeightScale(Number(e.target.value))}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+                  onChange={onNoteHeightScale}
                 />
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
                   <Tip text={t("settings.waveformHint")} diagram="waveform">{t("settings.waveformOnLane")}</Tip>
@@ -596,20 +584,17 @@ export function AppSettingsModal({
                 {t("settings.longNotes")}
               </h3>
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <Tip text={t("settings.bodyWidthHint")} diagram="bodyWidth" value={longNoteBodyScale * 100}>{t("settings.bodyWidth")}</Tip>
-                  <span className="font-medium text-slate-200">
-                    {Math.round(longNoteBodyScale * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={0.2}
-                  max={1}
+                <SliderRow
+                  label={t("settings.bodyWidth")}
+                  tip={t("settings.bodyWidthHint")}
+                  diagram="bodyWidth"
+                  diagramValue={longNoteBodyScale * 100}
+                  display={`${Math.round(longNoteBodyScale * 100)}%`}
+                  min={0.5}
+                  max={1.5}
                   step={0.05}
                   value={longNoteBodyScale}
-                  onChange={(e) => onLongNoteBodyScale(Number(e.target.value))}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
+                  onChange={onLongNoteBodyScale}
                 />
               </div>
             </section>
@@ -623,25 +608,15 @@ export function AppSettingsModal({
                 {t("settings.playback")}
               </h3>
               <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>{t("settings.scrollSpeed")}</span>
-                  <span className="font-medium text-slate-200">
-                    {playtest.scrollSpeed}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={10}
-                  max={45}
-                  step={1}
-                  value={playtest.scrollSpeed}
-                  onChange={(e) =>
-                    patchPlaytest({ scrollSpeed: Number(e.target.value) })
-                  }
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
-                />
-              </div>
+              <SliderRow
+                label={t("settings.scrollSpeed")}
+                display={String(playtest.scrollSpeed)}
+                min={10}
+                max={45}
+                step={1}
+                value={playtest.scrollSpeed}
+                onChange={(v) => patchPlaytest({ scrollSpeed: v })}
+              />
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
                   <Tip text={t("settings.rateHint")}>{t("settings.rate")}</Tip>
@@ -674,7 +649,7 @@ export function AppSettingsModal({
                   <input
                     type="number"
                     min={0.5}
-                    max={2.5}
+                    max={3}
                     step={0.05}
                     value={playtest.zoom}
                     onChange={(e) => patchPlaytest({ zoom: Number(e.target.value) })}
@@ -717,44 +692,28 @@ export function AppSettingsModal({
                   <option value="audio">{t("settings.offsetAudio")}</option>
                 </Select>
               </label>
-              <label className="flex flex-col gap-1 text-xs text-slate-400">
-                <div className="flex items-center justify-between">
-                  <Tip text={t("settings.offsetHint")} diagram="offsetMs">{t("settings.offsetMs")}</Tip>
-                  <span className="font-medium text-slate-200">
-                    {playtest.offsetMs} ms
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={-100}
-                  max={100}
-                  step={1}
-                  value={playtest.offsetMs}
-                  onChange={(e) =>
-                    patchPlaytest({ offsetMs: Number(e.target.value) })
-                  }
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-slate-400">
-                <div className="flex items-center justify-between">
-                  <Tip text={t("settings.hitPositionOffsetHint")} diagram="hitPosition">{t("settings.hitPositionOffset")}</Tip>
-                  <span className="font-medium text-slate-200">
-                    {playtest.hitPositionOffset} px
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={-100}
-                  max={100}
-                  step={1}
-                  value={playtest.hitPositionOffset}
-                  onChange={(e) =>
-                    patchPlaytest({ hitPositionOffset: Number(e.target.value) })
-                  }
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
-                />
-              </label>
+              <SliderRow
+                label={t("settings.offsetMs")}
+                tip={t("settings.offsetHint")}
+                diagram="offsetMs"
+                display={`${playtest.offsetMs} ms`}
+                min={-100}
+                max={100}
+                step={1}
+                value={playtest.offsetMs}
+                onChange={(v) => patchPlaytest({ offsetMs: v })}
+              />
+              <SliderRow
+                label={t("settings.hitPositionOffset")}
+                tip={t("settings.hitPositionOffsetHint")}
+                diagram="hitPosition"
+                display={`${playtest.hitPositionOffset} px`}
+                min={-100}
+                max={100}
+                step={1}
+                value={playtest.hitPositionOffset}
+                onChange={(v) => patchPlaytest({ hitPositionOffset: v })}
+              />
               </div>
             </section>
             <section>
@@ -1098,24 +1057,17 @@ export function AppSettingsModal({
                 <div className="flex flex-col gap-2">
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <Tip text={t("settings.hitsoundVolumeHint")}>{t("settings.volume")}</Tip>
-                    <span className="font-medium text-slate-200">
-                      {Math.round(hitsoundVolume * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={hitsoundVolume}
-                    disabled={!hitsoundsEnabled}
-                    onChange={(e) => onHitsoundVolume(Number(e.target.value))}
-                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
-                  />
-                </div>
+                <SliderRow
+                  label={t("settings.volume")}
+                  tip={t("settings.hitsoundVolumeHint")}
+                  display={`${Math.round(hitsoundVolume * 100)}%`}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={hitsoundVolume}
+                  disabled={!hitsoundsEnabled}
+                  onChange={onHitsoundVolume}
+                />
               </div>
             </section>
 
@@ -1131,22 +1083,16 @@ export function AppSettingsModal({
                   aria-label={t("settings.uiSounds")}
                 />
               </div>
-              <div className="mt-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>{t("settings.volume")}</span>
-                  <span className="font-medium text-slate-200">
-                    {Math.round(uiSoundVolume * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
+              <div className="mt-3">
+                <SliderRow
+                  label={t("settings.volume")}
+                  display={`${Math.round(uiSoundVolume * 100)}%`}
                   min={0}
                   max={1}
                   step={0.01}
                   value={uiSoundVolume}
                   disabled={!uiSoundsEnabled}
-                  onChange={(e) => onUiSoundVolume(Number(e.target.value))}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
+                  onChange={onUiSoundVolume}
                 />
               </div>
             </section>
@@ -1168,22 +1114,17 @@ export function AppSettingsModal({
                 />
               </div>
 
-              <div className="mt-4 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <Tip text={t("settings.jpegQualityHint")}>{t("settings.jpegQuality")}</Tip>
-                  <span className="font-medium text-slate-200">
-                    {Math.round(exportJpegQuality * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
+              <div className="mt-4">
+                <SliderRow
+                  label={t("settings.jpegQuality")}
+                  tip={t("settings.jpegQualityHint")}
+                  display={`${Math.round(exportJpegQuality * 100)}%`}
                   min={0.5}
                   max={1}
                   step={0.01}
                   value={exportJpegQuality}
                   disabled={!exportPngBackgroundsAsJpeg}
-                  onChange={(e) => onExportJpegQuality(Number(e.target.value))}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
+                  onChange={onExportJpegQuality}
                 />
               </div>
             </section>
@@ -1366,6 +1307,58 @@ function SettingToggle({
         onChange={onChange}
         aria-label={label}
       />
+    </div>
+  );
+}
+
+function SliderRow({
+  label,
+  tip,
+  diagram,
+  diagramValue,
+  display,
+  min,
+  max,
+  step,
+  value,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  tip?: string;
+  diagram?: DiagramName;
+  diagramValue?: number;
+  display: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 text-xs text-slate-400 ${
+        disabled ? "opacity-45" : ""
+      }`}
+    >
+      <Tip text={tip} diagram={diagram} value={diagramValue}>
+        {label}
+      </Tip>
+      <input
+        type="range"
+        aria-label={label}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="ml-auto h-1.5 w-32 shrink-0 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed uimd:w-40"
+      />
+      <span className="w-12 shrink-0 text-right font-medium tabular-nums text-slate-200">
+        {display}
+      </span>
     </div>
   );
 }
