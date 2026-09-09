@@ -7,7 +7,7 @@ export type DesktopHintState = {
 export const DESKTOP_HINT_MAX_SHOWS = 3;
 export const DESKTOP_HINT_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 export const DESKTOP_HINT_DELAY_MS = 1400;
-export const DESKTOP_HINT_VISIBLE_MS = 9000;
+export const DESKTOP_HINT_VISIBLE_MS = 22000;
 
 const HINT_KEY = "mania-editor:desktop-hint";
 

@@ -97,9 +97,6 @@ export function DesktopDownloadLink({ active = true }: { active?: boolean }) {
             <p className="text-[11px] font-semibold leading-snug text-slate-100">
               {t("nav.desktopHint")}
             </p>
-            <p className="mt-0.5 text-[10px] leading-snug text-slate-400">
-              {t("nav.desktopHintBody")}
-            </p>
             <button
               type="button"
               aria-label={t("common.close")}

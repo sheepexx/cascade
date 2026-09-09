@@ -31,6 +31,9 @@ const LOGO_MIN = 168;
 const BAR_HEIGHT = 136;
 const PANEL_MAX = 152;
 const PANEL_MIN = 104;
+const PANEL_FLOOR = 86;
+const LEFT_PANELS = 2;
+const RIGHT_PANELS = 4;
 const BG_FADE_MS = 900;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
@@ -167,8 +170,10 @@ export function StartScreen({
   children?: ReactNode;
   players?: OnlinePlayer[];
 }) {
+  const counts = menuPanelCounts(Boolean(onExit));
+  const panels = counts.left + counts.right;
   const [open, setOpen] = useState(false);
-  const [layout, setLayout] = useState(() => measure());
+  const [layout, setLayout] = useState(() => measure(panels));
   const [projectCount, setProjectCount] = useState<number | null>(null);
   const phone = usePhoneViewport();
   const { user } = useAuth();
@@ -203,11 +208,11 @@ export function StartScreen({
   }, [open, onOpenChange]);
 
   useEffect(() => {
-    const update = () => setLayout(measure());
+    const update = () => setLayout(measure(panels));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [panels]);
 
   useEffect(() => {
     if (!open || projectCount !== null) return;
@@ -232,6 +237,17 @@ export function StartScreen({
   }, [open]);
 
   const left: MenuAction[] = [
+    ...(onExit
+      ? [
+          {
+            id: "exit",
+            label: t("menu.exit"),
+            icon: <PowerIcon className="h-7 w-7" />,
+            color: "#b3323c",
+            onClick: onExit,
+          },
+        ]
+      : []),
     {
       id: "import",
       label: t("menu.importMap"),
@@ -280,7 +296,7 @@ export function StartScreen({
   ];
 
   const { wide, panel, logoOpen, logoClosed } = layout;
-  const shift = ((left.length - right.length) * panel) / 2;
+  const shift = logoShift(left.length, right.length, panel);
   const logoSize = open ? logoOpen : logoClosed;
 
   if (phone) {
@@ -436,17 +452,6 @@ export function StartScreen({
           </div>
         </button>
 
-        {onExit && (
-          <button
-            type="button"
-            onClick={onExit}
-            className="group absolute bottom-3 left-4 z-30 flex items-center gap-2 rounded-full bg-[#b3323c] px-3.5 py-2 text-[12px] font-semibold tracking-wide text-white shadow-[0_10px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/10 outline-none transition duration-200 hover:-translate-y-0.5 hover:bg-[#cf3945] hover:shadow-[0_14px_34px_rgba(179,50,60,0.5)] focus-visible:ring-2 focus-visible:ring-white/70 active:translate-y-0 active:brightness-90"
-          >
-            <PowerIcon className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-            {t("menu.exit")}
-          </button>
-        )}
-
         <div className="absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600">
           <span>Cascade · v{__APP_VERSION__}</span>
           <span aria-hidden>·</span>
@@ -475,11 +480,18 @@ function greetingKey(): MessageKey {
   return "menu.goodNight";
 }
 
-function measure() {
+function menuPanelCounts(canExit: boolean): { left: number; right: number } {
+  return { left: LEFT_PANELS + (canExit ? 1 : 0), right: RIGHT_PANELS };
+}
+
+function logoShift(left: number, right: number, panel: number): number {
+  return ((left - right) * panel) / 2;
+}
+
+function measure(panels: number) {
   const vw = typeof window === "undefined" ? 1280 : window.innerWidth;
   const vh = typeof window === "undefined" ? 800 : window.innerHeight;
   const wide = vw >= 900 && vh >= 560;
-  const panel = Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(vw / 8.6)));
   const logoClosed = Math.max(
     LOGO_MIN,
     Math.min(
@@ -490,6 +502,14 @@ function measure() {
   const logoOpen = wide
     ? Math.min(LOGO_OPEN, Math.round(logoClosed * 0.68))
     : logoClosed;
+  const base = Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(vw / 8.6)));
+  const panel =
+    wide && panels > 0
+      ? Math.max(
+          PANEL_FLOOR,
+          Math.min(base, Math.floor((vw - logoOpen) / panels)),
+        )
+      : base;
   return { vw, vh, wide, panel, logoOpen, logoClosed };
 }
 
@@ -750,11 +770,16 @@ function rectsOverlap(a: FloatRect, b: FloatRect): boolean {
 }
 
 function protectedMenuRects(vw: number, vh: number): FloatRect[] {
-  const { wide, panel, logoOpen, logoClosed } = measure();
+  const counts = menuPanelCounts(canExitDesktop());
+  const { wide, panel, logoOpen, logoClosed } = measure(
+    counts.left + counts.right,
+  );
   const centerY = vh / 2;
   const logoSize = wide ? logoOpen : logoClosed;
   const logoRadius = logoSize * (0.5 + RING_RATIO) + FLOAT_UI_GAP_PX;
-  const logoCenterX = wide ? vw / 2 - panel : vw / 2;
+  const logoCenterX = wide
+    ? vw / 2 + logoShift(counts.left, counts.right, panel)
+    : vw / 2;
   const greetingBottom =
     centerY -
     (wide ? Math.max(BAR_HEIGHT / 2, logoOpen / 2) : logoClosed / 2) -
@@ -779,10 +804,6 @@ function protectedMenuRects(vw: number, vh: number): FloatRect[] {
       bottom: vh,
     },
   ];
-
-  if (canExitDesktop()) {
-    rects.push({ left: 0, top: vh - 64, right: 180, bottom: vh });
-  }
 
   if (wide) {
     rects.push({
