@@ -52,6 +52,24 @@ export const CONTENT = {
         text: "Download the newer build and run it over the old one. Your settings and local maps stay where they are.",
       },
     ],
+    showcaseTitle: "A look inside",
+    showcaseLead:
+      "Everything the browser editor does, in its own window, plus a direct line to your osu! install.",
+    showcase: {
+      editor: {
+        alt: "The Cascade editor with a 7K map loaded",
+        text: "Chart 1K to 18K on a canvas playfield, with live map stats, star rating and a max-pp readout while you work.",
+      },
+      playtest: {
+        alt: "Playtest mode showing judgements and an unstable rate bar",
+        text: "Press F5 to play what you just wrote. Judgements, combo, accuracy, a live NPS graph and an unstable rate bar.",
+      },
+      sv: {
+        alt: "The scroll velocity editor with a live curve preview",
+        text: "Generate constant, curve or stutter scroll velocity across a range, previewed the way osu!mania actually plays it.",
+      },
+    },
+    showcaseCta: "Download for Windows",
     webTitle: "Not on Windows?",
     webCta: "Open the web editor",
     browserLink: "Open in browser",
@@ -113,6 +131,24 @@ export const CONTENT = {
         text: "Lade den neueren Build und führe ihn über den alten aus. Einstellungen und lokale Maps bleiben, wo sie sind.",
       },
     ],
+    showcaseTitle: "Ein Blick hinein",
+    showcaseLead:
+      "Alles, was der Browser-Editor kann, in einem eigenen Fenster und mit direktem Draht zu deiner osu!-Installation.",
+    showcase: {
+      editor: {
+        alt: "Der Cascade-Editor mit einer geladenen 7K-Map",
+        text: "Mappe von 1K bis 18K auf einem Canvas-Playfield, mit Live-Statistiken, Star-Rating und max-pp-Anzeige beim Arbeiten.",
+      },
+      playtest: {
+        alt: "Playtest-Modus mit Judgements und Unstable-Rate-Leiste",
+        text: "Mit F5 spielst du, was du gerade geschrieben hast. Judgements, Combo, Genauigkeit, NPS-Graph und Unstable Rate.",
+      },
+      sv: {
+        alt: "Der SV-Editor mit Live-Vorschau der Kurve",
+        text: "Erzeuge konstante, Kurven- oder Stutter-SV über einen Bereich, in der Vorschau so, wie osu!mania es wirklich abspielt.",
+      },
+    },
+    showcaseCta: "Für Windows herunterladen",
     webTitle: "Nicht auf Windows?",
     webCta: "Editor im Browser öffnen",
     browserLink: "Im Browser öffnen",
@@ -174,6 +210,24 @@ export const CONTENT = {
         text: "Скачай свежую сборку и поставь её поверх старой. Настройки и локальные карты останутся на месте.",
       },
     ],
+    showcaseTitle: "Взгляд изнутри",
+    showcaseLead:
+      "Всё, что умеет браузерный редактор, в отдельном окне и с прямым доступом к вашей установке osu!.",
+    showcase: {
+      editor: {
+        alt: "Редактор Cascade с загруженной 7K-картой",
+        text: "Стройте карты от 1K до 18K на canvas-поле, со статистикой, star rating и максимальным pp прямо во время работы.",
+      },
+      playtest: {
+        alt: "Режим плейтеста с оценками и полосой unstable rate",
+        text: "Нажмите F5 и сыграйте то, что только что написали. Оценки, комбо, точность, график NPS и unstable rate.",
+      },
+      sv: {
+        alt: "Редактор SV с живым предпросмотром кривой",
+        text: "Создавайте постоянный, плавный или stutter SV на участке, с предпросмотром так, как это играет osu!mania.",
+      },
+    },
+    showcaseCta: "Скачать для Windows",
     webTitle: "Не на Windows?",
     webCta: "Открыть редактор в браузере",
     browserLink: "Открыть в браузере",
@@ -235,6 +289,23 @@ export const CONTENT = {
         text: "下载新版本并覆盖旧的运行一遍。设置和本地谱面都会留在原处。",
       },
     ],
+    showcaseTitle: "内部一览",
+    showcaseLead: "浏览器编辑器的全部功能，装进独立窗口，并直连你的 osu! 安装目录。",
+    showcase: {
+      editor: {
+        alt: "载入 7K 谱面的 Cascade 编辑器",
+        text: "在 canvas 判定区上编写 1K 到 18K 谱面，实时显示谱面统计、星级与最大 pp。",
+      },
+      playtest: {
+        alt: "带判定与 unstable rate 条的试玩模式",
+        text: "按 F5 立刻试玩刚写好的段落。判定、连击、准确率、实时 NPS 图表与 unstable rate 条一应俱全。",
+      },
+      sv: {
+        alt: "带实时曲线预览的 SV 编辑器",
+        text: "在选定范围内生成恒定、曲线或 stutter SV，并按 osu!mania 的真实表现预览效果。",
+      },
+    },
+    showcaseCta: "下载 Windows 版",
     webTitle: "不用 Windows？",
     webCta: "打开网页版编辑器",
     browserLink: "在浏览器中打开",
@@ -295,6 +366,24 @@ export const CONTENT = {
         text: "Baixe a build mais nova e rode por cima da antiga. Suas configurações e mapas locais continuam onde estão.",
       },
     ],
+    showcaseTitle: "Uma olhada por dentro",
+    showcaseLead:
+      "Tudo o que o editor no navegador faz, em uma janela própria e com acesso direto à sua instalação do osu!.",
+    showcase: {
+      editor: {
+        alt: "O editor do Cascade com um mapa 7K carregado",
+        text: "Monte mapas de 1K a 18K em um playfield em canvas, com estatísticas, star rating e pp máximo enquanto você trabalha.",
+      },
+      playtest: {
+        alt: "Modo playtest com julgamentos e barra de unstable rate",
+        text: "Aperte F5 e jogue o que acabou de escrever. Julgamentos, combo, precisão, gráfico de NPS ao vivo e unstable rate.",
+      },
+      sv: {
+        alt: "O editor de SV com prévia da curva ao vivo",
+        text: "Gere SV constante, em curva ou stutter num trecho, com prévia do jeito que o osu!mania realmente reproduz.",
+      },
+    },
+    showcaseCta: "Baixar para Windows",
     webTitle: "Não está no Windows?",
     webCta: "Abrir o editor no navegador",
     browserLink: "Abrir no navegador",

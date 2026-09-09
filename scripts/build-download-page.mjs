@@ -42,6 +42,27 @@ async function fontStyles() {
 
 const FONT_STYLE = await fontStyles();
 
+const SHOTS = [
+  { id: "editor", file: "editor.jpg" },
+  { id: "playtest", file: "playtest.jpg" },
+  { id: "sv", file: "sv-editor.jpg" },
+];
+const SHOT_WIDTH = 1600;
+const SHOT_HEIGHT = 900;
+
+async function copyShots() {
+  const output = join(ROOT, "public", "shots");
+  await mkdir(output, { recursive: true });
+  for (const shot of SHOTS) {
+    await copyFile(
+      join(ROOT, "docs", "images", shot.file),
+      join(output, shot.file),
+    );
+  }
+}
+
+await copyShots();
+
 function esc(value) {
   return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 }
@@ -144,6 +165,14 @@ const STYLE = `      :root {
       .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
       .size { margin: 0; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
       .notice { margin: 18px 0 0; color: #e8d9a8; font-size: 0.9rem; }
+      .showcase { margin-top: 44px; }
+      .showcase h2 { margin: 0 0 6px; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .showcase-lead { margin: 0 0 22px; max-width: 620px; font-size: 0.95rem; }
+      .shot { margin: 0 0 22px; }
+      .shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 10px; background: #101018; }
+      .shot figcaption { margin: 9px 2px 0; font-size: 0.85rem; }
+      .showcase-cta { margin: 26px 0 0; }
+      .showcase-cta .btn { min-width: 0; padding: 11px 22px; }
       .notes { margin-top: 28px; }
       .notes summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 0.95rem; font-weight: 600; }
       .notes summary:hover { color: var(--accent-soft); }
@@ -181,6 +210,32 @@ function download(id, c, primary) {
             <p class="size" data-size="${id}" hidden></p>
           </div>
         </article>`;
+}
+
+function showcase(c) {
+  const figures = SHOTS.map((shot) => {
+    const copy = c.showcase[shot.id];
+    return `        <figure class="shot">
+          <img
+            src="/shots/${shot.file}"
+            alt="${attr(copy.alt)}"
+            width="${SHOT_WIDTH}"
+            height="${SHOT_HEIGHT}"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>${esc(copy.text)}</figcaption>
+        </figure>`;
+  }).join("\n");
+
+  return `      <section class="showcase">
+        <h2>${esc(c.showcaseTitle)}</h2>
+        <p class="showcase-lead">${esc(c.showcaseLead)}</p>
+${figures}
+        <p class="showcase-cta">
+          <a class="btn primary" href="#" data-asset="setup">${esc(c.showcaseCta)}</a>
+        </p>
+      </section>`;
 }
 
 function notes(list) {
@@ -275,6 +330,8 @@ ${download("msi", c, false)}
 ${download("portable", c, false)}
       </section>
       <p class="notice" data-notice hidden></p>
+
+${showcase(c)}
 
       <details class="notes">
         <summary>${esc(c.notesTitle)}</summary>

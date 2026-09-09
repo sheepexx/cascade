@@ -38,7 +38,7 @@
         "description": "Der osu!mania-Editor als Desktop-App. Installer, MSI oder portable EXE, alles für 64-Bit-Windows.",
         "applicationCategory": "MultimediaApplication",
         "operatingSystem": "Windows 10, Windows 11",
-        "softwareVersion": "1.2.269",
+        "softwareVersion": "1.2.270",
         "url": "https://cascade.sheepex.net/de/download",
         "downloadUrl": "https://cascade.sheepex.net/de/download",
         "publisher": {
@@ -214,6 +214,14 @@
       .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
       .size { margin: 0; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
       .notice { margin: 18px 0 0; color: #e8d9a8; font-size: 0.9rem; }
+      .showcase { margin-top: 44px; }
+      .showcase h2 { margin: 0 0 6px; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .showcase-lead { margin: 0 0 22px; max-width: 620px; font-size: 0.95rem; }
+      .shot { margin: 0 0 22px; }
+      .shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 10px; background: #101018; }
+      .shot figcaption { margin: 9px 2px 0; font-size: 0.85rem; }
+      .showcase-cta { margin: 26px 0 0; }
+      .showcase-cta .btn { min-width: 0; padding: 11px 22px; }
       .notes { margin-top: 28px; }
       .notes summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 0.95rem; font-weight: 600; }
       .notes summary:hover { color: var(--accent-soft); }
@@ -300,6 +308,47 @@
         </article>
       </section>
       <p class="notice" data-notice hidden></p>
+
+      <section class="showcase">
+        <h2>Ein Blick hinein</h2>
+        <p class="showcase-lead">Alles, was der Browser-Editor kann, in einem eigenen Fenster und mit direktem Draht zu deiner osu!-Installation.</p>
+        <figure class="shot">
+          <img
+            src="/shots/editor.jpg"
+            alt="Der Cascade-Editor mit einer geladenen 7K-Map"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Mappe von 1K bis 18K auf einem Canvas-Playfield, mit Live-Statistiken, Star-Rating und max-pp-Anzeige beim Arbeiten.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/playtest.jpg"
+            alt="Playtest-Modus mit Judgements und Unstable-Rate-Leiste"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Mit F5 spielst du, was du gerade geschrieben hast. Judgements, Combo, Genauigkeit, NPS-Graph und Unstable Rate.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/sv-editor.jpg"
+            alt="Der SV-Editor mit Live-Vorschau der Kurve"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Erzeuge konstante, Kurven- oder Stutter-SV über einen Bereich, in der Vorschau so, wie osu!mania es wirklich abspielt.</figcaption>
+        </figure>
+        <p class="showcase-cta">
+          <a class="btn primary" href="#" data-asset="setup">Für Windows herunterladen</a>
+        </p>
+      </section>
 
       <details class="notes">
         <summary>Vor dem Installieren</summary>

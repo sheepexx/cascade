@@ -38,7 +38,7 @@
         "description": "The osu!mania editor as a desktop app. Installer, MSI or portable exe, all 64-bit Windows.",
         "applicationCategory": "MultimediaApplication",
         "operatingSystem": "Windows 10, Windows 11",
-        "softwareVersion": "1.2.269",
+        "softwareVersion": "1.2.270",
         "url": "https://cascade.sheepex.net/download",
         "downloadUrl": "https://cascade.sheepex.net/download",
         "publisher": {
@@ -214,6 +214,14 @@
       .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
       .size { margin: 0; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
       .notice { margin: 18px 0 0; color: #e8d9a8; font-size: 0.9rem; }
+      .showcase { margin-top: 44px; }
+      .showcase h2 { margin: 0 0 6px; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .showcase-lead { margin: 0 0 22px; max-width: 620px; font-size: 0.95rem; }
+      .shot { margin: 0 0 22px; }
+      .shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 10px; background: #101018; }
+      .shot figcaption { margin: 9px 2px 0; font-size: 0.85rem; }
+      .showcase-cta { margin: 26px 0 0; }
+      .showcase-cta .btn { min-width: 0; padding: 11px 22px; }
       .notes { margin-top: 28px; }
       .notes summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 0.95rem; font-weight: 600; }
       .notes summary:hover { color: var(--accent-soft); }
@@ -300,6 +308,47 @@
         </article>
       </section>
       <p class="notice" data-notice hidden></p>
+
+      <section class="showcase">
+        <h2>A look inside</h2>
+        <p class="showcase-lead">Everything the browser editor does, in its own window, plus a direct line to your osu! install.</p>
+        <figure class="shot">
+          <img
+            src="/shots/editor.jpg"
+            alt="The Cascade editor with a 7K map loaded"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Chart 1K to 18K on a canvas playfield, with live map stats, star rating and a max-pp readout while you work.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/playtest.jpg"
+            alt="Playtest mode showing judgements and an unstable rate bar"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Press F5 to play what you just wrote. Judgements, combo, accuracy, a live NPS graph and an unstable rate bar.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/sv-editor.jpg"
+            alt="The scroll velocity editor with a live curve preview"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Generate constant, curve or stutter scroll velocity across a range, previewed the way osu!mania actually plays it.</figcaption>
+        </figure>
+        <p class="showcase-cta">
+          <a class="btn primary" href="#" data-asset="setup">Download for Windows</a>
+        </p>
+      </section>
 
       <details class="notes">
         <summary>Before you install</summary>

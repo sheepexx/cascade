@@ -38,7 +38,7 @@
         "description": "osu!mania 编辑器的桌面版。安装程序、MSI 或便携版 exe，均为 64 位 Windows。",
         "applicationCategory": "MultimediaApplication",
         "operatingSystem": "Windows 10, Windows 11",
-        "softwareVersion": "1.2.269",
+        "softwareVersion": "1.2.270",
         "url": "https://cascade.sheepex.net/zh-cn/download",
         "downloadUrl": "https://cascade.sheepex.net/zh-cn/download",
         "publisher": {
@@ -214,6 +214,14 @@
       .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
       .size { margin: 0; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
       .notice { margin: 18px 0 0; color: #e8d9a8; font-size: 0.9rem; }
+      .showcase { margin-top: 44px; }
+      .showcase h2 { margin: 0 0 6px; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .showcase-lead { margin: 0 0 22px; max-width: 620px; font-size: 0.95rem; }
+      .shot { margin: 0 0 22px; }
+      .shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 10px; background: #101018; }
+      .shot figcaption { margin: 9px 2px 0; font-size: 0.85rem; }
+      .showcase-cta { margin: 26px 0 0; }
+      .showcase-cta .btn { min-width: 0; padding: 11px 22px; }
       .notes { margin-top: 28px; }
       .notes summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 0.95rem; font-weight: 600; }
       .notes summary:hover { color: var(--accent-soft); }
@@ -300,6 +308,47 @@
         </article>
       </section>
       <p class="notice" data-notice hidden></p>
+
+      <section class="showcase">
+        <h2>内部一览</h2>
+        <p class="showcase-lead">浏览器编辑器的全部功能，装进独立窗口，并直连你的 osu! 安装目录。</p>
+        <figure class="shot">
+          <img
+            src="/shots/editor.jpg"
+            alt="载入 7K 谱面的 Cascade 编辑器"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>在 canvas 判定区上编写 1K 到 18K 谱面，实时显示谱面统计、星级与最大 pp。</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/playtest.jpg"
+            alt="带判定与 unstable rate 条的试玩模式"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>按 F5 立刻试玩刚写好的段落。判定、连击、准确率、实时 NPS 图表与 unstable rate 条一应俱全。</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/sv-editor.jpg"
+            alt="带实时曲线预览的 SV 编辑器"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>在选定范围内生成恒定、曲线或 stutter SV，并按 osu!mania 的真实表现预览效果。</figcaption>
+        </figure>
+        <p class="showcase-cta">
+          <a class="btn primary" href="#" data-asset="setup">下载 Windows 版</a>
+        </p>
+      </section>
 
       <details class="notes">
         <summary>安装之前</summary>

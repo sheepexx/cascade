@@ -38,7 +38,7 @@
         "description": "O editor de osu!mania como app de desktop. Instalador, MSI ou exe portátil, tudo para Windows 64 bits.",
         "applicationCategory": "MultimediaApplication",
         "operatingSystem": "Windows 10, Windows 11",
-        "softwareVersion": "1.2.269",
+        "softwareVersion": "1.2.270",
         "url": "https://cascade.sheepex.net/pt-br/download",
         "downloadUrl": "https://cascade.sheepex.net/pt-br/download",
         "publisher": {
@@ -214,6 +214,14 @@
       .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
       .size { margin: 0; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
       .notice { margin: 18px 0 0; color: #e8d9a8; font-size: 0.9rem; }
+      .showcase { margin-top: 44px; }
+      .showcase h2 { margin: 0 0 6px; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .showcase-lead { margin: 0 0 22px; max-width: 620px; font-size: 0.95rem; }
+      .shot { margin: 0 0 22px; }
+      .shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 10px; background: #101018; }
+      .shot figcaption { margin: 9px 2px 0; font-size: 0.85rem; }
+      .showcase-cta { margin: 26px 0 0; }
+      .showcase-cta .btn { min-width: 0; padding: 11px 22px; }
       .notes { margin-top: 28px; }
       .notes summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 0.95rem; font-weight: 600; }
       .notes summary:hover { color: var(--accent-soft); }
@@ -300,6 +308,47 @@
         </article>
       </section>
       <p class="notice" data-notice hidden></p>
+
+      <section class="showcase">
+        <h2>Uma olhada por dentro</h2>
+        <p class="showcase-lead">Tudo o que o editor no navegador faz, em uma janela própria e com acesso direto à sua instalação do osu!.</p>
+        <figure class="shot">
+          <img
+            src="/shots/editor.jpg"
+            alt="O editor do Cascade com um mapa 7K carregado"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Monte mapas de 1K a 18K em um playfield em canvas, com estatísticas, star rating e pp máximo enquanto você trabalha.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/playtest.jpg"
+            alt="Modo playtest com julgamentos e barra de unstable rate"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Aperte F5 e jogue o que acabou de escrever. Julgamentos, combo, precisão, gráfico de NPS ao vivo e unstable rate.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/sv-editor.jpg"
+            alt="O editor de SV com prévia da curva ao vivo"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Gere SV constante, em curva ou stutter num trecho, com prévia do jeito que o osu!mania realmente reproduz.</figcaption>
+        </figure>
+        <p class="showcase-cta">
+          <a class="btn primary" href="#" data-asset="setup">Baixar para Windows</a>
+        </p>
+      </section>
 
       <details class="notes">
         <summary>Antes de instalar</summary>

@@ -54,8 +54,9 @@
       if (!file || !file.name) return;
       found += 1;
 
-      var link = document.querySelector('[data-asset="' + id + '"]');
-      if (link) link.href = MANIFEST.replace(/latest\.json$/, "") + manifest.version + "/" + file.name;
+      var href = MANIFEST.replace(/latest\.json$/, "") + manifest.version + "/" + file.name;
+      var links = document.querySelectorAll('[data-asset="' + id + '"]');
+      for (var i = 0; i < links.length; i++) links[i].href = href;
 
       var size = document.querySelector('[data-size="' + id + '"]');
       if (size && typeof file.size === "number") {
