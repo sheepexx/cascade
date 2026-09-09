@@ -486,6 +486,7 @@ export const ptBR: PartialCatalog = {
   "menu.open": "Menu do Cascade",
   "menu.close": "Fechar menu",
   "menu.importMap": "Importar mapa",
+  "menu.exit": "Sair",
   "menu.myMaps": "Meus mapas",
   "menu.newMap": "Novo mapa",
   "menu.packCreator": "Pack Creator",

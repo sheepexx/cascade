@@ -3,6 +3,7 @@ import type { MenuMusic } from "../hooks/useMenuMusic";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { useAuth } from "../lib/auth";
+import { canExitDesktop } from "../lib/desktopExit";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
 import { countLocalProjects } from "../lib/persistence";
 import {
@@ -10,6 +11,7 @@ import {
   LibraryIcon,
   NewMapIcon,
   PackCreatorIcon,
+  PowerIcon,
   SampleMapsIcon,
   SettingsIcon,
 } from "./ui/StartIcons";
@@ -149,6 +151,7 @@ export function StartScreen({
   onTryMaps,
   onImport,
   onSettings,
+  onExit,
   children,
   players,
 }: {
@@ -160,6 +163,7 @@ export function StartScreen({
   onTryMaps: () => void;
   onImport: () => void;
   onSettings: () => void;
+  onExit?: () => void;
   children?: ReactNode;
   players?: OnlinePlayer[];
 }) {
@@ -431,6 +435,17 @@ export function StartScreen({
             />
           </div>
         </button>
+
+        {onExit && (
+          <button
+            type="button"
+            onClick={onExit}
+            className="group absolute bottom-3 left-4 z-30 flex items-center gap-2 rounded-full bg-[#b3323c] px-3.5 py-2 text-[12px] font-semibold tracking-wide text-white shadow-[0_10px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/10 outline-none transition duration-200 hover:-translate-y-0.5 hover:bg-[#cf3945] hover:shadow-[0_14px_34px_rgba(179,50,60,0.5)] focus-visible:ring-2 focus-visible:ring-white/70 active:translate-y-0 active:brightness-90"
+          >
+            <PowerIcon className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+            {t("menu.exit")}
+          </button>
+        )}
 
         <div className="absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600">
           <span>Cascade · v{__APP_VERSION__}</span>
@@ -764,6 +779,10 @@ function protectedMenuRects(vw: number, vh: number): FloatRect[] {
       bottom: vh,
     },
   ];
+
+  if (canExitDesktop()) {
+    rects.push({ left: 0, top: vh - 64, right: 180, bottom: vh });
+  }
 
   if (wide) {
     rects.push({

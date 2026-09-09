@@ -33,6 +33,12 @@ import {
 import { previewStartMs } from "./lib/sharedMapPreview";
 import { renderShareCard } from "./lib/shareCard";
 import { NowPlaying } from "./components/NowPlaying";
+import { ExitCurtain } from "./components/ExitCurtain";
+import {
+  canExitDesktop,
+  exitAnimationMs,
+  exitDesktopApp,
+} from "./lib/desktopExit";
 import { useMenuMusic } from "./hooks/useMenuMusic";
 import { dialogIsOpen } from "./hooks/useDialog";
 import type { AudioSeekTransition } from "./lib/audioSeek";
@@ -3141,6 +3147,23 @@ export default function App() {
   const menuMusic = useMenuMusic(menuMusicEnabled);
   const toggleMenuMusic = menuMusic.toggle;
   const setMenuMusicDucking = menuMusic.setAmbientDucking;
+  const fadeOutMenuMusic = menuMusic.fadeOut;
+
+  const [exiting, setExiting] = useState(false);
+  const exitingRef = useRef(false);
+  const handleExitApp = useCallback(() => {
+    if (exitingRef.current) return;
+    exitingRef.current = true;
+    const ms = exitAnimationMs();
+    setExiting(true);
+    fadeOutMenuMusic(ms);
+    window.setTimeout(() => {
+      exitDesktopApp().catch(() => {
+        exitingRef.current = false;
+        setExiting(false);
+      });
+    }, ms);
+  }, [fadeOutMenuMusic]);
   const onlinePlayers = useOnlinePresence(
     () => {
       const title = meta.title.trim();
@@ -5585,6 +5608,8 @@ export default function App() {
     >
       <div
         className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          exiting ? "app-power-off" : ""
+        } ${
           modalAtmosphereActive
             ? "scale-[0.992] blur-[2px] opacity-75"
             : "scale-100 blur-0 opacity-100"
@@ -6196,6 +6221,7 @@ export default function App() {
                 onTryMaps={() => setModal("sampleMaps")}
                 onImport={() => setModal("import")}
                 onSettings={() => setModal("settings")}
+                onExit={canExitDesktop() ? handleExitApp : undefined}
               >
                 <LandingCopy />
               </StartScreen>
@@ -7243,6 +7269,8 @@ export default function App() {
         onConfirm={handleResnap}
         onCancel={() => setConfirmResnap(false)}
       />
+
+      {exiting && <ExitCurtain />}
     </div>
   );
 }

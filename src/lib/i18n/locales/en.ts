@@ -508,6 +508,7 @@ export const en = {
   "menu.close": "Close menu",
   "menu.importMap": "Import map",
   "menu.settings": "Settings",
+  "menu.exit": "Exit",
   "menu.myMaps": "My Maps",
   "menu.newMap": "New map",
   "menu.packCreator": "Pack creator",

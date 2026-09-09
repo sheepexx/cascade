@@ -486,6 +486,7 @@ export const de: PartialCatalog = {
   "menu.open": "Cascade-Menü",
   "menu.close": "Menü schließen",
   "menu.importMap": "Map importieren",
+  "menu.exit": "Beenden",
   "menu.myMaps": "Meine Maps",
   "menu.newMap": "Neue Map",
   "menu.packCreator": "Pack Creator",

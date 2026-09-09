@@ -498,6 +498,7 @@ export const ru: PartialCatalog = {
   "menu.open": "Меню Cascade",
   "menu.close": "Закрыть меню",
   "menu.importMap": "Импорт карты",
+  "menu.exit": "Выход",
   "menu.myMaps": "Мои карты",
   "menu.newMap": "Новая карта",
   "menu.packCreator": "Pack Creator",

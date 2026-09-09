@@ -460,6 +460,7 @@ export const zhCN: PartialCatalog = {
   "menu.open": "Cascade 菜单",
   "menu.close": "关闭菜单",
   "menu.importMap": "导入谱面",
+  "menu.exit": "退出",
   "menu.myMaps": "我的谱面",
   "menu.newMap": "新建谱面",
   "menu.packCreator": "Pack Creator",
