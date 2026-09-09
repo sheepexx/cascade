@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, SegmentedControl, Select, Toggle } from "../ui/Controls";
+import { Tooltip } from "../ui/Tooltip";
+import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
 import { isDesktopApp } from "../../lib/pwa";
 import {
   osuChooseRoot,
@@ -327,7 +329,7 @@ export function AppSettingsModal({
                 {t("settings.interface")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>{t("settings.uiScale")}</span>
+                <Tip text={t("settings.uiScaleHint")} diagram="uiScale" value={uiScale}>{t("settings.uiScale")}</Tip>
                 <span className="font-medium text-slate-200">
                   {Math.round(uiScale * 100)}%
                 </span>
@@ -341,12 +343,11 @@ export function AppSettingsModal({
                 onChange={(e) => onUiScale(Number(e.target.value))}
                 className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
               />
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.uiScaleHint")}
-              </p>
               <label className="mt-4 block">
                 <span className="text-xs text-slate-400">
-                  {t("settings.altWheelAction")}
+                  <Tip text={t("settings.altWheelHint")}>
+                    {t("settings.altWheelAction")}
+                  </Tip>
                 </span>
                 <Select
                   className="mt-2 w-full"
@@ -362,25 +363,19 @@ export function AppSettingsModal({
                   ))}
                 </Select>
               </label>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.altWheelHint")}
-              </p>
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.localSave")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>{t("settings.autosave")}</span>
+                <Tip text={t("settings.autosaveHint")}>{t("settings.autosave")}</Tip>
                 <Toggle
                   checked={localAutosaveEnabled}
                   onChange={onLocalAutosaveEnabled}
                   aria-label={t("settings.autosave")}
                 />
               </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.autosaveHint")}
-              </p>
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -388,7 +383,7 @@ export function AppSettingsModal({
               </h3>
               <div className="flex flex-col gap-3">
                 <SettingToggle
-                  label={t("settings.showMenuPlayers")}
+                  label={t("settings.showMenuPlayers")} tip={t("settings.presenceHint")}
                   checked={showMenuPlayers}
                   onChange={onShowMenuPlayers}
                 />
@@ -398,13 +393,10 @@ export function AppSettingsModal({
                   onChange={onHideStatus}
                 />
               </div>
-              <p className="mt-3 text-[11px] text-slate-500">
-                {t("settings.presenceHint")}
-              </p>
               {isDesktopApp() && (
                 <div className="mt-4">
                   <div className="flex items-center justify-between gap-3 text-xs text-slate-300">
-                    <span>{t("settings.discordPresence")}</span>
+                    <Tip text={t("settings.discordPresenceHint")}>{t("settings.discordPresence")}</Tip>
                     <Select
                       value={discordPresence}
                       onChange={(e) =>
@@ -423,9 +415,6 @@ export function AppSettingsModal({
                       <option value="off">{t("settings.discordOff")}</option>
                     </Select>
                   </div>
-                  <p className="mt-2 text-[11px] text-slate-500">
-                    {t("settings.discordPresenceHint")}
-                  </p>
                 </div>
               )}
             </section>
@@ -441,40 +430,35 @@ export function AppSettingsModal({
               </h3>
               <div className="flex flex-col gap-3">
                 <SettingToggle
-                  label={t("settings.showDifficultyPanel")}
+                  label={t("settings.showDifficultyPanel")} tip={t("settings.layoutHint")} diagram="difficultyPanel"
                   checked={difficultyPanelOpen}
                   onChange={onDifficultyPanelOpen}
                 />
                 <SettingToggle
-                  label={t("settings.showBottomTimeline")}
+                  label={t("settings.showBottomTimeline")} tip={t("settings.layoutHint")} diagram="bottomTimeline"
                   checked={showBottomTimeline}
                   onChange={onShowBottomTimeline}
                 />
                 <div className="ml-3 border-l border-white/10 pl-3">
                   <SettingToggle
                     label={t("settings.simplifyBottomTimeline")}
+                    tip={t("settings.simplifyBottomTimelineHint")}
                     checked={simplifyBottomTimeline}
                     disabled={!showBottomTimeline}
                     onChange={onSimplifyBottomTimeline}
                   />
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    {t("settings.simplifyBottomTimelineHint")}
-                  </p>
                 </div>
                 <SettingToggle
-                  label={t("settings.showPpCounter")}
+                  label={t("settings.showPpCounter")} tip={t("settings.layoutHint")} diagram="ppPanel"
                   checked={showPpCounter}
                   onChange={onShowPpCounter}
                 />
                 <SettingToggle
-                  label={t("settings.showPatternTools")}
+                  label={t("settings.showPatternTools")} tip={t("settings.layoutHint")}
                   checked={showPatternTools}
                   onChange={onShowPatternTools}
                 />
               </div>
-              <p className="mt-3 text-[11px] text-slate-500">
-                {t("settings.layoutHint")}
-              </p>
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -482,7 +466,7 @@ export function AppSettingsModal({
               </h3>
               <div className="flex flex-col gap-2">
                 <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-                  <span>{t("settings.backgroundDim")}</span>
+                  <Tip text={t("settings.playfieldHint")} diagram="backgroundDim" value={dimBackground}>{t("settings.backgroundDim")}</Tip>
                   <span className="font-medium text-slate-200">
                     {Math.round(dimBackground)}%
                   </span>
@@ -497,7 +481,7 @@ export function AppSettingsModal({
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>{t("settings.sizeZoom")}</span>
+                  <Tip text={t("settings.playfieldHint")} diagram="sizeZoom" value={playfieldScale * 100}>{t("settings.sizeZoom")}</Tip>
                   <span className="font-medium text-slate-200">
                     {Math.round(playfieldScale * 100)}%
                   </span>
@@ -511,11 +495,8 @@ export function AppSettingsModal({
                   onChange={(e) => onPlayfieldScale(Number(e.target.value))}
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
-                <p className="text-[11px] text-slate-500">
-                  {t("settings.playfieldHint")}
-                </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-                  <span>{t("settings.noteHeight")}</span>
+                  <Tip text={t("settings.noteHeightHint")} diagram="noteHeight" value={noteHeightScale * 100}>{t("settings.noteHeight")}</Tip>
                   <span className="font-medium text-slate-200">
                     {Math.round(noteHeightScale * 100)}%
                   </span>
@@ -529,31 +510,22 @@ export function AppSettingsModal({
                   onChange={(e) => onNoteHeightScale(Number(e.target.value))}
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
-                <p className="text-[11px] text-slate-500">
-                  {t("settings.noteHeightHint")}
-                </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
-                  <span>{t("settings.waveformOnLane")}</span>
+                  <Tip text={t("settings.waveformHint")} diagram="waveform">{t("settings.waveformOnLane")}</Tip>
                   <Toggle
                     checked={showWaveform}
                     onChange={onShowWaveform}
                     aria-label={t("settings.waveformOnLane")}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  {t("settings.waveformHint")}
-                </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
-                  <span>{t("settings.timingLines")}</span>
+                  <Tip text={t("settings.timingLinesHint")} diagram="timingLines">{t("settings.timingLines")}</Tip>
                   <Toggle
                     checked={showTimingLines}
                     onChange={onShowTimingLines}
                     aria-label={t("settings.timingLines")}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  {t("settings.timingLinesHint")}
-                </p>
               </div>
             </section>
             <section>
@@ -561,40 +533,31 @@ export function AppSettingsModal({
                 {t("settings.scrolling")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>{t("settings.smoothScrolling")}</span>
+                <Tip text={t("settings.smoothScrollingHint")} diagram="smoothScrolling">{t("settings.smoothScrolling")}</Tip>
                 <Toggle
                   checked={smoothScrolling}
                   onChange={onSmoothScrolling}
                   aria-label={t("settings.smoothScrolling")}
                 />
               </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.smoothScrollingHint")}
-              </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
-                <span>{t("settings.svPreview")}</span>
+                <Tip text={t("settings.svPreviewHint")} diagram="svPreview">{t("settings.svPreview")}</Tip>
                 <Toggle
                   checked={svPreviewPlayback}
                   onChange={onSvPreviewPlayback}
                   aria-label={t("settings.svPreview")}
                 />
               </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.svPreviewHint")}
-              </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
-                <span>{t("settings.bpmAffectsScroll")}</span>
+                <Tip text={t("settings.bpmAffectsScrollHint")} diagram="bpmScroll">{t("settings.bpmAffectsScroll")}</Tip>
                 <Toggle
                   checked={bpmAffectsScroll}
                   onChange={onBpmAffectsScroll}
                   aria-label={t("settings.bpmAffectsScroll")}
                 />
               </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.bpmAffectsScrollHint")}
-              </p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
-                <span>{t("settings.scrollDirection")}</span>
+                <Tip text={t("settings.scrollDirectionHint")} diagram="scrollDirection">{t("settings.scrollDirection")}</Tip>
                 <button
                   type="button"
                   onClick={() => onUpscroll(!upscroll)}
@@ -627,9 +590,6 @@ export function AppSettingsModal({
                   </span>
                 </button>
               </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.scrollDirectionHint")}
-              </p>
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -637,7 +597,7 @@ export function AppSettingsModal({
               </h3>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>{t("settings.bodyWidth")}</span>
+                  <Tip text={t("settings.bodyWidthHint")} diagram="bodyWidth" value={longNoteBodyScale * 100}>{t("settings.bodyWidth")}</Tip>
                   <span className="font-medium text-slate-200">
                     {Math.round(longNoteBodyScale * 100)}%
                   </span>
@@ -651,9 +611,6 @@ export function AppSettingsModal({
                   onChange={(e) => onLongNoteBodyScale(Number(e.target.value))}
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
-                <p className="text-[11px] text-slate-500">
-                  {t("settings.bodyWidthHint")}
-                </p>
               </div>
             </section>
           </div>
@@ -687,7 +644,7 @@ export function AppSettingsModal({
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>{t("settings.rate")}</span>
+                  <Tip text={t("settings.rateHint")}>{t("settings.rate")}</Tip>
                   <span className="font-medium text-slate-200">
                     {(playtest.rate ?? 1).toFixed(2)}×
                   </span>
@@ -710,9 +667,6 @@ export function AppSettingsModal({
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  {t("settings.rateHint")}
-                </p>
               </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-xs text-slate-400">
@@ -728,7 +682,7 @@ export function AppSettingsModal({
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-xs text-slate-400">
-                  <span>{t("settings.backgroundDim")}</span>
+                  <Tip text={t("settings.playfieldHint")} diagram="backgroundDim" value={playtest.backgroundDim}>{t("settings.backgroundDim")}</Tip>
                   <input
                     type="number"
                     min={0}
@@ -765,7 +719,7 @@ export function AppSettingsModal({
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <div className="flex items-center justify-between">
-                  <span>{t("settings.offsetMs")}</span>
+                  <Tip text={t("settings.offsetHint")} diagram="offsetMs">{t("settings.offsetMs")}</Tip>
                   <span className="font-medium text-slate-200">
                     {playtest.offsetMs} ms
                   </span>
@@ -784,7 +738,7 @@ export function AppSettingsModal({
               </label>
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <div className="flex items-center justify-between">
-                  <span>{t("settings.hitPositionOffset")}</span>
+                  <Tip text={t("settings.hitPositionOffsetHint")} diagram="hitPosition">{t("settings.hitPositionOffset")}</Tip>
                   <span className="font-medium text-slate-200">
                     {playtest.hitPositionOffset} px
                   </span>
@@ -800,15 +754,12 @@ export function AppSettingsModal({
                   }
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
-                <span className="text-[11px] text-slate-500">
-                  {t("settings.hitPositionOffsetHint")}
-                </span>
               </label>
               </div>
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.hud")}
+                <Tip diagram="hud">{t("settings.hud")}</Tip>
               </h3>
               <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
               <SettingToggle label={t("settings.showJudgements")} checked={playtest.showJudgements} onChange={(v) => patchPlaytest({ showJudgements: v })} />
@@ -824,11 +775,10 @@ export function AppSettingsModal({
             <div className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 p-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {t("settings.quickRestartKey")}
+                  <Tip text={t("settings.quickRestartHint")}>
+                    {t("settings.quickRestartKey")}
+                  </Tip>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  {t("settings.quickRestartHint")}
-                </p>
               </div>
               <button
                 type="button"
@@ -915,43 +865,37 @@ export function AppSettingsModal({
 
             <section className="rounded-xl border border-ink-600 bg-ink-700/30 p-3">
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.autoplay")}
+                <Tip text={t("settings.autoplayHint")}>{t("settings.autoplay")}</Tip>
               </h3>
-              <p className="mb-3 text-[11px] text-slate-500">
-                {t("settings.autoplayHint")}
-              </p>
 
               <div className="flex flex-col gap-3 text-xs text-slate-300">
                 <SettingToggle
-                  label={t("settings.showNpsGraph")}
+                  label={t("settings.showNpsGraph")} tip={t("settings.showNpsGraphHint")}
                   checked={playtest.showNpsGraph}
                   onChange={(v) => patchPlaytest({ showNpsGraph: v })}
                 />
-                <p className="-mt-1.5 text-[11px] text-slate-500">
-                  {t("settings.showNpsGraphHint")}
-                </p>
                 <SettingToggle
-                  label={t("settings.showRunStats")}
+                  label={t("settings.showRunStats")} tip={t("settings.showRunStatsHint")}
                   checked={playtest.showRunStats}
                   onChange={(v) => patchPlaytest({ showRunStats: v })}
                 />
-                <p className="-mt-1.5 text-[11px] text-slate-500">
-                  {t("settings.showRunStatsHint")}
-                </p>
                 <SettingToggle
-                  label={t("settings.humanize")}
+                  label={t("settings.humanize")} tip={t("settings.humanizeHint")}
                   checked={playtest.humanize.enabled}
                   onChange={setHumanizeEnabled}
                 />
-                <p className="-mt-1.5 text-[11px] text-slate-500">
-                  {t("settings.humanizeHint")}
-                </p>
               </div>
 
               <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="flex flex-col gap-1 text-xs text-slate-400">
-                      <span>{t("settings.danRegular")}</span>
+                      <Tip
+                        text={t("settings.danHint", {
+                          keys: DAN_LADDERS[ladders.regular].keyCount,
+                        })}
+                      >
+                        {t("settings.danRegular")}
+                      </Tip>
                       <Select
                         value={regularLevel}
                         onChange={(e) =>
@@ -981,11 +925,6 @@ export function AppSettingsModal({
                       </Select>
                     </label>
                   </div>
-                  <p className="-mt-1 text-[11px] text-slate-500">
-                    {t("settings.danHint", {
-                      keys: DAN_LADDERS[ladders.regular].keyCount,
-                    })}
-                  </p>
 
                   {SHOW_MANUAL_SKILL_TUNING && (
                     <>
@@ -1113,7 +1052,7 @@ export function AppSettingsModal({
                   />
                   <label className="flex flex-col gap-1 text-xs text-slate-400">
                     <div className="flex items-center justify-between">
-                      <span>{t("settings.humanizeSeed")}</span>
+                      <Tip text={t("settings.humanizeSeedHint")}>{t("settings.humanizeSeed")}</Tip>
                       {playtest.humanize.seed === 0 && (
                         <span className="text-[11px] text-slate-500">
                           {t("settings.humanizeSeedRandom")}
@@ -1133,9 +1072,6 @@ export function AppSettingsModal({
                       }}
                       className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
                     />
-                    <span className="text-[11px] text-slate-500">
-                      {t("settings.humanizeSeedHint")}
-                    </span>
                   </label>
                 </div>
               )}
@@ -1151,7 +1087,7 @@ export function AppSettingsModal({
               </h3>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between text-xs text-slate-300">
-                  <span>{t("settings.playHitsounds")}</span>
+                  <Tip text={t("settings.hitsoundsHint")}>{t("settings.playHitsounds")}</Tip>
                   <Toggle
                     checked={hitsoundsEnabled}
                     onChange={onHitsoundsEnabled}
@@ -1160,14 +1096,11 @@ export function AppSettingsModal({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <p className="text-[11px] text-slate-500">
-                    {t("settings.hitsoundsHint")}
-                  </p>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>{t("settings.volume")}</span>
+                    <Tip text={t("settings.hitsoundVolumeHint")}>{t("settings.volume")}</Tip>
                     <span className="font-medium text-slate-200">
                       {Math.round(hitsoundVolume * 100)}%
                     </span>
@@ -1182,9 +1115,6 @@ export function AppSettingsModal({
                     onChange={(e) => onHitsoundVolume(Number(e.target.value))}
                     className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
                   />
-                  <p className="text-[11px] text-slate-500">
-                    {t("settings.hitsoundVolumeHint")}
-                  </p>
                 </div>
               </div>
             </section>
@@ -1194,7 +1124,7 @@ export function AppSettingsModal({
                 {t("settings.interfaceSounds")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>{t("settings.uiSounds")}</span>
+                <Tip text={t("settings.uiSoundsHint")}>{t("settings.uiSounds")}</Tip>
                 <Toggle
                   checked={uiSoundsEnabled}
                   onChange={onUiSoundsEnabled}
@@ -1219,9 +1149,6 @@ export function AppSettingsModal({
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
                 />
               </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.uiSoundsHint")}
-              </p>
             </section>
           </div>
         )}
@@ -1233,20 +1160,17 @@ export function AppSettingsModal({
                 {t("settings.backgroundImages")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>{t("settings.convertPng")}</span>
+                <Tip text={t("settings.convertPngHint")}>{t("settings.convertPng")}</Tip>
                 <Toggle
                   checked={exportPngBackgroundsAsJpeg}
                   onChange={onExportPngBackgroundsAsJpeg}
                   aria-label={t("settings.convertPng")}
                 />
               </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.convertPngHint")}
-              </p>
 
               <div className="mt-4 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>{t("settings.jpegQuality")}</span>
+                  <Tip text={t("settings.jpegQualityHint")}>{t("settings.jpegQuality")}</Tip>
                   <span className="font-medium text-slate-200">
                     {Math.round(exportJpegQuality * 100)}%
                   </span>
@@ -1261,9 +1185,6 @@ export function AppSettingsModal({
                   onChange={(e) => onExportJpegQuality(Number(e.target.value))}
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
                 />
-                <p className="text-[11px] text-slate-500">
-                  {t("settings.jpegQualityHint")}
-                </p>
               </div>
             </section>
           </div>
@@ -1314,7 +1235,7 @@ function OsuFolderSection() {
   return (
     <section>
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {t("settings.osuFolder")}
+        <Tip text={t("settings.osuFolderHint")}>{t("settings.osuFolder")}</Tip>
       </h3>
       <p className="break-all text-xs text-slate-300">
         {status.root ?? (
@@ -1332,9 +1253,6 @@ function OsuFolderSection() {
         )}
       </div>
       {error && <p className="mt-2 text-[11px] text-rose-400">{error}</p>}
-      <p className="mt-2 text-[11px] text-slate-500">
-        {t("settings.osuFolderHint")}
-      </p>
     </section>
   );
 }
@@ -1401,7 +1319,7 @@ function HumanSlider({
       className={`flex flex-col gap-1.5 ${disabled ? "opacity-50" : ""}`}
     >
       <div className="flex items-center justify-between text-xs text-slate-400">
-        <span>{label}</span>
+        <Tip text={hint}>{label}</Tip>
         <span className="font-medium tabular-nums text-slate-200">
           {format(value)}
         </span>
@@ -1416,18 +1334,21 @@ function HumanSlider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed"
       />
-      {hint && <p className="text-[11px] text-slate-500">{hint}</p>}
     </div>
   );
 }
 
 function SettingToggle({
   label,
+  tip,
+  diagram,
   checked,
   onChange,
   disabled = false,
 }: {
   label: string;
+  tip?: string;
+  diagram?: DiagramName;
   checked: boolean;
   onChange: (value: boolean) => void;
   disabled?: boolean;
@@ -1436,7 +1357,9 @@ function SettingToggle({
     <div
       className={`flex items-center justify-between gap-3 ${disabled ? "opacity-45" : ""}`}
     >
-      <span>{label}</span>
+      <Tip text={tip} diagram={diagram}>
+        {label}
+      </Tip>
       <Toggle
         checked={checked}
         disabled={disabled}
@@ -1444,5 +1367,31 @@ function SettingToggle({
         aria-label={label}
       />
     </div>
+  );
+}
+
+function Tip({
+  text,
+  diagram,
+  value,
+  children,
+}: {
+  text?: string;
+  diagram?: DiagramName;
+  value?: number;
+  children: React.ReactNode;
+}) {
+  if (!text && !diagram) return <span>{children}</span>;
+  return (
+    <Tooltip
+      content={
+        <>
+          {text && <p className="m-0">{text}</p>}
+          {diagram && <SettingDiagram name={diagram} value={value} />}
+        </>
+      }
+    >
+      {children}
+    </Tooltip>
   );
 }

@@ -135,6 +135,8 @@ export const de: PartialCatalog = {
   "settings.rateHint":
     "Schneller oder langsamer üben. Die Trefferfenster skalieren mit der Rate, die nötige Timing-Präzision bleibt also wie bei 1×.",
   "settings.zoom": "Zoom",
+  "settings.offsetHint":
+    "Verschiebt das Playtest-Timing, wenn deine Treffer durchgehend zu früh oder zu spät wirken. Nur im Playtest; das Offset der Map bleibt unverändert.",
   "settings.offsetMode": "Offset-Modus",
   "settings.offsetVisual": "Visueller Offset",
   "settings.offsetAudio": "Audio-Offset",

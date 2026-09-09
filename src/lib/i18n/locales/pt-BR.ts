@@ -135,6 +135,8 @@ export const ptBR: PartialCatalog = {
   "settings.rateHint":
     "Pratique mais rápido ou mais devagar. As janelas de acerto acompanham o rate, então a precisão de tempo necessária continua a mesma de 1×.",
   "settings.zoom": "Zoom",
+  "settings.offsetHint":
+    "Ajusta o timing do playtest quando seus acertos parecem sempre adiantados ou atrasados. Só no playtest; o offset do mapa não muda.",
   "settings.offsetMode": "Modo de offset",
   "settings.offsetVisual": "Offset visual",
   "settings.offsetAudio": "Offset de áudio",

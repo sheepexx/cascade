@@ -152,6 +152,8 @@ export const en = {
   "settings.rateHint":
     "Practice faster or slower. Hit windows scale with the rate, so the timing precision you need stays the same as at 1×.",
   "settings.zoom": "Zoom",
+  "settings.offsetHint":
+    "Nudges playtest timing when your hits feel consistently early or late. Playtest only; the map’s own offset is untouched.",
   "settings.offsetMode": "Offset mode",
   "settings.offsetVisual": "Visual offset",
   "settings.offsetAudio": "Audio offset",

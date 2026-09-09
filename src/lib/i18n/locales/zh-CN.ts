@@ -132,6 +132,8 @@ export const zhCN: PartialCatalog = {
   "settings.rateHint":
     "以更快或更慢的速度练习。判定区间会随倍速缩放，所需的时间精度与 1× 时相同。",
   "settings.zoom": "缩放",
+  "settings.offsetHint":
+    "当你的按键总是偏早或偏晚时，微调试玩的判定时机。仅影响试玩，不会改变谱面本身的偏移。",
   "settings.offsetMode": "Offset 模式",
   "settings.offsetVisual": "视觉 offset",
   "settings.offsetAudio": "音频 offset",

@@ -866,6 +866,20 @@ textarea {
   animation: desktop-hint-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.tooltip-in {
+  animation: tooltip-in 130ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-backdrop-in,
   .modal-backdrop-out,
@@ -894,6 +908,7 @@ textarea {
   .playtest-hit-error,
   .app-power-off,
   .desktop-hint-in,
+  .tooltip-in,
   .exit-shutter {
     animation-duration: 1ms;
   }
