@@ -509,6 +509,13 @@ export function ManiaEditor(props: Props) {
   const selectionAutoscrollTimeRef = useRef<number | null>(null);
   const selectionAutoscrollRafRef = useRef(0);
   const boxSelectCapturedRef = useRef(false);
+
+  const focusCanvas = () => {
+    const el = canvasRef.current;
+    if (!el) return;
+    el.dataset.pointerFocus = "";
+    el.focus({ preventScroll: true });
+  };
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(
     new Map(),
   );
@@ -2373,7 +2380,7 @@ export function ManiaEditor(props: Props) {
       return;
     }
     e.preventDefault();
-    canvasRef.current?.focus({ preventScroll: true });
+    focusCanvas();
     const { x, y } = localPoint(e);
     if (props.readOnly && !(e.shiftKey || shiftActiveRef.current)) return;
     const hit = findNoteAt(x, y);
@@ -2850,7 +2857,7 @@ export function ManiaEditor(props: Props) {
     activateClip(clip);
     propsRef.current.onAddNotes(preview.result.notes);
     setSelection(new Set(preview.result.notes.map((n) => n.id)));
-    canvasRef.current?.focus({ preventScroll: true });
+    focusCanvas();
   };
 
   const selectedNotes =
@@ -2887,6 +2894,9 @@ export function ManiaEditor(props: Props) {
               ? "cursor-default"
               : "cursor-crosshair"
         }`}
+        onBlur={(e) => {
+          delete e.currentTarget.dataset.pointerFocus;
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

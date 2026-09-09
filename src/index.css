@@ -880,6 +880,11 @@ textarea {
   animation: tooltip-in 130ms ease-out both;
 }
 
+canvas[data-pointer-focus]:focus,
+canvas[data-pointer-focus]:focus-visible {
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-backdrop-in,
   .modal-backdrop-out,
