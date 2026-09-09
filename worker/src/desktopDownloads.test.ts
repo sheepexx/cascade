@@ -29,6 +29,21 @@ describe("desktopDownloadTarget", () => {
     });
   });
 
+  it("classifies the Linux and macOS bundles", () => {
+    expect(desktopDownloadTarget("1.2.280/cascade_1.2.280_amd64.AppImage")).toEqual(
+      { version: "1.2.280", asset: "appimage" },
+    );
+    expect(desktopDownloadTarget("1.2.280/cascade_1.2.280_amd64.deb")).toEqual(
+      { version: "1.2.280", asset: "deb" },
+    );
+    expect(desktopDownloadTarget("1.2.280/cascade-1.2.280-1.x86_64.rpm")).toEqual(
+      { version: "1.2.280", asset: "rpm" },
+    );
+    expect(desktopDownloadTarget("1.2.280/Cascade_1.2.280_universal.dmg")).toEqual(
+      { version: "1.2.280", asset: "dmg" },
+    );
+  });
+
   it("ignores the manifest and anything outside a version folder", () => {
     expect(desktopDownloadTarget("latest.json")).toBeNull();
     expect(desktopDownloadTarget("nightly/Cascade_setup.exe")).toBeNull();
