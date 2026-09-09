@@ -49,7 +49,7 @@ export const CONTENT = {
       },
       {
         name: "Updating",
-        text: "Download the newer build and run it over the old one. Your settings and local maps stay where they are.",
+        text: "Cascade checks for updates when it starts and installs them in one click, with a quick restart. You only need this page for the first install.",
       },
     ],
     showcaseTitle: "A look inside",
@@ -128,7 +128,7 @@ export const CONTENT = {
       },
       {
         name: "Aktualisieren",
-        text: "Lade den neueren Build und führe ihn über den alten aus. Einstellungen und lokale Maps bleiben, wo sie sind.",
+        text: "Cascade sucht beim Start nach Updates und installiert sie mit einem Klick und einem kurzen Neustart. Diese Seite brauchst du nur für die erste Installation.",
       },
     ],
     showcaseTitle: "Ein Blick hinein",
@@ -207,7 +207,7 @@ export const CONTENT = {
       },
       {
         name: "Обновление",
-        text: "Скачай свежую сборку и поставь её поверх старой. Настройки и локальные карты останутся на месте.",
+        text: "Cascade проверяет обновления при запуске и ставит их в один клик с быстрым перезапуском. Эта страница нужна только для первой установки.",
       },
     ],
     showcaseTitle: "Взгляд изнутри",
@@ -286,7 +286,7 @@ export const CONTENT = {
       },
       {
         name: "更新",
-        text: "下载新版本并覆盖旧的运行一遍。设置和本地谱面都会留在原处。",
+        text: "Cascade 启动时会检查更新，一键安装并快速重启。这个页面只在首次安装时需要。",
       },
     ],
     showcaseTitle: "内部一览",
@@ -363,7 +363,7 @@ export const CONTENT = {
       },
       {
         name: "Atualizar",
-        text: "Baixe a build mais nova e rode por cima da antiga. Suas configurações e mapas locais continuam onde estão.",
+        text: "O Cascade procura atualizações ao abrir e instala com um clique e um reinício rápido. Você só precisa desta página para a primeira instalação.",
       },
     ],
     showcaseTitle: "Uma olhada por dentro",
