@@ -132,6 +132,44 @@ export async function osuReadMap(folder: string): Promise<Blob> {
   return new Blob([toBuffer(bytes)], { type: "application/x-osu-archive" });
 }
 
+/**
+ * The background image of a map in the osu! Songs folder, or null when the map
+ * has none. Failures are a missing picture rather than something worth
+ * reporting, so they come back as null too.
+ */
+export async function osuMapBackground(
+  folder: string,
+  file: string,
+): Promise<Blob | null> {
+  if (!isDesktopApp()) return null;
+  try {
+    const invoke = await invoker();
+    const bytes = await invoke<ArrayBuffer | Uint8Array | number[]>(
+      "osu_map_background",
+      { folder, file },
+    );
+    const buffer = toBuffer(bytes);
+    if (buffer.byteLength === 0) return null;
+    const type = imageMime(new Uint8Array(buffer));
+    return type ? new Blob([buffer], { type }) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sniffed from the leading bytes: the bridge hands back a bare buffer, and a
+ * blob URL only renders when its type is right.
+ */
+function imageMime(bytes: Uint8Array): string | null {
+  const starts = (...signature: number[]) =>
+    signature.every((byte, index) => bytes[index] === byte);
+  if (starts(0xff, 0xd8, 0xff)) return "image/jpeg";
+  if (starts(0x89, 0x50, 0x4e, 0x47)) return "image/png";
+  if (starts(0x42, 0x4d)) return "image/bmp";
+  return null;
+}
+
 export async function osuSendMap(
   archive: Blob,
   fileName: string,
@@ -179,8 +217,37 @@ export function osuFolderName(artist: string, title: string): string {
   return name.length ? name.join(" - ") : "Cascade map";
 }
 
+/**
+ * The artist and title to show for a map.
+ *
+ * osu! occasionally hands back a selection before its song strings are
+ * populated, leaving only the Songs folder to go on. Those are named
+ * `<set id> <artist> - <title>`, so the folder is read that way rather than
+ * printed raw — otherwise the banner leads with a beatmap id.
+ */
+export function osuMapName(map: OsuSelectedMap): {
+  artist: string;
+  title: string;
+} {
+  if (map.artist && map.title) return { artist: map.artist, title: map.title };
+
+  // A downloaded folder is prefixed with the beatmap set id, and osu! always
+  // follows that with the artist — so digits running straight into the
+  // separator are an artist called something numeric, not an id.
+  const folder = map.folder.trim().replace(/^\d+\s+(?!- )/, "");
+  const split = folder.indexOf(" - ");
+  if (split < 0) {
+    return { artist: map.artist, title: map.title || folder };
+  }
+  return {
+    artist: map.artist || folder.slice(0, split).trim(),
+    title: map.title || folder.slice(split + 3).trim(),
+  };
+}
+
 export function osuMapLabel(map: OsuSelectedMap): string {
-  const song = [map.artist, map.title].filter(Boolean).join(" - ");
+  const { artist, title } = osuMapName(map);
+  const song = [artist, title].filter(Boolean).join(" - ");
   const name = song || map.folder;
   return map.difficulty ? `${name} [${map.difficulty}]` : name;
 }

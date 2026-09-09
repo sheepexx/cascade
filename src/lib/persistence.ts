@@ -33,6 +33,7 @@ const VOLUME_KEY = "mania-editor:volume";
 const VIEW_KEY = "mania-editor:view";
 const HITSOUND_SKIN_SOURCE_KEY = "mania-editor:hitsound-skin-source";
 const LOCALE_KEY = "mania-editor:locale";
+const OSU_LINKED_KEY = "mania-editor:osu-linked";
 
 const projectKey = (id?: string | null) =>
   !id || id === KEY ? KEY : `local:${id}`;
@@ -768,6 +769,28 @@ export function loadLocale(): string | null {
     return localStorage.getItem(LOCALE_KEY);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Whether Cascade has already told this install that it can see osu!. The notice
+ * is a one-off introduction to the integration, not a status line, so it stays
+ * quiet on every launch after the first.
+ */
+export function osuLinkAnnounced(): boolean {
+  try {
+    return localStorage.getItem(OSU_LINKED_KEY) !== null;
+  } catch {
+    // Without storage the notice would greet every launch, which is the very
+    // thing it must not do.
+    return true;
+  }
+}
+
+export function markOsuLinkAnnounced(): void {
+  try {
+    localStorage.setItem(OSU_LINKED_KEY, new Date().toISOString());
+  } catch {
   }
 }
 

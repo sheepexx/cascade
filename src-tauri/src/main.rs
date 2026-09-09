@@ -153,6 +153,7 @@ fn main() {
             osu::osu_live,
             osu::osu_selected_map,
             osu::osu_read_map,
+            osu::osu_map_background,
             osu::osu_send_map,
             osu::osu_sync_map,
             osu::osu_list_skins,

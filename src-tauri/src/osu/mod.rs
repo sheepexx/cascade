@@ -1,4 +1,6 @@
 #[cfg(windows)]
+mod background;
+#[cfg(windows)]
 mod install;
 #[cfg(windows)]
 mod memory;
@@ -223,6 +225,79 @@ pub fn osu_read_map(app: tauri::AppHandle, folder: String) -> Result<Response, S
     }
 }
 
+/// The background image of a map in the osu! Songs folder, as raw bytes.
+///
+/// Empty when the map has no background — a normal state the banner draws a
+/// fallback for, not an error worth surfacing.
+#[tauri::command]
+pub fn osu_map_background(
+    app: tauri::AppHandle,
+    folder: String,
+    file: String,
+) -> Result<Response, String> {
+    #[cfg(windows)]
+    {
+        let (_, songs) = locate(&app).ok_or_else(|| NOT_FOUND.to_string())?;
+        let name = install::safe_folder(&folder)
+            .ok_or_else(|| "That map folder name is not valid.".to_string())?;
+        let dir = songs.join(name);
+        if !dir.is_dir() || !install::within(&songs, &dir) {
+            return Err("That map folder is not in your osu! Songs folder any more.".to_string());
+        }
+
+        let Some(chart) = difficulty_file(&dir, &file) else {
+            return Ok(Response::new(Vec::new()));
+        };
+        let text = std::fs::read(&chart)
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+            .map_err(|err| format!("Cannot read that map: {err}"))?;
+
+        let Some(image) = background::background_name(&text)
+            .and_then(|name| background::resolve(&dir, &name))
+        else {
+            return Ok(Response::new(Vec::new()));
+        };
+        // The map folder is the boundary: a storyboard may nest the image, but
+        // a symlink or a reference this side missed must not reach past it.
+        if !image.is_file() || !install::within(&dir, &image) {
+            return Ok(Response::new(Vec::new()));
+        }
+        let oversized = std::fs::metadata(&image)
+            .map(|meta| meta.len() > background::MAX_IMAGE_BYTES)
+            .unwrap_or(true);
+        if oversized {
+            return Ok(Response::new(Vec::new()));
+        }
+
+        Ok(Response::new(std::fs::read(&image).unwrap_or_default()))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (app, folder, file);
+        Err(WINDOWS_ONLY.to_string())
+    }
+}
+
+/// The `.osu` the watcher named, falling back to any difficulty in the folder.
+/// osu! occasionally reports an empty file name while song select is still
+/// settling, and every difficulty in a set shares one background anyway.
+#[cfg(windows)]
+fn difficulty_file(dir: &std::path::Path, file: &str) -> Option<std::path::PathBuf> {
+    if let Some(name) = install::safe_folder(file) {
+        let named = dir.join(name);
+        if pack::has_extension(&named, "osu") && named.is_file() {
+            return Some(named);
+        }
+    }
+    let mut charts: Vec<std::path::PathBuf> = std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file() && pack::has_extension(path, "osu"))
+        .collect();
+    charts.sort();
+    charts.into_iter().next()
+}
 #[tauri::command]
 pub fn osu_list_skins(app: tauri::AppHandle) -> Result<Vec<String>, String> {
     #[cfg(windows)]

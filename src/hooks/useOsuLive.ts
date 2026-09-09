@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { OSU_OFFLINE, watchOsuLive, type OsuLive } from "../lib/osuDesktop";
+import { markOsuLinkAnnounced, osuLinkAnnounced } from "../lib/persistence";
 
 export type OsuLiveState = {
   live: OsuLive;
   /**
-   * Set when osu! goes from unseen to readable, so the UI can announce the
-   * connection once. Null until that happens, and reset when osu! goes away so
-   * a restart announces itself again.
+   * Set the first time this install sees osu!, so the UI can introduce the
+   * integration. Stays null on every launch after that — the connection is
+   * ordinary by then, and the offer to open the selected map already says osu!
+   * is being watched.
    */
   connectedAt: number | null;
   /** Clears the announcement without waiting for osu! to disconnect. */
@@ -29,10 +31,13 @@ export function useOsuLive(): OsuLiveState {
     void watchOsuLive((next) => {
       setLive(next);
       if (next.connected && !wasConnected.current) {
-        setConnectedAt(Date.now());
+        if (!osuLinkAnnounced()) {
+          markOsuLinkAnnounced();
+          setConnectedAt(Date.now());
+        }
       } else if (!next.connected && wasConnected.current) {
-        // Let the next connection announce itself rather than leaving a stale
-        // notice pointing at an osu! that has since closed.
+        // Drop a notice still on screen rather than leaving it pointing at an
+        // osu! that has since closed.
         setConnectedAt(null);
       }
       wasConnected.current = next.connected;

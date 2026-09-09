@@ -4947,16 +4947,20 @@ export default function App() {
   // Offered wherever the user is about to choose a map from somewhere else, so
   // the one already open in song select is one click away.
   const osuSelected = osuLive.connected ? osuLive.map : null;
-  const osuPrompt = osuSelected ? (
-    <OsuOpenPrompt
-      map={osuSelected}
-      busy={osuBusy || importingMap}
-      onOpen={() => {
-        // Harmless on the start screen, where no dialog is open.
-        setModal(null);
-        void handleLoadFromOsu();
-      }}
-    />
+  const osuOpenProps = osuSelected
+    ? {
+        map: osuSelected,
+        busy: osuBusy || importingMap,
+        onOpen: () => {
+          // Harmless on the start screen, where no dialog is open.
+          setModal(null);
+          void handleLoadFromOsu();
+        },
+      }
+    : null;
+  const osuPrompt = osuOpenProps ? <OsuOpenPrompt {...osuOpenProps} /> : null;
+  const osuBanner = osuOpenProps ? (
+    <OsuOpenPrompt {...osuOpenProps} variant="slab" />
   ) : null;
 
   const importFile = useCallback(
@@ -6362,6 +6366,7 @@ export default function App() {
                 onImport={() => setModal("import")}
                 onSettings={() => setModal("settings")}
                 onExit={canExitDesktop() ? handleExitApp : undefined}
+                osuBanner={osuBanner}
               >
                 <LandingCopy />
               </StartScreen>
@@ -7166,19 +7171,11 @@ export default function App() {
           resetKey={osuConnectedAt}
           placement="top-center"
           progressClassName="bg-accent"
-          className="fixed left-1/2 top-16 z-[60] flex items-center gap-2 rounded-full border border-white/10 bg-ink-800/90 py-1.5 pb-2.5 pl-3 pr-4 text-sm text-slate-100 shadow-2xl backdrop-blur-2xl"
+          className="fixed left-1/2 top-16 z-[60] flex items-center gap-2.5 border border-white/10 bg-ink-800/90 py-2 pb-3 pl-3 pr-4 text-sm text-slate-100 shadow-2xl backdrop-blur-2xl"
         >
-          <span aria-hidden>🎯</span>
+          <span aria-hidden className="h-4 w-0.5 shrink-0 bg-accent" />
           {t("osu.connected")}
         </TimedNotification>
-      )}
-
-      {!hasProject && !sharedSlug && osuPrompt && (
-        <div className="fixed bottom-6 left-1/2 z-[55] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2">
-          <div className="rounded-lg bg-ink-800/90 shadow-2xl backdrop-blur-2xl">
-            {osuPrompt}
-          </div>
-        </div>
       )}
 
       {peerNotice && (

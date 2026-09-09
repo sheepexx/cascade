@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
@@ -157,6 +157,7 @@ export function StartScreen({
   onExit,
   children,
   players,
+  osuBanner,
 }: {
   music: MenuMusic;
   onOpenChange?: (open: boolean) => void;
@@ -169,6 +170,8 @@ export function StartScreen({
   onExit?: () => void;
   children?: ReactNode;
   players?: OnlinePlayer[];
+  /** The offer to open the map osu! is sitting on, along the bottom edge. */
+  osuBanner?: ReactNode;
 }) {
   const counts = menuPanelCounts(Boolean(onExit));
   const panels = counts.left + counts.right;
@@ -180,9 +183,16 @@ export function StartScreen({
   const t = useT();
   const pulseRef = useRef<HTMLDivElement | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
+  const stackedRef = useRef<HTMLDivElement | null>(null);
+  const [stackedHeight, setStackedHeight] = useState(0);
   const [barHovered, setBarHovered] = useState(false);
   const musicRef = useRef(music);
   musicRef.current = music;
+  // Held so losing osu! can slide the slab away rather than blink it out. The
+  // ref is written during render the way musicRef beside it is.
+  const lastBannerRef = useRef<ReactNode>(null);
+  if (osuBanner) lastBannerRef.current = osuBanner;
+  const [bannerSlotted, setBannerSlotted] = useState(Boolean(osuBanner));
 
   useEffect(() => {
     const node = barRef.current;
@@ -206,6 +216,12 @@ export function StartScreen({
     onOpenChange?.(open);
     return () => onOpenChange?.(false);
   }, [open, onOpenChange]);
+
+  // A fresh element arrives every render, so this settles on the same value
+  // rather than looping.
+  useEffect(() => {
+    if (osuBanner) setBannerSlotted(true);
+  }, [osuBanner]);
 
   useEffect(() => {
     const update = () => setLayout(measure(panels));
@@ -299,13 +315,40 @@ export function StartScreen({
   const shift = logoShift(left.length, right.length, panel);
   const logoSize = open ? logoOpen : logoClosed;
 
+  // Wrapped menu rows need their own space above the taller song card. Measure
+  // the actual panel so translated labels and interface scaling fit too.
+  useEffect(() => {
+    const node = stackedRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() => {
+      setStackedHeight(node.getBoundingClientRect().height);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [wide, phone]);
+
+  const compactBanner = Boolean(osuBanner) && !wide && open;
+  const compactCenter = Math.max(
+    logoClosed / 2 + 112,
+    (layout.vh - BAR_HEIGHT - stackedHeight - 22) / 2,
+  );
+  const menuCenter = compactBanner ? `${compactCenter}px` : "50%";
+
   if (phone) {
     return <PhoneStart music={music} players={players}>{children}</PhoneStart>;
   }
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="relative grid min-h-full place-items-center overflow-hidden">
+      <div
+        className="relative grid min-h-full place-items-center overflow-hidden"
+        style={{
+          "--menu-bar-height": `${BAR_HEIGHT}px`,
+          minHeight: compactBanner
+            ? Math.max(layout.vh, compactCenter + logoClosed / 2 + 22 + stackedHeight + BAR_HEIGHT + 48)
+            : undefined,
+        } as CSSProperties}
+      >
         <MenuBackground
           url={music.track?.backgroundUrl ?? null}
           players={players ?? []}
@@ -337,7 +380,7 @@ export function StartScreen({
             open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
           }`}
           style={{
-            bottom: `calc(50% + ${
+            bottom: `calc(100% - ${menuCenter} + ${
               (wide ? Math.max(BAR_HEIGHT / 2, logoOpen / 2) : logoClosed / 2) +
               32
             }px)`,
@@ -355,6 +398,24 @@ export function StartScreen({
                 : t("menu.localProjects", { count: projectCount })}
           </p>
         </div>
+
+        {bannerSlotted && lastBannerRef.current && (
+          <div
+            className={`osu-banner-slot absolute inset-x-0 bottom-0 z-10 flex justify-center px-6 ${
+              osuBanner ? "" : "pointer-events-none"
+            }`}
+            data-state={osuBanner ? "in" : "out"}
+            onAnimationEnd={(event) => {
+              // The slab and its artwork animate too, and those events bubble.
+              if (event.target !== event.currentTarget) return;
+              if (!osuBanner) setBannerSlotted(false);
+            }}
+          >
+            <div className="w-[min(32rem,100%)]">
+              {osuBanner ?? lastBannerRef.current}
+            </div>
+          </div>
+        )}
 
         {wide ? (
           <div
@@ -411,9 +472,9 @@ export function StartScreen({
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none -translate-y-2 opacity-0"
             }`}
-            style={{ top: `calc(50% + ${Math.round(logoClosed / 2) + 22}px)` }}
+            style={{ top: `calc(${menuCenter} + ${Math.round(logoClosed / 2) + 22}px)` }}
           >
-            <div className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md">
+            <div ref={stackedRef} className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md">
               {[...left, ...right].map((a) => (
                 <StackedAction key={a.id} action={a} open={open} />
               ))}
@@ -430,6 +491,7 @@ export function StartScreen({
           style={{
             width: logoClosed,
             height: logoClosed,
+            top: menuCenter,
             transform: `translate(-50%, -50%) translateX(${
               open && wide ? shift : 0
             }px) scale(${logoSize / logoClosed})`,
@@ -452,7 +514,13 @@ export function StartScreen({
           </div>
         </button>
 
-        <div className="absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600">
+        {/* Steps above the osu! banner, which on a narrow window reaches far
+            enough right to sit on top of this. */}
+        <div
+          className={`absolute right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600 transition-all duration-300 ease-out ${
+            osuBanner ? "bottom-[calc(var(--menu-bar-height)+1rem)]" : "bottom-3"
+          }`}
+        >
           <span>Cascade · v{__APP_VERSION__}</span>
           <span aria-hidden>·</span>
           <a
