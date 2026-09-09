@@ -1,0 +1,123 @@
+import type { Difficulty, ManiaNote } from "../types";
+import { activeTimingAt } from "./timing";
+import type { AiModDetail } from "./aimod";
+
+export type PatternRule = "jack-spike" | "hand-imbalance" | "anchor-overuse" | "ln-gap";
+export type PatternFinding = { rule: PatternRule; message: string; details: AiModDetail[] };
+export type PatternFeatures = { nps: number; lnRatio: number; jackFraction: number; handShare: number; anchorFraction: number; lnGapFraction: number };
+
+export const WINDOW_FEATURE_KEYS = ["nps", "jack", "hand", "anchor", "ln", "chord"] as const;
+export type WindowFeatureKey = (typeof WINDOW_FEATURE_KEYS)[number];
+export type WindowFeatures = Record<WindowFeatureKey, number>;
+export type PatternWindow = WindowFeatures & { time: number; span: number; notes: number };
+
+export const MIN_WINDOW_NOTES = 8;
+
+const median = (values: number[]) => { const v = values.slice().sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : 0; };
+const ref = (n: ManiaNote) => ({ time: n.startTime, column: n.column });
+
+export function analyzePatterns(difficulty: Difficulty): { findings: PatternFinding[]; features: PatternFeatures; windows: PatternWindow[] } {
+  const notes = difficulty.notes.filter(n => Number.isFinite(n.startTime) && n.column >= 0 && n.column < difficulty.keyCount).slice().sort((a, b) => a.startTime - b.startTime);
+  const jacks: AiModDetail[] = [], gaps: AiModDetail[] = [], hands: AiModDetail[] = [], anchors: AiModDetail[] = [];
+  const lanes = Array.from({ length: difficulty.keyCount }, (_, c) => notes.filter(n => n.column === c));
+  const jackNotes = new Set<ManiaNote>();
+  let jackPairs = 0, longNotes = 0;
+  for (const lane of lanes) {
+    for (let i = 0; i < lane.length; i++) {
+      const n = lane[i], prev = lane[i - 1];
+      if (n.endTime !== undefined) longNotes++;
+      if (!prev) continue;
+      const beat = 60000 / activeTimingAt(n.startTime, difficulty.timingPoints).bpm;
+      const gap = n.startTime - prev.startTime;
+      if (gap > 0 && gap <= beat / 4 + 1) { jackPairs++; jackNotes.add(n); }
+      if (gap >= 30 && gap <= Math.min(110, beat / 4 + 1) && prev.endTime === undefined) {
+        const context: number[] = [];
+        for (let j = Math.max(1, i - 3); j < Math.min(lane.length, i + 4); j++) {
+          const delta = lane[j].startTime - lane[j - 1].startTime;
+          if (j !== i && delta > 0 && delta < beat * 4) context.push(delta);
+        }
+        const baseline = median(context);
+        if (context.length >= 3 && baseline >= gap * 2) jacks.push({ time: prev.startTime, objects: [ref(prev), ref(n)], label: `Lane ${n.column + 1}: ${Math.round(gap)} ms repeat versus ${Math.round(baseline)} ms nearby. Check whether this sudden jack is intended.` });
+      }
+      if (prev.endTime !== undefined) {
+        const releaseGap = n.startTime - prev.endTime;
+        if (releaseGap >= 30 && releaseGap < Math.min(90, beat / 8)) gaps.push({ time: prev.endTime, objects: [ref(prev), ref(n)], label: `Lane ${n.column + 1}: only ${Math.round(releaseGap)} ms to release and press again. Check the release rhythm.` });
+      }
+    }
+  }
+
+  const chorded = new Uint8Array(notes.length);
+  for (let i = 0; i < notes.length;) {
+    let j = i + 1;
+    while (j < notes.length && notes[j].startTime - notes[i].startTime <= 10) j++;
+    if (j - i >= 2) for (let k = i; k < j; k++) chorded[k] = 1;
+    i = j;
+  }
+
+  const half = Math.floor(difficulty.keyCount / 2);
+  const counts = new Array<number>(difficulty.keyCount).fill(0);
+  const windows: PatternWindow[] = [];
+  let left = 0, right = 0, from = 0, to = 0, windowCount = 0, anchorWindows = 0, maxShare = 0.5;
+  let jackInWindow = 0, lnInWindow = 0, chordInWindow = 0;
+  let lastHand = -Infinity, lastAnchor = -Infinity;
+  const start = notes[0]?.startTime ?? 0, end = notes[notes.length - 1]?.startTime ?? start;
+  const track = (index: number, delta: number) => {
+    const n = notes[index], c = n.column;
+    counts[c] += delta;
+    if (c < half) left += delta; else if (c >= difficulty.keyCount - half) right += delta;
+    if (jackNotes.has(n)) jackInWindow += delta;
+    if (n.endTime !== undefined) lnInWindow += delta;
+    if (chorded[index]) chordInWindow += delta;
+  };
+  for (let time = start; time <= end;) {
+    const beat = 60000 / activeTimingAt(time, difficulty.timingPoints).bpm;
+    const window = Math.max(1000, Math.min(8000, Number.isFinite(beat) ? beat * 4 : 2000));
+    while (from < to && notes[from].startTime < time) track(from++, -1);
+    while (to > from && notes[to - 1].startTime >= time + window) track(--to, -1);
+    while (to < notes.length && notes[to].startTime < time + window) track(to++, 1);
+    const total = to - from;
+    if (total >= MIN_WINDOW_NOTES) {
+      const sides = left + right;
+      windows.push({
+        time, span: window, notes: total,
+        nps: (total * 1000) / window,
+        jack: jackInWindow / total,
+        hand: sides >= 8 ? Math.max(left, right) / sides : 0.5,
+        anchor: Math.max(...counts) / total,
+        ln: lnInWindow / total,
+        chord: chordInWindow / total,
+      });
+    }
+    if (total >= 24) {
+      windowCount++;
+      const share = left + right >= 20 ? Math.max(left, right) / (left + right) : 0.5;
+      maxShare = Math.max(maxShare, share);
+      if (half > 0 && share > 0.75 && time >= lastHand + window) {
+        hands.push({ time, label: `${Math.round(share * 100)}% of ${left + right} side-lane attacks use the ${left > right ? "left" : "right"} hand across ${(window / 1000).toFixed(1)}s. Centre lanes are excluded; check whether the strain fits the music.` });
+        lastHand = time;
+      }
+      const max = Math.max(...counts), column = counts.indexOf(max);
+      if (difficulty.keyCount >= 4 && max >= 12 && max / total >= Math.max(0.35, 2 / difficulty.keyCount)) {
+        anchorWindows++;
+        if (time >= lastAnchor + window) {
+          anchors.push({ time, label: `Lane ${column + 1} carries ${max}/${total} attacks across ${(window / 1000).toFixed(1)}s. Consider varying the anchor if this emphasis is unintentional.` });
+          lastAnchor = time;
+        }
+      }
+    }
+    time += window / 2;
+  }
+  const findings: PatternFinding[] = [
+    { rule: "jack-spike", message: "Abrupt jack speed spikes", details: jacks },
+    { rule: "hand-imbalance", message: "Sustained hand imbalance", details: hands },
+    { rule: "anchor-overuse", message: "Heavy anchor repetition", details: anchors },
+    { rule: "ln-gap", message: "Tight long-note release gaps", details: gaps },
+  ].filter(f => f.details.length > 0) as PatternFinding[];
+  return { findings, windows, features: { nps: notes.length / Math.max(1, (end - start) / 1000), lnRatio: longNotes / Math.max(1, notes.length), jackFraction: jackPairs / Math.max(1, notes.length), handShare: maxShare, anchorFraction: anchorWindows / Math.max(1, windowCount), lnGapFraction: gaps.length / Math.max(1, longNotes) } };
+}
+
+export function patternQualityScore(noteCount: number, findings: PatternFinding[]): number | null {
+  if (noteCount < 32) return null;
+  const penalties = findings.map(f => Math.min(25, 5 + f.details.length / Math.max(100, noteCount) * 1000 * (f.rule === "ln-gap" || f.rule === "jack-spike" ? 2 : 1)));
+  return Math.max(0, Math.round(100 - penalties.reduce((a, b) => a + b, 0)));
+}

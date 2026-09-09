@@ -12,6 +12,7 @@ import {
   effectiveAudioPower,
 } from "../lib/audioAtmosphere";
 import { activeTimingAt } from "../lib/timing";
+import { playNativeEffect } from "../lib/nativeAudio";
 
 const SET_PREFIX: Record<number, string> = { 1: "normal", 2: "soft", 3: "drum" };
 const HIT_SOUNDS = ["normal", "whistle", "finish", "clap"] as const;
@@ -195,6 +196,7 @@ export function useHitsounds(
       const indexSuffix = sampleIndex > 1 ? String(sampleIndex) : "";
       const buffer = getBuffer(ctx, `${setPrefix}-hit${sound}${indexSuffix}`);
       if (!buffer) return;
+      if (playNativeEffect(buffer, gainValue * currentMixPower())) return;
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       const gain = ctx.createGain();
@@ -204,7 +206,7 @@ export function useHitsounds(
       );
       src.start();
     },
-    [getBuffer],
+    [getBuffer, currentMixPower],
   );
 
   const playNote = useCallback(

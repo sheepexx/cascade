@@ -66,6 +66,10 @@ import { Menu } from "./ui/Menu";
 import { SnapBadge } from "./ui/SnapBadge";
 import { t } from "../lib/i18n/core";
 import { formatUiNumber } from "../lib/formatUiNumber";
+import { useGhostNotes } from "../hooks/useGhostNotes";
+import { GhostNotesPanel } from "./GhostNotesPanel";
+import { PatternImageModal } from "./menus/PatternImageModal";
+import type { renderPatternCard } from "../lib/shareCard";
 
 export type HitsoundSource = {
   id: string;
@@ -99,6 +103,9 @@ const CANVAS_FONT_STACK =
   '"Quicksand", "Inter", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 
 type Props = {
+  audioBuffer?: AudioBuffer | null;
+  patternTitle?: string;
+  difficultyName?: string;
   notes: ManiaNote[];
   keyCount: number;
   timingPoints: TimingPoint[];
@@ -371,6 +378,21 @@ export function ManiaEditor(props: Props) {
 
   const propsRef = useRef(props);
   propsRef.current = props;
+  const [patternImage, setPatternImage] = useState<Parameters<typeof renderPatternCard>[0] | null>(null);
+  const review = useGhostNotes({
+    buffer: props.audioBuffer ?? null, notes: props.notes, timingPoints: props.timingPoints,
+    snapDivisor: props.view.snapDivisor, timeScale: props.timeScale ?? 1, keyCount: props.keyCount,
+    start: Math.max(0, props.trimStartMs ?? 0), end: Math.min(props.songEndMs || Infinity, props.trimEndMs ?? Infinity),
+    onSeek: props.onSeek, onAdd: props.onAddNotes, getTime: props.getCurrentTime,
+  });
+  const reviewRef = useRef(review);
+  reviewRef.current = review;
+  const openPatternImage = useCallback(() => {
+    const p = propsRef.current;
+    const notes = p.notes.filter(n => selectedNoteIdsRef.current.has(n.id));
+    if (notes.length) setPatternImage({ notes, keyCount: p.keyCount, timingPoints: p.timingPoints,
+      title: p.patternTitle ?? "Pattern selection", difficulty: p.difficultyName ?? "", upscroll: p.upscroll });
+  }, []);
   const dirtyRef = useRef(true);
   dirtyRef.current = true;
   const scheduleFrameRef = useRef<() => void>(() => {});
@@ -796,6 +818,7 @@ export function ManiaEditor(props: Props) {
         if (e.key === "Shift") setShift(false);
         return;
       }
+      if (!propsRef.current.readOnly && !dialogIsOpen() && e.target === canvasRef.current && reviewRef.current.onKey(e)) return;
       if (e.key === "Shift") setShift(true);
       const binds =
         propsRef.current.editorKeybinds ?? DEFAULT_EDITOR_KEYBINDS;
@@ -906,7 +929,9 @@ export function ManiaEditor(props: Props) {
         isClipboardTextTarget(e.target)
       ) return;
       const key = e.key.toLowerCase();
-      if (key === "c") {
+      if (key === "c" && e.shiftKey && selectedNoteIdsRef.current.size) {
+        e.preventDefault(); openPatternImage();
+      } else if (key === "c") {
         if (copySelection()) e.preventDefault();
       } else if (key === "a") {
         e.preventDefault();
@@ -957,6 +982,7 @@ export function ManiaEditor(props: Props) {
     scaleSelection,
     shuffleSelection,
     nudgeSelection,
+    openPatternImage,
   ]);
 
   useEffect(() => {
@@ -2008,6 +2034,22 @@ export function ManiaEditor(props: Props) {
       ctx.restore();
     }
 
+    if (!propsRef.current.playtestMode && !propsRef.current.readOnly) {
+      ctx.save();
+      ctx.setLineDash([4, 3]);
+      for (const note of reviewRef.current.ghosts) {
+        const y = timeToY(note.startTime);
+        if (y < -NOTE_HEIGHT || y > height + NOTE_HEIGHT) continue;
+        const x = originX + note.column * laneWidth + 4;
+        const focused = note.id === reviewRef.current.current?.id;
+        ctx.fillStyle = focused ? "rgba(94,234,212,0.38)" : "rgba(94,234,212,0.12)";
+        ctx.strokeStyle = focused ? "#99f6e4" : "rgba(94,234,212,0.45)";
+        ctx.lineWidth = focused ? 2 : 1;
+        ctx.fillRect(x, y - NOTE_HEIGHT / 2, laneWidth - 8, NOTE_HEIGHT);
+        ctx.strokeRect(x, y - NOTE_HEIGHT / 2, laneWidth - 8, NOTE_HEIGHT);
+      }
+      ctx.restore();
+    }
     const drag = dragRef.current;
     if (drag) {
       const x = originX + drag.column * laneWidth;
@@ -2915,6 +2957,8 @@ export function ManiaEditor(props: Props) {
         onDragLeave={onClipDragLeave}
         onDrop={onClipDrop}
       />
+      {patternImage && <PatternImageModal info={patternImage} onClose={() => { setPatternImage(null); canvasRef.current?.focus(); }} />}
+      {review.enabled && !props.playtestMode && !props.readOnly && <GhostNotesPanel review={review} hasAudio={!!props.audioBuffer} focusEditor={() => canvasRef.current?.focus()} />}
       {!props.playtestMode && clipboardStatus && (
         <div role="status" className="pointer-events-none absolute bottom-14 left-3 right-3 z-20 mx-auto w-fit max-w-md rounded-md border border-ink-600 bg-ink-900/95 px-3 py-2 text-xs text-slate-200 shadow-lg">
           {clipboardStatus}
@@ -2954,6 +2998,7 @@ export function ManiaEditor(props: Props) {
             </button>
           ))}
           <span className="self-center px-1 text-[9px] text-slate-600">Q</span>
+          {!props.readOnly && <button type="button" aria-pressed={review.enabled} onClick={() => { review.setEnabled(!review.enabled); canvasRef.current?.focus(); }} className={`rounded-md px-2.5 py-1 ${review.enabled ? "bg-teal-400/20 text-teal-200" : "text-slate-400 hover:bg-white/5"}`}>Ghosts</button>}
         </div>
       )}
 
@@ -2980,6 +3025,7 @@ export function ManiaEditor(props: Props) {
             title="Copy selection (Ctrl+C)"
             onClick={copySelection}
           />
+          <SelectionActionButton label="Image" title="Copy selection as image (Ctrl+Shift+C)" onClick={openPatternImage} />
           <SelectionActionButton
             label="←"
             title="Move one lane left (Left Arrow)"

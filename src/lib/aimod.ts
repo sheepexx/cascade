@@ -2,6 +2,9 @@ import type { Difficulty, LoadedFile, ManiaNote, SongMeta, TimingPoint } from ".
 import { difficultyRate } from "./rateChange";
 import { activeTimingAt, beatLength, redPoints, sortedPoints } from "./timing";
 import { formatUiNumber } from "./formatUiNumber";
+import { analyzePatterns, patternQualityScore, type PatternFeatures } from "./patternQuality";
+import { compareToCorpus, formatCorpusValue, type CorpusComparison } from "./patternCorpus";
+import { checkRankingCriteria, difficultyTier, type Tier } from "./rankingCriteria";
 
 // osu! only recognises objects snapped to one of these beat divisors. Notes on a
 // 1/5, 1/7, 1/9 or finer grid (or drifted off-grid by float rounding) are shown
@@ -91,6 +94,9 @@ export function countUnsnapped(notes: ManiaNote[], points: TimingPoint[]): numbe
 }
 
 export type AiModCategory =
+  | "Criteria"
+  | "Guidelines"
+  | "Patterns"
   | "Compose"
   | "Design"
   | "Timing"
@@ -98,6 +104,9 @@ export type AiModCategory =
   | "Mapset";
 
 export const AIMOD_CATEGORIES: AiModCategory[] = [
+  "Criteria",
+  "Guidelines",
+  "Patterns",
   "Compose",
   "Design",
   "Timing",
@@ -119,6 +128,7 @@ export type AiModDetail = {
 };
 
 export type AiModIssue = {
+  rule?: string;
   id: string;
   category: AiModCategory;
   severity: AiModSeverity;
@@ -135,6 +145,10 @@ export type AiModReport = {
   issues: AiModIssue[];
   warnings: number;
   errors: number;
+  quality: {
+    score: number | null;
+    difficulties: { id: string; name: string; tier: Tier; score: number | null; features: PatternFeatures; comparison: CorpusComparison }[];
+  };
 };
 
 export type AiModArgs = {
@@ -627,7 +641,35 @@ export function runAiMod({
       });
   }
 
+  for (const finding of checkRankingCriteria(difficulties, audioDurationMs)) {
+    const shared = {
+      category: (finding.guideline ? "Guidelines" : "Criteria") as AiModCategory,
+      severity: finding.severity,
+      rule: finding.rule,
+      message: finding.message,
+      diffId: finding.diffId,
+    };
+    if (finding.details && finding.details.length > 0) addGroup(shared, finding.details);
+    else add({ ...shared, time: finding.time });
+  }
+
+  const qualityDiffs = difficulties.map(d => {
+    const analysis = analyzePatterns(d);
+    for (const finding of analysis.findings) addGroup({
+      category: "Patterns", severity: "warning", rule: finding.rule,
+      message: `[${d.name}] ${finding.message}.`, diffId: d.id,
+    }, finding.details);
+    const comparison = compareToCorpus(d.keyCount, analysis.windows);
+    for (const outlier of comparison.outliers) addGroup({
+      category: "Patterns", severity: "warning", rule: `corpus-${outlier.key}`,
+      message: `[${d.name}] ${outlier.label[0].toUpperCase()}${outlier.label.slice(1)} runs heavier than ${Math.round(outlier.percentile * 100)}% of comparable ranked maps.`,
+      diffId: d.id,
+    }, outlier.spots.map(spot => ({ time: spot.time, label: `${formatCorpusValue(outlier.key, spot.value)} here, against a ranked 95th percentile of ${formatCorpusValue(outlier.key, outlier.threshold)}.` })));
+    return { id: d.id, name: d.name, tier: difficultyTier(d), score: patternQualityScore(d.notes.length, analysis.findings), features: analysis.features, comparison };
+  });
+  const scores = qualityDiffs.map(d => d.score);
+  const quality = { score: scores.length && scores.every(s => s !== null) ? Math.min(...scores as number[]) : null, difficulties: qualityDiffs };
   const warnings = issues.filter((i) => i.severity === "warning").length;
   const errors = issues.filter((i) => i.severity === "error").length;
-  return { issues, warnings, errors };
+  return { issues, warnings, errors, quality };
 }

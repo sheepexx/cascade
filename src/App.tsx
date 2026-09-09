@@ -32,6 +32,12 @@ import {
 } from "./lib/sharedMap";
 import { previewStartMs } from "./lib/sharedMapPreview";
 import { renderShareCard } from "./lib/shareCard";
+import { HistoryModal } from "./components/menus/HistoryModal";
+import { BatchApplyModal } from "./components/menus/BatchApplyModal";
+import { batchApplyDifficulties, type BatchRequest } from "./lib/batchApply";
+import { describeNoteOp, describeSnapshotChange, jumpSnapshotHistory } from "./lib/editorHistory";
+import { AudioSetupModal } from "./components/menus/AudioSetupModal";
+import { readExclusivePreference } from "./lib/nativeAudio";
 import { NowPlaying } from "./components/NowPlaying";
 import { ExitCurtain } from "./components/ExitCurtain";
 import {
@@ -418,6 +424,9 @@ function LazyLoadingFallback() {
 }
 
 type ModalId =
+  | "history"
+  | "batchApply"
+  | "audioSetup"
   | "newMap"
   | "welcome"
   | "myProjects"
@@ -1161,6 +1170,11 @@ export default function App() {
   }, [active.audioFilename, audioFiles]);
 
   const waveform = useWaveform(audioFile?.blob ?? null);
+  const [exclusiveAudio, setExclusiveAudio] = useState(readExclusivePreference);
+  const changeExclusiveAudio = useCallback((enabled: boolean) => {
+    setExclusiveAudio(enabled);
+    try { localStorage.setItem("cascade.audio.exclusive", String(enabled)); } catch { /* Session preference still applies. */ }
+  }, []);
   // Rate difficulties keep the original audio file and are played faster or
   // slower; the hook re-scales the whole timeline around that.
   const activeRate = difficultyRate(active);
@@ -1182,6 +1196,7 @@ export default function App() {
         },
     activeRate,
     active.preservePitch === true,
+    exclusiveAudio && modal !== "audioSetup" && projectStarted,
   );
   // Alt+wheel runs from a window listener mounted once, so it needs a live
   // handle on the controller rather than the render-time closure.
@@ -3071,6 +3086,13 @@ export default function App() {
     [patchDifficulty],
   );
 
+  const applyBatch = useCallback((request: BatchRequest) => {
+    if (!canEditRef.current) return;
+    markStructural();
+    if (request.meta) setMeta(request.meta);
+    setDifficulties(prev => batchApplyDifficulties(prev, request, timingPoints));
+  }, [markStructural, timingPoints]);
+
   const shiftTimingMarkers = useCallback(
     (deltaMs: number) => {
       if (!deltaMs || !canEditRef.current) return;
@@ -3791,7 +3813,7 @@ export default function App() {
   const redoStackRef = useRef<DocSnapshot[]>([]);
   const presentRef = useRef<DocSnapshot | null>(null);
   const applyingHistoryRef = useRef(false);
-  const [, bumpHistory] = useState(0);
+  const [historyRevision, bumpHistory] = useState(0);
 
   useEffect(() => {
     if (presentRef.current === null) {
@@ -3805,6 +3827,11 @@ export default function App() {
     }
     if (sessionActiveRef.current || applyingRemoteRef.current) {
       applyingRemoteRef.current = false;
+      presentRef.current = snapshot;
+      return;
+    }
+    const previous = presentRef.current;
+    if (previous === snapshot || (previous.meta === snapshot.meta && previous.timingPoints === snapshot.timingPoints && previous.difficulties.length === snapshot.difficulties.length && previous.difficulties.every((d, i) => d === snapshot.difficulties[i]))) {
       presentRef.current = snapshot;
       return;
     }
@@ -3835,9 +3862,11 @@ export default function App() {
 
   const applySnapshot = useCallback((s: DocSnapshot) => {
     applyingHistoryRef.current = true;
+    presentRef.current = s;
     setMeta(s.meta);
     setTimingPoints(s.timingPoints);
     setDifficulties(s.difficulties);
+    setActiveId(id => s.difficulties.some(d => d.id === id) ? id : s.difficulties[0]?.id ?? id);
   }, []);
 
   const undo = useCallback(() => {
@@ -3881,6 +3910,44 @@ export default function App() {
   const canRedo = liveEnabled
     ? opRedoRef.current.length > 0
     : redoStackRef.current.length > 0;
+
+  const historyCurrent = liveEnabled ? opUndoRef.current.length : undoStackRef.current.length;
+  const historyEntries = useMemo(() => {
+    void historyRevision;
+    if (modal !== "history") return [];
+    if (liveEnabled) {
+      const names = new Map(difficulties.map(d => [d.id, d.name]));
+      return ["Start of retained history", ...[...opUndoRef.current, ...opRedoRef.current.slice().reverse()].map(op => describeNoteOp(op, names))];
+    }
+    const states = [...undoStackRef.current, presentRef.current ?? snapshot, ...redoStackRef.current.slice().reverse()];
+    return states.map((s, i) => i === 0 ? "Start of retained history" : describeSnapshotChange(states[i - 1], s));
+  }, [modal, liveEnabled, difficulties, snapshot, historyRevision]);
+
+  const jumpHistory = useCallback((index: number) => {
+    if (!canEditRef.current) return;
+    if (sessionActiveRef.current) {
+      if (!Number.isInteger(index) || index < 0 || index > opUndoRef.current.length + opRedoRef.current.length) return;
+      const operations: NoteOp[] = [];
+      while (opUndoRef.current.length > index) {
+        const op = opUndoRef.current.pop()!;
+        opRedoRef.current.push(op); operations.push(invertNoteOp(op));
+      }
+      while (opUndoRef.current.length < index) {
+        const op = opRedoRef.current.pop()!;
+        opUndoRef.current.push(op); operations.push(op);
+      }
+      if (!operations.length) return;
+      setDifficulties(prev => operations.reduce((state, op) => applyNoteOp(state, op), prev));
+      for (const op of operations) collabRef.current?.sendOp(op);
+    } else {
+      if (!presentRef.current || index === undoStackRef.current.length) return;
+      const result = jumpSnapshotHistory(undoStackRef.current, presentRef.current, redoStackRef.current, index);
+      if (!result) return;
+      undoStackRef.current = result.past; redoStackRef.current = result.future;
+      applySnapshot(result.present);
+    }
+    bumpHistory(v => v + 1);
+  }, [applySnapshot]);
 
   const applySavedProject = useCallback((saved: SavedProject) => {
     applyingHistoryRef.current = true;
@@ -5730,6 +5797,11 @@ export default function App() {
               <MenuButton onClick={() => setModal("difficulty")}>
                 {t("nav.difficulty")}
               </MenuButton>
+              <Menu label="Assist" items={[
+                { label: "Undo history", onClick: () => setModal("history") },
+                { label: "Batch apply across difficulties", disabled: !canEdit, onClick: () => setModal("batchApply") },
+                { label: "Audio setup & calibration", onClick: () => { pauseAudio(); setModal("audioSetup"); } },
+              ]} />
               <div className="hidden items-center gap-1 uixl:flex">
                 <MenuButton onClick={() => setModal("tools")}>
                   {t("nav.tools")}
@@ -6136,10 +6208,15 @@ export default function App() {
             )}
           </div>
           <div className="relative min-h-0 flex-1">
+            {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">Shared audio active: {audio.nativeAudio.fallbackReason} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>Audio setup</button></div>}
             <div className="flex h-full w-full">
             <div className="relative min-w-0 flex-1">
             {hasProject ? (
               <MemoizedManiaEditor
+                key={active.id}
+                audioBuffer={waveform?.buffer ?? null}
+                patternTitle={`${meta.artist} – ${meta.title}`}
+                difficultyName={active.name}
                 notes={active.notes}
                 keyCount={active.keyCount}
                 timingPoints={activeTimingPoints}
@@ -6615,6 +6692,7 @@ export default function App() {
       )}
       {modalMounted("settings") && (
         <AppSettingsModal
+          onAudioSetup={() => { pauseAudio(); setModal("audioSetup"); }}
           keyCount={active.keyCount}
           open={modal === "settings"}
           onClose={close}
@@ -6798,6 +6876,9 @@ export default function App() {
           onShiftMarkers={shiftTimingMarkers}
         />
       )}
+      {modal === "history" && <HistoryModal open onClose={close} entries={historyEntries} current={historyCurrent} onJump={jumpHistory} readOnly={!canEdit} live={liveEnabled} />}
+      {modal === "batchApply" && <BatchApplyModal key={active.id} source={active} difficulties={difficulties} meta={meta} onClose={close} onApply={applyBatch} readOnly={!canEdit} live={liveEnabled} />}
+      {modal === "audioSetup" && <AudioSetupModal exclusive={exclusiveAudio} onExclusive={changeExclusiveAudio} currentOffset={playtestSettings.offsetMs} onApplyOffset={offsetMs => setAppSettings(s => ({ ...s, playtest: { ...s.playtest, offsetMode: "audio", offsetMs } }))} onClose={close} />}
       {modalMounted("sv") && featureFlags.sv_tools && (
         <SvModal
           open={modal === "sv" && featureFlags.sv_tools}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { TimingPoint } from "../types";
 import { activeTimingAt, beatLength, redPoints } from "../lib/timing";
+import { playNativeClick } from "../lib/nativeAudio";
 
 export function useMetronome(
   getCurrentTime: () => number,
@@ -23,6 +24,7 @@ export function useMetronome(
 
     let raf = 0;
     const click = (accent: boolean) => {
+      if (playNativeClick(accent)) return;
       let ctx = ctxRef.current;
       if (!ctx) {
         const Ctor =

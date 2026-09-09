@@ -1,7 +1,7 @@
 {
   "name": "cascade",
   "private": true,
-  "version": "1.2.277",
+  "version": "1.2.278",
   "type": "module",
   "description": "Cascade - a browser-based osu!mania beatmap editor",
   "scripts": {
@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "build:corpus": "node scripts/build-pattern-corpus.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "desktop": "tauri dev",

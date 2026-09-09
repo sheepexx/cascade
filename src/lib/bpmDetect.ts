@@ -23,6 +23,74 @@
 
 const HOP = 512;
 const WIN = 1024;
+
+export type AudioOnset = { timeMs: number; strength: number };
+
+/** Adaptive energy-flux peak picking. Channel energies are combined rather
+ * than samples, so stereo phase cancellation cannot hide transients. Times
+ * are in source-audio milliseconds; this never assigns musical lanes. */
+export function detectOnsetsFromChannels(
+  channels: readonly Float32Array[], sampleRate: number,
+): AudioOnset[] {
+  const length = channels[0]?.length ?? 0;
+  if (!Number.isFinite(sampleRate) || sampleRate <= 0 || !length) return [];
+  const hop = Math.max(1, Math.round(sampleRate * 0.005));
+  const frames = Math.ceil(length / hop);
+  const energy = new Float32Array(frames);
+  const flux = new Float32Array(frames);
+  let peak = 0;
+  for (let f = 0; f < frames; f++) {
+    let sum = 0;
+    const end = Math.min(length, (f + 1) * hop);
+    for (const channel of channels) {
+      for (let i = f * hop; i < end; i++) {
+        const v = channel[i] || 0;
+        const high = v - (channel[i - 1] || 0);
+        sum += v * v + high * high * 0.5;
+      }
+    }
+    energy[f] = Math.sqrt(sum / ((end - f * hop) * channels.length));
+    flux[f] = Math.max(0, energy[f] - (energy[f - 1] || 0));
+    peak = Math.max(peak, flux[f]);
+  }
+  if (peak < 0.0001) return [];
+  const result: AudioOnset[] = [];
+  for (let f = 0; f < frames; f++) {
+    if (flux[f] < peak * 0.025 || flux[f] < (flux[f - 1] || 0) || flux[f] <= (flux[f + 1] || 0)) continue;
+    let mean = 0;
+    let count = 0;
+    for (let j = Math.max(0, f - 20); j <= Math.min(frames - 1, f + 20); j++) {
+      if (Math.abs(j - f) <= 2) continue;
+      mean += flux[j]; count++;
+    }
+    mean /= Math.max(1, count);
+    if (flux[f] < mean * 1.8) continue;
+    // Locate the attack within this or the preceding energy frame.
+    const from = Math.max(0, (f - 1) * hop);
+    const to = Math.min(length, (f + 1) * hop);
+    let attack = f * hop;
+    const floor = energy[f] * 0.3;
+    for (let i = from; i < to; i++) {
+      if (channels.some(c => Math.abs(c[i] || 0) >= floor)) { attack = i; break; }
+    }
+    const onset = {
+      timeMs: Math.round(attack / sampleRate * 1000),
+      strength: Math.min(1, Math.sqrt(flux[f] / peak) * 0.65 + Math.min(1, flux[f] / (mean * 8 + peak * 0.02)) * 0.35),
+    };
+    const last = result[result.length - 1];
+    if (last && onset.timeMs - last.timeMs < 40) {
+      if (onset.strength > last.strength) result[result.length - 1] = onset;
+    } else result.push(onset);
+  }
+  return result;
+}
+
+export function detectOnsetsFromBuffer(buffer: AudioBuffer): AudioOnset[] {
+  return detectOnsetsFromChannels(
+    Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c)),
+    buffer.sampleRate,
+  );
+}
 const MIN_BPM = 60;
 const MAX_BPM = 240;
 /** Fine enough to avoid visible drift from common fractional tempos. */

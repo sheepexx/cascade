@@ -38,6 +38,7 @@ import {
 } from "../../lib/uiScale";
 
 type Props = {
+  onAudioSetup?: () => void;
   open: boolean;
   onClose: () => void;
   uiScale: number;
@@ -128,6 +129,7 @@ const TAB_LABELS: Record<Tab, MessageKey> = {
 };
 
 export function AppSettingsModal({
+  onAudioSetup,
   open,
   onClose,
   uiScale,
@@ -677,6 +679,7 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.offset")}
               </h3>
+              {onAudioSetup && <Button className="mb-3" onClick={onAudioSetup}>Audio setup & calibration</Button>}
               <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <span>{t("settings.offsetMode")}</span>
@@ -697,8 +700,8 @@ export function AppSettingsModal({
                 tip={t("settings.offsetHint")}
                 diagram="offsetMs"
                 display={`${playtest.offsetMs} ms`}
-                min={-100}
-                max={100}
+                min={-200}
+                max={200}
                 step={1}
                 value={playtest.offsetMs}
                 onChange={(v) => patchPlaytest({ offsetMs: v })}

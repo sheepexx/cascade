@@ -24,6 +24,7 @@ tauri-plugin-updater = { version = "2" }
 tauri-plugin-process = { version = "2" }
 
 [target.'cfg(windows)'.dependencies]
+wasapi = "0.24"
 winreg = "0.56"
 rosu-mem = "3"
 

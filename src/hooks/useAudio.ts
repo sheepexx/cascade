@@ -21,6 +21,8 @@ import type {
   AudioSeekTransition,
 } from "../lib/audioSeek";
 import { createSeekVisualClock } from "../lib/seekVisualClock";
+import { useNativeAudio } from "./useNativeAudio";
+import { supportsExclusiveAudio } from "../lib/nativeAudio";
 
 const RATE_RAMP_SECONDS = 0.34;
 const CLOCK_UI_INTERVAL_MS = 100;
@@ -88,6 +90,7 @@ export function useAudio(
   region?: AudioRegion | null,
   timeScale = 1,
   preservePitch = false,
+  exclusive = false,
 ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -127,6 +130,7 @@ export function useAudio(
   const elementVolumeRafRef = useRef<number | null>(null);
   const elementRateRafRef = useRef<number | null>(null);
   const ambientDuckedRef = useRef(false);
+  const [nativeDucked, setNativeDucked] = useState(false);
   const hasKnownDurationRef = useRef(false);
 
   if (audioRef.current === null && typeof Audio !== "undefined") {
@@ -850,6 +854,7 @@ export function useAudio(
     (ducked: boolean) => {
       if (ambientDuckedRef.current === ducked) return;
       ambientDuckedRef.current = ducked;
+      setNativeDucked(ducked);
       applyOutputMix(MIX_RAMP_SECONDS);
     },
     [applyOutputMix],
@@ -977,6 +982,23 @@ export function useAudio(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const native = useNativeAudio({ enabled: exclusive && supportsExclusiveAudio() && !preservePitch,
+    buffer: buffer ?? null, region, timeScale: scale, rate: playbackRate,
+    volume: effectiveAudioPower(volume, nativeDucked), initialPositionMs: getCurrentTime() * scale });
+  const previousNative = useRef(false);
+  const getNativeTime = native.controller.getCurrentTime;
+  useLayoutEffect(() => {
+    if (native.selected === previousNative.current) return;
+    if (native.selected) {
+      stopWeb(true); audioRef.current?.pause(); setIsPlaying(false);
+    } else {
+      const position = getNativeTime() * scale;
+      positionRef.current = position / 1000; currentTimeRef.current = position; setCurrentTime(position);
+      if (audioRef.current) audioRef.current.currentTime = position / 1000;
+    }
+    previousNative.current = native.selected;
+  }, [native.selected, getNativeTime, stopWeb, scale]);
+
   return {
     isPlaying,
     // Map time: the rate-adjusted timeline the editor and its notes live on.
@@ -1000,6 +1022,10 @@ export function useAudio(
     setVolume,
     getVolume,
     setAmbientDucking,
+    ...(native.selected ? native.controller : {}),
+    nativeAudio: { selected: native.selected, ready: native.ready, error: native.error,
+      latencyMs: native.status?.latencyMs ?? null, device: native.status?.device ?? null,
+      fallbackReason: exclusive && preservePitch ? "Pitch-preserving playback uses shared audio." : native.error },
   };
 }
 

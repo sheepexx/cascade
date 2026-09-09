@@ -8,6 +8,7 @@ import {
   type AiModIssue,
   type AiModReport,
 } from "../../lib/aimod";
+import { describeCorpusBucket, patternCorpus } from "../../lib/patternCorpus";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 
@@ -104,6 +105,17 @@ export function AiModModal({
           </div>
         </div>
 
+        {report && <section className="rounded-xl border border-teal-300/20 bg-teal-300/5 p-4">
+          <div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold text-slate-100">Ranking readiness</h3>
+            <p className={`mt-1 text-xs ${report.errors ? "text-amber-200" : "text-teal-200"}`}>{report.errors ? `${report.errors} structural issue${report.errors === 1 ? "" : "s"} to fix before review` : "No automatic structural blockers found"}</p></div>
+            <div className="text-right"><strong className="text-xl text-teal-100">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-xs text-slate-500"> / 100</span>}</strong><p className="text-[10px] text-slate-400">Pattern review score</p></div>
+          </div>
+          <p className="mt-3 text-[11px] text-slate-400">Heuristic guidance, not a probability of being ranked. The set score uses its lowest difficulty score. Patterns are compared against {patternCorpus.source.difficulties} difficulties from {patternCorpus.source.mapsets} mapsets ranked between {patternCorpus.source.rankedFrom} and {patternCorpus.source.rankedTo}, so "unusual" means rare among them, not wrong. Jacks, anchors and asymmetry can be intentional. Musical interpretation, difficulty spread and full ranking criteria still need human review.</p>
+          <ul className="mt-3 flex flex-col gap-2">{report.quality.difficulties.map(d => <li key={d.id} className="rounded-lg bg-black/15 p-2 text-xs">
+            <div className="flex justify-between gap-3"><span className="text-slate-200">{d.name} <span className="text-[10px] text-slate-500">judged as {d.tier}</span></span><span className="text-teal-200">{d.score === null ? "Too few notes to score" : `${d.score}/100`}</span></div>
+            <p className="mt-1 text-[10px] text-slate-500">{d.comparison.bucket === null ? "No comparable ranked maps at this key count and density." : `Compared with ${describeCorpusBucket(d.comparison.bucket)} · ${d.comparison.outliers.length ? `Above their usual range: ${d.comparison.outliers.map(o => o.label).join(", ")}. Review the musical intent.` : "Pattern metrics within their usual range."}`}</p>
+          </li>)}</ul>
+        </section>}
         <div className="flex flex-wrap gap-1 border-b border-white/10 pb-2">
           {TABS.map((t) => {
             const count =
@@ -235,7 +247,7 @@ export function AiModModal({
         )}
 
         <p className="text-[11px] text-slate-500">
-          Checks the currently loaded mapset the way osu!'s editor AiMod does.
+          Checks metadata, timing, object structure and pattern strain across the loaded mapset.
           Unsnapped objects are the usual reason a perfectly-timed converted map
           shows as off-grid in osu - Resnap moves them onto the nearest valid
           beat divisor.
