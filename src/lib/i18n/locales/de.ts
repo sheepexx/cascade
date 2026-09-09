@@ -257,6 +257,8 @@ export const de: PartialCatalog = {
   "nav.commentsUnread.other": "Kommentare ({count} ungelesen)",
   "nav.desktopApp": "Desktop-App",
   "nav.desktopAppTitle": "Cascade für Windows herunterladen",
+  "nav.desktopHint": "Bessere Leistung & mehr Funktionen",
+  "nav.desktopHintBody": "Maps direkt aus osu! öffnen, Discord-Status und ein flüssigerer Editor.",
 
   "file.newOpen": "Neu / öffnen…",
   "file.saving": "Speichert…",

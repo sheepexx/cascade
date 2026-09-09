@@ -250,6 +250,8 @@ export const zhCN: PartialCatalog = {
   "nav.commentsUnread.other": "评论（{count} 条未读）",
   "nav.desktopApp": "桌面版",
   "nav.desktopAppTitle": "下载 Windows 版 Cascade",
+  "nav.desktopHint": "性能更好，功能更多",
+  "nav.desktopHintBody": "直接从 osu! 打开谱面、Discord 状态，以及更流畅的编辑器。",
 
   "file.newOpen": "新建 / 打开…",
   "file.saving": "保存中…",

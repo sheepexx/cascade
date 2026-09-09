@@ -257,6 +257,8 @@ export const ptBR: PartialCatalog = {
   "nav.commentsUnread.other": "Comentários ({count} não lidos)",
   "nav.desktopApp": "App de desktop",
   "nav.desktopAppTitle": "Baixar o Cascade para Windows",
+  "nav.desktopHint": "Melhor desempenho & mais recursos",
+  "nav.desktopHintBody": "Abra mapas direto do osu!, presença no Discord e um editor mais fluido.",
 
   "file.newOpen": "Novo / abrir…",
   "file.saving": "Salvando…",

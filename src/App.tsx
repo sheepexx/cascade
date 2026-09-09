@@ -6024,7 +6024,7 @@ export default function App() {
           )}
           {!hasProject && !sharedSlug && <NowPlaying music={menuMusic} />}
           {!hasProject && featureFlags.desktop_download && (
-            <DesktopDownloadLink />
+            <DesktopDownloadLink active={showHeader} />
           )}
           {!hasProject && <LanguagePicker compact />}
           {authUser && (

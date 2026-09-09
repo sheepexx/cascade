@@ -281,6 +281,8 @@ export const en = {
   "nav.commentsUnread.other": "Comments ({count} unread)",
   "nav.desktopApp": "Desktop app",
   "nav.desktopAppTitle": "Download Cascade for Windows",
+  "nav.desktopHint": "Better performance & more features",
+  "nav.desktopHintBody": "Open maps straight from osu!, Discord presence and a smoother editor.",
 
   "file.newOpen": "New / open…",
   "file.saving": "Saving…",

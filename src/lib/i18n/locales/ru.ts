@@ -261,6 +261,8 @@ export const ru: PartialCatalog = {
   "nav.commentsUnread.other": "Комментарии ({count} непрочитанных)",
   "nav.desktopApp": "Десктоп-версия",
   "nav.desktopAppTitle": "Скачать Cascade для Windows",
+  "nav.desktopHint": "Выше производительность и больше возможностей",
+  "nav.desktopHintBody": "Открывайте карты прямо из osu!, статус в Discord и более плавный редактор.",
 
   "file.newOpen": "Создать / открыть…",
   "file.saving": "Сохранение…",
