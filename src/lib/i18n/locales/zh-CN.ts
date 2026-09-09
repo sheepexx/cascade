@@ -64,6 +64,11 @@ export const zhCN: PartialCatalog = {
   "share.removeFailed": "移除失败。",
 
   "settings.title": "设置",
+  "settings.tabGeneral": "通用",
+  "settings.interfaceSounds": "界面音效",
+  "settings.playback": "播放",
+  "settings.offset": "偏移",
+  "settings.hud": "游戏界面",
   "settings.tabEditor": "编辑器",
   "settings.tabPlaytest": "试玩",
   "settings.tabAudio": "音频",

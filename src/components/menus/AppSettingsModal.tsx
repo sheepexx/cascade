@@ -101,7 +101,7 @@ type Props = {
   accountSyncError: string | null;
 };
 
-const TABS = ["Editor", "Playtest", "Audio", "Export", "Shortcuts"] as const;
+const TABS = ["General", "Editor", "Playtest", "Audio", "Export", "Shortcuts"] as const;
 type Tab = (typeof TABS)[number];
 const SHOW_MANUAL_SKILL_TUNING = false;
 const ENABLE_MANUAL_SKILL_TUNING = false;
@@ -117,6 +117,7 @@ const ALT_WHEEL_OPTIONS: {
 ];
 
 const TAB_LABELS: Record<Tab, MessageKey> = {
+  General: "settings.tabGeneral",
   Editor: "settings.tabEditor",
   Playtest: "settings.tabPlaytest",
   Audio: "settings.tabAudio",
@@ -303,7 +304,7 @@ export function AppSettingsModal({
           }))}
         />
 
-        {tab === "Editor" && (
+        {tab === "General" && (
           <div className="flex flex-col gap-6">
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -321,7 +322,6 @@ export function AppSettingsModal({
                 ))}
               </Select>
             </section>
-
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.interface")}
@@ -366,7 +366,75 @@ export function AppSettingsModal({
                 {t("settings.altWheelHint")}
               </p>
             </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.localSave")}
+              </h3>
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span>{t("settings.autosave")}</span>
+                <Toggle
+                  checked={localAutosaveEnabled}
+                  onChange={onLocalAutosaveEnabled}
+                  aria-label={t("settings.autosave")}
+                />
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                {t("settings.autosaveHint")}
+              </p>
+            </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.presence")}
+              </h3>
+              <div className="flex flex-col gap-3">
+                <SettingToggle
+                  label={t("settings.showMenuPlayers")}
+                  checked={showMenuPlayers}
+                  onChange={onShowMenuPlayers}
+                />
+                <SettingToggle
+                  label={t("settings.hideStatus")}
+                  checked={hideStatus}
+                  onChange={onHideStatus}
+                />
+              </div>
+              <p className="mt-3 text-[11px] text-slate-500">
+                {t("settings.presenceHint")}
+              </p>
+              {isDesktopApp() && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-300">
+                    <span>{t("settings.discordPresence")}</span>
+                    <Select
+                      value={discordPresence}
+                      onChange={(e) =>
+                        onDiscordPresence(
+                          e.target.value as DiscordPresenceMode,
+                        )
+                      }
+                      className="w-40"
+                    >
+                      <option value="detailed">
+                        {t("settings.discordDetailed")}
+                      </option>
+                      <option value="minimal">
+                        {t("settings.discordMinimal")}
+                      </option>
+                      <option value="off">{t("settings.discordOff")}</option>
+                    </Select>
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {t("settings.discordPresenceHint")}
+                  </p>
+                </div>
+              )}
+            </section>
+            <OsuFolderSection />
+          </div>
+        )}
 
+        {tab === "Editor" && (
+          <div className="flex flex-col gap-6">
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.layout")}
@@ -408,7 +476,6 @@ export function AppSettingsModal({
                 {t("settings.layoutHint")}
               </p>
             </section>
-
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.playfield")}
@@ -489,7 +556,6 @@ export function AppSettingsModal({
                 </p>
               </div>
             </section>
-
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.scrolling")}
@@ -565,7 +631,6 @@ export function AppSettingsModal({
                 {t("settings.scrollDirectionHint")}
               </p>
             </section>
-
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.longNotes")}
@@ -591,151 +656,99 @@ export function AppSettingsModal({
                 </p>
               </div>
             </section>
-
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.localSave")}
-              </h3>
-              <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>{t("settings.autosave")}</span>
-                <Toggle
-                  checked={localAutosaveEnabled}
-                  onChange={onLocalAutosaveEnabled}
-                  aria-label={t("settings.autosave")}
-                />
-              </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t("settings.autosaveHint")}
-              </p>
-            </section>
-
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.presence")}
-              </h3>
-              <div className="flex flex-col gap-3">
-                <SettingToggle
-                  label={t("settings.showMenuPlayers")}
-                  checked={showMenuPlayers}
-                  onChange={onShowMenuPlayers}
-                />
-                <SettingToggle
-                  label={t("settings.hideStatus")}
-                  checked={hideStatus}
-                  onChange={onHideStatus}
-                />
-              </div>
-              <p className="mt-3 text-[11px] text-slate-500">
-                {t("settings.presenceHint")}
-              </p>
-              {isDesktopApp() && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between gap-3 text-xs text-slate-300">
-                    <span>{t("settings.discordPresence")}</span>
-                    <Select
-                      value={discordPresence}
-                      onChange={(e) =>
-                        onDiscordPresence(
-                          e.target.value as DiscordPresenceMode,
-                        )
-                      }
-                      className="w-40"
-                    >
-                      <option value="detailed">
-                        {t("settings.discordDetailed")}
-                      </option>
-                      <option value="minimal">
-                        {t("settings.discordMinimal")}
-                      </option>
-                      <option value="off">{t("settings.discordOff")}</option>
-                    </Select>
-                  </div>
-                  <p className="mt-2 text-[11px] text-slate-500">
-                    {t("settings.discordPresenceHint")}
-                  </p>
-                </div>
-              )}
-            </section>
           </div>
         )}
 
         {tab === "Playtest" && (
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>{t("settings.scrollSpeed")}</span>
-                <span className="font-medium text-slate-200">
-                  {playtest.scrollSpeed}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={45}
-                step={1}
-                value={playtest.scrollSpeed}
-                onChange={(e) =>
-                  patchPlaytest({ scrollSpeed: Number(e.target.value) })
-                }
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>{t("settings.rate")}</span>
-                <span className="font-medium text-slate-200">
-                  {(playtest.rate ?? 1).toFixed(2)}×
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {[0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2].map((r) => {
-                  const on = Math.abs((playtest.rate ?? 1) - r) < 0.001;
-                  return (
-                    <button
-                      key={r}
-                      onClick={() => patchPlaytest({ rate: r })}
-                      className={`rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition ${
-                        on
-                          ? "bg-accent text-white"
-                          : "bg-ink-700 text-slate-300 hover:bg-ink-600"
-                      }`}
-                    >
-                      {r}×
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[11px] text-slate-500">
-                {t("settings.rateHint")}
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-xs text-slate-400">
-                <span>{t("settings.zoom")}</span>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.playback")}
+              </h3>
+              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>{t("settings.scrollSpeed")}</span>
+                  <span className="font-medium text-slate-200">
+                    {playtest.scrollSpeed}
+                  </span>
+                </div>
                 <input
-                  type="number"
-                  min={0.5}
-                  max={2.5}
-                  step={0.05}
-                  value={playtest.zoom}
-                  onChange={(e) => patchPlaytest({ zoom: Number(e.target.value) })}
-                  className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-slate-400">
-                <span>{t("settings.backgroundDim")}</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
+                  type="range"
+                  min={10}
+                  max={45}
                   step={1}
-                  value={playtest.backgroundDim}
+                  value={playtest.scrollSpeed}
                   onChange={(e) =>
-                    patchPlaytest({ backgroundDim: Number(e.target.value) })
+                    patchPlaytest({ scrollSpeed: Number(e.target.value) })
                   }
-                  className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent"
                 />
-              </label>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>{t("settings.rate")}</span>
+                  <span className="font-medium text-slate-200">
+                    {(playtest.rate ?? 1).toFixed(2)}×
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2].map((r) => {
+                    const on = Math.abs((playtest.rate ?? 1) - r) < 0.001;
+                    return (
+                      <button
+                        key={r}
+                        onClick={() => patchPlaytest({ rate: r })}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition ${
+                          on
+                            ? "bg-accent text-white"
+                            : "bg-ink-700 text-slate-300 hover:bg-ink-600"
+                        }`}
+                      >
+                        {r}×
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {t("settings.rateHint")}
+                </p>
+              </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <span>{t("settings.zoom")}</span>
+                  <input
+                    type="number"
+                    min={0.5}
+                    max={2.5}
+                    step={0.05}
+                    value={playtest.zoom}
+                    onChange={(e) => patchPlaytest({ zoom: Number(e.target.value) })}
+                    className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <span>{t("settings.backgroundDim")}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={playtest.backgroundDim}
+                    onChange={(e) =>
+                      patchPlaytest({ backgroundDim: Number(e.target.value) })
+                    }
+                    className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
+                  />
+                </label>
+                </div>
+              </div>
+            </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.offset")}
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <span>{t("settings.offsetMode")}</span>
                 <Select
@@ -791,8 +804,13 @@ export function AppSettingsModal({
                   {t("settings.hitPositionOffsetHint")}
                 </span>
               </label>
-            </div>
-            <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
+              </div>
+            </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.hud")}
+              </h3>
+              <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
               <SettingToggle label={t("settings.showJudgements")} checked={playtest.showJudgements} onChange={(v) => patchPlaytest({ showJudgements: v })} />
               <SettingToggle label={t("settings.showCombo")} checked={playtest.showCombo} onChange={(v) => patchPlaytest({ showCombo: v })} />
               <SettingToggle label={t("settings.showAccuracy")} checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
@@ -800,7 +818,8 @@ export function AppSettingsModal({
               <SettingToggle label={t("settings.showErrorBar")} checked={playtest.showErrorBar} onChange={(v) => patchPlaytest({ showErrorBar: v })} />
               <SettingToggle label={t("settings.skinComboFont")} checked={playtest.useSkinComboFont} onChange={(v) => patchPlaytest({ useSkinComboFont: v })} />
               <SettingToggle label={t("settings.skinJudgements")} checked={playtest.useSkinJudgements} onChange={(v) => patchPlaytest({ useSkinJudgements: v })} />
-            </div>
+              </div>
+            </section>
 
             <div className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 p-3">
               <div>
@@ -1172,7 +1191,7 @@ export function AppSettingsModal({
 
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.interface")}
+                {t("settings.interfaceSounds")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
                 <span>{t("settings.uiSounds")}</span>
@@ -1247,7 +1266,6 @@ export function AppSettingsModal({
                 </p>
               </div>
             </section>
-            <OsuFolderSection />
           </div>
         )}
 

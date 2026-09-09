@@ -65,6 +65,11 @@ export const de: PartialCatalog = {
   "share.removeFailed": "Entfernen fehlgeschlagen.",
 
   "settings.title": "Einstellungen",
+  "settings.tabGeneral": "Allgemein",
+  "settings.interfaceSounds": "Oberflächenklänge",
+  "settings.playback": "Wiedergabe",
+  "settings.offset": "Offset",
+  "settings.hud": "HUD",
   "settings.tabEditor": "Editor",
   "settings.tabPlaytest": "Playtest",
   "settings.tabAudio": "Audio",

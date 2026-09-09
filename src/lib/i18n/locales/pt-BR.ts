@@ -65,6 +65,11 @@ export const ptBR: PartialCatalog = {
   "share.removeFailed": "Falha ao remover.",
 
   "settings.title": "Configurações",
+  "settings.tabGeneral": "Geral",
+  "settings.interfaceSounds": "Sons da interface",
+  "settings.playback": "Reprodução",
+  "settings.offset": "Offset",
+  "settings.hud": "HUD",
   "settings.tabEditor": "Editor",
   "settings.tabPlaytest": "Teste",
   "settings.tabAudio": "Áudio",

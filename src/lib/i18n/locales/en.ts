@@ -63,6 +63,7 @@ export const en = {
   "share.removeFailed": "Failed to remove.",
 
   "settings.title": "Settings",
+  "settings.tabGeneral": "General",
   "settings.tabEditor": "Editor",
   "settings.tabPlaytest": "Playtest",
   "settings.tabAudio": "Audio",
@@ -165,6 +166,9 @@ export const en = {
   "settings.showErrorBar": "Show error (UR) bar",
   "settings.skinComboFont": "Skin combo font",
   "settings.skinJudgements": "Skin judgements",
+  "settings.playback": "Playback",
+  "settings.offset": "Offset",
+  "settings.hud": "HUD",
   "settings.quickRestartKey": "Quick restart key",
   "settings.quickRestartHint":
     "Restarts the run instantly during playtest. Esc opens the pause menu; F5 enters / leaves the playtest.",
@@ -180,6 +184,7 @@ export const en = {
   "settings.hitsoundVolumeHint":
     "Independent of the song volume. Also adjustable from the transport bar (“Hit”).",
   "settings.interface": "Interface",
+  "settings.interfaceSounds": "Interface sounds",
   "settings.uiSounds": "UI sound effects",
   "settings.uiSoundsHint":
     "Clicks, confirmations, and chimes for invites, cloud saves and map exports.",

@@ -65,6 +65,11 @@ export const ru: PartialCatalog = {
   "share.removeFailed": "Не удалось убрать.",
 
   "settings.title": "Настройки",
+  "settings.tabGeneral": "Общие",
+  "settings.interfaceSounds": "Звуки интерфейса",
+  "settings.playback": "Воспроизведение",
+  "settings.offset": "Смещение",
+  "settings.hud": "Интерфейс игры",
   "settings.tabEditor": "Редактор",
   "settings.tabPlaytest": "Плейтест",
   "settings.tabAudio": "Звук",
