@@ -1832,21 +1832,29 @@ export function ManiaEditor(props: Props) {
       if (selected) {
         const bounds = noteBounds(note, laneWidth, originX);
         if (bounds) {
+          const pad = 2.5;
+          const rx = bounds.x - pad;
+          const ry = bounds.y - pad;
+          const rw = bounds.w + pad * 2;
+          const rh = bounds.h + pad * 2;
+          const radius = Math.min(8, Math.max(5, rw / 6));
+
           ctx.save();
-          ctx.fillStyle = "rgba(255,210,63,0.14)";
-          ctx.strokeStyle = "rgba(255,210,63,0.95)";
-          ctx.lineWidth = 2;
-          ctx.shadowColor = "rgba(255,210,63,0.45)";
-          ctx.shadowBlur = 8;
-          roundRect(
-            ctx,
-            bounds.x - 4,
-            bounds.y - 4,
-            bounds.w + 8,
-            bounds.h + 8,
-            Math.min(10, Math.max(4, bounds.h / 5)),
-          );
+          ctx.fillStyle = "rgba(255,214,102,0.12)";
+          roundRect(ctx, rx, ry, rw, rh, radius);
           ctx.fill();
+
+          ctx.shadowColor = "rgba(255,201,74,0.5)";
+          ctx.shadowBlur = 13;
+          ctx.strokeStyle = "rgba(255,201,74,0.32)";
+          ctx.lineWidth = 3;
+          roundRect(ctx, rx, ry, rw, rh, radius);
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "rgba(255,231,163,0.92)";
+          ctx.lineWidth = 1.25;
+          roundRect(ctx, rx, ry, rw, rh, radius);
           ctx.stroke();
           ctx.restore();
         }
