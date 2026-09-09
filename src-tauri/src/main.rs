@@ -7,6 +7,7 @@ use std::time::Duration;
 mod launch;
 mod osu;
 mod presence;
+mod native_audio;
 mod vault;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -137,7 +138,13 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .manage(launch::Pending::default())
         .manage(presence::Presence::default())
+        .manage(native_audio::NativeAudio::default())
         .invoke_handler(tauri::generate_handler![
+            native_audio::native_audio_load,
+            native_audio::native_audio_control,
+            native_audio::native_audio_status,
+            native_audio::native_audio_close,
+            native_audio::native_audio_effect,
             start_oauth_listener,
             presence_update,
             launch::take_launch_files,

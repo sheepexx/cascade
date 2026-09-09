@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 const DIST = "dist";
 
-const DROP_DIRS = ["maps", "de", "ru", "zh-cn", "pt-br"];
+const DROP_DIRS = ["maps", "shots", "de", "ru", "zh-cn", "pt-br"];
 const DROP_FILES = [
   "sitemap.xml",
   "robots.txt",

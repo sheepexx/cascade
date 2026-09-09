@@ -7,6 +7,7 @@ import { Modal } from "../ui/Modal";
 import { Button, FileButton } from "../ui/Controls";
 import { isDesktopApp } from "../../lib/pwa";
 import { osuListSkins, osuReadSkin } from "../../lib/osuDesktop";
+import { InfoTip } from "../ui/Tooltip";
 
 const PRESET_MODULES = import.meta.glob("../../../skin/*.osk", {
   eager: true,
@@ -224,16 +225,10 @@ export function SkinModal({
         </section>
 
         <section>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h3 className="flex items-center gap-1.5 mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
             Custom skin
+            <InfoTip className="normal-case tracking-normal" content="Upload your own osu! .osk skin. The editor reads skin.ini and applies each keymode's lane colours and note images to the playfield. Anything the skin doesn't define falls back to the default style." />
           </h3>
-          <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
-            Upload your own osu!{" "}
-            <code className="text-slate-400">.osk</code> skin. The editor reads{" "}
-            <code className="text-slate-400">skin.ini</code> and applies each
-            keymode's lane colours and note images to the playfield. Anything
-            the skin doesn't define falls back to the default style.
-          </p>
           <div className="flex items-center gap-2">
             <FileButton
               label={skin ? "Replace skin…" : "Upload .osk skin"}
@@ -251,13 +246,10 @@ export function SkinModal({
         <OsuSkinsSection onUse={(file) => onSkinFile(file, "visual")} />
 
         <section>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h3 className="flex items-center gap-1.5 mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
             Account skins
+            <InfoTip className="normal-case tracking-normal" content="Store up to two skins in your account. Other devices only load the names and file sizes until you press the cloud download button." />
           </h3>
-          <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
-            Store up to two skins in your account. Other devices only load the
-            names and file sizes until you press the cloud download button.
-          </p>
           {!cloudAvailable ? (
             <p className="rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2 text-xs text-slate-400">
               Sign in to save skins to your account.
@@ -615,13 +607,10 @@ function OsuSkinsSection({ onUse }: { onUse: (file: File) => void }) {
 
   return (
     <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <h3 className="flex items-center gap-1.5 mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
         Skins in osu!
+        <InfoTip className="normal-case tracking-normal" content="Skins already installed in your osu! folder. Loading one reads it straight from disk, so there is no need to export an .osk first." />
       </h3>
-      <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
-        Skins already installed in your osu! folder. Loading one reads it straight
-        from disk, so there is no need to export an .osk first.
-      </p>
       {error && <p className="mb-2 text-[11px] text-rose-400">{error}</p>}
       <div className="flex max-h-56 flex-col gap-1.5 overflow-y-auto pr-1">
         {skins.map((name) => (

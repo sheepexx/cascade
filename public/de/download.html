@@ -13,32 +13,32 @@
     <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/download" />
     <meta name="theme-color" content="#0b0b10" />
     <meta name="robots" content="index, follow" />
-    <title>Cascade für Windows herunterladen | osu!mania-Editor</title>
-    <meta name="description" content="Hol dir die Cascade-Desktop-App für Windows. Installer, MSI-Paket oder eine einzelne portable EXE. Derselbe Editor für osu!mania, StepMania und Etterna, in einem eigenen Fenster und offline nutzbar." />
-    <meta name="keywords" content="cascade download, osu!mania editor herunterladen, mania editor windows, osu mania desktop app, stepmania editor download, vsrg editor windows" />
+    <title>Cascade für Windows, macOS und Linux herunterladen | osu!mania-Editor</title>
+    <meta name="description" content="Hol dir die Cascade-Desktop-App für Windows, macOS und Linux. Installer, MSI, portable EXE, Disk-Image, AppImage, deb oder rpm. Derselbe Editor für osu!mania, StepMania und Etterna, in einem eigenen Fenster und offline nutzbar." />
+    <meta name="keywords" content="cascade download, osu!mania editor herunterladen, mania editor windows, osu mania editor mac, mania editor linux, osu mania desktop app, stepmania editor download, vsrg editor" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cascade" />
     <meta property="og:locale" content="de_DE" />
-    <meta property="og:title" content="Cascade für Windows" />
-    <meta property="og:description" content="Der osu!mania-Editor als Desktop-App. Installer, MSI oder portable EXE, alles für 64-Bit-Windows." />
+    <meta property="og:title" content="Cascade für den Desktop" />
+    <meta property="og:description" content="Der osu!mania-Editor als Desktop-App für Windows, macOS und Linux." />
     <meta property="og:url" content="https://cascade.sheepex.net/de/download" />
     <meta property="og:image" content="https://cascade.sheepex.net/og-de.png?v=2" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Cascade, der osu!mania-Editor im Browser" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Cascade für Windows" />
-    <meta name="twitter:description" content="Der osu!mania-Editor als Desktop-App. Installer, MSI oder portable EXE, alles für 64-Bit-Windows." />
+    <meta name="twitter:title" content="Cascade für den Desktop" />
+    <meta name="twitter:description" content="Der osu!mania-Editor als Desktop-App für Windows, macOS und Linux." />
     <meta name="twitter:image" content="https://cascade.sheepex.net/og-de.png?v=2" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "Cascade",
-        "description": "Der osu!mania-Editor als Desktop-App. Installer, MSI oder portable EXE, alles für 64-Bit-Windows.",
+        "description": "Der osu!mania-Editor als Desktop-App für Windows, macOS und Linux.",
         "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "Windows 10, Windows 11",
-        "softwareVersion": "1.2.266",
+        "operatingSystem": "Windows 10, Windows 11, macOS 11, Linux",
+        "softwareVersion": "1.2.282",
         "url": "https://cascade.sheepex.net/de/download",
         "downloadUrl": "https://cascade.sheepex.net/de/download",
         "publisher": {
@@ -66,7 +66,7 @@
           {
             "@type": "ListItem",
             "position": 2,
-            "name": "Für Windows herunterladen",
+            "name": "Herunterladen",
             "item": "https://cascade.sheepex.net/de/download"
           }
         ]
@@ -202,7 +202,13 @@
       .lead { margin: 0; font-size: 1rem; }
       .hero-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 16px 0 0; font-size: 0.8rem; }
       .release { margin: 8px 0 0; font-size: 0.8rem; }
-      .downloads { border-top: 1px solid var(--line); }
+      .platform { margin-top: 34px; }
+      .platform:first-child { margin-top: 0; }
+      .platform-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+      .platform-name { margin: 0; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .platform-specs { margin: 0; font-size: 0.8rem; }
+      .platform[data-detected] .platform-name::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 9px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+      .downloads { margin-top: 12px; border-top: 1px solid var(--line); }
       .download { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--line); }
       .download h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 0; color: var(--text); font-size: 1.1rem; font-weight: 700; }
       .kind { color: var(--muted); font-size: 0.8rem; font-weight: 400; }
@@ -214,6 +220,14 @@
       .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
       .size { margin: 0; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
       .notice { margin: 18px 0 0; color: #e8d9a8; font-size: 0.9rem; }
+      .showcase { margin-top: 44px; }
+      .showcase h2 { margin: 0 0 6px; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .showcase-lead { margin: 0 0 22px; max-width: 620px; font-size: 0.95rem; }
+      .shot { margin: 0 0 22px; }
+      .shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 10px; background: #101018; }
+      .shot figcaption { margin: 9px 2px 0; font-size: 0.85rem; }
+      .showcase-cta { margin: 26px 0 0; }
+      .showcase-cta .btn { min-width: 0; padding: 11px 22px; }
       .notes { margin-top: 28px; }
       .notes summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 0.95rem; font-weight: 600; }
       .notes summary:hover { color: var(--accent-soft); }
@@ -244,7 +258,7 @@
     <div class="shell"
       data-notice-error="Der Download-Server ist gerade nicht erreichbar. Versuch es gleich noch mal."
       data-notice-empty="Es ist noch kein Desktop-Build veröffentlicht. Schau bald wieder vorbei."
-      data-notice-other="Du bist nicht auf Windows. Die Desktop-App gibt es vorerst nur für Windows, die Browser-Version läuft aber überall."
+      data-notice-other="Wir konnten dein System nicht erkennen. Wähl den passenden Build aus, oder nimm die Browser-Version."
       data-released="Veröffentlicht am {date}"
     >
       <header class="top">
@@ -257,49 +271,154 @@
 
       <main>
       <section class="hero">
-        <h1>Cascade für Windows</h1>
+        <h1>Cascade für den Desktop</h1>
         <p class="lead">Bearbeite deine Maps offline in einem eigenen Fenster.</p>
         <p class="hero-meta">
           <span data-version>Neuester Build</span>
           <span aria-hidden="true">·</span>
-          <span>Windows 10 und 11 · 64-Bit</span>
+          <span>Windows, macOS und Linux · 64-Bit</span>
         </p>
         <p class="release" data-date hidden></p>
       </section>
 
-      <section class="downloads">
-        <article class="download">
-          <div>
-            <h2>Installer <span class="kind">.exe</span></h2>
-            <p class="description">Installiert Cascade und legt einen Eintrag im Startmenü an.</p>
-          </div>
-          <div class="download-action">
-            <a class="btn primary" href="#" data-asset="setup">Installer laden</a>
-            <p class="size" data-size="setup" hidden></p>
-          </div>
-        </article>
-        <article class="download">
-          <div>
-            <h2>MSI-Paket <span class="kind">.msi</span></h2>
-            <p class="description">Für die Verteilung über Windows Installer.</p>
-          </div>
-          <div class="download-action">
-            <a class="btn" href="#" data-asset="msi">MSI laden</a>
-            <p class="size" data-size="msi" hidden></p>
-          </div>
-        </article>
-        <article class="download">
-          <div>
-            <h2>Portable Version <span class="kind">.exe</span></h2>
-            <p class="description">Aus einem beliebigen Ordner starten, ohne Installation.</p>
-          </div>
-          <div class="download-action">
-            <a class="btn" href="#" data-asset="portable">Portable laden</a>
-            <p class="size" data-size="portable" hidden></p>
-          </div>
-        </article>
+      <div class="platforms" data-platforms>
+      <section class="platform" data-platform="windows">
+        <div class="platform-head">
+          <h2 class="platform-name">Windows</h2>
+          <p class="platform-specs">Windows 10 und 11 · 64-Bit</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>Installer <span class="kind">.exe</span></h2>
+              <p class="description">Installiert Cascade und legt einen Eintrag im Startmenü an.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="windows.setup">Installer laden</a>
+              <p class="size" data-size="windows.setup" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>MSI-Paket <span class="kind">.msi</span></h2>
+              <p class="description">Für die Verteilung über Windows Installer.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="windows.msi">MSI laden</a>
+              <p class="size" data-size="windows.msi" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>Portable Version <span class="kind">.exe</span></h2>
+              <p class="description">Aus einem beliebigen Ordner starten, ohne Installation.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="windows.portable">Portable laden</a>
+              <p class="size" data-size="windows.portable" hidden></p>
+            </div>
+          </article>
+        </div>
       </section>
+      <section class="platform" data-platform="macos">
+        <div class="platform-head">
+          <h2 class="platform-name">macOS</h2>
+          <p class="platform-specs">macOS 11 oder neuer · Intel und Apple Silicon</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>Disk-Image <span class="kind">.dmg</span></h2>
+              <p class="description">Ein universeller Build für Intel und Apple Silicon.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="macos.dmg">Disk-Image laden</a>
+              <p class="size" data-size="macos.dmg" hidden></p>
+            </div>
+          </article>
+        </div>
+      </section>
+      <section class="platform" data-platform="linux">
+        <div class="platform-head">
+          <h2 class="platform-name">Linux</h2>
+          <p class="platform-specs">64-Bit · AppImage, deb oder rpm</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>AppImage <span class="kind">.AppImage</span></h2>
+              <p class="description">Läuft auf den meisten Distributionen ganz ohne Installation.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="linux.appimage">AppImage laden</a>
+              <p class="size" data-size="linux.appimage" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>Debian-Paket <span class="kind">.deb</span></h2>
+              <p class="description">Für Debian, Ubuntu und Abkömmlinge.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="linux.deb">deb laden</a>
+              <p class="size" data-size="linux.deb" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>RPM-Paket <span class="kind">.rpm</span></h2>
+              <p class="description">Für Fedora, openSUSE und Abkömmlinge.</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="linux.rpm">rpm laden</a>
+              <p class="size" data-size="linux.rpm" hidden></p>
+            </div>
+          </article>
+        </div>
+      </section>
+      </div>
       <p class="notice" data-notice hidden></p>
+
+      <section class="showcase">
+        <h2>Ein Blick hinein</h2>
+        <p class="showcase-lead">Alles, was der Browser-Editor kann, in einem eigenen Fenster und mit direktem Draht zu deiner osu!-Installation.</p>
+        <figure class="shot">
+          <img
+            src="/shots/editor.jpg"
+            alt="Der Cascade-Editor mit einer geladenen 7K-Map"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Mappe von 1K bis 18K auf einem Canvas-Playfield, mit Live-Statistiken, Star-Rating und max-pp-Anzeige beim Arbeiten.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/playtest.jpg"
+            alt="Playtest-Modus mit Judgements und Unstable-Rate-Leiste"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Mit F5 spielst du, was du gerade geschrieben hast. Judgements, Combo, Genauigkeit, NPS-Graph und Unstable Rate.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/sv-editor.jpg"
+            alt="Der SV-Editor mit Live-Vorschau der Kurve"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>Erzeuge konstante, Kurven- oder Stutter-SV über einen Bereich, in der Vorschau so, wie osu!mania es wirklich abspielt.</figcaption>
+        </figure>
+        <p class="showcase-cta">
+          <a class="btn primary" href="#" data-asset="windows.setup" data-asset-primary>Cascade herunterladen</a>
+        </p>
+      </section>
 
       <details class="notes">
         <summary>Vor dem Installieren</summary>
@@ -313,13 +432,25 @@
             <p>Die Installer laden Microsofts WebView2-Runtime nach, falls sie fehlt. Windows 11 bringt sie schon mit, und die portable EXE braucht sie ebenfalls.</p>
           </div>
           <div class="item">
+            <h3>macOS Gatekeeper</h3>
+            <p>Der macOS-Build ist noch nicht von Apple signiert, deshalb wird der erste Start blockiert. Klick Cascade im Programme-Ordner mit rechts an und wähl Öffnen, oder erlaub es unter Systemeinstellungen, Datenschutz und Sicherheit.</p>
+          </div>
+          <div class="item">
+            <h3>AppImage starten</h3>
+            <p>Mach es vor dem ersten Start mit chmod +x ausführbar. Die deb- und rpm-Pakete installierst du wie gewohnt.</p>
+          </div>
+          <div class="item">
+            <h3>osu!-Integration</h3>
+            <p>Die gerade in osu! geöffnete Map auszulesen funktioniert nur unter Windows. Alles andere im Editor verhält sich auf allen drei Systemen gleich.</p>
+          </div>
+          <div class="item">
             <h3>Aktualisieren</h3>
-            <p>Lade den neueren Build und führe ihn über den alten aus. Einstellungen und lokale Maps bleiben, wo sie sind.</p>
+            <p>Cascade sucht beim Start nach Updates und installiert sie mit einem Klick und einem kurzen Neustart. Diese Seite brauchst du nur für die erste Installation.</p>
           </div>
         </div>
       </details>
 
-      <p class="web">Nicht auf Windows? <a href="/de">Editor im Browser öffnen</a></p>
+      <p class="web">Lieber im Browser? <a href="/de">Editor im Browser öffnen</a></p>
       </main>
 
       <footer>

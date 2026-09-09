@@ -65,6 +65,11 @@ export const ru: PartialCatalog = {
   "share.removeFailed": "Не удалось убрать.",
 
   "settings.title": "Настройки",
+  "settings.tabGeneral": "Общие",
+  "settings.interfaceSounds": "Звуки интерфейса",
+  "settings.playback": "Воспроизведение",
+  "settings.offset": "Смещение",
+  "settings.hud": "Интерфейс игры",
   "settings.tabEditor": "Редактор",
   "settings.tabPlaytest": "Плейтест",
   "settings.tabAudio": "Звук",
@@ -131,6 +136,8 @@ export const ru: PartialCatalog = {
   "settings.rateHint":
     "Тренируйтесь быстрее или медленнее. Окна попадания масштабируются вместе с рейтом, поэтому требуемая точность остаётся такой же, как на 1×.",
   "settings.zoom": "Масштаб",
+  "settings.offsetHint":
+    "Сдвигает тайминг плейтеста, если попадания стабильно ранние или поздние. Только для плейтеста; оффсет карты не меняется.",
   "settings.offsetMode": "Режим оффсета",
   "settings.offsetVisual": "Визуальный оффсет",
   "settings.offsetAudio": "Аудиооффсет",
@@ -261,6 +268,7 @@ export const ru: PartialCatalog = {
   "nav.commentsUnread.other": "Комментарии ({count} непрочитанных)",
   "nav.desktopApp": "Десктоп-версия",
   "nav.desktopAppTitle": "Скачать Cascade для Windows",
+  "nav.desktopHint": "Выше производительность и больше возможностей",
 
   "file.newOpen": "Создать / открыть…",
   "file.saving": "Сохранение…",
@@ -498,6 +506,7 @@ export const ru: PartialCatalog = {
   "menu.open": "Меню Cascade",
   "menu.close": "Закрыть меню",
   "menu.importMap": "Импорт карты",
+  "menu.exit": "Выход",
   "menu.myMaps": "Мои карты",
   "menu.newMap": "Новая карта",
   "menu.packCreator": "Pack Creator",

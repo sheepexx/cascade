@@ -13,7 +13,20 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            target: ""
+          - os: ubuntu-22.04
+            platform: linux
+            target: ""
+          - os: macos-latest
+            platform: macos
+            target: universal-apple-darwin
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,10 +38,30 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Add macOS targets
+        if: matrix.platform == 'macos'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            libgtk-3-dev \
+            patchelf \
+            build-essential \
+            file
+
       - name: Cache cargo
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          key: ${{ matrix.platform }}
 
       - name: Install npm dependencies
         run: npm ci
@@ -39,7 +72,13 @@ jobs:
         run: echo "value=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Build installers
-        run: npm run desktop:build
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.target }}" ]; then
+            npm run desktop:build -- --target "${{ matrix.target }}"
+          else
+            npm run desktop:build
+          fi
         env:
           VITE_WORKER_URL: ${{ vars.VITE_WORKER_URL }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
@@ -51,82 +90,97 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.value }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
+          set -eu
           mkdir -p out
-          find src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*-setup.exe" -o -name "*-setup.exe.sig" \) -exec cp {} out/ \;
-          cp src-tauri/target/release/cascade.exe "out/Cascade_${VERSION}_portable.exe"
+          collect() {
+            find src-tauri/target -type d -name bundle -prune -exec find {} -type f -name "$1" \; | while read -r f; do
+              cp "$f" out/
+            done
+          }
+          case "$PLATFORM" in
+            windows)
+              collect "*.msi"
+              collect "*-setup.exe"
+              collect "*-setup.exe.sig"
+              cp src-tauri/target/release/cascade.exe "out/Cascade_${VERSION}_portable.exe"
+              ;;
+            linux)
+              collect "*.AppImage"
+              collect "*.AppImage.sig"
+              collect "*.AppImage.tar.gz"
+              collect "*.AppImage.tar.gz.sig"
+              collect "*.deb"
+              collect "*.rpm"
+              ;;
+            macos)
+              collect "*.dmg"
+              collect "*.app.tar.gz"
+              collect "*.app.tar.gz.sig"
+              ;;
+          esac
           ls -la out
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cascade-windows-${{ steps.version.outputs.value }}
+          name: cascade-${{ matrix.platform }}-${{ steps.version.outputs.value }}
           path: out/*
           if-no-files-found: error
 
-      - name: Use Node 22 for wrangler
-        if: startsWith(github.ref, 'refs/tags/desktop-v') || inputs.release
-        uses: actions/setup-node@v4
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/desktop-v') || inputs.release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      - name: Read version
+        id: version
+        run: echo "value=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          set -eu
+          mkdir -p out
+          find artifacts -type f -exec cp {} out/ \;
+          ls -la out
+
+      - name: Build manifests
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          WORKER: https://mania-editor.noahcraft01.workers.dev
+        run: node scripts/build-desktop-manifests.mjs
+
       - name: Publish to R2
-        if: startsWith(github.ref, 'refs/tags/desktop-v') || inputs.release
-        shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           VERSION: ${{ steps.version.outputs.value }}
         run: |
           set -eu
-          setup=$(basename out/*-setup.exe)
-          msi=$(basename out/*.msi)
-          portable=$(basename out/*_portable.exe)
-
-          for f in "$setup" "$msi" "$portable"; do
+          for path in out/*; do
+            f=$(basename "$path")
+            case "$f" in
+              latest.json|update.json) continue ;;
+            esac
+            case "$f" in
+              *.sig) type=text/plain ;;
+              *) type=application/octet-stream ;;
+            esac
             npx --yes wrangler@4.122.0 r2 object put \
               "cascade-shared/desktop/${VERSION}/${f}" \
-              --file "out/${f}" --content-type application/octet-stream --remote
+              --file "$path" --content-type "$type" --remote
           done
-
-          node -e '
-            const fs = require("fs");
-            const [setup, msi, portable, version, worker] = process.argv.slice(1);
-            const size = (name) => fs.statSync(`out/${name}`).size;
-            const publishedAt = new Date().toISOString();
-            fs.writeFileSync(
-              "out/latest.json",
-              JSON.stringify({
-                version,
-                publishedAt,
-                files: {
-                  setup: { name: setup, size: size(setup) },
-                  msi: { name: msi, size: size(msi) },
-                  portable: { name: portable, size: size(portable) },
-                },
-              }),
-            );
-            const sig = `out/${setup}.sig`;
-            if (!fs.existsSync(sig)) {
-              throw new Error(`missing updater signature: ${sig}`);
-            }
-            fs.writeFileSync(
-              "out/update.json",
-              JSON.stringify({
-                version,
-                pub_date: publishedAt,
-                platforms: {
-                  "windows-x86_64": {
-                    signature: fs.readFileSync(sig, "utf8").trim(),
-                    url: `${worker}/desktop/${version}/${setup}`,
-                  },
-                },
-              }),
-            );
-          ' "$setup" "$msi" "$portable" "$VERSION" "https://mania-editor.noahcraft01.workers.dev"
-
-          npx --yes wrangler@4.122.0 r2 object put \
-            "cascade-shared/desktop/${VERSION}/${setup}.sig" \
-            --file "out/${setup}.sig" --content-type text/plain --remote
 
           for f in latest.json update.json; do
             npx --yes wrangler@4.122.0 r2 object put \

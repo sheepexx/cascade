@@ -64,6 +64,11 @@ export const zhCN: PartialCatalog = {
   "share.removeFailed": "移除失败。",
 
   "settings.title": "设置",
+  "settings.tabGeneral": "通用",
+  "settings.interfaceSounds": "界面音效",
+  "settings.playback": "播放",
+  "settings.offset": "偏移",
+  "settings.hud": "游戏界面",
   "settings.tabEditor": "编辑器",
   "settings.tabPlaytest": "试玩",
   "settings.tabAudio": "音频",
@@ -127,6 +132,8 @@ export const zhCN: PartialCatalog = {
   "settings.rateHint":
     "以更快或更慢的速度练习。判定区间会随倍速缩放，所需的时间精度与 1× 时相同。",
   "settings.zoom": "缩放",
+  "settings.offsetHint":
+    "当你的按键总是偏早或偏晚时，微调试玩的判定时机。仅影响试玩，不会改变谱面本身的偏移。",
   "settings.offsetMode": "Offset 模式",
   "settings.offsetVisual": "视觉 offset",
   "settings.offsetAudio": "音频 offset",
@@ -250,6 +257,7 @@ export const zhCN: PartialCatalog = {
   "nav.commentsUnread.other": "评论（{count} 条未读）",
   "nav.desktopApp": "桌面版",
   "nav.desktopAppTitle": "下载 Windows 版 Cascade",
+  "nav.desktopHint": "性能更好，功能更多",
 
   "file.newOpen": "新建 / 打开…",
   "file.saving": "保存中…",
@@ -460,6 +468,7 @@ export const zhCN: PartialCatalog = {
   "menu.open": "Cascade 菜单",
   "menu.close": "关闭菜单",
   "menu.importMap": "导入谱面",
+  "menu.exit": "退出",
   "menu.myMaps": "我的谱面",
   "menu.newMap": "新建谱面",
   "menu.packCreator": "Pack Creator",

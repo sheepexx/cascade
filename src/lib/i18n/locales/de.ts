@@ -65,6 +65,11 @@ export const de: PartialCatalog = {
   "share.removeFailed": "Entfernen fehlgeschlagen.",
 
   "settings.title": "Einstellungen",
+  "settings.tabGeneral": "Allgemein",
+  "settings.interfaceSounds": "Oberflächenklänge",
+  "settings.playback": "Wiedergabe",
+  "settings.offset": "Offset",
+  "settings.hud": "HUD",
   "settings.tabEditor": "Editor",
   "settings.tabPlaytest": "Playtest",
   "settings.tabAudio": "Audio",
@@ -130,6 +135,8 @@ export const de: PartialCatalog = {
   "settings.rateHint":
     "Schneller oder langsamer üben. Die Trefferfenster skalieren mit der Rate, die nötige Timing-Präzision bleibt also wie bei 1×.",
   "settings.zoom": "Zoom",
+  "settings.offsetHint":
+    "Verschiebt das Playtest-Timing, wenn deine Treffer durchgehend zu früh oder zu spät wirken. Nur im Playtest; das Offset der Map bleibt unverändert.",
   "settings.offsetMode": "Offset-Modus",
   "settings.offsetVisual": "Visueller Offset",
   "settings.offsetAudio": "Audio-Offset",
@@ -257,6 +264,7 @@ export const de: PartialCatalog = {
   "nav.commentsUnread.other": "Kommentare ({count} ungelesen)",
   "nav.desktopApp": "Desktop-App",
   "nav.desktopAppTitle": "Cascade für Windows herunterladen",
+  "nav.desktopHint": "Bessere Leistung & mehr Funktionen",
 
   "file.newOpen": "Neu / öffnen…",
   "file.saving": "Speichert…",
@@ -486,6 +494,7 @@ export const de: PartialCatalog = {
   "menu.open": "Cascade-Menü",
   "menu.close": "Menü schließen",
   "menu.importMap": "Map importieren",
+  "menu.exit": "Beenden",
   "menu.myMaps": "Meine Maps",
   "menu.newMap": "Neue Map",
   "menu.packCreator": "Pack Creator",

@@ -42,6 +42,27 @@ async function fontStyles() {
 
 const FONT_STYLE = await fontStyles();
 
+const SHOTS = [
+  { id: "editor", file: "editor.jpg" },
+  { id: "playtest", file: "playtest.jpg" },
+  { id: "sv", file: "sv-editor.jpg" },
+];
+const SHOT_WIDTH = 1600;
+const SHOT_HEIGHT = 900;
+
+async function copyShots() {
+  const output = join(ROOT, "public", "shots");
+  await mkdir(output, { recursive: true });
+  for (const shot of SHOTS) {
+    await copyFile(
+      join(ROOT, "docs", "images", shot.file),
+      join(output, shot.file),
+    );
+  }
+}
+
+await copyShots();
+
 function esc(value) {
   return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 }
@@ -81,7 +102,7 @@ function structured(c, url) {
       name: "Cascade",
       description: c.ogDescription,
       applicationCategory: "MultimediaApplication",
-      operatingSystem: "Windows 10, Windows 11",
+      operatingSystem: "Windows 10, Windows 11, macOS 11, Linux",
       softwareVersion: pkg.version,
       url,
       downloadUrl: url,
@@ -132,7 +153,13 @@ const STYLE = `      :root {
       .lead { margin: 0; font-size: 1rem; }
       .hero-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 16px 0 0; font-size: 0.8rem; }
       .release { margin: 8px 0 0; font-size: 0.8rem; }
-      .downloads { border-top: 1px solid var(--line); }
+      .platform { margin-top: 34px; }
+      .platform:first-child { margin-top: 0; }
+      .platform-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+      .platform-name { margin: 0; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .platform-specs { margin: 0; font-size: 0.8rem; }
+      .platform[data-detected] .platform-name::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 9px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+      .downloads { margin-top: 12px; border-top: 1px solid var(--line); }
       .download { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--line); }
       .download h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 0; color: var(--text); font-size: 1.1rem; font-weight: 700; }
       .kind { color: var(--muted); font-size: 0.8rem; font-weight: 400; }
@@ -144,6 +171,14 @@ const STYLE = `      :root {
       .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
       .size { margin: 0; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
       .notice { margin: 18px 0 0; color: #e8d9a8; font-size: 0.9rem; }
+      .showcase { margin-top: 44px; }
+      .showcase h2 { margin: 0 0 6px; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .showcase-lead { margin: 0 0 22px; max-width: 620px; font-size: 0.95rem; }
+      .shot { margin: 0 0 22px; }
+      .shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 10px; background: #101018; }
+      .shot figcaption { margin: 9px 2px 0; font-size: 0.85rem; }
+      .showcase-cta { margin: 26px 0 0; }
+      .showcase-cta .btn { min-width: 0; padding: 11px 22px; }
       .notes { margin-top: 28px; }
       .notes summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 0.95rem; font-weight: 600; }
       .notes summary:hover { color: var(--accent-soft); }
@@ -169,18 +204,67 @@ const STYLE = `      :root {
       }
       @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }`;
 
-function download(id, c, primary) {
+const PLATFORM_ASSETS = {
+  windows: ["setup", "msi", "portable"],
+  macos: ["dmg"],
+  linux: ["appimage", "deb", "rpm"],
+};
+
+function download(os, id, c, primary) {
   const item = c.cards[id];
-  return `        <article class="download">
-          <div>
-            <h2>${esc(item.name)} <span class="kind">${esc(item.kind)}</span></h2>
-            <p class="description">${esc(item.text)}</p>
-          </div>
-          <div class="download-action">
-            <a class="btn${primary ? " primary" : ""}" href="#" data-asset="${id}">${esc(item.cta)}</a>
-            <p class="size" data-size="${id}" hidden></p>
-          </div>
-        </article>`;
+  const asset = `${os}.${id}`;
+  return `          <article class="download">
+            <div>
+              <h2>${esc(item.name)} <span class="kind">${esc(item.kind)}</span></h2>
+              <p class="description">${esc(item.text)}</p>
+            </div>
+            <div class="download-action">
+              <a class="btn${primary ? " primary" : ""}" href="#" data-asset="${attr(asset)}">${esc(item.cta)}</a>
+              <p class="size" data-size="${attr(asset)}" hidden></p>
+            </div>
+          </article>`;
+}
+
+function platform(os, c) {
+  const meta = c.platforms[os];
+  const cards = PLATFORM_ASSETS[os]
+    .map((id, index) => download(os, id, c, index === 0))
+    .join("\n");
+  return `      <section class="platform" data-platform="${os}">
+        <div class="platform-head">
+          <h2 class="platform-name">${esc(meta.name)}</h2>
+          <p class="platform-specs">${esc(meta.specs)}</p>
+        </div>
+        <div class="downloads">
+${cards}
+        </div>
+      </section>`;
+}
+
+function showcase(c) {
+  const figures = SHOTS.map((shot) => {
+    const copy = c.showcase[shot.id];
+    return `        <figure class="shot">
+          <img
+            src="/shots/${shot.file}"
+            alt="${attr(copy.alt)}"
+            width="${SHOT_WIDTH}"
+            height="${SHOT_HEIGHT}"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>${esc(copy.text)}</figcaption>
+        </figure>`;
+  }).join("\n");
+
+  return `      <section class="showcase">
+        <h2>${esc(c.showcaseTitle)}</h2>
+        <p class="showcase-lead">${esc(c.showcaseLead)}</p>
+${figures}
+        <p class="showcase-cta">
+          <a class="btn primary" href="#" data-asset="windows.setup" data-asset-primary>${esc(c.showcaseCta)}</a>
+        </p>
+      </section>`;
 }
 
 function notes(list) {
@@ -269,12 +353,14 @@ ${STYLE}
         <p class="release" data-date hidden></p>
       </section>
 
-      <section class="downloads">
-${download("setup", c, true)}
-${download("msi", c, false)}
-${download("portable", c, false)}
-      </section>
+      <div class="platforms" data-platforms>
+${platform("windows", c)}
+${platform("macos", c)}
+${platform("linux", c)}
+      </div>
       <p class="notice" data-notice hidden></p>
+
+${showcase(c)}
 
       <details class="notes">
         <summary>${esc(c.notesTitle)}</summary>

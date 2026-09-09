@@ -8,6 +8,7 @@ import {
   type EditorKeybinds,
 } from "../../lib/editorKeybinds";
 import type { AltWheelAction } from "../../types";
+import { InfoTip } from "../ui/Tooltip";
 
 export function ShortcutsSettings({
   keybinds,
@@ -49,9 +50,9 @@ export function ShortcutsSettings({
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 bg-ink-700/35 px-3 py-2">
-        <p className="text-[11px] text-slate-400">
-          Highlighted keys are editable: click one, then press the new key.
-          Backspace restores the default, Esc cancels.
+        <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
+          Highlighted keys are editable
+          <InfoTip content="Click a highlighted key, then press the new key. Backspace restores the default, Esc cancels." />
         </p>
         <button
           type="button"

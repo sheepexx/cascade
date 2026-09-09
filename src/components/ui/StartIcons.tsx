@@ -203,3 +203,18 @@ export function PackCreatorIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function PowerIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path
+        d="M12 3v9M18.36 6.64a9 9 0 11-12.72 0"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}

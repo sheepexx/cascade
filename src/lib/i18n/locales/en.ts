@@ -63,6 +63,7 @@ export const en = {
   "share.removeFailed": "Failed to remove.",
 
   "settings.title": "Settings",
+  "settings.tabGeneral": "General",
   "settings.tabEditor": "Editor",
   "settings.tabPlaytest": "Playtest",
   "settings.tabAudio": "Audio",
@@ -151,6 +152,8 @@ export const en = {
   "settings.rateHint":
     "Practice faster or slower. Hit windows scale with the rate, so the timing precision you need stays the same as at 1×.",
   "settings.zoom": "Zoom",
+  "settings.offsetHint":
+    "Nudges playtest timing when your hits feel consistently early or late. Playtest only; the map’s own offset is untouched.",
   "settings.offsetMode": "Offset mode",
   "settings.offsetVisual": "Visual offset",
   "settings.offsetAudio": "Audio offset",
@@ -165,6 +168,9 @@ export const en = {
   "settings.showErrorBar": "Show error (UR) bar",
   "settings.skinComboFont": "Skin combo font",
   "settings.skinJudgements": "Skin judgements",
+  "settings.playback": "Playback",
+  "settings.offset": "Offset",
+  "settings.hud": "HUD",
   "settings.quickRestartKey": "Quick restart key",
   "settings.quickRestartHint":
     "Restarts the run instantly during playtest. Esc opens the pause menu; F5 enters / leaves the playtest.",
@@ -180,6 +186,7 @@ export const en = {
   "settings.hitsoundVolumeHint":
     "Independent of the song volume. Also adjustable from the transport bar (“Hit”).",
   "settings.interface": "Interface",
+  "settings.interfaceSounds": "Interface sounds",
   "settings.uiSounds": "UI sound effects",
   "settings.uiSoundsHint":
     "Clicks, confirmations, and chimes for invites, cloud saves and map exports.",
@@ -281,6 +288,7 @@ export const en = {
   "nav.commentsUnread.other": "Comments ({count} unread)",
   "nav.desktopApp": "Desktop app",
   "nav.desktopAppTitle": "Download Cascade for Windows",
+  "nav.desktopHint": "Better performance & more features",
 
   "file.newOpen": "New / open…",
   "file.saving": "Saving…",
@@ -522,6 +530,7 @@ export const en = {
   "menu.close": "Close menu",
   "menu.importMap": "Import map",
   "menu.settings": "Settings",
+  "menu.exit": "Exit",
   "menu.myMaps": "My Maps",
   "menu.newMap": "New map",
   "menu.packCreator": "Pack creator",

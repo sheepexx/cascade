@@ -65,6 +65,11 @@ export const ptBR: PartialCatalog = {
   "share.removeFailed": "Falha ao remover.",
 
   "settings.title": "Configurações",
+  "settings.tabGeneral": "Geral",
+  "settings.interfaceSounds": "Sons da interface",
+  "settings.playback": "Reprodução",
+  "settings.offset": "Offset",
+  "settings.hud": "HUD",
   "settings.tabEditor": "Editor",
   "settings.tabPlaytest": "Teste",
   "settings.tabAudio": "Áudio",
@@ -130,6 +135,8 @@ export const ptBR: PartialCatalog = {
   "settings.rateHint":
     "Pratique mais rápido ou mais devagar. As janelas de acerto acompanham o rate, então a precisão de tempo necessária continua a mesma de 1×.",
   "settings.zoom": "Zoom",
+  "settings.offsetHint":
+    "Ajusta o timing do playtest quando seus acertos parecem sempre adiantados ou atrasados. Só no playtest; o offset do mapa não muda.",
   "settings.offsetMode": "Modo de offset",
   "settings.offsetVisual": "Offset visual",
   "settings.offsetAudio": "Offset de áudio",
@@ -257,6 +264,7 @@ export const ptBR: PartialCatalog = {
   "nav.commentsUnread.other": "Comentários ({count} não lidos)",
   "nav.desktopApp": "App de desktop",
   "nav.desktopAppTitle": "Baixar o Cascade para Windows",
+  "nav.desktopHint": "Melhor desempenho & mais recursos",
 
   "file.newOpen": "Novo / abrir…",
   "file.saving": "Salvando…",
@@ -486,6 +494,7 @@ export const ptBR: PartialCatalog = {
   "menu.open": "Menu do Cascade",
   "menu.close": "Fechar menu",
   "menu.importMap": "Importar mapa",
+  "menu.exit": "Sair",
   "menu.myMaps": "Meus mapas",
   "menu.newMap": "Novo mapa",
   "menu.packCreator": "Pack Creator",

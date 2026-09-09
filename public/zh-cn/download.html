@@ -13,32 +13,32 @@
     <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/download" />
     <meta name="theme-color" content="#0b0b10" />
     <meta name="robots" content="index, follow" />
-    <title>下载 Windows 版 Cascade | osu!mania 编辑器</title>
-    <meta name="description" content="获取 Windows 版 Cascade 桌面应用。安装程序、MSI 包，或者单文件便携版 exe。和网页版同一个 osu!mania、StepMania 与 Etterna 编辑器，拥有独立窗口，可离线使用。" />
-    <meta name="keywords" content="cascade 下载, osu!mania 编辑器下载, mania 编辑器 windows, osu mania 桌面版, stepmania 编辑器下载, vsrg 编辑器 windows" />
+    <title>下载 Windows、macOS 与 Linux 版 Cascade | osu!mania 编辑器</title>
+    <meta name="description" content="获取 Windows、macOS 与 Linux 版 Cascade 桌面应用。安装程序、MSI、便携版 exe、磁盘映像、AppImage、deb 或 rpm。和网页版同一个 osu!mania、StepMania 与 Etterna 编辑器，拥有独立窗口，可离线使用。" />
+    <meta name="keywords" content="cascade 下载, osu!mania 编辑器下载, mania 编辑器 windows, osu mania 编辑器 mac, mania 编辑器 linux, osu mania 桌面版, stepmania 编辑器下载, vsrg 编辑器" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cascade" />
     <meta property="og:locale" content="zh_CN" />
-    <meta property="og:title" content="Windows 版 Cascade" />
-    <meta property="og:description" content="osu!mania 编辑器的桌面版。安装程序、MSI 或便携版 exe，均为 64 位 Windows。" />
+    <meta property="og:title" content="Cascade 桌面版" />
+    <meta property="og:description" content="osu!mania 编辑器的桌面版，支持 Windows、macOS 与 Linux。" />
     <meta property="og:url" content="https://cascade.sheepex.net/zh-cn/download" />
     <meta property="og:image" content="https://cascade.sheepex.net/og-zh-cn.png?v=2" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Cascade，浏览器里的 osu!mania 编辑器" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Windows 版 Cascade" />
-    <meta name="twitter:description" content="osu!mania 编辑器的桌面版。安装程序、MSI 或便携版 exe，均为 64 位 Windows。" />
+    <meta name="twitter:title" content="Cascade 桌面版" />
+    <meta name="twitter:description" content="osu!mania 编辑器的桌面版，支持 Windows、macOS 与 Linux。" />
     <meta name="twitter:image" content="https://cascade.sheepex.net/og-zh-cn.png?v=2" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "Cascade",
-        "description": "osu!mania 编辑器的桌面版。安装程序、MSI 或便携版 exe，均为 64 位 Windows。",
+        "description": "osu!mania 编辑器的桌面版，支持 Windows、macOS 与 Linux。",
         "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "Windows 10, Windows 11",
-        "softwareVersion": "1.2.266",
+        "operatingSystem": "Windows 10, Windows 11, macOS 11, Linux",
+        "softwareVersion": "1.2.282",
         "url": "https://cascade.sheepex.net/zh-cn/download",
         "downloadUrl": "https://cascade.sheepex.net/zh-cn/download",
         "publisher": {
@@ -66,7 +66,7 @@
           {
             "@type": "ListItem",
             "position": 2,
-            "name": "下载 Windows 版",
+            "name": "下载",
             "item": "https://cascade.sheepex.net/zh-cn/download"
           }
         ]
@@ -202,7 +202,13 @@
       .lead { margin: 0; font-size: 1rem; }
       .hero-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 16px 0 0; font-size: 0.8rem; }
       .release { margin: 8px 0 0; font-size: 0.8rem; }
-      .downloads { border-top: 1px solid var(--line); }
+      .platform { margin-top: 34px; }
+      .platform:first-child { margin-top: 0; }
+      .platform-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+      .platform-name { margin: 0; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .platform-specs { margin: 0; font-size: 0.8rem; }
+      .platform[data-detected] .platform-name::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 9px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+      .downloads { margin-top: 12px; border-top: 1px solid var(--line); }
       .download { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--line); }
       .download h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 0; color: var(--text); font-size: 1.1rem; font-weight: 700; }
       .kind { color: var(--muted); font-size: 0.8rem; font-weight: 400; }
@@ -214,6 +220,14 @@
       .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
       .size { margin: 0; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
       .notice { margin: 18px 0 0; color: #e8d9a8; font-size: 0.9rem; }
+      .showcase { margin-top: 44px; }
+      .showcase h2 { margin: 0 0 6px; color: var(--text); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+      .showcase-lead { margin: 0 0 22px; max-width: 620px; font-size: 0.95rem; }
+      .shot { margin: 0 0 22px; }
+      .shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 10px; background: #101018; }
+      .shot figcaption { margin: 9px 2px 0; font-size: 0.85rem; }
+      .showcase-cta { margin: 26px 0 0; }
+      .showcase-cta .btn { min-width: 0; padding: 11px 22px; }
       .notes { margin-top: 28px; }
       .notes summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 0.95rem; font-weight: 600; }
       .notes summary:hover { color: var(--accent-soft); }
@@ -244,7 +258,7 @@
     <div class="shell"
       data-notice-error="现在连不上下载服务器，稍后刷新页面再试。"
       data-notice-empty="还没有发布桌面版，过一阵子再来看看。"
-      data-notice-other="你现在不在 Windows 上。桌面版目前只有 Windows，不过浏览器版本到哪里都能用。"
+      data-notice-other="无法识别你的系统。请选择对应的版本，或者直接使用浏览器版。"
       data-released="发布于 {date}"
     >
       <header class="top">
@@ -257,49 +271,154 @@
 
       <main>
       <section class="hero">
-        <h1>Windows 版 Cascade</h1>
+        <h1>Cascade 桌面版</h1>
         <p class="lead">在独立窗口中离线编辑谱面。</p>
         <p class="hero-meta">
           <span data-version>最新版本</span>
           <span aria-hidden="true">·</span>
-          <span>Windows 10 与 11 · 64 位</span>
+          <span>Windows、macOS 与 Linux · 64 位</span>
         </p>
         <p class="release" data-date hidden></p>
       </section>
 
-      <section class="downloads">
-        <article class="download">
-          <div>
-            <h2>安装程序 <span class="kind">.exe</span></h2>
-            <p class="description">安装 Cascade 并添加到开始菜单。</p>
-          </div>
-          <div class="download-action">
-            <a class="btn primary" href="#" data-asset="setup">下载安装程序</a>
-            <p class="size" data-size="setup" hidden></p>
-          </div>
-        </article>
-        <article class="download">
-          <div>
-            <h2>MSI 安装包 <span class="kind">.msi</span></h2>
-            <p class="description">用于通过 Windows Installer 部署。</p>
-          </div>
-          <div class="download-action">
-            <a class="btn" href="#" data-asset="msi">下载 MSI</a>
-            <p class="size" data-size="msi" hidden></p>
-          </div>
-        </article>
-        <article class="download">
-          <div>
-            <h2>便携版 <span class="kind">.exe</span></h2>
-            <p class="description">从任意文件夹直接运行，无需安装。</p>
-          </div>
-          <div class="download-action">
-            <a class="btn" href="#" data-asset="portable">下载便携版</a>
-            <p class="size" data-size="portable" hidden></p>
-          </div>
-        </article>
+      <div class="platforms" data-platforms>
+      <section class="platform" data-platform="windows">
+        <div class="platform-head">
+          <h2 class="platform-name">Windows</h2>
+          <p class="platform-specs">Windows 10 与 11 · 64 位</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>安装程序 <span class="kind">.exe</span></h2>
+              <p class="description">安装 Cascade 并添加到开始菜单。</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="windows.setup">下载安装程序</a>
+              <p class="size" data-size="windows.setup" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>MSI 安装包 <span class="kind">.msi</span></h2>
+              <p class="description">用于通过 Windows Installer 部署。</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="windows.msi">下载 MSI</a>
+              <p class="size" data-size="windows.msi" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>便携版 <span class="kind">.exe</span></h2>
+              <p class="description">从任意文件夹直接运行，无需安装。</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="windows.portable">下载便携版</a>
+              <p class="size" data-size="windows.portable" hidden></p>
+            </div>
+          </article>
+        </div>
       </section>
+      <section class="platform" data-platform="macos">
+        <div class="platform-head">
+          <h2 class="platform-name">macOS</h2>
+          <p class="platform-specs">macOS 11 或更新版本 · Intel 与 Apple Silicon</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>磁盘映像 <span class="kind">.dmg</span></h2>
+              <p class="description">同时适用于 Intel 与 Apple Silicon 的通用版本。</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="macos.dmg">下载磁盘映像</a>
+              <p class="size" data-size="macos.dmg" hidden></p>
+            </div>
+          </article>
+        </div>
+      </section>
+      <section class="platform" data-platform="linux">
+        <div class="platform-head">
+          <h2 class="platform-name">Linux</h2>
+          <p class="platform-specs">64 位 · AppImage、deb 或 rpm</p>
+        </div>
+        <div class="downloads">
+          <article class="download">
+            <div>
+              <h2>AppImage <span class="kind">.AppImage</span></h2>
+              <p class="description">在大多数发行版上直接运行，无需安装。</p>
+            </div>
+            <div class="download-action">
+              <a class="btn primary" href="#" data-asset="linux.appimage">下载 AppImage</a>
+              <p class="size" data-size="linux.appimage" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>Debian 软件包 <span class="kind">.deb</span></h2>
+              <p class="description">适用于 Debian、Ubuntu 及其衍生版。</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="linux.deb">下载 deb</a>
+              <p class="size" data-size="linux.deb" hidden></p>
+            </div>
+          </article>
+          <article class="download">
+            <div>
+              <h2>RPM 软件包 <span class="kind">.rpm</span></h2>
+              <p class="description">适用于 Fedora、openSUSE 及其衍生版。</p>
+            </div>
+            <div class="download-action">
+              <a class="btn" href="#" data-asset="linux.rpm">下载 rpm</a>
+              <p class="size" data-size="linux.rpm" hidden></p>
+            </div>
+          </article>
+        </div>
+      </section>
+      </div>
       <p class="notice" data-notice hidden></p>
+
+      <section class="showcase">
+        <h2>内部一览</h2>
+        <p class="showcase-lead">浏览器编辑器的全部功能，装进独立窗口，并直连你的 osu! 安装目录。</p>
+        <figure class="shot">
+          <img
+            src="/shots/editor.jpg"
+            alt="载入 7K 谱面的 Cascade 编辑器"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>在 canvas 判定区上编写 1K 到 18K 谱面，实时显示谱面统计、星级与最大 pp。</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/playtest.jpg"
+            alt="带判定与 unstable rate 条的试玩模式"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>按 F5 立刻试玩刚写好的段落。判定、连击、准确率、实时 NPS 图表与 unstable rate 条一应俱全。</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="/shots/sv-editor.jpg"
+            alt="带实时曲线预览的 SV 编辑器"
+            width="1600"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>在选定范围内生成恒定、曲线或 stutter SV，并按 osu!mania 的真实表现预览效果。</figcaption>
+        </figure>
+        <p class="showcase-cta">
+          <a class="btn primary" href="#" data-asset="windows.setup" data-asset-primary>下载 Cascade</a>
+        </p>
+      </section>
 
       <details class="notes">
         <summary>安装之前</summary>
@@ -313,13 +432,25 @@
             <p>缺少时安装程序会自动获取微软的 WebView2 运行时。Windows 11 自带，便携版 exe 同样需要它。</p>
           </div>
           <div class="item">
+            <h3>macOS Gatekeeper</h3>
+            <p>macOS 版尚未经过 Apple 签名，首次启动会被拦截。请在“应用程序”中右键点击 Cascade 并选择“打开”，或在“系统设置”的“隐私与安全性”中允许运行。</p>
+          </div>
+          <div class="item">
+            <h3>运行 AppImage</h3>
+            <p>首次运行前先用 chmod +x 赋予可执行权限。deb 与 rpm 包按常规方式安装即可。</p>
+          </div>
+          <div class="item">
+            <h3>osu! 集成</h3>
+            <p>读取 osu! 中当前打开的谱面仅支持 Windows。编辑器的其他功能在三个系统上完全一致。</p>
+          </div>
+          <div class="item">
             <h3>更新</h3>
-            <p>下载新版本并覆盖旧的运行一遍。设置和本地谱面都会留在原处。</p>
+            <p>Cascade 启动时会检查更新，一键安装并快速重启。这个页面只在首次安装时需要。</p>
           </div>
         </div>
       </details>
 
-      <p class="web">不用 Windows？ <a href="/zh-cn">打开网页版编辑器</a></p>
+      <p class="web">更想用浏览器？ <a href="/zh-cn">打开网页版编辑器</a></p>
       </main>
 
       <footer>

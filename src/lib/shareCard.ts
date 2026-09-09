@@ -1,4 +1,7 @@
 import { starColor } from "./starRating";
+import type { ManiaNote, TimingPoint } from "../types";
+import { gridLinesInRange, gridLineColor } from "./timing";
+import { nearestSnap } from "./aimod";
 
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 630;
@@ -19,6 +22,62 @@ const BG = "#0b0b10";
 const TEXT = "#eef0f6";
 const MUTED = "#949aa8";
 const ACCENT = "#f45a5a";
+
+/** A self-contained pattern card; no background fetches or tainted canvases. */
+export function renderPatternCard(info: {
+  notes: ManiaNote[]; keyCount: number; timingPoints: TimingPoint[];
+  title: string; difficulty: string; upscroll?: boolean;
+}): Promise<Blob> {
+  if (!info.notes.length) return Promise.reject(new Error("Select notes first."));
+  const start = info.notes.reduce((time, n) => Math.min(time, n.startTime), Infinity);
+  const end = info.notes.reduce((time, n) => Math.max(time, n.endTime ?? n.startTime), -Infinity);
+  const span = Math.max(500, end - start);
+  const fieldHeight = Math.min(3400, Math.max(500, span * 0.35));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(560, info.keyCount * 66 + 144);
+  canvas.height = fieldHeight + 210;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Promise.reject(new Error("Canvas is unavailable."));
+  const left = 105, top = 140, lane = (canvas.width - left - 35) / info.keyCount;
+  const y = (ms: number) => top + 16 + (info.upscroll ? ms - start : span - (ms - start)) / span * (fieldHeight - 32);
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.font = headFont(24); ctx.fillStyle = TEXT;
+  ctx.fillText(fitText(ctx, info.title, canvas.width - 64), 32, 42);
+  ctx.font = bodyFont(14); ctx.fillStyle = MUTED;
+  ctx.fillText(fitText(ctx, `${info.difficulty} · ${info.keyCount}K · ${info.notes.length} notes`, canvas.width - 64), 32, 69);
+  ctx.fillText(`${(start / 1000).toFixed(3)}s – ${(end / 1000).toFixed(3)}s`, 32, 93);
+  for (let c = 0; c < info.keyCount; c++) {
+    ctx.fillStyle = c % 2 ? "#171b28" : "#111521";
+    ctx.fillRect(left + c * lane, top, lane - 1, fieldHeight);
+    ctx.fillStyle = MUTED; ctx.textAlign = "center";
+    ctx.fillText(String(c + 1), left + (c + 0.5) * lane, top - 12);
+  }
+  ctx.textAlign = "right"; ctx.font = bodyFont(11);
+  const lines = gridLinesInRange(start, start + span, info.timingPoints, 1);
+  let lastLabel = -Infinity;
+  for (const line of lines) {
+    const py = y(line.time);
+    ctx.fillStyle = "#ffffff18"; ctx.fillRect(left, py, canvas.width - left - 35, 1);
+    if (Math.abs(py - lastLabel) >= 28) {
+      ctx.fillStyle = MUTED; ctx.fillText(`${(line.time / 1000).toFixed(2)}s`, left - 10, py + 4); lastLabel = py;
+    }
+  }
+  for (const note of info.notes) {
+    const x = left + note.column * lane + 5, py = y(note.startTime);
+    if (note.endTime !== undefined) {
+      const tail = y(note.endTime);
+      ctx.fillStyle = "#5eead459"; ctx.fillRect(x + 7, Math.min(py, tail), lane - 24, Math.max(2, Math.abs(tail - py)));
+      ctx.fillStyle = "#99f6e4"; ctx.fillRect(x, tail - 2, lane - 10, 4);
+    }
+    const divisor = nearestSnap(note.startTime, info.timingPoints).divisor;
+    ctx.fillStyle = gridLineColor(divisor === 1 ? 0 : 1, divisor);
+    ctx.fillRect(x, py - 5, lane - 10, 10);
+    ctx.fillStyle = "#ffffff80"; ctx.fillRect(x, py - 5, lane - 10, 2);
+  }
+  ctx.textAlign = "left"; ctx.fillStyle = MUTED; ctx.font = bodyFont(12);
+  ctx.fillText("CASCADE · Pattern selection", 32, canvas.height - 25);
+  return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("PNG export failed.")), "image/png"));
+}
 
 function headFont(size: number, weight = 700): string {
   return `${weight} ${size}px Quicksand, Inter, "Segoe UI", sans-serif`;

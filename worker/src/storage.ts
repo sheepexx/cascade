@@ -202,7 +202,7 @@ export async function handleStorageRoute(
 
 export type DesktopDownload = {
   version: string;
-  asset: "setup" | "msi" | "portable" | "other";
+  asset: "setup" | "msi" | "portable" | "appimage" | "deb" | "rpm" | "dmg" | "other";
 };
 
 const CRAWLER_RE = /bot|crawl|spider|slurp|preview|facebookexternalhit/i;
@@ -214,6 +214,10 @@ export function desktopDownloadTarget(key: string): DesktopDownload | null {
   if (/-setup\.exe$/i.test(file)) return { version, asset: "setup" };
   if (/\.msi$/i.test(file)) return { version, asset: "msi" };
   if (/_portable\.exe$/i.test(file)) return { version, asset: "portable" };
+  if (/\.AppImage$/i.test(file)) return { version, asset: "appimage" };
+  if (/\.deb$/i.test(file)) return { version, asset: "deb" };
+  if (/\.rpm$/i.test(file)) return { version, asset: "rpm" };
+  if (/\.dmg$/i.test(file)) return { version, asset: "dmg" };
   return { version, asset: "other" };
 }
 
