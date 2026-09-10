@@ -47,6 +47,7 @@ const FLAG_PERCENTILE = 0.9;
 const MIN_FLAGGED_WINDOWS = 3;
 const MIN_SHARE_MARGIN = 0.02;
 const MIN_COMPARABLE_WINDOWS = 8;
+const BRIDGE_MS = 2000;
 
 export type CorpusSpan = { start: number; end: number; peak: number; windows: number };
 
@@ -103,7 +104,7 @@ function mergeWindows(windows: PatternWindow[], key: WindowFeatureKey): CorpusSp
   const spans: CorpusSpan[] = [];
   for (const w of windows) {
     const last = spans[spans.length - 1];
-    if (last && w.time <= last.end + w.span / 2) {
+    if (last && w.time <= last.end + Math.max(BRIDGE_MS, w.span * 0.75)) {
       last.end = Math.max(last.end, w.time + w.span);
       last.peak = Math.max(last.peak, w[key]);
       last.windows += 1;

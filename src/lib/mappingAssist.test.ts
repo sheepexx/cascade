@@ -109,6 +109,15 @@ describe("pattern review", () => {
     expect(analyzePatterns({ ...d, notes: [note(0, 0, 500), note(540, 0)] }).findings.map(f => f.rule)).toEqual(["ln-gap"]);
     expect(analyzePatterns({ ...d, notes: [note(0, 0, 500), note(490, 0)] }).findings.map(f => f.rule)).not.toContain("ln-gap");
   });
+  it("groups nearby jack spikes into one passage and keeps distant ones apart", () => {
+    const stream = (from: number) => [0, 250, 500, 550, 800, 1050, 1300, 1350, 1600, 1850].map(t => note(from + t));
+    const { findings } = analyzePatterns({ ...makeDifficulty(), notes: [...stream(0), ...stream(20_000)] });
+    const jack = findings.find(f => f.rule === "jack-spike")!;
+    expect(jack.details).toHaveLength(2);
+    expect(jack.count).toBeGreaterThan(jack.details.length);
+    expect(jack.details[0].endTime).toBeGreaterThan(jack.details[0].time);
+    expect(jack.details[1].time).toBeGreaterThanOrEqual(20_000);
+  });
   it("does not give an empty map a perfect quality score", () => expect(readinessScore(0, [])).toBeNull());
   it("leaves a clean map at 100 and drops it for criteria breaches", () => {
     expect(readinessScore(500, [])).toBe(100);

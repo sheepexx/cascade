@@ -1,9 +1,9 @@
 import type { Difficulty, ManiaNote } from "../types";
 import { activeTimingAt } from "./timing";
-import type { AiModDetail, AiModSeverity } from "./aimod";
+import type { AiModDetail, AiModObject, AiModSeverity } from "./aimod";
 
 export type PatternRule = "jack-spike" | "hand-imbalance" | "anchor-overuse" | "ln-gap";
-export type PatternFinding = { rule: PatternRule; message: string; details: AiModDetail[] };
+export type PatternFinding = { rule: PatternRule; message: string; details: AiModDetail[]; count: number };
 export type PatternFeatures = { nps: number; lnRatio: number; jackFraction: number; handShare: number; anchorFraction: number; lnGapFraction: number };
 
 export const WINDOW_FEATURE_KEYS = ["nps", "jack", "hand", "anchor", "ln", "chord"] as const;
@@ -13,12 +13,39 @@ export type PatternWindow = WindowFeatures & { time: number; span: number; notes
 
 export const MIN_WINDOW_NOTES = 8;
 
+const GROUP_GAP_MS = 2000;
+
+type Spot = { time: number; column: number; value: number; context: number; objects: AiModObject[] };
+
+function groupSpots(spots: Spot[], describe: (group: Spot[]) => string): AiModDetail[] {
+  const sorted = spots.slice().sort((a, b) => a.time - b.time);
+  const details: AiModDetail[] = [];
+  let group: Spot[] = [];
+  const flush = () => {
+    if (!group.length) return;
+    const first = group[0], last = group[group.length - 1];
+    details.push({
+      time: first.time,
+      label: describe(group),
+      ...(group.length > 1 ? { endTime: last.time } : { objects: first.objects }),
+    });
+    group = [];
+  };
+  for (const spot of sorted) {
+    if (group.length && spot.time - group[group.length - 1].time > GROUP_GAP_MS) flush();
+    group.push(spot);
+  }
+  flush();
+  return details;
+}
+
 const median = (values: number[]) => { const v = values.slice().sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : 0; };
 const ref = (n: ManiaNote) => ({ time: n.startTime, column: n.column });
 
 export function analyzePatterns(difficulty: Difficulty): { findings: PatternFinding[]; features: PatternFeatures; windows: PatternWindow[] } {
   const notes = difficulty.notes.filter(n => Number.isFinite(n.startTime) && n.column >= 0 && n.column < difficulty.keyCount).slice().sort((a, b) => a.startTime - b.startTime);
-  const jacks: AiModDetail[] = [], gaps: AiModDetail[] = [], hands: AiModDetail[] = [], anchors: AiModDetail[] = [];
+  const jacks: Spot[] = [], gaps: Spot[] = [];
+  const hands: AiModDetail[] = [], anchors: AiModDetail[] = [];
   const lanes = Array.from({ length: difficulty.keyCount }, (_, c) => notes.filter(n => n.column === c));
   const jackNotes = new Set<ManiaNote>();
   let jackPairs = 0, longNotes = 0;
@@ -37,11 +64,11 @@ export function analyzePatterns(difficulty: Difficulty): { findings: PatternFind
           if (j !== i && delta > 0 && delta < beat * 4) context.push(delta);
         }
         const baseline = median(context);
-        if (context.length >= 3 && baseline >= gap * 2) jacks.push({ time: prev.startTime, objects: [ref(prev), ref(n)], label: `Lane ${n.column + 1}: ${Math.round(gap)} ms repeat versus ${Math.round(baseline)} ms nearby. Check whether this sudden jack is intended.` });
+        if (context.length >= 3 && baseline >= gap * 2) jacks.push({ time: prev.startTime, column: n.column, value: gap, context: baseline, objects: [ref(prev), ref(n)] });
       }
       if (prev.endTime !== undefined) {
         const releaseGap = n.startTime - prev.endTime;
-        if (releaseGap >= 30 && releaseGap < Math.min(90, beat / 8)) gaps.push({ time: prev.endTime, objects: [ref(prev), ref(n)], label: `Lane ${n.column + 1}: only ${Math.round(releaseGap)} ms to release and press again. Check the release rhythm.` });
+        if (releaseGap >= 30 && releaseGap < Math.min(90, beat / 8)) gaps.push({ time: prev.endTime, column: n.column, value: releaseGap, context: beat, objects: [ref(prev), ref(n)] });
       }
     }
   }
@@ -107,11 +134,17 @@ export function analyzePatterns(difficulty: Difficulty): { findings: PatternFind
     }
     time += window / 2;
   }
+  const jackDetails = groupSpots(jacks, group => group.length === 1
+    ? `Lane ${group[0].column + 1}: ${Math.round(group[0].value)} ms repeat versus ${Math.round(group[0].context)} ms nearby. Check whether this sudden jack is intended.`
+    : `${group.length} sudden jacks, tightest ${Math.round(Math.min(...group.map(s => s.value)))} ms versus about ${Math.round(median(group.map(s => s.context)))} ms nearby.`);
+  const gapDetails = groupSpots(gaps, group => group.length === 1
+    ? `Lane ${group[0].column + 1}: only ${Math.round(group[0].value)} ms to release and press again. Check the release rhythm.`
+    : `${group.length} tight releases, shortest ${Math.round(Math.min(...group.map(s => s.value)))} ms. Check the release rhythm.`);
   const findings: PatternFinding[] = [
-    { rule: "jack-spike", message: "Abrupt jack speed spikes", details: jacks },
-    { rule: "hand-imbalance", message: "Sustained hand imbalance", details: hands },
-    { rule: "anchor-overuse", message: "Heavy anchor repetition", details: anchors },
-    { rule: "ln-gap", message: "Tight long-note release gaps", details: gaps },
+    { rule: "jack-spike", message: "Abrupt jack speed spikes", details: jackDetails, count: jacks.length },
+    { rule: "hand-imbalance", message: "Sustained hand imbalance", details: hands, count: hands.length },
+    { rule: "anchor-overuse", message: "Heavy anchor repetition", details: anchors, count: anchors.length },
+    { rule: "ln-gap", message: "Tight long-note release gaps", details: gapDetails, count: gaps.length },
   ].filter(f => f.details.length > 0) as PatternFinding[];
   return { findings, windows, features: { nps: notes.length / Math.max(1, (end - start) / 1000), lnRatio: longNotes / Math.max(1, notes.length), jackFraction: jackPairs / Math.max(1, notes.length), handShare: maxShare, anchorFraction: anchorWindows / Math.max(1, windowCount), lnGapFraction: gaps.length / Math.max(1, longNotes) } };
 }
@@ -121,7 +154,7 @@ export type CriteriaPenalty = { severity: AiModSeverity; occurrences: number };
 export function readinessScore(noteCount: number, findings: PatternFinding[], criteria: CriteriaPenalty[] = []): number | null {
   if (noteCount < 32) return null;
   const spread = (occurrences: number) => occurrences / Math.max(100, noteCount) * 1000;
-  const pattern = findings.map(f => Math.min(25, 5 + spread(f.details.length) * (f.rule === "ln-gap" || f.rule === "jack-spike" ? 2 : 1)));
+  const pattern = findings.map(f => Math.min(25, 5 + spread(f.count) * (f.rule === "ln-gap" || f.rule === "jack-spike" ? 2 : 1)));
   const rules = criteria.map(c => c.severity === "error"
     ? Math.min(25, 12 + spread(c.occurrences))
     : Math.min(14, 5 + spread(c.occurrences)));
