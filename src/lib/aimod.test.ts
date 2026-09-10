@@ -100,6 +100,16 @@ describe("runAiMod", () => {
     expect(report.errors).toBe(0);
   });
 
+  it("drops the readiness score for ranking criteria breaches alone", () => {
+    const d = baseDiff();
+    d.notes = Array.from({ length: 15 }, (_, i) => [note(i * 2000, 0), note(i * 2000, 1), note(i * 2000, 2)]).flat();
+    d.notes.push(note(40_000, 3));
+    const report = runAiMod({ meta, difficulties: [d], audioFiles: files, bgFiles: bg });
+    expect(report.issues.filter((i) => i.category === "Patterns")).toHaveLength(0);
+    expect(report.issues.filter((i) => i.category === "Criteria" || i.category === "Guidelines").length).toBeGreaterThan(0);
+    expect(report.quality.difficulties[0].score).toBeLessThan(100);
+  });
+
   it("reports unsnapped objects in the Compose category", () => {
     const d = baseDiff();
     d.notes = [note(0), note(127, 1)];

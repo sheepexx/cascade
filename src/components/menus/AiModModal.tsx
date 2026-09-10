@@ -151,12 +151,12 @@ export function AiModModal({
         {report && <section className="rounded-xl border border-teal-300/20 bg-teal-300/5 p-4">
           <div className="flex items-start justify-between gap-4"><div><h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">Ranking readiness <InfoTip content={<>
             <p className="m-0">Heuristic guidance, not a probability of being ranked. The set score uses its lowest difficulty score.</p>
-            <p className="mt-2">Each difficulty is judged at a tier estimated from its star rating, not from its name, and that tier decides which ranking criteria guidelines apply.</p>
-            <p className="mt-2">Patterns are compared against {patternCorpus.source.difficulties} difficulties from {patternCorpus.source.mapsets} mapsets ranked between {patternCorpus.source.rankedFrom} and {patternCorpus.source.rankedTo}, so "unusual" means rare among them, not wrong.</p>
+            <p className="mt-2">Each difficulty starts at 100 and drops for every ranking criteria breach, guideline breach and pattern finding it carries, weighted by how widespread each one is.</p>
+            <p className="mt-2">Each difficulty is judged at a tier estimated from its star rating, not from its name, and that tier decides which guidelines apply. Patterns are compared against {patternCorpus.source.difficulties} difficulties from {patternCorpus.source.mapsets} mapsets ranked between {patternCorpus.source.rankedFrom} and {patternCorpus.source.rankedTo}. That comparison flags what is rare among them, not what is wrong, so it does not move the score.</p>
             <p className="mt-2">Jacks, anchors and asymmetry can be intentional. Musical interpretation, difficulty spread and full ranking criteria still need human review.</p>
           </>} /></h3>
             <p className={`mt-1 text-xs ${report.errors ? "text-amber-200" : "text-teal-200"}`}>{report.errors ? `${report.errors} structural issue${report.errors === 1 ? "" : "s"} across the mapset to fix before review` : "No automatic structural blockers found"}</p></div>
-            <div className="text-right"><strong className="text-xl text-teal-100">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-xs text-slate-500"> / 100</span>}</strong><p className="text-[10px] text-slate-400">Pattern review score</p></div>
+            <div className="text-right"><strong className="text-xl text-teal-100">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-xs text-slate-500"> / 100</span>}</strong><p className="text-[10px] text-slate-400">Readiness score</p></div>
           </div>
           <ul className="mt-3 flex flex-col gap-2">{report.quality.difficulties.map(d => <li key={d.id} className="rounded-lg bg-black/15 p-2 text-xs">
             <div className="flex justify-between gap-3"><span className="text-slate-200">{d.name} <span className="whitespace-nowrap text-[10px] text-slate-500">judged as {d.tier}</span></span><span className="text-teal-200">{d.score === null ? "Too few notes to score" : `${d.score}/100`}</span></div>

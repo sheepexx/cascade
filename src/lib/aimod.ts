@@ -2,7 +2,7 @@ import type { Difficulty, LoadedFile, ManiaNote, SongMeta, TimingPoint } from ".
 import { difficultyRate } from "./rateChange";
 import { activeTimingAt, beatLength, redPoints, sortedPoints } from "./timing";
 import { formatUiNumber } from "./formatUiNumber";
-import { analyzePatterns, patternQualityScore, type PatternFeatures } from "./patternQuality";
+import { analyzePatterns, readinessScore, type CriteriaPenalty, type PatternFeatures } from "./patternQuality";
 import { compareToCorpus, formatCorpusValue, type CorpusComparison } from "./patternCorpus";
 import { checkRankingCriteria, difficultyTier, type Tier } from "./rankingCriteria";
 
@@ -641,6 +641,8 @@ export function runAiMod({
       });
   }
 
+  const criteriaPenalties = new Map<string, CriteriaPenalty[]>();
+  const mapsetPenalties: CriteriaPenalty[] = [];
   for (const finding of checkRankingCriteria(difficulties, audioDurationMs)) {
     const shared = {
       category: (finding.guideline ? "Guidelines" : "Criteria") as AiModCategory,
@@ -651,6 +653,12 @@ export function runAiMod({
     };
     if (finding.details && finding.details.length > 0) addGroup(shared, finding.details);
     else add({ ...shared, time: finding.time });
+    const penalty: CriteriaPenalty = {
+      severity: finding.severity,
+      occurrences: Math.max(1, finding.details?.length ?? 1),
+    };
+    if (!finding.diffId) mapsetPenalties.push(penalty);
+    else criteriaPenalties.set(finding.diffId, [...(criteriaPenalties.get(finding.diffId) ?? []), penalty]);
   }
 
   const qualityDiffs = difficulties.map(d => {
@@ -665,7 +673,8 @@ export function runAiMod({
       message: `[${d.name}] ${outlier.label[0].toUpperCase()}${outlier.label.slice(1)} runs heavier than ${Math.round(outlier.percentile * 100)}% of comparable ranked maps.`,
       diffId: d.id,
     }, outlier.spots.map(spot => ({ time: spot.time, label: `${formatCorpusValue(outlier.key, spot.value)} here, against a ranked 95th percentile of ${formatCorpusValue(outlier.key, outlier.threshold)}.` })));
-    return { id: d.id, name: d.name, tier: difficultyTier(d), score: patternQualityScore(d.notes.length, analysis.findings), features: analysis.features, comparison };
+    const rules = [...mapsetPenalties, ...(criteriaPenalties.get(d.id) ?? [])];
+    return { id: d.id, name: d.name, tier: difficultyTier(d), score: readinessScore(d.notes.length, analysis.findings, rules), features: analysis.features, comparison };
   });
   const scores = qualityDiffs.map(d => d.score);
   const quality = { score: scores.length && scores.every(s => s !== null) ? Math.min(...scores as number[]) : null, difficulties: qualityDiffs };

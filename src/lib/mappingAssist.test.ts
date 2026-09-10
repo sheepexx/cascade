@@ -3,7 +3,7 @@ import { detectOnsetsFromChannels } from "./bpmDetect";
 import { suggestGhostNotes } from "./ghostNotes";
 import { jumpSnapshotHistory, describeSnapshotChange } from "./editorHistory";
 import { batchApplyDifficulties } from "./batchApply";
-import { analyzePatterns, patternQualityScore } from "./patternQuality";
+import { analyzePatterns, readinessScore } from "./patternQuality";
 import { compareToCorpus, patternCorpus } from "./patternCorpus";
 import { calibrationResult, calibrationTap } from "./audioCalibration";
 import { encodeNativePcm } from "./nativeAudio";
@@ -109,7 +109,18 @@ describe("pattern review", () => {
     expect(analyzePatterns({ ...d, notes: [note(0, 0, 500), note(540, 0)] }).findings.map(f => f.rule)).toEqual(["ln-gap"]);
     expect(analyzePatterns({ ...d, notes: [note(0, 0, 500), note(490, 0)] }).findings.map(f => f.rule)).not.toContain("ln-gap");
   });
-  it("does not give an empty map a perfect quality score", () => expect(patternQualityScore(0, [])).toBeNull());
+  it("does not give an empty map a perfect quality score", () => expect(readinessScore(0, [])).toBeNull());
+  it("leaves a clean map at 100 and drops it for criteria breaches", () => {
+    expect(readinessScore(500, [])).toBe(100);
+    expect(readinessScore(500, [], [{ severity: "warning", occurrences: 1 }])).toBe(93);
+    expect(readinessScore(500, [], [{ severity: "error", occurrences: 1 }])).toBe(86);
+  });
+  it("weights a criteria breach by how widespread it is, up to a cap", () => {
+    const once = readinessScore(500, [], [{ severity: "warning", occurrences: 1 }])!;
+    const often = readinessScore(500, [], [{ severity: "warning", occurrences: 20 }])!;
+    expect(often).toBeLessThan(once);
+    expect(readinessScore(500, [], [{ severity: "warning", occurrences: 5000 }])).toBe(86);
+  });
 });
 
 describe("ranked corpus comparison", () => {

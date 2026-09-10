@@ -1,6 +1,6 @@
 import type { Difficulty, ManiaNote } from "../types";
 import { activeTimingAt } from "./timing";
-import type { AiModDetail } from "./aimod";
+import type { AiModDetail, AiModSeverity } from "./aimod";
 
 export type PatternRule = "jack-spike" | "hand-imbalance" | "anchor-overuse" | "ln-gap";
 export type PatternFinding = { rule: PatternRule; message: string; details: AiModDetail[] };
@@ -116,8 +116,14 @@ export function analyzePatterns(difficulty: Difficulty): { findings: PatternFind
   return { findings, windows, features: { nps: notes.length / Math.max(1, (end - start) / 1000), lnRatio: longNotes / Math.max(1, notes.length), jackFraction: jackPairs / Math.max(1, notes.length), handShare: maxShare, anchorFraction: anchorWindows / Math.max(1, windowCount), lnGapFraction: gaps.length / Math.max(1, longNotes) } };
 }
 
-export function patternQualityScore(noteCount: number, findings: PatternFinding[]): number | null {
+export type CriteriaPenalty = { severity: AiModSeverity; occurrences: number };
+
+export function readinessScore(noteCount: number, findings: PatternFinding[], criteria: CriteriaPenalty[] = []): number | null {
   if (noteCount < 32) return null;
-  const penalties = findings.map(f => Math.min(25, 5 + f.details.length / Math.max(100, noteCount) * 1000 * (f.rule === "ln-gap" || f.rule === "jack-spike" ? 2 : 1)));
-  return Math.max(0, Math.round(100 - penalties.reduce((a, b) => a + b, 0)));
+  const spread = (occurrences: number) => occurrences / Math.max(100, noteCount) * 1000;
+  const pattern = findings.map(f => Math.min(25, 5 + spread(f.details.length) * (f.rule === "ln-gap" || f.rule === "jack-spike" ? 2 : 1)));
+  const rules = criteria.map(c => c.severity === "error"
+    ? Math.min(25, 12 + spread(c.occurrences))
+    : Math.min(14, 5 + spread(c.occurrences)));
+  return Math.max(0, Math.round(100 - [...pattern, ...rules].reduce((a, b) => a + b, 0)));
 }
