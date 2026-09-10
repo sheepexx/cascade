@@ -18,7 +18,6 @@ import { sanitizePackFilename } from "../lib/packCreator";
 import { normalizeTimingPoints, type LoadedFile } from "../types";
 import { SampleMapsIcon } from "./ui/StartIcons";
 import { AsyncImage, SkeletonCards } from "./ui/Skeleton";
-import { InfoTip } from "./ui/Tooltip";
 
 type SelectionKey = string;
 
@@ -209,9 +208,8 @@ export function PackProjectBrowser({
         </>
       }
     >
-      <p className="mb-4 flex items-center gap-1.5 text-xs text-slate-500">
+      <p className="mb-4 text-xs text-slate-500">
         Pick maps from your saved projects
-        <InfoTip content="Click a card to select it, click again to deselect. Every difficulty of a selected project becomes one entry in the pack." />
       </p>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
 

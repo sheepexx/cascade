@@ -443,7 +443,7 @@ export function SvModal({
           Scroll velocity changes how fast notes travel without touching their timing.
           <InfoTip content={<>
             <p className="m-0">Preview follows time-based scroll, like Quaver.</p>
-            <p className="mt-2">Turn on &ldquo;Preview SV while playing&rdquo; in Settings or press F5 to feel it. Undo with Ctrl+Z.</p>
+            <p className="mt-2">Turn on &ldquo;Preview SV while playing&rdquo; in Settings or press F5 to feel it.</p>
           </>} />
         </p>
 

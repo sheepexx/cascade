@@ -40,9 +40,8 @@ export function ToolsModal({
   return (
     <Modal open={open} onClose={onClose} title="Tools">
       <div className="flex flex-col gap-4">
-        <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+        <p className="text-[11px] text-slate-500">
           Active difficulty: {riceCount} rice · {holdCount} holds
-          <InfoTip content="Every tool here changes only the active difficulty, and each change is undoable with Ctrl+Z." />
         </p>
 
         <div className="rounded-xl border border-ink-500/60 bg-ink-700/40 p-3">

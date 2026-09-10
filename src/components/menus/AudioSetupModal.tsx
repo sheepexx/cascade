@@ -45,7 +45,7 @@ export function AudioSetupModal({ exclusive, onExclusive, currentOffset, onApply
     <label className="flex flex-col gap-2 text-xs text-slate-300">Output mode<Select disabled={phase === "running"} value={exclusive ? "exclusive" : "shared"} onChange={e => { audio.pause(); setPhase("intro"); setTaps({}); onExclusive(e.target.value === "exclusive"); }}>
       <option value="shared">Shared audio (Web Audio)</option><option value="exclusive" disabled={!supportsExclusiveAudio()}>WASAPI exclusive · Windows desktop</option>
     </Select></label>
-    <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">What exclusive mode does<InfoTip content="Exclusive mode takes control of the default Windows output, so other apps may be silent until you switch back. Pitch-preserving playback always uses shared audio." /></p>
+    <p className="mt-2 text-[11px] text-slate-400">Exclusive mode takes control of the default Windows output, so other apps may be silent until you switch back. Pitch-preserving playback always uses shared audio.</p>
     <p role="status" className="mt-3 text-xs text-teal-200">{loading ? "Opening the audio device…" : audio.nativeAudio.selected ? `${audio.nativeAudio.device} · ${audio.nativeAudio.latencyMs?.toFixed(1)} ms buffer` : "Shared audio · low-latency interactive playback"}</p>
     {audio.nativeAudio.fallbackReason && <p role="alert" className="mt-2 rounded-lg bg-amber-300/10 p-3 text-xs text-amber-200">{audio.nativeAudio.fallbackReason} Shared audio is active.</p>}
     <div className="flex items-center gap-1.5 my-5 rounded-xl border border-white/10 bg-white/[0.025] p-4">
