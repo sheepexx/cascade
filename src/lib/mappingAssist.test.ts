@@ -143,6 +143,16 @@ describe("ranked corpus comparison", () => {
     expect(outliers.map(o => o.key)).toContain("anchor");
     expect(outliers.find(o => o.key === "anchor")!.percentile).toBeGreaterThanOrEqual(0.9);
   });
+  it("merges overlapping flagged windows into ordered, disjoint passages", () => {
+    const anchored = { ...makeDifficulty(), notes: spread(120, i => (i % 10 < 7 ? 0 : 1 + (i % 3))) };
+    const outlier = compareToCorpus(4, analyzePatterns(anchored).windows).outliers.find(o => o.key === "anchor")!;
+    expect(outlier.spans.reduce((n, s) => n + s.windows, 0)).toBeGreaterThan(outlier.spans.length);
+    for (const span of outlier.spans) {
+      expect(span.end).toBeGreaterThan(span.start);
+      expect(span.peak).toBeGreaterThan(outlier.threshold);
+    }
+    for (let i = 1; i < outlier.spans.length; i++) expect(outlier.spans[i].start).toBeGreaterThan(outlier.spans[i - 1].end);
+  });
   it("leaves an even stream inside the ranked range", () => {
     const even = { ...makeDifficulty(), notes: spread(120, i => [0, 1, 2, 3][i % 4]) };
     const { bucket, outliers } = compareToCorpus(4, analyzePatterns(even).windows);

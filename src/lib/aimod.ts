@@ -124,6 +124,8 @@ export type AiModObject = { time: number; column: number };
 export type AiModDetail = {
   time: number;
   label: string;
+  /** End of the passage this detail covers, when it spans one rather than a moment. */
+  endTime?: number;
   objects?: AiModObject[];
 };
 
@@ -672,7 +674,7 @@ export function runAiMod({
       category: "Patterns", severity: "warning", rule: `corpus-${outlier.key}`,
       message: `[${d.name}] ${outlier.label[0].toUpperCase()}${outlier.label.slice(1)} runs heavier than ${Math.round(outlier.percentile * 100)}% of comparable ranked maps.`,
       diffId: d.id,
-    }, outlier.spots.map(spot => ({ time: spot.time, label: `${formatCorpusValue(outlier.key, spot.value)} here, against a ranked 95th percentile of ${formatCorpusValue(outlier.key, outlier.threshold)}.` })));
+    }, outlier.spans.map(span => ({ time: span.start, endTime: span.end, label: `peaks at ${formatCorpusValue(outlier.key, span.peak)}, against a ranked 95th percentile of ${formatCorpusValue(outlier.key, outlier.threshold)}.` })));
     const rules = [...mapsetPenalties, ...(criteriaPenalties.get(d.id) ?? [])];
     return { id: d.id, name: d.name, tier: difficultyTier(d), score: readinessScore(d.notes.length, analysis.findings, rules), features: analysis.features, comparison };
   });

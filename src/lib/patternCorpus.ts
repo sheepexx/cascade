@@ -48,6 +48,8 @@ const MIN_FLAGGED_WINDOWS = 3;
 const MIN_SHARE_MARGIN = 0.02;
 const MIN_COMPARABLE_WINDOWS = 8;
 
+export type CorpusSpan = { start: number; end: number; peak: number; windows: number };
+
 export type CorpusOutlier = {
   key: WindowFeatureKey;
   label: string;
@@ -55,7 +57,7 @@ export type CorpusOutlier = {
   typicalShare: number;
   percentile: number;
   threshold: number;
-  spots: { time: number; value: number }[];
+  spans: CorpusSpan[];
 };
 
 export type CorpusComparison = {
@@ -97,6 +99,19 @@ export function findCorpusBucket(keyCount: number, medianNps: number): CorpusBuc
   return null;
 }
 
+function mergeWindows(windows: PatternWindow[], key: WindowFeatureKey): CorpusSpan[] {
+  const spans: CorpusSpan[] = [];
+  for (const w of windows) {
+    const last = spans[spans.length - 1];
+    if (last && w.time <= last.end + w.span / 2) {
+      last.end = Math.max(last.end, w.time + w.span);
+      last.peak = Math.max(last.peak, w[key]);
+      last.windows += 1;
+    } else spans.push({ start: w.time, end: w.time + w.span, peak: w[key], windows: 1 });
+  }
+  return spans;
+}
+
 export function compareToCorpus(keyCount: number, windows: PatternWindow[]): CorpusComparison {
   if (windows.length < MIN_COMPARABLE_WINDOWS) return EMPTY_COMPARISON;
   const medianNps = quantileOf(windows.map((w) => w.nps).sort((a, b) => a - b), 0.5);
@@ -125,7 +140,7 @@ export function compareToCorpus(keyCount: number, windows: PatternWindow[]): Cor
       typicalShare: shareValues[0],
       percentile,
       threshold,
-      spots: above.map((w) => ({ time: w.time, value: w[key] })),
+      spans: mergeWindows(above, key),
     });
   }
   outliers.sort((a, b) => b.percentile - a.percentile || b.share - a.share);

@@ -261,9 +261,11 @@ export function AiModModal({
                           <button
                             onClick={() => onJump(issue, d.time)}
                             className="font-mono text-accent hover:underline"
-                            title="Jump to this time"
+                            title={d.endTime === undefined ? "Jump to this time" : "Jump to the start of this passage"}
                           >
-                            {formatAiModTime(d.time)} {formatAiModObjects(d.objects)}
+                            {formatAiModTime(d.time)}
+                            {d.endTime !== undefined && ` → ${formatAiModTime(d.endTime)}`}{" "}
+                            {formatAiModObjects(d.objects)}
                           </button>
                           <span className="text-slate-400">- {d.label}</span>
                         </li>
