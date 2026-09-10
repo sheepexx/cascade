@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  allowedContentType,
+  applyAssetResponseSecurity,
   handleStorageRoute,
   r2BucketUsage,
   resolveRange,
@@ -9,6 +11,163 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("asset content security", () => {
+  it("allows supported media and archive types but rejects active documents", () => {
+    expect(allowedContentType("image/png")).toBe(true);
+    expect(allowedContentType("audio/mpeg")).toBe(true);
+    expect(allowedContentType("application/ogg")).toBe(true);
+    expect(allowedContentType("video/webm")).toBe(true);
+    expect(allowedContentType("application/zip")).toBe(true);
+
+    expect(allowedContentType("image/svg+xml")).toBe(false);
+    expect(allowedContentType("text/html")).toBe(false);
+    expect(allowedContentType("application/xhtml+xml")).toBe(false);
+    expect(allowedContentType("application/xml")).toBe(false);
+  });
+
+  it("forces previously stored active content to download as inert bytes", () => {
+    const headers = new Headers({ "Content-Type": "image/svg+xml" });
+
+    applyAssetResponseSecurity(headers);
+
+    expect(headers.get("Content-Type")).toBe("application/octet-stream");
+    expect(headers.get("Content-Disposition")).toBe("attachment");
+    expect(headers.get("Content-Security-Policy")).toContain("sandbox");
+    expect(headers.get("Content-Security-Policy")).toContain("default-src 'none'");
+  });
+
+  it("keeps safe media inline while still applying a sandbox policy", () => {
+    const headers = new Headers({ "Content-Type": "image/jpeg" });
+
+    applyAssetResponseSecurity(headers);
+
+    expect(headers.get("Content-Type")).toBe("image/jpeg");
+    expect(headers.has("Content-Disposition")).toBe(false);
+    expect(headers.get("Content-Security-Policy")).toContain("sandbox");
+  });
+});
+
+describe("shared publication ownership", () => {
+  const owner = "6994f386-9685-416b-91c1-a9e47880d799";
+  const projectId = "15dfbb4a-41d7-4a90-8213-3cb62649ae91";
+  const auth: StorageAuthContext = {
+    uid: owner,
+    isAdmin: false,
+    supabaseToken: "user-token",
+  };
+
+  it("rejects an upload that omits its project id", async () => {
+    const put = vi.fn();
+    const env = sharedUploadEnv(put);
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse([])));
+    const request = sharedUploadRequest();
+
+    const response = await handleStorageRoute(
+      request,
+      new URL(request.url),
+      env,
+      async () => auth,
+    );
+
+    expect(response?.status).toBe(400);
+    expect(await response?.json()).toEqual({ error: "valid project id required" });
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("rejects an upload for a project the caller does not own", async () => {
+    const put = vi.fn();
+    const env = sharedUploadEnv(put);
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse([])));
+    const request = sharedUploadRequest(projectId);
+
+    const response = await handleStorageRoute(
+      request,
+      new URL(request.url),
+      env,
+      async () => auth,
+    );
+
+    expect(response?.status).toBe(403);
+    expect(await response?.json()).toEqual({
+      error: "only the project owner can publish",
+    });
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("uploads only after the caller's project ownership is confirmed", async () => {
+    const put = vi.fn(async (key: string) => ({
+      key,
+      size: 3,
+      etag: "etag",
+    }));
+    const env = sharedUploadEnv(put);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse([{ id: projectId }]))
+      .mockResolvedValueOnce(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+    const request = sharedUploadRequest(projectId);
+
+    const response = await handleStorageRoute(
+      request,
+      new URL(request.url),
+      env,
+      async () => auth,
+    );
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toMatchObject({
+      path: `${owner}/testslug/card.png`,
+      bytes: 3,
+    });
+    expect(put).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0][0])).toContain(`/projects?`);
+    expect(String(fetchMock.mock.calls[1][0])).toContain(`/shared_maps?`);
+  });
+
+  function sharedUploadRequest(ownedProjectId?: string): Request {
+    const query = ownedProjectId ? `?projectId=${ownedProjectId}` : "";
+    return new Request(`https://worker.test/storage/shared/testslug/card.png${query}`, {
+      method: "PUT",
+      headers: {
+        "Content-Length": "3",
+        "Content-Type": "image/png",
+      },
+      body: "png",
+    });
+  }
+
+  function sharedUploadEnv(put: ReturnType<typeof vi.fn>): WorkerEnv {
+    const bucket = {
+      put,
+    } as unknown as R2Bucket;
+    return {
+      PROJECT_ASSETS: bucket,
+      SHARED_ASSETS: bucket,
+      CLIENT_ID: "60987",
+      FRONTEND_URL: "https://cascade.sheepex.net",
+      OSU_REDIRECT_URI:
+        "https://mania-editor.noahcraft01.workers.dev/auth/osu/callback",
+      SUPABASE_URL: "https://splqsxhwdusjeqthinxz.supabase.co",
+      SUPABASE_STORAGE_FALLBACK: "false",
+      SUPABASE_STORAGE_ALLOWANCE_BYTES: "1073741824",
+      R2_STORAGE_ALLOWANCE_BYTES: "10737418240",
+      MAX_ASSET_BYTES: "62914560",
+      CLIENT_SECRET: "client-secret",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_JWT_SECRET: "jwt-secret",
+      COOKIE_SECRET: "cookie-secret",
+    };
+  }
+
+  function jsonResponse(value: unknown): Response {
+    return new Response(JSON.stringify(value), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 });
 
 describe("project deletion", () => {

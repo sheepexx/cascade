@@ -163,19 +163,17 @@ export async function handleStorageRoute(
     if (sharedUpload) {
       const auth = await authenticate();
       if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
-      if (await fetchSharedMapStorageRow(sharedUpload[1], env)) {
-        return storageJson({ error: "shared slug already exists" }, 409, env);
-      }
       const relativePath = decodeSafePath(sharedUpload[2]);
       if (!relativePath) return storageJson({ error: "invalid object path" }, 400, env);
       const projectId = url.searchParams.get("projectId");
-      if (projectId) {
-        if (!UUID_RE.test(projectId)) {
-          return storageJson({ error: "invalid project id" }, 400, env);
-        }
-        if (!(await projectOwnedBy(env, auth.supabaseToken, projectId, auth.uid))) {
-          return storageJson({ error: "only the project owner can publish" }, 403, env);
-        }
+      if (!projectId || !UUID_RE.test(projectId)) {
+        return storageJson({ error: "valid project id required" }, 400, env);
+      }
+      if (!(await projectOwnedBy(env, auth.supabaseToken, projectId, auth.uid))) {
+        return storageJson({ error: "only the project owner can publish" }, 403, env);
+      }
+      if (await fetchSharedMapStorageRow(sharedUpload[1], env)) {
+        return storageJson({ error: "shared slug already exists" }, 409, env);
       }
       const key = `${auth.uid}/${sharedUpload[1]}/${relativePath}`;
       return uploadObject(req, env.SHARED_ASSETS, key, true, auth.uid, env);
@@ -200,9 +198,20 @@ export async function handleStorageRoute(
   return storageJson({ error: "not found" }, 404, env);
 }
 
+export const DESKTOP_DOWNLOAD_ASSETS = [
+  "setup",
+  "msi",
+  "portable",
+  "appimage",
+  "deb",
+  "rpm",
+  "dmg",
+  "other",
+] as const;
+
 export type DesktopDownload = {
   version: string;
-  asset: "setup" | "msi" | "portable" | "appimage" | "deb" | "rpm" | "dmg" | "other";
+  asset: (typeof DESKTOP_DOWNLOAD_ASSETS)[number];
 };
 
 const CRAWLER_RE = /bot|crawl|spider|slurp|preview|facebookexternalhit/i;
@@ -700,6 +709,7 @@ async function serveR2Object(
     if (!object) return null;
     const headers = objectHeaders(env, isPublic);
     object.writeHttpMetadata(headers);
+    applyAssetResponseSecurity(headers);
     headers.set("Content-Length", String(object.size));
     headers.set("ETag", object.httpEtag);
     headers.set("Accept-Ranges", "bytes");
@@ -711,6 +721,7 @@ async function serveR2Object(
   if (!object) return null;
   const headers = objectHeaders(env, isPublic);
   object.writeHttpMetadata(headers);
+  applyAssetResponseSecurity(headers);
   headers.set("ETag", object.httpEtag);
   headers.set("Accept-Ranges", "bytes");
   const resolvedRange = object.range ? resolveRange(object.range, object.size) : null;
@@ -778,6 +789,7 @@ async function serveSupabaseObject(
     const value = response.headers.get(name);
     if (value) outputHeaders.set(name, value);
   }
+  applyAssetResponseSecurity(outputHeaders);
   return new Response(req.method === "HEAD" ? null : response.body, {
     status: response.status,
     headers: outputHeaders,
@@ -1121,15 +1133,61 @@ function normalizedContentType(value: string | null): string {
   return value?.split(";", 1)[0].trim().toLowerCase() || "application/octet-stream";
 }
 
-function allowedContentType(contentType: string): boolean {
+const INLINE_ASSET_CONTENT_TYPES = new Set([
+  "audio/aac",
+  "audio/flac",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-wav",
+  "application/ogg",
+  "image/avif",
+  "image/bmp",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "video/mp4",
+  "video/mpeg",
+  "video/ogg",
+  "video/quicktime",
+  "video/webm",
+  "video/x-flv",
+  "video/x-m4v",
+  "video/x-ms-wmv",
+  "video/x-msvideo",
+]);
+
+const DOWNLOAD_ASSET_CONTENT_TYPES = new Set([
+  "application/octet-stream",
+  "application/x-zip-compressed",
+  "application/zip",
+]);
+
+export function allowedContentType(contentType: string): boolean {
   return (
-    contentType.startsWith("audio/") ||
-    contentType.startsWith("image/") ||
-    contentType === "application/octet-stream" ||
-    contentType === "application/ogg" ||
-    contentType === "application/zip" ||
-    contentType === "application/x-zip-compressed"
+    INLINE_ASSET_CONTENT_TYPES.has(contentType) ||
+    DOWNLOAD_ASSET_CONTENT_TYPES.has(contentType)
   );
+}
+
+/**
+ * R2 metadata is user-controlled at upload time. Keep active or unknown legacy
+ * objects from being rendered as same-origin documents even after uploads have
+ * been restricted to the allowlist above.
+ */
+export function applyAssetResponseSecurity(headers: Headers): void {
+  headers.set(
+    "Content-Security-Policy",
+    "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'",
+  );
+  const contentType = normalizedContentType(headers.get("Content-Type"));
+  if (!INLINE_ASSET_CONTENT_TYPES.has(contentType)) {
+    headers.set("Content-Type", "application/octet-stream");
+    headers.set("Content-Disposition", "attachment");
+  }
 }
 
 function validSkinFilename(filename: string | null): filename is string {

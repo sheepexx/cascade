@@ -2506,6 +2506,10 @@ export default function App() {
   const publishCurrentMap = useCallback(async (): Promise<string> => {
     const owner = authUserRef.current;
     if (!owner) throw new Error("Sign in to publish a map.");
+    const projectId = cloudProjectIdRef.current;
+    if (!projectId) {
+      throw new Error("Save this map to your account before publishing it.");
+    }
     const data = {
       meta: metaRef.current,
       timingPoints: timingPointsRef.current,
@@ -2552,7 +2556,7 @@ export default function App() {
     const previewDifficulty = data.difficulties.find((d) => d.notes.length);
     const slug = await publishSharedMap({
       ownerId: owner.id,
-      projectId: cloudProjectIdRef.current,
+      projectId,
       data,
       audioFiles: sharedAudioFiles,
       previewAudioName: previewDifficulty?.audioFilename ?? null,

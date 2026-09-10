@@ -2,6 +2,7 @@ import { isAudioName, isImageName, parseSmFile, type ParsedSm } from "./smImport
 import { buildOsz } from "./oszExport";
 import { sanitizePackFilename } from "./packCreator";
 import { makeDifficulty, normalizeTimingPoints, type LoadedFile } from "../types";
+import { loadSafeZip } from "./archiveLimits";
 
 export type PackSongInfo = {
   title: string;
@@ -261,8 +262,7 @@ export async function packSongToOszFile(song: PackSong): Promise<File> {
 }
 
 export async function scanPackFromZip(file: File): Promise<PackSong[]> {
-  const { default: JSZip } = await import("jszip");
-  const zip = await JSZip.loadAsync(file);
+  const zip = await loadSafeZip(file);
   const entries = Object.values(zip.files).filter((e) => !e.dir);
   const chartBase = (name: string) => name.split("/").pop() ?? name;
 

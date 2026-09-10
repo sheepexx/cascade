@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{Ipv4Addr, TcpListener, TcpStream};
 use std::time::Duration;
 
+mod archive;
 mod launch;
 mod osu;
 mod presence;

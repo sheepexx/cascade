@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { loadSafeZip } from "./archiveLimits";
 import { uid, makeDifficulty, MIN_KEYS, MAX_KEYS, type ManiaNote } from "../types";
 import {
   PACK_DEFAULT_HP,
@@ -257,7 +258,7 @@ export async function importOszForPack(
   file: File,
   sourceLabel?: string,
 ): Promise<PackImportResult> {
-  const zip = await JSZip.loadAsync(file);
+  const zip = await loadSafeZip(file);
   const archiveId = uid("packsrc");
   const problems: string[] = [];
 

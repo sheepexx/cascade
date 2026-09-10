@@ -180,9 +180,9 @@ export async function uploadSharedAsset(
   slug: string,
   relativePath: string,
   blob: Blob,
-  projectId: string | null,
+  projectId: string,
 ): Promise<string> {
-  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  const query = `?projectId=${encodeURIComponent(projectId)}`;
   const result = await workerJson<UploadResult>(
     `/storage/shared/${encodeURIComponent(slug)}/${encodeObjectPath(relativePath)}${query}`,
     {

@@ -1,3 +1,4 @@
+import { MAX_KEYS } from "../types";
 import type { Difficulty, ManiaNote, SongMeta, TimingPoint } from "../types";
 
 export type DocState = {
@@ -26,6 +27,80 @@ export type DiffFieldOp = {
 };
 
 export type CollabOp = NoteOp | DiffFieldOp;
+
+export const MAX_COLLAB_NOTES_PER_OP = 10_000;
+const MAX_COLLAB_ID_LENGTH = 256;
+const MAX_SAMPLE_FILE_LENGTH = 1024;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isBoundedString(value: unknown, max: number): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= max;
+}
+
+function isOptionalFiniteNumber(value: unknown): boolean {
+  return value === undefined || isFiniteNumber(value);
+}
+
+function isManiaNote(value: unknown): value is ManiaNote {
+  if (!isRecord(value)) return false;
+  if (!isBoundedString(value.id, MAX_COLLAB_ID_LENGTH)) return false;
+  if (!Number.isInteger(value.column) || (value.column as number) < 0) return false;
+  if ((value.column as number) >= MAX_KEYS) return false;
+  if (!isFiniteNumber(value.startTime)) return false;
+  if (value.endTime !== undefined) {
+    if (!isFiniteNumber(value.endTime) || value.endTime <= value.startTime) return false;
+  }
+  if (!isOptionalFiniteNumber(value.hitSound)) return false;
+  if (!isOptionalFiniteNumber(value.sampleSet)) return false;
+  if (!isOptionalFiniteNumber(value.additionSet)) return false;
+  if (!isOptionalFiniteNumber(value.sampleIndex)) return false;
+  if (!isOptionalFiniteNumber(value.sampleVolume)) return false;
+  if (
+    value.sampleFile !== undefined &&
+    (typeof value.sampleFile !== "string" || value.sampleFile.length > MAX_SAMPLE_FILE_LENGTH)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isNoteArray(value: unknown): value is ManiaNote[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= MAX_COLLAB_NOTES_PER_OP &&
+    value.every(isManiaNote)
+  );
+}
+
+/** Validate untrusted Realtime payloads before they reach editor state. */
+export function isCollabOp(value: unknown): value is CollabOp {
+  if (!isRecord(value) || !isBoundedString(value.diffId, MAX_COLLAB_ID_LENGTH)) {
+    return false;
+  }
+  if (value.t === "note.add" || value.t === "note.remove") {
+    return isNoteArray(value.notes);
+  }
+  if (value.t === "note.update") {
+    return isNoteArray(value.before) && isNoteArray(value.after);
+  }
+  if (value.t !== "diff.fields" || !isRecord(value.fields)) return false;
+  const entries = Object.entries(value.fields);
+  return (
+    entries.length > 0 &&
+    entries.every(
+      ([field, fieldValue]) =>
+        DIFF_FIELDS.includes(field as DiffField) &&
+        (fieldValue === null || isFiniteNumber(fieldValue)),
+    )
+  );
+}
 
 export function applyDiffFieldOp(
   difficulties: Difficulty[],

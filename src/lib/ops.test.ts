@@ -6,6 +6,8 @@ import {
   applyNoteOp,
   applyOp,
   invertNoteOp,
+  isCollabOp,
+  MAX_COLLAB_NOTES_PER_OP,
   type NoteOp,
 } from "./ops";
 
@@ -205,5 +207,47 @@ describe("applyOp", () => {
       fields: { fadeOutMs: 12 },
     });
     expect(withField.find((d) => d.id === "d1")!.fadeOutMs).toBe(12);
+  });
+});
+
+describe("isCollabOp", () => {
+  it("accepts valid note and difficulty-field operations", () => {
+    expect(isCollabOp({ t: "note.add", diffId: "d1", notes: [a, c] })).toBe(true);
+    expect(
+      isCollabOp({
+        t: "note.update",
+        diffId: "d1",
+        before: [a],
+        after: [{ ...a, startTime: 250 }],
+        _from: "peer-id",
+      }),
+    ).toBe(true);
+    expect(
+      isCollabOp({ t: "diff.fields", diffId: "d1", fields: { fadeOutMs: 12 } }),
+    ).toBe(true);
+  });
+
+  it.each([
+    null,
+    { t: "note.add", diffId: "d1", notes: "not-an-array" },
+    { t: "note.add", diffId: "d1", notes: [{ ...a, startTime: NaN }] },
+    { t: "note.add", diffId: "d1", notes: [{ ...a, column: 999 }] },
+    { t: "note.update", diffId: "d1", before: [a] },
+    { t: "diff.fields", diffId: "d1", fields: {} },
+    { t: "diff.fields", diffId: "d1", fields: { keyCount: 7 } },
+    { t: "unknown", diffId: "d1" },
+  ])("rejects malformed operation %#", (value) => {
+    expect(isCollabOp(value)).toBe(false);
+  });
+
+  it("bounds the number of notes accepted in one message", () => {
+    const atLimit = Array.from({ length: MAX_COLLAB_NOTES_PER_OP }, (_, index) => ({
+      ...a,
+      id: `note-${index}`,
+    }));
+    expect(isCollabOp({ t: "note.add", diffId: "d1", notes: atLimit })).toBe(true);
+    expect(
+      isCollabOp({ t: "note.add", diffId: "d1", notes: [...atLimit, a] }),
+    ).toBe(false);
   });
 });

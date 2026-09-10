@@ -1,4 +1,5 @@
 import type JSZip from "jszip";
+import { loadSafeZip } from "./archiveLimits";
 import { ProgressSplitter, type ProgressFn } from "./progress";
 import type {
   Difficulty,
@@ -388,8 +389,7 @@ export async function importOsz(
   const progress = new ProgressSplitter([3, 2, 6, 2, 3], onProgress);
 
   progress.phase("Reading the archive");
-  const { default: JSZipRuntime } = await import("jszip");
-  const zip = await JSZipRuntime.loadAsync(blob);
+  const zip = await loadSafeZip(blob);
   progress.advance();
 
   const osuPaths: string[] = [];

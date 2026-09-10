@@ -1,4 +1,5 @@
 import type JSZip from "jszip";
+import { loadSafeZip } from "./archiveLimits";
 import {
   MAX_KEYS,
   MIN_KEYS,
@@ -13,8 +14,7 @@ export async function importOsk(
 ): Promise<LoadedSkin> {
   let zip: JSZip;
   try {
-    const { default: JSZipRuntime } = await import("jszip");
-    zip = await JSZipRuntime.loadAsync(file);
+    zip = await loadSafeZip(file);
   } catch {
     throw new Error("That file isn't a valid .osk skin archive.");
   }

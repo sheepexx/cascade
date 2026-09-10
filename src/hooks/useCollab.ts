@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase, getSupabaseToken } from "../lib/supabase";
-import type { CollabOp } from "../lib/ops";
+import { isCollabOp, type CollabOp } from "../lib/ops";
 import {
   aggregatePresencePeers,
   type PresencePeer,
@@ -211,9 +211,10 @@ export function useCollab(opts: {
       channelRef.current = ch;
 
       ch.on("broadcast", { event: "op" }, ({ payload }) => {
-        const p = payload as CollabOp & { _from?: string };
-        if (p?._from && p._from === meRef.current?.id) return;
-        onRemoteOpRef.current(p as CollabOp);
+        if (!isCollabOp(payload)) return;
+        const sender = (payload as Record<string, unknown>)._from;
+        if (typeof sender === "string" && sender === meRef.current?.id) return;
+        onRemoteOpRef.current(payload);
       });
       ch.on("broadcast", { event: "doc.bump" }, ({ payload }) => {
         if ((payload as { _from?: string })?._from === meRef.current?.id) return;

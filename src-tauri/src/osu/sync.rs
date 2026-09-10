@@ -49,6 +49,14 @@ pub fn read_marker(dir: &Path) -> Option<Marker> {
 }
 
 pub fn sync_archive(songs: &Path, folder: &str, archive: &[u8]) -> Result<PathBuf, String> {
+    let mut zip = zip::ZipArchive::new(Cursor::new(archive))
+        .map_err(|err| format!("Cannot read the exported map: {err}"))?;
+    crate::archive::validate_zip(
+        &mut zip,
+        archive.len() as u64,
+        crate::archive::DEFAULT_ARCHIVE_LIMITS,
+    )?;
+
     let name = folder_name(folder);
     let dir = songs.join(&name);
 
@@ -67,9 +75,6 @@ pub fn sync_archive(songs: &Path, folder: &str, archive: &[u8]) -> Result<PathBu
         Vec::new()
     };
 
-    let mut zip = zip::ZipArchive::new(Cursor::new(archive))
-        .map_err(|err| format!("Cannot read the exported map: {err}"))?;
-
     let mut written: BTreeSet<String> = BTreeSet::new();
     for index in 0..zip.len() {
         let mut entry = zip
@@ -82,10 +87,15 @@ pub fn sync_archive(songs: &Path, folder: &str, archive: &[u8]) -> Result<PathBu
             Some(name) => name,
             None => continue,
         };
-        let mut bytes = Vec::with_capacity(entry.size() as usize);
+        let expected = entry.size();
+        let mut bytes = Vec::with_capacity(expected as usize);
         entry
+            .take(expected.saturating_add(1))
             .read_to_end(&mut bytes)
             .map_err(|err| format!("Cannot read {name}: {err}"))?;
+        if bytes.len() as u64 != expected {
+            return Err(format!("{name} did not match its declared archive size."));
+        }
         fs::write(dir.join(&name), &bytes)
             .map_err(|err| format!("Cannot write {name}: {err}"))?;
         written.insert(name);

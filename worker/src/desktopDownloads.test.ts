@@ -1,12 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   countableDesktopDownload,
+  DESKTOP_DOWNLOAD_ASSETS,
   desktopDownloadEnabled,
   desktopDownloadTarget,
   downloadOs,
   handleDesktopRoute,
   type WorkerEnv,
 } from "./storage";
+
+describe("desktop download database contract", () => {
+  it("enumerates every category accepted by the database constraint", () => {
+    expect(DESKTOP_DOWNLOAD_ASSETS).toEqual([
+      "setup",
+      "msi",
+      "portable",
+      "appimage",
+      "deb",
+      "rpm",
+      "dmg",
+      "other",
+    ]);
+  });
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();

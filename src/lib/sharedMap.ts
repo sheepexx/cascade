@@ -138,7 +138,7 @@ export function summarise(data: SharedMapData): {
 
 export type PublishParams = {
   ownerId: string;
-  projectId: string | null;
+  projectId: string;
   data: SharedMapData;
   audioFiles: { name: string; blob: Blob }[];
   previewAudioName?: string | null;

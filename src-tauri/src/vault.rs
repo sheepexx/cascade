@@ -216,6 +216,14 @@ pub fn vault_save(app: AppHandle, request: Request<'_>) -> Result<String, String
         return Err("The project came out empty.".to_string());
     }
 
+    let mut zip = zip::ZipArchive::new(Cursor::new(bytes.as_slice()))
+        .map_err(|err| format!("Cannot read the project: {err}"))?;
+    crate::archive::validate_zip(
+        &mut zip,
+        bytes.len() as u64,
+        crate::archive::DEFAULT_ARCHIVE_LIMITS,
+    )?;
+
     let id = header(&request, "x-cascade-project")
         .filter(|id| !id.is_empty())
         .ok_or_else(|| "The project has no id.".to_string())?;
@@ -225,9 +233,6 @@ pub fn vault_save(app: AppHandle, request: Request<'_>) -> Result<String, String
     let root = root_for(&app)?;
     let dir = resolve_dir(&root, &id, &preferred)?;
     let previous = read_marker(&dir).map(|marker| marker.files).unwrap_or_default();
-
-    let mut zip = zip::ZipArchive::new(Cursor::new(bytes.as_slice()))
-        .map_err(|err| format!("Cannot read the project: {err}"))?;
 
     let mut written: BTreeSet<String> = BTreeSet::new();
     let mut chart: Option<Vec<u8>> = None;
@@ -242,10 +247,15 @@ pub fn vault_save(app: AppHandle, request: Request<'_>) -> Result<String, String
         let Some(name) = entry_name(entry.name()) else {
             continue;
         };
-        let mut buffer = Vec::with_capacity(entry.size() as usize);
+        let expected = entry.size();
+        let mut buffer = Vec::with_capacity(expected as usize);
         entry
+            .take(expected.saturating_add(1))
             .read_to_end(&mut buffer)
             .map_err(|err| format!("Cannot read {name}: {err}"))?;
+        if buffer.len() as u64 != expected {
+            return Err(format!("{name} did not match its declared archive size."));
+        }
         if name == CHART {
             chart = Some(buffer.clone());
         }
