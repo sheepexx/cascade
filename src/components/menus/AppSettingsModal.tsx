@@ -211,7 +211,7 @@ export function AppSettingsModal({
 }: Props) {
   const { locale, setLocale, t } = useLocale();
   const { user, login } = useAuth();
-  const [tab, setTab] = useState<Tab>("Editor");
+  const [tab, setTab] = useState<Tab>("General");
   const [keyMode, setKeyMode] = useState(4);
   const [capturing, setCapturing] = useState<number | null>(null);
   const [capturingRestart, setCapturingRestart] = useState(false);
@@ -300,21 +300,23 @@ export function AppSettingsModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={t("settings.title")} width="max-w-4xl">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t("settings.title")}
+      width="max-w-4xl"
+      headerExtra={
+        accountSyncStatus ? (
+          <AccountSyncIndicator
+            status={accountSyncStatus}
+            error={accountSyncError}
+          />
+        ) : null
+      }
+    >
       {/* Floor the height so switching between a long tab (Playtest) and a
           short one (Audio) doesn't collapse the dialog. */}
       <div className="flex min-h-[min(30rem,60vh)] flex-col gap-5">
-        {accountSyncStatus && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-ink-700/40 px-3 py-2">
-            <span className="text-xs font-medium text-slate-400">
-              Account settings
-            </span>
-            <AccountSyncIndicator
-              status={accountSyncStatus}
-              error={accountSyncError}
-            />
-          </div>
-        )}
         <SegmentedControl
           value={tab}
           onChange={setTab}

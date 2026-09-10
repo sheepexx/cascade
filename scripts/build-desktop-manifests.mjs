@@ -12,7 +12,7 @@ export const UPDATER_PLATFORMS = {
 const ASSETS = [
   { os: "windows", key: "setup", match: /-setup\.exe$/i },
   { os: "windows", key: "msi", match: /\.msi$/i },
-  { os: "windows", key: "portable", match: /_portable\.exe$/i },
+  { os: "windows", key: "portable", match: /_portable\.exe$/i, signed: true },
   { os: "linux", key: "appimage", match: /\.AppImage$/i },
   { os: "linux", key: "deb", match: /\.deb$/i },
   { os: "linux", key: "rpm", match: /\.rpm$/i },
@@ -23,11 +23,14 @@ const isPayload = (file) => !file.name.endsWith(".sig");
 
 export function classifyAssets(files) {
   const platforms = {};
-  for (const { os, key, match } of ASSETS) {
+  for (const { os, key, match, signed } of ASSETS) {
     const found = files.find((f) => isPayload(f) && match.test(f.name));
     if (!found) continue;
+    const asset = { name: found.name, size: found.size };
+    const signature = signed && files.find((f) => f.name === `${found.name}.sig`);
+    if (signature) asset.signature = signature.content.trim();
     platforms[os] ??= {};
-    platforms[os][key] = { name: found.name, size: found.size };
+    platforms[os][key] = asset;
   }
   return platforms;
 }

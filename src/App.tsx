@@ -3195,7 +3195,7 @@ export default function App() {
 
   const menuMusicEnabled =
     appSettings.menuMusicEnabled && !hasProject && !packCreatorOpen && !sharedSlug;
-  const menuMusic = useMenuMusic(menuMusicEnabled);
+  const menuMusic = useMenuMusic(menuMusicEnabled, osuLive.running);
   const toggleMenuMusic = menuMusic.toggle;
   const nextMenuTrack = menuMusic.next;
   const previousMenuTrack = menuMusic.previous;

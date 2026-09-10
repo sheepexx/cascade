@@ -429,7 +429,9 @@ dependencies = [
 name = "cascade"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "discord-rich-presence",
+ "minisign-verify",
  "rosu-mem",
  "serde",
  "serde_json",

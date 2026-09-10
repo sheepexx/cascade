@@ -89,7 +89,8 @@ function toMenuTrack(row: LocalTrack): MenuTrack {
   };
 }
 
-export function useMenuMusic(enabled: boolean): MenuMusic {
+export function useMenuMusic(enabled: boolean, suspended = false): MenuMusic {
+  const active = enabled && !suspended;
   const [playlist, setPlaylist] = useState<LocalTrackSummary[]>([]);
   const [track, setTrack] = useState<MenuTrack | null>(null);
   const [index, setIndex] = useState(0);
@@ -208,15 +209,27 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
   }, []);
 
   useEffect(() => {
-    if (enabled) {
+    const el = audioRef.current;
+    if (active) {
       if (resumeOnEnableRef.current) wantsPlayRef.current = true;
+      if (el && el.paused && wantsPlayRef.current) {
+        connect(el);
+        void ctxRef.current?.resume().catch(() => {});
+        el.play().catch(() => {});
+      }
       return;
     }
     resumeOnEnableRef.current = wantsPlayRef.current;
     wantsPlayRef.current = false;
-    audioRef.current?.pause();
-    void ctxRef.current?.suspend().catch(() => {});
-  }, [enabled]);
+    if (!el) {
+      void ctxRef.current?.suspend().catch(() => {});
+      return;
+    }
+    fade(el, 0, FADE_OUT_MS, () => {
+      el.pause();
+      void ctxRef.current?.suspend().catch(() => {});
+    });
+  }, [active, connect, fade]);
 
   useEffect(() => {
     if (!enabled || !track) return;

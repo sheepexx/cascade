@@ -1,4 +1,5 @@
 import { isDesktopApp } from "./pwa";
+import { currentPortableApp, installPortableUpdate } from "./portableUpdate";
 
 export type DesktopUpdate = {
   version: string;
@@ -7,7 +8,10 @@ export type DesktopUpdate = {
 
 export type UpdateStage = "idle" | "checking" | "ready" | "installing";
 
-let pending: { downloadAndInstall: () => Promise<void> } | null = null;
+let pending: {
+  version: string;
+  downloadAndInstall: () => Promise<void>;
+} | null = null;
 
 export async function checkDesktopUpdate(): Promise<DesktopUpdate | null> {
   if (!isDesktopApp()) return null;
@@ -23,6 +27,10 @@ export async function checkDesktopUpdate(): Promise<DesktopUpdate | null> {
 
 export async function installDesktopUpdate(): Promise<void> {
   if (!pending) throw new Error("No update is ready to install.");
+  if (await currentPortableApp()) {
+    await installPortableUpdate(pending.version);
+    return;
+  }
   await pending.downloadAndInstall();
   const { relaunch } = await import("@tauri-apps/plugin-process");
   await relaunch();

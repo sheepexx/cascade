@@ -8,6 +8,7 @@ const WINDOWS = [
   file("Cascade_1.2.280_x64-setup.exe.sig", 90, "win-signature\n"),
   file("Cascade_1.2.280_x64_en-US.msi", 24_000_000),
   file("Cascade_1.2.280_portable.exe", 26_000_000),
+  file("Cascade_1.2.280_portable.exe.sig", 90, "portable-signature\n"),
 ];
 const LINUX = [
   file("cascade_1.2.280_amd64.AppImage", 90_000_000),
@@ -30,6 +31,16 @@ describe("desktop manifests", () => {
     expect(platforms.windows.setup.name).toBe("Cascade_1.2.280_x64-setup.exe");
     expect(platforms.linux.appimage.size).toBe(90_000_000);
     expect(platforms.macos.dmg.name).toBe("Cascade_1.2.280_universal.dmg");
+  });
+  it("hands the portable download its signature so the app can update itself", () => {
+    const platforms = classifyAssets(WINDOWS);
+    expect(platforms.windows.portable.signature).toBe("portable-signature");
+    expect(platforms.windows.setup.signature).toBeUndefined();
+  });
+  it("leaves the portable entry unsigned when the signature never arrived", () => {
+    const platforms = classifyAssets(WINDOWS.filter((f) => !f.name.endsWith("portable.exe.sig")));
+    expect(platforms.windows.portable.name).toBe("Cascade_1.2.280_portable.exe");
+    expect(platforms.windows.portable.signature).toBeUndefined();
   });
   it("never classifies a signature as a download", () => {
     const platforms = classifyAssets([file("Cascade_1.2.280_x64-setup.exe.sig"), ...WINDOWS]);

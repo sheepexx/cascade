@@ -7,6 +7,7 @@ use std::time::Duration;
 mod archive;
 mod launch;
 mod osu;
+mod portable;
 mod presence;
 mod native_audio;
 mod vault;
@@ -123,6 +124,7 @@ fn presence_update(
 }
 
 fn main() {
+    portable::take_over(std::env::args());
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             let paths = launch::launch_paths(argv);
@@ -161,6 +163,8 @@ fn main() {
             osu::osu_read_skin,
             osu::osu_choose_root,
             osu::osu_forget_root,
+            portable::portable_app,
+            portable::portable_install,
             vault::vault_save,
             vault::vault_history,
             vault::vault_restore,
@@ -170,6 +174,7 @@ fn main() {
             let paths = launch::launch_paths(std::env::args());
             launch::queue(app.state::<launch::Pending>().inner(), paths);
             osu::spawn_watcher(app.handle().clone());
+            std::thread::spawn(portable::sweep);
             if std::env::var("CASCADE_DEVTOOLS").is_ok() {
                 if let Some(window) = app.get_webview_window("main") {
                     window.open_devtools();

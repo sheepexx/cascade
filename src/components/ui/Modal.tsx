@@ -9,6 +9,7 @@ type Props = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  headerExtra?: ReactNode;
   width?: string;
   center?: boolean;
   slideUp?: boolean;
@@ -24,6 +25,7 @@ export function Modal({
   onClose,
   children,
   footer,
+  headerExtra,
   width = "max-w-md",
   center = false,
   slideUp = false,
@@ -176,9 +178,12 @@ export function Modal({
               event.currentTarget.setPointerCapture(event.pointerId);
             }}
           >
-            <h2 id={titleId} className="text-sm font-semibold text-slate-100">
-              {title}
-            </h2>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <h2 id={titleId} className="text-sm font-semibold text-slate-100">
+                {title}
+              </h2>
+              {headerExtra}
+            </div>
             <button
               type="button"
               onClick={onClose}
@@ -191,7 +196,7 @@ export function Modal({
           <div className="relative flex min-h-0 flex-1 flex-col">
             <div
               ref={bodyRef}
-              className="min-h-0 flex-1 overflow-y-auto p-5"
+              className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-gutter:stable]"
             >
               {children}
             </div>
