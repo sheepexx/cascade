@@ -1,6 +1,7 @@
 # Cascade
 
 A free osu!mania editor that runs in the browser: **https://cascade.sheepex.net**
+Also aviable for [Desktop](https://cascade.sheepex.net/download)
 
 Drop in a song, set the BPM, place notes and export a playable `.osu` or `.osz`.
 Nothing to install, works on anything with a browser. Log in with osu! to save
