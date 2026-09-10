@@ -1,3 +1,4 @@
+import { readFileSync, readdirSync } from "node:fs";
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import {
@@ -53,6 +54,26 @@ describe("archive limits", () => {
     await expect(loadSafeZip(two, { ...generous, maxExpandedBytes: 7 })).rejects.toThrow(
       /total expanded/i,
     );
+  });
+
+  it("accepts empty entries, which JSZip holds without size metadata", async () => {
+    const bytes = await archive({ "silent.ogg": "", "one.txt": "1" });
+    await expect(loadSafeZip(bytes, generous)).resolves.toBeDefined();
+  });
+
+  it("accepts entries that legitimately compress far past 200:1", async () => {
+    const bytes = await archive({ "flat.png": "0".repeat(100_000) }, "DEFLATE");
+    await expect(loadSafeZip(bytes)).resolves.toBeDefined();
+  });
+
+  it("accepts the bundled preset skins at the default limits", async () => {
+    const dir = new URL("../../skin/", import.meta.url);
+    const presets = readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".osk"));
+    expect(presets.length).toBeGreaterThan(0);
+    for (const preset of presets) {
+      const bytes = readFileSync(new URL(encodeURIComponent(preset), dir));
+      await expect(loadSafeZip(bytes)).resolves.toBeDefined();
+    }
   });
 
   it("rejects highly compressed expansion", async () => {
