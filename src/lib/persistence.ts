@@ -15,6 +15,7 @@ import type {
   TimingPoint,
 } from "../types";
 import { kiaiRanges, type KiaiRange } from "./timing";
+import { computeStarRating } from "./starRating";
 // Type-only in the other direction, so this pair does not cycle at runtime.
 import { mirrorProject } from "./projectVault";
 
@@ -72,13 +73,21 @@ export type SavedProject = {
   skin?: { name: string; blob: Blob } | null;
 };
 
+export type LocalProjectDifficulty = {
+  name: string;
+  keyCount: number;
+  stars: number;
+};
+
 export type LocalProjectSummary = {
   id: string;
   title: string;
   artist: string;
   creator: string;
+  tags?: string;
   updatedAt: number;
   difficultyCount: number;
+  difficulties: LocalProjectDifficulty[];
   sizeBytes: number;
   sourceFormat?: "osu" | "sm" | "qua";
   backgroundBlob?: Blob;
@@ -440,8 +449,14 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
               title: full.meta.title,
               artist: full.meta.artist,
               creator: full.meta.creator,
+              tags: full.meta.tags,
               updatedAt: full.savedAt,
               difficultyCount: full.difficulties.length,
+              difficulties: full.difficulties.map((d) => ({
+                name: d.name,
+                keyCount: d.keyCount,
+                stars: d.notes ? computeStarRating(d.notes, d.keyCount) : 0,
+              })),
               sizeBytes: mediaBytes(full),
               sourceFormat: full.difficulties[0]?.sourceFormat,
               backgroundBlob: pickLocalBackground(full),

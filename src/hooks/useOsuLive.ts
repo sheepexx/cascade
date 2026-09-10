@@ -19,7 +19,7 @@ export type OsuLiveState = {
  * Tracks the native osu! watcher. Costs nothing on the web build, where the
  * subscription is a no-op and the state stays offline.
  */
-export function useOsuLive(): OsuLiveState {
+export function useOsuLive(enabled = true): OsuLiveState {
   const [live, setLive] = useState<OsuLive>(OSU_OFFLINE);
   const [connectedAt, setConnectedAt] = useState<number | null>(null);
   const wasConnected = useRef(false);
@@ -27,6 +27,12 @@ export function useOsuLive(): OsuLiveState {
   useEffect(() => {
     let stop: (() => void) | null = null;
     let cancelled = false;
+    if (!enabled) {
+      wasConnected.current = false;
+      setLive(OSU_OFFLINE);
+      setConnectedAt(null);
+      return;
+    }
 
     void watchOsuLive((next) => {
       setLive(next);
@@ -50,7 +56,7 @@ export function useOsuLive(): OsuLiveState {
       cancelled = true;
       stop?.();
     };
-  }, []);
+  }, [enabled]);
 
   return {
     live,

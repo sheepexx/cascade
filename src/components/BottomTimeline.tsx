@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
 import { CloseIcon } from "./ui/Icons";
+import { renderScale, usePerformanceMode } from "../lib/performanceMode";
 import type {
   AudioSeekSignal,
   AudioSeekTransition,
@@ -178,6 +179,7 @@ export function BottomTimeline({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const lowSpec = usePerformanceMode();
   const sizeRef = useRef({ width: 800, dpr: 1 });
   const draggingRef = useRef(false);
   const dragStartXRef = useRef(0);
@@ -845,7 +847,7 @@ export function BottomTimeline({
     let pending = -1;
 
     const applyWidth = (width: number) => {
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = renderScale();
       sizeRef.current = { width, dpr };
       const bw = Math.max(1, Math.floor(width * dpr));
       const bh = Math.max(1, Math.floor(HEIGHT * dpr));
@@ -869,7 +871,7 @@ export function BottomTimeline({
       ro.disconnect();
       window.clearTimeout(settle);
     };
-  }, []);
+  }, [lowSpec]);
 
   const seekFromEvent = useCallback(
     (clientX: number, transition: AudioSeekTransition = "instant") => {

@@ -7,6 +7,11 @@ import { canExitDesktop } from "../lib/desktopExit";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
 import { countLocalProjects } from "../lib/persistence";
 import {
+  reduceMotion,
+  renderScale,
+  usePerformanceMode,
+} from "../lib/performanceMode";
+import {
   ImportIcon,
   LibraryIcon,
   NewMapIcon,
@@ -179,6 +184,7 @@ export function StartScreen({
   const [layout, setLayout] = useState(() => measure(panels));
   const [projectCount, setProjectCount] = useState<number | null>(null);
   const phone = usePhoneViewport();
+  const lowSpec = usePerformanceMode();
   const { user } = useAuth();
   const t = useT();
   const pulseRef = useRef<HTMLDivElement | null>(null);
@@ -196,7 +202,7 @@ export function StartScreen({
 
   useEffect(() => {
     const node = barRef.current;
-    if (!node || !barHovered) return;
+    if (!node || !barHovered || reduceMotion()) return;
     let raf = 0;
     const tick = (time: number) => {
       raf = requestAnimationFrame(tick);
@@ -363,7 +369,7 @@ export function StartScreen({
           style={{ backgroundImage: SEAM_FADE }}
         />
 
-        <KiaiEffects music={music} />
+        {!lowSpec && <KiaiEffects music={music} />}
 
         {open && (
           <button
@@ -524,6 +530,15 @@ export function StartScreen({
           <span>Cascade · v{__APP_VERSION__}</span>
           <span aria-hidden>·</span>
           <a
+            href="/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="transition hover:text-slate-400"
+          >
+            {t("settings.terms")}
+          </a>
+          <span aria-hidden>·</span>
+          <a
             href="/privacy"
             target="_blank"
             rel="noreferrer"
@@ -672,7 +687,7 @@ function MenuBackground({
   useEffect(() => {
     const node = parallaxRef.current;
     if (!node) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (reduceMotion()) return;
 
     let targetX = 0;
     let targetY = 0;
@@ -1232,7 +1247,7 @@ function KiaiEffects({ music }: { music: MenuMusic }) {
     if (!canvas || !left || !right) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (reduceMotion()) return;
 
     if (!spriteRef.current) spriteRef.current = makeStarSprite();
     const sprite = spriteRef.current;
@@ -1244,7 +1259,7 @@ function KiaiEffects({ music }: { music: MenuMusic }) {
       const rect = canvas.getBoundingClientRect();
       width = Math.max(1, Math.round(rect.width));
       height = Math.max(1, Math.round(rect.height));
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dpr = renderScale(2);
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
     };
@@ -1440,6 +1455,7 @@ function Visualizer({
   const smoothRef = useRef<number[]>(new Array(BARS).fill(0));
   const musicRef = useRef(music);
   musicRef.current = music;
+  const lowSpec = usePerformanceMode();
   const pad = Math.round(size * RING_RATIO);
 
   useEffect(() => {
@@ -1448,11 +1464,9 @@ function Visualizer({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const reduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const reduced = reduceMotion();
     const box = size + pad * 2;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = renderScale(2);
     canvas.width = box * dpr;
     canvas.height = box * dpr;
     ctx.scale(dpr, dpr);
@@ -1576,6 +1590,7 @@ function Visualizer({
     };
   }, [size, pad, pulseRef]);
 
+  if (lowSpec) return null;
   return (
     <canvas
       ref={canvasRef}

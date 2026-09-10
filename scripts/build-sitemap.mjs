@@ -79,6 +79,12 @@ const PAGES = [
     priority: "0.3",
     changefreq: "yearly",
   },
+  {
+    path: "/terms",
+    updated: "2026-09-10",
+    priority: "0.3",
+    changefreq: "yearly",
+  },
 ];
 
 for (const page of PAGES) {

@@ -130,6 +130,35 @@ export const en = {
   "settings.bodyWidthHint":
     "Width of the default long-note body (the gray part), relative to the lane. Only applies when no skin body sprite is used.",
 
+  "settings.mainMenu": "Main menu",
+  "settings.menuMusic": "Play a random song in the main menu",
+  "settings.menuMusicHint":
+    "Picks a track from your local projects and plays it behind the menu. Press C to pause it, V for the next song and Y for the one before.",
+
+  "settings.performance": "Performance",
+  "settings.performanceMode": "Performance mode",
+  "settings.performanceModeHint":
+    "For low-end machines. Turns off every animation, the menu visualiser and background effects, drops blur and shadows, and renders the editor at a lower resolution.",
+  "settings.performanceModeNote":
+    "Animations, the menu visualiser, kiai effects and background blur are off. The editor renders at 1x resolution, so it may look softer on a high-DPI screen.",
+
+  "settings.osuIntegration": "osu! integration",
+  "settings.osuListener": "Watch the map open in osu!",
+  "settings.osuListenerHint":
+    "Cascade watches which map osu! has selected and offers to open it. Turning this off stops the watcher and hides the offer.",
+
+  "settings.legal": "Legal",
+  "settings.terms": "Terms of use",
+
+  "settings.resetData": "Reset",
+  "settings.resetDataHint":
+    "Erases everything Cascade keeps on this device: projects, autosaves, imported audio and skins, settings and cached files. Your account and anything saved to the cloud are not touched.",
+  "settings.resetDataButton": "Erase local data",
+  "settings.resetDataConfirmTitle": "Erase all local data?",
+  "settings.resetDataConfirmBody":
+    "Every project, autosave, skin and setting stored on this device is deleted and you are signed out here. Your account, cloud projects and anything already uploaded stay as they are. This can't be undone.",
+  "settings.resetDataConfirmHold": "Hold to erase",
+
   "settings.localSave": "Local save",
   "settings.autosave": "Autosave local project",
   "settings.autosaveHint":
@@ -379,6 +408,15 @@ export const en = {
   "startModal.localProjects": "Local projects",
   "startModal.localProjectsHint": "saved on this device",
   "startModal.localProjectsUsage": "{size} · saved on this device",
+  "startModal.searchLabel": "Search maps",
+  "startModal.searchPlaceholder":
+    "Search title, mapper, difficulty, tags or 4k",
+  "startModal.noSearchMatches": "Nothing matches that search.",
+  "startModal.sortDate": "Date",
+  "startModal.sortName": "Name",
+  "startModal.sortDifficulty": "Difficulty",
+  "startModal.loadMore.one": "Load {count} more",
+  "startModal.loadMore.other": "Load {count} more",
   "startModal.select": "Select",
   "startModal.selectAll": "Select all",
   "startModal.deselectAll": "Deselect all",

@@ -3,7 +3,9 @@ import { Modal } from "../ui/Modal";
 import { Button, SegmentedControl, Select, Toggle } from "../ui/Controls";
 import { Tooltip } from "../ui/Tooltip";
 import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
+import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { isDesktopApp } from "../../lib/pwa";
+import { eraseLocalData } from "../../lib/resetLocalData";
 import {
   osuChooseRoot,
   osuForgetRoot,
@@ -99,6 +101,12 @@ type Props = {
   onShowMenuPlayers: (value: boolean) => void;
   hideStatus: boolean;
   onHideStatus: (value: boolean) => void;
+  menuMusicEnabled: boolean;
+  onMenuMusicEnabled: (value: boolean) => void;
+  performanceMode: boolean;
+  onPerformanceMode: (value: boolean) => void;
+  osuListenerEnabled: boolean;
+  onOsuListenerEnabled: (value: boolean) => void;
   keyCount: number;
   accountSyncStatus: "idle" | "syncing" | "synced" | "error" | null;
   accountSyncError: string | null;
@@ -188,6 +196,12 @@ export function AppSettingsModal({
   onEditorKeybinds,
   showMenuPlayers,
   onShowMenuPlayers,
+  menuMusicEnabled,
+  onMenuMusicEnabled,
+  performanceMode,
+  onPerformanceMode,
+  osuListenerEnabled,
+  onOsuListenerEnabled,
   hideStatus,
   onHideStatus,
   keyCount,
@@ -365,6 +379,37 @@ export function AppSettingsModal({
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.mainMenu")}
+              </h3>
+              <div className="flex flex-col gap-3">
+                <SettingToggle
+                  label={t("settings.menuMusic")}
+                  tip={t("settings.menuMusicHint")}
+                  checked={menuMusicEnabled}
+                  onChange={onMenuMusicEnabled}
+                />
+              </div>
+            </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.performance")}
+              </h3>
+              <div className="flex flex-col gap-3">
+                <SettingToggle
+                  label={t("settings.performanceMode")}
+                  tip={t("settings.performanceModeHint")}
+                  checked={performanceMode}
+                  onChange={onPerformanceMode}
+                />
+              </div>
+              {performanceMode && (
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                  {t("settings.performanceModeNote")}
+                </p>
+              )}
+            </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.localSave")}
               </h3>
               <div className="flex items-center justify-between text-xs text-slate-300">
@@ -417,7 +462,22 @@ export function AppSettingsModal({
                 </div>
               )}
             </section>
+            {isDesktopApp() && (
+              <section>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t("settings.osuIntegration")}
+                </h3>
+                <SettingToggle
+                  label={t("settings.osuListener")}
+                  tip={t("settings.osuListenerHint")}
+                  checked={osuListenerEnabled}
+                  onChange={onOsuListenerEnabled}
+                />
+              </section>
+            )}
             <OsuFolderSection />
+            <LegalSection />
+            <ResetDataSection />
           </div>
         )}
 
@@ -1155,6 +1215,78 @@ export function AppSettingsModal({
         )}
       </div>
     </Modal>
+  );
+}
+
+function LegalSection() {
+  const { t } = useLocale();
+  return (
+    <section>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {t("settings.legal")}
+      </h3>
+      <div className="flex flex-wrap gap-4 text-xs">
+        <a
+          href="/terms"
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent-soft underline-offset-2 hover:underline"
+        >
+          {t("settings.terms")}
+        </a>
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent-soft underline-offset-2 hover:underline"
+        >
+          {t("startModal.privacyPolicy")}
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function ResetDataSection() {
+  const { t } = useLocale();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const run = () => {
+    setBusy(true);
+    void eraseLocalData().finally(() => {
+      window.location.replace("/");
+    });
+  };
+
+  return (
+    <section>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {t("settings.resetData")}
+      </h3>
+      <p className="text-xs leading-relaxed text-slate-400">
+        {t("settings.resetDataHint")}
+      </p>
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          disabled={busy}
+          className="rounded-lg border border-rose-500/50 bg-rose-600/20 px-3 py-2 text-sm font-medium text-rose-300 transition hover:bg-rose-600/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {t("settings.resetDataButton")}
+        </button>
+      </div>
+      <HoldConfirmDialog
+        open={confirming}
+        title={t("settings.resetDataConfirmTitle")}
+        message={t("settings.resetDataConfirmBody")}
+        confirmLabel={t("settings.resetDataConfirmHold")}
+        busy={busy}
+        onConfirm={run}
+        onCancel={() => setConfirming(false)}
+      />
+    </section>
   );
 }
 

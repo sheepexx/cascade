@@ -204,6 +204,11 @@ export type ProjectParticipant = {
   role: "owner" | "editor" | "viewer";
 };
 
+export type CloudProjectDifficulty = {
+  name: string;
+  keyCount: number;
+};
+
 export type CloudProjectRich = {
   id: string;
   owner: string;
@@ -214,6 +219,8 @@ export type CloudProjectRich = {
   bg_path: string | null;
   participants: ProjectParticipant[];
   archived: boolean;
+  tags?: string | null;
+  difficulties?: CloudProjectDifficulty[] | null;
 };
 
 export async function listMyProjectsRich(): Promise<CloudProjectRich[]> {

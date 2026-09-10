@@ -1064,3 +1064,26 @@ canvas[data-pointer-focus]:focus-visible {
     animation-duration: 1ms;
   }
 }
+
+:root[data-performance="on"] *,
+:root[data-performance="on"] *::before,
+:root[data-performance="on"] *::after {
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  transition-delay: 0ms !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  will-change: auto !important;
+  scroll-behavior: auto !important;
+}
+
+:root[data-performance="on"] .skeleton::after,
+:root[data-performance="on"] .float-player-drift,
+:root[data-performance="on"] .float-player-bob {
+  animation: none !important;
+}

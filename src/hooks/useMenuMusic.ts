@@ -35,12 +35,13 @@ export type MenuMusic = {
   previous: () => void;
   readLevels: () => Uint8Array | null;
   getPlayback: () => { position: number; duration: number; playing: boolean } | null;
+  seek: (ms: number) => void;
   setAmbientDucking: (ducked: boolean) => void;
   fadeOut: (ms: number) => void;
 };
 
 const FFT_SIZE = 512;
-const MENU_VOLUME = 0.55;
+const MENU_VOLUME = 0.25;
 const FADE_OUT_MS = 260;
 const FADE_IN_MS = 520;
 
@@ -341,6 +342,12 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
     [fade],
   );
 
+  const seek = useCallback((ms: number) => {
+    const el = audioRef.current;
+    if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
+    el.currentTime = Math.max(0, Math.min(el.duration, ms / 1000));
+  }, []);
+
   const readLevels = useCallback(() => {
     const analyser = analyserRef.current;
     const el = audioRef.current;
@@ -391,6 +398,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       previous,
       readLevels,
       getPlayback,
+      seek,
       setAmbientDucking,
       fadeOut,
     }),
@@ -403,6 +411,7 @@ export function useMenuMusic(enabled: boolean): MenuMusic {
       previous,
       readLevels,
       getPlayback,
+      seek,
       setAmbientDucking,
       fadeOut,
     ],

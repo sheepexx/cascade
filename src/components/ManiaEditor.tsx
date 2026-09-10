@@ -66,6 +66,11 @@ import { Menu } from "./ui/Menu";
 import { SnapBadge } from "./ui/SnapBadge";
 import { t } from "../lib/i18n/core";
 import { formatUiNumber } from "../lib/formatUiNumber";
+import {
+  reduceMotion,
+  renderScale,
+  usePerformanceMode,
+} from "../lib/performanceMode";
 import { useGhostNotes } from "../hooks/useGhostNotes";
 import { GhostNotesPanel } from "./GhostNotesPanel";
 import { PatternImageModal } from "./menus/PatternImageModal";
@@ -351,6 +356,7 @@ export function ManiaEditor(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const lowSpec = usePerformanceMode();
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const bgFadeStartRef = useRef(0);
   const parallaxRef = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
@@ -2220,7 +2226,7 @@ export function ManiaEditor(props: Props) {
       sizeRef.current = {
         width: rect.width,
         height: rect.height,
-        dpr: window.devicePixelRatio || 1,
+        dpr: renderScale(),
       };
       markDirty();
     };
@@ -2228,12 +2234,12 @@ export function ManiaEditor(props: Props) {
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, [markDirty]);
+  }, [markDirty, lowSpec]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (reduceMotion()) return;
 
     const clamp = (v: number) =>
       Math.max(-PARALLAX_PX, Math.min(PARALLAX_PX, v));

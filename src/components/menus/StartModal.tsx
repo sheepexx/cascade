@@ -24,6 +24,12 @@ import {
   type LocalProjectSummary,
 } from "../../lib/persistence";
 import { formatBytes } from "../../lib/progress";
+import {
+  BROWSE_SORTS,
+  browse,
+  type BrowseEntry,
+  type BrowseSort,
+} from "../../lib/projectSearch";
 import { siteAsset } from "../../lib/siteAssets";
 import {
   ArchiveIcon,
@@ -52,8 +58,29 @@ export type SampleMap = {
 
 const asset = siteAsset;
 
+type CloudBrowseRow = CloudProjectRich & BrowseEntry;
+
+function cloudEntry(row: CloudProjectRich): CloudBrowseRow {
+  return {
+    ...row,
+    updatedAt: Date.parse(row.updated_at) || 0,
+    tags: row.tags ?? null,
+    difficulties: row.difficulties ?? null,
+  };
+}
+
 const MAX_CARDS = 9;
+const PAGE_SIZE = 9;
 const CARD_COUNT_KEY = "mania:card-counts";
+
+type BrowseScope = "local" | "cloud" | "invited" | "archived";
+
+const EMPTY_PAGES: Record<BrowseScope, number> = {
+  local: PAGE_SIZE,
+  cloud: PAGE_SIZE,
+  invited: PAGE_SIZE,
+  archived: PAGE_SIZE,
+};
 const DEFAULT_SKELETON_CARDS = 3;
 
 type CardCounts = { local: number; cloud: number };
@@ -155,6 +182,9 @@ export function WelcomeModal({
   const [localError, setLocalError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<BrowseSort>("date");
+  const [pages, setPages] = useState<Record<BrowseScope, number>>(EMPTY_PAGES);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<{
@@ -241,13 +271,28 @@ export function WelcomeModal({
     };
   }, [open, user]);
 
-  const owned = user ? (projects ?? []).filter((p) => p.owner === user.id) : [];
+  const owned = user
+    ? browse(
+        (projects ?? []).filter((p) => p.owner === user.id).map(cloudEntry),
+        query,
+        sort,
+      )
+    : [];
   const ownedCount = owned.length;
   const shared = user
-    ? (projects ?? []).filter((p) => p.owner !== user.id)
+    ? browse(
+        (projects ?? []).filter((p) => p.owner !== user.id).map(cloudEntry),
+        query,
+        sort,
+      )
     : [];
   const invited = shared.filter((p) => !p.archived);
   const archivedShared = shared.filter((p) => p.archived);
+  const sortedLocal = browse(localProjects ?? [], query, sort);
+
+  useEffect(() => {
+    setPages(EMPTY_PAGES);
+  }, [query, sort, open]);
 
   useEffect(() => {
     if (!localProjects) return;
@@ -263,8 +308,12 @@ export function WelcomeModal({
     rememberCardCounts({ cloud });
   }, [projects, ownedCount]);
 
-  const visibleLocal = (localProjects ?? []).slice(0, MAX_CARDS);
-  const visibleCloud = owned.slice(0, MAX_CARDS);
+  const visibleLocal = sortedLocal.slice(0, pages.local);
+  const visibleCloud = owned.slice(0, pages.cloud);
+  const visibleInvited = invited.slice(0, pages.invited);
+  const visibleArchived = archivedShared.slice(0, pages.archived);
+  const loadMore = (scope: BrowseScope) =>
+    setPages((prev) => ({ ...prev, [scope]: prev[scope] + PAGE_SIZE }));
   const localBytes = (localProjects ?? []).reduce(
     (sum, p) => sum + p.sizeBytes,
     0,
@@ -509,6 +558,14 @@ export function WelcomeModal({
           <span className="text-sm text-slate-400">
             {t("startModal.loginPrompt")}{" "}
             <a
+              href="/terms"
+              target="_blank"
+              rel="noreferrer"
+              className="whitespace-nowrap text-slate-500 underline decoration-ink-500 underline-offset-2 transition hover:text-slate-300"
+            >
+              {t("settings.terms")}
+            </a>{" "}
+            <a
               href="/privacy"
               target="_blank"
               rel="noreferrer"
@@ -526,6 +583,13 @@ export function WelcomeModal({
       {error && <p className="mt-4 text-sm text-rose-400">{error}</p>}
       {localError && <p className="mt-4 text-sm text-rose-400">{localError}</p>}
 
+      <BrowseToolbar
+        query={query}
+        onQuery={setQuery}
+        sort={sort}
+        onSort={setSort}
+      />
+
       <Section
         title={t("startModal.localProjects")}
         hint={
@@ -535,7 +599,7 @@ export function WelcomeModal({
               })
             : t("startModal.localProjectsHint")
         }
-        count={localProjects?.length}
+        count={localProjects === null ? undefined : sortedLocal.length}
         actions={
           visibleLocal.length > 0
             ? selectControls(
@@ -547,8 +611,12 @@ export function WelcomeModal({
       >
         {localProjects === null ? (
           <SkeletonCards count={cardCounts.local} label={t("common.loading")} />
-        ) : localProjects.length === 0 ? (
-          <SectionMessage>{t("startModal.noLocalSaves")}</SectionMessage>
+        ) : sortedLocal.length === 0 ? (
+          <SectionMessage>
+            {localProjects.length === 0
+              ? t("startModal.noLocalSaves")
+              : t("startModal.noSearchMatches")}
+          </SectionMessage>
         ) : (
           <CardGrid>
             {visibleLocal.map((p) => (
@@ -594,6 +662,11 @@ export function WelcomeModal({
             ))}
           </CardGrid>
         )}
+        <LoadMore
+          shown={visibleLocal.length}
+          total={sortedLocal.length}
+          onClick={() => loadMore("local")}
+        />
       </Section>
 
       {user && (
@@ -613,7 +686,11 @@ export function WelcomeModal({
           {projects === null ? (
             <SkeletonCards count={cardCounts.cloud} label={t("common.loading")} />
           ) : owned.length === 0 ? (
-            <SectionMessage>{t("startModal.noCloudSaves")}</SectionMessage>
+            <SectionMessage>
+              {query.trim()
+                ? t("startModal.noSearchMatches")
+                : t("startModal.noCloudSaves")}
+            </SectionMessage>
           ) : (
             <CardGrid>
               {visibleCloud.map((p) => (
@@ -660,6 +737,11 @@ export function WelcomeModal({
               ))}
             </CardGrid>
           )}
+          <LoadMore
+            shown={visibleCloud.length}
+            total={owned.length}
+            onClick={() => loadMore("cloud")}
+          />
         </Section>
       )}
 
@@ -670,7 +752,7 @@ export function WelcomeModal({
           count={invited.length}
         >
           <CardGrid>
-            {invited.slice(0, MAX_CARDS).map((p) => {
+            {visibleInvited.map((p) => {
               const ownerName = p.participants.find(
                 (x) => x.role === "owner",
               )?.username;
@@ -701,6 +783,11 @@ export function WelcomeModal({
               );
             })}
           </CardGrid>
+          <LoadMore
+            shown={visibleInvited.length}
+            total={invited.length}
+            onClick={() => loadMore("invited")}
+          />
         </Section>
       )}
 
@@ -723,7 +810,7 @@ export function WelcomeModal({
           </button>
           {showArchived && (
             <CardGrid>
-              {archivedShared.slice(0, MAX_CARDS).map((p) => (
+              {visibleArchived.map((p) => (
                 <ProjectCard
                   key={p.id}
                   badge={t("startModal.archived")}
@@ -744,6 +831,13 @@ export function WelcomeModal({
                 />
               ))}
             </CardGrid>
+          )}
+          {showArchived && (
+            <LoadMore
+              shown={visibleArchived.length}
+              total={archivedShared.length}
+              onClick={() => loadMore("archived")}
+            />
           )}
         </section>
       )}
@@ -799,6 +893,76 @@ function othersOf(
   selfId: string,
 ): ProjectParticipant[] {
   return participants.filter((p) => p.user_id !== selfId);
+}
+
+function BrowseToolbar({
+  query,
+  onQuery,
+  sort,
+  onSort,
+}: {
+  query: string;
+  onQuery: (value: string) => void;
+  sort: BrowseSort;
+  onSort: (value: BrowseSort) => void;
+}) {
+  const { t } = useLocale();
+  const labels: Record<BrowseSort, string> = {
+    date: t("startModal.sortDate"),
+    name: t("startModal.sortName"),
+    difficulty: t("startModal.sortDifficulty"),
+  };
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="relative min-w-[12rem] flex-1">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          placeholder={t("startModal.searchPlaceholder")}
+          aria-label={t("startModal.searchLabel")}
+          className="w-full rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+        />
+      </div>
+      <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-ink-700/45 p-1">
+        {BROWSE_SORTS.map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onSort(option)}
+            aria-pressed={sort === option}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+              sort === option
+                ? "bg-accent/85 text-white"
+                : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
+            }`}
+          >
+            {labels[option]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LoadMore({
+  shown,
+  total,
+  onClick,
+}: {
+  shown: number;
+  total: number;
+  onClick: () => void;
+}) {
+  const { t } = useLocale();
+  if (shown >= total) return null;
+  return (
+    <div className="mt-3 flex justify-center">
+      <SectionButton onClick={onClick}>
+        {t("startModal.loadMore", { count: total - shown })}
+      </SectionButton>
+    </div>
+  );
 }
 
 function Section({

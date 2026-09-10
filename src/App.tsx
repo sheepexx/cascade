@@ -254,6 +254,7 @@ import {
   setUiSoundsEnabled,
   setUiSoundVolume,
 } from "./lib/uiSounds";
+import { setPerformanceMode } from "./lib/performanceMode";
 import { useAuth } from "./lib/auth";
 import { useLocale, useT } from "./lib/i18n";
 import {
@@ -755,7 +756,7 @@ export default function App() {
     live: osuLive,
     connectedAt: osuConnectedAt,
     acknowledge: acknowledgeOsu,
-  } = useOsuLive();
+  } = useOsuLive(appSettings.osuListenerEnabled);
   const [osuApp, setOsuApp] = useState<OsuStatus | null>(null);
   const [desktopUpdate, setDesktopUpdate] = useState<DesktopUpdate | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -3180,9 +3181,12 @@ export default function App() {
     [patchDifficulty],
   );
 
-  const menuMusicEnabled = !hasProject && !packCreatorOpen && !sharedSlug;
+  const menuMusicEnabled =
+    appSettings.menuMusicEnabled && !hasProject && !packCreatorOpen && !sharedSlug;
   const menuMusic = useMenuMusic(menuMusicEnabled);
   const toggleMenuMusic = menuMusic.toggle;
+  const nextMenuTrack = menuMusic.next;
+  const previousMenuTrack = menuMusic.previous;
   const setMenuMusicDucking = menuMusic.setAmbientDucking;
   const fadeOutMenuMusic = menuMusic.fadeOut;
 
@@ -4199,6 +4203,10 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [authUser?.id, accountSettings]);
 
+  useLayoutEffect(() => {
+    setPerformanceMode(appSettings.performanceMode);
+  }, [appSettings.performanceMode]);
+
   useEffect(() => {
     setUiSoundsEnabled(appSettings.uiSoundsEnabled);
   }, [appSettings.uiSoundsEnabled]);
@@ -4632,15 +4640,29 @@ export default function App() {
   useEffect(() => {
     if (!menuMusicEnabled) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== "KeyC" || e.repeat) return;
+      if (e.repeat) return;
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       if (isTypingTarget(e.target)) return;
+      const letter = e.key.length === 1 ? e.key.toLowerCase() : "";
+      const arrow =
+        (e.key === "ArrowLeft" || e.key === "ArrowRight") && !dialogIsOpen()
+          ? e.key
+          : "";
+      const action =
+        letter === "c"
+          ? toggleMenuMusic
+          : letter === "v" || arrow === "ArrowLeft"
+            ? nextMenuTrack
+            : letter === "y" || arrow === "ArrowRight"
+              ? previousMenuTrack
+              : null;
+      if (!action) return;
       e.preventDefault();
-      toggleMenuMusic();
+      action();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [menuMusicEnabled, toggleMenuMusic]);
+  }, [menuMusicEnabled, toggleMenuMusic, nextMenuTrack, previousMenuTrack]);
 
   const doExportOsu = useCallback(() => {
     if (!audioFile) return;
@@ -6897,6 +6919,18 @@ export default function App() {
           }
           hideStatus={appSettings.hideStatus}
           onHideStatus={(v) => setAppSettings((s) => ({ ...s, hideStatus: v }))}
+          menuMusicEnabled={appSettings.menuMusicEnabled}
+          onMenuMusicEnabled={(v) =>
+            setAppSettings((s) => ({ ...s, menuMusicEnabled: v }))
+          }
+          performanceMode={appSettings.performanceMode}
+          onPerformanceMode={(v) =>
+            setAppSettings((s) => ({ ...s, performanceMode: v }))
+          }
+          osuListenerEnabled={appSettings.osuListenerEnabled}
+          onOsuListenerEnabled={(v) =>
+            setAppSettings((s) => ({ ...s, osuListenerEnabled: v }))
+          }
         />
       )}
       {modalMounted("skin") && (

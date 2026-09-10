@@ -438,6 +438,9 @@ export type AppSettings = {
   uiSoundVolume: number;
   showMenuPlayers: boolean;
   hideStatus: boolean;
+  menuMusicEnabled: boolean;
+  performanceMode: boolean;
+  osuListenerEnabled: boolean;
   playtest: PlaytestSettings;
   /** Rebindable editor shortcuts (KeyboardEvent.code per action); defaults
    * are filled in by normalizeEditorKeybinds at load time. */
@@ -508,6 +511,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   uiSoundVolume: 1,
   showMenuPlayers: true,
   hideStatus: false,
+  menuMusicEnabled: true,
+  performanceMode: false,
+  osuListenerEnabled: true,
   playtest: {
     scrollSpeed: 35,
     zoom: 1.5,

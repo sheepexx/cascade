@@ -126,6 +126,35 @@ export const ru: PartialCatalog = {
   "settings.bodyWidthHint":
     "Ширина стандартного тела длинной ноты (серая часть) относительно дорожки. Действует, только если не используется спрайт из скина.",
 
+  "settings.mainMenu": "Главное меню",
+  "settings.menuMusic": "Играть случайный трек в главном меню",
+  "settings.menuMusicHint":
+    "Берёт трек из ваших локальных проектов и играет его за меню. C ставит на паузу, V включает следующий трек, Y предыдущий.",
+
+  "settings.performance": "Производительность",
+  "settings.performanceMode": "Режим производительности",
+  "settings.performanceModeHint":
+    "Для слабых машин. Отключает все анимации, визуализатор меню и фоновые эффекты, убирает размытие и тени, а редактор рисует в меньшем разрешении.",
+  "settings.performanceModeNote":
+    "Анимации, визуализатор, эффекты киай и размытие фона отключены. Редактор рисует в 1x, поэтому на экране с высокой плотностью пикселей будет мягче.",
+
+  "settings.osuIntegration": "Интеграция с osu!",
+  "settings.osuListener": "Следить за картой, открытой в osu!",
+  "settings.osuListenerHint":
+    "Cascade следит за тем, какая карта выбрана в osu!, и предлагает её открыть. Если выключить, слежение прекращается и предложение не появляется.",
+
+  "settings.legal": "Правовая информация",
+  "settings.terms": "Условия использования",
+
+  "settings.resetData": "Сброс",
+  "settings.resetDataHint":
+    "Стирает всё, что Cascade хранит на этом устройстве: проекты, автосохранения, импортированное аудио и скины, настройки и кешированные файлы. Аккаунт и всё, что сохранено в облаке, не затрагиваются.",
+  "settings.resetDataButton": "Стереть локальные данные",
+  "settings.resetDataConfirmTitle": "Стереть все локальные данные?",
+  "settings.resetDataConfirmBody":
+    "Все проекты, автосохранения, скины и настройки на этом устройстве будут удалены, и вы выйдете из аккаунта здесь. Сам аккаунт, облачные проекты и всё уже загруженное останутся на месте. Это нельзя отменить.",
+  "settings.resetDataConfirmHold": "Удерживайте, чтобы стереть",
+
   "settings.localSave": "Локальное сохранение",
   "settings.autosave": "Автосохранение локального проекта",
   "settings.autosaveHint":
@@ -344,6 +373,17 @@ export const ru: PartialCatalog = {
   "startModal.localProjects": "Локальные проекты",
   "startModal.localProjectsHint": "сохранены на этом устройстве",
   "startModal.localProjectsUsage": "{size} · сохранены на этом устройстве",
+  "startModal.searchLabel": "Поиск карт",
+  "startModal.searchPlaceholder":
+    "Название, маппер, сложность, теги или 4k",
+  "startModal.noSearchMatches": "По этому запросу ничего нет.",
+  "startModal.sortDate": "Дата",
+  "startModal.sortName": "Название",
+  "startModal.sortDifficulty": "Сложность",
+  "startModal.loadMore.one": "Показать ещё {count}",
+  "startModal.loadMore.few": "Показать ещё {count}",
+  "startModal.loadMore.many": "Показать ещё {count}",
+  "startModal.loadMore.other": "Показать ещё {count}",
   "startModal.select": "Выбрать",
   "startModal.selectAll": "Выбрать все",
   "startModal.deselectAll": "Снять выделение",

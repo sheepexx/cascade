@@ -1,17 +1,21 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
 
 export function NowPlaying({ music }: { music: MenuMusic }) {
   const fillRef = useRef<HTMLDivElement | null>(null);
+  const barRef = useRef<HTMLDivElement | null>(null);
   const musicRef = useRef(music);
   musicRef.current = music;
+  const [scrubbing, setScrubbing] = useState(false);
+  const scrubbingRef = useRef(false);
+  scrubbingRef.current = scrubbing;
 
   useEffect(() => {
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const fill = fillRef.current;
-      if (!fill) return;
+      if (!fill || scrubbingRef.current) return;
       const playback = musicRef.current.getPlayback();
       const ratio =
         playback && playback.duration > 0
@@ -22,6 +26,32 @@ export function NowPlaying({ music }: { music: MenuMusic }) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  const scrubTo = useCallback((clientX: number) => {
+    const bar = barRef.current;
+    const playback = musicRef.current.getPlayback();
+    if (!bar || !playback || playback.duration <= 0) return;
+    const rect = bar.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const fill = fillRef.current;
+    if (fill) fill.style.transform = `scaleX(${ratio.toFixed(4)})`;
+    musicRef.current.seek(ratio * playback.duration);
+  }, []);
+
+  useEffect(() => {
+    if (!scrubbing) return;
+    const move = (e: PointerEvent) => scrubTo(e.clientX);
+    const stop = () => setScrubbing(false);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+  }, [scrubbing, scrubTo]);
 
   const { track, isPlaying, toggle, next } = music;
   if (!track) return null;
@@ -49,18 +79,55 @@ export function NowPlaying({ music }: { music: MenuMusic }) {
         <MiniButton label={isPlaying ? "Pause (C)" : "Play (C)"} onClick={toggle}>
           {isPlaying ? "❚❚" : "▶"}
         </MiniButton>
-        <MiniButton label="Next track" onClick={next}>
+        <MiniButton label="Next track (V)" onClick={next}>
           ▶❘
         </MiniButton>
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-[2px] bg-white/10">
+      <div
+        ref={barRef}
+        role="slider"
+        tabIndex={0}
+        aria-label="Seek"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(seekRatio(music) * 100)}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          setScrubbing(true);
+          scrubTo(e.clientX);
+        }}
+        onKeyDown={(e) => {
+          const step =
+            e.key === "ArrowLeft" ? -5000 : e.key === "ArrowRight" ? 5000 : 0;
+          if (!step) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const playback = music.getPlayback();
+          if (playback) music.seek(playback.position + step);
+        }}
+        className={`absolute inset-x-0 bottom-0 flex cursor-pointer touch-none items-end pt-2 outline-none ${
+          scrubbing ? "" : "group"
+        }`}
+      >
         <div
-          ref={fillRef}
-          className="h-full w-full origin-left scale-x-0 bg-accent/85"
-        />
+          className={`w-full bg-white/10 transition-[height] duration-150 ${
+            scrubbing ? "h-[5px]" : "h-[2px] group-hover:h-[5px]"
+          }`}
+        >
+          <div
+            ref={fillRef}
+            className="h-full w-full origin-left scale-x-0 bg-accent/85"
+          />
+        </div>
       </div>
     </div>
   );
+}
+
+function seekRatio(music: MenuMusic): number {
+  const playback = music.getPlayback();
+  if (!playback || playback.duration <= 0) return 0;
+  return Math.max(0, Math.min(1, playback.position / playback.duration));
 }
 
 function MiniButton({

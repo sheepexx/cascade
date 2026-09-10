@@ -125,6 +125,35 @@ export const de: PartialCatalog = {
   "settings.bodyWidthHint":
     "Breite des Standard-Long-Note-Körpers (der graue Teil), relativ zur Spur. Gilt nur, wenn kein Skin-Sprite verwendet wird.",
 
+  "settings.mainMenu": "Hauptmenü",
+  "settings.menuMusic": "Zufälligen Song im Hauptmenü spielen",
+  "settings.menuMusicHint":
+    "Spielt einen Titel aus deinen lokalen Projekten hinter dem Menü. C pausiert, V springt zum nächsten Song, Y zum vorherigen.",
+
+  "settings.performance": "Leistung",
+  "settings.performanceMode": "Leistungsmodus",
+  "settings.performanceModeHint":
+    "Für schwache Rechner. Schaltet alle Animationen, den Menü-Visualizer und die Hintergrundeffekte ab, entfernt Weichzeichner und Schatten und rendert den Editor mit niedrigerer Auflösung.",
+  "settings.performanceModeNote":
+    "Animationen, Visualizer, Kiai-Effekte und Hintergrund-Weichzeichner sind aus. Der Editor rendert in 1x, auf einem HiDPI-Bildschirm wirkt er dadurch weicher.",
+
+  "settings.osuIntegration": "osu!-Integration",
+  "settings.osuListener": "In osu! geöffnete Map beobachten",
+  "settings.osuListenerHint":
+    "Cascade beobachtet, welche Map in osu! ausgewählt ist, und bietet an, sie zu öffnen. Aus heißt: kein Beobachter und kein Angebot.",
+
+  "settings.legal": "Rechtliches",
+  "settings.terms": "Nutzungsbedingungen",
+
+  "settings.resetData": "Zurücksetzen",
+  "settings.resetDataHint":
+    "Löscht alles, was Cascade auf diesem Gerät speichert: Projekte, Autosaves, importiertes Audio und Skins, Einstellungen und zwischengespeicherte Dateien. Dein Konto und alles in der Cloud bleiben unberührt.",
+  "settings.resetDataButton": "Lokale Daten löschen",
+  "settings.resetDataConfirmTitle": "Alle lokalen Daten löschen?",
+  "settings.resetDataConfirmBody":
+    "Jedes Projekt, Autosave, Skin und jede Einstellung auf diesem Gerät wird gelöscht und du wirst hier abgemeldet. Dein Konto, Cloud-Projekte und bereits Hochgeladenes bleiben bestehen. Das lässt sich nicht rückgängig machen.",
+  "settings.resetDataConfirmHold": "Zum Löschen halten",
+
   "settings.localSave": "Lokales Speichern",
   "settings.autosave": "Lokales Projekt automatisch speichern",
   "settings.autosaveHint":
@@ -340,6 +369,15 @@ export const de: PartialCatalog = {
   "startModal.localProjects": "Lokale Projekte",
   "startModal.localProjectsHint": "auf diesem Gerät gespeichert",
   "startModal.localProjectsUsage": "{size} · auf diesem Gerät gespeichert",
+  "startModal.searchLabel": "Maps durchsuchen",
+  "startModal.searchPlaceholder":
+    "Titel, Mapper, Difficulty, Tags oder 4k suchen",
+  "startModal.noSearchMatches": "Nichts passt zu dieser Suche.",
+  "startModal.sortDate": "Datum",
+  "startModal.sortName": "Name",
+  "startModal.sortDifficulty": "Schwierigkeit",
+  "startModal.loadMore.one": "{count} weitere laden",
+  "startModal.loadMore.other": "{count} weitere laden",
   "startModal.select": "Auswählen",
   "startModal.selectAll": "Alle auswählen",
   "startModal.deselectAll": "Auswahl aufheben",

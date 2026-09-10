@@ -125,6 +125,35 @@ export const ptBR: PartialCatalog = {
   "settings.bodyWidthHint":
     "Largura do corpo padrão da nota longa (a parte cinza), em relação à lane. Só se aplica quando nenhum sprite de skin é usado.",
 
+  "settings.mainMenu": "Menu principal",
+  "settings.menuMusic": "Tocar uma música aleatória no menu principal",
+  "settings.menuMusicHint":
+    "Escolhe uma faixa dos seus projetos locais e toca atrás do menu. C pausa, V vai para a próxima música e Y para a anterior.",
+
+  "settings.performance": "Desempenho",
+  "settings.performanceMode": "Modo de desempenho",
+  "settings.performanceModeHint":
+    "Para máquinas fracas. Desliga todas as animações, o visualizador do menu e os efeitos de fundo, remove desfoque e sombras e renderiza o editor em resolução menor.",
+  "settings.performanceModeNote":
+    "Animações, visualizador, efeitos de kiai e desfoque de fundo estão desligados. O editor renderiza em 1x, então pode ficar mais suave numa tela de alta densidade.",
+
+  "settings.osuIntegration": "Integração com o osu!",
+  "settings.osuListener": "Observar o mapa aberto no osu!",
+  "settings.osuListenerHint":
+    "O Cascade observa qual mapa está selecionado no osu! e oferece abri-lo. Desligado, o observador para e a oferta some.",
+
+  "settings.legal": "Jurídico",
+  "settings.terms": "Termos de uso",
+
+  "settings.resetData": "Redefinir",
+  "settings.resetDataHint":
+    "Apaga tudo o que o Cascade guarda neste dispositivo: projetos, autossalvamentos, áudio e skins importados, configurações e arquivos em cache. Sua conta e o que está na nuvem não são afetados.",
+  "settings.resetDataButton": "Apagar dados locais",
+  "settings.resetDataConfirmTitle": "Apagar todos os dados locais?",
+  "settings.resetDataConfirmBody":
+    "Todo projeto, autossalvamento, skin e configuração guardado neste dispositivo é excluído e você sai da conta aqui. Sua conta, os projetos na nuvem e tudo o que já foi enviado continuam como estão. Não dá para desfazer.",
+  "settings.resetDataConfirmHold": "Segure para apagar",
+
   "settings.localSave": "Salvamento local",
   "settings.autosave": "Salvar projeto local automaticamente",
   "settings.autosaveHint":
@@ -339,6 +368,15 @@ export const ptBR: PartialCatalog = {
   "startModal.localProjects": "Projetos locais",
   "startModal.localProjectsHint": "salvos neste dispositivo",
   "startModal.localProjectsUsage": "{size} · salvos neste dispositivo",
+  "startModal.searchLabel": "Buscar mapas",
+  "startModal.searchPlaceholder":
+    "Busque título, mapper, dificuldade, tags ou 4k",
+  "startModal.noSearchMatches": "Nada corresponde a essa busca.",
+  "startModal.sortDate": "Data",
+  "startModal.sortName": "Nome",
+  "startModal.sortDifficulty": "Dificuldade",
+  "startModal.loadMore.one": "Carregar mais {count}",
+  "startModal.loadMore.other": "Carregar mais {count}",
   "startModal.select": "Selecionar",
   "startModal.selectAll": "Selecionar tudo",
   "startModal.deselectAll": "Limpar seleção",

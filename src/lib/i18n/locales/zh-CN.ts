@@ -122,6 +122,35 @@ export const zhCN: PartialCatalog = {
   "settings.bodyWidthHint":
     "默认长条主体（灰色部分）相对于轨道的宽度。仅在未使用皮肤主体贴图时生效。",
 
+  "settings.mainMenu": "主菜单",
+  "settings.menuMusic": "在主菜单随机播放歌曲",
+  "settings.menuMusicHint":
+    "从你的本地项目中挑一首在菜单背后播放。按 C 暂停，按 V 下一首，按 Y 上一首。",
+
+  "settings.performance": "性能",
+  "settings.performanceMode": "性能模式",
+  "settings.performanceModeHint":
+    "为低配设备准备。关闭全部动画、菜单频谱和背景特效，去掉模糊与阴影，并以较低分辨率渲染编辑器。",
+  "settings.performanceModeNote":
+    "动画、菜单频谱、kiai 特效和背景模糊已关闭。编辑器以 1x 渲染，在高分屏上会显得略糊。",
+
+  "settings.osuIntegration": "osu! 集成",
+  "settings.osuListener": "监视 osu! 中打开的谱面",
+  "settings.osuListenerHint":
+    "Cascade 会监视 osu! 当前选中的谱面并提示打开它。关闭后将停止监视，也不再提示。",
+
+  "settings.legal": "法律信息",
+  "settings.terms": "使用条款",
+
+  "settings.resetData": "重置",
+  "settings.resetDataHint":
+    "清除 Cascade 保存在此设备上的一切：项目、自动保存、导入的音频与皮肤、设置和缓存文件。你的账号以及云端内容不受影响。",
+  "settings.resetDataButton": "清除本地数据",
+  "settings.resetDataConfirmTitle": "清除全部本地数据？",
+  "settings.resetDataConfirmBody":
+    "此设备上的所有项目、自动保存、皮肤和设置都会被删除，并在此登出。你的账号、云端项目以及已上传的内容保持不变。此操作无法撤销。",
+  "settings.resetDataConfirmHold": "长按以清除",
+
   "settings.localSave": "本地保存",
   "settings.autosave": "自动保存本地项目",
   "settings.autosaveHint":
@@ -327,6 +356,13 @@ export const zhCN: PartialCatalog = {
   "startModal.localProjects": "本地项目",
   "startModal.localProjectsHint": "保存在本设备",
   "startModal.localProjectsUsage": "{size} · 保存在本设备",
+  "startModal.searchLabel": "搜索谱面",
+  "startModal.searchPlaceholder": "搜索标题、作者、难度、标签或 4k",
+  "startModal.noSearchMatches": "没有匹配的结果。",
+  "startModal.sortDate": "日期",
+  "startModal.sortName": "名称",
+  "startModal.sortDifficulty": "难度",
+  "startModal.loadMore.other": "再加载 {count} 个",
   "startModal.select": "选择",
   "startModal.selectAll": "全选",
   "startModal.deselectAll": "取消全选",
