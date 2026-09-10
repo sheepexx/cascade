@@ -357,7 +357,7 @@ export function AppSettingsModal({
                 onChange={onUiScale}
               />
               <label className="mt-4 block">
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-300">
                   <Tip text={t("settings.altWheelHint")}>
                     {t("settings.altWheelAction")}
                   </Tip>
@@ -412,12 +412,12 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.localSave")}
               </h3>
-              <div className="flex items-center justify-between text-xs text-slate-300">
-                <Tip text={t("settings.autosaveHint")}>{t("settings.autosave")}</Tip>
-                <Toggle
+              <div className="flex flex-col gap-3">
+                <SettingToggle
+                  label={t("settings.autosave")}
+                  tip={t("settings.autosaveHint")}
                   checked={localAutosaveEnabled}
                   onChange={onLocalAutosaveEnabled}
-                  aria-label={t("settings.autosave")}
                 />
               </div>
             </section>
@@ -560,20 +560,20 @@ export function AppSettingsModal({
                   value={noteHeightScale}
                   onChange={onNoteHeightScale}
                 />
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
-                  <Tip text={t("settings.waveformHint")} diagram="waveform">{t("settings.waveformOnLane")}</Tip>
-                  <Toggle
+                <div className="mt-2 flex flex-col gap-3">
+                  <SettingToggle
+                    label={t("settings.waveformOnLane")}
+                    tip={t("settings.waveformHint")}
+                    diagram="waveform"
                     checked={showWaveform}
                     onChange={onShowWaveform}
-                    aria-label={t("settings.waveformOnLane")}
                   />
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
-                  <Tip text={t("settings.timingLinesHint")} diagram="timingLines">{t("settings.timingLines")}</Tip>
-                  <Toggle
+                  <SettingToggle
+                    label={t("settings.timingLines")}
+                    tip={t("settings.timingLinesHint")}
+                    diagram="timingLines"
                     checked={showTimingLines}
                     onChange={onShowTimingLines}
-                    aria-label={t("settings.timingLines")}
                   />
                 </div>
               </div>
@@ -582,31 +582,30 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.scrolling")}
               </h3>
-              <div className="flex items-center justify-between text-xs text-slate-300">
-                <Tip text={t("settings.smoothScrollingHint")} diagram="smoothScrolling">{t("settings.smoothScrolling")}</Tip>
-                <Toggle
+              <div className="flex flex-col gap-3">
+                <SettingToggle
+                  label={t("settings.smoothScrolling")}
+                  tip={t("settings.smoothScrollingHint")}
+                  diagram="smoothScrolling"
                   checked={smoothScrolling}
                   onChange={onSmoothScrolling}
-                  aria-label={t("settings.smoothScrolling")}
                 />
-              </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
-                <Tip text={t("settings.svPreviewHint")} diagram="svPreview">{t("settings.svPreview")}</Tip>
-                <Toggle
+                <SettingToggle
+                  label={t("settings.svPreview")}
+                  tip={t("settings.svPreviewHint")}
+                  diagram="svPreview"
                   checked={svPreviewPlayback}
                   onChange={onSvPreviewPlayback}
-                  aria-label={t("settings.svPreview")}
                 />
-              </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
-                <Tip text={t("settings.bpmAffectsScrollHint")} diagram="bpmScroll">{t("settings.bpmAffectsScroll")}</Tip>
-                <Toggle
+                <SettingToggle
+                  label={t("settings.bpmAffectsScroll")}
+                  tip={t("settings.bpmAffectsScrollHint")}
+                  diagram="bpmScroll"
                   checked={bpmAffectsScroll}
                   onChange={onBpmAffectsScroll}
-                  aria-label={t("settings.bpmAffectsScroll")}
                 />
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
+              <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-300">
                 <Tip text={t("settings.scrollDirectionHint")} diagram="scrollDirection">{t("settings.scrollDirection")}</Tip>
                 <button
                   type="button"
@@ -680,7 +679,7 @@ export function AppSettingsModal({
                 onChange={(v) => patchPlaytest({ scrollSpeed: v })}
               />
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-slate-400">
+                <div className="flex items-center justify-between text-xs text-slate-300">
                   <Tip text={t("settings.rateHint")}>{t("settings.rate")}</Tip>
                   <span className="font-medium text-slate-200">
                     {(playtest.rate ?? 1).toFixed(2)}×
@@ -706,7 +705,7 @@ export function AppSettingsModal({
                 </div>
               </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                <label className="flex flex-col gap-1 text-xs text-slate-300">
                   <span>{t("settings.zoom")}</span>
                   <input
                     type="number"
@@ -718,7 +717,7 @@ export function AppSettingsModal({
                     className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
                   />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                <label className="flex flex-col gap-1 text-xs text-slate-300">
                   <Tip text={t("settings.playfieldHint")} diagram="backgroundDim" value={playtest.backgroundDim}>{t("settings.backgroundDim")}</Tip>
                   <input
                     type="number"
@@ -740,7 +739,7 @@ export function AppSettingsModal({
                 {t("settings.offset")}
               </h3>
               <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-xs text-slate-400">
+              <label className="flex flex-col gap-1 text-xs text-slate-300">
                 <span>{t("settings.offsetMode")}</span>
                 <Select
                   value={playtest.offsetMode}
@@ -909,7 +908,7 @@ export function AppSettingsModal({
 
               <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-xs text-slate-400">
+                    <label className="flex flex-col gap-1 text-xs text-slate-300">
                       <Tip
                         text={t("settings.danHint", {
                           keys: DAN_LADDERS[ladders.regular].keyCount,
@@ -930,7 +929,7 @@ export function AppSettingsModal({
                         ))}
                       </Select>
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-slate-400">
+                    <label className="flex flex-col gap-1 text-xs text-slate-300">
                       <span>{t("settings.danLn")}</span>
                       <Select
                         value={lnLevel}
@@ -1071,7 +1070,7 @@ export function AppSettingsModal({
                     format={(v) => `${v} ms`}
                     onChange={(v) => patchHumanize({ releaseJitterMs: v })}
                   />
-                  <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <label className="flex flex-col gap-1 text-xs text-slate-300">
                     <div className="flex items-center justify-between">
                       <Tip text={t("settings.humanizeSeedHint")}>{t("settings.humanizeSeed")}</Tip>
                       {playtest.humanize.seed === 0 && (
@@ -1120,14 +1119,12 @@ export function AppSettingsModal({
                 {t("settings.hitsounds")}
               </h3>
               <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between text-xs text-slate-300">
-                  <Tip text={t("settings.hitsoundsHint")}>{t("settings.playHitsounds")}</Tip>
-                  <Toggle
-                    checked={hitsoundsEnabled}
-                    onChange={onHitsoundsEnabled}
-                    aria-label={t("settings.playHitsounds")}
-                  />
-                </div>
+                <SettingToggle
+                  label={t("settings.playHitsounds")}
+                  tip={t("settings.hitsoundsHint")}
+                  checked={hitsoundsEnabled}
+                  onChange={onHitsoundsEnabled}
+                />
 
                 <div className="flex flex-col gap-2">
                 </div>
@@ -1150,14 +1147,12 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.interfaceSounds")}
               </h3>
-              <div className="flex items-center justify-between text-xs text-slate-300">
-                <Tip text={t("settings.uiSoundsHint")}>{t("settings.uiSounds")}</Tip>
-                <Toggle
-                  checked={uiSoundsEnabled}
-                  onChange={onUiSoundsEnabled}
-                  aria-label={t("settings.uiSounds")}
-                />
-              </div>
+              <SettingToggle
+                label={t("settings.uiSounds")}
+                tip={t("settings.uiSoundsHint")}
+                checked={uiSoundsEnabled}
+                onChange={onUiSoundsEnabled}
+              />
               <div className="mt-3">
                 <SliderRow
                   label={t("settings.volume")}
@@ -1180,14 +1175,12 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.backgroundImages")}
               </h3>
-              <div className="flex items-center justify-between text-xs text-slate-300">
-                <Tip text={t("settings.convertPngHint")}>{t("settings.convertPng")}</Tip>
-                <Toggle
-                  checked={exportPngBackgroundsAsJpeg}
-                  onChange={onExportPngBackgroundsAsJpeg}
-                  aria-label={t("settings.convertPng")}
-                />
-              </div>
+              <SettingToggle
+                label={t("settings.convertPng")}
+                tip={t("settings.convertPngHint")}
+                checked={exportPngBackgroundsAsJpeg}
+                onChange={onExportPngBackgroundsAsJpeg}
+              />
 
               <div className="mt-4">
                 <SliderRow
@@ -1406,7 +1399,7 @@ function HumanSlider({
       aria-disabled={disabled}
       className={`flex flex-col gap-1.5 ${disabled ? "opacity-50" : ""}`}
     >
-      <div className="flex items-center justify-between text-xs text-slate-400">
+      <div className="flex items-center justify-between text-xs text-slate-300">
         <Tip text={hint}>{label}</Tip>
         <span className="font-medium tabular-nums text-slate-200">
           {format(value)}
@@ -1443,7 +1436,9 @@ function SettingToggle({
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-3 ${disabled ? "opacity-45" : ""}`}
+      className={`flex items-center justify-between gap-3 text-xs text-slate-300 ${
+        disabled ? "opacity-45" : ""
+      }`}
     >
       <Tip text={tip} diagram={diagram}>
         {label}
@@ -1485,7 +1480,7 @@ function SliderRow({
 }) {
   return (
     <div
-      className={`flex items-center gap-3 text-xs text-slate-400 ${
+      className={`flex items-center gap-3 text-xs text-slate-300 ${
         disabled ? "opacity-45" : ""
       }`}
     >

@@ -4653,7 +4653,7 @@ export default function App() {
           ? toggleMenuMusic
           : letter === "v" || arrow === "ArrowLeft"
             ? nextMenuTrack
-            : letter === "y" || arrow === "ArrowRight"
+            : letter === "x" || arrow === "ArrowRight"
               ? previousMenuTrack
               : null;
       if (!action) return;
@@ -5754,7 +5754,7 @@ export default function App() {
         className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           exiting ? "app-power-off" : ""
         } ${
-          modalAtmosphereActive
+          modalAtmosphereActive && !appSettings.performanceMode
             ? "scale-[0.992] blur-[2px] opacity-75"
             : "scale-100 blur-0 opacity-100"
         }`}

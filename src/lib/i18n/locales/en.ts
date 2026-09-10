@@ -133,7 +133,7 @@ export const en = {
   "settings.mainMenu": "Main menu",
   "settings.menuMusic": "Play a random song in the main menu",
   "settings.menuMusicHint":
-    "Picks a track from your local projects and plays it behind the menu. Press C to pause it, V for the next song and Y for the one before.",
+    "Picks a track from your local projects and plays it behind the menu. Press C to pause it, V for the next song and X for the one before.",
 
   "settings.performance": "Performance",
   "settings.performanceMode": "Performance mode",

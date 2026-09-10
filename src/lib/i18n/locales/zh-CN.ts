@@ -125,7 +125,7 @@ export const zhCN: PartialCatalog = {
   "settings.mainMenu": "主菜单",
   "settings.menuMusic": "在主菜单随机播放歌曲",
   "settings.menuMusicHint":
-    "从你的本地项目中挑一首在菜单背后播放。按 C 暂停，按 V 下一首，按 Y 上一首。",
+    "从你的本地项目中挑一首在菜单背后播放。按 C 暂停，按 V 下一首，按 X 上一首。",
 
   "settings.performance": "性能",
   "settings.performanceMode": "性能模式",

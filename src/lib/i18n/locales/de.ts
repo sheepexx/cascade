@@ -128,7 +128,7 @@ export const de: PartialCatalog = {
   "settings.mainMenu": "Hauptmenü",
   "settings.menuMusic": "Zufälligen Song im Hauptmenü spielen",
   "settings.menuMusicHint":
-    "Spielt einen Titel aus deinen lokalen Projekten hinter dem Menü. C pausiert, V springt zum nächsten Song, Y zum vorherigen.",
+    "Spielt einen Titel aus deinen lokalen Projekten hinter dem Menü. C pausiert, V springt zum nächsten Song, X zum vorherigen.",
 
   "settings.performance": "Leistung",
   "settings.performanceMode": "Leistungsmodus",

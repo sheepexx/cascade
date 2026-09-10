@@ -128,7 +128,7 @@ export const ptBR: PartialCatalog = {
   "settings.mainMenu": "Menu principal",
   "settings.menuMusic": "Tocar uma música aleatória no menu principal",
   "settings.menuMusicHint":
-    "Escolhe uma faixa dos seus projetos locais e toca atrás do menu. C pausa, V vai para a próxima música e Y para a anterior.",
+    "Escolhe uma faixa dos seus projetos locais e toca atrás do menu. C pausa, V vai para a próxima música e X para a anterior.",
 
   "settings.performance": "Desempenho",
   "settings.performanceMode": "Modo de desempenho",
