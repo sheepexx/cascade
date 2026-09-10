@@ -679,7 +679,6 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.offset")}
               </h3>
-              {onAudioSetup && <Button className="mb-3" onClick={onAudioSetup}>Audio setup & calibration</Button>}
               <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs text-slate-400">
                 <span>{t("settings.offsetMode")}</span>
@@ -1043,6 +1042,19 @@ export function AppSettingsModal({
 
         {tab === "Audio" && (
           <div className="flex flex-col gap-6">
+            {onAudioSetup && (
+              <section>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t("settings.audioOutput")}
+                </h3>
+                <Button variant="primary" onClick={onAudioSetup}>
+                  {t("settings.audioSetup")}
+                </Button>
+                <p className="mt-2 text-[11px] text-slate-500">
+                  {t("settings.audioSetupHint")}
+                </p>
+              </section>
+            )}
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.hitsounds")}

@@ -35,7 +35,6 @@ import {
 import { previewStartMs } from "./lib/sharedMapPreview";
 import { renderShareCard } from "./lib/shareCard";
 import { VersionHistoryModal } from "./components/menus/VersionHistoryModal";
-import { BatchApplyModal } from "./components/menus/BatchApplyModal";
 import { batchApplyDifficulties, type BatchRequest } from "./lib/batchApply";
 import { describeNoteOp, describeSnapshotChange, jumpSnapshotHistory } from "./lib/editorHistory";
 import { AudioSetupModal } from "./components/menus/AudioSetupModal";
@@ -223,6 +222,7 @@ import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
 import { Menu } from "./components/ui/Menu";
+import { HistoryPopover } from "./components/ui/HistoryPopover";
 import { Modal } from "./components/ui/Modal";
 import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
@@ -434,7 +434,6 @@ function LazyLoadingFallback() {
 
 type ModalId =
   | "history"
-  | "batchApply"
   | "audioSetup"
   | "newMap"
   | "welcome"
@@ -680,6 +679,7 @@ export default function App() {
     });
   }, []);
   const [modal, setModal] = useState<ModalId>(null);
+  const [historyPanel, setHistoryPanel] = useState(false);
   const modalMounted = useMountedModals(modal);
   const packCreatorEverOpenedRef = useRef(false);
   const adminEverOpenedRef = useRef(false);
@@ -3929,14 +3929,14 @@ export default function App() {
   const historyCurrent = liveEnabled ? opUndoRef.current.length : undoStackRef.current.length;
   const historyEntries = useMemo(() => {
     void historyRevision;
-    if (modal !== "history") return [];
+    if (modal !== "history" && !historyPanel) return [];
     if (liveEnabled) {
       const names = new Map(difficulties.map(d => [d.id, d.name]));
       return ["Start of retained history", ...[...opUndoRef.current, ...opRedoRef.current.slice().reverse()].map(op => describeNoteOp(op, names))];
     }
     const states = [...undoStackRef.current, presentRef.current ?? snapshot, ...redoStackRef.current.slice().reverse()];
     return states.map((s, i) => i === 0 ? "Start of retained history" : describeSnapshotChange(states[i - 1], s));
-  }, [modal, liveEnabled, difficulties, snapshot, historyRevision]);
+  }, [modal, historyPanel, liveEnabled, difficulties, snapshot, historyRevision]);
 
   const jumpHistory = useCallback((index: number) => {
     if (!canEditRef.current) return;
@@ -5852,11 +5852,6 @@ export default function App() {
               <MenuButton onClick={() => setModal("difficulty")}>
                 {t("nav.difficulty")}
               </MenuButton>
-              <Menu label="Assist" items={[
-                { label: "Undo history", onClick: () => setModal("history") },
-                { label: "Batch apply across difficulties", disabled: !canEdit, onClick: () => setModal("batchApply") },
-                { label: "Audio setup & calibration", onClick: () => { pauseAudio(); setModal("audioSetup"); } },
-              ]} />
               <div className="hidden items-center gap-1 uixl:flex">
                 <MenuButton onClick={() => setModal("tools")}>
                   {t("nav.tools")}
@@ -5874,13 +5869,24 @@ export default function App() {
                   {t("nav.settings")}
                 </MenuButton>
                 <span className="mx-1 h-5 w-px bg-white/10" />
-                <IconButton
-                  onClick={undo}
-                  disabled={!canUndo}
-                  title={t("nav.undo")}
+                <HistoryPopover
+                  open={historyPanel}
+                  onOpenChange={setHistoryPanel}
+                  available={canUndo || canRedo}
+                  entries={historyEntries}
+                  current={historyCurrent}
+                  onJump={jumpHistory}
+                  readOnly={!canEdit}
+                  live={liveEnabled}
                 >
-                  <UndoIcon className="h-4 w-4" />
-                </IconButton>
+                  <IconButton
+                    onClick={undo}
+                    disabled={!canUndo}
+                    title={t("nav.undo")}
+                  >
+                    <UndoIcon className="h-4 w-4" />
+                  </IconButton>
+                </HistoryPopover>
                 <IconButton
                   onClick={redo}
                   disabled={!canRedo}
@@ -5925,6 +5931,11 @@ export default function App() {
                       label: t("nav.redo"),
                       disabled: !canRedo,
                       onClick: redo,
+                    },
+                    {
+                      label: "Undo history",
+                      disabled: !canUndo && !canRedo,
+                      onClick: () => setModal("history"),
                     },
                   ]}
                 />
@@ -6764,6 +6775,10 @@ export default function App() {
           activeDiff={active}
           onSmMeta={(sm) => patchDifficulty(active.id, { smMeta: sm })}
           onBeatmapId={(id) => patchDifficulty(active.id, { beatmapId: id })}
+          difficulties={difficulties}
+          onBatchApply={applyBatch}
+          readOnly={!canEdit}
+          live={liveEnabled}
         />
       )}
       {modalMounted("settings") && (
@@ -6953,7 +6968,6 @@ export default function App() {
         />
       )}
       {modal === "history" && <HistoryModal open onClose={close} entries={historyEntries} current={historyCurrent} onJump={jumpHistory} readOnly={!canEdit} live={liveEnabled} />}
-      {modal === "batchApply" && <BatchApplyModal key={active.id} source={active} difficulties={difficulties} meta={meta} onClose={close} onApply={applyBatch} readOnly={!canEdit} live={liveEnabled} />}
       {modal === "audioSetup" && <AudioSetupModal exclusive={exclusiveAudio} onExclusive={changeExclusiveAudio} currentOffset={playtestSettings.offsetMs} onApplyOffset={offsetMs => setAppSettings(s => ({ ...s, playtest: { ...s.playtest, offsetMode: "audio", offsetMs } }))} onClose={close} />}
       {modalMounted("sv") && featureFlags.sv_tools && (
         <SvModal

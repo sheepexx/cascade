@@ -178,6 +178,11 @@ export const en = {
   "settings.keybinds": "Keybinds",
   "settings.lane": "Lane {number}",
 
+  "settings.audioOutput": "Output & calibration",
+  "settings.audioSetup": "Audio setup & calibration",
+  "settings.audioSetupHint":
+    "Pick the output mode and measure your tap offset by tapping along with a click track.",
+
   "settings.hitsounds": "Hitsounds",
   "settings.playHitsounds": "Play hitsounds during playback",
   "settings.hitsoundsHint":
@@ -200,6 +205,8 @@ export const en = {
     "Higher quality looks better but saves less space. 90% is near-lossless at gameplay scale.",
 
   "mapSettings.title": "Map Settings",
+  "mapSettings.tabSong": "Song",
+  "mapSettings.tabBatch": "Batch apply",
   "mapSettings.import": "Import",
   "mapSettings.importOsz": "Import .osz map…",
   "mapSettings.importSm": "Import .sm / .ssc map…",

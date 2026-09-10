@@ -1,6 +1,9 @@
+import { useState } from "react";
 import type { BackgroundScope, Difficulty, LoadedFile, SmMeta, SongMeta } from "../../types";
+import type { BatchRequest } from "../../lib/batchApply";
 import { Modal } from "../ui/Modal";
-import { Field, FileButton, TextInput } from "../ui/Controls";
+import { Field, FileButton, SegmentedControl, TextInput } from "../ui/Controls";
+import { BatchApplyPanel } from "./BatchApplyPanel";
 import { useT } from "../../lib/i18n";
 
 type Props = {
@@ -27,7 +30,13 @@ type Props = {
   activeDiff?: Difficulty;
   onSmMeta?: (sm: SmMeta) => void;
   onBeatmapId?: (id: number | undefined) => void;
+  difficulties?: Difficulty[];
+  onBatchApply?: (request: BatchRequest) => void;
+  readOnly?: boolean;
+  live?: boolean;
 };
+
+type Tab = "song" | "batch";
 
 /** Blank clears the ID back to the format default; -1 is a valid entry. */
 function parseId(raw: string): number | undefined {
@@ -60,8 +69,18 @@ export function SettingsModal({
   activeDiff,
   onSmMeta,
   onBeatmapId,
+  difficulties,
+  onBatchApply,
+  readOnly,
+  live,
 }: Props) {
   const t = useT();
+  const [tab, setTab] = useState<Tab>("song");
+  const batch =
+    activeDiff && onBatchApply && difficulties
+      ? { source: activeDiff, difficulties, onApply: onBatchApply }
+      : null;
+  const showBatch = batch !== null && tab === "batch";
   const set = <K extends keyof SongMeta>(key: K, value: SongMeta[K]) =>
     onMeta({ ...meta, [key]: value });
 
@@ -81,6 +100,27 @@ export function SettingsModal({
   return (
     <Modal open={open} onClose={onClose} title={t("mapSettings.title")} width="max-w-xl">
       <div className="flex flex-col gap-6">
+        {batch && (
+          <SegmentedControl
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "song", label: t("mapSettings.tabSong") },
+              { value: "batch", label: t("mapSettings.tabBatch") },
+            ]}
+          />
+        )}
+        {showBatch && (
+          <BatchApplyPanel
+            key={batch.source.id}
+            source={batch.source}
+            difficulties={batch.difficulties}
+            onApply={batch.onApply}
+            readOnly={Boolean(readOnly)}
+            live={live}
+          />
+        )}
+        <div className={showBatch ? "hidden" : "flex flex-col gap-6"}>
         <section>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
             {t("mapSettings.import")}
@@ -470,6 +510,7 @@ export function SettingsModal({
             </div>
           </section>
         )}
+        </div>
       </div>
     </Modal>
   );
