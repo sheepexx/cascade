@@ -53,7 +53,13 @@ export function useOnlinePresence(
   const hiddenRef = useRef(hideStatus ?? false);
   hiddenRef.current = hideStatus ?? false;
 
+  const signedIn = Boolean(user);
+
   useEffect(() => {
+    if (!signedIn) {
+      setRoster([]);
+      return;
+    }
     let cancelled = false;
     void fetchOnlineRoster().then((rows) => {
       if (!cancelled) setRoster(rows);
@@ -61,9 +67,13 @@ export function useOnlinePresence(
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [signedIn]);
 
   useEffect(() => {
+    if (!signedIn) {
+      setPeers([]);
+      return;
+    }
     if (!import.meta.env.VITE_SUPABASE_URL) return;
     let disposed = false;
     let currentChannel: RealtimeChannel | null = null;
@@ -162,9 +172,10 @@ export function useOnlinePresence(
         void supabase.removeChannel(ch);
       }
     };
-  }, [user?.id, hideStatus]);
+  }, [signedIn, user?.id, hideStatus]);
 
   return useMemo(() => {
+    if (!signedIn) return [];
     const selfId = user?.id;
     const onlineIds = new Set<string>();
     const out: OnlinePlayer[] = [];
@@ -202,5 +213,5 @@ export function useOnlinePresence(
       rosterIndex += 1;
     }
     return out;
-  }, [peers, roster, user?.id]);
+  }, [signedIn, peers, roster, user?.id]);
 }

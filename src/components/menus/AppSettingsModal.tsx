@@ -4,6 +4,7 @@ import { Button, SegmentedControl, Select, Toggle } from "../ui/Controls";
 import { Tooltip } from "../ui/Tooltip";
 import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
+import { useAuth } from "../../lib/auth";
 import { isDesktopApp } from "../../lib/pwa";
 import { eraseLocalData } from "../../lib/resetLocalData";
 import {
@@ -209,6 +210,7 @@ export function AppSettingsModal({
   accountSyncError,
 }: Props) {
   const { locale, setLocale, t } = useLocale();
+  const { user, login } = useAuth();
   const [tab, setTab] = useState<Tab>("Editor");
   const [keyMode, setKeyMode] = useState(4);
   const [capturing, setCapturing] = useState<number | null>(null);
@@ -426,15 +428,26 @@ export function AppSettingsModal({
                 {t("settings.presence")}
               </h3>
               <div className="flex flex-col gap-3">
-                <SettingToggle
-                  label={t("settings.showMenuPlayers")} tip={t("settings.presenceHint")}
-                  checked={showMenuPlayers}
-                  onChange={onShowMenuPlayers}
-                />
+                {user ? (
+                  <SettingToggle
+                    label={t("settings.showMenuPlayers")}
+                    tip={t("settings.presenceHint")}
+                    checked={showMenuPlayers}
+                    onChange={onShowMenuPlayers}
+                  />
+                ) : (
+                  <SettingSignIn
+                    label={t("settings.showMenuPlayers")}
+                    tip={t("settings.presenceSignedOut")}
+                    action={t("startModal.loginWithOsu")}
+                    onLogin={login}
+                  />
+                )}
                 <SettingToggle
                   label={t("settings.hideStatus")}
                   checked={hideStatus}
                   onChange={onHideStatus}
+                  disabled={!user}
                 />
               </div>
               {isDesktopApp() && (
@@ -1449,6 +1462,33 @@ function SettingToggle({
         onChange={onChange}
         aria-label={label}
       />
+    </div>
+  );
+}
+
+function SettingSignIn({
+  label,
+  tip,
+  action,
+  onLogin,
+}: {
+  label: string;
+  tip?: string;
+  action: string;
+  onLogin: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-xs text-slate-300">
+      <span className="opacity-45">
+        <Tip text={tip}>{label}</Tip>
+      </span>
+      <Button
+        variant="accent"
+        onClick={onLogin}
+        className="whitespace-nowrap px-2.5 py-1 text-xs"
+      >
+        {action}
+      </Button>
     </div>
   );
 }

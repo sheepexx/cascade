@@ -169,6 +169,8 @@ export const en = {
   "settings.hideStatus": "Hide my status",
   "settings.presenceHint":
     "Floating avatars on the menu show who's online and what they're working on. Hiding your status keeps you invisible to others while you browse.",
+  "settings.presenceSignedOut":
+    "Log in with osu! to see who else is mapping right now.",
   "settings.discordPresence": "Discord status",
   "settings.discordDetailed": "Show the map",
   "settings.discordMinimal": "Only show Cascade",

@@ -12,6 +12,7 @@ import {
 } from "react";
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
 import { ExportValidationModal } from "./components/menus/ExportValidationModal";
+import { MapperNameModal } from "./components/menus/MapperNameModal";
 import {
   runAiMod,
   resnapNotes,
@@ -218,6 +219,7 @@ import {
   type CollabOp,
 } from "./lib/ops";
 import { myAccess, type AccessRole } from "./lib/collab";
+import { chooseMapperName } from "./lib/mapperName";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
@@ -632,6 +634,7 @@ export default function App() {
     user: authUser,
     loading: authLoading,
     refresh: refreshAuth,
+    login: authLogin,
   } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
@@ -792,6 +795,10 @@ export default function App() {
     result: ValidationResult;
     target: string;
     run: () => void;
+  } | null>(null);
+  const [mapperPrompt, setMapperPrompt] = useState<{
+    target: string;
+    run: (songMeta: SongMeta) => void;
   } | null>(null);
   const [cloudProjectId, setCloudProjectId] = useState<string | null>(null);
   const [cloudOwnerId, setCloudOwnerId] = useState<string | null>(null);
@@ -1279,6 +1286,7 @@ export default function App() {
     askBgScope ||
     pendingImport !== null ||
     exportCheck !== null ||
+    mapperPrompt !== null ||
     showHomeConfirm ||
     pendingDeleteDiffIds !== null;
   const modalAtmosphereActive = modalAtmosphereOpen && audio.isPlaying;
@@ -4664,10 +4672,10 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuMusicEnabled, toggleMenuMusic, nextMenuTrack, previousMenuTrack]);
 
-  const doExportOsu = useCallback(() => {
+  const doExportOsu = useCallback((songMeta: SongMeta = meta) => {
     if (!audioFile) return;
     downloadOsu({
-      meta,
+      meta: songMeta,
       difficulty: active,
       timingPoints: activeTimingPoints,
       audioFilename: audioFile.name,
@@ -4679,14 +4687,14 @@ export default function App() {
     void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
   }, [audioFile, active, activeTimingPoints, meta, authUser?.id]);
 
-  const doExportSm = useCallback(async () => {
+  const doExportSm = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
     setImportError(null);
     try {
       const { downloadSmZip } = await import("./lib/smExport");
       await downloadSmZip({
-        meta,
+        meta: songMeta,
         difficulties,
         timingPoints,
         audioFiles,
@@ -4705,13 +4713,13 @@ export default function App() {
     }
   }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id]);
 
-  const doExportQua = useCallback(async () => {
+  const doExportQua = useCallback(async (songMeta: SongMeta = meta) => {
     if (!audioFile || (active.keyCount !== 4 && active.keyCount !== 7)) return;
     setImportError(null);
     try {
       const { downloadQua } = await import("./lib/qua");
       downloadQua({
-        meta,
+        meta: songMeta,
         difficulty: active,
         timingPoints: activeTimingPoints,
         audioFilename: audioFile.name,
@@ -4734,7 +4742,7 @@ export default function App() {
     appSettings.bpmAffectsScroll,
   ]);
 
-  const doExportOsz = useCallback(async () => {
+  const doExportOsz = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
     setImportError(null);
@@ -4742,7 +4750,7 @@ export default function App() {
     try {
       const { downloadOsz } = await import("./lib/oszExport");
       await downloadOsz({
-        meta,
+        meta: songMeta,
         difficulties,
         timingPoints,
         audioFiles,
@@ -4777,22 +4785,56 @@ export default function App() {
     appSettings.exportJpegQuality,
   ]);
 
-  const requestExport = useCallback(
-    (target: string, run: () => void) => {
+  const checkAndExport = useCallback(
+    (
+      target: string,
+      songMeta: SongMeta,
+      run: (songMeta: SongMeta) => void,
+    ) => {
       const result = validateProject({
-        meta,
+        meta: songMeta,
         difficulties,
         audioFiles,
         bgFiles,
         target,
       });
       if (result.errors.length > 0 || result.warnings.length > 0) {
-        setExportCheck({ result, target, run });
+        setExportCheck({ result, target, run: () => run(songMeta) });
       } else {
-        run();
+        run(songMeta);
       }
     },
-    [meta, difficulties, audioFiles, bgFiles],
+    [difficulties, audioFiles, bgFiles],
+  );
+
+  const requestExport = useCallback(
+    (target: string, run: (songMeta: SongMeta) => void) => {
+      const choice = chooseMapperName(meta.creator, authUser?.username);
+      if (choice.kind === "ask") {
+        setMapperPrompt({ target, run });
+        return;
+      }
+      if (choice.kind === "keep") {
+        checkAndExport(target, meta, run);
+        return;
+      }
+      const named = { ...meta, creator: choice.name };
+      setMeta(named);
+      checkAndExport(target, named, run);
+    },
+    [meta, authUser?.username, checkAndExport],
+  );
+
+  const confirmMapperName = useCallback(
+    (name: string) => {
+      if (!mapperPrompt) return;
+      const { target, run } = mapperPrompt;
+      setMapperPrompt(null);
+      const named = { ...meta, creator: name };
+      setMeta(named);
+      checkAndExport(target, named, run);
+    },
+    [mapperPrompt, meta, checkAndExport],
   );
 
   const handleExportOsu = useCallback(
@@ -4800,15 +4842,15 @@ export default function App() {
     [requestExport, doExportOsu],
   );
   const handleExportOsz = useCallback(
-    () => requestExport(".osz", () => void doExportOsz()),
+    () => requestExport(".osz", (songMeta) => void doExportOsz(songMeta)),
     [requestExport, doExportOsz],
   );
   const handleExportSm = useCallback(
-    () => requestExport(".sm", () => void doExportSm()),
+    () => requestExport(".sm", (songMeta) => void doExportSm(songMeta)),
     [requestExport, doExportSm],
   );
   const handleExportQua = useCallback(
-    () => requestExport(".qua", doExportQua),
+    () => requestExport(".qua", (songMeta) => void doExportQua(songMeta)),
     [requestExport, doExportQua],
   );
 
@@ -4824,7 +4866,7 @@ export default function App() {
     return picked.installed;
   }, []);
 
-  const doSendToOsu = useCallback(async () => {
+  const doSendToOsu = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
     if (!(await ensureOsuFolder())) return;
     setOsuBusy(true);
@@ -4837,7 +4879,7 @@ export default function App() {
         import("./lib/osuDesktop"),
       ]);
       const archive = await buildOsz({
-        meta,
+        meta: songMeta,
         difficulties,
         timingPoints,
         audioFiles,
@@ -4848,7 +4890,7 @@ export default function App() {
           : undefined,
         onProgress: setExportProgress,
       });
-      await osuSendMap(archive, setFilename(meta));
+      await osuSendMap(archive, setFilename(songMeta));
       playUiSound("mapExportDone");
       setImportNotice(t("osu.sent"));
       void logAnalyticsEvent("export_to_osu", authUserRef.current?.id).catch(
@@ -4876,11 +4918,11 @@ export default function App() {
   ]);
 
   const handleSendToOsu = useCallback(
-    () => requestExport("to osu!", () => void doSendToOsu()),
+    () => requestExport("to osu!", (songMeta) => void doSendToOsu(songMeta)),
     [requestExport, doSendToOsu],
   );
 
-  const doSyncToOsu = useCallback(async () => {
+  const doSyncToOsu = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
     if (!(await ensureOsuFolder())) return;
     setOsuBusy(true);
@@ -4892,7 +4934,7 @@ export default function App() {
         import("./lib/osuDesktop"),
       ]);
       const archive = await buildOsz({
-        meta,
+        meta: songMeta,
         difficulties,
         timingPoints,
         audioFiles,
@@ -4903,7 +4945,10 @@ export default function App() {
           : undefined,
         onProgress: setExportProgress,
       });
-      await osuSyncMap(archive, osuFolderName(meta.artist, meta.title));
+      await osuSyncMap(
+        archive,
+        osuFolderName(songMeta.artist, songMeta.title),
+      );
       playUiSound("mapExportDone");
       setImportNotice(t("osu.synced"));
       void logAnalyticsEvent("sync_to_osu", authUserRef.current?.id).catch(
@@ -4931,7 +4976,8 @@ export default function App() {
   ]);
 
   const handleSyncToOsu = useCallback(
-    () => requestExport("into Songs", () => void doSyncToOsu()),
+    () =>
+      requestExport("into Songs", (songMeta) => void doSyncToOsu(songMeta)),
     [requestExport, doSyncToOsu],
   );
 
@@ -7144,6 +7190,14 @@ export default function App() {
           </p>
         </div>
       </Modal>
+
+      <MapperNameModal
+        open={mapperPrompt !== null}
+        target={mapperPrompt?.target ?? ""}
+        onClose={() => setMapperPrompt(null)}
+        onConfirm={confirmMapperName}
+        onLogin={authLogin}
+      />
 
       <ExportValidationModal
         open={exportCheck !== null}

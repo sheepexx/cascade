@@ -1,11 +1,28 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { useAuth } from "../lib/auth";
-import { canExitDesktop } from "../lib/desktopExit";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
 import { countLocalProjects } from "../lib/persistence";
+import {
+  boxClear,
+  guardRects,
+  hashId,
+  makeSlot,
+  placementArea,
+  rescaleSlot,
+  slotBoxes,
+  slotClear,
+  type AvatarSlot,
+} from "../lib/menuFloat";
 import {
   reduceMotion,
   renderScale,
@@ -113,7 +130,6 @@ function PhoneStart({
           players={players ?? []}
           phone
           open={false}
-          viewportKey="phone"
         />
 
         {/* Clears the floating header, which on phones is the only way to
@@ -360,7 +376,6 @@ export function StartScreen({
           players={players ?? []}
           phone={false}
           open={open}
-          viewportKey={`${layout.vw}x${layout.vh}`}
         />
 
         <div
@@ -392,17 +407,19 @@ export function StartScreen({
             }px)`,
           }}
         >
-          <p className="text-lg font-semibold text-slate-100 drop-shadow">
-            {t(greetingKey())}
-            {user ? `, ${user.username}` : ""}
-          </p>
-          <p className="mt-0.5 text-xs text-slate-400 drop-shadow">
-            {projectCount === null
-              ? " "
-              : projectCount === 0
-                ? t("menu.noLocalProjects")
-                : t("menu.localProjects", { count: projectCount })}
-          </p>
+          <div data-menu-guard="">
+            <p className="text-lg font-semibold text-slate-100 drop-shadow">
+              {t(greetingKey())}
+              {user ? `, ${user.username}` : ""}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-400 drop-shadow">
+              {projectCount === null
+                ? " "
+                : projectCount === 0
+                  ? t("menu.noLocalProjects")
+                  : t("menu.localProjects", { count: projectCount })}
+            </p>
+          </div>
         </div>
 
         {bannerSlotted && lastBannerRef.current && (
@@ -417,7 +434,7 @@ export function StartScreen({
               if (!osuBanner) setBannerSlotted(false);
             }}
           >
-            <div className="w-[min(32rem,100%)]">
+            <div className="w-[min(32rem,100%)]" data-menu-guard="">
               {osuBanner ?? lastBannerRef.current}
             </div>
           </div>
@@ -425,6 +442,7 @@ export function StartScreen({
 
         {wide ? (
           <div
+            data-menu-guard=""
             className={`pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 transition-all duration-300 ease-out ${
               open ? "opacity-100" : "opacity-0"
             }`}
@@ -480,13 +498,31 @@ export function StartScreen({
             }`}
             style={{ top: `calc(${menuCenter} + ${Math.round(logoClosed / 2) + 22}px)` }}
           >
-            <div ref={stackedRef} className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md">
+            <div
+              ref={stackedRef}
+              data-menu-guard=""
+              className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md"
+            >
               {[...left, ...right].map((a) => (
                 <StackedAction key={a.id} action={a} open={open} />
               ))}
             </div>
           </div>
         )}
+
+        <span
+          aria-hidden
+          data-menu-guard=""
+          className="pointer-events-none absolute left-1/2"
+          style={{
+            top: menuCenter,
+            width: logoSize * (lowSpec ? 1 : 1 + RING_RATIO * 2),
+            height: logoSize * (lowSpec ? 1 : 1 + RING_RATIO * 2),
+            transform: `translate(-50%, -50%) translateX(${
+              open && wide ? shift : 0
+            }px)`,
+          }}
+        />
 
         <button
           type="button"
@@ -523,6 +559,7 @@ export function StartScreen({
         {/* Steps above the osu! banner, which on a narrow window reaches far
             enough right to sit on top of this. */}
         <div
+          data-menu-guard=""
           className={`absolute right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600 transition-all duration-300 ease-out ${
             osuBanner ? "bottom-[calc(var(--menu-bar-height)+1rem)]" : "bottom-3"
           }`}
@@ -671,13 +708,11 @@ function MenuBackground({
   players,
   phone,
   open,
-  viewportKey,
 }: {
   url: string | null;
   players: OnlinePlayer[];
   phone: boolean;
   open: boolean;
-  viewportKey: string;
 }) {
   const [layers, setLayers] = useState<{ id: number; url: string }[]>([]);
   const [clearing, setClearing] = useState(false);
@@ -795,7 +830,7 @@ function MenuBackground({
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-ink-900/80 via-ink-900/66 to-ink-900/88" />
       {open && (
-        <FloatingPlayers key={viewportKey} players={players} phone={phone} />
+        <FloatingPlayers players={players} phone={phone} />
       )}
     </div>
   );
@@ -805,160 +840,7 @@ const FLOAT_MAX_COUNT = 4;
 // Faces swap in and out of the background layer on a gentle rhythm so the
 // menu never shows the same cast twice in a row.
 const FLOAT_ROTATE_MS = 9_000;
-
-// Faces keep at least this much distance (in px) between their centers, so
-// the scatter reads as spread out no matter where each one lands.
-const FLOAT_MIN_GAP_DESKTOP = 190;
-const FLOAT_MIN_GAP_PHONE = 130;
-
-const FLOAT_TOP_GAP_PX = 110;
-const FLOAT_EDGE_GAP_PX = 18;
-const FLOAT_UI_GAP_PX = 18;
-const FLOAT_SLOT_ATTEMPTS = 120;
-
-type FloatRect = {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-};
-
-type AvatarSlot = {
-  x: number;
-  y: number;
-  size: number;
-  driftX: number;
-  bobY: number;
-  tilt: number;
-  duration: number;
-  delay: number;
-};
-
-function hashId(id: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-function rectsOverlap(a: FloatRect, b: FloatRect): boolean {
-  return (
-    a.left < b.right &&
-    a.right > b.left &&
-    a.top < b.bottom &&
-    a.bottom > b.top
-  );
-}
-
-function protectedMenuRects(vw: number, vh: number): FloatRect[] {
-  const counts = menuPanelCounts(canExitDesktop());
-  const { wide, panel, logoOpen, logoClosed } = measure(
-    counts.left + counts.right,
-  );
-  const centerY = vh / 2;
-  const logoSize = wide ? logoOpen : logoClosed;
-  const logoRadius = logoSize * (0.5 + RING_RATIO) + FLOAT_UI_GAP_PX;
-  const logoCenterX = wide
-    ? vw / 2 + logoShift(counts.left, counts.right, panel)
-    : vw / 2;
-  const greetingBottom =
-    centerY -
-    (wide ? Math.max(BAR_HEIGHT / 2, logoOpen / 2) : logoClosed / 2) -
-    32;
-  const rects: FloatRect[] = [
-    {
-      left: logoCenterX - logoRadius,
-      top: centerY - logoRadius,
-      right: logoCenterX + logoRadius,
-      bottom: centerY + logoRadius,
-    },
-    {
-      left: vw / 2 - 230,
-      top: greetingBottom - 64,
-      right: vw / 2 + 230,
-      bottom: greetingBottom + FLOAT_UI_GAP_PX,
-    },
-    {
-      left: vw - 280,
-      top: vh - 52,
-      right: vw,
-      bottom: vh,
-    },
-  ];
-
-  if (wide) {
-    rects.push({
-      left: 0,
-      top: centerY - BAR_HEIGHT / 2 - FLOAT_UI_GAP_PX,
-      right: vw,
-      bottom: centerY + BAR_HEIGHT / 2 + FLOAT_UI_GAP_PX,
-    });
-  } else {
-    const actionsTop = centerY + logoClosed / 2 + 22;
-    rects.push({
-      left: 0,
-      top: actionsTop - FLOAT_UI_GAP_PX,
-      right: vw,
-      bottom: Math.min(vh, actionsTop + 230),
-    });
-  }
-
-  return rects;
-}
-
-function makeSlot(phone: boolean, occupied: AvatarSlot[]): AvatarSlot | null {
-  const size = phone ? 34 + Math.random() * 8 : 48 + Math.random() * 8;
-  const minGap = phone ? FLOAT_MIN_GAP_PHONE : FLOAT_MIN_GAP_DESKTOP;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const driftX = phone ? 26 + Math.random() * 22 : 44 + Math.random() * 34;
-  const bobY = phone ? 12 + Math.random() * 10 : 18 + Math.random() * 14;
-  const travelWidth = size + driftX + 6;
-  const travelHeight = size + bobY + 6;
-  const minX = FLOAT_EDGE_GAP_PX;
-  const maxX = vw - FLOAT_EDGE_GAP_PX - travelWidth;
-  const minY = Math.max(FLOAT_EDGE_GAP_PX, FLOAT_TOP_GAP_PX);
-  const maxY = vh - FLOAT_EDGE_GAP_PX - travelHeight;
-  if (maxX < minX || maxY < minY) return null;
-
-  const protectedRects = protectedMenuRects(vw, vh);
-  let fallback: { x: number; y: number } | null = null;
-  for (let attempt = 0; attempt < FLOAT_SLOT_ATTEMPTS; attempt++) {
-    const px = minX + Math.random() * (maxX - minX);
-    const py = minY + Math.random() * (maxY - minY);
-    const travel: FloatRect = {
-      left: px,
-      top: py,
-      right: px + travelWidth,
-      bottom: py + travelHeight,
-    };
-    if (protectedRects.some((rect) => rectsOverlap(travel, rect))) continue;
-    fallback ??= { x: px, y: py };
-    const farEnough = occupied.every((o) => {
-      const dx = px + size / 2 - ((o.x / 100) * vw + o.size / 2);
-      const dy = py + size / 2 - ((o.y / 100) * vh + o.size / 2);
-      return Math.sqrt(dx * dx + dy * dy) >= minGap;
-    });
-    if (farEnough) {
-      fallback = { x: px, y: py };
-      break;
-    }
-  }
-  if (!fallback) return null;
-
-  return {
-    x: (fallback.x / vw) * 100,
-    y: (fallback.y / vh) * 100,
-    size,
-    driftX,
-    bobY,
-    tilt: (Math.random() - 0.5) * 4,
-    duration: phone ? 26_000 + Math.random() * 14_000 : 36_000 + Math.random() * 20_000,
-    delay: -Math.random() * 16_000,
-  };
-}
+const FLOAT_SETTLE_MS = 140;
 
 function formatLastSeen(ts: number | null, t: Translate): string | null {
   if (ts == null) return null;
@@ -981,8 +863,10 @@ function FloatingPlayers({
 }) {
   const t = useT();
   const limit = FLOAT_MAX_COUNT;
-  const slotsRef = useRef<Map<string, AvatarSlot | null>>(new Map());
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const sizeRef = useRef<{ width: number; height: number } | null>(null);
   const [shown, setShown] = useState<OnlinePlayer[]>([]);
+  const [slots, setSlots] = useState<Map<string, AvatarSlot>>(() => new Map());
   const shownRef = useRef(shown);
   shownRef.current = shown;
 
@@ -1010,11 +894,6 @@ function FloatingPlayers({
       if (pool.length === 0) return;
       const out = current[Math.floor(Math.random() * current.length)];
       const add = pool[Math.floor(Math.random() * pool.length)];
-      const used = [...slotsRef.current.entries()]
-        .filter(([id, slot]) => id !== out.id && id !== add.id && slot !== null)
-        .map(([, slot]) => slot as AvatarSlot);
-      slotsRef.current.set(add.id, makeSlot(phone, used));
-      slotsRef.current.delete(out.id);
       setShown((prev) => [...prev.filter((p) => p.id !== out.id), add]);
     };
     const id = window.setInterval(swap, FLOAT_ROTATE_MS);
@@ -1022,24 +901,100 @@ function FloatingPlayers({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, limit]);
 
-  const occupied: AvatarSlot[] = [];
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    setSlots((prev) => {
+      const next = new Map<string, AvatarSlot>();
+      let changed = false;
+      for (const [id, slot] of prev) {
+        if (shown.some((p) => p.id === id)) next.set(id, slot);
+        else changed = true;
+      }
+      const missing = shown.filter((p) => !next.has(p.id));
+      if (missing.length > 0) {
+        const guards = guardRects(root);
+        const area = placementArea(root);
+        for (const player of missing) {
+          const slot = makeSlot(phone, area, guards, [...next.values()]);
+          if (!slot) continue;
+          next.set(player.id, slot);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [shown, phone]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    let frame = 0;
+    const check = () => {
+      const guards = guardRects(root);
+      const area = placementArea(root);
+      const size = { width: root.clientWidth, height: root.clientHeight };
+      const last = sizeRef.current;
+      sizeRef.current = size;
+      const scaleX = last && last.width > 0 ? size.width / last.width : 1;
+      const scaleY = last && last.height > 0 ? size.height / last.height : 1;
+      setSlots((prev) => {
+        const next = new Map(prev);
+        let changed = scaleX !== 1 || scaleY !== 1;
+        if (changed) {
+          for (const [id, slot] of prev) {
+            next.set(id, rescaleSlot(slot, scaleX, scaleY, area));
+          }
+        }
+        for (const [id, slot] of [...next]) {
+          if (slotClear(slot, area, guards)) continue;
+          changed = true;
+          const boxes = slotBoxes(slot);
+          if (
+            boxClear(boxes.travel, area, guards) &&
+            boxClear(slot.tipAbove ? boxes.below : boxes.above, area, guards)
+          ) {
+            next.set(id, { ...slot, tipAbove: !slot.tipAbove });
+            continue;
+          }
+          next.delete(id);
+          const moved = makeSlot(phone, area, guards, [...next.values()], {
+            x: slot.x,
+            y: slot.y,
+          });
+          if (moved) next.set(id, moved);
+        }
+        return changed ? next : prev;
+      });
+    };
+    const schedule = () => {
+      window.clearTimeout(frame);
+      frame = window.setTimeout(check, FLOAT_SETTLE_MS);
+    };
+    const resize = new ResizeObserver(schedule);
+    resize.observe(root);
+    const scope = root.parentElement?.parentElement ?? root;
+    const mutations = new MutationObserver(schedule);
+    mutations.observe(scope, { childList: true, subtree: true });
+    return () => {
+      window.clearTimeout(frame);
+      resize.disconnect();
+      mutations.disconnect();
+    };
+  }, [phone]);
 
   return (
     <div
+      ref={rootRef}
       aria-hidden
-      className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
+      className="pointer-events-none absolute inset-0 z-[25] overflow-hidden"
     >
       {shown.slice(0, limit).map((p, i) => {
-        if (!slotsRef.current.has(p.id)) {
-          slotsRef.current.set(p.id, makeSlot(phone, occupied));
-        }
-        const slot = slotsRef.current.get(p.id);
+        const slot = slots.get(p.id);
         if (!slot) return null;
-        occupied.push(slot);
         const online = p.online;
         const color = online ? "#3fdc8c" : "#78818f";
         const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
-        const tipAbove = slot.y > 50;
         const profileUrl =
           p.osuId != null
             ? `https://osu.ppy.sh/users/${p.osuId}`
@@ -1050,11 +1005,11 @@ function FloatingPlayers({
             href={profileUrl}
             target={profileUrl ? "_blank" : undefined}
             rel="noopener noreferrer"
-            className="float-player-in group absolute pointer-events-auto"
+            className="float-player-in group absolute pointer-events-auto transition-[left,top] duration-700 ease-out"
             style={
               {
-                left: `${slot.x}%`,
-                top: `${slot.y}%`,
+                left: slot.x,
+                top: slot.y,
                 width: slot.size,
                 height: slot.size,
                 "--reveal-delay": `${i * 70}ms`,
@@ -1103,7 +1058,7 @@ function FloatingPlayers({
 
             <div
               className={`pointer-events-none absolute left-1/2 z-20 w-max ${
-                tipAbove ? "bottom-full mb-1.5" : "top-full mt-1.5"
+                slot.tipAbove ? "bottom-full mb-1.5" : "top-full mt-1.5"
               }`}
             >
               <div
