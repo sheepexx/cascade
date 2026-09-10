@@ -7129,6 +7129,7 @@ export default function App() {
           open={modal === "aimod"}
           onClose={close}
           report={aiModReport}
+          activeDiffId={active.id}
           activeDiffName={active.name || "(unnamed)"}
           onRefresh={runAiModCheck}
           onJump={handleAiModJump}

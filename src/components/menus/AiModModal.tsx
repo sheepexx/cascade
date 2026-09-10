@@ -11,7 +11,7 @@ import {
 import { describeCorpusBucket, patternCorpus } from "../../lib/patternCorpus";
 import { InfoTip } from "../ui/Tooltip";
 import { Modal } from "../ui/Modal";
-import { Button } from "../ui/Controls";
+import { Button, Toggle } from "../ui/Controls";
 
 type Tab = "All" | AiModCategory;
 const TABS: Tab[] = ["All", ...AIMOD_CATEGORIES];
@@ -21,6 +21,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   report: AiModReport | null;
+  activeDiffId: string;
   activeDiffName: string;
   onRefresh: () => void;
   onJump: (issue: AiModIssue, time?: number) => void;
@@ -32,6 +33,7 @@ export function AiModModal({
   open,
   onClose,
   report,
+  activeDiffId,
   activeDiffName,
   onRefresh,
   onJump,
@@ -39,33 +41,53 @@ export function AiModModal({
   onResnap,
 }: Props) {
   const [tab, setTab] = useState<Tab>("All");
+  const [allDifficulties, setAllDifficulties] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setExpanded({});
   }, [report]);
 
+  const scoped = useMemo(() => {
+    if (!report) return [];
+    if (allDifficulties) return report.issues;
+    return report.issues.filter(
+      (i) => i.diffId === undefined || i.diffId === activeDiffId,
+    );
+  }, [report, allDifficulties, activeDiffId]);
+
+  const counts = useMemo(() => {
+    let warnings = 0;
+    let errors = 0;
+    for (const i of scoped) {
+      if (i.severity === "error") errors += 1;
+      else warnings += 1;
+    }
+    return { warnings, errors };
+  }, [scoped]);
+
   const byCategory = useMemo(() => {
     const map = new Map<AiModCategory, number>();
     for (const c of AIMOD_CATEGORIES) map.set(c, 0);
-    if (report)
-      for (const i of report.issues)
-        map.set(i.category, (map.get(i.category) ?? 0) + 1);
+    for (const i of scoped) map.set(i.category, (map.get(i.category) ?? 0) + 1);
     return map;
-  }, [report]);
+  }, [scoped]);
 
   const shown = useMemo(() => {
-    if (!report) return [];
     const list =
-      tab === "All"
-        ? report.issues
-        : report.issues.filter((i) => i.category === tab);
+      tab === "All" ? scoped : scoped.filter((i) => i.category === tab);
     // Errors first, then warnings; keep stable order within a severity.
     return [...list].sort((a, b) => {
       if (a.severity !== b.severity) return a.severity === "error" ? -1 : 1;
       return 0;
     });
-  }, [report, tab]);
+  }, [scoped, tab]);
+
+  const ownPrefix = `[${activeDiffName}] `;
+  const label = (issue: AiModIssue) =>
+    !allDifficulties && issue.message.startsWith(ownPrefix)
+      ? issue.message.slice(ownPrefix.length)
+      : issue.message;
 
   return (
     <Modal
@@ -96,17 +118,35 @@ export function AiModModal({
               <p className="m-0">Checks metadata, timing, object structure and pattern strain across the loaded mapset.</p>
               <p className="mt-2">Unsnapped objects are the usual reason a perfectly timed converted map shows as off-grid in osu!. Resnap moves them onto the nearest valid beat divisor.</p>
             </>} />
+            <span className="mx-1 h-5 w-px bg-white/10" />
+            <Toggle
+              id="aimod-all-difficulties"
+              size="sm"
+              checked={allDifficulties}
+              onChange={setAllDifficulties}
+              aria-label="Show issues from all difficulties"
+            />
+            <label htmlFor="aimod-all-difficulties" className="cursor-pointer text-xs text-slate-400">
+              All difficulties
+            </label>
+            <InfoTip content={<>
+              <p className="m-0">Off, the list covers the difficulty you are editing plus checks that apply to the whole mapset, such as metadata and shared audio.</p>
+              <p className="mt-2">On, it adds every issue found in the other difficulties. Each of those is prefixed with the difficulty name.</p>
+            </>} />
           </div>
           <div className="flex gap-6 rounded-xl border border-white/10 bg-ink-700/40 px-4 py-2 text-sm">
-            <Summary label="Difficulty" value={activeDiffName} />
+            <Summary
+              label="Scope"
+              value={allDifficulties ? "Whole mapset" : activeDiffName}
+            />
             <Summary
               label="Warnings"
-              value={String(report?.warnings ?? 0)}
+              value={String(report ? counts.warnings : 0)}
               tone="warning"
             />
             <Summary
               label="Errors"
-              value={String(report?.errors ?? 0)}
+              value={String(report ? counts.errors : 0)}
               tone="error"
             />
           </div>
@@ -118,7 +158,7 @@ export function AiModModal({
             <p className="mt-2">Patterns are compared against {patternCorpus.source.difficulties} difficulties from {patternCorpus.source.mapsets} mapsets ranked between {patternCorpus.source.rankedFrom} and {patternCorpus.source.rankedTo}, so "unusual" means rare among them, not wrong.</p>
             <p className="mt-2">Jacks, anchors and asymmetry can be intentional. Musical interpretation, difficulty spread and full ranking criteria still need human review.</p>
           </>} /></h3>
-            <p className={`mt-1 text-xs ${report.errors ? "text-amber-200" : "text-teal-200"}`}>{report.errors ? `${report.errors} structural issue${report.errors === 1 ? "" : "s"} to fix before review` : "No automatic structural blockers found"}</p></div>
+            <p className={`mt-1 text-xs ${report.errors ? "text-amber-200" : "text-teal-200"}`}>{report.errors ? `${report.errors} structural issue${report.errors === 1 ? "" : "s"} across the mapset to fix before review` : "No automatic structural blockers found"}</p></div>
             <div className="text-right"><strong className="text-xl text-teal-100">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-xs text-slate-500"> / 100</span>}</strong><p className="text-[10px] text-slate-400">Pattern review score</p></div>
           </div>
           <ul className="mt-3 flex flex-col gap-2">{report.quality.difficulties.map(d => <li key={d.id} className="rounded-lg bg-black/15 p-2 text-xs">
@@ -139,8 +179,7 @@ export function AiModModal({
         </section>}
         <div className="flex flex-wrap gap-1 border-b border-white/10 pb-2">
           {TABS.map((t) => {
-            const count =
-              t === "All" ? report?.issues.length ?? 0 : byCategory.get(t) ?? 0;
+            const count = t === "All" ? scoped.length : byCategory.get(t) ?? 0;
             const activeTab = t === tab;
             return (
               <button
@@ -162,7 +201,9 @@ export function AiModModal({
           <p className="py-6 text-center text-sm text-emerald-300">
             {report && report.issues.length === 0
               ? "Everything looks good - no issues found."
-              : "No issues in this category."}
+              : !allDifficulties && scoped.length === 0
+                ? "Nothing to fix in this difficulty. Turn on All difficulties to see the rest of the mapset."
+                : "No issues in this category."}
           </p>
         ) : (
           <ul className="flex flex-col divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10">
@@ -203,14 +244,14 @@ export function AiModModal({
                           }`}
                         />
                         <span className="flex-1 text-slate-200 transition duration-150 hover:text-white">
-                          {issue.message}
+                          {label(issue)}
                         </span>
                         <span className="shrink-0 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-slate-300">
                           {issue.count ?? details.length}
                         </span>
                       </button>
                     ) : (
-                      <span className="flex-1 text-slate-200">{issue.message}</span>
+                      <span className="flex-1 text-slate-200">{label(issue)}</span>
                     )}
                     {issue.time !== undefined && (
                       <button
