@@ -202,6 +202,18 @@ img {
   transition: transform 300ms cubic-bezier(0.55, 0, 0.8, 0.3);
 }
 
+/* Difficulty modal: per-lane note meters, the HP cells and the OD windows
+   ease to their new size when a value changes. */
+.lane-meter-fill {
+  transition:
+    height 260ms var(--ease-emphasized),
+    width 260ms var(--ease-emphasized),
+    background-color var(--motion-quick) var(--ease-standard);
+}
+.judgement-window {
+  transition: width 200ms var(--ease-emphasized);
+}
+
 @keyframes modal-backdrop-in {
   from {
     opacity: 0;
@@ -1414,7 +1426,9 @@ canvas[data-pointer-focus]:focus-visible {
   .session-intro,
   .segmented-pill,
   .ui-slider-fill,
-  .ui-slider-thumb {
+  .ui-slider-thumb,
+  .lane-meter-fill,
+  .judgement-window {
     transition-duration: 1ms;
   }
 
