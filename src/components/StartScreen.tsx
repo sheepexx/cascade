@@ -82,6 +82,7 @@ const PANEL_FLOOR = 86;
 const LEFT_PANELS = 2;
 const RIGHT_PANELS = 4;
 const BG_FADE_MS = 900;
+const BG_MAX_LAYERS = 4;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
 const RING_RATIO = 0.42;
@@ -803,8 +804,9 @@ function MenuBackground({
   phone: boolean;
   open: boolean;
 }) {
-  const [layers, setLayers] = useState<{ id: number; url: string }[]>([]);
-  const [clearing, setClearing] = useState(false);
+  const [layers, setLayers] = useState<
+    { id: number; url: string; leaving: boolean }[]
+  >([]);
   const nextId = useRef(0);
   const parallaxRef = useRef<HTMLDivElement | null>(null);
 
@@ -857,21 +859,27 @@ function MenuBackground({
     };
   }, []);
 
+  // Each picture keeps its own fade: a new one fades in over whatever is
+  // still showing, and nothing restarts or vanishes mid-fade however quickly
+  // songs change.
   useEffect(() => {
     if (!url) {
-      setLayers((prev) => {
-        if (prev.length) setClearing(true);
-        return prev;
-      });
+      setLayers((prev) =>
+        prev.some((layer) => !layer.leaving)
+          ? prev.map((layer) => ({ ...layer, leaving: true }))
+          : prev,
+      );
       return;
     }
-    setClearing(false);
     let cancelled = false;
     const img = new Image();
     img.decoding = "async";
     img.onload = () => {
       if (cancelled) return;
-      setLayers((prev) => [...prev.slice(-1), { id: nextId.current++, url }]);
+      setLayers((prev) => [
+        ...prev.slice(-(BG_MAX_LAYERS - 1)),
+        { id: nextId.current++, url, leaving: false },
+      ]);
     };
     img.src = url;
     return () => {
@@ -880,39 +888,29 @@ function MenuBackground({
     };
   }, [url]);
 
+  // Once the newest layer has finished fading, everything under it goes.
   useEffect(() => {
-    if (layers.length < 2) return;
-    const id = window.setTimeout(
-      () => setLayers((prev) => prev.slice(-1)),
-      BG_FADE_MS,
-    );
-    return () => window.clearTimeout(id);
-  }, [layers]);
-
-  useEffect(() => {
-    if (!clearing) return;
+    if (layers.length <= 1 && !layers.some((layer) => layer.leaving)) return;
     const id = window.setTimeout(() => {
-      setLayers([]);
-      setClearing(false);
+      setLayers((prev) => {
+        const top = prev[prev.length - 1];
+        return top && !top.leaving ? [top] : [];
+      });
     }, BG_FADE_MS);
     return () => window.clearTimeout(id);
-  }, [clearing]);
+  }, [layers]);
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       <div ref={parallaxRef} className="absolute inset-0 opacity-[0.3] will-change-transform">
-        {layers.map((layer, i) => (
+        {layers.map((layer) => (
           <img
             key={layer.id}
             src={layer.url}
             alt=""
             aria-hidden
             className={`absolute inset-0 h-full w-full scale-110 object-cover blur-[2px] ${
-              i === layers.length - 1
-                ? clearing
-                  ? "bg-fade-out"
-                  : "bg-fade-in"
-                : ""
+              layer.leaving ? "bg-fade-out" : "bg-fade-in"
             }`}
           />
         ))}

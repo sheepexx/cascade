@@ -57,6 +57,8 @@ const TRANSIENT_SMOOTHING = 0.2;
 const MENU_VOLUME = 0.25;
 const FADE_OUT_MS = 260;
 const FADE_IN_MS = 520;
+// Longer than the start screen's background crossfade.
+const URL_GRACE_MS = 2000;
 
 function shuffle<T>(items: T[]): T[] {
   const out = [...items];
@@ -137,10 +139,20 @@ export function useMenuMusic(
   const volumeRef = useRef(Math.min(1, Math.max(0, level)) * MENU_VOLUME);
   volumeRef.current = Math.min(1, Math.max(0, level)) * MENU_VOLUME;
   const cancelFadeRef = useRef<(() => void) | null>(null);
+  // A skip still fading the current song out, and how far it will move.
+  const leavingRef = useRef(false);
+  const pendingSkipRef = useRef(0);
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  const playlistRef = useRef(playlist);
+  playlistRef.current = playlist;
 
   const fade = useCallback(
     (el: HTMLAudioElement, to: number, ms: number, onDone?: () => void) => {
       cancelFadeRef.current?.();
+      // Any other fade takes over from a skip that was still fading out.
+      leavingRef.current = false;
+      pendingSkipRef.current = 0;
       cancelFadeRef.current = rampVolume(el, to, ms, () => {
         cancelFadeRef.current = null;
         onDone?.();
@@ -152,7 +164,7 @@ export function useMenuMusic(
   // Follow Master/Music changes live instead of only on the next track.
   useEffect(() => {
     const el = audioRef.current;
-    if (!el || el.paused || !wantsPlayRef.current) return;
+    if (!el || el.paused || !wantsPlayRef.current || leavingRef.current) return;
     fade(el, volumeRef.current, 120);
   }, [level, fade]);
 
@@ -178,10 +190,13 @@ export function useMenuMusic(
   const selected = playlist.length ? playlist[index % playlist.length] : null;
 
   useEffect(() => {
-    setTrack(null);
-    if (!enabled || !selected) return;
+    // The playing track stays up until the next one is ready, so the song
+    // card and background never blank out between songs.
+    if (!enabled || !selected) {
+      setTrack(null);
+      return;
+    }
     let cancelled = false;
-    let urls: string[] = [];
     loadLocalTrack(selected.id)
       .then((row) => {
         if (cancelled) return;
@@ -190,11 +205,7 @@ export function useMenuMusic(
           setIndex(0);
           return;
         }
-        const next = toMenuTrack(row);
-        urls = next.backgroundUrl
-          ? [next.audioUrl, next.backgroundUrl]
-          : [next.audioUrl];
-        setTrack(next);
+        setTrack(toMenuTrack(row));
       })
       .catch(() => {
         if (cancelled) return;
@@ -203,9 +214,22 @@ export function useMenuMusic(
       });
     return () => {
       cancelled = true;
-      for (const url of urls) URL.revokeObjectURL(url);
     };
   }, [enabled, selected]);
+
+  // Object URLs outlive their track by a moment so the background crossfade
+  // can finish drawing from the old picture.
+  useEffect(() => {
+    if (!track) return;
+    return () => {
+      const urls = track.backgroundUrl
+        ? [track.audioUrl, track.backgroundUrl]
+        : [track.audioUrl];
+      window.setTimeout(() => {
+        for (const url of urls) URL.revokeObjectURL(url);
+      }, URL_GRACE_MS);
+    };
+  }, [track]);
 
   const connect = useCallback((el: HTMLAudioElement) => {
     const Ctor =
@@ -352,6 +376,8 @@ export function useMenuMusic(
     return () => {
       cancelFadeRef.current?.();
       cancelFadeRef.current = null;
+      leavingRef.current = false;
+      pendingSkipRef.current = 0;
       window.removeEventListener("pointerdown", onGesture);
       window.removeEventListener("keydown", onGesture);
       el.removeEventListener("play", onPlay);
@@ -397,17 +423,40 @@ export function useMenuMusic(
     }
   }, [connect, fade]);
 
+  // Presses made while a skip is still fading out add up and land together,
+  // instead of restarting the fade and losing the earlier ones.
   const skip = useCallback(
     (step: number) => {
       wantsPlayRef.current = true;
-      const el = audioRef.current;
-      const move = () =>
-        setIndex((i) => (step < 0 ? (i > 0 ? i - 1 : i) : i + step));
-      if (!el || el.paused) {
-        move();
+      if (leavingRef.current) {
+        pendingSkipRef.current += step;
         return;
       }
-      fade(el, 0, FADE_OUT_MS, move);
+      const moveBy = (steps: number) => {
+        const list = playlistRef.current;
+        const from = indexRef.current;
+        const to = Math.max(0, from + steps);
+        if (list.length && list[to % list.length] !== list[from % list.length]) {
+          setIndex(to);
+          return;
+        }
+        // Nowhere else to go: bring the current song back up.
+        const el = audioRef.current;
+        if (el && !el.paused) fade(el, volumeRef.current, FADE_IN_MS);
+      };
+      const el = audioRef.current;
+      if (!el || el.paused) {
+        moveBy(step);
+        return;
+      }
+      fade(el, 0, FADE_OUT_MS, () => {
+        const steps = pendingSkipRef.current;
+        leavingRef.current = false;
+        pendingSkipRef.current = 0;
+        moveBy(steps);
+      });
+      leavingRef.current = true;
+      pendingSkipRef.current = step;
     },
     [fade],
   );
