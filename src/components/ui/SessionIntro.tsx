@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 
 const SESSION_KEY = "cascade:intro:shown";
 const INTRO_MS = 2100;
+// Never hold the curtain longer than this waiting on `ready`.
+const MAX_INTRO_MS = 6000;
 
 function shouldShow(): boolean {
   try {
@@ -11,10 +13,23 @@ function shouldShow(): boolean {
   }
 }
 
-export function SessionIntro({ enabled, musicPlaying }: { enabled: boolean; musicPlaying: boolean }) {
+/**
+ * `ready` reports that the menus' code has finished loading; the intro plays
+ * at least INTRO_MS and then waits for it, so the first modal opens instantly.
+ */
+export function SessionIntro({
+  enabled,
+  musicPlaying,
+  ready,
+}: {
+  enabled: boolean;
+  musicPlaying: boolean;
+  ready: boolean;
+}) {
   const [visible, setVisible] = useState(() => enabled && shouldShow());
   const [leaving, setLeaving] = useState(false);
   const [started, setStarted] = useState(musicPlaying);
+  const [played, setPlayed] = useState(false);
 
   useEffect(() => {
     if (!enabled) setVisible(false);
@@ -45,14 +60,20 @@ export function SessionIntro({ enabled, musicPlaying }: { enabled: boolean; musi
 
   useEffect(() => {
     if (!visible || !started) return;
-    const timer = window.setTimeout(finish, INTRO_MS);
+    const timer = window.setTimeout(() => setPlayed(true), INTRO_MS);
+    const cap = window.setTimeout(finish, MAX_INTRO_MS);
     const onKey = () => finish();
     window.addEventListener("keydown", onKey, { once: true });
     return () => {
       window.clearTimeout(timer);
+      window.clearTimeout(cap);
       window.removeEventListener("keydown", onKey);
     };
   }, [finish, started, visible]);
+
+  useEffect(() => {
+    if (played && ready) finish();
+  }, [finish, played, ready]);
 
   if (!visible) return null;
   return (

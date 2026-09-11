@@ -1,6 +1,5 @@
 import {
   Fragment,
-  lazy,
   memo,
   Suspense,
   useCallback,
@@ -50,138 +49,139 @@ import {
 import { useMenuMusic } from "./hooks/useMenuMusic";
 import { dialogIsOpen } from "./hooks/useDialog";
 import type { AudioSeekTransition } from "./lib/audioSeek";
+import { lazyWithPreload } from "./lib/lazyPreload";
 const loadEditorWorkspace = () => import("./components/EditorWorkspace");
-const BottomTimeline = lazy(() =>
+const BottomTimeline = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.BottomTimeline })),
 );
-const CommentsSidebar = lazy(() =>
+const CommentsSidebar = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.CommentsSidebar })),
 );
-const DifficultySidebar = lazy(() =>
+const DifficultySidebar = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.DifficultySidebar })),
 );
-const ManiaEditor = lazy(() =>
+const ManiaEditor = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.ManiaEditor })),
 );
-const PlaytestNpsGraph = lazy(() =>
+const PlaytestNpsGraph = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.PlaytestNpsGraph })),
 );
-const PlaytestOverlay = lazy(() =>
+const PlaytestOverlay = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.PlaytestOverlay })),
 );
-const PlaytestRunStats = lazy(() =>
+const PlaytestRunStats = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.PlaytestRunStats })),
 );
-const PPCounter = lazy(() =>
+const PPCounter = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.PPCounter })),
 );
-const TransportBar = lazy(() =>
+const TransportBar = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.TransportBar })),
 );
-const SharedMapPage = lazy(() =>
+const SharedMapPage = lazyWithPreload(() =>
   import("./components/SharedMapPage").then((m) => ({
     default: m.SharedMapPage,
   })),
 );
-const SettingsModal = lazy(() =>
+const SettingsModal = lazyWithPreload(() =>
   import("./components/menus/SettingsModal").then((m) => ({
     default: m.SettingsModal,
   })),
 );
-const AppSettingsModal = lazy(() =>
+const AppSettingsModal = lazyWithPreload(() =>
   import("./components/menus/AppSettingsModal").then((m) => ({
     default: m.AppSettingsModal,
   })),
 );
-const SkinModal = lazy(() =>
+const SkinModal = lazyWithPreload(() =>
   import("./components/menus/SkinModal").then((m) => ({
     default: m.SkinModal,
   })),
 );
-const DifficultyModal = lazy(() =>
+const DifficultyModal = lazyWithPreload(() =>
   import("./components/menus/DifficultyModal").then((m) => ({
     default: m.DifficultyModal,
   })),
 );
-const TimingModal = lazy(() =>
+const TimingModal = lazyWithPreload(() =>
   import("./components/menus/TimingModal").then((m) => ({
     default: m.TimingModal,
   })),
 );
-const SvModal = lazy(() =>
+const SvModal = lazyWithPreload(() =>
   import("./components/menus/SvModal").then((m) => ({ default: m.SvModal })),
 );
-const ToolsModal = lazy(() =>
+const ToolsModal = lazyWithPreload(() =>
   import("./components/menus/ToolsModal").then((m) => ({
     default: m.ToolsModal,
   })),
 );
-const AiModModal = lazy(() =>
+const AiModModal = lazyWithPreload(() =>
   import("./components/menus/AiModModal").then((m) => ({
     default: m.AiModModal,
   })),
 );
-const WelcomeModal = lazy(() =>
+const WelcomeModal = lazyWithPreload(() =>
   import("./components/menus/StartModal").then((m) => ({
     default: m.WelcomeModal,
   })),
 );
-const SampleMapsModal = lazy(() =>
+const SampleMapsModal = lazyWithPreload(() =>
   import("./components/menus/StartModal").then((m) => ({
     default: m.SampleMapsModal,
   })),
 );
-const MyMapsModal = lazy(() =>
+const MyMapsModal = lazyWithPreload(() =>
   import("./components/menus/MyMapsModal").then((m) => ({
     default: m.MyMapsModal,
   })),
 );
-const ImportModal = lazy(() =>
+const ImportModal = lazyWithPreload(() =>
   import("./components/menus/ImportModal").then((m) => ({
     default: m.ImportModal,
   })),
 );
-const NewMapModal = lazy(() =>
+const NewMapModal = lazyWithPreload(() =>
   import("./components/menus/NewMapModal").then((m) => ({
     default: m.NewMapModal,
   })),
 );
-const PresetBrowserModal = lazy(() =>
+const PresetBrowserModal = lazyWithPreload(() =>
   import("./components/menus/PresetBrowserModal").then((m) => ({
     default: m.PresetBrowserModal,
   })),
 );
-const PublishPresetModal = lazy(() =>
+const PublishPresetModal = lazyWithPreload(() =>
   import("./components/menus/PublishPresetModal").then((m) => ({
     default: m.PublishPresetModal,
   })),
 );
-const FeedbackModal = lazy(() =>
+const FeedbackModal = lazyWithPreload(() =>
   import("./components/menus/FeedbackModal").then((m) => ({
     default: m.FeedbackModal,
   })),
 );
-const HistoryModal = lazy(() =>
+const HistoryModal = lazyWithPreload(() =>
   import("./components/menus/HistoryModal").then((m) => ({
     default: m.HistoryModal,
   })),
 );
-const ShareModal = lazy(() =>
+const ShareModal = lazyWithPreload(() =>
   import("./components/menus/ShareModal").then((m) => ({
     default: m.ShareModal,
   })),
 );
-const PackBrowserModal = lazy(() =>
+const PackBrowserModal = lazyWithPreload(() =>
   import("./components/menus/PackBrowserModal").then((m) => ({
     default: m.PackBrowserModal,
   })),
 );
-const AutoTimePrompt = lazy(() =>
+const AutoTimePrompt = lazyWithPreload(() =>
   import("./components/AutoTimePrompt").then((m) => ({
     default: m.AutoTimePrompt,
   })),
 );
-const PackCreator = lazy(() =>
+const PackCreator = lazyWithPreload(() =>
   import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
 );
 import {
@@ -249,11 +249,49 @@ import { siteAsset } from "./lib/siteAssets";
 import { usePwa } from "./hooks/usePwa";
 import { DesktopDownloadLink } from "./components/DesktopDownloadLink";
 import { NotificationInbox } from "./components/NotificationInbox";
-const AdminPanel = lazy(() =>
+const AdminPanel = lazyWithPreload(() =>
   import("./components/admin/AdminPanel").then((m) => ({
     default: m.AdminPanel,
   })),
 );
+/** Fetches every split-out editor and menu surface so none suspends on first open. */
+function preloadLazyChunks(): Promise<unknown> {
+  return Promise.allSettled(
+    [
+      BottomTimeline,
+      CommentsSidebar,
+      DifficultySidebar,
+      ManiaEditor,
+      PlaytestNpsGraph,
+      PlaytestOverlay,
+      PlaytestRunStats,
+      PPCounter,
+      TransportBar,
+      SettingsModal,
+      AppSettingsModal,
+      SkinModal,
+      DifficultyModal,
+      TimingModal,
+      SvModal,
+      ToolsModal,
+      AiModModal,
+      WelcomeModal,
+      SampleMapsModal,
+      MyMapsModal,
+      ImportModal,
+      NewMapModal,
+      PresetBrowserModal,
+      PublishPresetModal,
+      FeedbackModal,
+      HistoryModal,
+      ShareModal,
+      PackBrowserModal,
+      AutoTimePrompt,
+      PackCreator,
+      AdminPanel,
+    ].map((component) => component.preload()),
+  );
+}
 import {
   InviteNotifications,
   type InviteNotice,
@@ -261,6 +299,7 @@ import {
 import {
   installUiSoundInteractions,
   playUiSound,
+  preloadUiSounds,
   setUiSoundsEnabled,
   setUiSoundVolume,
 } from "./lib/uiSounds";
@@ -429,19 +468,6 @@ const MemoizedBottomTimeline = memo(BottomTimeline);
 const MemoizedDifficultySidebar = memo(DifficultySidebar);
 const MemoizedPPCounter = memo(PPCounter);
 const MemoizedPlaytestNpsGraph = memo(PlaytestNpsGraph);
-
-function LazyLoadingFallback() {
-  return (
-    <div
-      role="status"
-      className="pointer-events-none fixed inset-0 z-[90] grid place-items-center bg-ink-900/35 backdrop-blur-sm"
-    >
-      <span className="rounded-xl border border-white/10 bg-ink-800/95 px-4 py-2 text-sm font-medium text-slate-200 shadow-xl">
-        Loading…
-      </span>
-    </div>
-  );
-}
 
 type ModalId =
   | "history"
@@ -4315,6 +4341,19 @@ export default function App() {
     return installUiSoundInteractions();
   }, []);
 
+  // Runs under the session intro, which waits for it before lifting.
+  const [chunksReady, setChunksReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    preloadUiSounds();
+    void preloadLazyChunks().then(() => {
+      if (!cancelled) setChunksReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (exportCheck || pendingImport || showHomeConfirm)
       playUiSound("areYouSure");
@@ -6141,6 +6180,7 @@ export default function App() {
       <SessionIntro
         enabled={appSettings.introEnabled && !hasProject && !sharedSlug}
         musicPlaying={menuMusic.isPlaying}
+        ready={chunksReady}
       />
       {sceneEntering && (
         <div
@@ -6631,7 +6671,7 @@ export default function App() {
         </div>
       </header>
 
-      <Suspense fallback={<LazyLoadingFallback />}>
+      <Suspense fallback={null}>
       <div className="flex min-h-0 flex-1">
         <div className="relative z-10 shrink-0">
           <div
@@ -7055,7 +7095,7 @@ export default function App() {
 
       </div>
 
-      <Suspense fallback={<LazyLoadingFallback />}>
+      <Suspense fallback={null}>
       {modalMounted("newMap") && (
         <NewMapModal
           open={modal === "newMap"}
@@ -7130,7 +7170,7 @@ export default function App() {
         />
       )}
       {packCreatorEverOpenedRef.current && (
-        <Suspense fallback={<LazyLoadingFallback />}>
+        <Suspense fallback={null}>
           <PackCreator
             jpegQuality={
               appSettings.exportPngBackgroundsAsJpeg
@@ -7605,7 +7645,7 @@ export default function App() {
       )}
 
       {adminEverOpenedRef.current && modalMounted("admin") && (
-        <Suspense fallback={<LazyLoadingFallback />}>
+        <Suspense fallback={null}>
           <AdminPanel
             open={modal === "admin"}
             onClose={close}
