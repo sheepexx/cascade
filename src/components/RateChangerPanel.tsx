@@ -15,7 +15,7 @@ import {
   rateForBpm,
   type RateCreateOptions,
 } from "../lib/rateChange";
-import { Toggle } from "./ui/Controls";
+import { Slider, Toggle } from "./ui/Controls";
 
 const EXIT_MS = 180;
 
@@ -165,16 +165,14 @@ export function RateChangerPanel({
           </span>
         </div>
 
-        <input
-          type="range"
+        <Slider
           min={RATE_MIN}
           max={RATE_MAX}
           step={RATE_STEP}
           value={rate}
           disabled={!canEdit}
-          onChange={(e) => commitRate(Number(e.target.value))}
+          onChange={(value) => commitRate(value)}
           aria-label="Rate"
-          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
         />
 
         <div className="mt-2.5 flex items-center gap-1.5">

@@ -98,6 +98,88 @@ textarea {
   outline: none;
 }
 
+/* The shared Slider (Controls.tsx). The thumb rides inside the track so it
+   never overhangs the ends; --p is the position, 0..1. A ring in the colour
+   of the surface behind (--slider-surface) separates it from the fill. */
+.ui-slider {
+  --thumb: 18px;
+  --track: 6px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: calc(var(--thumb) + 8px);
+  min-width: 3rem;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-slider[data-size="sm"] {
+  --thumb: 14px;
+  --track: 4px;
+}
+.ui-slider[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.ui-slider-track,
+.ui-slider-fill {
+  position: absolute;
+  left: 0;
+  height: var(--track);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+.ui-slider-track {
+  right: 0;
+  background: rgb(255 255 255 / 9%);
+}
+.ui-slider-fill {
+  width: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p));
+  background: var(--slider-fill, #e86868);
+  transition: width 200ms var(--ease-emphasized);
+}
+.ui-slider-thumb {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p));
+  width: var(--thumb);
+  height: var(--thumb);
+  margin: calc(var(--thumb) / -2) 0 0 calc(var(--thumb) / -2);
+  border-radius: 9999px;
+  background: var(--slider-fill, #e86868);
+  box-shadow:
+    0 0 0 3px var(--slider-surface, #16161d),
+    0 2px 8px 3px rgb(0 0 0 / 30%);
+  pointer-events: none;
+  transition:
+    left 200ms var(--ease-emphasized),
+    transform var(--motion-quick) var(--ease-standard),
+    box-shadow var(--motion-quick) var(--ease-standard);
+}
+.ui-slider[data-tracking] .ui-slider-fill {
+  transition: none;
+}
+.ui-slider[data-tracking] .ui-slider-thumb {
+  transition:
+    transform var(--motion-quick) var(--ease-standard),
+    box-shadow var(--motion-quick) var(--ease-standard);
+}
+.ui-slider:not([aria-disabled="true"]):hover .ui-slider-thumb {
+  transform: scale(1.1);
+}
+.ui-slider:focus-visible .ui-slider-thumb {
+  box-shadow:
+    0 0 0 3px var(--slider-surface, #16161d),
+    0 0 0 6px rgb(232 104 104 / 45%);
+}
+.ui-slider[data-active] .ui-slider-thumb {
+  transform: scale(1.2);
+  box-shadow:
+    0 0 0 3px var(--slider-surface, #16161d),
+    0 0 0 8px rgb(232 104 104 / 22%);
+}
+
 @keyframes modal-backdrop-in {
   from {
     opacity: 0;
@@ -1307,7 +1389,9 @@ canvas[data-pointer-focus]:focus-visible {
   .menu-panel-face,
   .start-logo-hover,
   .session-intro,
-  .segmented-pill {
+  .segmented-pill,
+  .ui-slider-fill,
+  .ui-slider-thumb {
     transition-duration: 1ms;
   }
 

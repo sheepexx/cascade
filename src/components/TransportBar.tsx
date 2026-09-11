@@ -10,7 +10,7 @@ import {
 import type { AudioController } from "../hooks/useAudio";
 import { formatTime, parseTimestamp } from "../lib/timing";
 import { useT } from "../lib/i18n";
-import { Select } from "./ui/Controls";
+import { Select, Slider } from "./ui/Controls";
 type Props = {
   audio: AudioController;
   view: ViewState;
@@ -185,17 +185,15 @@ export function TransportBar({
           >
             −
           </button>
-          <input
-            type="range"
+          <Slider
+            size="sm"
             min={MIN_SCROLL_SPEED}
             max={MAX_SCROLL_SPEED}
             step={1}
             value={view.scrollSpeed}
             aria-label="Timeline zoom"
-            onChange={(e) =>
-              onView({ ...view, scrollSpeed: Number(e.target.value) })
-            }
-            className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 uixl:w-24"
+            onChange={(value) => onView({ ...view, scrollSpeed: value })}
+            className="w-16 uixl:w-24"
           />
           <button
             type="button"

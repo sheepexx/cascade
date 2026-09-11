@@ -1,5 +1,182 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { formatUiNumber } from "../../lib/formatUiNumber";
+
+/** Thumb diameter per size, in px; the CSS in index.css draws to the same. */
+const SLIDER_THUMB = { sm: 14, md: 18 } as const;
+
+function stepDecimals(step: number): number {
+  const text = String(step);
+  const dot = text.indexOf(".");
+  return dot < 0 ? 0 : text.length - dot - 1;
+}
+
+/**
+ * A range slider whose thumb follows the pointer freely rather than jumping
+ * between steps; only the value it reports is rounded to `step`. On release
+ * (or a click) the thumb glides onto the step it landed on. Arrow keys,
+ * Page Up/Down and Home/End work as on a native range input.
+ */
+export function Slider({
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  onChangeEnd,
+  disabled = false,
+  size = "md",
+  className = "",
+  "aria-label": ariaLabel,
+  "aria-valuetext": valueText,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (value: number) => void;
+  /** Fires once a drag ends, or right after a keyboard step. */
+  onChangeEnd?: (value: number) => void;
+  disabled?: boolean;
+  size?: "sm" | "md";
+  className?: string;
+  "aria-label"?: string;
+  "aria-valuetext"?: string;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Unrounded position while the pointer is down; null otherwise.
+  const [dragValue, setDragValue] = useState<number | null>(null);
+  // Off while the pointer moves, so the thumb tracks it without lag.
+  const [gliding, setGliding] = useState(true);
+  const draggingRef = useRef(false);
+  const lastRef = useRef(value);
+  const handlersRef = useRef({ onChange, onChangeEnd });
+  handlersRef.current = { onChange, onChangeEnd };
+
+  const span = max - min || 1;
+  const decimals = stepDecimals(step);
+  const clamp = (v: number) => Math.min(max, Math.max(min, v));
+  const snap = (raw: number) =>
+    Number(clamp(min + Math.round((clamp(raw) - min) / step) * step).toFixed(decimals));
+  const ratio = (clamp(dragValue ?? value) - min) / span;
+
+  const valueAt = (clientX: number) => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return value;
+    const thumb = SLIDER_THUMB[size];
+    const usable = rect.width - thumb;
+    const x = clientX - rect.left - thumb / 2;
+    return min + Math.min(1, Math.max(0, usable > 0 ? x / usable : 0)) * span;
+  };
+
+  const emit = (raw: number) => {
+    const next = snap(raw);
+    if (next === lastRef.current) return;
+    lastRef.current = next;
+    handlersRef.current.onChange(next);
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (disabled || e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.currentTarget.focus({ preventScroll: true });
+    draggingRef.current = true;
+    lastRef.current = value;
+    const raw = valueAt(e.clientX);
+    // A click glides to the pointer; dragging from there tracks it exactly.
+    setGliding(true);
+    setDragValue(raw);
+    emit(raw);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    const raw = valueAt(e.clientX);
+    setGliding(false);
+    setDragValue(raw);
+    emit(raw);
+  };
+
+  const endDrag = () => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    setGliding(true);
+    setDragValue(null);
+    handlersRef.current.onChangeEnd?.(lastRef.current);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    const big = Math.max(step, span / 10);
+    let next: number;
+    switch (e.key) {
+      case "ArrowLeft":
+      case "ArrowDown":
+        next = value - step;
+        break;
+      case "ArrowRight":
+      case "ArrowUp":
+        next = value + step;
+        break;
+      case "PageDown":
+        next = value - big;
+        break;
+      case "PageUp":
+        next = value + big;
+        break;
+      case "Home":
+        next = min;
+        break;
+      case "End":
+        next = max;
+        break;
+      default:
+        return;
+    }
+    // Keep arrow keys from also reaching the editor's seek shortcuts.
+    e.preventDefault();
+    e.stopPropagation();
+    const snapped = snap(next);
+    lastRef.current = snapped;
+    if (snapped !== value) handlersRef.current.onChange(snapped);
+    handlersRef.current.onChangeEnd?.(snapped);
+  };
+
+  return (
+    <div
+      ref={rootRef}
+      role="slider"
+      tabIndex={disabled ? -1 : 0}
+      aria-label={ariaLabel}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      aria-valuetext={valueText}
+      aria-disabled={disabled || undefined}
+      data-size={size}
+      data-active={dragValue !== null ? "" : undefined}
+      data-tracking={dragValue !== null && !gliding ? "" : undefined}
+      className={`ui-slider ${className}`}
+      style={{ "--p": ratio } as CSSProperties}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
+      onKeyDown={onKeyDown}
+    >
+      <span className="ui-slider-track" />
+      <span className="ui-slider-fill" />
+      <span className="ui-slider-thumb" />
+    </div>
+  );
+}
 
 export function Field({
   label,

@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
-import { Button, SegmentedControl, Select, Toggle } from "../ui/Controls";
+import {
+  Button,
+  SegmentedControl,
+  Select,
+  Slider,
+  Toggle,
+} from "../ui/Controls";
 import { Tooltip } from "../ui/Tooltip";
 import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
@@ -1482,15 +1488,15 @@ function HumanSlider({
           {format(value)}
         </span>
       </div>
-      <input
-        type="range"
+      <Slider
         disabled={disabled}
         min={min}
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed"
+        onChange={onChange}
+        aria-label={label}
+        aria-valuetext={format(value)}
       />
     </div>
   );
@@ -1586,29 +1592,12 @@ function SliderRow({
   onChange: (value: number) => void;
 }) {
   // The interface-scale slider resizes itself as it applies: the thumb slides
-  // out from under the pointer, the browser reads a new value, and the whole
-  // UI flickers between sizes. Pointer drags therefore only move a local
-  // draft; keyboard steps still apply immediately.
+  // out from under the pointer and the whole UI flickers between sizes. With
+  // commitOnRelease a drag therefore only moves a local draft, applied when
+  // the drag ends; keyboard steps end at once, so they still apply straight
+  // away.
   const [draft, setDraft] = useState<number | null>(null);
-  const draftRef = useRef<number | null>(null);
-  const draggingRef = useRef(false);
   const shown = draft ?? value;
-
-  const beginDrag = () => {
-    if (!commitOnRelease || draggingRef.current) return;
-    draggingRef.current = true;
-    const commit = () => {
-      window.removeEventListener("pointerup", commit);
-      window.removeEventListener("pointercancel", commit);
-      draggingRef.current = false;
-      const next = draftRef.current;
-      draftRef.current = null;
-      setDraft(null);
-      if (next !== null) onChange(next);
-    };
-    window.addEventListener("pointerup", commit);
-    window.addEventListener("pointercancel", commit);
-  };
 
   return (
     <div
@@ -1623,25 +1612,20 @@ function SliderRow({
       >
         {label}
       </Tip>
-      <input
-        type="range"
+      <Slider
         aria-label={label}
         min={min}
         max={max}
         step={step}
         value={shown}
         disabled={disabled}
-        onPointerDown={beginDrag}
-        onChange={(e) => {
-          const next = Number(e.target.value);
-          if (draggingRef.current) {
-            draftRef.current = next;
-            setDraft(next);
-          } else {
-            onChange(next);
-          }
+        onChange={(next) => (commitOnRelease ? setDraft(next) : onChange(next))}
+        onChangeEnd={(next) => {
+          if (!commitOnRelease) return;
+          setDraft(null);
+          onChange(next);
         }}
-        className="ml-auto h-1.5 w-40 shrink-0 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed uimd:w-56"
+        className="ml-auto w-40 shrink-0 uimd:w-56"
       />
       <span className="w-14 shrink-0 text-right font-medium tabular-nums text-slate-200">
         {typeof display === "function" ? display(shown) : display}
