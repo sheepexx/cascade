@@ -180,6 +180,21 @@ textarea {
     0 0 0 8px rgb(232 104 104 / 22%);
 }
 
+/* The main-menu bar: each side is clipped at the logo's centre and slides
+   out from under it, then back in when the menu closes. */
+.menu-bar-slide {
+  transition: transform 460ms var(--ease-emphasized);
+}
+.menu-bar-slide[data-open="false"][data-side="left"] {
+  transform: translateX(100%);
+}
+.menu-bar-slide[data-open="false"][data-side="right"] {
+  transform: translateX(-100%);
+}
+.menu-bar-slide[data-open="false"] {
+  transition: transform 300ms cubic-bezier(0.55, 0, 0.8, 0.3);
+}
+
 @keyframes modal-backdrop-in {
   from {
     opacity: 0;
@@ -1387,6 +1402,7 @@ canvas[data-pointer-focus]:focus-visible {
   .osu-song-surface,
   .osu-song-open-face,
   .menu-panel-face,
+  .menu-bar-slide,
   .start-logo-hover,
   .session-intro,
   .segmented-pill,

@@ -506,52 +506,79 @@ export function StartScreen({
         {wide ? (
           <div
             data-menu-guard=""
-            className={`pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
-              open ? "opacity-100" : "opacity-0"
-            }`}
+            className="pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2"
             style={{ height: BAR_HEIGHT }}
           >
-            <div
-              className={`absolute inset-y-0 left-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
-                open ? "scale-y-100" : "scale-y-50"
-              }`}
-              style={{ width: `calc(50% + ${shift - logoOpen / 2}px)` }}
-            />
-            <div
-              className={`absolute inset-y-0 right-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
-                open ? "scale-y-100" : "scale-y-50"
-              }`}
-              style={{ left: `calc(50% + ${shift + logoOpen / 2}px)` }}
-            />
             <div
               ref={barRef}
               onMouseEnter={() => setBarHovered(true)}
               onMouseLeave={() => setBarHovered(false)}
-              className={`absolute inset-0 flex justify-center ${
+              className={`absolute inset-0 ${
                 open ? "pointer-events-auto" : "pointer-events-none"
               }`}
             >
-              {left.map((a, i) => (
-                <Panel
-                  key={a.id}
-                  action={a}
-                  width={panel}
-                  open={open}
-                  musicRef={musicRef}
-                  bleedRight={i === left.length - 1 ? logoOpen / 2 + 2 : 0}
-                />
-              ))}
-              <div style={{ width: logoOpen }} />
-              {right.map((a, i) => (
-                <Panel
-                  key={a.id}
-                  action={a}
-                  width={panel}
-                  open={open}
-                  musicRef={musicRef}
-                  bleedLeft={i === 0 ? logoOpen / 2 + 2 : 0}
-                />
-              ))}
+              {/* Each side is clipped at the open logo's centre and slides
+                  out from under it (index.css, .menu-bar-slide). The clip
+                  only trims sideways, so hovered panels can still grow past
+                  the bar's top and bottom. */}
+              <div
+                className="absolute inset-y-0 left-0"
+                style={{
+                  width: `calc(50% + ${shift}px)`,
+                  clipPath: "inset(-100% 0 -100% -100%)",
+                }}
+              >
+                <div
+                  className="menu-bar-slide relative flex h-full justify-end"
+                  data-side="left"
+                  data-open={open}
+                  style={{ paddingRight: logoOpen / 2 }}
+                >
+                  <div
+                    className="absolute inset-y-0 left-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm"
+                    style={{ right: logoOpen / 2 }}
+                  />
+                  {left.map((a, i) => (
+                    <Panel
+                      key={a.id}
+                      action={a}
+                      width={panel}
+                      open={open}
+                      musicRef={musicRef}
+                      bleedRight={i === left.length - 1 ? logoOpen / 2 + 2 : 0}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div
+                className="absolute inset-y-0 right-0"
+                style={{
+                  left: `calc(50% + ${shift}px)`,
+                  clipPath: "inset(-100% -100% -100% 0)",
+                }}
+              >
+                <div
+                  className="menu-bar-slide relative flex h-full justify-start"
+                  data-side="right"
+                  data-open={open}
+                  style={{ paddingLeft: logoOpen / 2 }}
+                >
+                  <div
+                    className="absolute inset-y-0 right-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm"
+                    style={{ left: logoOpen / 2 }}
+                  />
+                  {right.map((a, i) => (
+                    <Panel
+                      key={a.id}
+                      action={a}
+                      width={panel}
+                      open={open}
+                      musicRef={musicRef}
+                      bleedLeft={i === 0 ? logoOpen / 2 + 2 : 0}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         ) : (
