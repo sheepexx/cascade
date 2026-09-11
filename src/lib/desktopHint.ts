@@ -1,65 +1,59 @@
-export type DesktopHintState = {
-  shows: number;
-  lastShownAt: number;
-  dismissed: boolean;
-};
-
-export const DESKTOP_HINT_MAX_SHOWS = 3;
-export const DESKTOP_HINT_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 export const DESKTOP_HINT_DELAY_MS = 1400;
 export const DESKTOP_HINT_VISIBLE_MS = 22000;
 
-const HINT_KEY = "mania-editor:desktop-hint";
+const DISMISS_KEY = "mania-editor:desktop-hint-dismissed";
 
-export const EMPTY_DESKTOP_HINT: DesktopHintState = {
-  shows: 0,
-  lastShownAt: 0,
-  dismissed: false,
-};
+/** What the web app's desktop hint offers, if anything. */
+export type DesktopHintStatus = "download" | "update" | "current";
 
-export function shouldShowDesktopHint(
-  state: DesktopHintState,
-  now: number,
-): boolean {
-  if (state.dismissed) return false;
-  if (state.shows >= DESKTOP_HINT_MAX_SHOWS) return false;
-  if (state.shows > 0 && now - state.lastShownAt < DESKTOP_HINT_COOLDOWN_MS) {
+/** Compares dotted versions numerically; negative when `a` is older. */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split(".").map((part) => parseInt(part, 10) || 0);
+  const pb = b.split(".").map((part) => parseInt(part, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff) return diff;
+  }
+  return 0;
+}
+
+/**
+ * Signed out there is no telling whether the app is installed, so it is always
+ * offered. Signed in, it is offered until this account has opened the desktop
+ * app, and becomes an update notice while that version trails the newest
+ * release. Without a newest release to compare against, someone who already
+ * has the app is left alone.
+ */
+export function desktopHintStatus({
+  signedIn,
+  desktopVersion,
+  latestVersion,
+}: {
+  signedIn: boolean;
+  desktopVersion: string | null;
+  latestVersion: string | null;
+}): DesktopHintStatus {
+  if (!signedIn || !desktopVersion) return "download";
+  if (!latestVersion) return "current";
+  return compareVersions(desktopVersion, latestVersion) < 0
+    ? "update"
+    : "current";
+}
+
+/** Closing the hint quiets it for the rest of this visit; it returns on the
+ *  next one until the app is installed and up to date. */
+export function desktopHintDismissed(): boolean {
+  try {
+    return sessionStorage.getItem(DISMISS_KEY) === "1";
+  } catch {
     return false;
   }
-  return true;
 }
 
-export function recordDesktopHintShown(
-  state: DesktopHintState,
-  now: number,
-): DesktopHintState {
-  return { ...state, shows: state.shows + 1, lastShownAt: now };
-}
-
-export function dismissDesktopHint(state: DesktopHintState): DesktopHintState {
-  return { ...state, dismissed: true };
-}
-
-export function loadDesktopHintState(): DesktopHintState {
+export function dismissDesktopHint(): void {
   try {
-    const raw = localStorage.getItem(HINT_KEY);
-    if (!raw) return EMPTY_DESKTOP_HINT;
-    const parsed = JSON.parse(raw) as Partial<DesktopHintState>;
-    return {
-      shows: Number.isFinite(parsed.shows) ? Number(parsed.shows) : 0,
-      lastShownAt: Number.isFinite(parsed.lastShownAt)
-        ? Number(parsed.lastShownAt)
-        : 0,
-      dismissed: parsed.dismissed === true,
-    };
+    sessionStorage.setItem(DISMISS_KEY, "1");
   } catch {
-    return EMPTY_DESKTOP_HINT;
-  }
-}
-
-export function saveDesktopHintState(state: DesktopHintState): void {
-  try {
-    localStorage.setItem(HINT_KEY, JSON.stringify(state));
-  } catch {
+    // Private mode or storage blocked: it simply comes back on the next menu.
   }
 }

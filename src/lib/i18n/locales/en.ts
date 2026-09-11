@@ -354,6 +354,10 @@ export const en = {
   "nav.desktopApp": "Desktop app",
   "nav.desktopAppTitle": "Download Cascade for Windows",
   "nav.desktopHint": "Better performance & more features",
+  "nav.desktopUpdate": "Update available",
+  "nav.desktopUpdateTitle": "Cascade {version} is out for desktop",
+  "nav.desktopUpdateHint":
+    "Desktop app {version} is out. Update for the newest features and fixes.",
 
   "file.newOpen": "New / open…",
   "file.saving": "Saving…",

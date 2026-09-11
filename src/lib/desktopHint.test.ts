@@ -1,58 +1,69 @@
 import { describe, expect, it } from "vitest";
-import {
-  DESKTOP_HINT_COOLDOWN_MS,
-  DESKTOP_HINT_MAX_SHOWS,
-  EMPTY_DESKTOP_HINT,
-  dismissDesktopHint,
-  recordDesktopHintShown,
-  shouldShowDesktopHint,
-} from "./desktopHint";
+import { compareVersions, desktopHintStatus } from "./desktopHint";
 
-const NOW = 1_700_000_000_000;
-
-describe("shouldShowDesktopHint", () => {
-  it("shows to someone who has never seen it", () => {
-    expect(shouldShowDesktopHint(EMPTY_DESKTOP_HINT, NOW)).toBe(true);
+describe("compareVersions", () => {
+  it("orders by each number, not as text", () => {
+    expect(compareVersions("1.2.9", "1.2.10")).toBeLessThan(0);
+    expect(compareVersions("1.10.0", "1.9.9")).toBeGreaterThan(0);
+    expect(compareVersions("1.2.330", "1.2.330")).toBe(0);
   });
 
-  it("stays quiet for the rest of the cooldown", () => {
-    const seen = recordDesktopHintShown(EMPTY_DESKTOP_HINT, NOW);
-    expect(shouldShowDesktopHint(seen, NOW + 1000)).toBe(false);
+  it("treats missing parts as zero", () => {
+    expect(compareVersions("1.2", "1.2.0")).toBe(0);
+    expect(compareVersions("1.2", "1.2.1")).toBeLessThan(0);
+  });
+});
+
+describe("desktopHintStatus", () => {
+  it("always offers the download when signed out", () => {
     expect(
-      shouldShowDesktopHint(seen, NOW + DESKTOP_HINT_COOLDOWN_MS - 1),
-    ).toBe(false);
+      desktopHintStatus({
+        signedIn: false,
+        desktopVersion: "1.2.330",
+        latestVersion: "1.2.330",
+      }),
+    ).toBe("download");
   });
 
-  it("comes back once the cooldown is over", () => {
-    const seen = recordDesktopHintShown(EMPTY_DESKTOP_HINT, NOW);
-    expect(shouldShowDesktopHint(seen, NOW + DESKTOP_HINT_COOLDOWN_MS)).toBe(
-      true,
-    );
+  it("offers the download until the account has used the desktop app", () => {
+    expect(
+      desktopHintStatus({
+        signedIn: true,
+        desktopVersion: null,
+        latestVersion: "1.2.330",
+      }),
+    ).toBe("download");
   });
 
-  it("gives up after the show limit", () => {
-    let state = EMPTY_DESKTOP_HINT;
-    let at = NOW;
-    for (let i = 0; i < DESKTOP_HINT_MAX_SHOWS; i++) {
-      expect(shouldShowDesktopHint(state, at)).toBe(true);
-      state = recordDesktopHintShown(state, at);
-      at += DESKTOP_HINT_COOLDOWN_MS;
+  it("asks for an update while the installed version trails the release", () => {
+    expect(
+      desktopHintStatus({
+        signedIn: true,
+        desktopVersion: "1.2.329",
+        latestVersion: "1.2.330",
+      }),
+    ).toBe("update");
+  });
+
+  it("goes quiet once the installed version is current", () => {
+    for (const desktopVersion of ["1.2.330", "1.2.331"]) {
+      expect(
+        desktopHintStatus({
+          signedIn: true,
+          desktopVersion,
+          latestVersion: "1.2.330",
+        }),
+      ).toBe("current");
     }
-    expect(state.shows).toBe(DESKTOP_HINT_MAX_SHOWS);
-    expect(shouldShowDesktopHint(state, at)).toBe(false);
   });
 
-  it("never comes back after a dismissal", () => {
-    const state = dismissDesktopHint(EMPTY_DESKTOP_HINT);
-    expect(shouldShowDesktopHint(state, NOW + DESKTOP_HINT_COOLDOWN_MS * 10)).toBe(
-      false,
-    );
-  });
-
-  it("does not fire early when the clock jumps backwards", () => {
-    const seen = recordDesktopHintShown(EMPTY_DESKTOP_HINT, NOW);
-    expect(shouldShowDesktopHint(seen, NOW - DESKTOP_HINT_COOLDOWN_MS)).toBe(
-      false,
-    );
+  it("leaves app users alone when the newest release is unknown", () => {
+    expect(
+      desktopHintStatus({
+        signedIn: true,
+        desktopVersion: "1.2.300",
+        latestVersion: null,
+      }),
+    ).toBe("current");
   });
 });
