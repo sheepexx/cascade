@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button, SegmentedControl, Select, Toggle } from "../ui/Controls";
 import { Tooltip } from "../ui/Tooltip";
@@ -370,7 +370,7 @@ export function AppSettingsModal({
                 tip={t("settings.uiScaleHint")}
                 diagram="uiScale"
                 diagramValue={uiScale}
-                display={`${Math.round(uiScale * 100)}%`}
+                display={(v) => `${Math.round(v * 100)}%`}
                 min={MIN_UI_SCALE}
                 max={MAX_UI_SCALE}
                 step={UI_SCALE_STEP}
@@ -383,6 +383,7 @@ export function AppSettingsModal({
                     {t("settings.altWheelAction")}
                   </Tip>
                 </span>
+                commitOnRelease
                 <Select
                   className="mt-2 w-full"
                   value={altWheelAction}
@@ -1543,7 +1544,7 @@ function SliderRow({
   tip?: string;
   diagram?: DiagramName;
   diagramValue?: number;
-  display: string;
+  display: string | ((value: number) => string);
   min: number;
   max: number;
   step: number;
@@ -1557,7 +1558,11 @@ function SliderRow({
         disabled ? "opacity-45" : ""
       }`}
     >
-      <Tip text={tip} diagram={diagram} value={diagramValue}>
+      <Tip
+        text={tip}
+        diagram={diagram}
+        value={draft !== null && diagramValue !== undefined ? draft : diagramValue}
+      >
         {label}
       </Tip>
       <input
@@ -1566,20 +1571,57 @@ function SliderRow({
         min={min}
         max={max}
         step={step}
-        value={value}
+  commitOnRelease = false,
+        value={shown}
         disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerDown={beginDrag}
+        onChange={(e) => {
+          const next = Number(e.target.value);
+          if (draggingRef.current) {
+            draftRef.current = next;
+            setDraft(next);
+          } else {
+            onChange(next);
+          }
+        }}
         className="ml-auto h-1.5 w-32 shrink-0 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed uimd:w-40"
       />
       <span className="w-12 shrink-0 text-right font-medium tabular-nums text-slate-200">
-        {display}
+        {typeof display === "function" ? display(shown) : display}
       </span>
     </div>
   );
 }
 
+  /** Hold the value locally while dragging and apply it on release. */
+  commitOnRelease?: boolean;
 function Tip({
   text,
+  // The interface-scale slider resizes itself as it applies: the thumb slides
+  // out from under the pointer, the browser reads a new value, and the whole
+  // UI flickers between sizes. Pointer drags therefore only move a local
+  // draft; keyboard steps still apply immediately.
+  const [draft, setDraft] = useState<number | null>(null);
+  const draftRef = useRef<number | null>(null);
+  const draggingRef = useRef(false);
+  const shown = draft ?? value;
+
+  const beginDrag = () => {
+    if (!commitOnRelease || draggingRef.current) return;
+    draggingRef.current = true;
+    const commit = () => {
+      window.removeEventListener("pointerup", commit);
+      window.removeEventListener("pointercancel", commit);
+      draggingRef.current = false;
+      const next = draftRef.current;
+      draftRef.current = null;
+      setDraft(null);
+      if (next !== null) onChange(next);
+    };
+    window.addEventListener("pointerup", commit);
+    window.addEventListener("pointercancel", commit);
+  };
+
   diagram,
   value,
   children,
