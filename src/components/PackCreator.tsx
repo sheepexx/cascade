@@ -388,7 +388,7 @@ export function PackCreator({
             <h2 className="text-sm font-semibold text-slate-100">
               Pack Creator
             </h2>
-            <p className="truncate text-[11px] text-slate-500">
+            <p className="truncate text-[11px] text-white/75">
               Combine multiple mania maps into one .osz pack
             </p>
           </div>
