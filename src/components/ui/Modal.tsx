@@ -32,7 +32,7 @@ export function Modal({
   footer,
   headerExtra,
   width = "max-w-md",
-  center = false,
+  center = true,
   slideUp = false,
   modeless = false,
   accent,
@@ -120,10 +120,8 @@ export function Modal({
 
   return (
     <div
-      // Anchored near the top rather than vertically centred: centring makes
-      // the whole panel slide every time its content grows or shrinks (tab
-      // switches, async content), which reads as the dialog jumping around.
-      // Pinning the top edge means only the bottom edge ever moves.
+      // Centred by default. `center={false}` pins the top edge instead, for a
+      // dialog whose height keeps changing while it is open.
       className={`fixed inset-0 flex justify-center bg-ink-900/72 p-4 backdrop-blur-md ${
         modeless
           ? "pointer-events-none overflow-visible !bg-transparent !p-0 !backdrop-blur-none"
