@@ -584,13 +584,11 @@ export function StartScreen({
           </div>
         </button>
 
-        {/* Steps above the osu! banner, which on a narrow window reaches far
-            enough right to sit on top of this. */}
+        {/* Stays put when the osu! banner slides in; the banner layers above
+            it on a window narrow enough for the two to meet. */}
         <div
           data-menu-guard=""
-          className={`absolute right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
-            osuBanner ? "bottom-[calc(var(--menu-bar-height)+1rem)]" : "bottom-3"
-          }`}
+          className="absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600"
         >
           <span>Cascade · v{__APP_VERSION__}</span>
           <span aria-hidden>·</span>
