@@ -740,7 +740,7 @@ function BeatIcon({
       if (hovered) {
         const beat = beatClock(musicRef.current, time);
         if (beat && beat.index !== lastBeat) {
-          if (lastBeat !== null) bounce.beat(time - beat.phase, beat.length, beatIntensity(musicRef.current, time, beat.length));
+          if (lastBeat !== null) bounce.beat(time - beat.phase, beat.length, beatIntensity(musicRef.current, time, beat.length), time);
           lastBeat = beat.index;
         }
       }

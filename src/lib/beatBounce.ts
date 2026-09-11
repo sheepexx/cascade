@@ -82,11 +82,20 @@ export class BeatBounce {
     this.jump(now, duration, intensity);
   }
 
-  beat(start: number, beatLength: number, intensity = 1): void {
+  /**
+   * @param now When the beat was noticed. Usually a frame after `start`, but
+   * when the clock jumps (music paused or resumed, so the beat grid switches
+   * between the song and the idle pulse) the new beat can be well under way.
+   * Every tween then starts from where the icon is right now and runs over
+   * what is left of the beat, instead of rewinding to its first frame.
+   */
+  beat(start: number, beatLength: number, intensity = 1, now = start): void {
+    const begin = Math.max(start, now);
+    const length = Math.max(MIN_CATCH_UP_MS, start + beatLength - begin);
     const swing = (this.rightward ? BOUNCE_ROTATION : -BOUNCE_ROTATION) * intensity;
-    this.rotate.set(start, [{ to: swing, start, duration: beatLength, ease: easeInOutSine }]);
-    this.scaleX.set(start, [{ to: HOVER_SCALE, start, duration: beatLength / 2, ease: easeOut }]);
-    this.jump(start, beatLength, intensity);
+    this.rotate.set(begin, [{ to: swing, start: begin, duration: length, ease: easeInOutSine }]);
+    this.scaleX.set(begin, [{ to: HOVER_SCALE, start: begin, duration: length / 2, ease: easeOut }]);
+    this.jump(begin, length, intensity);
     this.rightward = !this.rightward;
   }
 
