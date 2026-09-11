@@ -584,6 +584,9 @@ export function StartScreen({
           }}
         />
 
+        {/* Only the round logo takes the pointer. The button and its square
+            wrappers let it through, so hover, clicks and the beat hitsounds
+            begin at the circle's edge rather than its bounding box. */}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -591,7 +594,7 @@ export function StartScreen({
           onPointerLeave={() => setLogoHovered(false)}
           aria-label={t("menu.open")}
           aria-expanded={open}
-          className="group absolute left-1/2 top-1/2 z-20 outline-none transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)]"
+          className="group pointer-events-none absolute left-1/2 top-1/2 z-20 outline-none transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)]"
           style={{
             width: logoClosed,
             height: logoClosed,
@@ -621,7 +624,7 @@ export function StartScreen({
                 alt="Cascade"
                 draggable={false}
                 onDragStart={(e) => e.preventDefault()}
-                className="relative h-full w-full select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.3)] ring-1 ring-white/10 transition-[filter] duration-200 group-hover:brightness-110"
+                className="pointer-events-auto relative h-full w-full cursor-pointer select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.3)] ring-1 ring-white/10 transition-[filter] duration-200 group-hover:brightness-110"
               />
             </div>
           </div>
