@@ -77,7 +77,7 @@ const LOGO_IDLE_DEPTH = 0.05;
 const LOGO_SPRING = 90;
 const menuLoudness = new LoudnessTracker();
 const logoHitsounds = new LogoHitsounds();
-const LOGO_CLOSED = 520;
+const LOGO_CLOSED = 580;
 const LOGO_OPEN = 196;
 const LOGO_MIN = 168;
 const BAR_HEIGHT = 136;
@@ -693,7 +693,7 @@ function measure(panels: number) {
     LOGO_MIN,
     Math.min(
       LOGO_CLOSED,
-      Math.round(wide ? Math.min(vw * 0.42, vh * 0.56) : Math.min(vw * 0.6, vh * 0.36)),
+      Math.round(wide ? Math.min(vw * 0.44, vh * 0.6) : Math.min(vw * 0.64, vh * 0.4)),
     ),
   );
   const logoOpen = wide
