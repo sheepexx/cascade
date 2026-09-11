@@ -1152,6 +1152,13 @@ textarea {
   }
 }
 
+/* Menu background blur, kept to the edges: clear through the middle and
+   fully blurred by the corners. */
+.menu-bg-vignette {
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 38%, #000 92%);
+  mask-image: radial-gradient(ellipse at center, transparent 38%, #000 92%);
+}
+
 /* Main-menu beat flashes: additive like osu!'s, screen where plus-lighter is missing. */
 .menu-side-flash { mix-blend-mode: screen; }
 @supports (mix-blend-mode: plus-lighter) {

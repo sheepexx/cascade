@@ -959,16 +959,28 @@ function MenuBackground({
           className="absolute inset-0 transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
           style={{ transform: `scale(${!open && !phone ? BG_CLOSED_ZOOM : 1})` }}
         >
+          {/* Sharp across the middle; a blurred copy on top is masked in
+              only toward the edges, like a vignette. */}
           {layers.map((layer) => (
-            <img
+            <div
               key={layer.id}
-              src={layer.url}
-              alt=""
-              aria-hidden
-              className={`absolute inset-0 h-full w-full scale-110 object-cover blur-[2px] ${
+              className={`absolute inset-0 ${
                 layer.leaving ? "bg-fade-out" : "bg-fade-in"
               }`}
-            />
+            >
+              <img
+                src={layer.url}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 h-full w-full scale-110 object-cover"
+              />
+              <img
+                src={layer.url}
+                alt=""
+                aria-hidden
+                className="menu-bg-vignette absolute inset-0 h-full w-full scale-110 object-cover blur-[3px]"
+              />
+            </div>
           ))}
         </div>
       </div>
