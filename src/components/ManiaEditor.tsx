@@ -122,6 +122,9 @@ type Props = {
   isPlaying: boolean;
   seekSignal?: AudioSeekSignal;
   backgroundUrl: string | null;
+  /** Identifies the picture itself, so the same image on another difficulty
+   * carries over instead of fading in again. Defaults to the URL. */
+  backgroundKey?: string | null;
   videoUrl?: string | null;
   videoOffsetMs?: number;
   playbackRate?: number;
@@ -315,6 +318,10 @@ type ColumnRender = {
   key: HTMLImageElement | null;
   keyDown: HTMLImageElement | null;
 };
+
+// The editor remounts for every difficulty; the last background it drew
+// survives that so an unchanged picture neither blinks nor fades.
+let shownBackground: { key: string; img: HTMLImageElement } | null = null;
 
 export function ManiaEditor(props: Props) {
   const [interactionMode, setInteractionMode] = useState<InteractionMode>("edit");
@@ -1001,18 +1008,27 @@ export function ManiaEditor(props: Props) {
     if (!props.backgroundUrl) {
       bgImgRef.current = null;
       bgFadeStartRef.current = 0;
+      shownBackground = null;
+      return;
+    }
+    const url = props.backgroundUrl;
+    const key = props.backgroundKey ?? url;
+    if (shownBackground?.key === key) {
+      bgImgRef.current = shownBackground.img;
+      bgFadeStartRef.current = 0;
+      markDirty();
       return;
     }
     const img = new Image();
-    const url = props.backgroundUrl;
-    img.src = props.backgroundUrl;
+    img.src = url;
     img.onload = () => {
       if (propsRef.current.backgroundUrl !== url) return;
+      shownBackground = { key, img };
       bgImgRef.current = img;
       bgFadeStartRef.current = performance.now();
       markDirty();
     };
-  }, [props.backgroundUrl, markDirty]);
+  }, [props.backgroundUrl, props.backgroundKey, markDirty]);
 
   useEffect(() => {
     if (!props.videoUrl) {

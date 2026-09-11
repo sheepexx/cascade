@@ -6769,6 +6769,11 @@ export default function App() {
                 isPlaying={audio.isPlaying}
                 seekSignal={audio.seekSignal}
                 backgroundUrl={activeBg?.url ?? null}
+                backgroundKey={
+                  activeBg
+                    ? `${activeBg.blob.size}:${activeBg.blob.type}`
+                    : null
+                }
                 videoUrl={activeVideo?.url ?? null}
                 videoOffsetMs={active.videoOffsetMs ?? 0}
                 playbackRate={audio.playbackRate}
