@@ -86,22 +86,24 @@ const BG_MAX_LAYERS = 4;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
 const RING_RATIO = 0.42;
-const ROUNDS = 3;
-const BARS = 32;
 const SKEW = "-11deg";
-const BAR_ALPHA = 0.26;
-const SPIN_SPEED = 0.00009;
-const AMP_SHIFT_MS = 140;
-const AMP_GAIN = 1;
-const AMP_DECAY_PER_MS = 0.0011;
-const BAR_FLOOR = 0.05;
-const BAR_REACH = 0.95;
-const MASK_LOBES = 4;
-const MASK_STEPS = 7;
-const MASK_SPEED = 0.0018;
-const MASK_DIM = 0.2;
-const MASK_EDGE_LOW = 0.35;
-const MASK_EDGE_HIGH = 0.9;
+// Logo visualiser after osu!lazer's LogoVisualisation: 200 bars per ring, the
+// ring laid five times around the logo, fed every 50 ms from a window of the
+// spectrum that shifts five bars each time, each bar decaying in proportion
+// to its own length. Outside kiai everything runs at half height.
+const VIS_BARS = 200;
+const VIS_ROUNDS = 5;
+const VIS_INDEX_CHANGE = 5;
+const VIS_UPDATE_MS = 50;
+const VIS_DECAY_PER_MS = 0.0024;
+// lazer's bars reach 600 units against a logo about 480 units across.
+const VIS_BAR_LENGTH = 1.25;
+const VIS_DEAD_ZONE = 1 / 600;
+// lazer's white at 0.2 inside a visualiser drawn at half alpha.
+const VIS_STROKE = "rgba(255,255,255,0.12)";
+// Web Audio divides its FFT by the frame length and window; this brings its
+// magnitudes up to roughly the scale BASS reports them on.
+const VIS_MAGNITUDE_GAIN = 4;
 
 const STARS_PER_SIDE = 26;
 const STAR_OPENING = 0.45;
@@ -1207,11 +1209,6 @@ function FloatingPlayers({
   );
 }
 
-function smoothstep(edge0: number, edge1: number, value: number): number {
-  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-}
-
 type BeatClock = MenuBeat & {
   /** False on the idle grid, when no track is playing. */
   synced: boolean;
@@ -1522,7 +1519,7 @@ function Visualizer({
   active: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const smoothRef = useRef<number[]>(new Array(BARS).fill(0));
+  const ampsRef = useRef(new Float32Array(VIS_BARS));
   const musicRef = useRef(music);
   musicRef.current = music;
   const lowSpec = usePerformanceMode();
@@ -1542,28 +1539,28 @@ function Visualizer({
     ctx.scale(dpr, dpr);
 
     const radius = size / 2 - 2;
-    const maxLen = pad * 0.9;
+    const maxLen = pad * 0.96;
     const centre = box / 2;
     const node = pulseRef.current;
     const punch = new AudioPunch();
     const spring = new CriticalSpring(1, LOGO_SPRING);
-    const roundStep = (Math.PI * 2) / ROUNDS;
-    const step = roundStep / BARS;
-    const segments = ROUNDS * BARS;
-    const segX0 = new Float32Array(segments);
-    const segY0 = new Float32Array(segments);
-    const segX1 = new Float32Array(segments);
-    const segY1 = new Float32Array(segments);
-    const segLevel = new Uint8Array(segments);
-    const maskStrokes = Array.from({ length: MASK_STEPS }, (_, level) => {
-      const frac = level / (MASK_STEPS - 1);
-      const alpha = BAR_ALPHA * (MASK_DIM + (1 - MASK_DIM) * frac);
-      return `rgba(255,255,255,${alpha.toFixed(3)})`;
-    });
-    let rotation = 0;
-    let maskAngle = 0;
+    // Bars as wide as the chord they stand on, so neighbours meet edge to
+    // edge; each round repeats the ring turned by a fifth, and the additive
+    // strokes brighten wherever loud bars stack.
+    const barStep = (Math.PI * 2) / VIS_BARS;
+    const barWidth = 2 * radius * Math.sin(barStep / 2);
+    const cosTable = new Float32Array(VIS_BARS * VIS_ROUNDS);
+    const sinTable = new Float32Array(VIS_BARS * VIS_ROUNDS);
+    for (let j = 0; j < VIS_ROUNDS; j++) {
+      for (let i = 0; i < VIS_BARS; i++) {
+        const angle = i * barStep + (j * Math.PI * 2) / VIS_ROUNDS;
+        cosTable[j * VIS_BARS + i] = Math.cos(angle);
+        sinTable[j * VIS_BARS + i] = Math.sin(angle);
+      }
+    }
+    const temporal = new Float32Array(VIS_BARS);
     let indexOffset = 0;
-    let sinceAmps = 0;
+    let sinceUpdate = VIS_UPDATE_MS;
     let last = 0;
     let raf = 0;
 
@@ -1571,75 +1568,54 @@ function Visualizer({
       raf = requestAnimationFrame(draw);
       const delta = last ? Math.min(64, time - last) : 16;
       last = time;
-      rotation += delta * SPIN_SPEED;
-      maskAngle -= delta * MASK_SPEED;
       ctx.clearRect(0, 0, box, box);
 
-      const { readLevels } = musicRef.current;
-      const amps = smoothRef.current;
+      const current = musicRef.current;
+      const amps = ampsRef.current;
+      menuLoudness.update(current.track?.id ?? null, current.readLevels(), time);
 
-      const levels = readLevels();
-      menuLoudness.update(musicRef.current.track?.id ?? null, levels, time);
-      const seconds = time / 1000;
-      for (let i = 0; i < BARS; i++) {
-        let target: number;
-        if (levels) {
-          const bin = (i + indexOffset) % BARS;
-          target = Math.min(1, (levels[bin] / 255) * AMP_GAIN);
-        } else {
-          target =
-            0.16 +
-            Math.sin(i * 0.7 + seconds * 1.9) * 0.09 +
-            Math.sin(i * 0.23 - seconds * 1.1) * 0.055;
-          if (target < 0.02) target = 0.02;
+      sinceUpdate += delta;
+      if (sinceUpdate >= VIS_UPDATE_MS) {
+        sinceUpdate %= VIS_UPDATE_MS;
+        const spectrum = current.readSpectrum();
+        if (spectrum) {
+          const kiai = beatClock(current, time).kiai ? 1 : 0.5;
+          for (let i = 0; i < VIS_BARS; i++) {
+            const db = spectrum[i];
+            temporal[i] = Number.isFinite(db)
+              ? Math.min(1, 10 ** (db / 20) * VIS_MAGNITUDE_GAIN)
+              : 0;
+          }
+          for (let i = 0; i < VIS_BARS; i++) {
+            const target = temporal[(i + indexOffset) % VIS_BARS] * kiai;
+            if (target > amps[i]) amps[i] = target;
+          }
+          indexOffset = (indexOffset + VIS_INDEX_CHANGE) % VIS_BARS;
         }
-        if (target > amps[i]) amps[i] = target;
       }
 
-      sinceAmps += delta;
-      if (sinceAmps >= AMP_SHIFT_MS) {
-        sinceAmps -= AMP_SHIFT_MS;
-        indexOffset = (indexOffset + 1) % BARS;
-      }
-
-      const drop = delta * AMP_DECAY_PER_MS;
-      for (let i = 0; i < BARS; i++) {
-        amps[i] -= drop;
+      // The extra 0.03 keeps short bars from lingering near the ring.
+      const decay = delta * VIS_DECAY_PER_MS;
+      for (let i = 0; i < VIS_BARS; i++) {
+        amps[i] -= decay * (amps[i] + 0.03);
         if (amps[i] < 0) amps[i] = 0;
-      }
-
-      let seg = 0;
-      for (let r = 0; r < ROUNDS; r++) {
-        const base = rotation + r * roundStep;
-        for (let i = 0; i < BARS; i++) {
-          const angle = base + i * step;
-          const cos = Math.cos(angle);
-          const sin = Math.sin(angle);
-          const len = (BAR_FLOOR + amps[i] * BAR_REACH) * maxLen;
-          segX0[seg] = centre + cos * radius;
-          segY0[seg] = centre + sin * radius;
-          segX1[seg] = centre + cos * (radius + len);
-          segY1[seg] = centre + sin * (radius + len);
-          const lobe = Math.abs(
-            Math.cos((MASK_LOBES / 2) * (angle - maskAngle)),
-          );
-          segLevel[seg] = Math.round(
-            smoothstep(MASK_EDGE_LOW, MASK_EDGE_HIGH, lobe) * (MASK_STEPS - 1),
-          );
-          seg++;
-        }
       }
 
       ctx.globalCompositeOperation = "lighter";
       ctx.lineCap = "butt";
-      ctx.lineWidth = 1.3;
-      for (let level = 0; level < MASK_STEPS; level++) {
-        ctx.strokeStyle = maskStrokes[level];
+      ctx.lineWidth = barWidth;
+      ctx.strokeStyle = VIS_STROKE;
+      for (let j = 0; j < VIS_ROUNDS; j++) {
         ctx.beginPath();
-        for (let s = 0; s < segments; s++) {
-          if (segLevel[s] !== level) continue;
-          ctx.moveTo(segX0[s], segY0[s]);
-          ctx.lineTo(segX1[s], segY1[s]);
+        for (let i = 0; i < VIS_BARS; i++) {
+          const amp = amps[i];
+          if (amp < VIS_DEAD_ZONE) continue;
+          const k = j * VIS_BARS + i;
+          const len = Math.min(maxLen, amp * VIS_BAR_LENGTH * size);
+          const x = cosTable[k];
+          const y = sinTable[k];
+          ctx.moveTo(centre + x * radius, centre + y * radius);
+          ctx.lineTo(centre + x * (radius + len), centre + y * (radius + len));
         }
         ctx.stroke();
       }

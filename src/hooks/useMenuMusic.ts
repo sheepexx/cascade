@@ -42,6 +42,8 @@ export type MenuMusic = {
   readLevels: () => Uint8Array | null;
   /** A lightly smoothed spectrum for onset detection. */
   readTransients: () => Uint8Array | null;
+  /** The same tap in dB per bin, with the playback volume taken back out. */
+  readSpectrum: () => Float32Array | null;
   /** Peak level per channel, 0..1, independent of the playback volume. */
   readAmplitudes: () => { left: number; right: number } | null;
   getPlayback: () => { position: number; duration: number; playing: boolean } | null;
@@ -132,6 +134,7 @@ export function useMenuMusic(
     new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)),
   );
   const waveRef = useRef(new Float32Array(new ArrayBuffer(CHANNEL_FFT_SIZE * 4)));
+  const spectrumRef = useRef(new Float32Array(new ArrayBuffer(FFT_SIZE * 2)));
   const clockRef = useRef(createPlaybackClock());
   const levelsRef = useRef(new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)));
   const wantsPlayRef = useRef(true);
@@ -497,6 +500,20 @@ export function useMenuMusic(
     return transientLevelsRef.current;
   }, []);
 
+  const readSpectrum = useCallback(() => {
+    const analyser = transientRef.current;
+    const el = audioRef.current;
+    if (!analyser || !sourceRef.current || !el || el.paused) return null;
+    if (el.volume < 0.01) return null;
+    const spectrum = spectrumRef.current;
+    analyser.getFloatFrequencyData(spectrum);
+    // The tap sits after the element's volume; lift it back out so the bars
+    // follow the song rather than the menu's playback level.
+    const lift = -20 * Math.log10(el.volume);
+    for (let i = 0; i < spectrum.length; i++) spectrum[i] += lift;
+    return spectrum;
+  }, []);
+
   const readAmplitudes = useCallback(() => {
     const channels = channelsRef.current;
     const el = audioRef.current;
@@ -576,6 +593,7 @@ export function useMenuMusic(
       previous,
       readLevels,
       readTransients,
+      readSpectrum,
       readAmplitudes,
       getPlayback,
       seek,
@@ -591,6 +609,7 @@ export function useMenuMusic(
       previous,
       readLevels,
       readTransients,
+      readSpectrum,
       readAmplitudes,
       getPlayback,
       seek,
