@@ -177,6 +177,14 @@ textarea {
       #22222c 100%);
 }
 
+/* Dialog content reads a step larger than the dense editor chrome around it:
+   each small text size used inside a modal goes up by about a pixel. Only the
+   size moves, so any leading a paragraph sets for itself still applies. */
+.modal-body .text-\[10px\] { font-size: 0.6875rem; }
+.modal-body .text-\[11px\] { font-size: 0.75rem; }
+.modal-body .text-xs { font-size: 0.8125rem; }
+.modal-body .text-sm { font-size: 0.9375rem; }
+
 @keyframes confirm-backdrop-in {
   from {
     opacity: 0;

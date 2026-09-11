@@ -1,7 +1,7 @@
 {
   "name": "cascade",
   "private": true,
-  "version": "1.2.311",
+  "version": "1.2.312",
   "type": "module",
   "description": "Cascade - a browser-based osu!mania beatmap editor",
   "scripts": {

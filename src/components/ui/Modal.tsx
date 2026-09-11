@@ -218,7 +218,7 @@ export function Modal({
           <div className="relative flex min-h-0 flex-1 flex-col">
             <div
               ref={bodyRef}
-              className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-gutter:stable]"
+              className="modal-body min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-gutter:stable]"
             >
               {children}
             </div>

@@ -388,7 +388,7 @@ export function AppSettingsModal({
                 onChange={onUiScale}
               />
               <label className="mt-4 block">
-                <span className="text-xs text-slate-300">
+                <span className="text-sm text-slate-200">
                   <Tip text={t("settings.altWheelHint")}>
                     {t("settings.altWheelAction")}
                   </Tip>
@@ -495,7 +495,7 @@ export function AppSettingsModal({
               </div>
               {isDesktopApp() && (
                 <div className="mt-4">
-                  <div className="flex items-center justify-between gap-3 text-xs text-slate-300">
+                  <div className="flex items-center justify-between gap-3 text-sm text-slate-200">
                     <Tip text={t("settings.discordPresenceHint")}>{t("settings.discordPresence")}</Tip>
                     <Select
                       value={discordPresence}
@@ -661,7 +661,7 @@ export function AppSettingsModal({
                   onChange={onBpmAffectsScroll}
                 />
               </div>
-              <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-300">
+              <div className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-200">
                 <Tip text={t("settings.scrollDirectionHint")} diagram="scrollDirection">{t("settings.scrollDirection")}</Tip>
                 <button
                   type="button"
@@ -735,7 +735,7 @@ export function AppSettingsModal({
                 onChange={(v) => patchPlaytest({ scrollSpeed: v })}
               />
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-slate-300">
+                <div className="flex items-center justify-between text-sm text-slate-200">
                   <Tip text={t("settings.rateHint")}>{t("settings.rate")}</Tip>
                   <span className="font-medium text-slate-200">
                     {(playtest.rate ?? 1).toFixed(2)}×
@@ -761,7 +761,7 @@ export function AppSettingsModal({
                 </div>
               </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1 text-xs text-slate-300">
+                <label className="flex flex-col gap-1 text-sm text-slate-200">
                   <span>{t("settings.zoom")}</span>
                   <input
                     type="number"
@@ -773,7 +773,7 @@ export function AppSettingsModal({
                     className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
                   />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-slate-300">
+                <label className="flex flex-col gap-1 text-sm text-slate-200">
                   <Tip text={t("settings.playfieldHint")} diagram="backgroundDim" value={playtest.backgroundDim}>{t("settings.backgroundDim")}</Tip>
                   <input
                     type="number"
@@ -795,7 +795,7 @@ export function AppSettingsModal({
                 {t("settings.offset")}
               </h3>
               <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-xs text-slate-300">
+              <label className="flex flex-col gap-1 text-sm text-slate-200">
                 <span>{t("settings.offsetMode")}</span>
                 <Select
                   value={playtest.offsetMode}
@@ -837,7 +837,7 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 <Tip diagram="hud">{t("settings.hud")}</Tip>
               </h3>
-              <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
+              <div className="grid gap-2 text-sm text-slate-200 sm:grid-cols-2">
               <SettingToggle label={t("settings.showJudgements")} checked={playtest.showJudgements} onChange={(v) => patchPlaytest({ showJudgements: v })} />
               <SettingToggle label={t("settings.showCombo")} checked={playtest.showCombo} onChange={(v) => patchPlaytest({ showCombo: v })} />
               <SettingToggle label={t("settings.showAccuracy")} checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
@@ -944,7 +944,7 @@ export function AppSettingsModal({
                 <Tip text={t("settings.autoplayHint")}>{t("settings.autoplay")}</Tip>
               </h3>
 
-              <div className="flex flex-col gap-3 text-xs text-slate-300">
+              <div className="flex flex-col gap-3 text-sm text-slate-200">
                 <SettingToggle
                   label={t("settings.showNpsGraph")} tip={t("settings.showNpsGraphHint")}
                   checked={playtest.showNpsGraph}
@@ -964,7 +964,7 @@ export function AppSettingsModal({
 
               <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-xs text-slate-300">
+                    <label className="flex flex-col gap-1 text-sm text-slate-200">
                       <Tip
                         text={t("settings.danHint", {
                           keys: DAN_LADDERS[ladders.regular].keyCount,
@@ -985,7 +985,7 @@ export function AppSettingsModal({
                         ))}
                       </Select>
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-slate-300">
+                    <label className="flex flex-col gap-1 text-sm text-slate-200">
                       <span>{t("settings.danLn")}</span>
                       <Select
                         value={lnLevel}
@@ -1126,7 +1126,7 @@ export function AppSettingsModal({
                     format={(v) => `${v} ms`}
                     onChange={(v) => patchHumanize({ releaseJitterMs: v })}
                   />
-                  <label className="flex flex-col gap-1 text-xs text-slate-300">
+                  <label className="flex flex-col gap-1 text-sm text-slate-200">
                     <div className="flex items-center justify-between">
                       <Tip text={t("settings.humanizeSeedHint")}>{t("settings.humanizeSeed")}</Tip>
                       {playtest.humanize.seed === 0 && (
@@ -1395,7 +1395,7 @@ function OsuFolderSection() {
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
         <Tip text={t("settings.osuFolderHint")}>{t("settings.osuFolder")}</Tip>
       </h3>
-      <p className="break-all text-xs text-slate-300">
+      <p className="break-all text-sm text-slate-200">
         {status.root ?? (
           <span className="text-slate-500">{t("settings.osuFolderMissing")}</span>
         )}
@@ -1476,7 +1476,7 @@ function HumanSlider({
       aria-disabled={disabled}
       className={`flex flex-col gap-1.5 ${disabled ? "opacity-50" : ""}`}
     >
-      <div className="flex items-center justify-between text-xs text-slate-300">
+      <div className="flex items-center justify-between text-sm text-slate-200">
         <Tip text={hint}>{label}</Tip>
         <span className="font-medium tabular-nums text-slate-200">
           {format(value)}
@@ -1513,7 +1513,7 @@ function SettingToggle({
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-3 text-xs text-slate-300 ${
+      className={`flex items-center justify-between gap-3 text-sm text-slate-200 ${
         disabled ? "opacity-45" : ""
       }`}
     >
@@ -1542,7 +1542,7 @@ function SettingSignIn({
   onLogin: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-xs text-slate-300">
+    <div className="flex items-center justify-between gap-3 text-sm text-slate-200">
       <span className="opacity-45">
         <Tip text={tip}>{label}</Tip>
       </span>
@@ -1612,7 +1612,7 @@ function SliderRow({
 
   return (
     <div
-      className={`flex items-center gap-3 text-xs text-slate-300 ${
+      className={`flex items-center gap-3 text-sm text-slate-200 ${
         disabled ? "opacity-45" : ""
       }`}
     >
@@ -1641,9 +1641,9 @@ function SliderRow({
             onChange(next);
           }
         }}
-        className="ml-auto h-1.5 w-32 shrink-0 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed uimd:w-40"
+        className="ml-auto h-1.5 w-40 shrink-0 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed uimd:w-56"
       />
-      <span className="w-12 shrink-0 text-right font-medium tabular-nums text-slate-200">
+      <span className="w-14 shrink-0 text-right font-medium tabular-nums text-slate-200">
         {typeof display === "function" ? display(shown) : display}
       </span>
     </div>
