@@ -621,7 +621,6 @@ export const en = {
   "menu.localProjects.one": "You currently have {count} local project.",
   "menu.localProjects.other": "You currently have {count} local projects.",
   "tips.didYouKnow": "Did you know?",
-  "tips.next": "Show another tip",
   "tips.slowMo":
     "Hold {a} while the song plays to slow it down to 25%. Let go and it's back to full speed.",
   "tips.zen":

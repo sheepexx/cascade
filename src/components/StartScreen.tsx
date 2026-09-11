@@ -510,15 +510,9 @@ export function StartScreen({
         </div>
 
         {wide && (
-          <MenuTips
-            // Clear of the open logo's visualiser ring; on a short window the
-            // osu! banner needs that space, so the tips give way to it.
-            visible={open && !(osuBanner && layout.vh < 760)}
-            top={`calc(${menuCenter} + ${Math.round(
-              logoOpen / 2 + logoOpen * RING_RATIO * 0.5 + 24,
-            )}px)`}
-            keybinds={editorKeybinds}
-          />
+          // Along the bottom edge, which the osu! banner takes over when it
+          // shows, so the tips give way to it.
+          <MenuTips active={open && !osuBanner} keybinds={editorKeybinds} />
         )}
 
         {bannerSlotted && lastBannerRef.current && (
@@ -731,7 +725,14 @@ export function StartScreen({
   );
 }
 
-const TIP_MS = 9000;
+// Tips turn up now and then rather than sitting there: the first a little
+// while after the menu opens, then one every so often, each for a while.
+const TIP_FIRST_MS: [number, number] = [4000, 12000];
+const TIP_GAP_MS: [number, number] = [25000, 55000];
+const TIP_SHOW_MS = 10000;
+
+const between = ([min, max]: [number, number]) =>
+  min + Math.random() * (max - min);
 
 type MenuTip = {
   text: MessageKey;
@@ -768,15 +769,13 @@ const MENU_TIPS: MenuTip[] = [
   { text: "tips.palette" },
 ];
 
-/** A "Did you know?" card under the open menu. It starts on a random tip,
- *  moves on every few seconds (not while hovered), and a click skips ahead. */
+/** A "Did you know?" note near the bottom of the open menu. It turns up
+ *  only now and then, a different tip each time, and fades away again. */
 function MenuTips({
-  visible,
-  top,
+  active,
   keybinds,
 }: {
-  visible: boolean;
-  top: string;
+  active: boolean;
   keybinds: EditorKeybinds;
 }) {
   const t = useT();
@@ -786,16 +785,31 @@ function MenuTips({
   const [index, setIndex] = useState(() =>
     Math.floor(Math.random() * tips.length),
   );
-  const [hovered, setHovered] = useState(false);
-  const next = () => setIndex((i) => (i + 1) % tips.length);
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
-    if (!visible || hovered) return;
-    const timer = window.setTimeout(next, TIP_MS);
+    setShown(false);
+    if (!active) return;
+    let timer = 0;
+    const wait = (range: [number, number]) => {
+      timer = window.setTimeout(() => {
+        setIndex((i) =>
+          tips.length > 1
+            ? (i + 1 + Math.floor(Math.random() * (tips.length - 1))) % tips.length
+            : i,
+        );
+        setShown(true);
+        timer = window.setTimeout(() => {
+          setShown(false);
+          wait(TIP_GAP_MS);
+        }, TIP_SHOW_MS);
+      }, between(range));
+    };
+    wait(TIP_FIRST_MS);
     return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, hovered, index]);
+  }, [active, tips.length]);
 
+  const visible = active && shown;
   const tip = tips[index];
   const params: Record<string, string> = {};
   tip.keys?.forEach((action, i) => {
@@ -804,42 +818,25 @@ function MenuTips({
 
   return (
     <div
-      className={`pointer-events-none absolute inset-x-0 z-10 flex justify-center px-6 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
-        visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+      aria-hidden={!visible}
+      className={`pointer-events-none absolute inset-x-0 bottom-[max(3rem,8vh)] z-10 flex justify-center px-6 transition-all duration-500 ease-[var(--ease-standard)] ${
+        visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
       }`}
-      style={{ top }}
     >
-      <button
-        type="button"
+      <div
         data-menu-guard=""
-        tabIndex={visible ? 0 : -1}
-        onClick={next}
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
-        title={t("tips.next")}
-        className={`group flex w-[min(34rem,100%)] items-start gap-3 rounded-2xl border border-white/10 bg-ink-900/55 px-4 py-3 text-left shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-md transition duration-[var(--motion-quick)] hover:border-white/20 hover:bg-ink-900/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
-          visible ? "pointer-events-auto" : ""
-        }`}
+        className="flex w-[min(34rem,100%)] items-start gap-3 rounded-xl bg-ink-700 px-4 py-3"
       >
         <BulbIcon />
-        <span className="min-h-[2.75rem] min-w-0 flex-1">
-          <span className="block text-[11px] font-semibold uppercase tracking-wide text-amber-300">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
             {t("tips.didYouKnow")}
-          </span>
-          <span
-            key={index}
-            className="menu-tip-in mt-0.5 block text-sm leading-snug text-slate-100"
-          >
+          </p>
+          <p className="mt-0.5 text-sm leading-snug text-slate-100">
             {t(tip.text, params)}
-          </span>
-        </span>
-        <span
-          aria-hidden
-          className="self-center text-lg leading-none text-slate-500 transition duration-[var(--motion-quick)] group-hover:translate-x-0.5 group-hover:text-slate-200"
-        >
-          ›
-        </span>
-      </button>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
