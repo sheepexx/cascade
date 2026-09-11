@@ -63,15 +63,18 @@ type MenuAction = {
 
 const IDLE_BPM = 65;
 const KIAI_BOOST = 1.15;
-// Logo pulse while music plays: mostly onsets heard in the audio, some of the
-// song's live level, and a light touch of the mapped grid.
-const LOGO_PUNCH_DEPTH = 0.12;
-const LOGO_LEVEL_DEPTH = 0.05;
+// Logo pulse while music plays: driven by the hits heard in the audio, with
+// hits that land on the mapped beat pushed further, a little of the song's
+// live level, and a light touch of the grid itself.
+const LOGO_PUNCH_DEPTH = 0.16;
+const LOGO_BEAT_ACCENT = 0.35;
+const LOGO_LEVEL_DEPTH = 0.025;
 const LOGO_LEVEL_FLOOR = 0.3;
 const LOGO_GRID_DEPTH = 0.02;
 // With nothing playing the logo breathes on the idle grid alone.
 const LOGO_IDLE_DEPTH = 0.05;
-const LOGO_SPRING = 60;
+// Snappy enough that a single kick shows as its own jump.
+const LOGO_SPRING = 90;
 const menuLoudness = new LoudnessTracker();
 const logoHitsounds = new LogoHitsounds();
 const LOGO_CLOSED = 520;
@@ -1680,7 +1683,7 @@ function Visualizer({
           );
           target =
             1 +
-            hit * LOGO_PUNCH_DEPTH +
+            hit * LOGO_PUNCH_DEPTH * (1 + LOGO_BEAT_ACCENT * grid) +
             level * LOGO_LEVEL_DEPTH +
             grid * LOGO_GRID_DEPTH;
         }

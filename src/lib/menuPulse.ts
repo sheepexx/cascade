@@ -19,15 +19,17 @@
 const BASS_FROM = 1;
 const BASS_TO = 6;
 const BROAD_TO = 96;
-const BASS_WEIGHT = 0.65;
-const BROAD_WEIGHT = 0.35;
+// Kicks carry the beat, so the bass range leads the onset.
+const BASS_WEIGHT = 0.8;
+const BROAD_WEIGHT = 0.2;
 // Broadband flux is averaged over many more bins, so it reads much smaller.
 const BROAD_GAIN = 3;
 const ATTACK_MS = 8;
-const RELEASE_MS = 170;
+// Short enough that the logo drops back between hits and each one reads.
+const RELEASE_MS = 110;
 const PEAK_DECAY_MS = 1500;
 const PEAK_FLOOR = 0.02;
-const THRESHOLD = 0.06;
+const THRESHOLD = 0.1;
 const MAX_STEP_MS = 100;
 
 const BEAT_LEAD_MS = 40;
