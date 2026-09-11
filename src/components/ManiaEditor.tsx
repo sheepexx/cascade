@@ -2908,6 +2908,8 @@ export function ManiaEditor(props: Props) {
     e.stopPropagation();
     e.dataTransfer.setData(NOTE_CLIP_DRAG_TYPE, clip.id);
     e.dataTransfer.effectAllowed = "copy";
+    // The playfield draws its own drop preview, so skip the browser's ghost.
+    if (EMPTY_DRAG_IMAGE) e.dataTransfer.setDragImage(EMPTY_DRAG_IMAGE, 0, 0);
     draggedClipRef.current = clip;
     clipDropPreviewRef.current = null;
     dragRef.current = null;
@@ -3444,6 +3446,15 @@ function SelectionActionButton({
     </button>
   );
 }
+
+/** A transparent 1×1 picture handed to setDragImage in place of the ghost.
+ *  Made at load so it has decoded by the first drag. */
+const EMPTY_DRAG_IMAGE =
+  typeof Image === "undefined"
+    ? null
+    : Object.assign(new Image(1, 1), {
+        src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+      });
 
 function ClipThumb({
   clip,

@@ -17,6 +17,21 @@ import "./index.css";
 
 initPwa();
 
+// Firefox ignores -webkit-user-drag (index.css), so stop picture drags here
+// too. A picture inside something deliberately draggable still drags it.
+window.addEventListener(
+  "dragstart",
+  (event) => {
+    const target = event.target;
+    if (
+      target instanceof HTMLImageElement &&
+      !target.closest('[draggable="true"]')
+    )
+      event.preventDefault();
+  },
+  true,
+);
+
 void preloadLocale().then(() => {
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

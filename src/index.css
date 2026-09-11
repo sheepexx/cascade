@@ -98,6 +98,13 @@ textarea {
   outline: none;
 }
 
+/* Pictures never start a native drag with the browser's translucent ghost.
+   An element that is deliberately draggable still drags as a whole, and
+   main.tsx covers Firefox, which ignores this property. */
+img {
+  -webkit-user-drag: none;
+}
+
 /* The shared Slider (Controls.tsx). The thumb rides inside the track so it
    never overhangs the ends; --p is the position, 0..1. A ring in the colour
    of the surface behind (--slider-surface) separates it from the fill. */
