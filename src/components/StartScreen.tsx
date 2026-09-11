@@ -952,11 +952,11 @@ function MenuBackground({
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div ref={parallaxRef} className="absolute inset-0 opacity-[0.3] will-change-transform">
+      <div ref={parallaxRef} className="absolute inset-0 opacity-[0.42] will-change-transform">
         {/* Leans in while the logo stands alone and eases back out as the
             menu opens; kept apart from the parallax transform above. */}
         <div
-          className="absolute inset-0 transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+          className="absolute inset-0 transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
           style={{ transform: `scale(${!open && !phone ? BG_CLOSED_ZOOM : 1})` }}
         >
           {layers.map((layer) => (
@@ -972,7 +972,7 @@ function MenuBackground({
           ))}
         </div>
       </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-ink-900/80 via-ink-900/66 to-ink-900/88" />
+      <div className="absolute inset-0 bg-gradient-to-b from-ink-900/70 via-ink-900/48 to-ink-900/84" />
       {open && (
         <FloatingPlayers players={players} phone={phone} />
       )}
