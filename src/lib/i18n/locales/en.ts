@@ -134,6 +134,9 @@ export const en = {
   "settings.menuMusic": "Play a random song in the main menu",
   "settings.menuMusicHint":
     "Picks a track from your local projects and plays it behind the menu. Press C to pause it, V for the next song and X for the one before.",
+  "settings.logoSkinHitsounds": "Use your skin's hitsounds on the logo",
+  "settings.logoSkinHitsoundsHint":
+    "Hovering the menu logo plays a sound on every beat. Off plays osu!lazer's heartbeat and downbeat. On plays the equipped skin's hitnormal and hitfinish, or Cascade's default hitsounds when no skin is loaded.",
   "settings.sessionIntro": "Play the session intro",
   "settings.sessionIntroHint":
     "Shows the short Cascade logo animation once when you first open the app in a browsing session.",

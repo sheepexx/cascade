@@ -116,6 +116,8 @@ type Props = {
   onHideStatus: (value: boolean) => void;
   menuMusicEnabled: boolean;
   onMenuMusicEnabled: (value: boolean) => void;
+  logoSkinHitsounds: boolean;
+  onLogoSkinHitsounds: (value: boolean) => void;
   introEnabled: boolean;
   onIntroEnabled: (value: boolean) => void;
   shortcutNoticesEnabled: boolean;
@@ -221,6 +223,8 @@ export function AppSettingsModal({
   onShowMenuPlayers,
   menuMusicEnabled,
   onMenuMusicEnabled,
+  logoSkinHitsounds,
+  onLogoSkinHitsounds,
   introEnabled,
   onIntroEnabled,
   shortcutNoticesEnabled,
@@ -432,6 +436,12 @@ export function AppSettingsModal({
                   tip={t("settings.menuMusicHint")}
                   checked={menuMusicEnabled}
                   onChange={onMenuMusicEnabled}
+                />
+                <SettingToggle
+                  label={t("settings.logoSkinHitsounds")}
+                  tip={t("settings.logoSkinHitsoundsHint")}
+                  checked={logoSkinHitsounds}
+                  onChange={onLogoSkinHitsounds}
                 />
                 <SettingToggle
                   label={t("settings.sessionIntro")}

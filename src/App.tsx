@@ -6857,6 +6857,8 @@ export default function App() {
                     ? appSettings.hitsoundVolume * appSettings.masterVolume
                     : 0
                 }
+                logoSamples={appSettings.logoSkinHitsounds ? "skin" : "menu"}
+                skinHitsounds={skin?.hitsounds ?? null}
               >
                 <LandingCopy />
               </StartScreen>
@@ -7387,6 +7389,10 @@ export default function App() {
           menuMusicEnabled={appSettings.menuMusicEnabled}
           onMenuMusicEnabled={(v) =>
             setAppSettings((s) => ({ ...s, menuMusicEnabled: v }))
+          }
+          logoSkinHitsounds={appSettings.logoSkinHitsounds}
+          onLogoSkinHitsounds={(v) =>
+            setAppSettings((s) => ({ ...s, logoSkinHitsounds: v }))
           }
           introEnabled={appSettings.introEnabled}
           onIntroEnabled={(v) =>

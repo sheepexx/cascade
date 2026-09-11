@@ -441,6 +441,8 @@ export type AppSettings = {
   showMenuPlayers: boolean;
   hideStatus: boolean;
   menuMusicEnabled: boolean;
+  /** The menu logo's beat sounds come from the equipped skin, not lazer. */
+  logoSkinHitsounds: boolean;
   introEnabled: boolean;
   shortcutNoticesEnabled: boolean;
   performanceMode: boolean;
@@ -517,6 +519,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showMenuPlayers: true,
   hideStatus: false,
   menuMusicEnabled: true,
+  logoSkinHitsounds: false,
   introEnabled: true,
   shortcutNoticesEnabled: true,
   performanceMode: false,

@@ -20,7 +20,11 @@ import {
   idleBeat,
   type MenuBeat,
 } from "../lib/menuPulse";
-import { LOGO_SAMPLE_EARLY_MS, LogoHitsounds } from "../lib/logoHitsounds";
+import {
+  LOGO_SAMPLE_EARLY_MS,
+  LogoHitsounds,
+  type LogoSampleSource,
+} from "../lib/logoHitsounds";
 import { MENU_ACCENTS } from "../lib/menuTheme";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
@@ -207,6 +211,8 @@ export function StartScreen({
   players,
   osuBanner,
   logoHitsoundVolume = 0,
+  logoSamples = "menu",
+  skinHitsounds = null,
 }: {
   music: MenuMusic;
   onOpenChange?: (open: boolean) => void;
@@ -223,6 +229,10 @@ export function StartScreen({
   osuBanner?: ReactNode;
   /** Effects × master volume for the logo's hover hitsounds; 0 mutes them. */
   logoHitsoundVolume?: number;
+  /** Which samples the logo plays on the beat while hovered. */
+  logoSamples?: LogoSampleSource;
+  /** The equipped skin's hitsounds, used when logoSamples is "skin". */
+  skinHitsounds?: Record<string, Blob> | null;
 }) {
   const counts = menuPanelCounts(Boolean(onExit));
   const panels = counts.left + counts.right;
@@ -267,7 +277,11 @@ export function StartScreen({
     };
   }, [barHovered]);
 
-  // While the pointer rests on the logo, each beat plays a stock hitsound.
+  useEffect(() => {
+    logoHitsounds.configure(logoSamples, skinHitsounds);
+  }, [logoSamples, skinHitsounds]);
+
+  // While the pointer rests on the logo, each beat plays the logo's sample.
   // Beats are caught early and only when freshly crossed, so a beat already
   // under way (or the jump when music starts) never plays off the grid.
   useEffect(() => {
