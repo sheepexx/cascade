@@ -55,6 +55,10 @@ export type MenuMusic = {
 const FFT_SIZE = 512;
 // ~21 ms at 48 kHz, close to the window osu! reads channel levels over.
 const CHANNEL_FFT_SIZE = 1024;
+// The taps sit after the element's volume, so each reading is divided by it to
+// recover the song's own level. Only that division needs a floor: clamping it
+// lets a quiet menu read a little low instead of dropping the visualiser.
+const MIN_TAP_VOLUME = 0.001;
 const TRANSIENT_SMOOTHING = 0.2;
 const MENU_VOLUME = 0.25;
 const FADE_OUT_MS = 260;
@@ -504,12 +508,11 @@ export function useMenuMusic(
     const analyser = transientRef.current;
     const el = audioRef.current;
     if (!analyser || !sourceRef.current || !el || el.paused) return null;
-    if (el.volume < 0.01) return null;
     const spectrum = spectrumRef.current;
     analyser.getFloatFrequencyData(spectrum);
     // The tap sits after the element's volume; lift it back out so the bars
     // follow the song rather than the menu's playback level.
-    const lift = -20 * Math.log10(el.volume);
+    const lift = -20 * Math.log10(Math.max(el.volume, MIN_TAP_VOLUME));
     for (let i = 0; i < spectrum.length; i++) spectrum[i] += lift;
     return spectrum;
   }, []);
@@ -520,8 +523,7 @@ export function useMenuMusic(
     if (!channels || !sourceRef.current || !el || el.paused) return null;
     // The element's volume, fades included, is applied before the graph.
     // Dividing it back out gives the song's own level, as osu! measures it.
-    const volume = el.volume;
-    if (volume < 0.01) return null;
+    const volume = Math.max(el.volume, MIN_TAP_VOLUME);
     const wave = waveRef.current;
     const peak = (analyser: AnalyserNode) => {
       analyser.getFloatTimeDomainData(wave);

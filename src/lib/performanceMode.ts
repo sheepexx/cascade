@@ -5,11 +5,13 @@ const ATTRIBUTE = "data-performance";
 let enabled = false;
 const listeners = new Set<() => void>();
 
+function motionMedia(): MediaQueryList | null {
+  if (typeof window === "undefined") return null;
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
+}
+
 export function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
-  );
+  return motionMedia()?.matches === true;
 }
 
 export function isPerformanceMode(): boolean {
@@ -50,4 +52,24 @@ export function usePerformanceMode(): boolean {
     isPerformanceMode,
     () => false,
   );
+}
+
+function subscribeMotion(fn: () => void): () => void {
+  const stopPerformance = subscribePerformanceMode(fn);
+  const media = motionMedia();
+  media?.addEventListener("change", fn);
+  return () => {
+    stopPerformance();
+    media?.removeEventListener("change", fn);
+  };
+}
+
+/**
+ * Reduce-motion as the app sees it: the performance setting or the system
+ * preference. Unlike `reduceMotion()`, which samples once, this re-renders when
+ * either changes, so an animation that stopped starts again as soon as the
+ * reason for stopping goes away.
+ */
+export function useReducedMotion(): boolean {
+  return useSyncExternalStore(subscribeMotion, reduceMotion, () => false);
 }

@@ -54,6 +54,7 @@ import {
   reduceMotion,
   renderScale,
   usePerformanceMode,
+  useReducedMotion,
 } from "../lib/performanceMode";
 import {
   ImportIcon,
@@ -1787,6 +1788,7 @@ function Visualizer({
   const musicRef = useRef(music);
   musicRef.current = music;
   const lowSpec = usePerformanceMode();
+  const reduced = useReducedMotion();
   const pad = Math.round(size * RING_RATIO);
 
   useEffect(() => {
@@ -1795,7 +1797,6 @@ function Visualizer({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const reduced = reduceMotion();
     const box = size + pad * 2;
     const dpr = renderScale(2);
     canvas.width = box * dpr;
@@ -1915,7 +1916,7 @@ function Visualizer({
       cancelAnimationFrame(raf);
       if (node) node.style.transform = "";
     };
-  }, [size, pad, pulseRef]);
+  }, [size, pad, pulseRef, lowSpec, reduced]);
 
   if (lowSpec) return null;
   return (
