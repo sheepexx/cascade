@@ -1,3 +1,4 @@
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -50,27 +51,25 @@ pub fn fields(
 
 type Fields = (Option<String>, Option<String>);
 
-pub struct Presence {
-    client: Mutex<Option<DiscordIpcClient>>,
-    last: Mutex<Option<Fields>>,
-    started: i64,
+/// One presence the frontend asked for.
+struct Update {
+    mode: Mode,
+    fields: Fields,
 }
 
-impl Default for Presence {
-    fn default() -> Self {
-        Self {
-            client: Mutex::new(None),
-            last: Mutex::new(None),
-            started: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|value| value.as_secs() as i64)
-                .unwrap_or(0),
-        }
-    }
+/// Hands presence updates to a thread of their own. Discord's IPC blocks until
+/// Discord answers (its handshake waits for a reply with no timeout), and Tauri
+/// runs plain commands on the main thread, so talking to Discord inline froze
+/// the whole window whenever Discord was slow or wedged at startup. Now the
+/// command only passes the newest request along; a stuck Discord can at worst
+/// hold up the presence itself.
+#[derive(Default)]
+pub struct Presence {
+    sender: Mutex<Option<Sender<Update>>>,
 }
 
 impl Presence {
-    pub fn apply(
+    pub fn submit(
         &self,
         mode: Mode,
         details: Option<&str>,
@@ -79,38 +78,84 @@ impl Presence {
         if APP_ID.is_empty() {
             return Ok(());
         }
-
-        let next = fields(mode, details, state);
-
-        let mut last = self.last.lock().map_err(|_| "presence is busy")?;
-        if last.as_ref() == Some(&next) {
-            return Ok(());
+        let update = Update {
+            mode,
+            fields: fields(mode, details, state),
+        };
+        let mut sender = self.sender.lock().map_err(|_| "presence is busy")?;
+        if sender.is_none() {
+            let (tx, rx) = mpsc::channel();
+            std::thread::Builder::new()
+                .name("discord-presence".into())
+                .spawn(move || Worker::default().run(rx))
+                .map_err(|err| err.to_string())?;
+            *sender = Some(tx);
         }
+        if let Some(tx) = sender.as_ref() {
+            if tx.send(update).is_err() {
+                // The worker has gone away; the next update starts a new one.
+                *sender = None;
+            }
+        }
+        Ok(())
+    }
+}
 
-        let mut client = self.client.lock().map_err(|_| "presence is busy")?;
+/// Owns the Discord connection on the presence thread.
+struct Worker {
+    client: Option<DiscordIpcClient>,
+    last: Option<Fields>,
+    started: i64,
+}
+
+impl Default for Worker {
+    fn default() -> Self {
+        Self {
+            client: None,
+            last: None,
+            started: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|value| value.as_secs() as i64)
+                .unwrap_or(0),
+        }
+    }
+}
+
+impl Worker {
+    fn run(mut self, updates: Receiver<Update>) {
+        while let Ok(mut update) = updates.recv() {
+            // While Discord was slow, only the newest request still matters.
+            while let Ok(newer) = updates.try_recv() {
+                update = newer;
+            }
+            self.apply(update);
+        }
+        self.disconnect();
+    }
+
+    fn apply(&mut self, update: Update) {
+        let Update { mode, fields: next } = update;
+        if self.last.as_ref() == Some(&next) {
+            return;
+        }
 
         if mode == Mode::Off {
-            if let Some(active) = client.as_mut() {
-                let _ = active.clear_activity();
-                let _ = active.close();
-            }
-            *client = None;
-            *last = Some(next);
-            return Ok(());
+            self.disconnect();
+            self.last = Some(next);
+            return;
         }
 
-        if client.is_none() {
+        if self.client.is_none() {
             let mut fresh = DiscordIpcClient::new(APP_ID);
             if fresh.connect().is_err() {
-                *last = None;
-                return Ok(());
+                self.last = None;
+                return;
             }
-            *client = Some(fresh);
+            self.client = Some(fresh);
         }
 
-        let active = match client.as_mut() {
-            Some(active) => active,
-            None => return Ok(()),
+        let Some(active) = self.client.as_mut() else {
+            return;
         };
 
         let assets = activity::Assets::new()
@@ -129,13 +174,19 @@ impl Presence {
 
         if active.set_activity(payload).is_err() {
             let _ = active.close();
-            *client = None;
-            *last = None;
-            return Ok(());
+            self.client = None;
+            self.last = None;
+            return;
         }
 
-        *last = Some(next);
-        Ok(())
+        self.last = Some(next);
+    }
+
+    fn disconnect(&mut self) {
+        if let Some(mut active) = self.client.take() {
+            let _ = active.clear_activity();
+            let _ = active.close();
+        }
     }
 }
 
@@ -195,5 +246,14 @@ mod tests {
     fn pads_fields_discord_would_reject_as_too_short() {
         let (details, _) = fields(Mode::Detailed, Some("a"), None);
         assert_eq!(details.unwrap().chars().count(), 2);
+    }
+
+    #[test]
+    fn submitting_returns_straight_away() {
+        // Off never touches Discord, so this runs anywhere; the point is that
+        // the call hands over and returns rather than doing the work inline.
+        let presence = Presence::default();
+        assert_eq!(presence.submit(Mode::Off, None, None), Ok(()));
+        assert_eq!(presence.submit(Mode::Off, None, None), Ok(()));
     }
 }

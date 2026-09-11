@@ -2,7 +2,7 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{Ipv4Addr, TcpListener, TcpStream};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod archive;
 mod launch;
@@ -109,6 +109,36 @@ fn start_oauth_listener(app: AppHandle) -> Result<u16, String> {
     Ok(port)
 }
 
+/// Appends any panic, with where it happened, to crash.log in the app's log
+/// folder. Release builds abort on a panic and have no console, so otherwise a
+/// crash leaves nothing behind but an exit code.
+fn install_crash_log(dir: std::path::PathBuf, version: String) {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = std::fs::create_dir_all(&dir);
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(dir.join("crash.log"))
+        {
+            let secs = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|elapsed| elapsed.as_secs())
+                .unwrap_or(0);
+            let thread = std::thread::current();
+            let _ = writeln!(
+                file,
+                "[{secs}] Cascade {version} panicked on thread '{}': {info}\n{}\n",
+                thread.name().unwrap_or("unnamed"),
+                std::backtrace::Backtrace::force_capture(),
+            );
+        }
+        previous(info);
+    }));
+}
+
+/// Returns straight away: the Discord work happens on the presence thread, so
+/// a slow or wedged Discord can no longer freeze the window.
 #[tauri::command]
 fn presence_update(
     presence: tauri::State<'_, presence::Presence>,
@@ -116,7 +146,7 @@ fn presence_update(
     details: Option<String>,
     state: Option<String>,
 ) -> Result<(), String> {
-    presence.apply(
+    presence.submit(
         presence::parse_mode(&mode),
         details.as_deref(),
         state.as_deref(),
@@ -171,6 +201,9 @@ fn main() {
             vault::vault_reveal
         ])
         .setup(|app| {
+            if let Ok(dir) = app.path().app_log_dir() {
+                install_crash_log(dir, app.package_info().version.to_string());
+            }
             let paths = launch::launch_paths(std::env::args());
             launch::queue(app.state::<launch::Pending>().inner(), paths);
             osu::spawn_watcher(app.handle().clone());
