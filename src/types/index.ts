@@ -439,6 +439,8 @@ export type AppSettings = {
   showMenuPlayers: boolean;
   hideStatus: boolean;
   menuMusicEnabled: boolean;
+  introEnabled: boolean;
+  shortcutNoticesEnabled: boolean;
   performanceMode: boolean;
   osuListenerEnabled: boolean;
   playtest: PlaytestSettings;
@@ -512,6 +514,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showMenuPlayers: true,
   hideStatus: false,
   menuMusicEnabled: true,
+  introEnabled: true,
+  shortcutNoticesEnabled: true,
   performanceMode: false,
   osuListenerEnabled: true,
   playtest: {

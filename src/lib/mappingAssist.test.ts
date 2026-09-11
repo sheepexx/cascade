@@ -53,6 +53,84 @@ describe("onset suggestions", () => {
   });
 });
 
+describe("note suggestion patterns", () => {
+  const timingPoints = [makeRedPoint(500, 150)];
+  const base = { notes: [] as ManiaNote[], timingPoints, snapDivisor: 4, timeScale: 1, threshold: 0, start: 0, end: 600_000 };
+  const grid = (count: number, strength: (i: number) => number, sustainMs?: number) =>
+    Array.from({ length: count }, (_, i) => ({ timeMs: 500 + i * 100, strength: strength(i), ...(sustainMs ? { sustainMs } : {}) }));
+  it("varies lanes instead of rolling across the keyboard", () => {
+    const ghosts = suggestGhostNotes(grid(1200, i => 0.3 + ((i * 7919) % 11) / 20), { ...base, keyCount: 7 });
+    expect(ghosts.length).toBeGreaterThan(1000);
+    expect(new Set(ghosts.map(g => g.column)).size).toBe(7);
+    const { findings } = analyzePatterns({ ...makeDifficulty("7K", 7), timingPoints, notes: ghosts });
+    expect(findings.map(f => f.rule)).not.toContain("repetitive-pattern");
+  });
+  it("adds chords on accented beats and keeps weak hits single", () => {
+    const ghosts = suggestGhostNotes(grid(400, i => (i % 4 === 0 ? 1 : 0.3)), { ...base, keyCount: 7 });
+    const sizes = new Map<number, number>();
+    for (const g of ghosts) sizes.set(g.startTime, (sizes.get(g.startTime) ?? 0) + 1);
+    const onBeat = [...sizes].filter(([t]) => (t - 500) % 400 === 0);
+    expect(onBeat.filter(([, n]) => n >= 2).length / onBeat.length).toBeGreaterThan(0.3);
+    expect([...sizes].filter(([t]) => (t - 500) % 400 !== 0).every(([, n]) => n === 1)).toBe(true);
+  });
+  it("turns held sounds into long notes that release before the lane is reused", () => {
+    const held = Array.from({ length: 12 }, (_, i) => ({ timeMs: 500 + i * 800, strength: 0.8, sustainMs: 700 }));
+    const ghosts = suggestGhostNotes(held, { ...base, keyCount: 4 });
+    expect(ghosts.length).toBeGreaterThan(0);
+    expect(ghosts.every(g => g.endTime !== undefined && g.endTime - g.startTime >= 200)).toBe(true);
+    expect(analyzePatterns({ ...makeDifficulty(), timingPoints, notes: ghosts }).findings.map(f => f.rule)).not.toContain("ln-gap");
+    expect(suggestGhostNotes(held.map(o => ({ ...o, sustainMs: 60 })), { ...base, keyCount: 4 }).every(g => g.endTime === undefined)).toBe(true);
+  });
+  it("keeps the rest of a suggested chord after one of its notes is placed", () => {
+    const options = { ...base, keyCount: 7 };
+    const onsets = grid(200, i => (i % 4 === 0 ? 1 : 0.3), 700);
+    const before = suggestGhostNotes(onsets, options);
+    const chordTime = before.find((g, i) => before.some((h, j) => j !== i && h.startTime === g.startTime))!.startTime;
+    const placed = before.find(g => g.startTime === chordTime)!;
+    const key = (g: ManiaNote) => `${g.startTime}:${g.column}:${g.endTime ?? ""}`;
+    const after = suggestGhostNotes(onsets, { ...options, notes: [placed] });
+    expect(after.map(key)).toEqual(before.filter(g => g !== placed).map(key));
+  });
+  it("measures how long each attack holds", () => {
+    const rate = 44100;
+    const channel = new Float32Array(rate * 3);
+    for (let i = 0; i < rate * 0.01; i++) channel[Math.round(0.5 * rate) + i] = Math.exp(-i / (rate * 0.002)) * Math.cos(i * 0.8);
+    for (let i = 0; i < rate; i++) channel[Math.round(1.5 * rate) + i] = 0.5 * Math.sin((2 * Math.PI * 440 * i) / rate);
+    const found = detectOnsetsFromChannels([channel], rate);
+    const click = found.find(o => Math.abs(o.timeMs - 500) < 20)!;
+    const tone = found.find(o => Math.abs(o.timeMs - 1500) < 20)!;
+    expect(click.sustainMs).toBeLessThan(60);
+    expect(tone.sustainMs).toBeGreaterThan(800);
+  });
+});
+
+describe("repetitive pattern review", () => {
+  const timingPoints = [makeRedPoint(0, 150)];
+  const climb = (count: number) => {
+    const columns = [0];
+    for (let i = 1; i < count; i++) columns.push((columns[i - 1] + (i % 3 === 0 ? 2 : 1)) % 7);
+    return columns;
+  };
+  it("flags stairs that keep climbing even when they skip lanes", () => {
+    const notes = climb(1500).map((c, i) => note(i * 100, c));
+    const finding = analyzePatterns({ ...makeDifficulty("7K", 7), timingPoints, notes }).findings.find(f => f.rule === "repetitive-pattern")!;
+    expect(finding.coverage).toBeGreaterThan(0.9);
+    expect(finding.details[0].label).toContain("rolling");
+    expect(readinessScore(notes.length, [finding])).toBeLessThanOrEqual(40);
+  });
+  it("flags an exact pattern repeated for minutes", () => {
+    const notes = Array.from({ length: 1200 }, (_, i) => note(i * 100, [0, 2, 1, 3][i % 4]));
+    const finding = analyzePatterns({ ...makeDifficulty(), timingPoints, notes }).findings.find(f => f.rule === "repetitive-pattern")!;
+    expect(finding.details[0].label).toContain("4-step pattern");
+  });
+  it("lets a short run of stairs pass", () => {
+    let seed = 3;
+    const lanes = [...climb(96), ...Array.from({ length: 400 }, () => (seed = (seed * 16807) % 2147483647) % 7)];
+    const notes = lanes.map((c, i) => note(i * 100, c));
+    expect(analyzePatterns({ ...makeDifficulty("7K", 7), timingPoints, notes }).findings.map(f => f.rule)).not.toContain("repetitive-pattern");
+  });
+});
+
 describe("history navigation", () => {
   it("jumps backwards then forwards without reversing redo order", () => {
     const first = jumpSnapshotHistory(["a", "b"], "c", ["e", "d"], 1)!;

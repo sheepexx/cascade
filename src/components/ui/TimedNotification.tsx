@@ -14,7 +14,7 @@ type Props = {
   durationMs?: number | null;
   onDismiss?: () => void;
   resetKey?: string | number | null;
-  placement?: "stack" | "bottom-center" | "top-center" | "right";
+  placement?: "stack" | "bottom-center" | "top-center" | "right" | "overlay";
   className?: string;
   progressClassName?: string;
   showProgress?: boolean;
@@ -68,12 +68,25 @@ export function TimedNotification({
     setExiting(true);
   };
 
+  const timed = typeof durationMs === "number" && durationMs > 0;
+
+  useEffect(() => {
+    if (!mounted || exiting || !open || showProgress || !timed) return;
+    const timer = window.setTimeout(() => {
+      dismissAfterExitRef.current = true;
+      afterExitRef.current = null;
+      setExiting(true);
+    }, durationMs);
+    return () => window.clearTimeout(timer);
+  }, [cycle, durationMs, exiting, mounted, open, showProgress, timed]);
+
   if (!mounted) return null;
 
   const selfPositioned =
-    placement === "bottom-center" || placement === "top-center";
+    placement === "bottom-center" ||
+    placement === "top-center" ||
+    placement === "overlay";
 
-  const timed = typeof durationMs === "number" && durationMs > 0;
   const progressStyle = timed
     ? ({ "--notification-duration": `${durationMs}ms` } as CSSProperties)
     : undefined;

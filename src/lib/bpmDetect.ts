@@ -24,7 +24,7 @@
 const HOP = 512;
 const WIN = 1024;
 
-export type AudioOnset = { timeMs: number; strength: number };
+export type AudioOnset = { timeMs: number; strength: number; sustainMs?: number };
 
 /** Adaptive energy-flux peak picking. Channel energies are combined rather
  * than samples, so stereo phase cancellation cannot hide transients. Times
@@ -81,6 +81,22 @@ export function detectOnsetsFromChannels(
     if (last && onset.timeMs - last.timeMs < 40) {
       if (onset.strength > last.strength) result[result.length - 1] = onset;
     } else result.push(onset);
+  }
+  const smooth = new Float32Array(frames);
+  for (let f = 0; f < frames; f++) smooth[f] = (energy[Math.max(0, f - 1)] + energy[f] + energy[Math.min(frames - 1, f + 1)]) / 3;
+  const frameMs = (hop / sampleRate) * 1000;
+  for (let i = 0; i < result.length; i++) {
+    const f0 = Math.min(frames - 1, Math.floor(result[i].timeMs / frameMs));
+    let floor = Infinity;
+    for (let f = Math.max(0, f0 - 12); f < f0; f++) floor = Math.min(floor, smooth[f]);
+    if (!Number.isFinite(floor)) floor = 0;
+    let top = 0, topAt = f0;
+    for (let f = f0; f < Math.min(frames, f0 + 12); f++) if (smooth[f] > top) { top = smooth[f]; topAt = f; }
+    const level = floor + (top - floor) * 0.5;
+    const limit = Math.min(frames, f0 + Math.round(4000 / frameMs));
+    let f = topAt;
+    while (f < limit && smooth[f] >= level) f++;
+    result[i].sustainMs = Math.round((f - f0) * frameMs);
   }
   return result;
 }

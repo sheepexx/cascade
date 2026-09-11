@@ -31,6 +31,7 @@ import {
   type BrowseSort,
 } from "../../lib/projectSearch";
 import { siteAsset } from "../../lib/siteAssets";
+import { MENU_ACCENTS } from "../../lib/menuTheme";
 import {
   ArchiveIcon,
   NewMapIcon,
@@ -419,6 +420,7 @@ export function WelcomeModal({
         open={open}
         title={projectsOnly ? t("startModal.myMaps") : t("startModal.title")}
         onClose={onClose}
+        accent={projectsOnly ? MENU_ACCENTS.myMaps : MENU_ACCENTS.newMap}
         width="max-w-3xl"
         slideUp={projectsOnly}
       >
@@ -1357,6 +1359,7 @@ export function SampleMapsModal({
       open={open}
       title={t("sampleMaps.title")}
       onClose={onClose}
+      accent={MENU_ACCENTS.sampleMaps}
       width="max-w-3xl"
       footer={
         <Button variant="ghost" onClick={onBack}>

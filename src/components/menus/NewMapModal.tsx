@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "../ui/Controls";
 import { Modal } from "../ui/Modal";
 import { MusicNoteIcon } from "../ui/Icons";
+import { MENU_ACCENTS } from "../../lib/menuTheme";
 
 type Props = {
   open: boolean;
@@ -42,7 +43,7 @@ export function NewMapModal({ open, onClose, onCreate, banner }: Props) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Create a new map" width="max-w-xl">
+    <Modal open={open} onClose={onClose} title="Create a new map" width="max-w-xl" accent={MENU_ACCENTS.newMap}>
       <div className="flex flex-col gap-4">
         {banner}
         <div>

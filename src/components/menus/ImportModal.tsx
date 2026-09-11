@@ -3,6 +3,7 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { FolderIcon, ImportIcon } from "../ui/StartIcons";
 import { InfoTip } from "../ui/Tooltip";
+import { MENU_ACCENTS } from "../../lib/menuTheme";
 
 export function ImportModal({
   open,
@@ -40,7 +41,7 @@ export function ImportModal({
   };
 
   return (
-    <Modal open={open} title="Import a map" onClose={onClose} width="max-w-lg">
+    <Modal open={open} title="Import a map" onClose={onClose} width="max-w-lg" accent={MENU_ACCENTS.import}>
       <div className="flex flex-col gap-3">
         {banner}
         <div className="grid gap-3 sm:grid-cols-2">

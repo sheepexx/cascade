@@ -134,6 +134,12 @@ export const en = {
   "settings.menuMusic": "Play a random song in the main menu",
   "settings.menuMusicHint":
     "Picks a track from your local projects and plays it behind the menu. Press C to pause it, V for the next song and X for the one before.",
+  "settings.sessionIntro": "Play the session intro",
+  "settings.sessionIntroHint":
+    "Shows the short Cascade logo animation once when you first open the app in a browsing session.",
+  "settings.shortcutNotices": "Shortcut notices",
+  "settings.shortcutNoticesHint":
+    "Shows a small text overlay when a shortcut changes an editor setting, such as snap, waveform or zen mode.",
 
   "settings.performance": "Performance",
   "settings.performanceMode": "Performance mode",

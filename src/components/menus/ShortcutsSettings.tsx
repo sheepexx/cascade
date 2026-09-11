@@ -162,7 +162,7 @@ export function ShortcutsSettings({
           <ShortcutRow keys="Timing" text="Edit uninherited BPM and inherited SV points." />
           <ShortcutRow keys="SV" text="Generate scroll velocity effects over a range." />
           <ShortcutRow keys="Difficulty" text="Set name, key count, HP and OD." />
-          <ShortcutRow keys="Tools" text="Apply Full LN or convert holds to rice notes." />
+          <ShortcutRow keys="Tools" text="Show note suggestions, apply Full LN or Full RC, or crop to the trim brackets." />
           <ShortcutRow keys="Skin" text="Apply presets, upload .osk skins or clear the skin." />
           <ShortcutRow keys="Settings" text="Adjust the editor, playtest, audio and export options." />
         </ShortcutSection>

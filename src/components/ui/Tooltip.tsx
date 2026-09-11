@@ -8,8 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { MOTION } from "../../lib/motion";
 
-export const TOOLTIP_DELAY_MS = 420;
+export const TOOLTIP_DELAY_MS = MOTION.tooltipDelay;
 
 const EDGE_GAP = 10;
 const ARROW = 7;

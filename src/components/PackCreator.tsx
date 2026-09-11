@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   DEFAULT_PACK_METADATA,
   DEFAULT_PACK_SETTINGS,
@@ -38,8 +38,10 @@ import { playUiSound } from "../lib/uiSounds";
 import { useAuth } from "../lib/auth";
 import { logAnalyticsEvent } from "../lib/analytics";
 import type { ProgressReport } from "../lib/progress";
+import { MOTION } from "../lib/motion";
+import { MENU_ACCENTS } from "../lib/menuTheme";
 
-const EXIT_MS = 220;
+const EXIT_MS = MOTION.exit;
 
 function StepHeader({ n, label }: { n: number; label: string }) {
   return (
@@ -375,7 +377,10 @@ export function PackCreator({
           closing ? "modal-panel-out" : "modal-panel-in"
         }`}
       >
-        <header className="flex items-center gap-3 border-b border-white/10 bg-ink-800/80 px-4 py-2.5">
+        <header
+          className="modal-header relative flex items-center gap-3 border-b border-white/10 bg-ink-800/80 px-4 py-2.5"
+          style={{ "--modal-accent": MENU_ACCENTS.packCreator } as CSSProperties}
+        >
           <Button variant="ghost" onClick={onClose} className="shrink-0">
             ← Back
           </Button>
@@ -387,6 +392,7 @@ export function PackCreator({
               Combine multiple mania maps into one .osz pack
             </p>
           </div>
+          <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-[var(--modal-accent)] shadow-[0_0_16px_var(--modal-accent)]" />
         </header>
 
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-4">
@@ -395,10 +401,6 @@ export function PackCreator({
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
             <div className="grid grid-cols-2 gap-2">
               <label
-                onClick={(e) => {
-                  if (!(e.target instanceof HTMLInputElement))
-                    playUiSound("click");
-                }}
                 className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-3 py-4 text-center transition ${
                   dragActive
                     ? "border-accent/80 bg-accent/10"

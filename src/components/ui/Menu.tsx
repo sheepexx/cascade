@@ -7,6 +7,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDownIcon } from "./Icons";
+import { MOTION } from "../../lib/motion";
 
 export type MenuItem =
   | {
@@ -29,9 +30,26 @@ export function Menu({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [closing, setClosing] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      setClosing(false);
+      return;
+    }
+    if (!mounted) return;
+    setClosing(true);
+    const timer = window.setTimeout(() => {
+      setMounted(false);
+      setClosing(false);
+    }, MOTION.exit);
+    return () => window.clearTimeout(timer);
+  }, [mounted, open]);
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -78,22 +96,22 @@ export function Menu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${className}`}
+        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-300 transition duration-[var(--motion-quick)] hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${className}`}
       >
         {label}
         <ChevronDownIcon
-          className={`h-3 w-3 text-slate-500 transition-transform duration-200 ${
+          className={`h-3 w-3 text-slate-500 transition-transform duration-[var(--motion-exit)] ${
             open ? "rotate-180" : ""
           }`}
         />
       </button>
-      {open &&
+      {mounted &&
         createPortal(
           <div
             ref={menuRef}
             style={{ position: "fixed", top: pos.top, right: pos.right }}
             role="menu"
-            className="z-[100] w-52 overflow-hidden rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl"
+            className={`z-[100] w-52 overflow-hidden rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl ${closing ? "menu-pop-out" : "menu-pop-in"}`}
           >
             {items.map((item, i) =>
               "separator" in item ? (
@@ -109,7 +127,7 @@ export function Menu({
                     setOpen(false);
                     item.onClick();
                   }}
-                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition duration-150 hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none active:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
+                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition duration-[var(--motion-quick)] hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none active:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
                     item.danger ? "text-rose-300" : "text-slate-200"
                   }`}
                 >

@@ -181,6 +181,8 @@ type Props = {
   ) => void;
   /** Remappable notefield shortcuts; falls back to the defaults. */
   editorKeybinds?: EditorKeybinds;
+  ghostNotes?: boolean;
+  onGhostNotes?: (enabled: boolean) => void;
 };
 
 /**
@@ -389,8 +391,12 @@ export function ManiaEditor(props: Props) {
     buffer: props.audioBuffer ?? null, notes: props.notes, timingPoints: props.timingPoints,
     snapDivisor: props.view.snapDivisor, timeScale: props.timeScale ?? 1, keyCount: props.keyCount,
     start: Math.max(0, props.trimStartMs ?? 0), end: Math.min(props.songEndMs || Infinity, props.trimEndMs ?? Infinity),
-    onSeek: props.onSeek, onAdd: props.onAddNotes, getTime: props.getCurrentTime,
+    onAdd: props.onAddNotes,
+    enabled: !!props.ghostNotes, onEnabled: (on) => props.onGhostNotes?.(on),
   });
+  useEffect(() => {
+    if (props.ghostNotes && !props.readOnly) canvasRef.current?.focus({ preventScroll: true });
+  }, [props.ghostNotes, props.readOnly]);
   const reviewRef = useRef(review);
   reviewRef.current = review;
   const openPatternImage = useCallback(() => {
@@ -2043,16 +2049,15 @@ export function ManiaEditor(props: Props) {
     if (!propsRef.current.playtestMode && !propsRef.current.readOnly) {
       ctx.save();
       ctx.setLineDash([4, 3]);
+      ctx.fillStyle = "rgba(94,234,212,0.16)";
+      ctx.strokeStyle = "rgba(94,234,212,0.6)";
+      ctx.lineWidth = 1;
       for (const note of reviewRef.current.ghosts) {
-        const y = timeToY(note.startTime);
-        if (y < -NOTE_HEIGHT || y > height + NOTE_HEIGHT) continue;
+        const bounds = noteBounds(note, laneWidth, originX);
+        if (!bounds || bounds.y + bounds.h < 0 || bounds.y > height) continue;
         const x = originX + note.column * laneWidth + 4;
-        const focused = note.id === reviewRef.current.current?.id;
-        ctx.fillStyle = focused ? "rgba(94,234,212,0.38)" : "rgba(94,234,212,0.12)";
-        ctx.strokeStyle = focused ? "#99f6e4" : "rgba(94,234,212,0.45)";
-        ctx.lineWidth = focused ? 2 : 1;
-        ctx.fillRect(x, y - NOTE_HEIGHT / 2, laneWidth - 8, NOTE_HEIGHT);
-        ctx.strokeRect(x, y - NOTE_HEIGHT / 2, laneWidth - 8, NOTE_HEIGHT);
+        ctx.fillRect(x, bounds.y, laneWidth - 8, bounds.h);
+        ctx.strokeRect(x, bounds.y, laneWidth - 8, bounds.h);
       }
       ctx.restore();
     }
@@ -2081,8 +2086,14 @@ export function ManiaEditor(props: Props) {
     ) {
       const col = columnAtX(mouseRef.current.x);
       if (col >= 0) {
-        const t = yToTime(mouseRef.current.y);
-        const x = mouseRef.current.x - laneWidth / 2;
+        const my = mouseRef.current.y;
+        const hover = reviewRef.current.ghosts.find((n) => {
+          if (n.column !== col) return false;
+          const b = noteBounds(n, laneWidth, originX);
+          return !!b && my >= b.y && my <= b.y + b.h;
+        });
+        const t = hover ? hover.startTime : yToTime(my);
+        const x = hover ? originX + col * laneWidth : mouseRef.current.x - laneWidth / 2;
         const y = timeToY(t);
         const ghost = skinCols[col]?.note ?? null;
         if (ghost) {
@@ -2217,6 +2228,26 @@ export function ManiaEditor(props: Props) {
 
   useEffect(markDirty);
 
+  const revealGhostsRef = useRef(false);
+  useEffect(() => {
+    revealGhostsRef.current = !!props.ghostNotes;
+  }, [props.ghostNotes]);
+  useEffect(() => {
+    const ghosts = review.ghosts;
+    if (!revealGhostsRef.current || !ghosts.length) return;
+    revealGhostsRef.current = false;
+    const p = propsRef.current;
+    if (p.isPlaying) return;
+    const a = yToTime(0);
+    const b = yToTime(sizeRef.current.height);
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    if (ghosts.some((n) => n.startTime >= lo && n.startTime <= hi)) return;
+    const now = p.getCurrentTime();
+    const next = ghosts.find((n) => n.startTime >= now) ?? ghosts[0];
+    p.onSeek(next.startTime);
+  }, [review.ghosts, yToTime]);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -2289,6 +2320,17 @@ export function ManiaEditor(props: Props) {
       }
     }
     return null;
+  };
+
+  const findGhostAt = (x: number, y: number): ManiaNote | null => {
+    const col = columnAtX(x);
+    if (col < 0) return null;
+    const { laneWidth, originX } = laneGeometry();
+    return reviewRef.current.ghosts.find((n) => {
+      if (n.column !== col) return false;
+      const bounds = noteBounds(n, laneWidth, originX);
+      return !!bounds && y >= bounds.y && y <= bounds.y + bounds.h;
+    }) ?? null;
   };
 
   const selectNotesInRect = (rect: CanvasRect) => {
@@ -2514,6 +2556,15 @@ export function ManiaEditor(props: Props) {
     }
 
     if (selectedNoteIdsRef.current.size) setSelection(new Set());
+    const ghost = findGhostAt(x, y);
+    if (ghost?.endTime !== undefined) {
+      propsRef.current.onAddNotes([{ id: uid("n"), column: ghost.column, startTime: ghost.startTime, endTime: ghost.endTime }]);
+      return;
+    }
+    if (ghost) {
+      dragRef.current = { column: ghost.column, startTime: ghost.startTime, currentTime: ghost.startTime };
+      return;
+    }
     const col = columnAtX(x);
     if (col < 0) return;
     const { timingPoints, view } = propsRef.current;
@@ -2660,7 +2711,11 @@ export function ManiaEditor(props: Props) {
     if (props.playtestMode || props.readOnly) return;
     const { x, y } = localPoint(e);
     const note = findNoteAt(x, y);
-    if (!note) return;
+    if (!note) {
+      const ghost = findGhostAt(x, y);
+      if (ghost) reviewRef.current.dismiss(ghost.id);
+      return;
+    }
 
     if (selectedNoteIdsRef.current.has(note.id)) {
       deleteSelection();
@@ -3004,7 +3059,6 @@ export function ManiaEditor(props: Props) {
             </button>
           ))}
           <span className="self-center px-1 text-[9px] text-slate-600">Q</span>
-          {!props.readOnly && <button type="button" aria-pressed={review.enabled} onClick={() => { review.setEnabled(!review.enabled); canvasRef.current?.focus(); }} className={`rounded-md px-2.5 py-1 ${review.enabled ? "bg-teal-400/20 text-teal-200" : "text-slate-400 hover:bg-white/5"}`}>Ghosts</button>}
         </div>
       )}
 

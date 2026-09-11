@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { MOTION } from "../lib/motion";
 
-const UNMOUNT_DELAY_MS = 320;
+const UNMOUNT_DELAY_MS = MOTION.exit + 40;
 
 export function useMountedModals<T extends string>(
   active: T | null,

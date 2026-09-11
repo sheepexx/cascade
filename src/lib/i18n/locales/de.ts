@@ -129,6 +129,12 @@ export const de: PartialCatalog = {
   "settings.menuMusic": "Zufälligen Song im Hauptmenü spielen",
   "settings.menuMusicHint":
     "Spielt einen Titel aus deinen lokalen Projekten hinter dem Menü. C pausiert, V springt zum nächsten Song, X zum vorherigen.",
+  "settings.sessionIntro": "Sitzungsintro abspielen",
+  "settings.sessionIntroHint":
+    "Zeigt die kurze Cascade-Logoanimation einmal beim ersten Öffnen der App in einer Browsersitzung.",
+  "settings.shortcutNotices": "Shortcut-Hinweise",
+  "settings.shortcutNoticesHint":
+    "Zeigt einen kleinen Texthinweis, wenn ein Shortcut eine Editoreinstellung wie Snap, Waveform oder Zen-Modus ändert.",
 
   "settings.performance": "Leistung",
   "settings.performanceMode": "Leistungsmodus",

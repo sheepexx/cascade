@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
+import { BeatBounce, LoudnessTracker, bounceTransform } from "../lib/beatBounce";
+import { MENU_ACCENTS } from "../lib/menuTheme";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { useAuth } from "../lib/auth";
@@ -47,6 +49,8 @@ type MenuAction = {
 };
 
 const IDLE_BPM = 59;
+const KIAI_BOOST = 1.15;
+const menuLoudness = new LoudnessTracker();
 const LOGO_CLOSED = 300;
 const LOGO_OPEN = 196;
 const LOGO_MIN = 168;
@@ -281,7 +285,7 @@ export function StartScreen({
             id: "exit",
             label: t("menu.exit"),
             icon: <PowerIcon className="h-7 w-7" />,
-            color: "#b3323c",
+            color: MENU_ACCENTS.exit,
             onClick: onExit,
           },
         ]
@@ -290,14 +294,14 @@ export function StartScreen({
       id: "import",
       label: t("menu.importMap"),
       icon: <ImportIcon className="h-7 w-7" />,
-      color: "#3c3c46",
+      color: MENU_ACCENTS.import,
       onClick: onImport,
     },
     {
       id: "settings",
       label: t("menu.settings"),
       icon: <SettingsIcon className="h-7 w-7" />,
-      color: "#367f8e",
+      color: MENU_ACCENTS.settings,
       onClick: onSettings,
     },
   ];
@@ -307,28 +311,28 @@ export function StartScreen({
       id: "myMaps",
       label: t("menu.myMaps"),
       icon: <LibraryIcon className="h-7 w-7" />,
-      color: "#7c4dd8",
+      color: MENU_ACCENTS.myMaps,
       onClick: onMyMaps,
     },
     {
       id: "new",
       label: t("menu.newMap"),
       icon: <NewMapIcon className="h-7 w-7" />,
-      color: "#e86868",
+      color: MENU_ACCENTS.newMap,
       onClick: onNewMap,
     },
     {
       id: "pack",
       label: t("menu.packCreator"),
       icon: <PackCreatorIcon className="h-7 w-7" />,
-      color: "#e0972f",
+      color: MENU_ACCENTS.packCreator,
       onClick: onPackCreator,
     },
     {
       id: "try",
       label: t("menu.tryMaps"),
       icon: <SampleMapsIcon className="h-7 w-7" />,
-      color: "#7fb03a",
+      color: MENU_ACCENTS.sampleMaps,
       onClick: onTryMaps,
     },
   ];
@@ -397,7 +401,7 @@ export function StartScreen({
         )}
 
         <div
-          className={`pointer-events-none absolute inset-x-0 flex flex-col items-center px-4 text-center transition-all duration-300 ease-out ${
+          className={`pointer-events-none absolute inset-x-0 flex flex-col items-center px-4 text-center transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
             open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
           }`}
           style={{
@@ -443,19 +447,19 @@ export function StartScreen({
         {wide ? (
           <div
             data-menu-guard=""
-            className={`pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 transition-all duration-300 ease-out ${
+            className={`pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
               open ? "opacity-100" : "opacity-0"
             }`}
             style={{ height: BAR_HEIGHT }}
           >
             <div
-              className={`absolute inset-y-0 left-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-300 ease-out ${
+              className={`absolute inset-y-0 left-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
                 open ? "scale-y-100" : "scale-y-50"
               }`}
               style={{ width: `calc(50% + ${shift - logoOpen / 2}px)` }}
             />
             <div
-              className={`absolute inset-y-0 right-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-300 ease-out ${
+              className={`absolute inset-y-0 right-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
                 open ? "scale-y-100" : "scale-y-50"
               }`}
               style={{ left: `calc(50% + ${shift + logoOpen / 2}px)` }}
@@ -474,6 +478,7 @@ export function StartScreen({
                   action={a}
                   width={panel}
                   open={open}
+                  musicRef={musicRef}
                   bleedRight={i === left.length - 1 ? logoOpen / 2 + 2 : 0}
                 />
               ))}
@@ -484,6 +489,7 @@ export function StartScreen({
                   action={a}
                   width={panel}
                   open={open}
+                  musicRef={musicRef}
                   bleedLeft={i === 0 ? logoOpen / 2 + 2 : 0}
                 />
               ))}
@@ -491,7 +497,7 @@ export function StartScreen({
           </div>
         ) : (
           <div
-            className={`absolute inset-x-0 z-20 flex justify-center px-3 transition-all duration-300 ease-out ${
+            className={`absolute inset-x-0 z-20 flex justify-center px-3 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
               open
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none -translate-y-2 opacity-0"
@@ -504,7 +510,7 @@ export function StartScreen({
               className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md"
             >
               {[...left, ...right].map((a) => (
-                <StackedAction key={a.id} action={a} open={open} />
+                <StackedAction key={a.id} action={a} open={open} musicRef={musicRef} />
               ))}
             </div>
           </div>
@@ -529,7 +535,7 @@ export function StartScreen({
           onClick={() => setOpen((v) => !v)}
           aria-label={t("menu.open")}
           aria-expanded={open}
-          className="group absolute left-1/2 top-1/2 z-20 outline-none transition-transform duration-300 ease-out"
+          className="group absolute left-1/2 top-1/2 z-20 outline-none transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)]"
           style={{
             width: logoClosed,
             height: logoClosed,
@@ -539,20 +545,29 @@ export function StartScreen({
             }px) scale(${logoSize / logoClosed})`,
           }}
         >
-          <div ref={pulseRef} className="relative h-full w-full">
-            <Visualizer
-              music={music}
-              size={logoClosed}
-              pulseRef={pulseRef}
-              active={music.isPlaying}
-            />
-            <img
-              src={`${import.meta.env.BASE_URL}logo.png?v=3`}
-              alt="Cascade"
-              draggable={false}
-              onDragStart={(e) => e.preventDefault()}
-              className="relative h-full w-full select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.3)] ring-1 ring-white/10 transition-[filter] duration-200 group-hover:brightness-110"
-            />
+          <div className="start-logo-hover relative h-full w-full">
+            {!lowSpec && (
+              <span aria-hidden className="start-logo-shockwaves absolute inset-0 rounded-full">
+                <span />
+                <span />
+                <span />
+              </span>
+            )}
+            <div ref={pulseRef} className="relative h-full w-full">
+              <Visualizer
+                music={music}
+                size={logoClosed}
+                pulseRef={pulseRef}
+                active={music.isPlaying}
+              />
+              <img
+                src={`${import.meta.env.BASE_URL}logo.png?v=3`}
+                alt="Cascade"
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
+                className="relative h-full w-full select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.3)] ring-1 ring-white/10 transition-[filter] duration-200 group-hover:brightness-110"
+              />
+            </div>
           </div>
         </button>
 
@@ -560,7 +575,7 @@ export function StartScreen({
             enough right to sit on top of this. */}
         <div
           data-menu-guard=""
-          className={`absolute right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600 transition-all duration-300 ease-out ${
+          className={`absolute right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
             osuBanner ? "bottom-[calc(var(--menu-bar-height)+1rem)]" : "bottom-3"
           }`}
         >
@@ -633,24 +648,78 @@ function measure(panels: number) {
   return { vw, vh, wide, panel, logoOpen, logoClosed };
 }
 
+const HOVER_FALLBACK_MS = 300;
+
+type MusicRef = { readonly current: MenuMusic };
+
+function BeatIcon({
+  musicRef,
+  hovered,
+  children,
+}: {
+  musicRef: MusicRef;
+  hovered: boolean;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const bounceRef = useRef<BeatBounce | null>(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || reduceMotion() || (!hovered && !bounceRef.current)) return;
+    const bounce = (bounceRef.current ??= new BeatBounce());
+    const start = performance.now();
+    const clock = hovered ? beatClock(musicRef.current, start) : null;
+    let lastBeat = clock?.index ?? null;
+    if (hovered) bounce.hover(start, clock ? clock.length - clock.phase : HOVER_FALLBACK_MS, beatIntensity(musicRef.current, start, clock?.length ?? HOVER_FALLBACK_MS));
+    else bounce.leave(start);
+    let raf = 0;
+    const tick = (time: number) => {
+      if (hovered) {
+        const beat = beatClock(musicRef.current, time);
+        if (beat && beat.index !== lastBeat) {
+          if (lastBeat !== null) bounce.beat(time - beat.phase, beat.length, beatIntensity(musicRef.current, time, beat.length));
+          lastBeat = beat.index;
+        }
+      }
+      node.style.transform = bounceTransform(bounce.frame(time));
+      if (hovered || !bounce.settled(time)) raf = requestAnimationFrame(tick);
+      else node.style.removeProperty("transform");
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [hovered, musicRef]);
+
+  return (
+    <span ref={ref} className="inline-flex">
+      {children}
+    </span>
+  );
+}
+
 function Panel({
   action,
   width,
   open,
+  musicRef,
   bleedLeft = 0,
   bleedRight = 0,
 }: {
   action: MenuAction;
   width: number;
   open: boolean;
+  musicRef: MusicRef;
   bleedLeft?: number;
   bleedRight?: number;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <button
       type="button"
       tabIndex={open ? 0 : -1}
       onClick={action.onClick}
+      onPointerEnter={(e) => setHovered(e.pointerType !== "touch")}
+      onPointerLeave={() => setHovered(false)}
       className="group relative h-full shrink-0 text-white outline-none"
       style={{ width }}
     >
@@ -667,7 +736,9 @@ function Panel({
         }
       />
       <span className="relative flex h-full flex-col items-center justify-center gap-2">
-        {action.icon}
+        <BeatIcon musicRef={musicRef} hovered={hovered && open}>
+          {action.icon}
+        </BeatIcon>
         <span className="text-[13px] font-semibold tracking-wide drop-shadow">
           {action.label}
         </span>
@@ -679,22 +750,29 @@ function Panel({
 function StackedAction({
   action,
   open,
+  musicRef,
 }: {
   action: MenuAction;
   open: boolean;
+  musicRef: MusicRef;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <button
       type="button"
       tabIndex={open ? 0 : -1}
       onClick={action.onClick}
+      onPointerEnter={(e) => setHovered(e.pointerType !== "touch")}
+      onPointerLeave={() => setHovered(false)}
       className="group flex w-[104px] flex-col items-center gap-2 rounded-xl px-2 py-3 text-center transition hover:bg-white/5"
     >
       <span
         className="grid h-12 w-12 place-items-center rounded-xl text-white transition group-hover:brightness-125"
         style={{ background: action.color }}
       >
-        {action.icon}
+        <BeatIcon musicRef={musicRef} hovered={hovered && open}>
+          {action.icon}
+        </BeatIcon>
       </span>
       <span className="text-[11px] font-semibold leading-tight text-slate-200">
         {action.label}
@@ -1125,19 +1203,37 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function pulseAt(period: number, position: number): number {
-  const phase = ((position % period) + period) % period;
-  return Math.pow(1 - phase / period, 5);
+type BeatClock = { length: number; phase: number; index: number };
+
+function beatClock(music: MenuMusic, now: number): BeatClock | null {
+  const { track } = music;
+  const playback = music.getPlayback();
+  let length: number;
+  let position: number;
+  if (playback?.playing && track && track.bpm > 0) {
+    length = 60000 / track.bpm;
+    position = playback.position - track.beatOffsetMs;
+  } else if (music.hasPlaylist) return null;
+  else {
+    length = 60000 / IDLE_BPM;
+    position = now;
+  }
+  const index = Math.floor(position / length);
+  return { length, phase: position - index * length, index };
 }
 
 function beatPulse(music: MenuMusic, now: number): number {
-  const { track } = music;
+  const clock = beatClock(music, now);
+  return clock ? Math.pow(1 - clock.phase / clock.length, 5) : 0;
+}
+
+function beatIntensity(music: MenuMusic, now: number, windowMs: number): number {
+  menuLoudness.update(music.track?.id ?? null, music.readLevels(), now);
   const playback = music.getPlayback();
-  if (playback?.playing && track && track.bpm > 0) {
-    return pulseAt(60000 / track.bpm, playback.position - track.beatOffsetMs);
-  }
-  if (music.hasPlaylist) return 0;
-  return pulseAt(60000 / IDLE_BPM, now);
+  const kiai =
+    !!playback?.playing &&
+    !!music.track?.kiai.some((range) => playback.position >= range.start && playback.position < range.end);
+  return menuLoudness.intensity(now, windowMs) * (kiai ? KIAI_BOOST : 1);
 }
 
 type Star = {
@@ -1462,6 +1558,7 @@ function Visualizer({
       const amps = smoothRef.current;
 
       const levels = readLevels();
+      menuLoudness.update(musicRef.current.track?.id ?? null, levels, time);
       const seconds = time / 1000;
       for (let i = 0; i < BARS; i++) {
         let target: number;

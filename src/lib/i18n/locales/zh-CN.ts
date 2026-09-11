@@ -126,6 +126,12 @@ export const zhCN: PartialCatalog = {
   "settings.menuMusic": "在主菜单随机播放歌曲",
   "settings.menuMusicHint":
     "从你的本地项目中挑一首在菜单背后播放。按 C 暂停，按 V 下一首，按 X 上一首。",
+  "settings.sessionIntro": "播放会话开场动画",
+  "settings.sessionIntroHint":
+    "每次浏览会话首次打开应用时，播放一次简短的 Cascade 标志动画。",
+  "settings.shortcutNotices": "快捷键提示",
+  "settings.shortcutNoticesHint":
+    "快捷键更改吸附、波形或专注模式等编辑器设置时，显示简短的文字提示。",
 
   "settings.performance": "性能",
   "settings.performanceMode": "性能模式",

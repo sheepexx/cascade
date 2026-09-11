@@ -1,9 +1,10 @@
 import type { Difficulty, ManiaNote } from "../types";
 import { activeTimingAt } from "./timing";
+import { monotoneRuns, toRows } from "./patternRows";
 import type { AiModDetail, AiModObject, AiModSeverity } from "./aimod";
 
-export type PatternRule = "jack-spike" | "hand-imbalance" | "anchor-overuse" | "ln-gap";
-export type PatternFinding = { rule: PatternRule; message: string; details: AiModDetail[]; count: number };
+export type PatternRule = "jack-spike" | "hand-imbalance" | "anchor-overuse" | "ln-gap" | "repetitive-pattern";
+export type PatternFinding = { rule: PatternRule; message: string; details: AiModDetail[]; count: number; coverage?: number };
 export type PatternFeatures = { nps: number; lnRatio: number; jackFraction: number; handShare: number; anchorFraction: number; lnGapFraction: number };
 
 export const WINDOW_FEATURE_KEYS = ["nps", "jack", "hand", "anchor", "ln", "chord"] as const;
@@ -14,6 +15,8 @@ export type PatternWindow = WindowFeatures & { time: number; span: number; notes
 export const MIN_WINDOW_NOTES = 8;
 
 const GROUP_GAP_MS = 2000;
+export const MONOTONE_MIN_BEATS = 32;
+export const MONOTONE_MIN_ROWS = 40;
 
 type Spot = { time: number; column: number; value: number; context: number; objects: AiModObject[] };
 
@@ -140,11 +143,24 @@ export function analyzePatterns(difficulty: Difficulty): { findings: PatternFind
   const gapDetails = groupSpots(gaps, group => group.length === 1
     ? `Lane ${group[0].column + 1}: only ${Math.round(group[0].value)} ms to release and press again. Check the release rhythm.`
     : `${group.length} tight releases, shortest ${Math.round(Math.min(...group.map(s => s.value)))} ms. Check the release rhythm.`);
+  const rows = toRows(notes, difficulty.keyCount);
+  const monotone: AiModDetail[] = [];
+  let monotoneMs = 0;
+  for (const run of monotoneRuns(rows.map(r => r.mask), difficulty.keyCount)) {
+    const from = rows[run.from].time, to = rows[run.to].time;
+    const beats = Math.round((to - from) / (60000 / (activeTimingAt(from, difficulty.timingPoints)?.bpm ?? 120)));
+    if (!(beats >= MONOTONE_MIN_BEATS) || run.to - run.from + 1 < MONOTONE_MIN_ROWS) continue;
+    monotoneMs += to - from;
+    monotone.push({ time: from, endTime: to, label: run.kind === "repeat"
+      ? `The same ${run.period}-step pattern repeats for ${beats} beats. Vary it where the music changes.`
+      : `Notes keep rolling in one direction across the lanes for ${beats} beats. Vary the movement with the music.` });
+  }
   const findings: PatternFinding[] = [
     { rule: "jack-spike", message: "Abrupt jack speed spikes", details: jackDetails, count: jacks.length },
     { rule: "hand-imbalance", message: "Sustained hand imbalance", details: hands, count: hands.length },
     { rule: "anchor-overuse", message: "Heavy anchor repetition", details: anchors, count: anchors.length },
     { rule: "ln-gap", message: "Tight long-note release gaps", details: gapDetails, count: gaps.length },
+    { rule: "repetitive-pattern", message: "Long repetitive patterns", details: monotone, count: monotone.length, coverage: monotoneMs / Math.max(1, end - start) },
   ].filter(f => f.details.length > 0) as PatternFinding[];
   return { findings, windows, features: { nps: notes.length / Math.max(1, (end - start) / 1000), lnRatio: longNotes / Math.max(1, notes.length), jackFraction: jackPairs / Math.max(1, notes.length), handShare: maxShare, anchorFraction: anchorWindows / Math.max(1, windowCount), lnGapFraction: gaps.length / Math.max(1, longNotes) } };
 }
@@ -154,7 +170,9 @@ export type CriteriaPenalty = { severity: AiModSeverity; occurrences: number };
 export function readinessScore(noteCount: number, findings: PatternFinding[], criteria: CriteriaPenalty[] = []): number | null {
   if (noteCount < 32) return null;
   const spread = (occurrences: number) => occurrences / Math.max(100, noteCount) * 1000;
-  const pattern = findings.map(f => Math.min(25, 5 + spread(f.count) * (f.rule === "ln-gap" || f.rule === "jack-spike" ? 2 : 1)));
+  const pattern = findings.map(f => f.rule === "repetitive-pattern"
+    ? Math.min(70, 5 + 65 * (f.coverage ?? 0) ** 1.5)
+    : Math.min(25, 5 + spread(f.count) * (f.rule === "ln-gap" || f.rule === "jack-spike" ? 2 : 1)));
   const rules = criteria.map(c => c.severity === "error"
     ? Math.min(25, 12 + spread(c.occurrences))
     : Math.min(14, 5 + spread(c.occurrences)));

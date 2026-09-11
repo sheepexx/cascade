@@ -39,9 +39,11 @@ import {
   MIN_UI_SCALE,
   UI_SCALE_STEP,
 } from "../../lib/uiScale";
+import { MENU_ACCENTS } from "../../lib/menuTheme";
 
 type Props = {
   onAudioSetup?: () => void;
+  initialTab?: SettingsTab;
   open: boolean;
   onClose: () => void;
   uiScale: number;
@@ -104,6 +106,10 @@ type Props = {
   onHideStatus: (value: boolean) => void;
   menuMusicEnabled: boolean;
   onMenuMusicEnabled: (value: boolean) => void;
+  introEnabled: boolean;
+  onIntroEnabled: (value: boolean) => void;
+  shortcutNoticesEnabled: boolean;
+  onShortcutNoticesEnabled: (value: boolean) => void;
   performanceMode: boolean;
   onPerformanceMode: (value: boolean) => void;
   osuListenerEnabled: boolean;
@@ -114,7 +120,8 @@ type Props = {
 };
 
 const TABS = ["General", "Editor", "Playtest", "Audio", "Export", "Shortcuts"] as const;
-type Tab = (typeof TABS)[number];
+export type SettingsTab = (typeof TABS)[number];
+type Tab = SettingsTab;
 const SHOW_MANUAL_SKILL_TUNING = false;
 const ENABLE_MANUAL_SKILL_TUNING = false;
 
@@ -139,6 +146,7 @@ const TAB_LABELS: Record<Tab, MessageKey> = {
 
 export function AppSettingsModal({
   onAudioSetup,
+  initialTab,
   open,
   onClose,
   uiScale,
@@ -199,6 +207,10 @@ export function AppSettingsModal({
   onShowMenuPlayers,
   menuMusicEnabled,
   onMenuMusicEnabled,
+  introEnabled,
+  onIntroEnabled,
+  shortcutNoticesEnabled,
+  onShortcutNoticesEnabled,
   performanceMode,
   onPerformanceMode,
   osuListenerEnabled,
@@ -217,6 +229,10 @@ export function AppSettingsModal({
   const [capturingRestart, setCapturingRestart] = useState(false);
   const selectedKeybinds = playtest.keybinds[keyMode] ?? [];
   const warnings = keybindWarnings(selectedKeybinds);
+
+  useEffect(() => {
+    if (open) setTab(initialTab ?? "General");
+  }, [initialTab, open]);
 
   const patchHumanize = (patch: Partial<HumanizeSettings>) => {
     onPlaytest({ ...playtest, humanize: { ...playtest.humanize, ...patch } });
@@ -304,6 +320,7 @@ export function AppSettingsModal({
       open={open}
       onClose={onClose}
       title={t("settings.title")}
+      accent={MENU_ACCENTS.settings}
       width="max-w-4xl"
       headerExtra={
         accountSyncStatus ? (
@@ -380,6 +397,14 @@ export function AppSettingsModal({
                   ))}
                 </Select>
               </label>
+              <div className="mt-4">
+                <SettingToggle
+                  label={t("settings.shortcutNotices")}
+                  tip={t("settings.shortcutNoticesHint")}
+                  checked={shortcutNoticesEnabled}
+                  onChange={onShortcutNoticesEnabled}
+                />
+              </div>
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -391,6 +416,12 @@ export function AppSettingsModal({
                   tip={t("settings.menuMusicHint")}
                   checked={menuMusicEnabled}
                   onChange={onMenuMusicEnabled}
+                />
+                <SettingToggle
+                  label={t("settings.sessionIntro")}
+                  tip={t("settings.sessionIntroHint")}
+                  checked={introEnabled}
+                  onChange={onIntroEnabled}
                 />
               </div>
             </section>

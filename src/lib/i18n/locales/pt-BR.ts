@@ -129,6 +129,12 @@ export const ptBR: PartialCatalog = {
   "settings.menuMusic": "Tocar uma música aleatória no menu principal",
   "settings.menuMusicHint":
     "Escolhe uma faixa dos seus projetos locais e toca atrás do menu. C pausa, V vai para a próxima música e X para a anterior.",
+  "settings.sessionIntro": "Reproduzir a introdução da sessão",
+  "settings.sessionIntroHint":
+    "Exibe uma breve animação do logotipo do Cascade na primeira vez que o app é aberto em cada sessão do navegador.",
+  "settings.shortcutNotices": "Avisos de atalhos",
+  "settings.shortcutNoticesHint":
+    "Exibe um pequeno aviso de texto quando um atalho muda uma configuração do editor, como snap, waveform ou modo zen.",
 
   "settings.performance": "Desempenho",
   "settings.performanceMode": "Modo de desempenho",

@@ -5,6 +5,14 @@
 :root {
   color-scheme: dark;
 
+  --motion-quick: 120ms;
+  --motion-enter: 280ms;
+  --motion-exit: 200ms;
+  --motion-scene: 520ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-overshoot: cubic-bezier(0.2, 1.35, 0.35, 1);
+
   --font-osu: "Quicksand", "Inter", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
@@ -98,11 +106,15 @@ textarea {
   }
 }
 @keyframes modal-panel-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.97);
+    transform: translateY(12px) scale(0.955);
   }
-  to {
+  72% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.006);
+  }
+  100% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
@@ -114,15 +126,18 @@ textarea {
   }
   to {
     opacity: 0;
-    transform: translateY(6px) scale(0.98);
+    transform: translateY(8px) scale(0.97);
   }
 }
 
 @keyframes modal-panel-up-in {
-  from {
+  0% {
     transform: translateY(100vh);
   }
-  to {
+  72% {
+    transform: translateY(-8px);
+  }
+  100% {
     transform: translateY(0);
   }
 }
@@ -136,22 +151,30 @@ textarea {
 }
 
 .modal-backdrop-in {
-  animation: modal-backdrop-in 260ms ease-out;
+  animation: modal-backdrop-in var(--motion-enter) var(--ease-standard);
 }
 .modal-backdrop-out {
-  animation: modal-backdrop-out 220ms ease-in forwards;
+  animation: modal-backdrop-out var(--motion-exit) var(--ease-standard) forwards;
 }
 .modal-panel-in {
-  animation: modal-panel-in 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modal-panel-in var(--motion-enter) var(--ease-emphasized);
 }
 .modal-panel-out {
-  animation: modal-panel-out 220ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  animation: modal-panel-out var(--motion-exit) var(--ease-standard) forwards;
 }
 .modal-panel-up-in {
-  animation: modal-panel-up-in 440ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modal-panel-up-in var(--motion-enter) var(--ease-emphasized);
 }
 .modal-panel-up-out {
-  animation: modal-panel-up-out 300ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  animation: modal-panel-up-out var(--motion-exit) var(--ease-standard) forwards;
+}
+
+.modal-header {
+  background:
+    linear-gradient(100deg,
+      color-mix(in srgb, var(--modal-accent, #292933) 72%, #14141c) 0%,
+      color-mix(in srgb, var(--modal-accent, #292933) 28%, #22222c) 62%,
+      #22222c 100%);
 }
 
 @keyframes confirm-backdrop-in {
@@ -204,8 +227,8 @@ textarea {
 
 .segmented-pill {
   transition:
-    left 260ms cubic-bezier(0.16, 1, 0.3, 1),
-    width 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    left var(--motion-enter) var(--ease-emphasized),
+    width var(--motion-enter) var(--ease-emphasized);
 }
 
 @keyframes hold-charge {
@@ -264,14 +287,67 @@ textarea {
 .menu-panel-face {
   transform: scaleY(1) skewX(var(--menu-skew));
   transition:
-    transform 190ms cubic-bezier(0.2, 1.7, 0.45, 1),
-    filter 90ms ease-out;
+    transform var(--motion-enter) var(--ease-overshoot),
+    filter var(--motion-quick) var(--ease-standard);
 }
+
+@keyframes menu-pop-in {
+  0% { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  72% { opacity: 1; transform: translateY(1px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes menu-pop-out {
+  to { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+.menu-pop-in { transform-origin: top right; animation: menu-pop-in var(--motion-enter) var(--ease-emphasized) both; }
+.menu-pop-out { pointer-events: none; transform-origin: top right; animation: menu-pop-out var(--motion-exit) var(--ease-standard) both; }
 
 .group:hover > .menu-panel-face,
 .group:focus-visible > .menu-panel-face {
   transform: scaleY(1.16) skewX(var(--menu-skew));
   filter: brightness(calc(1.2 + var(--beat, 0) * 0.35));
+}
+
+.start-logo-hover {
+  transform: scale(1);
+  transition: transform var(--motion-enter) var(--ease-overshoot);
+  will-change: transform;
+}
+
+.group:hover > .start-logo-hover,
+.group:focus-visible > .start-logo-hover {
+  transform: scale(1.045);
+}
+
+.group:active > .start-logo-hover {
+  transform: scale(0.985);
+  transition-duration: var(--motion-quick);
+}
+
+.start-logo-shockwaves {
+  pointer-events: none;
+}
+
+.start-logo-shockwaves > span {
+  position: absolute;
+  inset: 4%;
+  border: 2px solid rgb(255 255 255 / 28%);
+  border-radius: 9999px;
+  opacity: 0;
+}
+
+.group:hover .start-logo-shockwaves > span,
+.group:focus-visible .start-logo-shockwaves > span {
+  animation: start-logo-shockwave 1.65s var(--ease-standard) infinite;
+}
+
+.start-logo-shockwaves > span:nth-child(2) { animation-delay: 0.42s !important; }
+.start-logo-shockwaves > span:nth-child(3) { animation-delay: 0.84s !important; }
+
+@keyframes start-logo-shockwave {
+  0% { opacity: 0; transform: scale(0.96); }
+  12% { opacity: 0.24; }
+  100% { opacity: 0; transform: scale(1.3); }
 }
 
 /* The osu! banner rises into place when the watcher first sees a map, and its
@@ -673,28 +749,42 @@ textarea {
 }
 
 .notification-shell[data-placement="stack"][data-state="in"] {
-  animation: notification-stack-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: notification-stack-in var(--motion-enter) var(--ease-emphasized) both;
 }
 .notification-shell[data-placement="stack"][data-state="out"] {
-  animation: notification-stack-out 220ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: notification-stack-out var(--motion-exit) var(--ease-standard) both;
 }
 .notification-shell[data-placement="top-center"][data-state="in"] {
-  animation: notification-top-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: notification-top-in var(--motion-enter) var(--ease-emphasized) both;
 }
 .notification-shell[data-placement="bottom-center"][data-state="in"] {
-  animation: notification-bottom-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: notification-bottom-in var(--motion-enter) var(--ease-emphasized) both;
 }
 .notification-shell[data-placement="bottom-center"][data-state="out"] {
-  animation: notification-bottom-out 220ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: notification-bottom-out var(--motion-exit) var(--ease-standard) both;
 }
 .notification-shell[data-placement="top-center"][data-state="out"] {
-  animation: notification-top-out 220ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: notification-top-out var(--motion-exit) var(--ease-standard) both;
 }
 .notification-shell[data-placement="right"][data-state="in"] {
-  animation: notification-right-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: notification-right-in var(--motion-enter) var(--ease-emphasized) both;
 }
 .notification-shell[data-placement="right"][data-state="out"] {
-  animation: notification-right-out 220ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: notification-right-out var(--motion-exit) var(--ease-standard) both;
+}
+@keyframes notification-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes notification-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.notification-shell[data-placement="overlay"][data-state="in"] {
+  animation: notification-overlay-in var(--motion-quick) var(--ease-standard) both;
+}
+.notification-shell[data-placement="overlay"][data-state="out"] {
+  animation: notification-overlay-out var(--motion-exit) var(--ease-standard) both;
 }
 
 @keyframes notification-progress {
@@ -984,8 +1074,116 @@ textarea {
   }
 }
 .tooltip-in {
-  animation: tooltip-in 130ms ease-out both;
+  animation: tooltip-in var(--motion-quick) var(--ease-standard) both;
 }
+
+/* Ctrl+K command surface. */
+@keyframes command-palette-in {
+  0% { opacity: 0; transform: translateY(-20px) scale(0.965); }
+  72% { opacity: 1; transform: translateY(2px) scale(1.004); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes command-palette-out {
+  to { opacity: 0; transform: translateY(-14px) scale(0.98); }
+}
+.command-palette-backdrop { animation: modal-backdrop-in var(--motion-enter) var(--ease-standard) both; }
+.command-palette-panel { animation: command-palette-in var(--motion-enter) var(--ease-emphasized) both; }
+.command-palette-backdrop.is-closing { animation: modal-backdrop-out var(--motion-exit) var(--ease-standard) both; }
+.command-palette-panel.is-closing { animation: command-palette-out var(--motion-exit) var(--ease-standard) both; }
+
+/* Alt+wheel audio HUD: three independent lazer-style discs. */
+.volume-ring-disc {
+  background: rgb(8 9 12 / 94%);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 42%);
+}
+.volume-ring-row.is-active .volume-ring-disc {
+  background: rgb(36 16 31 / 96%);
+}
+.volume-ring-label {
+  background: rgb(5 6 8 / 94%);
+  box-shadow: 0 5px 14px rgb(0 0 0 / 32%);
+}
+.volume-ring-track,
+.volume-ring-value { fill: none; stroke-width: 1.8; }
+.volume-ring-track { stroke: rgb(255 255 255 / 7%); }
+.volume-ring-value {
+  stroke: rgb(255 255 255 / 88%);
+  stroke-linecap: round;
+  stroke-dasharray: var(--ring-value) calc(100 - var(--ring-value));
+  filter: drop-shadow(0 0 3px rgb(255 255 255 / 28%));
+  transition: stroke-dasharray var(--motion-quick) var(--ease-standard);
+}
+.volume-ring-row:first-child .volume-ring-value {
+  stroke: #c7fbff;
+  filter: drop-shadow(0 0 4px rgb(103 232 249 / 35%));
+}
+.volume-ring-row.is-active .volume-ring-value {
+  stroke: #ffe6fb;
+  filter: drop-shadow(0 0 5px rgb(244 114 182 / 35%));
+}
+@keyframes volume-rings-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes volume-rings-out {
+  to { opacity: 0; }
+}
+.volume-rings { animation: volume-rings-in var(--motion-quick) var(--ease-standard) both; }
+.volume-rings.is-closing { animation: volume-rings-out var(--motion-exit) var(--ease-standard) both; }
+
+@media (max-width: 640px) {
+  .volume-rings {
+    right: 0.75rem;
+    transform: translateY(-50%) scale(0.82);
+    transform-origin: right center;
+  }
+}
+
+/* First visit in a browsing session. */
+@keyframes intro-ring {
+  0% { opacity: 0; transform: scale(0.55); }
+  24% { opacity: 0.5; }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+@keyframes intro-logo {
+  0% { opacity: 0; transform: scale(0.42) rotate(-8deg); filter: blur(10px); }
+  58% { opacity: 1; transform: scale(1.07) rotate(1deg); filter: blur(0); }
+  76% { transform: scale(0.985); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes intro-word {
+  from { opacity: 0; transform: translateY(9px); letter-spacing: 0.12em; }
+  to { opacity: 1; transform: translateY(0); letter-spacing: -0.025em; }
+}
+.session-intro { transition: opacity 420ms var(--ease-standard), transform 420ms var(--ease-standard); }
+.session-intro.is-leaving { opacity: 0; transform: scale(1.04); pointer-events: none; }
+.session-intro-ring {
+  position: absolute;
+  width: min(25rem, 60vw);
+  aspect-ratio: 1;
+  border: 2px solid rgb(232 104 104 / 48%);
+  border-radius: 9999px;
+  opacity: 0;
+}
+.session-intro-logo,
+.session-intro-word,
+.session-intro-sub { opacity: 0; }
+.session-intro.is-started .session-intro-ring { animation: intro-ring 1.5s 260ms var(--ease-standard) both; }
+.session-intro.is-started .session-intro-logo { animation: intro-logo 820ms 100ms var(--ease-emphasized) both; box-shadow: 0 0 90px rgb(232 104 104 / 32%); }
+.session-intro.is-started .session-intro-word { animation: intro-word 440ms 700ms var(--ease-emphasized) both; }
+.session-intro.is-started .session-intro-sub { animation: tooltip-in 360ms 950ms var(--ease-standard) both; }
+
+/* Scene hand-off from the round menu into the editor. */
+@keyframes editor-scene-in {
+  from { opacity: 0; transform: translateX(42px) scale(1.025); filter: brightness(0.55); }
+  to { opacity: 1; transform: translateX(0) scale(1); filter: brightness(1); }
+}
+@keyframes scene-logo-out {
+  0% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.35); filter: blur(8px); }
+}
+.editor-scene-in { animation: editor-scene-in var(--motion-scene) var(--ease-emphasized) both; }
+.scene-logo-out { animation: scene-logo-out var(--motion-scene) var(--ease-standard) both; }
 
 canvas[data-pointer-focus]:focus,
 canvas[data-pointer-focus]:focus-visible {
@@ -1021,6 +1219,18 @@ canvas[data-pointer-focus]:focus-visible {
   .app-power-off,
   .desktop-hint-in,
   .tooltip-in,
+  .menu-pop-in,
+  .menu-pop-out,
+  .command-palette-backdrop,
+  .command-palette-panel,
+  .volume-rings,
+  .session-intro-logo,
+  .session-intro-word,
+  .session-intro-sub,
+  .session-intro-ring,
+  .editor-scene-in,
+  .scene-logo-out,
+  .start-logo-shockwaves > span,
   .exit-shutter {
     animation-duration: 1ms;
   }
@@ -1052,6 +1262,8 @@ canvas[data-pointer-focus]:focus-visible {
   .osu-song-surface,
   .osu-song-open-face,
   .menu-panel-face,
+  .start-logo-hover,
+  .session-intro,
   .segmented-pill {
     transition-duration: 1ms;
   }

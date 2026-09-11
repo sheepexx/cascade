@@ -130,6 +130,12 @@ export const ru: PartialCatalog = {
   "settings.menuMusic": "Играть случайный трек в главном меню",
   "settings.menuMusicHint":
     "Берёт трек из ваших локальных проектов и играет его за меню. C ставит на паузу, V включает следующий трек, X предыдущий.",
+  "settings.sessionIntro": "Показывать заставку при запуске",
+  "settings.sessionIntroHint":
+    "Один раз при первом открытии приложения в сессии браузера показывает короткую анимацию логотипа Cascade.",
+  "settings.shortcutNotices": "Уведомления о горячих клавишах",
+  "settings.shortcutNoticesHint":
+    "Показывает небольшую текстовую подсказку, когда горячая клавиша меняет привязку, форму волны или дзен-режим.",
 
   "settings.performance": "Производительность",
   "settings.performanceMode": "Режим производительности",

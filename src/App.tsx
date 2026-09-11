@@ -223,6 +223,13 @@ import { chooseMapperName } from "./lib/mapperName";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
+import {
+  CommandPalette,
+  type PaletteCommand,
+} from "./components/ui/CommandPalette";
+import { VolumeRings } from "./components/ui/VolumeRings";
+import { SessionIntro } from "./components/ui/SessionIntro";
+import type { SettingsTab } from "./components/menus/AppSettingsModal";
 import { Menu } from "./components/ui/Menu";
 import { HistoryPopover } from "./components/ui/HistoryPopover";
 import { Modal } from "./components/ui/Modal";
@@ -252,13 +259,14 @@ import {
   type InviteNotice,
 } from "./components/InviteNotifications";
 import {
+  installUiSoundInteractions,
   playUiSound,
   setUiSoundsEnabled,
   setUiSoundVolume,
 } from "./lib/uiSounds";
 import { setPerformanceMode } from "./lib/performanceMode";
 import { useAuth } from "./lib/auth";
-import { useLocale, useT } from "./lib/i18n";
+import { useLocale, useT, type MessageKey } from "./lib/i18n";
 import {
   downloadCloudSkin,
   listCloudSkins,
@@ -683,6 +691,8 @@ export default function App() {
     });
   }, []);
   const [modal, setModal] = useState<ModalId>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("General");
   const [historyPanel, setHistoryPanel] = useState(false);
   const modalMounted = useMountedModals(modal);
   const packCreatorEverOpenedRef = useRef(false);
@@ -728,11 +738,37 @@ export default function App() {
   >(null);
   const [projectStarted, setProjectStarted] = useState(false);
   const [zenMode, setZenMode] = useState(false);
+  const [shortcutNotice, setShortcutNotice] = useState<{
+    id: number;
+    text: string;
+  } | null>(null);
+  const [volumeHudKey, setVolumeHudKey] = useState(0);
   const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
     ...normalizeAppSettings(loadPreferences()),
   }));
   const appSettingsRef = useRef(appSettings);
   appSettingsRef.current = appSettings;
+  const announceShortcut = useCallback((text: string) => {
+    if (!appSettingsRef.current.shortcutNoticesEnabled) return;
+    setShortcutNotice({ id: Date.now() + Math.random(), text });
+    playUiSound("notice");
+  }, []);
+  const openSettings = useCallback((tab: SettingsTab = "General") => {
+    setSettingsTab(tab);
+    setModal("settings");
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLocaleLowerCase() !== "k")
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      setPaletteOpen((value) => !value);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
   // Layout effect so the scaled font size and the breakpoint attributes land
   // before first paint, instead of flashing an unscaled/compact header.
   useLayoutEffect(() => {
@@ -1254,11 +1290,12 @@ export default function App() {
   const audioVolumeRef = useRef(audio.volume);
   audioVolumeRef.current = audio.volume;
   const toggleWaveformOverlay = useCallback(() => {
-    setAppSettings((settings) => ({
-      ...settings,
-      showWaveform: !settings.showWaveform,
-    }));
-  }, []);
+    setAppSettings((settings) => {
+      const showWaveform = !settings.showWaveform;
+      announceShortcut(`Waveform: ${showWaveform ? "On" : "Off"}`);
+      return { ...settings, showWaveform };
+    });
+  }, [announceShortcut]);
 
   useEffect(() => {
     if (!activeBookmarkLoop?.enabled) return;
@@ -1510,28 +1547,31 @@ export default function App() {
         if (e.deltaY !== 0) {
           const action = appSettingsRef.current.altWheelAction;
           if (action === "timelineZoom") {
-            setView((current) => ({
-              ...current,
-              scrollSpeed: timelineZoomFromWheel(current.scrollSpeed, e.deltaY),
-            }));
+            setView((current) => {
+              const scrollSpeed = timelineZoomFromWheel(current.scrollSpeed, e.deltaY);
+              announceShortcut(`Timeline zoom: ${scrollSpeed}`);
+              return { ...current, scrollSpeed };
+            });
           } else if (action === "playfieldScale") {
-            setAppSettings((settings) => ({
-              ...settings,
-              playfieldScale: playfieldScaleFromWheel(
+            setAppSettings((settings) => {
+              const playfieldScale = playfieldScaleFromWheel(
                 settings.playfieldScale,
                 e.deltaY,
-              ),
-            }));
+              );
+              announceShortcut(`Playfield size: ${Math.round(playfieldScale * 100)}%`);
+              return { ...settings, playfieldScale };
+            });
           } else if (action === "volume") {
             const controller = audioCtlRef.current;
-            controller.setVolume(
-              volumeFromWheel(controller.getVolume(), e.deltaY),
-            );
+            const volume = volumeFromWheel(controller.getVolume(), e.deltaY);
+            controller.setVolume(volume);
+            setVolumeHudKey((value) => value + 1);
           } else {
-            setAppSettings((settings) => ({
-              ...settings,
-              uiScale: uiScaleFromWheel(settings.uiScale, e.deltaY),
-            }));
+            setAppSettings((settings) => {
+              const uiScale = uiScaleFromWheel(settings.uiScale, e.deltaY);
+              announceShortcut(`Interface size: ${Math.round(uiScale * 100)}%`);
+              return { ...settings, uiScale };
+            });
           }
         }
       } else if (e.ctrlKey || e.metaKey) e.preventDefault();
@@ -1542,7 +1582,7 @@ export default function App() {
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("wheel", onWheel);
     };
-  }, []);
+  }, [announceShortcut]);
 
   const activeBg = active.backgroundFilename ? bgFiles[active.backgroundFilename] ?? null : null;
   const activeVideo = active.videoFilename ? videoFiles[active.videoFilename] ?? null : null;
@@ -2087,6 +2127,16 @@ export default function App() {
     : null;
   const totalNotes = difficulties.reduce((s, d) => s + d.notes.length, 0);
   const hasProject = projectStarted;
+  const previousProjectRef = useRef(hasProject);
+  const [sceneEntering, setSceneEntering] = useState(false);
+  useLayoutEffect(() => {
+    const wasOpen = previousProjectRef.current;
+    previousProjectRef.current = hasProject;
+    if (wasOpen || !hasProject) return;
+    setSceneEntering(true);
+    const timer = window.setTimeout(() => setSceneEntering(false), 560);
+    return () => window.clearTimeout(timer);
+  }, [hasProject]);
   const firstDifficulty = difficulties[0];
   const firstDifficultyTiming = firstDifficulty?.timingPoints[0];
   const hasDefaultDifficulty =
@@ -4227,15 +4277,7 @@ export default function App() {
   }, [appSettings.uiSoundVolume]);
 
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      const el = e.target as HTMLElement | null;
-      const hit = el?.closest(
-        'button, [role="button"], a[href], select, summary',
-      );
-      if (hit && !hit.closest("[data-no-uisound]")) playUiSound("click");
-    };
-    window.addEventListener("click", onClick, true);
-    return () => window.removeEventListener("click", onClick, true);
+    return installUiSoundInteractions();
   }, []);
 
   useEffect(() => {
@@ -4373,11 +4415,24 @@ export default function App() {
         return;
       e.preventDefault();
       blurActiveControl();
-      if (isTab) setZenMode((z) => !z);
-      else if (isPreviousBookmark) seekBookmark("previous");
-      else if (isNextBookmark) seekBookmark("next");
+      if (isTab)
+        setZenMode((z) => {
+          announceShortcut(`Zen mode: ${z ? "Off" : "On"}`);
+          return !z;
+        });
+      else if (isPreviousBookmark) {
+        seekBookmark("previous");
+        announceShortcut("Previous bookmark");
+      }
+      else if (isNextBookmark) {
+        seekBookmark("next");
+        announceShortcut("Next bookmark");
+      }
       else if (isBookmark) {
-        if (!e.repeat) addBookmark(Math.round(currentTimeRef.current));
+        if (!e.repeat) {
+          addBookmark(Math.round(currentTimeRef.current));
+          announceShortcut("Bookmark added");
+        }
       } else if (isSpace) {
         if (!e.repeat) toggleAudio();
       }
@@ -4385,33 +4440,43 @@ export default function App() {
         if (slowHeldRef.current || e.repeat) return;
         slowHeldRef.current = true;
         setAudioPlaybackRate(0.25);
+        announceShortcut("Playback rate: 25%");
       }
-      else if (isUp) setAudioVolume(audioVolumeRef.current + 0.05);
-      else if (isDown) setAudioVolume(audioVolumeRef.current - 0.05);
+      else if (isUp || isDown) {
+        const volume = Math.max(
+          0,
+          Math.min(1, audioVolumeRef.current + (isUp ? 0.05 : -0.05)),
+        );
+        setAudioVolume(volume);
+        setVolumeHudKey((value) => value + 1);
+      }
       else if (snapDivisor !== null) {
         setView((v) => ({ ...v, snapDivisor }));
+        announceShortcut(`Snap: 1/${snapDivisor}`);
       }
       else if (isTimelineZoomOut || isTimelineZoomIn) {
-        setView((v) => ({
-          ...v,
-          scrollSpeed: Math.max(
+        setView((v) => {
+          const scrollSpeed = Math.max(
             MIN_SCROLL_SPEED,
             Math.min(
               MAX_SCROLL_SPEED,
               v.scrollSpeed + (isTimelineZoomIn ? 1 : -1),
             ),
-          ),
-        }));
+          );
+          announceShortcut(`Timeline zoom: ${scrollSpeed}`);
+          return { ...v, scrollSpeed };
+        });
       } else if (isZoomIn || isZoomOut) {
-        setAppSettings((s) => ({
-          ...s,
-          playfieldScale: Math.round(
+        setAppSettings((s) => {
+          const playfieldScale = Math.round(
             Math.max(
               0.5,
               Math.min(2.5, s.playfieldScale + (isZoomIn ? 0.1 : -0.1)),
             ) * 100,
-          ) / 100,
-        }));
+          ) / 100;
+          announceShortcut(`Playfield size: ${Math.round(playfieldScale * 100)}%`);
+          return { ...s, playfieldScale };
+        });
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -4423,6 +4488,7 @@ export default function App() {
       slowHeldRef.current = false;
       e.preventDefault();
       setAudioPlaybackRate(1);
+      announceShortcut("Playback rate: 100%");
     };
     const onBlur = () => {
       if (!slowHeldRef.current) return;
@@ -4439,6 +4505,7 @@ export default function App() {
     };
   }, [
     addBookmark,
+    announceShortcut,
     askBgScope,
     seekBookmark,
     setAudioPlaybackRate,
@@ -5772,6 +5839,13 @@ export default function App() {
     [active.notes],
   );
 
+  const [ghostNotesFor, setGhostNotesFor] = useState<string | null>(null);
+  const ghostNotes = ghostNotesFor === active.id;
+  const setGhostNotes = useCallback(
+    (on: boolean) => setGhostNotesFor(on ? activeIdRef.current : null),
+    [],
+  );
+
   const cropInfo = useMemo(() => {
     const start = active.trimStartMs ?? 0;
     const hasEnd = active.trimEndMs !== undefined;
@@ -5789,6 +5863,233 @@ export default function App() {
     return { trimActive, remove, clamp };
   }, [active.notes, active.trimStartMs, active.trimEndMs]);
 
+  const paletteSettingEntries: Array<{
+    key: MessageKey;
+    tab: SettingsTab;
+    keywords?: string;
+  }> = [
+    { key: "settings.language", tab: "General" },
+    { key: "settings.uiScale", tab: "General", keywords: "interface size zoom" },
+    { key: "settings.altWheelAction", tab: "General", keywords: "mouse scroll audio" },
+    { key: "settings.menuMusic", tab: "General" },
+    { key: "settings.sessionIntro", tab: "General", keywords: "logo launch animation" },
+    { key: "settings.shortcutNotices", tab: "General", keywords: "popup overlay toast" },
+    { key: "settings.performanceMode", tab: "General" },
+    { key: "settings.osuListener", tab: "General", keywords: "integration" },
+    { key: "settings.osuFolder", tab: "General", keywords: "integration path stable lazer" },
+    { key: "settings.autosave", tab: "General", keywords: "local project" },
+    { key: "settings.showMenuPlayers", tab: "General", keywords: "presence online" },
+    { key: "settings.hideStatus", tab: "General", keywords: "presence privacy" },
+    { key: "settings.discordPresence", tab: "General", keywords: "rich status" },
+    { key: "settings.resetData", tab: "General", keywords: "erase local" },
+    { key: "settings.showDifficultyPanel", tab: "Editor", keywords: "layout sidebar stats" },
+    { key: "settings.showBottomTimeline", tab: "Editor", keywords: "layout sv" },
+    { key: "settings.simplifyBottomTimeline", tab: "Editor" },
+    { key: "settings.showPpCounter", tab: "Editor", keywords: "speed" },
+    { key: "settings.showPatternTools", tab: "Editor", keywords: "presets" },
+    { key: "settings.backgroundDim", tab: "Editor" },
+    { key: "settings.sizeZoom", tab: "Editor", keywords: "playfield" },
+    { key: "settings.noteHeight", tab: "Editor" },
+    { key: "settings.waveformOnLane", tab: "Editor" },
+    { key: "settings.timingLines", tab: "Editor", keywords: "bookmarks" },
+    { key: "settings.smoothScrolling", tab: "Editor" },
+    { key: "settings.svPreview", tab: "Editor" },
+    { key: "settings.bpmAffectsScroll", tab: "Editor" },
+    { key: "settings.scrollDirection", tab: "Editor", keywords: "upscroll downscroll" },
+    { key: "settings.bodyWidth", tab: "Editor", keywords: "long notes ln" },
+    { key: "settings.scrollSpeed", tab: "Playtest" },
+    { key: "settings.rate", tab: "Playtest", keywords: "playback speed" },
+    { key: "settings.zoom", tab: "Playtest" },
+    { key: "settings.offsetMode", tab: "Playtest" },
+    { key: "settings.offsetMs", tab: "Playtest" },
+    { key: "settings.hitPositionOffset", tab: "Playtest" },
+    { key: "settings.showJudgements", tab: "Playtest" },
+    { key: "settings.showCombo", tab: "Playtest" },
+    { key: "settings.showAccuracy", tab: "Playtest" },
+    { key: "settings.showHitError", tab: "Playtest" },
+    { key: "settings.showErrorBar", tab: "Playtest", keywords: "unstable rate ur" },
+    { key: "settings.skinComboFont", tab: "Playtest", keywords: "hud typography" },
+    { key: "settings.skinJudgements", tab: "Playtest", keywords: "hud graphics" },
+    { key: "settings.autoplay", tab: "Playtest" },
+    { key: "settings.showNpsGraph", tab: "Playtest", keywords: "density" },
+    { key: "settings.showRunStats", tab: "Playtest" },
+    { key: "settings.humanize", tab: "Playtest", keywords: "autoplay timing" },
+    { key: "settings.humanizeJitter", tab: "Playtest", keywords: "autoplay scatter" },
+    { key: "settings.humanizeBias", tab: "Playtest", keywords: "autoplay early late" },
+    { key: "settings.humanizeSlipChance", tab: "Playtest", keywords: "autoplay error" },
+    { key: "settings.humanizeMissChance", tab: "Playtest", keywords: "autoplay error" },
+    { key: "settings.humanizeReleaseJitter", tab: "Playtest", keywords: "autoplay long note ln" },
+    { key: "settings.humanizeSeed", tab: "Playtest", keywords: "autoplay random" },
+    { key: "settings.skill", tab: "Playtest", keywords: "physical limits dan" },
+    { key: "settings.danRegular", tab: "Playtest", keywords: "physical limits skill" },
+    { key: "settings.danLn", tab: "Playtest", keywords: "physical limits long notes skill" },
+    { key: "settings.quickRestartKey", tab: "Playtest", keywords: "keybind" },
+    { key: "settings.keybinds", tab: "Playtest", keywords: "lanes controls" },
+    { key: "settings.audioSetup", tab: "Audio", keywords: "output calibration" },
+    { key: "settings.playHitsounds", tab: "Audio" },
+    { key: "settings.volume", tab: "Audio", keywords: "hitsound effects" },
+    { key: "settings.uiSounds", tab: "Audio", keywords: "interface hover click" },
+    { key: "settings.convertPng", tab: "Export", keywords: "background jpeg" },
+    { key: "settings.jpegQuality", tab: "Export", keywords: "background image" },
+    { key: "settings.tabShortcuts", tab: "Shortcuts", keywords: "keyboard commands hotkeys" },
+  ];
+
+  const paletteCommands: PaletteCommand[] = [
+    {
+      id: "new-map",
+      label: t("menu.newMap"),
+      group: "Create",
+      keywords: "song beatmap project",
+      run: () => setModal("newMap"),
+    },
+    {
+      id: "my-maps",
+      label: t("menu.myMaps"),
+      group: "Open",
+      keywords: "projects library cloud local",
+      run: () => setModal("myProjects"),
+    },
+    {
+      id: "import-map",
+      label: t("menu.importMap"),
+      group: "Open",
+      keywords: "osz osu sm ssc qua folder",
+      run: () => setModal("import"),
+    },
+    {
+      id: "sample-maps",
+      label: t("menu.tryMaps"),
+      group: "Open",
+      keywords: "examples demo",
+      run: () => setModal("sampleMaps"),
+    },
+    {
+      id: "pack-creator",
+      label: t("menu.packCreator"),
+      group: "Create",
+      keywords: "collection songs",
+      run: () => setPackCreatorOpen(true),
+    },
+    ...(hasProject
+      ? [
+          { id: "map-settings", label: t("nav.mapSettings"), group: "Editor", run: () => setModal("mapSettings") },
+          { id: "timing", label: t("nav.timing"), group: "Editor", keywords: "bpm offset", run: () => setModal("timing") },
+          ...(featureFlags.sv_tools
+            ? [{ id: "sv", label: t("nav.sv"), group: "Editor", keywords: "scroll velocity", run: () => setModal("sv" as ModalId) }]
+            : []),
+          { id: "difficulty", label: t("nav.difficulty"), group: "Editor", keywords: "keys od hp", run: () => setModal("difficulty") },
+          { id: "tools", label: t("nav.tools"), group: "Editor", keywords: "ghost notes full ln rice crop", run: () => setModal("tools") },
+          { id: "aimod", label: t("nav.aiMod"), group: "Editor", keywords: "check validation", run: openAiMod },
+          ...(appSettings.showPatternTools
+            ? [{ id: "presets", label: t("nav.presets"), group: "Editor", keywords: "patterns clipboard", run: () => setModal("presets" as ModalId) }]
+            : []),
+          { id: "skin", label: t("nav.skin"), group: "Editor", run: () => setModal("skin") },
+          { id: "history", label: "Undo history", group: "Edit", keywords: "versions changes", run: () => setModal("history") },
+          { id: "undo", label: t("nav.undo"), group: "Edit", hint: "Ctrl Z", disabled: !canUndo, run: undo },
+          { id: "redo", label: t("nav.redo"), group: "Edit", hint: "Ctrl Y", disabled: !canRedo, run: redo },
+          { id: "save", label: t("file.saveLocally"), group: "File", hint: "Ctrl S", run: () => void handleSave() },
+          { id: "save-cloud", label: t("file.saveToCloud"), group: "File", keywords: "account collaborate", disabled: !authUser || !canEdit, run: () => void handleCloudSave() },
+          { id: "export-osu", label: t("file.exportOsu"), group: "Export", disabled: !canExport, run: handleExportOsu },
+          { id: "export-osz", label: t("file.exportOsz"), group: "Export", disabled: !canExport || exporting, run: handleExportOsz },
+          { id: "export-sm", label: t("file.exportSm"), group: "Export", disabled: !canExport, run: handleExportSm },
+          { id: "export-qua", label: t("file.exportQua"), group: "Export", disabled: !canExport, run: handleExportQua },
+          {
+            id: "play-pause",
+            label: audio.isPlaying ? "Pause playback" : "Play audio",
+            group: "Playback",
+            hint: "Space",
+            disabled: !audioFile,
+            run: toggleAudio,
+          },
+          {
+            id: "playtest",
+            label: playtest.active ? "Exit playtest" : "Start playtest",
+            group: "Playback",
+            disabled: !audioFile || !featureFlags.playtest,
+            run: () => playtest.active ? exitPlaytest() : startPlaytest(getCurrentTime()),
+          },
+          {
+            id: "zen",
+            label: zenMode ? "Leave zen mode" : "Enter zen mode",
+            group: "View",
+            keywords: "hide interface distraction free",
+            run: () => setZenMode((value) => !value),
+          },
+          {
+            id: "waveform",
+            label: `${appSettings.showWaveform ? "Hide" : "Show"} waveform`,
+            group: "View",
+            run: toggleWaveformOverlay,
+          },
+          {
+            id: "ghost-notes",
+            label: `${ghostNotes ? "Hide" : "Show"} ghost-note suggestions`,
+            group: "Editor",
+            keywords: "assist suggested notes",
+            disabled: !waveform?.buffer || !canEdit,
+            run: () => setGhostNotes(!ghostNotes),
+          },
+          {
+            id: "auto-time",
+            label: "Detect BPM and offset",
+            group: "Timing",
+            keywords: "auto time song analysis",
+            disabled: !waveform?.buffer,
+            run: () => setAutoTimeOpen(true),
+          },
+          {
+            id: "jump-time",
+            label: "Jump to time",
+            group: "Playback",
+            keywords: "seek timestamp",
+            run: () => setJumpToTimeOpen(true),
+          },
+          {
+            id: "difficulty-panel",
+            label: `${appSettings.difficultyPanelOpen ? "Hide" : "Show"} difficulty panel`,
+            group: "View",
+            run: () => setAppSettings((value) => ({ ...value, difficultyPanelOpen: !value.difficultyPanelOpen })),
+          },
+          {
+            id: "bottom-timeline",
+            label: `${appSettings.showBottomTimeline ? "Hide" : "Show"} bottom timeline`,
+            group: "View",
+            run: () => setAppSettings((value) => ({ ...value, showBottomTimeline: !value.showBottomTimeline })),
+          },
+          ...(cloudProjectId
+            ? [
+                { id: "comments", label: t("nav.comments"), group: "Collaboration", run: () => setCommentsOpen((value) => !value) },
+                { id: "share", label: t("nav.shareTitle"), group: "Collaboration", disabled: !authUser, run: () => setModal("share" as ModalId) },
+              ]
+            : []),
+          ...(isDesktopApp()
+            ? [{ id: "version-history", label: t("file.versionHistory"), group: "File", run: () => setModal("versionHistory" as ModalId) }]
+            : []),
+        ] satisfies PaletteCommand[]
+      : []),
+    {
+      id: "feedback",
+      label: "Send feedback",
+      group: "Cascade",
+      keywords: "report bug suggestion",
+      run: () => setModal("feedback"),
+    },
+    {
+      id: "settings",
+      label: t("settings.title"),
+      group: "Settings",
+      hint: "Ctrl K",
+      run: () => openSettings(),
+    },
+    ...paletteSettingEntries.map(({ key, tab, keywords }) => ({
+      id: `setting-${key}`,
+      label: t(key),
+      group: `Setting · ${t(`settings.tab${tab}` as MessageKey)}`,
+      keywords,
+      run: () => openSettings(tab),
+    })),
+  ];
+
   if (packCreatorOpen) packCreatorEverOpenedRef.current = true;
   if (modal === "admin") adminEverOpenedRef.current = true;
 
@@ -5800,8 +6101,26 @@ export default function App() {
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
+      <SessionIntro
+        enabled={appSettings.introEnabled && !hasProject && !sharedSlug}
+        musicPlaying={menuMusic.isPlaying}
+      />
+      {sceneEntering && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-[170] bg-ink-900/55"
+        >
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png?v=3`}
+            alt=""
+            className="scene-logo-out absolute left-1/2 top-1/2 h-48 w-48 rounded-full"
+          />
+        </div>
+      )}
       <div
         className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          sceneEntering && hasProject ? "editor-scene-in" : ""
+        } ${
           exiting ? "app-power-off" : ""
         } ${
           modalAtmosphereActive && !appSettings.performanceMode
@@ -5937,7 +6256,7 @@ export default function App() {
                 <MenuButton onClick={() => setModal("skin")}>
                   {t("nav.skin")}
                 </MenuButton>
-                <MenuButton onClick={() => setModal("settings")}>
+                <MenuButton onClick={() => openSettings()}>
                   {t("nav.settings")}
                 </MenuButton>
                 <span className="mx-1 h-5 w-px bg-white/10" />
@@ -5991,7 +6310,7 @@ export default function App() {
                     },
                     {
                       label: t("nav.settings"),
-                      onClick: () => setModal("settings"),
+                      onClick: () => openSettings(),
                     },
                     { separator: true as const },
                     {
@@ -6434,6 +6753,8 @@ export default function App() {
                 songEndMs={audio.duration}
                 trimStartMs={active.trimStartMs}
                 trimEndMs={active.trimEndMs}
+                ghostNotes={ghostNotes}
+                onGhostNotes={setGhostNotes}
               />
             ) : sharedSlug ? (
               <SharedMapPage slug={sharedSlug} onOpen={openSharedMap} />
@@ -6447,7 +6768,7 @@ export default function App() {
                 onPackCreator={() => setPackCreatorOpen(true)}
                 onTryMaps={() => setModal("sampleMaps")}
                 onImport={() => setModal("import")}
-                onSettings={() => setModal("settings")}
+                onSettings={() => openSettings()}
                 onExit={canExitDesktop() ? handleExitApp : undefined}
                 osuBanner={osuBanner}
               >
@@ -6855,6 +7176,7 @@ export default function App() {
       )}
       {modalMounted("settings") && (
         <AppSettingsModal
+          initialTab={settingsTab}
           onAudioSetup={() => { pauseAudio(); setModal("audioSetup"); }}
           keyCount={active.keyCount}
           open={modal === "settings"}
@@ -6973,6 +7295,15 @@ export default function App() {
           onMenuMusicEnabled={(v) =>
             setAppSettings((s) => ({ ...s, menuMusicEnabled: v }))
           }
+          introEnabled={appSettings.introEnabled}
+          onIntroEnabled={(v) =>
+            setAppSettings((s) => ({ ...s, introEnabled: v }))
+          }
+          shortcutNoticesEnabled={appSettings.shortcutNoticesEnabled}
+          onShortcutNoticesEnabled={(v) => {
+            setAppSettings((s) => ({ ...s, shortcutNoticesEnabled: v }));
+            if (!v) setShortcutNotice(null);
+          }}
           performanceMode={appSettings.performanceMode}
           onPerformanceMode={(v) =>
             setAppSettings((s) => ({ ...s, performanceMode: v }))
@@ -7022,6 +7353,10 @@ export default function App() {
           cropRemoveCount={cropInfo.remove}
           cropClampCount={cropInfo.clamp}
           onCropToBrackets={applyCropToBrackets}
+          ghostNotesActive={ghostNotes}
+          ghostNotesReady={!!waveform?.buffer}
+          ghostNotesAllowed={canEdit}
+          onGhostNotes={setGhostNotes}
         />
       )}
       {autoTimeOpen && (
@@ -7270,6 +7605,33 @@ export default function App() {
         />
       )}
       </Suspense>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        commands={paletteCommands}
+      />
+
+      <VolumeRings
+        changeKey={volumeHudKey}
+        master={audio.volume}
+        music={audio.volume}
+        effects={(appSettings.hitsoundVolume + appSettings.uiSoundVolume) / 2}
+      />
+
+      {appSettings.shortcutNoticesEnabled && shortcutNotice && (
+        <TimedNotification
+          durationMs={1800}
+          onDismiss={() => setShortcutNotice(null)}
+          resetKey={shortcutNotice.id}
+          placement="overlay"
+          showProgress={false}
+          className="pointer-events-none fixed left-1/2 top-5 z-[190] flex -translate-x-1/2 items-center gap-2 bg-transparent px-4 py-2 text-sm font-semibold text-cyan-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]"
+        >
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.9)]" />
+          {shortcutNotice.text}
+        </TimedNotification>
+      )}
 
       {osuConnectedAt !== null && (
         <TimedNotification

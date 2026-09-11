@@ -2,6 +2,9 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useDialog } from "../../hooks/useDialog";
 import { useScrollEdges } from "../../hooks/useScrollEdges";
 import { CloseIcon } from "./Icons";
+import { MOTION } from "../../lib/motion";
+import { playUiSound } from "../../lib/uiSounds";
+import type { CSSProperties } from "react";
 
 type Props = {
   open: boolean;
@@ -14,10 +17,12 @@ type Props = {
   center?: boolean;
   slideUp?: boolean;
   modeless?: boolean;
+  /** Carries the colour of the action that opened this surface. */
+  accent?: string;
 };
 
-const EXIT_MS = 220;
-const SLIDE_EXIT_MS = 300;
+const EXIT_MS = MOTION.exit;
+const SLIDE_EXIT_MS = MOTION.exit;
 
 export function Modal({
   open,
@@ -30,6 +35,7 @@ export function Modal({
   center = false,
   slideUp = false,
   modeless = false,
+  accent,
 }: Props) {
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
@@ -40,6 +46,13 @@ export function Modal({
   );
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
   const { ref: bodyRef, edges } = useScrollEdges<HTMLDivElement>();
+
+  useEffect(() => {
+    if (open) playUiSound("open");
+    else if (mounted) playUiSound("close");
+    // mounted deliberately stays out: sound once on each open edge.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!modeless) return;
@@ -150,6 +163,7 @@ export function Modal({
           aria-modal={modeless ? undefined : true}
           aria-labelledby={titleId}
           tabIndex={-1}
+          style={accent ? ({ "--modal-accent": accent } as CSSProperties) : undefined}
           className={`flex max-h-[84vh] w-full ${modeless ? "" : width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] outline-none ${
             closing
               ? slideUp
@@ -161,7 +175,7 @@ export function Modal({
           }`}
         >
           <header
-            className={`flex items-center justify-between border-b border-white/10 bg-ink-700 px-5 py-3.5 ${
+            className={`modal-header relative flex items-center justify-between border-b border-white/10 bg-ink-700 px-5 py-3.5 ${
               modeless ? "cursor-move select-none" : ""
             }`}
             onPointerDown={(event) => {
@@ -187,11 +201,17 @@ export function Modal({
             <button
               type="button"
               onClick={onClose}
-              className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition duration-150 hover:bg-white/10 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
+              className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition duration-[var(--motion-quick)] hover:bg-white/10 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
               aria-label="Close"
             >
               <CloseIcon className="h-4 w-4" />
             </button>
+            {accent && (
+              <span
+                aria-hidden
+                className="absolute inset-x-0 bottom-0 h-0.5 bg-[var(--modal-accent)] shadow-[0_0_16px_var(--modal-accent)]"
+              />
+            )}
           </header>
           <div className="relative flex min-h-0 flex-1 flex-col">
             <div
@@ -202,13 +222,13 @@ export function Modal({
             </div>
             <div
               aria-hidden
-              className={`pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-ink-800 to-transparent transition-opacity duration-200 ${
+              className={`pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-ink-800 to-transparent transition-opacity duration-[var(--motion-exit)] ${
                 edges.top ? "opacity-100" : "opacity-0"
               }`}
             />
             <div
               aria-hidden
-              className={`pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink-800 to-transparent transition-opacity duration-200 ${
+              className={`pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink-800 to-transparent transition-opacity duration-[var(--motion-exit)] ${
                 edges.bottom ? "opacity-100" : "opacity-0"
               }`}
             />

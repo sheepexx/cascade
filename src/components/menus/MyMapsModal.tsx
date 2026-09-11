@@ -9,6 +9,7 @@ import {
   deleteProjectCloud,
   type CloudProjectSummary,
 } from "../../lib/cloud";
+import { MENU_ACCENTS } from "../../lib/menuTheme";
 
 export function MyMapsModal({
   open,
@@ -60,7 +61,7 @@ export function MyMapsModal({
 
   return (
     <>
-    <Modal open={open} title="My Maps" onClose={onClose} width="max-w-2xl">
+    <Modal open={open} title="My Maps" onClose={onClose} width="max-w-2xl" accent={MENU_ACCENTS.myMaps}>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!maps && !error && (
         <SkeletonRows count={3} lines={3} label="Loading your maps" />

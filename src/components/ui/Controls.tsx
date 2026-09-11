@@ -23,7 +23,7 @@ export function Field({
 
 const inputBase =
   "rounded-lg bg-ink-700/65 border border-white/10 px-3 py-2 text-sm text-slate-100 " +
-  "outline-none shadow-inner shadow-black/10 backdrop-blur-sm transition duration-150 focus:border-accent/70 focus:ring-1 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45";
+  "outline-none shadow-inner shadow-black/10 backdrop-blur-sm transition duration-[var(--motion-quick)] focus:border-accent/70 focus:ring-1 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45";
 
 export function TextInput(
   props: React.InputHTMLAttributes<HTMLInputElement>,
@@ -111,7 +111,7 @@ export function Select({
     <span className={`relative inline-flex min-w-0 ${className}`}>
       <select
         {...props}
-        className={`w-full min-w-0 appearance-none rounded-lg border border-white/10 bg-ink-700/65 ${dims.field} text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition duration-150 hover:border-white/20 hover:bg-ink-600/70 focus-visible:border-accent/70 focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45`}
+        className={`w-full min-w-0 appearance-none rounded-lg border border-white/10 bg-ink-700/65 ${dims.field} text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition duration-[var(--motion-quick)] hover:border-white/20 hover:bg-ink-600/70 focus-visible:border-accent/70 focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45`}
       >
         {children}
       </select>
@@ -153,7 +153,7 @@ export function Button({
     <button
       type={type}
       {...props}
-      className={`rounded-lg px-3 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 ${styles[variant]} ${className}`}
+      className={`rounded-lg px-3 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 ${styles[variant]} ${className}`}
     />
   );
 }
@@ -219,7 +219,7 @@ export function SegmentedControl<T extends string>({
           aria-selected={value === option.value}
           data-segment={option.value}
           onClick={() => onChange(option.value)}
-          className={`relative z-10 flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+          className={`relative z-10 flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-[var(--motion-exit)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
             value === option.value
               ? "text-white"
               : "text-slate-300 hover:text-slate-100"
@@ -260,12 +260,12 @@ export function Toggle({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex ${dims.track} shrink-0 cursor-pointer items-center rounded-full border border-white/10 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`relative inline-flex ${dims.track} shrink-0 cursor-pointer items-center rounded-full border border-white/10 transition-colors duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-40 ${
         checked ? "bg-accent/90" : "bg-ink-600"
       }`}
     >
       <span
-        className={`inline-block ${dims.knob} transform rounded-full bg-white shadow transition-transform ${
+        className={`inline-block ${dims.knob} transform rounded-full bg-white shadow transition-transform duration-[var(--motion-quick)] ${
           checked ? dims.on : dims.off
         }`}
       />
@@ -283,7 +283,7 @@ export function FileButton({
   onFile: (file: File) => void;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition duration-150 hover:bg-ink-500/85 focus-within:ring-2 focus-within:ring-accent/60 active:scale-[0.98]">
+    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition duration-[var(--motion-quick)] hover:bg-ink-500/85 focus-within:ring-2 focus-within:ring-accent/60 active:scale-[0.98]">
       {label}
       <input
         type="file"
