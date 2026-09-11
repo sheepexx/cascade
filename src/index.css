@@ -425,7 +425,7 @@ img {
   transform: scaleY(1) skewX(var(--menu-skew));
   /* Each face casts a soft shadow onto the panel to its left, the way
      osu!'s main-menu buttons overlap. */
-  box-shadow: -3px 0 14px rgb(0 0 0 / 30%);
+  box-shadow: -2px 0 8px rgb(0 0 0 / 16%);
   transition:
     transform var(--motion-enter) var(--ease-overshoot),
     filter var(--motion-quick) var(--ease-standard);
