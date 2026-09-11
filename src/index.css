@@ -443,7 +443,7 @@ img {
 .menu-pop-out { pointer-events: none; transform-origin: top right; animation: menu-pop-out var(--motion-exit) var(--ease-standard) both; }
 
 .menu-panel-icon {
-  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 35%));
+  filter: drop-shadow(0 2px 0 rgb(0 0 0 / 25%));
 }
 
 .group:hover > .menu-panel-face,
