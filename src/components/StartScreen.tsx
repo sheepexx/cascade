@@ -27,6 +27,13 @@ import {
 } from "../lib/logoHitsounds";
 import { MENU_ACCENTS } from "../lib/menuTheme";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
+import { isDesktopApp } from "../lib/pwa";
+import {
+  DEFAULT_EDITOR_KEYBINDS,
+  editorKeyLabel,
+  type EditorAction,
+  type EditorKeybinds,
+} from "../lib/editorKeybinds";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { useAuth } from "../lib/auth";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
@@ -213,6 +220,7 @@ export function StartScreen({
   logoHitsoundVolume = 0,
   logoSamples = "menu",
   skinHitsounds = null,
+  editorKeybinds = DEFAULT_EDITOR_KEYBINDS,
 }: {
   music: MenuMusic;
   onOpenChange?: (open: boolean) => void;
@@ -233,6 +241,8 @@ export function StartScreen({
   logoSamples?: LogoSampleSource;
   /** The equipped skin's hitsounds, used when logoSamples is "skin". */
   skinHitsounds?: Record<string, Blob> | null;
+  /** So the menu tips name the keys this user actually has bound. */
+  editorKeybinds?: EditorKeybinds;
 }) {
   const counts = menuPanelCounts(Boolean(onExit));
   const panels = counts.left + counts.right;
@@ -499,6 +509,18 @@ export function StartScreen({
           </div>
         </div>
 
+        {wide && (
+          <MenuTips
+            // Clear of the open logo's visualiser ring; on a short window the
+            // osu! banner needs that space, so the tips give way to it.
+            visible={open && !(osuBanner && layout.vh < 760)}
+            top={`calc(${menuCenter} + ${Math.round(
+              logoOpen / 2 + logoOpen * RING_RATIO * 0.5 + 24,
+            )}px)`}
+            keybinds={editorKeybinds}
+          />
+        )}
+
         {bannerSlotted && lastBannerRef.current && (
           <div
             className={`osu-banner-slot absolute inset-x-0 bottom-0 z-10 flex justify-center px-6 ${
@@ -709,6 +731,138 @@ export function StartScreen({
   );
 }
 
+const TIP_MS = 9000;
+
+type MenuTip = {
+  text: MessageKey;
+  /** Bound keys filled into the text as {a}, {b}, {c}, {d}. */
+  keys?: EditorAction[];
+  browserOnly?: boolean;
+};
+
+// Niche but handy things most people never stumble on.
+const MENU_TIPS: MenuTip[] = [
+  { text: "tips.slowMo", keys: ["slowMo"] },
+  { text: "tips.zen", keys: ["zenMode"] },
+  { text: "tips.desktop", browserOnly: true },
+  { text: "tips.waveform", keys: ["waveformOverlay"] },
+  { text: "tips.bookmarks", keys: ["addBookmark", "prevBookmark", "nextBookmark"] },
+  { text: "tips.loop" },
+  { text: "tips.timelineMenu" },
+  { text: "tips.timelineWave" },
+  { text: "tips.altWheel" },
+  { text: "tips.clipboard" },
+  {
+    text: "tips.selection",
+    keys: ["mirrorSelection", "reverseSelection", "scaleHalf", "scaleDouble"],
+  },
+  {
+    text: "tips.hitsoundMode",
+    keys: ["hitsoundMode", "whistleAdd", "finishAdd", "clapAdd"],
+  },
+  { text: "tips.snap", keys: ["snap1", "snap8", "snapFree"] },
+  { text: "tips.tapTempo" },
+  { text: "tips.menuMusic" },
+  { text: "tips.logoBeat" },
+  { text: "tips.playtest", keys: ["playtestToggle"] },
+  { text: "tips.palette" },
+];
+
+/** A "Did you know?" card under the open menu. It starts on a random tip,
+ *  moves on every few seconds (not while hovered), and a click skips ahead. */
+function MenuTips({
+  visible,
+  top,
+  keybinds,
+}: {
+  visible: boolean;
+  top: string;
+  keybinds: EditorKeybinds;
+}) {
+  const t = useT();
+  const [tips] = useState(() =>
+    MENU_TIPS.filter((tip) => !tip.browserOnly || !isDesktopApp()),
+  );
+  const [index, setIndex] = useState(() =>
+    Math.floor(Math.random() * tips.length),
+  );
+  const [hovered, setHovered] = useState(false);
+  const next = () => setIndex((i) => (i + 1) % tips.length);
+
+  useEffect(() => {
+    if (!visible || hovered) return;
+    const timer = window.setTimeout(next, TIP_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, hovered, index]);
+
+  const tip = tips[index];
+  const params: Record<string, string> = {};
+  tip.keys?.forEach((action, i) => {
+    params["abcd"[i]] = editorKeyLabel(keybinds[action]);
+  });
+
+  return (
+    <div
+      className={`pointer-events-none absolute inset-x-0 z-10 flex justify-center px-6 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
+        visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+      }`}
+      style={{ top }}
+    >
+      <button
+        type="button"
+        data-menu-guard=""
+        tabIndex={visible ? 0 : -1}
+        onClick={next}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        title={t("tips.next")}
+        className={`group flex w-[min(34rem,100%)] items-start gap-3 rounded-2xl border border-white/10 bg-ink-900/55 px-4 py-3 text-left shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-md transition duration-[var(--motion-quick)] hover:border-white/20 hover:bg-ink-900/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+          visible ? "pointer-events-auto" : ""
+        }`}
+      >
+        <BulbIcon />
+        <span className="min-h-[2.75rem] min-w-0 flex-1">
+          <span className="block text-[11px] font-semibold uppercase tracking-wide text-amber-300">
+            {t("tips.didYouKnow")}
+          </span>
+          <span
+            key={index}
+            className="menu-tip-in mt-0.5 block text-sm leading-snug text-slate-100"
+          >
+            {t(tip.text, params)}
+          </span>
+        </span>
+        <span
+          aria-hidden
+          className="self-center text-lg leading-none text-slate-500 transition duration-[var(--motion-quick)] group-hover:translate-x-0.5 group-hover:text-slate-200"
+        >
+          ›
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function BulbIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="mt-0.5 h-5 w-5 shrink-0 text-amber-300"
+    >
+      <path d="M9 18h6" />
+      <path d="M10 21h4" />
+      <path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2V16h5v-.2c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z" />
+    </svg>
+  );
+}
+
 function greetingKey(): MessageKey {
   const hour = new Date().getHours();
   if (hour < 5) return "menu.goodNight";
@@ -839,10 +993,12 @@ function Panel({
         }
       />
       <span className="relative flex h-full flex-col items-center justify-center gap-2">
-        <BeatIcon musicRef={musicRef} hovered={hovered && open}>
-          {action.icon}
-        </BeatIcon>
-        <span className="text-[13px] font-semibold tracking-wide drop-shadow">
+        <span className="menu-panel-icon inline-flex">
+          <BeatIcon musicRef={musicRef} hovered={hovered && open}>
+            {action.icon}
+          </BeatIcon>
+        </span>
+        <span className="text-[13px] font-semibold tracking-wide drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
           {action.label}
         </span>
       </span>

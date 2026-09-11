@@ -620,6 +620,44 @@ export const en = {
   "menu.lastSeen": "Last seen {time}",
   "menu.localProjects.one": "You currently have {count} local project.",
   "menu.localProjects.other": "You currently have {count} local projects.",
+  "tips.didYouKnow": "Did you know?",
+  "tips.next": "Show another tip",
+  "tips.slowMo":
+    "Hold {a} while the song plays to slow it down to 25%. Let go and it's back to full speed.",
+  "tips.zen":
+    "Press {a} for zen mode: every panel slides away and it's just you and the playfield.",
+  "tips.desktop":
+    "The desktop app runs smoother and adds lower-latency audio, Discord status and a live link to the map you have open in osu!.",
+  "tips.waveform":
+    "Press {a} to lay the song's waveform over the lanes and line your notes up with the audio peaks.",
+  "tips.bookmarks":
+    "Press {a} to drop a bookmark, then jump between your bookmarks with {b} and {c}.",
+  "tips.loop":
+    "With two bookmarks set, the Loop button on the bottom timeline repeats just that section.",
+  "tips.timelineMenu":
+    "Right-click the bottom timeline to set the song preview point or add a named bookmark.",
+  "tips.timelineWave":
+    "Scroll over the bottom timeline to make its waveform taller or flatter.",
+  "tips.altWheel":
+    "Hold Alt and scroll to resize the whole interface. Settings can make it zoom the timeline, the playfield or the volume instead.",
+  "tips.clipboard":
+    "Copied a pattern? Drag it from the clipboard panel onto any lane to paste it right there.",
+  "tips.selection":
+    "With notes selected, {a} mirrors them, {b} reverses them, and {c} / {d} halve or double their spacing.",
+  "tips.hitsoundMode":
+    "Press {a} for hitsound mode, then {b}, {c} and {d} toggle whistle, finish and clap on the selected notes.",
+  "tips.snap":
+    "Press {a} to {b} to change the beat snap, or {c} to place notes anywhere.",
+  "tips.tapTempo":
+    "Not sure of the BPM? Open Timing, play the song and tap T on every beat.",
+  "tips.menuMusic":
+    "Right here in the menu, C pauses the music, V skips to the next song and X goes back one.",
+  "tips.logoBeat":
+    "Rest your cursor on the logo while music plays and it taps along to the beat.",
+  "tips.playtest":
+    "Press {a} to playtest straight from wherever you are in the map.",
+  "tips.palette":
+    "Press Ctrl+K to open the command palette and run any action by typing its name.",
   "menu.needSong":
     "Add a song first to start mapping. Drop an audio file anywhere, or pick one in Map Settings.",
 

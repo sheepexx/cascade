@@ -190,7 +190,9 @@ img {
 /* The main-menu bar: each side is clipped at the logo's centre and slides
    out from under it, then back in when the menu closes. */
 .menu-bar-slide {
-  transition: transform 460ms var(--ease-emphasized);
+  transition:
+    transform 460ms var(--ease-emphasized),
+    opacity 340ms var(--ease-standard);
 }
 .menu-bar-slide[data-open="false"][data-side="left"] {
   transform: translateX(100%);
@@ -199,7 +201,25 @@ img {
   transform: translateX(-100%);
 }
 .menu-bar-slide[data-open="false"] {
-  transition: transform 300ms cubic-bezier(0.55, 0, 0.8, 0.3);
+  opacity: 0;
+  transition:
+    transform 300ms cubic-bezier(0.55, 0, 0.8, 0.3),
+    opacity 260ms var(--ease-standard);
+}
+
+/* "Did you know?" card under the open menu; each new tip eases in. */
+@keyframes menu-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.menu-tip-in {
+  animation: menu-tip-in var(--motion-enter) var(--ease-emphasized) both;
 }
 
 /* Difficulty modal: per-lane note meters, the HP cells and the OD windows
@@ -419,6 +439,9 @@ img {
 
 .menu-panel-face {
   transform: scaleY(1) skewX(var(--menu-skew));
+  /* Each face casts a soft shadow onto the panel to its left, the way
+     osu!'s main-menu buttons overlap. */
+  box-shadow: -3px 0 14px rgb(0 0 0 / 30%);
   transition:
     transform var(--motion-enter) var(--ease-overshoot),
     filter var(--motion-quick) var(--ease-standard);
@@ -434,6 +457,10 @@ img {
 }
 .menu-pop-in { transform-origin: top right; animation: menu-pop-in var(--motion-enter) var(--ease-emphasized) both; }
 .menu-pop-out { pointer-events: none; transform-origin: top right; animation: menu-pop-out var(--motion-exit) var(--ease-standard) both; }
+
+.menu-panel-icon {
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 35%));
+}
 
 .group:hover > .menu-panel-face,
 .group:focus-visible > .menu-panel-face {
@@ -1390,6 +1417,7 @@ canvas[data-pointer-focus]:focus-visible {
   .editor-scene-in,
   .scene-logo-out,
   .start-logo-shockwaves > span,
+  .menu-tip-in,
   .exit-shutter {
     animation-duration: 1ms;
   }

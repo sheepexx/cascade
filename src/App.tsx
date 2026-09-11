@@ -6860,6 +6860,7 @@ export default function App() {
                 }
                 logoSamples={appSettings.logoSkinHitsounds ? "skin" : "menu"}
                 skinHitsounds={skin?.hitsounds ?? null}
+                editorKeybinds={editorKeybinds}
               >
                 <LandingCopy />
               </StartScreen>
