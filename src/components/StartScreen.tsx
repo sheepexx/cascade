@@ -471,11 +471,11 @@ export function StartScreen({
           }}
         >
           <div data-menu-guard="">
-            <p className="text-lg font-semibold text-slate-100 drop-shadow">
+            <p className="menu-legible text-lg font-semibold text-white">
               {t(greetingKey())}
               {user ? `, ${user.username}` : ""}
             </p>
-            <p className="mt-0.5 text-xs text-slate-400 drop-shadow">
+            <p className="menu-legible mt-0.5 text-xs text-slate-200">
               {projectCount === null
                 ? " "
                 : projectCount === 0
@@ -639,7 +639,7 @@ export function StartScreen({
             it on a window narrow enough for the two to meet. */}
         <div
           data-menu-guard=""
-          className="absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-600"
+          className="menu-legible absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-300"
         >
           <span>Cascade · v{__APP_VERSION__}</span>
           <span aria-hidden>·</span>
@@ -647,7 +647,7 @@ export function StartScreen({
             href="/terms"
             target="_blank"
             rel="noreferrer"
-            className="transition hover:text-slate-400"
+            className="transition hover:text-white"
           >
             {t("settings.terms")}
           </a>
@@ -656,7 +656,7 @@ export function StartScreen({
             href="/privacy"
             target="_blank"
             rel="noreferrer"
-            className="transition hover:text-slate-400"
+            className="transition hover:text-white"
           >
             {t("startModal.privacyPolicy")}
           </a>

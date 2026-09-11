@@ -1161,6 +1161,14 @@ textarea {
   }
 }
 
+/* Main-menu text sits straight on the undimmed background, so it carries its
+   own soft dark halo to stay readable over bright pictures. */
+.menu-legible {
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 85%),
+    0 0 14px rgb(0 0 0 / 55%);
+}
+
 /* Menu background blur, kept to the edges: clear through the middle and
    fully blurred by the corners. */
 .menu-bg-vignette {
