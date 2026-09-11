@@ -952,7 +952,7 @@ function MenuBackground({
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div ref={parallaxRef} className="absolute inset-0 opacity-[0.42] will-change-transform">
+      <div ref={parallaxRef} className="absolute inset-0 will-change-transform">
         {/* Leans in while the logo stands alone and eases back out as the
             menu opens; kept apart from the parallax transform above. */}
         <div
@@ -984,7 +984,6 @@ function MenuBackground({
           ))}
         </div>
       </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-ink-900/70 via-ink-900/48 to-ink-900/84" />
       {open && (
         <FloatingPlayers players={players} phone={phone} />
       )}
