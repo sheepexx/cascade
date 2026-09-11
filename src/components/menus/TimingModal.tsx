@@ -36,6 +36,8 @@ type Props = {
   /** Rate of the active difficulty; detection runs in audio-file time. */
   timeScale: number;
   onShiftMarkers?: (deltaMs: number) => void;
+  /** Reports the selected rows so the bottom timeline can highlight them. */
+  onSelectionChange?: (ids: ReadonlySet<string>) => void;
 };
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
@@ -56,6 +58,7 @@ export const TimingModal = memo(function TimingModal({
   audioBuffer,
   timeScale,
   onShiftMarkers,
+  onSelectionChange,
 }: Props) {
   const { tap, reset, bpm, offset, count } = useTapTempo(getCurrentTime);
   const [metronomeOn, setMetronomeOn] = useState(true);
@@ -72,6 +75,10 @@ export const TimingModal = memo(function TimingModal({
   );
   const [selectedPointShift, setSelectedPointShift] = useState(0);
   const [markerShift, setMarkerShift] = useState(0);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedPointIds);
+  }, [selectedPointIds, onSelectionChange]);
 
   useEffect(() => {
     setDetection(null);
@@ -643,13 +650,25 @@ function PointRow({
   const red = p.uninherited;
   return (
     <div
-      className={`flex flex-col gap-2 rounded-xl border p-2.5 ${
+      className={`flex flex-col gap-2 rounded-xl border p-2.5 transition-colors duration-150 ${
         red
-          ? "border-rose-500/40 bg-rose-950/20"
-          : "border-emerald-500/40 bg-emerald-950/20"
+          ? selected
+            ? "border-rose-400 bg-rose-900/35 ring-1 ring-rose-400/60"
+            : "border-rose-500/40 bg-rose-950/20 hover:border-rose-400/70"
+          : selected
+            ? "border-emerald-400 bg-emerald-900/35 ring-1 ring-emerald-400/60"
+            : "border-emerald-500/40 bg-emerald-950/20 hover:border-emerald-400/70"
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div
+        className="flex cursor-pointer select-none items-center gap-2"
+        onClick={(event) => {
+          // The checkbox and Edit button handle their own clicks.
+          if ((event.target as HTMLElement).closest("button, input, label"))
+            return;
+          onSelect();
+        }}
+      >
         <input
           type="checkbox"
           checked={selected}

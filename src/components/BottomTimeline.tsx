@@ -3,7 +3,11 @@ import { createPortal } from "react-dom";
 import type { ManiaNote, TimingPoint } from "../types";
 import type { Waveform } from "../hooks/useWaveform";
 import { CloseIcon } from "./ui/Icons";
-import { renderScale, usePerformanceMode } from "../lib/performanceMode";
+import {
+  reduceMotion,
+  renderScale,
+  usePerformanceMode,
+} from "../lib/performanceMode";
 import type {
   AudioSeekSignal,
   AudioSeekTransition,
@@ -30,6 +34,8 @@ const MAIN_REVEAL_MS = 300;
 const WAVEFORM_REVEAL_DELAY_MS = MAIN_REVEAL_MS;
 const WAVEFORM_REVEAL_MS = 700;
 const RESIZE_SETTLE_MS = 90;
+/** Timing points selected in the Timing menu pulse at 70 BPM. */
+const SELECT_PULSE_MS = 60000 / 70;
 
 type TrimGeom = {
   sx: number;
@@ -127,6 +133,8 @@ type Props = {
   onSetTrimEnd?: (ms: number) => void;
   onSetFadeIn?: (ms: number) => void;
   onSetFadeOut?: (ms: number) => void;
+  /** Timing points selected in the Timing menu; drawn enlarged and pulsing. */
+  selectedTimingIds?: ReadonlySet<string>;
 };
 
 const SENS_MIN = 0.5;
@@ -176,6 +184,7 @@ export function BottomTimeline({
   onSetTrimEnd,
   onSetFadeIn,
   onSetFadeOut,
+  selectedTimingIds,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -271,6 +280,7 @@ export function BottomTimeline({
     trimEnd,
     fadeIn,
     fadeOut,
+    selectedTimingIds,
   });
   propsRef.current = {
     waveform,
@@ -299,6 +309,7 @@ export function BottomTimeline({
     trimEnd,
     fadeIn,
     fadeOut,
+    selectedTimingIds,
   };
 
   const trimHandlersRef = useRef({
@@ -367,6 +378,7 @@ export function BottomTimeline({
       trimEnd,
       fadeIn,
       fadeOut,
+      selectedTimingIds,
     } = propsRef.current;
 
     ctx.save();
@@ -623,6 +635,61 @@ export function BottomTimeline({
       ctx.strokeRect(sx, WAVE_TOP + 0.75, Math.max(1, ex - sx), WAVE_H - 1.5);
     }
 
+    const selectedPoints =
+      duration > 0 && selectedTimingIds?.size
+        ? timingPoints.filter(
+            (tp) =>
+              selectedTimingIds.has(tp.id) &&
+              tp.time >= 0 &&
+              tp.time <= duration,
+          )
+        : [];
+    if (selectedPoints.length) {
+      // One thump per beat at 70 BPM: full strength on the beat, easing back
+      // out before the next. Reduced motion holds a steady midpoint instead.
+      const phase = reduceMotion()
+        ? 0.5
+        : (performance.now() % SELECT_PULSE_MS) / SELECT_PULSE_MS;
+      const pulse = (1 - phase) ** 2;
+
+      // With two or more selected, the span from the earliest to the latest
+      // blinks white across both the density graph and the waveform.
+      if (selectedPoints.length > 1) {
+        let first = selectedPoints[0].time;
+        let last = first;
+        for (const tp of selectedPoints) {
+          if (tp.time < first) first = tp.time;
+          if (tp.time > last) last = tp.time;
+        }
+        const x0 = (first / duration) * width;
+        const x1 = (last / duration) * width;
+        if (x1 - x0 >= 1) {
+          ctx.fillStyle = `rgba(255,255,255,${0.06 + 0.24 * pulse})`;
+          ctx.fillRect(x0, 0, x1 - x0, WAVE_TOP + WAVE_H);
+        }
+      }
+
+      ctx.save();
+      for (const tp of selectedPoints) {
+        const color = tp.uninherited ? "#ff2d6f" : "#2dd4bf";
+        const lineW = 2.5 + 1.5 * pulse;
+        const tab = 8 + 4 * pulse;
+        const left = (tp.time / duration) * width + 0.75 - lineW / 2;
+        const top = WAVE_TOP - 2;
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 4 + 8 * pulse;
+        ctx.fillRect(left, top, lineW, WAVE_H + 2);
+        ctx.beginPath();
+        ctx.moveTo(left, top);
+        ctx.lineTo(left + tab, top);
+        ctx.lineTo(left, top + tab);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
     if (duration > 0) {
       const currentTime = renderTimeRef.current;
       const px = (currentTime / duration) * width;
@@ -808,8 +875,10 @@ export function BottomTimeline({
     let raf = 0;
     let stopped = false;
     const shouldAnimate = () => {
-      const { waveform, revealWaveform, isPlaying } = propsRef.current;
+      const { waveform, revealWaveform, isPlaying, selectedTimingIds, duration } =
+        propsRef.current;
       if (isPlaying) return true;
+      if (selectedTimingIds?.size && duration > 0 && !reduceMotion()) return true;
       const revealStart = waveformRevealStartRef.current;
       return (
         !!waveform &&

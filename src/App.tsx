@@ -726,6 +726,9 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("General");
   const [historyPanel, setHistoryPanel] = useState(false);
   const modalMounted = useMountedModals(modal);
+  const [timingSelection, setTimingSelection] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const packCreatorEverOpenedRef = useRef(false);
   const adminEverOpenedRef = useRef(false);
   const [selectionRange, setSelectionRange] = useState<{
@@ -7057,6 +7060,7 @@ export default function App() {
                 waveform={waveform}
                 notes={active.notes}
                 timingPoints={activeTimingPoints}
+                selectedTimingIds={modal === "timing" ? timingSelection : undefined}
                 svBpmScroll={appSettings.bpmAffectsScroll}
                 simplified={appSettings.simplifyBottomTimeline}
                 previewTime={active.previewTime}
@@ -7473,6 +7477,7 @@ export default function App() {
           audioBuffer={waveform?.buffer ?? null}
           timeScale={activeRate}
           onShiftMarkers={shiftTimingMarkers}
+          onSelectionChange={setTimingSelection}
         />
       )}
       {modal === "history" && <HistoryModal open onClose={close} entries={historyEntries} current={historyCurrent} onJump={jumpHistory} readOnly={!canEdit} live={liveEnabled} />}
