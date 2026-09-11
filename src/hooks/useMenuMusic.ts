@@ -6,6 +6,11 @@ import {
   type LocalTrackSummary,
 } from "../lib/persistence";
 import {
+  createPlaybackClock,
+  latencyCompensatedPosition,
+} from "../lib/playbackClock";
+import type { MenuTimingPoint } from "../lib/menuPulse";
+import {
   DUCK_FILTER_HZ,
   DUCK_VOLUME_FACTOR,
   MIX_RAMP_SECONDS,
@@ -22,6 +27,8 @@ export type MenuTrack = {
   previewTime: number;
   bpm: number;
   beatOffsetMs: number;
+  /** Every red line, for beat sync across BPM changes. */
+  timing: MenuTimingPoint[];
   kiai: KiaiRange[];
 };
 
@@ -33,6 +40,10 @@ export type MenuMusic = {
   next: () => void;
   previous: () => void;
   readLevels: () => Uint8Array | null;
+  /** A lightly smoothed spectrum for onset detection. */
+  readTransients: () => Uint8Array | null;
+  /** Peak level per channel, 0..1, independent of the playback volume. */
+  readAmplitudes: () => { left: number; right: number } | null;
   getPlayback: () => { position: number; duration: number; playing: boolean } | null;
   seek: (ms: number) => void;
   setAmbientDucking: (ducked: boolean) => void;
@@ -40,6 +51,9 @@ export type MenuMusic = {
 };
 
 const FFT_SIZE = 512;
+// ~21 ms at 48 kHz, close to the window osu! reads channel levels over.
+const CHANNEL_FFT_SIZE = 1024;
+const TRANSIENT_SMOOTHING = 0.2;
 const MENU_VOLUME = 0.25;
 const FADE_OUT_MS = 260;
 const FADE_IN_MS = 520;
@@ -84,6 +98,7 @@ function toMenuTrack(row: LocalTrack): MenuTrack {
     previewTime: row.previewTime,
     bpm: row.bpm,
     beatOffsetMs: row.beatOffsetMs,
+    timing: row.timing,
     kiai: row.kiai,
   };
 }
@@ -106,6 +121,16 @@ export function useMenuMusic(
   const duckGainRef = useRef<GainNode | null>(null);
   const duckedRef = useRef(false);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  // Taps straight off the source: a less smoothed spectrum for onsets, and one
+  // analyser per channel for peak levels.
+  const transientRef = useRef<AnalyserNode | null>(null);
+  const stereoRef = useRef<GainNode | null>(null);
+  const channelsRef = useRef<[AnalyserNode, AnalyserNode] | null>(null);
+  const transientLevelsRef = useRef(
+    new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)),
+  );
+  const waveRef = useRef(new Float32Array(new ArrayBuffer(CHANNEL_FFT_SIZE * 4)));
+  const clockRef = useRef(createPlaybackClock());
   const levelsRef = useRef(new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)));
   const wantsPlayRef = useRef(true);
   const resumeOnEnableRef = useRef(true);
@@ -204,16 +229,44 @@ export function useMenuMusic(
         analyser.connect(filter);
         filter.connect(duckGain);
         duckGain.connect(ctx.destination);
+        const transient = ctx.createAnalyser();
+        transient.fftSize = FFT_SIZE;
+        transient.smoothingTimeConstant = TRANSIENT_SMOOTHING;
+        // Mono files are up-mixed so both channels read a level.
+        const stereo = ctx.createGain();
+        stereo.channelCount = 2;
+        stereo.channelCountMode = "explicit";
+        stereo.channelInterpretation = "speakers";
+        const splitter = ctx.createChannelSplitter(2);
+        const left = ctx.createAnalyser();
+        const right = ctx.createAnalyser();
+        left.fftSize = CHANNEL_FFT_SIZE;
+        right.fftSize = CHANNEL_FFT_SIZE;
+        // A silent sink keeps every browser pulling the taps.
+        const sink = ctx.createGain();
+        sink.gain.value = 0;
+        stereo.connect(splitter);
+        splitter.connect(left, 0);
+        splitter.connect(right, 1);
+        left.connect(sink);
+        right.connect(sink);
+        transient.connect(sink);
+        sink.connect(ctx.destination);
         ctxRef.current = ctx;
         analyserRef.current = analyser;
         filterRef.current = filter;
         duckGainRef.current = duckGain;
+        transientRef.current = transient;
+        stereoRef.current = stereo;
+        channelsRef.current = [left, right];
       }
       const ctx = ctxRef.current;
       const analyser = analyserRef.current;
       if (!ctx || !analyser || sourceRef.current) return;
       const source = ctx.createMediaElementSource(el);
       source.connect(analyser);
+      if (transientRef.current) source.connect(transientRef.current);
+      if (stereoRef.current) source.connect(stereoRef.current);
       sourceRef.current = source;
     } catch {
       sourceRef.current = null;
@@ -258,10 +311,14 @@ export function useMenuMusic(
       setIndex((i) => i + 1);
     };
     const onPlay = () => {
+      clockRef.current.reset();
       setIsPlaying(true);
       fade(el, volumeRef.current, FADE_IN_MS);
     };
-    const onPause = () => setIsPlaying(false);
+    const onPause = () => {
+      clockRef.current.reset();
+      setIsPlaying(false);
+    };
     const onEnded = advance;
     const onError = advance;
     const onReady = () => {
@@ -318,6 +375,9 @@ export function useMenuMusic(
       const ctx = ctxRef.current;
       ctxRef.current = null;
       analyserRef.current = null;
+      transientRef.current = null;
+      stereoRef.current = null;
+      channelsRef.current = null;
       void ctx?.close().catch(() => {});
     },
     [],
@@ -368,6 +428,7 @@ export function useMenuMusic(
   const seek = useCallback((ms: number) => {
     const el = audioRef.current;
     if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
+    clockRef.current.reset();
     el.currentTime = Math.max(0, Math.min(el.duration, ms / 1000));
   }, []);
 
@@ -377,6 +438,35 @@ export function useMenuMusic(
     if (!analyser || !el || el.paused) return null;
     analyser.getByteFrequencyData(levelsRef.current);
     return levelsRef.current;
+  }, []);
+
+  const readTransients = useCallback(() => {
+    const analyser = transientRef.current;
+    const el = audioRef.current;
+    if (!analyser || !sourceRef.current || !el || el.paused) return null;
+    analyser.getByteFrequencyData(transientLevelsRef.current);
+    return transientLevelsRef.current;
+  }, []);
+
+  const readAmplitudes = useCallback(() => {
+    const channels = channelsRef.current;
+    const el = audioRef.current;
+    if (!channels || !sourceRef.current || !el || el.paused) return null;
+    // The element's volume, fades included, is applied before the graph.
+    // Dividing it back out gives the song's own level, as osu! measures it.
+    const volume = el.volume;
+    if (volume < 0.01) return null;
+    const wave = waveRef.current;
+    const peak = (analyser: AnalyserNode) => {
+      analyser.getFloatTimeDomainData(wave);
+      let max = 0;
+      for (let i = 0; i < wave.length; i++) {
+        const sample = Math.abs(wave[i]);
+        if (sample > max) max = sample;
+      }
+      return Math.min(1, max / volume);
+    };
+    return { left: peak(channels[0]), right: peak(channels[1]) };
   }, []);
 
   const setAmbientDucking = useCallback((ducked: boolean) => {
@@ -401,13 +491,29 @@ export function useMenuMusic(
     );
   }, []);
 
+  // currentTime steps coarsely and runs ahead of what is heard by the output
+  // latency, so beat-synced effects read a smoothed, compensated position.
   const getPlayback = useCallback(() => {
     const el = audioRef.current;
     if (!el) return null;
+    const playing = !el.paused;
+    let seconds = el.currentTime;
+    if (playing) {
+      const rate = el.playbackRate || 1;
+      seconds = clockRef.current.read(seconds, rate, performance.now());
+      const ctx = ctxRef.current;
+      if (ctx && sourceRef.current) {
+        seconds = latencyCompensatedPosition(
+          seconds,
+          (ctx.baseLatency || 0) + (ctx.outputLatency || 0),
+          rate,
+        );
+      }
+    }
     return {
-      position: el.currentTime * 1000,
+      position: seconds * 1000,
       duration: Number.isFinite(el.duration) ? el.duration * 1000 : 0,
-      playing: !el.paused,
+      playing,
     };
   }, []);
 
@@ -420,6 +526,8 @@ export function useMenuMusic(
       next,
       previous,
       readLevels,
+      readTransients,
+      readAmplitudes,
       getPlayback,
       seek,
       setAmbientDucking,
@@ -433,6 +541,8 @@ export function useMenuMusic(
       next,
       previous,
       readLevels,
+      readTransients,
+      readAmplitudes,
       getPlayback,
       seek,
       setAmbientDucking,

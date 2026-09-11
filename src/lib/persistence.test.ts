@@ -350,6 +350,7 @@ describe("project media records", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].bpm).toBe(180);
     expect(rows[0].beatOffsetMs).toBe(120);
+    expect(rows[0].timing).toMatchObject([{ time: 120, bpm: 180 }]);
     expect(rows[0].kiai).toEqual([{ start: 4000, end: 9000 }]);
   });
 

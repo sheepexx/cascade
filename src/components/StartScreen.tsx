@@ -8,6 +8,18 @@ import {
 } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
 import { BeatBounce, LoudnessTracker, bounceTransform } from "../lib/beatBounce";
+import {
+  AudioPunch,
+  CriticalSpring,
+  FLASH_FADE_IN_MS,
+  SideFlash,
+  beatAt,
+  beatShape,
+  flashPeak,
+  flashSides,
+  idleBeat,
+  type MenuBeat,
+} from "../lib/menuPulse";
 import { MENU_ACCENTS } from "../lib/menuTheme";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
@@ -48,10 +60,19 @@ type MenuAction = {
   onClick: () => void;
 };
 
-const IDLE_BPM = 59;
+const IDLE_BPM = 65;
 const KIAI_BOOST = 1.15;
+// Logo pulse while music plays: mostly onsets heard in the audio, some of the
+// song's live level, and a light touch of the mapped grid.
+const LOGO_PUNCH_DEPTH = 0.12;
+const LOGO_LEVEL_DEPTH = 0.05;
+const LOGO_LEVEL_FLOOR = 0.3;
+const LOGO_GRID_DEPTH = 0.02;
+// With nothing playing the logo breathes on the idle grid alone.
+const LOGO_IDLE_DEPTH = 0.05;
+const LOGO_SPRING = 60;
 const menuLoudness = new LoudnessTracker();
-const LOGO_CLOSED = 300;
+const LOGO_CLOSED = 520;
 const LOGO_OPEN = 196;
 const LOGO_MIN = 168;
 const BAR_HEIGHT = 136;
@@ -81,13 +102,6 @@ const MASK_DIM = 0.2;
 const MASK_EDGE_LOW = 0.35;
 const MASK_EDGE_HIGH = 0.9;
 
-const KIAI_FADE_IN_MS = 110;
-const KIAI_FADE_OUT_MS = 460;
-const KIAI_GLOW_BASE = 0.1;
-const KIAI_GLOW_BEAT = 0.22;
-const KIAI_GLOW_TAIL = 0.6;
-const KIAI_BURST_GLOW = 0.12;
-const KIAI_BURST_DECAY_MS = 700;
 const STARS_PER_SIDE = 26;
 const STAR_OPENING = 0.45;
 const STAR_EMIT_MS = 380;
@@ -108,13 +122,12 @@ const SEAM_FADE = `linear-gradient(to bottom, ${Array.from(
   },
 ).join(", ")})`;
 
-const KIAI_GLOW_STOPS = Array.from({ length: 13 }, (_, i) => {
-  const t = i / 12;
-  const a = Math.pow(1 - t, 3.4);
-  return `rgba(255,250,240,${a.toFixed(4)}) ${(t * 100).toFixed(1)}%`;
-}).join(", ");
-const KIAI_GLOW_LEFT = `linear-gradient(to right, ${KIAI_GLOW_STOPS})`;
-const KIAI_GLOW_RIGHT = `linear-gradient(to left, ${KIAI_GLOW_STOPS})`;
+// osu!lazer's side flash: a 0.6 → 0 gradient twice as wide as what shows,
+// half of it off-screen, so the visible strip runs from 0.3 at the edge to 0.
+const SIDE_FLASH_LEFT =
+  "linear-gradient(to right, rgba(255,250,240,0.3), rgba(255,250,240,0))";
+const SIDE_FLASH_RIGHT =
+  "linear-gradient(to left, rgba(255,250,240,0.3), rgba(255,250,240,0))";
 
 function PhoneStart({
   music,
@@ -388,7 +401,7 @@ export function StartScreen({
           style={{ backgroundImage: SEAM_FADE }}
         />
 
-        {!lowSpec && <KiaiEffects music={music} />}
+        {!lowSpec && <SideFlashes music={music} />}
 
         {open && (
           <button
@@ -631,7 +644,7 @@ function measure(panels: number) {
     LOGO_MIN,
     Math.min(
       LOGO_CLOSED,
-      Math.round(wide ? Math.min(vw * 0.6, vh * 0.44) : Math.min(vw * 0.55, vh * 0.3)),
+      Math.round(wide ? Math.min(vw * 0.42, vh * 0.56) : Math.min(vw * 0.6, vh * 0.36)),
     ),
   );
   const logoOpen = wide
@@ -1203,28 +1216,36 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   return t * t * (3 - 2 * t);
 }
 
-type BeatClock = { length: number; phase: number; index: number };
+type BeatClock = MenuBeat & {
+  /** False on the idle grid, when no track is playing. */
+  synced: boolean;
+  kiai: boolean;
+};
 
-function beatClock(music: MenuMusic, now: number): BeatClock | null {
+/**
+ * The menu's beat the way osu!'s BeatSyncedContainer reads it: the mapper's
+ * timing point in effect at the (optionally early) track position, or an
+ * idle grid on the wall clock when nothing is playing.
+ */
+function beatClock(music: MenuMusic, now: number, earlyMs = 0): BeatClock {
   const { track } = music;
   const playback = music.getPlayback();
-  let length: number;
-  let position: number;
-  if (playback?.playing && track && track.bpm > 0) {
-    length = 60000 / track.bpm;
-    position = playback.position - track.beatOffsetMs;
-  } else if (music.hasPlaylist) return null;
-  else {
-    length = 60000 / IDLE_BPM;
-    position = now;
+  if (playback?.playing && track) {
+    const position = playback.position + earlyMs;
+    const beat = beatAt(track.timing, position);
+    if (beat) {
+      const kiai = track.kiai.some(
+        (range) => position >= range.start && position < range.end,
+      );
+      return { ...beat, synced: true, kiai };
+    }
   }
-  const index = Math.floor(position / length);
-  return { length, phase: position - index * length, index };
+  return { ...idleBeat(now + earlyMs, IDLE_BPM), synced: false, kiai: false };
 }
 
 function beatPulse(music: MenuMusic, now: number): number {
   const clock = beatClock(music, now);
-  return clock ? Math.pow(1 - clock.phase / clock.length, 5) : 0;
+  return Math.pow(1 - clock.phase / clock.length, 5);
 }
 
 function beatIntensity(music: MenuMusic, now: number, windowMs: number): number {
@@ -1281,14 +1302,18 @@ function makeStarSprite(): HTMLCanvasElement {
   return canvas;
 }
 
-function KiaiEffects({ music }: { music: MenuMusic }) {
+/**
+ * Beat flashes down both edges, after osu!lazer's MenuSideFlashes, plus a
+ * burst of stars when a kiai section starts.
+ */
+function SideFlashes({ music }: { music: MenuMusic }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const leftRef = useRef<HTMLDivElement | null>(null);
   const rightRef = useRef<HTMLDivElement | null>(null);
   const spriteRef = useRef<HTMLCanvasElement | null>(null);
   const musicRef = useRef(music);
   musicRef.current = music;
-  const active = music.isPlaying && (music.track?.kiai.length ?? 0) > 0;
+  const active = music.isPlaying;
 
   useEffect(() => {
     if (!active) return;
@@ -1319,8 +1344,9 @@ function KiaiEffects({ music }: { music: MenuMusic }) {
     observer.observe(canvas);
 
     const stars: Star[] = [];
-    let envelope = 0;
-    let burst = 0;
+    const leftFlash = new SideFlash();
+    const rightFlash = new SideFlash();
+    let lastBeat: string | null = null;
     let pending = 0;
     let emitted = 0;
     let wasKiai = false;
@@ -1363,7 +1389,6 @@ function KiaiEffects({ music }: { music: MenuMusic }) {
       const opening = Math.round(STARS_PER_SIDE * STAR_OPENING);
       pending = STARS_PER_SIDE - opening;
       emitted = 0;
-      burst = 1;
       spawn(opening);
     };
 
@@ -1373,17 +1398,27 @@ function KiaiEffects({ music }: { music: MenuMusic }) {
       last = time;
 
       const current = musicRef.current;
-      const playback = current.getPlayback();
-      const ranges = current.track?.kiai;
-      const inKiai =
-        !!playback?.playing &&
-        !!ranges &&
-        ranges.some(
-          (r) => playback.position >= r.start && playback.position < r.end,
-        );
+      // Read FLASH_FADE_IN_MS ahead and backdated to the moment that early
+      // clock crossed the beat, so each fade-in completes on the beat itself.
+      const clock = beatClock(current, time, FLASH_FADE_IN_MS);
+      const inKiai = clock.synced && clock.kiai;
 
       if (inKiai && !wasKiai) fire();
       wasKiai = inKiai;
+
+      const beatKey = clock.synced ? `${clock.point}:${clock.index}` : null;
+      if (beatKey !== null && beatKey !== lastBeat) {
+        const sides = flashSides(clock.index, clock.meter, clock.kiai);
+        if (sides.left || sides.right) {
+          const amps = current.readAmplitudes();
+          const start = time - clock.phase;
+          if (sides.left)
+            leftFlash.trigger(time, start, flashPeak(amps?.left ?? 0, clock.kiai), clock.length);
+          if (sides.right)
+            rightFlash.trigger(time, start, flashPeak(amps?.right ?? 0, clock.kiai), clock.length);
+        }
+      }
+      lastBeat = beatKey;
 
       if (pending > 0) {
         emitted +=
@@ -1396,20 +1431,8 @@ function KiaiEffects({ music }: { music: MenuMusic }) {
         }
       }
 
-      envelope = inKiai
-        ? Math.min(1, envelope + delta / KIAI_FADE_IN_MS)
-        : Math.max(0, envelope - delta / KIAI_FADE_OUT_MS);
-      burst = Math.max(0, burst - delta / KIAI_BURST_DECAY_MS);
-
-      const beat = Math.pow(beatPulse(current, time), KIAI_GLOW_TAIL);
-      const glow = Math.min(
-        1,
-        envelope * (KIAI_GLOW_BASE + KIAI_GLOW_BEAT * beat) +
-          burst * burst * KIAI_BURST_GLOW,
-      );
-      const opacity = glow.toFixed(3);
-      left.style.opacity = opacity;
-      right.style.opacity = opacity;
+      left.style.opacity = leftFlash.value(time).toFixed(3);
+      right.style.opacity = rightFlash.value(time).toFixed(3);
 
       if (!stars.length) {
         if (painted) {
@@ -1475,13 +1498,13 @@ function KiaiEffects({ music }: { music: MenuMusic }) {
     >
       <div
         ref={leftRef}
-        className="absolute inset-y-0 left-0 w-[min(24%,17rem)] opacity-0 mix-blend-screen"
-        style={{ backgroundImage: KIAI_GLOW_LEFT }}
+        className="menu-side-flash absolute inset-y-0 left-0 w-[min(26vh,30vw)] opacity-0"
+        style={{ backgroundImage: SIDE_FLASH_LEFT }}
       />
       <div
         ref={rightRef}
-        className="absolute inset-y-0 right-0 w-[min(24%,17rem)] opacity-0 mix-blend-screen"
-        style={{ backgroundImage: KIAI_GLOW_RIGHT }}
+        className="menu-side-flash absolute inset-y-0 right-0 w-[min(26vh,30vw)] opacity-0"
+        style={{ backgroundImage: SIDE_FLASH_RIGHT }}
       />
       <canvas
         ref={canvasRef}
@@ -1526,6 +1549,8 @@ function Visualizer({
     const maxLen = pad * 0.9;
     const centre = box / 2;
     const node = pulseRef.current;
+    const punch = new AudioPunch();
+    const spring = new CriticalSpring(1, LOGO_SPRING);
     const roundStep = (Math.PI * 2) / ROUNDS;
     const step = roundStep / BARS;
     const segments = ROUNDS * BARS;
@@ -1582,13 +1607,10 @@ function Visualizer({
       }
 
       const drop = delta * AMP_DECAY_PER_MS;
-      let loud = 0;
       for (let i = 0; i < BARS; i++) {
         amps[i] -= drop;
         if (amps[i] < 0) amps[i] = 0;
-        loud += amps[i];
       }
-      loud /= BARS;
 
       let seg = 0;
       for (let r = 0; r < ROUNDS; r++) {
@@ -1628,9 +1650,26 @@ function Visualizer({
       ctx.globalCompositeOperation = "source-over";
 
       if (node) {
-        const beat = beatPulse(musicRef.current, time);
-        const scale = 1 + beat * 0.05 + Math.min(0.035, loud * 0.5);
-        node.style.transform = `scale(${scale.toFixed(4)})`;
+        const current = musicRef.current;
+        const clock = beatClock(current, time);
+        const grid = beatShape(clock.phase, clock.length);
+        const transients = clock.synced ? current.readTransients() : null;
+        const hit = punch.update(current.track?.id ?? null, transients, time);
+        let target = 1 + grid * LOGO_IDLE_DEPTH;
+        if (transients) {
+          const amps = current.readAmplitudes();
+          const peak = amps ? Math.max(amps.left, amps.right) : 0;
+          const level = Math.max(
+            0,
+            (peak - LOGO_LEVEL_FLOOR) / (1 - LOGO_LEVEL_FLOOR),
+          );
+          target =
+            1 +
+            hit * LOGO_PUNCH_DEPTH +
+            level * LOGO_LEVEL_DEPTH +
+            grid * LOGO_GRID_DEPTH;
+        }
+        node.style.transform = `scale(${spring.step(target, delta).toFixed(4)})`;
       }
     };
 

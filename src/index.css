@@ -1144,6 +1144,12 @@ textarea {
   }
 }
 
+/* Main-menu beat flashes: additive like osu!'s, screen where plus-lighter is missing. */
+.menu-side-flash { mix-blend-mode: screen; }
+@supports (mix-blend-mode: plus-lighter) {
+  .menu-side-flash { mix-blend-mode: plus-lighter; }
+}
+
 /* First visit in a browsing session. */
 @keyframes intro-ring {
   0% { opacity: 0; transform: scale(0.55); }
