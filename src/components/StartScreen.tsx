@@ -88,6 +88,8 @@ const LEFT_PANELS = 2;
 const RIGHT_PANELS = 4;
 const BG_FADE_MS = 900;
 const BG_MAX_LAYERS = 4;
+// How far the menu background leans in while only the logo is showing.
+const BG_CLOSED_ZOOM = 1.08;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
 const RING_RATIO = 0.42;
@@ -951,17 +953,24 @@ function MenuBackground({
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       <div ref={parallaxRef} className="absolute inset-0 opacity-[0.3] will-change-transform">
-        {layers.map((layer) => (
-          <img
-            key={layer.id}
-            src={layer.url}
-            alt=""
-            aria-hidden
-            className={`absolute inset-0 h-full w-full scale-110 object-cover blur-[2px] ${
-              layer.leaving ? "bg-fade-out" : "bg-fade-in"
-            }`}
-          />
-        ))}
+        {/* Leans in while the logo stands alone and eases back out as the
+            menu opens; kept apart from the parallax transform above. */}
+        <div
+          className="absolute inset-0 transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+          style={{ transform: `scale(${!open && !phone ? BG_CLOSED_ZOOM : 1})` }}
+        >
+          {layers.map((layer) => (
+            <img
+              key={layer.id}
+              src={layer.url}
+              alt=""
+              aria-hidden
+              className={`absolute inset-0 h-full w-full scale-110 object-cover blur-[2px] ${
+                layer.leaving ? "bg-fade-out" : "bg-fade-in"
+              }`}
+            />
+          ))}
+        </div>
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-ink-900/80 via-ink-900/66 to-ink-900/88" />
       {open && (
