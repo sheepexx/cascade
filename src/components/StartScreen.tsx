@@ -424,7 +424,7 @@ export function StartScreen({
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="no-scrollbar h-full overflow-y-auto">
       <div
         className="relative grid min-h-full place-items-center overflow-hidden"
         style={{
