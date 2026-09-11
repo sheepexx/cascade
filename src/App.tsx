@@ -6861,6 +6861,7 @@ export default function App() {
                 logoSamples={appSettings.logoSkinHitsounds ? "skin" : "menu"}
                 skinHitsounds={skin?.hitsounds ?? null}
                 editorKeybinds={editorKeybinds}
+                menuTips={appSettings.menuTipsEnabled}
               >
                 <LandingCopy />
               </StartScreen>
@@ -7399,6 +7400,10 @@ export default function App() {
           logoSkinHitsounds={appSettings.logoSkinHitsounds}
           onLogoSkinHitsounds={(v) =>
             setAppSettings((s) => ({ ...s, logoSkinHitsounds: v }))
+          }
+          menuTipsEnabled={appSettings.menuTipsEnabled}
+          onMenuTipsEnabled={(v) =>
+            setAppSettings((s) => ({ ...s, menuTipsEnabled: v }))
           }
           introEnabled={appSettings.introEnabled}
           onIntroEnabled={(v) =>

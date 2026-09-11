@@ -140,6 +140,9 @@ export const en = {
   "settings.logoSkinHitsounds": "Use your skin's hitsounds on the logo",
   "settings.logoSkinHitsoundsHint":
     "Hovering the menu logo plays a sound on every beat. Off plays osu!lazer's heartbeat and downbeat. On plays the equipped skin's hitnormal and hitfinish, or Cascade's default hitsounds when no skin is loaded.",
+  "settings.menuTips": "Show tips in the main menu",
+  "settings.menuTipsHint":
+    "Now and then a short \"Did you know?\" note appears near the bottom of the open menu, pointing out lesser-known features and shortcuts.",
   "settings.sessionIntro": "Play the session intro",
   "settings.sessionIntroHint":
     "Shows the short Cascade logo animation once when you first open the app in a browsing session.",

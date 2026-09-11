@@ -221,6 +221,7 @@ export function StartScreen({
   logoSamples = "menu",
   skinHitsounds = null,
   editorKeybinds = DEFAULT_EDITOR_KEYBINDS,
+  menuTips = true,
 }: {
   music: MenuMusic;
   onOpenChange?: (open: boolean) => void;
@@ -243,6 +244,8 @@ export function StartScreen({
   skinHitsounds?: Record<string, Blob> | null;
   /** So the menu tips name the keys this user actually has bound. */
   editorKeybinds?: EditorKeybinds;
+  /** The occasional "Did you know?" tips; off in Settings → General. */
+  menuTips?: boolean;
 }) {
   const counts = menuPanelCounts(Boolean(onExit));
   const panels = counts.left + counts.right;
@@ -509,7 +512,7 @@ export function StartScreen({
           </div>
         </div>
 
-        {wide && (
+        {wide && menuTips && (
           // Along the bottom edge, which the osu! banner takes over when it
           // shows, so the tips give way to it.
           <MenuTips active={open && !osuBanner} keybinds={editorKeybinds} />
@@ -727,8 +730,8 @@ export function StartScreen({
 
 // Tips turn up now and then rather than sitting there: the first a little
 // while after the menu opens, then one every so often, each for a while.
-const TIP_FIRST_MS: [number, number] = [4000, 12000];
-const TIP_GAP_MS: [number, number] = [25000, 55000];
+const TIP_FIRST_MS: [number, number] = [15000, 30000];
+const TIP_GAP_MS: [number, number] = [90000, 180000];
 const TIP_SHOW_MS = 10000;
 
 const between = ([min, max]: [number, number]) =>

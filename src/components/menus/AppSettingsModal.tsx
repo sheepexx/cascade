@@ -120,6 +120,8 @@ type Props = {
   onMenuMusicEnabled: (value: boolean) => void;
   logoSkinHitsounds: boolean;
   onLogoSkinHitsounds: (value: boolean) => void;
+  menuTipsEnabled: boolean;
+  onMenuTipsEnabled: (value: boolean) => void;
   introEnabled: boolean;
   onIntroEnabled: (value: boolean) => void;
   shortcutNoticesEnabled: boolean;
@@ -229,6 +231,8 @@ export function AppSettingsModal({
   onMenuMusicEnabled,
   logoSkinHitsounds,
   onLogoSkinHitsounds,
+  menuTipsEnabled,
+  onMenuTipsEnabled,
   introEnabled,
   onIntroEnabled,
   shortcutNoticesEnabled,
@@ -446,6 +450,12 @@ export function AppSettingsModal({
                   tip={t("settings.logoSkinHitsoundsHint")}
                   checked={logoSkinHitsounds}
                   onChange={onLogoSkinHitsounds}
+                />
+                <SettingToggle
+                  label={t("settings.menuTips")}
+                  tip={t("settings.menuTipsHint")}
+                  checked={menuTipsEnabled}
+                  onChange={onMenuTipsEnabled}
                 />
                 <SettingToggle
                   label={t("settings.sessionIntro")}
