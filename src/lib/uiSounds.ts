@@ -154,6 +154,15 @@ function synth(name: SynthSound, value = 0.5): void {
     tone(ctx, at, { ...sound, gain: sound.gain * scale }, pitch);
 }
 
+/** The pitched tick for the shared Slider (Controls.tsx). It is not a native
+ *  range input, so the input listener below never hears it. */
+export function playSliderTick(normalized: number): void {
+  const now = performance.now();
+  if (now - lastSliderAt < 30) return;
+  lastSliderAt = now;
+  playUiSound("slider", normalized);
+}
+
 export function preloadUiSounds(): void {
   for (const name of Object.keys(FILES) as UiSound[]) template(name)?.load();
 }

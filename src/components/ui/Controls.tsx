@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { formatUiNumber } from "../../lib/formatUiNumber";
+import { playSliderTick } from "../../lib/uiSounds";
 
 /** Thumb diameter per size, in px; the CSS in index.css draws to the same. */
 const SLIDER_THUMB = { sm: 14, md: 18 } as const;
@@ -78,6 +79,7 @@ export function Slider({
     const next = snap(raw);
     if (next === lastRef.current) return;
     lastRef.current = next;
+    playSliderTick((next - min) / span);
     handlersRef.current.onChange(next);
   };
 
@@ -144,7 +146,10 @@ export function Slider({
     e.stopPropagation();
     const snapped = snap(next);
     lastRef.current = snapped;
-    if (snapped !== value) handlersRef.current.onChange(snapped);
+    if (snapped !== value) {
+      playSliderTick((snapped - min) / span);
+      handlersRef.current.onChange(snapped);
+    }
     handlersRef.current.onChangeEnd?.(snapped);
   };
 
