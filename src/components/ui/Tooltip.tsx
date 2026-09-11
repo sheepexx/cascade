@@ -120,7 +120,7 @@ export function Tooltip({
         onBlur={hide}
         className={`cursor-help outline-none transition-colors ${
           underline
-            ? "decoration-slate-600 decoration-dotted underline-offset-4 hover:decoration-slate-400 focus-visible:decoration-accent [text-decoration-line:underline]"
+            ? "decoration-white/20 decoration-dotted underline-offset-4 hover:decoration-slate-400 focus-visible:decoration-accent [text-decoration-line:underline]"
             : ""
         } ${className}`}
       >

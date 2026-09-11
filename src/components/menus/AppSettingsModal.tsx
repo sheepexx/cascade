@@ -538,12 +538,12 @@ export function AppSettingsModal({
         )}
 
         {tab === "Editor" && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-8">
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.layout")}
               </h3>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <SettingToggle
                   label={t("settings.showDifficultyPanel")} tip={t("settings.layoutHint")} diagram="difficultyPanel"
                   checked={difficultyPanelOpen}
@@ -579,7 +579,7 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.playfield")}
               </h3>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-4">
                 <SliderRow
                   label={t("settings.backgroundDim")}
                   tip={t("settings.playfieldHint")}
@@ -616,7 +616,7 @@ export function AppSettingsModal({
                   value={noteHeightScale}
                   onChange={onNoteHeightScale}
                 />
-                <div className="mt-2 flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   <SettingToggle
                     label={t("settings.waveformOnLane")}
                     tip={t("settings.waveformHint")}
@@ -638,7 +638,7 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.scrolling")}
               </h3>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <SettingToggle
                   label={t("settings.smoothScrolling")}
                   tip={t("settings.smoothScrollingHint")}
@@ -661,7 +661,7 @@ export function AppSettingsModal({
                   onChange={onBpmAffectsScroll}
                 />
               </div>
-              <div className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-200">
+              <div className="mt-4 flex items-center justify-between gap-3 text-sm text-slate-200">
                 <Tip text={t("settings.scrollDirectionHint")} diagram="scrollDirection">{t("settings.scrollDirection")}</Tip>
                 <button
                   type="button"
@@ -700,7 +700,7 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.longNotes")}
               </h3>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-4">
                 <SliderRow
                   label={t("settings.bodyWidth")}
                   tip={t("settings.bodyWidthHint")}
