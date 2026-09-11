@@ -330,6 +330,7 @@ export function AppSettingsModal({
       title={t("settings.title")}
       accent={MENU_ACCENTS.settings}
       width="max-w-4xl"
+      height="h-[84vh]"
       headerExtra={
         accountSyncStatus ? (
           <AccountSyncIndicator
@@ -339,9 +340,9 @@ export function AppSettingsModal({
         ) : null
       }
     >
-      {/* Floor the height so switching between a long tab (Playtest) and a
-          short one (Audio) doesn't collapse the dialog. */}
-      <div className="flex min-h-[min(30rem,60vh)] flex-col gap-5">
+      {/* One height for every tab (set on the Modal above), so switching
+          tabs never moves the tab bar out from under the pointer. */}
+      <div className="flex flex-col gap-5">
         <SegmentedControl
           value={tab}
           onChange={setTab}

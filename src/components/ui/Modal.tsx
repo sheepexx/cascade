@@ -14,6 +14,9 @@ type Props = {
   footer?: ReactNode;
   headerExtra?: ReactNode;
   width?: string;
+  /** Fixed panel height (a Tailwind class). A tabbed dialog uses it so every
+   * tab is the same size and a centred panel never shifts between them. */
+  height?: string;
   center?: boolean;
   slideUp?: boolean;
   modeless?: boolean;
@@ -32,6 +35,7 @@ export function Modal({
   footer,
   headerExtra,
   width = "max-w-md",
+  height = "",
   center = true,
   slideUp = false,
   modeless = false,
@@ -162,7 +166,7 @@ export function Modal({
           aria-labelledby={titleId}
           tabIndex={-1}
           style={accent ? ({ "--modal-accent": accent } as CSSProperties) : undefined}
-          className={`flex max-h-[84vh] w-full ${modeless ? "" : width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] outline-none ${
+          className={`flex max-h-[84vh] ${height} w-full ${modeless ? "" : width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] outline-none ${
             closing
               ? slideUp
                 ? "modal-panel-up-out"
