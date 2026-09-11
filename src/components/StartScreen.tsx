@@ -20,6 +20,7 @@ import {
   idleBeat,
   type MenuBeat,
 } from "../lib/menuPulse";
+import { LOGO_SAMPLE_EARLY_MS, LogoHitsounds } from "../lib/logoHitsounds";
 import { MENU_ACCENTS } from "../lib/menuTheme";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
@@ -72,6 +73,7 @@ const LOGO_GRID_DEPTH = 0.02;
 const LOGO_IDLE_DEPTH = 0.05;
 const LOGO_SPRING = 60;
 const menuLoudness = new LoudnessTracker();
+const logoHitsounds = new LogoHitsounds();
 const LOGO_CLOSED = 520;
 const LOGO_OPEN = 196;
 const LOGO_MIN = 168;
@@ -199,6 +201,7 @@ export function StartScreen({
   children,
   players,
   osuBanner,
+  logoHitsoundVolume = 0,
 }: {
   music: MenuMusic;
   onOpenChange?: (open: boolean) => void;
@@ -213,6 +216,8 @@ export function StartScreen({
   players?: OnlinePlayer[];
   /** The offer to open the map osu! is sitting on, along the bottom edge. */
   osuBanner?: ReactNode;
+  /** Effects × master volume for the logo's hover hitsounds; 0 mutes them. */
+  logoHitsoundVolume?: number;
 }) {
   const counts = menuPanelCounts(Boolean(onExit));
   const panels = counts.left + counts.right;
@@ -228,6 +233,9 @@ export function StartScreen({
   const stackedRef = useRef<HTMLDivElement | null>(null);
   const [stackedHeight, setStackedHeight] = useState(0);
   const [barHovered, setBarHovered] = useState(false);
+  const [logoHovered, setLogoHovered] = useState(false);
+  const logoVolumeRef = useRef(logoHitsoundVolume);
+  logoVolumeRef.current = logoHitsoundVolume;
   const musicRef = useRef(music);
   musicRef.current = music;
   // Held so losing osu! can slide the slab away rather than blink it out. The
@@ -253,6 +261,36 @@ export function StartScreen({
       node.style.removeProperty("--beat");
     };
   }, [barHovered]);
+
+  // While the pointer rests on the logo, each beat plays a stock hitsound.
+  // Beats are caught early and only when freshly crossed, so a beat already
+  // under way (or the jump when music starts) never plays off the grid.
+  useEffect(() => {
+    if (!logoHovered) return;
+    logoHitsounds.preload();
+    let last: string | null = null;
+    let raf = 0;
+    const tick = (time: number) => {
+      raf = requestAnimationFrame(tick);
+      const clock = beatClock(musicRef.current, time, LOGO_SAMPLE_EARLY_MS);
+      const key = `${clock.point}:${clock.index}`;
+      if (
+        last !== null &&
+        key !== last &&
+        clock.index >= 0 &&
+        clock.phase < LOGO_SAMPLE_EARLY_MS
+      ) {
+        logoHitsounds.play(
+          clock.index % clock.meter === 0,
+          LOGO_SAMPLE_EARLY_MS - clock.phase,
+          logoVolumeRef.current,
+        );
+      }
+      last = key;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [logoHovered]);
 
   useEffect(() => {
     onOpenChange?.(open);
@@ -549,6 +587,8 @@ export function StartScreen({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
+          onPointerEnter={(e) => setLogoHovered(e.pointerType !== "touch")}
+          onPointerLeave={() => setLogoHovered(false)}
           aria-label={t("menu.open")}
           aria-expanded={open}
           className="group absolute left-1/2 top-1/2 z-20 outline-none transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)]"

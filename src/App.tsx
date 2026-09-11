@@ -6849,6 +6849,11 @@ export default function App() {
                 onSettings={() => openSettings()}
                 onExit={canExitDesktop() ? handleExitApp : undefined}
                 osuBanner={osuBanner}
+                logoHitsoundVolume={
+                  appSettings.hitsoundsEnabled
+                    ? appSettings.hitsoundVolume * appSettings.masterVolume
+                    : 0
+                }
               >
                 <LandingCopy />
               </StartScreen>
