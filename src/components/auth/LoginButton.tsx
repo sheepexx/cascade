@@ -5,6 +5,7 @@ import { useT } from "../../lib/i18n";
 import { Button } from "../ui/Controls";
 import { Skeleton } from "../ui/Skeleton";
 import { ChevronDownIcon } from "../ui/Icons";
+import { siteUrl } from "../../lib/siteAssets";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
 const MENU_EXIT_MS = 160;
@@ -257,7 +258,7 @@ export function AccountControl({
             )}
             <div className="my-1 h-px bg-ink-600" />
             <a
-              href="/terms"
+              href={siteUrl("terms")}
               target="_blank"
               rel="noreferrer"
               className="block w-full px-3 py-1.5 text-left text-sm text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"
@@ -266,7 +267,7 @@ export function AccountControl({
               {t("settings.terms")}
             </a>
             <a
-              href="/privacy"
+              href={siteUrl("privacy")}
               target="_blank"
               rel="noreferrer"
               className="block w-full px-3 py-1.5 text-left text-sm text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"

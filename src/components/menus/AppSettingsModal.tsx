@@ -46,6 +46,7 @@ import {
   UI_SCALE_STEP,
 } from "../../lib/uiScale";
 import { MENU_ACCENTS } from "../../lib/menuTheme";
+import { siteUrl } from "../../lib/siteAssets";
 
 type Props = {
   onAudioSetup?: () => void;
@@ -1338,7 +1339,7 @@ function LegalSection() {
       </h3>
       <div className="flex flex-wrap gap-4 text-xs">
         <a
-          href="/terms"
+          href={siteUrl("terms")}
           target="_blank"
           rel="noreferrer"
           className="text-accent-soft underline-offset-2 hover:underline"
@@ -1346,7 +1347,7 @@ function LegalSection() {
           {t("settings.terms")}
         </a>
         <a
-          href="/privacy"
+          href={siteUrl("privacy")}
           target="_blank"
           rel="noreferrer"
           className="text-accent-soft underline-offset-2 hover:underline"

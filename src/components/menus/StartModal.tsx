@@ -30,7 +30,7 @@ import {
   type BrowseEntry,
   type BrowseSort,
 } from "../../lib/projectSearch";
-import { siteAsset } from "../../lib/siteAssets";
+import { siteAsset, siteUrl } from "../../lib/siteAssets";
 import { MENU_ACCENTS } from "../../lib/menuTheme";
 import {
   ArchiveIcon,
@@ -560,7 +560,7 @@ export function WelcomeModal({
           <span className="text-sm text-slate-400">
             {t("startModal.loginPrompt")}{" "}
             <a
-              href="/terms"
+              href={siteUrl("terms")}
               target="_blank"
               rel="noreferrer"
               className="whitespace-nowrap text-slate-500 underline decoration-ink-500 underline-offset-2 transition hover:text-slate-300"
@@ -568,7 +568,7 @@ export function WelcomeModal({
               {t("settings.terms")}
             </a>{" "}
             <a
-              href="/privacy"
+              href={siteUrl("privacy")}
               target="_blank"
               rel="noreferrer"
               className="whitespace-nowrap text-slate-500 underline decoration-ink-500 underline-offset-2 transition hover:text-slate-300"

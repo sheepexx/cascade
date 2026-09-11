@@ -28,6 +28,7 @@ import {
 import { MENU_ACCENTS } from "../lib/menuTheme";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import { isDesktopApp } from "../lib/pwa";
+import { siteUrl } from "../lib/siteAssets";
 import {
   DEFAULT_EDITOR_KEYBINDS,
   editorKeyLabel,
@@ -704,7 +705,7 @@ export function StartScreen({
           <span>Cascade · v{__APP_VERSION__}</span>
           <span aria-hidden>·</span>
           <a
-            href="/terms"
+            href={siteUrl("terms")}
             target="_blank"
             rel="noreferrer"
             className="transition hover:text-white"
@@ -713,7 +714,7 @@ export function StartScreen({
           </a>
           <span aria-hidden>·</span>
           <a
-            href="/privacy"
+            href={siteUrl("privacy")}
             target="_blank"
             rel="noreferrer"
             className="transition hover:text-white"

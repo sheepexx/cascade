@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { siteUrl } from "./siteAssets";
 import { decodeAudioBlob, renderTrimmedAudio } from "./audioTrim";
 import { loadMp3Encoder } from "./lameEncoder";
 import { computeMapStats } from "./mapStats";
@@ -81,9 +82,7 @@ export function slugFromPath(pathname: string): string | null {
 }
 
 export function sharedMapUrl(slug: string): string {
-  const origin =
-    typeof location === "undefined" ? "https://cascade.sheepex.net" : location.origin;
-  return `${origin}/m/${slug}`;
+  return siteUrl(`m/${slug}`);
 }
 
 function publicUrl(path: string | null): string | null {
