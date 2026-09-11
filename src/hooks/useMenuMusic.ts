@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   listLocalTrackSummaries,
   loadLocalTrack,
-  loadVolume,
   type LocalTrack,
   type LocalTrackSummary,
 } from "../lib/persistence";
@@ -89,7 +88,12 @@ function toMenuTrack(row: LocalTrack): MenuTrack {
   };
 }
 
-export function useMenuMusic(enabled: boolean, suspended = false): MenuMusic {
+/** `level` is the music volume already scaled by master, 0..1. */
+export function useMenuMusic(
+  enabled: boolean,
+  suspended = false,
+  level = 1,
+): MenuMusic {
   const active = enabled && !suspended;
   const [playlist, setPlaylist] = useState<LocalTrackSummary[]>([]);
   const [track, setTrack] = useState<MenuTrack | null>(null);
@@ -105,7 +109,8 @@ export function useMenuMusic(enabled: boolean, suspended = false): MenuMusic {
   const levelsRef = useRef(new Uint8Array(new ArrayBuffer(FFT_SIZE / 2)));
   const wantsPlayRef = useRef(true);
   const resumeOnEnableRef = useRef(true);
-  const volumeRef = useRef(MENU_VOLUME);
+  const volumeRef = useRef(Math.min(1, Math.max(0, level)) * MENU_VOLUME);
+  volumeRef.current = Math.min(1, Math.max(0, level)) * MENU_VOLUME;
   const cancelFadeRef = useRef<(() => void) | null>(null);
 
   const fade = useCallback(
@@ -118,6 +123,13 @@ export function useMenuMusic(enabled: boolean, suspended = false): MenuMusic {
     },
     [],
   );
+
+  // Follow Master/Music changes live instead of only on the next track.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || el.paused || !wantsPlayRef.current) return;
+    fade(el, volumeRef.current, 120);
+  }, [level, fade]);
 
   useEffect(() => {
     if (!enabled) {
@@ -235,8 +247,6 @@ export function useMenuMusic(enabled: boolean, suspended = false): MenuMusic {
     if (!enabled || !track) return;
     const el = new Audio(track.audioUrl);
     el.preload = "auto";
-    const stored = loadVolume();
-    volumeRef.current = Math.min(1, Math.max(0, (stored ?? 1) * MENU_VOLUME));
     el.volume = 0;
     audioRef.current = el;
 

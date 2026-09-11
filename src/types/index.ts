@@ -418,6 +418,8 @@ export type AppSettings = {
   hitsoundsEnabled: boolean;
   hitsoundSet: HitsoundSet;
   hitsoundVolume: number;
+  /** Scales every sound Cascade makes: music, hitsounds and interface sounds. */
+  masterVolume: number;
   dimBackground: number;
   smoothScrolling: boolean;
   showWaveform: boolean;
@@ -493,6 +495,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundsEnabled: true,
   hitsoundSet: "normal",
   hitsoundVolume: 0.18,
+  masterVolume: 1,
   dimBackground: 82,
   smoothScrolling: true,
   showWaveform: false,

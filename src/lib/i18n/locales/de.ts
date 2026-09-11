@@ -84,7 +84,7 @@ export const de: PartialCatalog = {
   "settings.altWheelInterface": "Oberflächengröße",
   "settings.altWheelTimeline": "Zeitleisten-Zoom",
   "settings.altWheelPlayfield": "Spielfeldgröße",
-  "settings.altWheelVolume": "Musiklautstärke",
+  "settings.altWheelVolume": "Lautstärke",
 
   "settings.playfield": "Spielfeld",
   "settings.simplifyBottomTimeline": "Untere Zeitleiste vereinfachen",
@@ -199,7 +199,13 @@ export const de: PartialCatalog = {
     "Hitsounds folgen jetzt der Map: jede Note spielt ihr eigenes Sample-Set (normal / soft / drum) und ihre Additions (whistle, finish, clap). Bearbeite sie mit der Hitsound-Leiste am unteren Rand des Editors oder mit den Tasten W / F / C.",
   "settings.volume": "Lautstärke",
   "settings.hitsoundVolumeHint":
-    "Unabhängig von der Songlautstärke. Auch über die Transportleiste („Hit“) einstellbar.",
+    "Hitsound-Lautstärke, unabhängig vom Song. Auch über die Lautstärkeringe (Alt + Mausrad) einstellbar.",
+  "settings.masterVolume": "Master",
+  "settings.masterVolumeHint":
+    "Skaliert alles, was Cascade abspielt: Musik, Hitsounds und Oberflächenklänge.",
+  "settings.musicVolume": "Musik",
+  "settings.musicVolumeHint": "Der Song im Editor und die Musik im Hauptmenü.",
+  "settings.effectsVolume": "Effekte",
   "settings.interface": "Oberfläche",
   "settings.uiSounds": "UI-Soundeffekte",
   "settings.uiSoundsHint":

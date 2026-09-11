@@ -72,6 +72,10 @@ type Props = {
   onHitsoundsEnabled: (value: boolean) => void;
   hitsoundVolume: number;
   onHitsoundVolume: (value: number) => void;
+  masterVolume: number;
+  onMasterVolume: (value: number) => void;
+  musicVolume: number;
+  onMusicVolume: (value: number) => void;
   dimBackground: number;
   onDimBackground: (value: number) => void;
   smoothScrolling: boolean;
@@ -175,6 +179,10 @@ export function AppSettingsModal({
   onHitsoundsEnabled,
   hitsoundVolume,
   onHitsoundVolume,
+  masterVolume,
+  onMasterVolume,
+  musicVolume,
+  onMusicVolume,
   dimBackground,
   onDimBackground,
   smoothScrolling,
@@ -375,6 +383,7 @@ export function AppSettingsModal({
                 max={MAX_UI_SCALE}
                 step={UI_SCALE_STEP}
                 value={uiScale}
+                commitOnRelease
                 onChange={onUiScale}
               />
               <label className="mt-4 block">
@@ -383,7 +392,6 @@ export function AppSettingsModal({
                     {t("settings.altWheelAction")}
                   </Tip>
                 </span>
-                commitOnRelease
                 <Select
                   className="mt-2 w-full"
                   value={altWheelAction}
@@ -1163,31 +1171,52 @@ export function AppSettingsModal({
             )}
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.hitsounds")}
+                {t("settings.volume")}
               </h3>
               <div className="flex flex-col gap-4">
-                <SettingToggle
-                  label={t("settings.playHitsounds")}
-                  tip={t("settings.hitsoundsHint")}
-                  checked={hitsoundsEnabled}
-                  onChange={onHitsoundsEnabled}
-                />
-
-                <div className="flex flex-col gap-2">
-                </div>
-
                 <SliderRow
-                  label={t("settings.volume")}
+                  label={t("settings.masterVolume")}
+                  tip={t("settings.masterVolumeHint")}
+                  display={`${Math.round(masterVolume * 100)}%`}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={masterVolume}
+                  onChange={onMasterVolume}
+                />
+                <SliderRow
+                  label={t("settings.musicVolume")}
+                  tip={t("settings.musicVolumeHint")}
+                  display={`${Math.round(musicVolume * 100)}%`}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={musicVolume}
+                  onChange={onMusicVolume}
+                />
+                <SliderRow
+                  label={t("settings.effectsVolume")}
                   tip={t("settings.hitsoundVolumeHint")}
                   display={`${Math.round(hitsoundVolume * 100)}%`}
                   min={0}
                   max={1}
                   step={0.01}
                   value={hitsoundVolume}
-                  disabled={!hitsoundsEnabled}
                   onChange={onHitsoundVolume}
                 />
               </div>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.hitsounds")}
+              </h3>
+              <SettingToggle
+                label={t("settings.playHitsounds")}
+                tip={t("settings.hitsoundsHint")}
+                checked={hitsoundsEnabled}
+                onChange={onHitsoundsEnabled}
+              />
             </section>
 
             <section>
@@ -1538,6 +1567,7 @@ function SliderRow({
   step,
   value,
   disabled = false,
+  commitOnRelease = false,
   onChange,
 }: {
   label: string;
@@ -1550,53 +1580,10 @@ function SliderRow({
   step: number;
   value: number;
   disabled?: boolean;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div
-      className={`flex items-center gap-3 text-xs text-slate-300 ${
-        disabled ? "opacity-45" : ""
-      }`}
-    >
-      <Tip
-        text={tip}
-        diagram={diagram}
-        value={draft !== null && diagramValue !== undefined ? draft : diagramValue}
-      >
-        {label}
-      </Tip>
-      <input
-        type="range"
-        aria-label={label}
-        min={min}
-        max={max}
-        step={step}
-  commitOnRelease = false,
-        value={shown}
-        disabled={disabled}
-        onPointerDown={beginDrag}
-        onChange={(e) => {
-          const next = Number(e.target.value);
-          if (draggingRef.current) {
-            draftRef.current = next;
-            setDraft(next);
-          } else {
-            onChange(next);
-          }
-        }}
-        className="ml-auto h-1.5 w-32 shrink-0 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed uimd:w-40"
-      />
-      <span className="w-12 shrink-0 text-right font-medium tabular-nums text-slate-200">
-        {typeof display === "function" ? display(shown) : display}
-      </span>
-    </div>
-  );
-}
-
   /** Hold the value locally while dragging and apply it on release. */
   commitOnRelease?: boolean;
-function Tip({
-  text,
+  onChange: (value: number) => void;
+}) {
   // The interface-scale slider resizes itself as it applies: the thumb slides
   // out from under the pointer, the browser reads a new value, and the whole
   // UI flickers between sizes. Pointer drags therefore only move a local
@@ -1622,6 +1609,48 @@ function Tip({
     window.addEventListener("pointercancel", commit);
   };
 
+  return (
+    <div
+      className={`flex items-center gap-3 text-xs text-slate-300 ${
+        disabled ? "opacity-45" : ""
+      }`}
+    >
+      <Tip
+        text={tip}
+        diagram={diagram}
+        value={draft !== null && diagramValue !== undefined ? draft : diagramValue}
+      >
+        {label}
+      </Tip>
+      <input
+        type="range"
+        aria-label={label}
+        min={min}
+        max={max}
+        step={step}
+        value={shown}
+        disabled={disabled}
+        onPointerDown={beginDrag}
+        onChange={(e) => {
+          const next = Number(e.target.value);
+          if (draggingRef.current) {
+            draftRef.current = next;
+            setDraft(next);
+          } else {
+            onChange(next);
+          }
+        }}
+        className="ml-auto h-1.5 w-32 shrink-0 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent disabled:cursor-not-allowed uimd:w-40"
+      />
+      <span className="w-12 shrink-0 text-right font-medium tabular-nums text-slate-200">
+        {typeof display === "function" ? display(shown) : display}
+      </span>
+    </div>
+  );
+}
+
+function Tip({
+  text,
   diagram,
   value,
   children,

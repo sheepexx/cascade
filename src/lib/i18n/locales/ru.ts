@@ -84,7 +84,7 @@ export const ru: PartialCatalog = {
   "settings.altWheelInterface": "Размер интерфейса",
   "settings.altWheelTimeline": "Масштаб шкалы времени",
   "settings.altWheelPlayfield": "Размер игрового поля",
-  "settings.altWheelVolume": "Громкость музыки",
+  "settings.altWheelVolume": "Громкость",
 
   "settings.playfield": "Игровое поле",
   "settings.simplifyBottomTimeline": "Упростить нижнюю шкалу",
@@ -200,7 +200,13 @@ export const ru: PartialCatalog = {
     "Хитсаунды теперь следуют за картой: каждая нота играет свой набор сэмплов (normal / soft / drum) и дополнения (whistle, finish, clap). Меняйте их на панели хитсаундов внизу редактора или клавишами W / F / C.",
   "settings.volume": "Громкость",
   "settings.hitsoundVolumeHint":
-    "Не зависит от громкости песни. Также настраивается на панели управления («Hit»).",
+    "Громкость хитсаундов, не зависит от песни. Также настраивается кольцами громкости (Alt + колесо мыши).",
+  "settings.masterVolume": "Общая",
+  "settings.masterVolumeHint":
+    "Масштабирует всё, что воспроизводит Cascade: музыку, хитсаунды и звуки интерфейса.",
+  "settings.musicVolume": "Музыка",
+  "settings.musicVolumeHint": "Песня в редакторе и музыка в главном меню.",
+  "settings.effectsVolume": "Эффекты",
   "settings.interface": "Интерфейс",
   "settings.uiSounds": "Звуки интерфейса",
   "settings.uiSoundsHint":

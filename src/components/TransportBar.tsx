@@ -15,8 +15,6 @@ type Props = {
   audio: AudioController;
   view: ViewState;
   onView: (v: ViewState) => void;
-  hitsoundVolume: number;
-  onHitsoundVolume: (value: number) => void;
   jumpOpen: boolean;
   onJumpOpenChange: (open: boolean) => void;
 };
@@ -25,12 +23,10 @@ export function TransportBar({
   audio,
   view,
   onView,
-  hitsoundVolume,
-  onHitsoundVolume,
   jumpOpen,
   onJumpOpenChange,
 }: Props) {
-  const { currentTime, volume, setVolume } = audio;
+  const { currentTime } = audio;
   const [jumpDraft, setJumpDraft] = useState("");
   const [jumpInvalid, setJumpInvalid] = useState(false);
   const [copied, setCopied] = useState<"ms" | "timestamp" | null>(null);
@@ -84,40 +80,9 @@ export function TransportBar({
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-white/10 bg-ink-800/55 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.16)] backdrop-blur-xl uixl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] uixl:gap-4 uixl:px-4 uixl:py-3">
-      <div className="order-1 flex min-w-0 items-center gap-2 uixl:gap-4">
-        <label className="flex items-center gap-2 text-xs text-slate-400">
-          Vol
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            className="h-1 w-14 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 uixl:w-20"
-          />
-          <span className="hidden w-7 font-mono text-slate-300 uimd:inline-block uixl:w-8">
-            {Math.round(volume * 100)}%
-          </span>
-        </label>
-
-        <label className="flex items-center gap-2 text-xs text-slate-400">
-          {t("transport.hit")}
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={hitsoundVolume}
-            onChange={(e) => onHitsoundVolume(Number(e.target.value))}
-            className="h-1 w-14 cursor-pointer appearance-none rounded-full bg-ink-600 accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 uixl:w-20"
-            title={t("transport.hitsoundVolume")}
-          />
-          <span className="hidden w-7 font-mono text-slate-300 uimd:inline-block uixl:w-8">
-            {Math.round(hitsoundVolume * 100)}%
-          </span>
-        </label>
-      </div>
+      {/* Keeps the time readout centred in the three-column layout; volume
+          lives in the Alt+wheel rings and Settings → Audio. */}
+      <div aria-hidden className="order-1 min-w-0" />
 
       <div className="order-3 col-span-2 flex items-center justify-center gap-2 uixl:order-2 uixl:col-span-1">
         {jumpOpen ? (

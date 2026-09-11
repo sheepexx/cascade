@@ -81,7 +81,7 @@ export const zhCN: PartialCatalog = {
   "settings.altWheelInterface": "界面大小",
   "settings.altWheelTimeline": "时间轴缩放",
   "settings.altWheelPlayfield": "游戏区域大小",
-  "settings.altWheelVolume": "音乐音量",
+  "settings.altWheelVolume": "音量",
 
   "settings.playfield": "游戏区域",
   "settings.simplifyBottomTimeline": "简化底部时间轴",
@@ -195,7 +195,12 @@ export const zhCN: PartialCatalog = {
   "settings.hitsoundsHint":
     "打击音效现在跟随谱面：每个音符播放自己的采样组（normal / soft / drum）与附加音效（whistle、finish、clap）。可在编辑器底部的打击音效栏或用 W / F / C 键编辑。",
   "settings.volume": "音量",
-  "settings.hitsoundVolumeHint": "独立于歌曲音量。也可在控制栏（“Hit”）中调整。",
+  "settings.hitsoundVolumeHint": "打击音效音量，独立于歌曲。也可通过音量环（Alt + 滚轮）调整。",
+  "settings.masterVolume": "主音量",
+  "settings.masterVolumeHint": "调整 Cascade 播放的所有声音：音乐、打击音效和界面音效。",
+  "settings.musicVolume": "音乐",
+  "settings.musicVolumeHint": "编辑器中的歌曲和主菜单音乐。",
+  "settings.effectsVolume": "音效",
   "settings.interface": "界面",
   "settings.uiSounds": "界面音效",
   "settings.uiSoundsHint": "邀请、云端保存和谱面导出时的点击、确认与提示音。",

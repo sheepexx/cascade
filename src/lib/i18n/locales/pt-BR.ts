@@ -84,7 +84,7 @@ export const ptBR: PartialCatalog = {
   "settings.altWheelInterface": "Tamanho da interface",
   "settings.altWheelTimeline": "Zoom da linha do tempo",
   "settings.altWheelPlayfield": "Tamanho da área de jogo",
-  "settings.altWheelVolume": "Volume da música",
+  "settings.altWheelVolume": "Volume",
 
   "settings.playfield": "Área de jogo",
   "settings.simplifyBottomTimeline": "Simplificar linha do tempo inferior",
@@ -199,7 +199,13 @@ export const ptBR: PartialCatalog = {
     "Os hitsounds agora seguem o mapa: cada nota toca o próprio conjunto de samples (normal / soft / drum) e as adições (whistle, finish, clap). Edite pela barra de hitsounds na parte de baixo do editor, ou com as teclas W / F / C.",
   "settings.volume": "Volume",
   "settings.hitsoundVolumeHint":
-    "Independente do volume da música. Também ajustável pela barra de controles (“Hit”).",
+    "Volume dos hitsounds, independente da música. Também ajustável pelos anéis de volume (Alt + roda do mouse).",
+  "settings.masterVolume": "Geral",
+  "settings.masterVolumeHint":
+    "Ajusta tudo o que o Cascade toca: música, hitsounds e sons da interface.",
+  "settings.musicVolume": "Música",
+  "settings.musicVolumeHint": "A música no editor e a do menu principal.",
+  "settings.effectsVolume": "Efeitos",
   "settings.interface": "Interface",
   "settings.uiSounds": "Efeitos sonoros da interface",
   "settings.uiSoundsHint":

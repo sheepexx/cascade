@@ -91,6 +91,7 @@ export function useAudio(
   timeScale = 1,
   preservePitch = false,
   exclusive = false,
+  masterVolume = 1,
 ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -165,8 +166,15 @@ export function useAudio(
     [],
   );
 
+  const masterVolumeRef = useRef(clamp01(masterVolume));
+  masterVolumeRef.current = clamp01(masterVolume);
+
   const effectivePower = useCallback(
-    () => effectiveAudioPower(volumeRef.current, ambientDuckedRef.current),
+    () =>
+      effectiveAudioPower(
+        volumeRef.current * masterVolumeRef.current,
+        ambientDuckedRef.current,
+      ),
     [],
   );
 
@@ -850,6 +858,10 @@ export function useAudio(
   // volume rather than the value React has rendered so far.
   const getVolume = useCallback(() => volumeRef.current, []);
 
+  useEffect(() => {
+    applyOutputMix(0.14);
+  }, [masterVolume, applyOutputMix]);
+
   const setAmbientDucking = useCallback(
     (ducked: boolean) => {
       if (ambientDuckedRef.current === ducked) return;
@@ -984,7 +996,7 @@ export function useAudio(
 
   const native = useNativeAudio({ enabled: exclusive && supportsExclusiveAudio() && !preservePitch,
     buffer: buffer ?? null, region, timeScale: scale, rate: playbackRate,
-    volume: effectiveAudioPower(volume, nativeDucked), initialPositionMs: getCurrentTime() * scale });
+    volume: effectiveAudioPower(volume * clamp01(masterVolume), nativeDucked), initialPositionMs: getCurrentTime() * scale });
   const previousNative = useRef(false);
   const getNativeTime = native.controller.getCurrentTime;
   useLayoutEffect(() => {

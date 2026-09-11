@@ -227,7 +227,7 @@ import {
   CommandPalette,
   type PaletteCommand,
 } from "./components/ui/CommandPalette";
-import { VolumeRings } from "./components/ui/VolumeRings";
+import { VolumeRings, type VolumeMeter } from "./components/ui/VolumeRings";
 import { SessionIntro } from "./components/ui/SessionIntro";
 import type { SettingsTab } from "./components/menus/AppSettingsModal";
 import { Menu } from "./components/ui/Menu";
@@ -590,6 +590,11 @@ function normalizeAppSettings(
     ...DEFAULT_APP_SETTINGS,
     ...(prefs ?? {}),
     uiScale,
+    masterVolume:
+      typeof prefs?.masterVolume === "number" &&
+      Number.isFinite(prefs.masterVolume)
+        ? Math.max(0, Math.min(1, prefs.masterVolume))
+        : DEFAULT_APP_SETTINGS.masterVolume,
     altWheelAction: isAltWheelAction(prefs?.altWheelAction)
       ? prefs.altWheelAction
       : DEFAULT_APP_SETTINGS.altWheelAction,
@@ -1256,6 +1261,7 @@ export default function App() {
     activeRate,
     active.preservePitch === true,
     exclusiveAudio && modal !== "audioSetup" && projectStarted,
+    appSettings.masterVolume,
   );
   // Alt+wheel runs from a window listener mounted once, so it needs a live
   // handle on the controller rather than the render-time closure.
@@ -1340,7 +1346,7 @@ export default function App() {
     audio.isPlaying && !playtest.active,
     active.notes,
     active.timingPoints?.length ? active.timingPoints : timingPoints,
-    appSettings.hitsoundVolume,
+    appSettings.hitsoundVolume * appSettings.masterVolume,
     appSettings.hitsoundsEnabled,
     modalAtmosphereActive,
     effectiveHitsounds,
@@ -1539,6 +1545,34 @@ export default function App() {
     };
   }, [cloudProjectId, liveEnabled, difficulties, audioFiles, bgFiles, assetSyncTick]);
 
+  // Alt+wheel adjusts whichever volume ring was last hovered, Master by default.
+  const volumeTargetRef = useRef<VolumeMeter>("master");
+  const [volumeTarget, setVolumeTarget] = useState<VolumeMeter>("master");
+  const selectVolumeMeter = useCallback((meter: VolumeMeter) => {
+    volumeTargetRef.current = meter;
+    setVolumeTarget(meter);
+  }, []);
+  const resetVolumeMeter = useCallback(
+    () => selectVolumeMeter("master"),
+    [selectVolumeMeter],
+  );
+  const adjustVolumeMeter = useCallback(
+    (meter: VolumeMeter, deltaY: number) => {
+      if (meter === "music") {
+        const controller = audioCtlRef.current;
+        controller.setVolume(volumeFromWheel(controller.getVolume(), deltaY));
+      } else {
+        const key = meter === "master" ? "masterVolume" : "hitsoundVolume";
+        setAppSettings((settings) => ({
+          ...settings,
+          [key]: volumeFromWheel(settings[key], deltaY),
+        }));
+      }
+      setVolumeHudKey((value) => value + 1);
+    },
+    [],
+  );
+
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
     const onWheel = (e: WheelEvent) => {
@@ -1562,10 +1596,7 @@ export default function App() {
               return { ...settings, playfieldScale };
             });
           } else if (action === "volume") {
-            const controller = audioCtlRef.current;
-            const volume = volumeFromWheel(controller.getVolume(), e.deltaY);
-            controller.setVolume(volume);
-            setVolumeHudKey((value) => value + 1);
+            adjustVolumeMeter(volumeTargetRef.current, e.deltaY);
           } else {
             setAppSettings((settings) => {
               const uiScale = uiScaleFromWheel(settings.uiScale, e.deltaY);
@@ -1582,7 +1613,7 @@ export default function App() {
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("wheel", onWheel);
     };
-  }, [announceShortcut]);
+  }, [adjustVolumeMeter, announceShortcut]);
 
   const activeBg = active.backgroundFilename ? bgFiles[active.backgroundFilename] ?? null : null;
   const activeVideo = active.videoFilename ? videoFiles[active.videoFilename] ?? null : null;
@@ -3245,7 +3276,11 @@ export default function App() {
 
   const menuMusicEnabled =
     appSettings.menuMusicEnabled && !hasProject && !packCreatorOpen && !sharedSlug;
-  const menuMusic = useMenuMusic(menuMusicEnabled, osuLive.running);
+  const menuMusic = useMenuMusic(
+    menuMusicEnabled,
+    osuLive.running,
+    audio.volume * appSettings.masterVolume,
+  );
   const toggleMenuMusic = menuMusic.toggle;
   const nextMenuTrack = menuMusic.next;
   const previousMenuTrack = menuMusic.previous;
@@ -4273,8 +4308,8 @@ export default function App() {
     setUiSoundsEnabled(appSettings.uiSoundsEnabled);
   }, [appSettings.uiSoundsEnabled]);
   useEffect(() => {
-    setUiSoundVolume(appSettings.uiSoundVolume);
-  }, [appSettings.uiSoundVolume]);
+    setUiSoundVolume(appSettings.uiSoundVolume * appSettings.masterVolume);
+  }, [appSettings.uiSoundVolume, appSettings.masterVolume]);
 
   useEffect(() => {
     return installUiSoundInteractions();
@@ -5927,7 +5962,9 @@ export default function App() {
     { key: "settings.keybinds", tab: "Playtest", keywords: "lanes controls" },
     { key: "settings.audioSetup", tab: "Audio", keywords: "output calibration" },
     { key: "settings.playHitsounds", tab: "Audio" },
-    { key: "settings.volume", tab: "Audio", keywords: "hitsound effects" },
+    { key: "settings.masterVolume", tab: "Audio", keywords: "volume sound everything" },
+    { key: "settings.musicVolume", tab: "Audio", keywords: "volume song menu" },
+    { key: "settings.effectsVolume", tab: "Audio", keywords: "volume hitsound" },
     { key: "settings.uiSounds", tab: "Audio", keywords: "interface hover click" },
     { key: "settings.convertPng", tab: "Export", keywords: "background jpeg" },
     { key: "settings.jpegQuality", tab: "Export", keywords: "background image" },
@@ -6665,10 +6702,6 @@ export default function App() {
                 audio={audio}
                 view={view}
                 onView={setView}
-                hitsoundVolume={appSettings.hitsoundVolume}
-                onHitsoundVolume={(v) =>
-                  setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
-                }
                 jumpOpen={jumpToTimeOpen}
                 onJumpOpenChange={setJumpToTimeOpen}
               />
@@ -7231,6 +7264,12 @@ export default function App() {
           onHitsoundVolume={(v) =>
             setAppSettings((s) => ({ ...s, hitsoundVolume: v }))
           }
+          masterVolume={appSettings.masterVolume}
+          onMasterVolume={(v) =>
+            setAppSettings((s) => ({ ...s, masterVolume: v }))
+          }
+          musicVolume={audio.volume}
+          onMusicVolume={setAudioVolume}
           dimBackground={appSettings.dimBackground}
           onDimBackground={(v) =>
             setAppSettings((s) => ({ ...s, dimBackground: v }))
@@ -7614,9 +7653,15 @@ export default function App() {
 
       <VolumeRings
         changeKey={volumeHudKey}
-        master={audio.volume}
-        music={audio.volume}
-        effects={(appSettings.hitsoundVolume + appSettings.uiSoundVolume) / 2}
+        values={{
+          master: appSettings.masterVolume,
+          music: audio.volume,
+          effects: appSettings.hitsoundVolume,
+        }}
+        active={volumeTarget}
+        onActive={selectVolumeMeter}
+        onAdjust={adjustVolumeMeter}
+        onHide={resetVolumeMeter}
       />
 
       {appSettings.shortcutNoticesEnabled && shortcutNotice && (

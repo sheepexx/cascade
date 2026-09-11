@@ -1092,9 +1092,14 @@ textarea {
 .command-palette-panel.is-closing { animation: command-palette-out var(--motion-exit) var(--ease-standard) both; }
 
 /* Alt+wheel audio HUD: three independent lazer-style discs. */
+.volume-ring-row { cursor: ns-resize; }
 .volume-ring-disc {
   background: rgb(8 9 12 / 94%);
   box-shadow: 0 12px 28px rgb(0 0 0 / 42%);
+  transition: background-color var(--motion-quick) var(--ease-standard);
+}
+.volume-ring-row:not(.is-active):hover .volume-ring-disc {
+  background: rgb(18 20 26 / 96%);
 }
 .volume-ring-row.is-active .volume-ring-disc {
   background: rgb(36 16 31 / 96%);

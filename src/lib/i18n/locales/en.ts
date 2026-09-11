@@ -78,7 +78,7 @@ export const en = {
   "settings.altWheelInterface": "Interface size",
   "settings.altWheelTimeline": "Timeline zoom",
   "settings.altWheelPlayfield": "Playfield size",
-  "settings.altWheelVolume": "Music volume",
+  "settings.altWheelVolume": "Volume",
 
   "settings.layout": "Editor layout",
   "settings.showDifficultyPanel": "Difficulty and map stats panel",
@@ -226,7 +226,13 @@ export const en = {
     "Hitsounds now follow the map: each note plays its own sample set (normal / soft / drum) and additions (whistle, finish, clap). Edit them with the hitsound toolbar at the bottom of the editor, or the W / F / C keys.",
   "settings.volume": "Volume",
   "settings.hitsoundVolumeHint":
-    "Independent of the song volume. Also adjustable from the transport bar (“Hit”).",
+    "Hitsound volume, independent of the song. Also adjustable from the Alt + wheel volume rings.",
+  "settings.masterVolume": "Master",
+  "settings.masterVolumeHint":
+    "Scales everything Cascade plays: music, hitsounds and interface sounds.",
+  "settings.musicVolume": "Music",
+  "settings.musicVolumeHint": "The song in the editor and the main menu music.",
+  "settings.effectsVolume": "Effects",
   "settings.interface": "Interface",
   "settings.interfaceSounds": "Interface sounds",
   "settings.uiSounds": "UI sound effects",
