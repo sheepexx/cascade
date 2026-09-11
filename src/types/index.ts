@@ -423,6 +423,8 @@ export type AppSettings = {
   dimBackground: number;
   smoothScrolling: boolean;
   showWaveform: boolean;
+  /** How see-through the lane waveform is, 0 (strongest) to 100 (hidden). */
+  waveformTransparency: number;
   showTimingLines: boolean;
   difficultyPanelOpen: boolean;
   showBottomTimeline: boolean;
@@ -501,6 +503,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   dimBackground: 82,
   smoothScrolling: true,
   showWaveform: false,
+  waveformTransparency: 75,
   showTimingLines: true,
   difficultyPanelOpen: true,
   showBottomTimeline: true,

@@ -135,6 +135,8 @@ type Props = {
    */
   timeScale?: number;
   dimBackground: number;
+  /** Lane waveform transparency, 0–100%; 75 keeps the original look. */
+  waveformTransparency?: number;
   skin: ManiaKeymodeSkin | null;
   playfieldScale: number;
   noteHeightScale: number;
@@ -419,6 +421,11 @@ export function ManiaEditor(props: Props) {
     dirtyRef.current = true;
     scheduleFrameRef.current();
   }, []);
+  // A render only flags the canvas, and the frame loop sleeps while nothing
+  // moves, so settings changed from the Settings modal draw a frame here.
+  useEffect(() => {
+    markDirty();
+  }, [props.waveformTransparency, props.dimBackground, markDirty]);
   const renderTimeRef = useRef(
     props.smoothScrolling === false
       ? props.getCurrentTime()
@@ -1558,7 +1565,10 @@ export function ManiaEditor(props: Props) {
           ctx.lineTo(cx - widths[i], ys[i]);
         }
         ctx.closePath();
-        ctx.fillStyle = "rgba(125,211,252,0.16)";
+        // 0% transparency is a strong 0.6 alpha; the 75% default is ~0.15.
+        const clear =
+          Math.max(0, Math.min(100, propsRef.current.waveformTransparency ?? 75)) / 100;
+        ctx.fillStyle = `rgba(125,211,252,${(0.6 * (1 - clear)).toFixed(3)})`;
         ctx.fill();
         ctx.restore();
       }

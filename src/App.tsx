@@ -6828,6 +6828,7 @@ export default function App() {
                 pressedColumnsRef={playtestPressedColumnsRef}
                 hitPositionOffset={playtestSettings.hitPositionOffset}
                 waveformOverlay={appSettings.showWaveform ? waveform : null}
+                waveformTransparency={appSettings.waveformTransparency}
                 onToggleWaveformOverlay={toggleWaveformOverlay}
                 missWindowMs={playtestWindows.miss}
                 hideHints={playtest.active}
@@ -7337,6 +7338,10 @@ export default function App() {
           showWaveform={appSettings.showWaveform}
           onShowWaveform={(v) =>
             setAppSettings((s) => ({ ...s, showWaveform: v }))
+          }
+          waveformTransparency={appSettings.waveformTransparency}
+          onWaveformTransparency={(v) =>
+            setAppSettings((s) => ({ ...s, waveformTransparency: v }))
           }
           showTimingLines={appSettings.showTimingLines}
           onShowTimingLines={(v) =>

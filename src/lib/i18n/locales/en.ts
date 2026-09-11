@@ -99,6 +99,9 @@ export const en = {
   "settings.noteHeight": "Default note height",
   "settings.noteHeightHint":
     "Makes the built-in bar notes taller or shorter without changing their timing.",
+  "settings.waveformTransparency": "Waveform transparency",
+  "settings.waveformTransparencyHint":
+    "How see-through the waveform behind the notes is. Higher keeps the notes and lanes clear; lower makes the audio peaks easier to read.",
   "settings.waveformOnLane": "Waveform on hit lane",
   "settings.waveformHint":
     "Overlays the song’s waveform on the lanes, in the editor and in playtest, so audio peaks line up with your notes. Handy for checking the offset. Toggle with W.",

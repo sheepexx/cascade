@@ -88,6 +88,8 @@ type Props = {
   onSmoothScrolling: (value: boolean) => void;
   showWaveform: boolean;
   onShowWaveform: (value: boolean) => void;
+  waveformTransparency: number;
+  onWaveformTransparency: (value: number) => void;
   showTimingLines: boolean;
   onShowTimingLines: (value: boolean) => void;
   upscroll: boolean;
@@ -197,6 +199,8 @@ export function AppSettingsModal({
   onSmoothScrolling,
   showWaveform,
   onShowWaveform,
+  waveformTransparency,
+  onWaveformTransparency,
   showTimingLines,
   onShowTimingLines,
   upscroll,
@@ -639,6 +643,17 @@ export function AppSettingsModal({
                     diagram="waveform"
                     checked={showWaveform}
                     onChange={onShowWaveform}
+                  />
+                  <SliderRow
+                    label={t("settings.waveformTransparency")}
+                    tip={t("settings.waveformTransparencyHint")}
+                    display={`${Math.round(waveformTransparency)}%`}
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={waveformTransparency}
+                    disabled={!showWaveform}
+                    onChange={onWaveformTransparency}
                   />
                   <SettingToggle
                     label={t("settings.timingLines")}
