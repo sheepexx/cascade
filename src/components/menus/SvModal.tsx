@@ -34,9 +34,11 @@ import {
   Field,
   NumberInput,
   PrecisionNumberInput,
-  Select,
+  SegmentedControl,
   Toggle,
 } from "../ui/Controls";
+import { Dropdown } from "../ui/Dropdown";
+import { Menu } from "../ui/Menu";
 import { InfoTip } from "../ui/Tooltip";
 
 type Props = {
@@ -55,15 +57,18 @@ type Props = {
 
 type Tab = "constant" | "curve" | "stutter" | "normalize" | "remove";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "constant", label: "Constant" },
-  { id: "curve", label: "Curve" },
-  { id: "stutter", label: "Stutter" },
-  { id: "normalize", label: "Normalize" },
-  { id: "remove", label: "Remove" },
+const TABS: { value: Tab; label: string }[] = [
+  { value: "constant", label: "Constant" },
+  { value: "curve", label: "Curve" },
+  { value: "stutter", label: "Stutter" },
+  { value: "normalize", label: "Normalize" },
+  { value: "remove", label: "Remove" },
 ];
 
 const DENSITIES = [1, 2, 4, 8, 16] as const;
+
+const CARD = "rounded-xl border border-white/10 bg-ink-700/40 p-4";
+const LABEL = "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
 
 const EASING_LABELS: Record<SvEasing, string> = {
   linear: "Linear",
@@ -389,30 +394,27 @@ export function SvModal({
     return hit?.label ? `${formatTime(ms)} · ${hit.label}` : formatTime(ms);
   };
 
+  /** The same popover as the editor's File menu, listing every bookmark. */
   const bookmarkPicker = (onPick: (ms: number) => void, id: string) =>
-    bookmarkOptions.length > 0 && (
-      <select
-        aria-label={`Set ${id} from a bookmark`}
-        title="Set from a bookmark"
-        value=""
-        onChange={(e) => {
-          if (e.target.value === "") return;
-          onPick(Number(e.target.value));
-          setApplied(false);
-          e.target.value = "";
-        }}
-        className="w-9 shrink-0 appearance-none rounded-lg border border-white/10 bg-ink-700/65 px-1 text-center text-sm text-slate-300 outline-none transition hover:border-accent/50 focus:border-accent/70"
-      >
-        <option value="">🔖</option>
-        {/* Names repeat often, so every entry carries its timestamp. */}
-        {bookmarkOptions.map(({ ms, label }) => (
-          <option key={ms} value={ms}>
-            {formatTime(ms)}
-            {label ? ` - ${label}` : ""}
-          </option>
-        ))}
-      </select>
-    );
+    bookmarkOptions.length > 0 ? (
+      <Menu
+        className="shrink-0 rounded-lg border border-white/10 bg-ink-700/65 !px-2 !py-2"
+        label={
+          <span aria-label={`Set ${id} from a bookmark`} title="Set from a bookmark">
+            🔖
+          </span>
+        }
+        // Names repeat often, so every entry carries its timestamp.
+        items={bookmarkOptions.map(({ ms, label }) => ({
+          label: formatTime(ms),
+          hint: label || undefined,
+          onClick: () => {
+            onPick(Math.round(ms));
+            setApplied(false);
+          },
+        }))}
+      />
+    ) : null;
 
   const svField = (
     label: string,
@@ -434,330 +436,57 @@ export function SvModal({
     </Field>
   );
 
+  const rangeField = (
+    label: string,
+    value: number,
+    onChange: (ms: number) => void,
+    id: string,
+  ) => (
+    <Field label={label} hint={timeHint(Math.max(value, 0))}>
+      <div className="flex gap-2">
+        <NumberInput
+          min={0}
+          step={1}
+          value={value}
+          className="w-full"
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (Number.isFinite(v)) onChange(Math.round(v));
+            setApplied(false);
+          }}
+        />
+        <Button
+          className="shrink-0"
+          title="Set to playhead"
+          onClick={() => {
+            onChange(Math.max(0, Math.round(getCurrentTime())));
+            setApplied(false);
+          }}
+        >
+          ⌖
+        </Button>
+        {bookmarkPicker(onChange, id)}
+      </div>
+    </Field>
+  );
+
   return (
-    <Modal open={open} onClose={onClose} title="SV editor" width="max-w-2xl" modeless>
-      {/* Generators have different control counts; floor the height so the
-          preview and Apply button stay put when switching tabs. */}
-      <div className="flex min-h-[min(34rem,66vh)] flex-col gap-4">
-        <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-          Scroll velocity changes how fast notes travel without touching their timing.
-          <InfoTip content={<>
-            <p className="m-0">Preview follows time-based scroll, like Quaver.</p>
-            <p className="mt-2">Turn on &ldquo;Preview SV while playing&rdquo; in Settings or press F5 to feel it.</p>
-          </>} />
-        </p>
-
-        <div className="flex gap-1 rounded-xl border border-ink-500/60 bg-ink-700/40 p-1">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => {
-                setTab(t.id);
-                setApplied(false);
-              }}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                tab === t.id
-                  ? "bg-accent/20 text-accent border border-accent/50"
-                  : "text-slate-400 hover:bg-white/5 border border-transparent"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <p className="text-[11px] text-slate-500">{TAB_HELP[tab]}</p>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="From (ms)" hint={timeHint(rangeStart)}>
-            <div className="flex gap-2">
-              <NumberInput
-                min={0}
-                step={1}
-                value={rangeStart}
-                className="w-full"
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  if (Number.isFinite(v)) setRangeStart(Math.round(v));
-                  setApplied(false);
-                }}
-              />
-              <Button
-                onClick={() => {
-                  setRangeStart(Math.max(0, Math.round(getCurrentTime())));
-                  setApplied(false);
-                }}
-                title="Set to playhead"
-              >
-                ⌖
-              </Button>
-              {bookmarkPicker((ms) => setRangeStart(Math.round(ms)), "from")}
-            </div>
-          </Field>
-          <Field label="To (ms)" hint={timeHint(Math.max(rangeEnd, 0))}>
-            <div className="flex gap-2">
-              <NumberInput
-                min={0}
-                step={1}
-                value={rangeEnd}
-                className="w-full"
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  if (Number.isFinite(v)) setRangeEnd(Math.round(v));
-                  setApplied(false);
-                }}
-              />
-              <Button
-                onClick={() => {
-                  setRangeEnd(Math.max(0, Math.round(getCurrentTime())));
-                  setApplied(false);
-                }}
-                title="Set to playhead"
-              >
-                ⌖
-              </Button>
-              {bookmarkPicker((ms) => setRangeEnd(Math.round(ms)), "to")}
-            </div>
-          </Field>
-        </div>
-        {selectionRange && selectionRange.count >= 2 && (
-          <button
-            type="button"
-            className="self-start text-[11px] text-accent hover:underline"
-            onClick={() => {
-              setRangeStart(Math.round(selectionRange.start));
-              setRangeEnd(
-                Math.round(
-                  Math.max(selectionRange.end, selectionRange.start + 1),
-                ),
-              );
-              setApplied(false);
-            }}
-          >
-            Use selection ({selectionRange.count} notes,{" "}
-            {formatTime(selectionRange.start)} –{" "}
-            {formatTime(selectionRange.end)})
-          </button>
-        )}
-        {!rangeValid && (
-          <p className="text-[11px] text-rose-300">
-            &ldquo;To&rdquo; must be after &ldquo;From&rdquo;.
-          </p>
-        )}
-
-        {tab === "constant" && (
-          <div className="grid grid-cols-2 gap-3">
-            {svField("SV ×", sv, setSv)}
-          </div>
-        )}
-
-        {tab === "curve" && (
-          <>
-            <CurveEditor
-              keyframes={keyframes}
-              onChange={(kfs) => {
-                setKeyframes(kfs);
-                setApplied(false);
-              }}
-              selected={Math.min(selectedKf, keyframes.length - 1)}
-              onSelect={setSelectedKf}
-              disabled={!!readOnly}
-            />
-
-            <div className="grid grid-cols-[1fr,1fr,auto] items-end gap-3">
-              <Field label="Keyframe time (ms)">
-                <NumberInput
-                  min={rangeStart}
-                  max={rangeEnd}
-                  step={1}
-                  disabled={isEdgeKf}
-                  value={Math.round(rangeStart + selectedKfValue.x * rangeSpan)}
-                  onChange={(e) => {
-                    const ms = Number(e.target.value);
-                    if (!Number.isFinite(ms) || rangeSpan <= 0) return;
-                    patchSelectedKf({
-                      x: (ms - rangeStart) / rangeSpan,
-                    });
-                  }}
-                />
-              </Field>
-              <Field label="Keyframe SV ×">
-                <PrecisionNumberInput
-                  min={MIN_SV}
-                  max={MAX_SV}
-                  step={0.1}
-                  value={selectedKfValue.sv}
-                  onValueChange={(value) =>
-                    patchSelectedKf({ sv: clampSv(value) })
-                  }
-                />
-              </Field>
-              <Button
-                disabled={isEdgeKf || !!readOnly}
-                title={
-                  isEdgeKf
-                    ? "The first and last keyframes cannot be removed"
-                    : "Remove this keyframe"
-                }
-                onClick={() => {
-                  setKeyframes((kfs) =>
-                    kfs.filter((_, i) => i !== safeSelectedKf),
-                  );
-                  setSelectedKf(Math.max(0, safeSelectedKf - 1));
-                  setApplied(false);
-                }}
-              >
-                Remove
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field
-                label="Segment shape"
-                hint="Applies a preset to the whole curve."
-              >
-                <Select
-                  value={matchedPreset ?? ""}
-                  onChange={(e) => {
-                    const preset = e.target.value as SvEasing;
-                    if (!preset) return;
-                    setKeyframes((kfs) =>
-                      defaultSvCurve(
-                        kfs[0].sv,
-                        kfs[kfs.length - 1].sv,
-                        EASING_HANDLES[preset],
-                      ),
-                    );
-                    setSelectedKf(0);
-                    setApplied(false);
-                  }}
-                  className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none focus:border-accent/70"
-                >
-                  {!matchedPreset && <option value="">Custom curve</option>}
-                  {SV_EASINGS.map((id) => (
-                    <option key={id} value={id}>
-                      {EASING_LABELS[id]}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Point spacing">
-                <div className="flex gap-1">
-                  {DENSITIES.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => {
-                        setDensity(d);
-                        setApplied(false);
-                      }}
-                      className={`flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${
-                        density === d
-                          ? "border-accent/60 bg-accent/15 text-accent"
-                          : "border-ink-500/60 bg-ink-700/40 text-slate-400 hover:bg-white/5"
-                      }`}
-                    >
-                      1/{d}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-            </div>
-          </>
-        )}
-
-        {tab === "stutter" && (
-          <div className="grid grid-cols-3 gap-3">
-            {svField("Peak SV ×", peakSv, setPeakSv)}
-            <Field label="Peak length %">
-              <NumberInput
-                min={5}
-                max={95}
-                step={5}
-                value={peakPercent}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  if (Number.isFinite(v)) {
-                    setPeakPercent(Math.max(5, Math.min(95, v)));
-                  }
-                  setApplied(false);
-                }}
-              />
-            </Field>
-            <Field label="Cycle (beats)">
-              <NumberInput
-                min={0.25}
-                max={8}
-                step={0.25}
-                value={cycleBeats}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  if (Number.isFinite(v) && v > 0) setCycleBeats(v);
-                  setApplied(false);
-                }}
-              />
-            </Field>
-            <p className="col-span-3 text-[11px] text-slate-500">
-              Each cycle: {peakSv}× for {peakPercent}% of the cycle, then{" "}
-              {stutterLow.toFixed(2)}× to catch up.
-              {stutterDrifts && (
-                <span className="text-amber-300">
-                  {" "}
-                  Peak too strong to fully compensate, so the field will drift
-                  forward.
-                </span>
-              )}
-            </p>
-          </div>
-        )}
-
-        {tab === "normalize" && (
-          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-xs text-slate-300">
-            Compensation follows every red timing point in the range. This is
-            useful for BPM changes that should keep a steady visual speed.
-          </div>
-        )}
-
-        {tab !== "remove" && (
-          <div className="flex items-center justify-between text-xs text-slate-300">
-            <span>Return to previous SV at end of range</span>
-            <Toggle
-              checked={restoreAtEnd}
-              onChange={(v) => {
-                setRestoreAtEnd(v);
-                setApplied(false);
-              }}
-              aria-label="Return to previous SV at end of range"
-            />
-          </div>
-        )}
-
-        <div className="rounded-xl border border-ink-500/60 bg-ink-800/60 p-2">
-          <canvas ref={canvasRef} className="block h-[120px] w-full" />
-          <div className="mt-1 flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-0.5 w-4 bg-slate-400/60" />
-              current
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-0.5 w-4 bg-teal-400" />
-              after apply
-            </span>
-            <span className="text-slate-600">
-              scroll rate {bpmScroll ? "including BPM" : "from SV only"}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-slate-500">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="SV editor"
+      width="max-w-2xl"
+      height="h-[38rem]"
+      modeless
+      footer={
+        <>
+          <span className="mr-auto self-center text-[11px] text-slate-500">
             {tab === "remove"
-              ? `Removes ${replacedCount} SV point${replacedCount === 1 ? "" : "s"} in range.`
-              : `Replaces ${replacedCount} SV point${replacedCount === 1 ? "" : "s"} with ${addedCount}.`}
-            {applied && (
-              <span className="ml-2 text-emerald-300">Applied ✓</span>
-            )}
+              ? `Removes ${replacedCount} SV point${replacedCount === 1 ? "" : "s"}.`
+              : `Replaces ${replacedCount} SV point${
+                  replacedCount === 1 ? "" : "s"
+                } with ${addedCount}.`}
+            {applied && <span className="ml-2 text-emerald-300">Applied ✓</span>}
           </span>
           <Button
             variant="accent"
@@ -766,7 +495,286 @@ export function SvModal({
           >
             {tab === "remove" ? "Remove SV" : "Apply SV"}
           </Button>
-        </div>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <SegmentedControl
+          value={tab}
+          onChange={(next) => {
+            setTab(next);
+            setApplied(false);
+          }}
+          options={TABS}
+        />
+
+        <section className={CARD}>
+          <div className="flex items-center gap-1.5">
+            <span className={LABEL}>Range</span>
+            <InfoTip content="The stretch of the song the generator writes into. Set it by hand, from the playhead, from a bookmark, or from the notes you have selected." />
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {rangeField("From (ms)", rangeStart, setRangeStart, "from")}
+            {rangeField("To (ms)", rangeEnd, setRangeEnd, "to")}
+          </div>
+
+          {selectionRange && selectionRange.count >= 2 && (
+            <button
+              type="button"
+              className="mt-3 text-[11px] text-accent transition duration-[var(--motion-quick)] hover:underline"
+              onClick={() => {
+                setRangeStart(Math.round(selectionRange.start));
+                setRangeEnd(
+                  Math.round(
+                    Math.max(selectionRange.end, selectionRange.start + 1),
+                  ),
+                );
+                setApplied(false);
+              }}
+            >
+              Use selection ({selectionRange.count} notes,{" "}
+              {formatTime(selectionRange.start)} –{" "}
+              {formatTime(selectionRange.end)})
+            </button>
+          )}
+
+          {!rangeValid && (
+            <p className="mt-3 text-[11px] text-rose-300">
+              &ldquo;To&rdquo; must be after &ldquo;From&rdquo;.
+            </p>
+          )}
+        </section>
+
+        <section className={CARD}>
+          <div className="flex items-center gap-1.5">
+            <span className={LABEL}>
+              {TABS.find((t) => t.value === tab)?.label}
+            </span>
+            <InfoTip
+              content={
+                <>
+                  <p className="m-0">Preview follows time-based scroll, like Quaver.</p>
+                  <p className="mt-2">
+                    Turn on &ldquo;Preview SV while playing&rdquo; in Settings or
+                    press F5 to feel it.
+                  </p>
+                </>
+              }
+            />
+          </div>
+          <p className="mt-1 text-[11px] leading-snug text-slate-500">
+            {TAB_HELP[tab]}
+          </p>
+
+          <div className="mt-3 flex flex-col gap-3">
+            {tab === "constant" && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {svField("SV ×", sv, setSv)}
+              </div>
+            )}
+
+            {tab === "curve" && (
+              <>
+                <CurveEditor
+                  keyframes={keyframes}
+                  onChange={(kfs) => {
+                    setKeyframes(kfs);
+                    setApplied(false);
+                  }}
+                  selected={Math.min(selectedKf, keyframes.length - 1)}
+                  onSelect={setSelectedKf}
+                  disabled={!!readOnly}
+                />
+
+                <div className="grid grid-cols-[1fr,1fr,auto] items-end gap-3">
+                  <Field label="Keyframe time (ms)">
+                    <NumberInput
+                      min={rangeStart}
+                      max={rangeEnd}
+                      step={1}
+                      disabled={isEdgeKf}
+                      value={Math.round(rangeStart + selectedKfValue.x * rangeSpan)}
+                      onChange={(e) => {
+                        const ms = Number(e.target.value);
+                        if (!Number.isFinite(ms) || rangeSpan <= 0) return;
+                        patchSelectedKf({ x: (ms - rangeStart) / rangeSpan });
+                      }}
+                    />
+                  </Field>
+                  <Field label="Keyframe SV ×">
+                    <PrecisionNumberInput
+                      min={MIN_SV}
+                      max={MAX_SV}
+                      step={0.1}
+                      value={selectedKfValue.sv}
+                      onValueChange={(value) =>
+                        patchSelectedKf({ sv: clampSv(value) })
+                      }
+                    />
+                  </Field>
+                  <Button
+                    disabled={isEdgeKf || !!readOnly}
+                    title={
+                      isEdgeKf
+                        ? "The first and last keyframes cannot be removed"
+                        : "Remove this keyframe"
+                    }
+                    onClick={() => {
+                      setKeyframes((kfs) =>
+                        kfs.filter((_, i) => i !== safeSelectedKf),
+                      );
+                      setSelectedKf(Math.max(0, safeSelectedKf - 1));
+                      setApplied(false);
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Segment shape"
+                    hint="Applies a preset to the whole curve."
+                  >
+                    <Dropdown
+                      aria-label="Segment shape"
+                      value={matchedPreset ?? ""}
+                      options={[
+                        ...(matchedPreset
+                          ? []
+                          : [{ value: "" as SvEasing | "", label: "Custom curve" }]),
+                        ...SV_EASINGS.map((id) => ({
+                          value: id as SvEasing | "",
+                          label: EASING_LABELS[id],
+                        })),
+                      ]}
+                      onChange={(preset) => {
+                        if (!preset) return;
+                        setKeyframes((kfs) =>
+                          defaultSvCurve(
+                            kfs[0].sv,
+                            kfs[kfs.length - 1].sv,
+                            EASING_HANDLES[preset],
+                          ),
+                        );
+                        setSelectedKf(0);
+                        setApplied(false);
+                      }}
+                    />
+                  </Field>
+                  <Field label="Point spacing">
+                    <div className="flex gap-1">
+                      {DENSITIES.map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => {
+                            setDensity(d);
+                            setApplied(false);
+                          }}
+                          aria-pressed={density === d}
+                          className={`flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition duration-[var(--motion-quick)] active:scale-95 ${
+                            density === d
+                              ? "border-accent/60 bg-accent/15 text-accent"
+                              : "border-white/10 bg-ink-700/60 text-slate-400 hover:bg-ink-600 hover:text-slate-200"
+                          }`}
+                        >
+                          1/{d}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                </div>
+              </>
+            )}
+
+            {tab === "stutter" && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {svField("Peak SV ×", peakSv, setPeakSv)}
+                  <Field label="Peak length %">
+                    <NumberInput
+                      min={5}
+                      max={95}
+                      step={5}
+                      value={peakPercent}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (Number.isFinite(v)) {
+                          setPeakPercent(Math.max(5, Math.min(95, v)));
+                        }
+                        setApplied(false);
+                      }}
+                    />
+                  </Field>
+                  <Field label="Cycle (beats)">
+                    <NumberInput
+                      min={0.25}
+                      max={8}
+                      step={0.25}
+                      value={cycleBeats}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (Number.isFinite(v) && v > 0) setCycleBeats(v);
+                        setApplied(false);
+                      }}
+                    />
+                  </Field>
+                </div>
+                <p className="text-[11px] leading-snug text-slate-500">
+                  Each cycle: {peakSv}× for {peakPercent}% of the cycle, then{" "}
+                  {stutterLow.toFixed(2)}× to catch up.
+                  {stutterDrifts && (
+                    <span className="text-amber-300">
+                      {" "}
+                      Peak too strong to fully compensate, so the field will
+                      drift forward.
+                    </span>
+                  )}
+                </p>
+              </>
+            )}
+
+            {tab === "normalize" && (
+              <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3 text-xs leading-snug text-slate-300">
+                Compensation follows every red timing point in the range. This is
+                useful for BPM changes that should keep a steady visual speed.
+              </p>
+            )}
+
+            {tab !== "remove" && (
+              <label className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 text-xs text-slate-300">
+                Return to the previous SV at the end of the range
+                <Toggle
+                  checked={restoreAtEnd}
+                  onChange={(v) => {
+                    setRestoreAtEnd(v);
+                    setApplied(false);
+                  }}
+                  aria-label="Return to previous SV at end of range"
+                />
+              </label>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-white/10 bg-ink-800/60 p-3">
+          <canvas ref={canvasRef} className="block h-[120px] w-full" />
+          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block h-0.5 w-4 bg-slate-400/60" />
+              current
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block h-0.5 w-4 bg-teal-400" />
+              after apply
+            </span>
+            <span className="ml-auto text-slate-600">
+              scroll rate {bpmScroll ? "including BPM" : "from SV only"}
+            </span>
+          </div>
+        </section>
       </div>
     </Modal>
   );

@@ -15,8 +15,10 @@ import { detectBpmFromBuffer, type BpmDetection } from "../../lib/bpmDetect";
 import { Modal } from "../ui/Modal";
 import {
   Button,
+  Field,
   NumberInput,
   PrecisionNumberInput,
+  SegmentedControl,
   Toggle,
 } from "../ui/Controls";
 import { formatUiNumber } from "../../lib/formatUiNumber";
@@ -45,6 +47,11 @@ const OFFSET_NUDGES = [-10, -5, -1, 1, 5, 10] as const;
 const SV_PRESETS = [0.5, 0.75, 1, 1.5, 2] as const;
 const TAP_MIN = 3;
 
+const CARD = "rounded-xl border border-white/10 bg-ink-700/40 p-4";
+const LABEL = "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
+
+type Pane = "points" | "bpm";
+
 export const TimingModal = memo(function TimingModal({
   open,
   onClose,
@@ -61,6 +68,7 @@ export const TimingModal = memo(function TimingModal({
   onSelectionChange,
 }: Props) {
   const { tap, reset, bpm, offset, count } = useTapTempo(getCurrentTime);
+  const [pane, setPane] = useState<Pane>("points");
   const [metronomeOn, setMetronomeOn] = useState(true);
   const [tapApplied, setTapApplied] = useState(false);
   const [detecting, setDetecting] = useState(false);
@@ -176,6 +184,7 @@ export const TimingModal = memo(function TimingModal({
         volume: base?.volume ?? 100,
       }),
     ]);
+    setPointTab("red");
   };
 
   const addGreen = () => {
@@ -187,6 +196,7 @@ export const TimingModal = memo(function TimingModal({
         volume: prevGreen?.volume ?? 100,
       }),
     ]);
+    setPointTab("green");
   };
 
   const duplicate = (id: string) => {
@@ -288,339 +298,415 @@ export const TimingModal = memo(function TimingModal({
   }, [bpm, offset, count]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Timing" width="max-w-2xl" modeless>
-      <div className="flex flex-col gap-6">
-        <section className="flex flex-nowrap items-center gap-4 rounded-xl border border-ink-600 bg-ink-700/40 p-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Playback</span>
-            <div className="flex overflow-hidden rounded-md border border-ink-500/60">
-              {PLAYBACK_RATES.map((rate) => (
-                <button
-                  key={rate}
-                  onClick={() => onSetPlaybackRate(rate)}
-                  className={`px-2.5 py-1 text-xs font-medium transition ${
-                    Math.abs(playbackRate - rate) < 0.001
-                      ? "bg-accent text-white"
-                      : "bg-ink-700 text-slate-300 hover:bg-ink-600"
-                  }`}
-                >
-                  {Math.round(rate * 100)}%
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-300">
-            <Toggle
-              size="sm"
-              checked={metronomeOn}
-              onChange={setMetronomeOn}
-              aria-label="Metronome"
-            />
-            Metronome
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: meter }).map((_, i) => {
-              const active = beat?.index === i;
-              const downbeat = i === 0;
-              const color = downbeat ? "#ffffff" : "#ff9d4d";
-              return (
-                <span
-                  key={i}
-                  className="h-5 w-5 rounded-md border transition-all duration-150 ease-out"
-                  style={{
-                    backgroundColor: active ? color : "transparent",
-                    borderColor: active ? color : "#33333f",
-                    opacity: active ? 1 : 0.35,
-                    transform: active ? "scale(1.1)" : "scale(1)",
-                  }}
-                />
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onToggle()}
-            className="ml-auto inline-flex min-w-[7.5rem] items-center justify-center rounded-md border border-ink-500/60 bg-ink-700 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-ink-600"
-            title="Space"
-          >
-            <span className="inline-flex w-12 justify-end">
-              {isPlaying ? "❚❚ Pause" : "▶ Play"}
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Timing"
+      width="max-w-2xl"
+      height="h-[36rem]"
+      modeless
+      footer={
+        pane === "points" ? (
+          <>
+            <span className="mr-auto self-center text-[11px] text-slate-500">
+              Added at the playhead.
             </span>
-            <span className="ml-1.5 text-[10px] text-slate-500">Space</span>
-          </button>
-        </section>
-
-        <section className="flex flex-col gap-2 rounded-xl border border-ink-600 bg-ink-700/40 p-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Offset (first uninherited point)
-            </h3>
-            <span className="font-mono text-xs text-slate-300">
-              {firstRed ? `${firstRed.time} ms · ${formatTime(firstRed.time)}` : "-"}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={setOffset} variant="primary">
-              Set to playhead
+            <Button onClick={addRed}>+ Uninherited</Button>
+            <Button variant="accent" onClick={addGreen}>
+              + Inherited
             </Button>
-            <div className="flex overflow-hidden rounded-md border border-ink-500/60">
-              {OFFSET_NUDGES.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => nudgeOffset(d)}
-                  className="bg-ink-700 px-2 py-1 text-xs font-medium text-slate-300 transition hover:bg-ink-600"
-                >
-                  {d > 0 ? `+${d}` : d}
-                </button>
-              ))}
-            </div>
-            <span className="text-[11px] text-slate-500">ms</span>
-          </div>
-          {onShiftMarkers && (
-            <div className="mt-2 flex flex-wrap items-end gap-2 border-t border-white/10 pt-3">
-              <Labeled label="Shift all markers (ms)">
-                <NumberInput
-                  value={markerShift}
-                  step={1}
-                  onChange={(e) => setMarkerShift(Number(e.target.value) || 0)}
-                  className="w-28 py-1"
-                />
-              </Labeled>
-              <Button
-                disabled={!markerShift}
-                onClick={() => {
-                  onShiftMarkers(markerShift);
-                  setMarkerShift(0);
-                }}
-              >
-                Shift timing points, preview and bookmarks
-              </Button>
-            </div>
-          )}
-        </section>
+          </>
+        ) : undefined
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Transport
+          isPlaying={isPlaying}
+          onToggle={onToggle}
+          playbackRate={playbackRate}
+          onSetPlaybackRate={onSetPlaybackRate}
+          metronomeOn={metronomeOn}
+          onMetronome={setMetronomeOn}
+          meter={meter}
+          beatIndex={beat?.index ?? null}
+        />
 
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <div className="flex rounded-lg border border-ink-500/60 bg-ink-700/50 p-1">
-              {(["red", "green"] as const).map((kind) => (
-                <button
-                  key={kind}
-                  type="button"
-                  onClick={() => {
-                    setPointTab(kind);
-                    setExpandedPointId(null);
-                  }}
-                  className={`rounded-md px-3 py-1 text-xs font-medium transition ${
-                    pointTab === kind
-                      ? kind === "red"
-                        ? "bg-rose-500/20 text-rose-200"
-                        : "bg-emerald-500/20 text-emerald-200"
-                      : "text-slate-500 hover:text-slate-300"
-                  }`}
-                >
-                  {kind === "red"
-                    ? `Uninherited · ${reds.length}`
-                    : `Inherited · ${points.length - reds.length}`}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={addRed} variant="primary">
-                + Uninherited
-              </Button>
-              <Button onClick={addGreen} variant="primary">
-                + Inherited
-              </Button>
-            </div>
-          </div>
-          <p className="text-[11px] text-slate-500">
-            {pointTab === "red"
-              ? "Uninherited timing points set BPM, meter and the beat grid. They are shown in red."
-              : "Inherited timing points set scroll velocity (SV), volume and kiai. They are shown in green. Select a row to edit its full settings."}
-          </p>
+        <SegmentedControl
+          value={pane}
+          onChange={setPane}
+          options={[
+            { value: "points", label: `Points · ${points.length}` },
+            { value: "bpm", label: "Find BPM" },
+          ]}
+        />
 
-          {selectedPointIds.size > 0 && (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent/25 bg-accent/5 px-3 py-2 text-xs text-slate-300">
-              <span>{selectedPointIds.size} selected</span>
-              {OFFSET_NUDGES.map((delta) => (
-                <MiniButton key={delta} onClick={() => shiftSelectedPoints(delta)}>
-                  {delta > 0 ? `+${delta}` : delta} ms
-                </MiniButton>
-              ))}
-              <NumberInput
-                value={selectedPointShift}
-                step={1}
-                onChange={(event) =>
-                  setSelectedPointShift(Number(event.target.value) || 0)
-                }
-                className="ml-1 w-20 py-1"
-                aria-label="Selected timing point shift in milliseconds"
-              />
-              <MiniButton
-                onClick={() => {
-                  shiftSelectedPoints(selectedPointShift);
-                  setSelectedPointShift(0);
-                }}
-              >
-                Shift ms
-              </MiniButton>
-              <button
-                type="button"
-                onClick={() => setSelectedPointIds(new Set())}
-                className="ml-auto text-[11px] text-slate-500 transition duration-150 hover:text-slate-300"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-
-          <div className="flex max-h-[40vh] flex-col gap-2 overflow-y-auto pr-1">
-            {visiblePoints.map((p, i) => (
-              <PointRow
-                key={p.id}
-                point={p}
-                index={i + 1}
-                expanded={expandedPointId === p.id}
-                selected={selectedPointIds.has(p.id)}
-                onExpand={() =>
-                  setExpandedPointId((id) => (id === p.id ? null : p.id))
-                }
-                onSelect={() => togglePointSelection(p.id)}
-                canDelete={!(p.uninherited && reds.length <= 1)}
-                onUpdate={(patch) => update(p.id, patch)}
-                onDelete={() => remove(p.id)}
-                onDuplicate={() => duplicate(p.id)}
-                onMove={() => moveToPlayhead(p.id)}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-ink-600 bg-ink-700/40 p-4">
-          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
-            Auto-detect from audio
-            <InfoTip content="Scans the song for a steady beat and estimates BPM and offset. Works best on music with a clear rhythm; double-check the result against the metronome." />
-          </h3>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="accent"
-              onClick={runDetect}
-              disabled={!audioBuffer || detecting}
-            >
-              {detecting ? "Listening..." : "Detect BPM"}
-            </Button>
-            {!audioBuffer && (
-              <span className="text-xs text-slate-500">
-                Load an audio file first.
-              </span>
-            )}
-            {detection === "failed" && (
-              <span className="text-xs text-rose-300">
-                Couldn't find a steady beat in this audio.
-              </span>
-            )}
-            {detection !== null && detection !== "failed" && (
-              <>
-                <span className="font-mono text-sm text-slate-100">
-                  {formatUiNumber(detection.bpm)} BPM · offset{" "}
-                  {formatUiNumber(detection.offsetMs)} ms
+        {pane === "points" ? (
+          <>
+            <section className={CARD}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className={LABEL}>Offset</span>
+                <span className="font-mono text-xs text-slate-300">
+                  {firstRed
+                    ? `${firstRed.time} ms · ${formatTime(firstRed.time)}`
+                    : "-"}
                 </span>
-                <span
-                  className={`text-[11px] ${
-                    detection.confidence >= 0.5
-                      ? "text-emerald-400"
-                      : detection.confidence >= 0.3
-                        ? "text-amber-300"
-                        : "text-rose-300"
-                  }`}
-                >
-                  {detection.confidence >= 0.5
-                    ? "confident"
-                    : detection.confidence >= 0.3
-                      ? "plausible"
-                      : "uncertain"}
-                </span>
-                <Button variant="primary" onClick={applyDetection}>
-                  Apply
+              </div>
+              <p className="mt-1 text-[11px] leading-snug text-slate-500">
+                The first uninherited point, where the beat grid starts.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button onClick={setOffset} variant="primary">
+                  Set to playhead
                 </Button>
-                {detectApplied && (
-                  <span className="text-xs font-medium text-emerald-400">
-                    ✓ Applied to timing
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-ink-600 bg-ink-700/40 p-4">
-          <h3 className="mb-4 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
-            Click to the beat
-            <InfoTip content={<>
-              <p className="m-0">Play the song, then tap every beat: click the pad or press T.</p>
-              <p className="mt-2">The BPM and offset are fit from your taps and lock in automatically once you stop. The more beats in a row, the more accurate.</p>
-            </>} />
-          </h3>
-
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={tap}
-              data-no-uisound=""
-              className="relative grid h-24 w-24 shrink-0 select-none place-items-center overflow-visible rounded-full bg-accent text-sm font-semibold text-white transition active:scale-95 active:bg-accent-soft"
-            >
-              {count > 0 && (
-                <span
-                  key={count}
-                  className="tap-ring pointer-events-none absolute inset-0 rounded-full border-2 border-accent"
-                />
-              )}
-              TAP
-            </button>
-
-            <div className="flex-1">
-              <div className="font-mono text-3xl text-slate-100">
-                {bpm !== null ? bpm.toFixed(2) : "-"}
-                <span className="ml-1 text-sm text-slate-500">BPM</span>
+                <Nudges onNudge={nudgeOffset} />
               </div>
-              <div className="mt-1 text-xs text-slate-500">
-                {count} tap{count === 1 ? "" : "s"}
-                {offset !== null && <> · offset ≈ {Math.round(offset)} ms</>}
-                {count > 0 && count < TAP_MIN && (
-                  <> · {TAP_MIN - count} more to lock in</>
-                )}
-              </div>
-              {tapApplied && (
-                <div className="mt-1 text-xs font-medium text-emerald-400">
-                  ✓ Applied to timing
+
+              {onShiftMarkers && (
+                <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-white/10 pt-4">
+                  <Field label="Shift everything (ms)">
+                    <NumberInput
+                      value={markerShift}
+                      step={1}
+                      onChange={(e) => setMarkerShift(Number(e.target.value) || 0)}
+                      className="w-28"
+                    />
+                  </Field>
+                  <Button
+                    disabled={!markerShift}
+                    onClick={() => {
+                      onShiftMarkers(markerShift);
+                      setMarkerShift(0);
+                    }}
+                  >
+                    Shift points, preview and bookmarks
+                  </Button>
                 </div>
               )}
-              <div className="mt-3 flex gap-2">
-                <Button onClick={resetTaps} disabled={count === 0}>
-                  Reset
+            </section>
+
+            <SegmentedControl
+              value={pointTab}
+              onChange={(kind) => {
+                setPointTab(kind);
+                setExpandedPointId(null);
+              }}
+              options={[
+                { value: "red", label: `Uninherited · ${reds.length}` },
+                {
+                  value: "green",
+                  label: `Inherited · ${points.length - reds.length}`,
+                },
+              ]}
+            />
+
+            <p className="text-[11px] leading-snug text-slate-500">
+              {pointTab === "red"
+                ? "Uninherited points set BPM, meter and the beat grid. They show in red on the timeline."
+                : "Inherited points set scroll velocity, volume and kiai. They show in green on the timeline."}
+            </p>
+
+            {selectedPointIds.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-accent/25 bg-accent/5 px-3 py-2 text-xs text-slate-300">
+                <span className="font-medium">
+                  {selectedPointIds.size} selected
+                </span>
+                <Nudges onNudge={shiftSelectedPoints} />
+                <NumberInput
+                  value={selectedPointShift}
+                  step={1}
+                  onChange={(event) =>
+                    setSelectedPointShift(Number(event.target.value) || 0)
+                  }
+                  className="w-20 py-1"
+                  aria-label="Selected timing point shift in milliseconds"
+                />
+                <Button
+                  className="px-2 py-1 text-xs"
+                  onClick={() => {
+                    shiftSelectedPoints(selectedPointShift);
+                    setSelectedPointShift(0);
+                  }}
+                >
+                  Shift
                 </Button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPointIds(new Set())}
+                  className="ml-auto text-[11px] text-slate-500 transition duration-[var(--motion-quick)] hover:text-slate-300"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              {visiblePoints.length === 0 ? (
+                <p className="rounded-xl border border-white/10 bg-ink-700/40 px-3 py-6 text-center text-xs text-slate-500">
+                  No {pointTab === "red" ? "uninherited" : "inherited"} points
+                  yet.
+                </p>
+              ) : (
+                visiblePoints.map((p, i) => (
+                  <PointRow
+                    key={p.id}
+                    point={p}
+                    index={i + 1}
+                    expanded={expandedPointId === p.id}
+                    selected={selectedPointIds.has(p.id)}
+                    onExpand={() =>
+                      setExpandedPointId((id) => (id === p.id ? null : p.id))
+                    }
+                    onSelect={() => togglePointSelection(p.id)}
+                    canDelete={!(p.uninherited && reds.length <= 1)}
+                    onUpdate={(patch) => update(p.id, patch)}
+                    onDelete={() => remove(p.id)}
+                    onDuplicate={() => duplicate(p.id)}
+                    onMove={() => moveToPlayhead(p.id)}
+                  />
+                ))
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <section className={CARD}>
+              <div className="flex items-center gap-1.5">
+                <span className={LABEL}>Tap the beat</span>
+                <InfoTip
+                  content={
+                    <>
+                      <p className="m-0">
+                        Play the song, then tap every beat: click the pad or
+                        press T.
+                      </p>
+                      <p className="mt-2">
+                        The BPM and offset are fit from your taps and lock in
+                        automatically once you stop. The more beats in a row,
+                        the more accurate.
+                      </p>
+                    </>
+                  }
+                />
+              </div>
+
+              <div className="mt-4 flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={tap}
+                  data-no-uisound=""
+                  className="relative grid h-24 w-24 shrink-0 select-none place-items-center overflow-visible rounded-full bg-accent text-sm font-semibold text-white transition duration-[var(--motion-quick)] active:scale-95 active:bg-accent-soft"
+                >
+                  {count > 0 && (
+                    <span
+                      key={count}
+                      className="tap-ring pointer-events-none absolute inset-0 rounded-full border-2 border-accent"
+                    />
+                  )}
+                  TAP
+                </button>
+
+                <div className="min-w-0 flex-1">
+                  <div className="font-mono text-3xl leading-none text-slate-100">
+                    {bpm !== null ? bpm.toFixed(2) : "-"}
+                    <span className="ml-1.5 text-sm text-slate-500">BPM</span>
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500">
+                    {count} tap{count === 1 ? "" : "s"}
+                    {offset !== null && <> · offset ≈ {Math.round(offset)} ms</>}
+                    {count > 0 && count < TAP_MIN && (
+                      <> · {TAP_MIN - count} more to lock in</>
+                    )}
+                  </div>
+                  {tapApplied && (
+                    <div className="mt-1 text-xs font-medium text-emerald-400">
+                      ✓ Applied to timing
+                    </div>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button onClick={resetTaps} disabled={count === 0}>
+                      Reset
+                    </Button>
+                    <Button
+                      variant="accent"
+                      onClick={() => {
+                        if (bpm !== null && offset !== null) {
+                          applyTap(bpm, offset);
+                          setTapApplied(true);
+                        }
+                      }}
+                      disabled={bpm === null}
+                    >
+                      Apply now
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className={CARD}>
+              <div className="flex items-center gap-1.5">
+                <span className={LABEL}>Detect from audio</span>
+                <InfoTip content="Scans the song for a steady beat and estimates BPM and offset. Works best on music with a clear rhythm; double-check the result against the metronome." />
+              </div>
+              <p className="mt-1 text-[11px] leading-snug text-slate-500">
+                {!audioBuffer
+                  ? "Load an audio file first."
+                  : "Reads the whole file, then fills in BPM and offset for you."}
+              </p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-3">
                 <Button
                   variant="accent"
-                  onClick={() => {
-                    if (bpm !== null && offset !== null) {
-                      applyTap(bpm, offset);
-                      setTapApplied(true);
-                    }
-                  }}
-                  disabled={bpm === null}
+                  onClick={runDetect}
+                  disabled={!audioBuffer || detecting}
                 >
-                  Apply now
+                  {detecting ? "Listening..." : "Detect BPM"}
                 </Button>
+                {detection === "failed" && (
+                  <span className="text-xs text-rose-300">
+                    Couldn&apos;t find a steady beat in this audio.
+                  </span>
+                )}
+                {detection !== null && detection !== "failed" && (
+                  <>
+                    <span className="font-mono text-sm text-slate-100">
+                      {formatUiNumber(detection.bpm)} BPM · offset{" "}
+                      {formatUiNumber(detection.offsetMs)} ms
+                    </span>
+                    <Confidence value={detection.confidence} />
+                    <Button variant="primary" onClick={applyDetection}>
+                      Apply
+                    </Button>
+                    {detectApplied && (
+                      <span className="text-xs font-medium text-emerald-400">
+                        ✓ Applied
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
-            </div>
-          </div>
-        </section>
+            </section>
+          </>
+        )}
       </div>
     </Modal>
   );
 });
+
+/** Playback rate, metronome and the beat lights, on one strip above the tabs
+ *  because both panes are worked with the song running. */
+function Transport({
+  isPlaying,
+  onToggle,
+  playbackRate,
+  onSetPlaybackRate,
+  metronomeOn,
+  onMetronome,
+  meter,
+  beatIndex,
+}: {
+  isPlaying: boolean;
+  onToggle: () => void;
+  playbackRate: number;
+  onSetPlaybackRate: (rate: number) => void;
+  metronomeOn: boolean;
+  onMetronome: (on: boolean) => void;
+  meter: number;
+  beatIndex: number | null;
+}) {
+  return (
+    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-white/10 bg-ink-700/40 px-3 py-2.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        title="Space"
+        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-ink-600/70 px-3 py-1.5 text-xs font-medium text-slate-200 transition duration-[var(--motion-quick)] hover:bg-ink-500/80 active:scale-[0.98]"
+      >
+        <span className="inline-flex w-14 justify-center">
+          {isPlaying ? "❚❚ Pause" : "▶ Play"}
+        </span>
+        <span className="text-[10px] text-slate-500">Space</span>
+      </button>
+
+      <div className="flex items-center gap-1.5">
+        {PLAYBACK_RATES.map((rate) => {
+          const active = Math.abs(playbackRate - rate) < 0.001;
+          return (
+            <button
+              key={rate}
+              type="button"
+              onClick={() => onSetPlaybackRate(rate)}
+              aria-pressed={active}
+              className={`rounded-lg border px-2 py-1 text-[11px] font-semibold tabular-nums transition duration-[var(--motion-quick)] active:scale-95 ${
+                active
+                  ? "border-accent/60 bg-accent/90 text-white"
+                  : "border-white/10 bg-ink-700/60 text-slate-300 hover:bg-ink-600 hover:text-slate-100"
+              }`}
+            >
+              {Math.round(rate * 100)}%
+            </button>
+          );
+        })}
+      </div>
+
+      <label className="flex items-center gap-2 text-xs text-slate-300">
+        <Toggle
+          size="sm"
+          checked={metronomeOn}
+          onChange={onMetronome}
+          aria-label="Metronome"
+        />
+        Metronome
+      </label>
+
+      <div className="ml-auto flex items-center gap-1.5" aria-hidden>
+        {Array.from({ length: meter }).map((_, i) => {
+          const active = beatIndex === i;
+          const colour = i === 0 ? "#ffffff" : "#ff9d4d";
+          return (
+            <span
+              key={i}
+              className="h-5 w-5 rounded-md border transition-all duration-150 ease-out"
+              style={{
+                backgroundColor: active ? colour : "transparent",
+                borderColor: active ? colour : "#33333f",
+                opacity: active ? 1 : 0.35,
+                transform: active ? "scale(1.1)" : "scale(1)",
+              }}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function Nudges({ onNudge }: { onNudge: (delta: number) => void }) {
+  return (
+    <div className="flex overflow-hidden rounded-lg border border-white/10">
+      {OFFSET_NUDGES.map((delta) => (
+        <button
+          key={delta}
+          type="button"
+          onClick={() => onNudge(delta)}
+          className="bg-ink-700/60 px-2 py-1 text-[11px] font-medium tabular-nums text-slate-300 transition duration-[var(--motion-quick)] hover:bg-ink-600 hover:text-slate-100"
+        >
+          {delta > 0 ? `+${delta}` : delta}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Confidence({ value }: { value: number }) {
+  const [label, tone] =
+    value >= 0.5
+      ? ["confident", "text-emerald-400"]
+      : value >= 0.3
+        ? ["plausible", "text-amber-300"]
+        : ["uncertain", "text-rose-300"];
+  return <span className={`text-[11px] ${tone}`}>{label}</span>;
+}
 
 function PointRow({
   point: p,
@@ -650,18 +736,18 @@ function PointRow({
   const red = p.uninherited;
   return (
     <div
-      className={`flex flex-col gap-2 rounded-xl border p-2.5 transition-colors duration-150 ${
+      className={`overflow-hidden rounded-xl border transition-colors duration-[var(--motion-quick)] ${
         red
           ? selected
-            ? "border-rose-400 bg-rose-900/35 ring-1 ring-rose-400/60"
-            : "border-rose-500/40 bg-rose-950/20 hover:border-rose-400/70"
+            ? "border-rose-400/70 bg-rose-950/30"
+            : "border-white/10 bg-ink-700/40 hover:border-rose-400/40"
           : selected
-            ? "border-emerald-400 bg-emerald-900/35 ring-1 ring-emerald-400/60"
-            : "border-emerald-500/40 bg-emerald-950/20 hover:border-emerald-400/70"
+            ? "border-emerald-400/70 bg-emerald-950/30"
+            : "border-white/10 bg-ink-700/40 hover:border-emerald-400/40"
       }`}
     >
       <div
-        className="flex cursor-pointer select-none items-center gap-2"
+        className="flex cursor-pointer select-none items-center gap-2.5 px-3 py-2"
         onClick={(event) => {
           // The checkbox and Edit button handle their own clicks.
           if ((event.target as HTMLElement).closest("button, input, label"))
@@ -676,18 +762,20 @@ function PointRow({
           aria-label={`Select point ${index}`}
           className="h-3.5 w-3.5 accent-accent"
         />
-        <span className="w-5 text-center text-xs text-slate-500">{index}</span>
         <span
-          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-            red ? "bg-rose-500/30 text-rose-200" : "bg-emerald-500/30 text-emerald-200"
+          aria-hidden
+          className={`h-6 w-1 shrink-0 rounded-full ${
+            red ? "bg-rose-400" : "bg-emerald-400"
+          }`}
+        />
+        <span className="w-20 shrink-0 font-mono text-xs text-slate-200">
+          {formatTime(p.time)}
+        </span>
+        <span
+          className={`shrink-0 text-xs font-medium ${
+            red ? "text-rose-200" : "text-emerald-200"
           }`}
         >
-          {red ? "Uninherited" : "Inherited"}
-        </span>
-        <span className="font-mono text-xs text-slate-200">
-          {p.time} ms
-        </span>
-        <span className={red ? "text-xs text-rose-200" : "text-xs text-emerald-200"}>
           {red
             ? `${formatUiNumber(p.bpm)} BPM · ${p.meter}/4`
             : `${formatUiNumber(p.sv)}× SV`}
@@ -701,29 +789,28 @@ function PointRow({
         <button
           type="button"
           onClick={onExpand}
-          className="ml-auto rounded-md px-2 py-1 text-[10px] text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+          aria-expanded={expanded}
+          className="ml-auto shrink-0 rounded-md px-2 py-1 text-[10px] text-slate-400 transition duration-[var(--motion-quick)] hover:bg-white/10 hover:text-slate-200"
         >
-          {expanded ? "Collapse" : "Edit"}
+          {expanded ? "Close" : "Edit"}
         </button>
       </div>
 
       {expanded && (
-        <>
-          <div className="flex flex-wrap items-end gap-2 border-t border-white/10 pt-2">
-            <Labeled label="Time (ms)">
+        <div className="flex flex-col gap-3 border-t border-white/10 bg-ink-800/40 px-3 py-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label="Time (ms)">
               <NumberInput
                 value={p.time}
                 step={0.001}
-                onChange={(e) =>
-                  onUpdate({ time: Number(e.target.value) || 0 })
-                }
-                className="w-24 py-1"
+                onChange={(e) => onUpdate({ time: Number(e.target.value) || 0 })}
+                className="w-28 py-1.5"
               />
-            </Labeled>
+            </Field>
 
             {red ? (
               <>
-                <Labeled label="BPM">
+                <Field label="BPM">
                   <PrecisionNumberInput
                     value={p.bpm}
                     step={0.01}
@@ -731,10 +818,10 @@ function PointRow({
                     onValueChange={(value) =>
                       onUpdate({ bpm: Math.max(1, value || 1) })
                     }
-                    className="w-24 py-1"
+                    className="w-24 py-1.5"
                   />
-                </Labeled>
-                <Labeled label="Meter">
+                </Field>
+                <Field label="Meter">
                   <NumberInput
                     value={p.meter}
                     step={1}
@@ -742,46 +829,43 @@ function PointRow({
                     max={16}
                     onChange={(e) =>
                       onUpdate({
-                        meter: Math.max(
-                          1,
-                          Math.round(Number(e.target.value) || 4),
-                        ),
+                        meter: Math.max(1, Math.round(Number(e.target.value) || 4)),
                       })
                     }
-                    className="w-16 py-1"
+                    className="w-16 py-1.5"
                   />
-                </Labeled>
+                </Field>
               </>
             ) : (
               <>
-                <Labeled label="SV ×">
+                <Field label="SV ×">
                   <PrecisionNumberInput
                     value={p.sv}
                     step={0.05}
                     min={0.01}
                     max={10}
-                    onValueChange={(value) =>
-                      onUpdate({ sv: clampSv(value || 1) })
-                    }
-                    className="w-20 py-1"
+                    onValueChange={(value) => onUpdate({ sv: clampSv(value || 1) })}
+                    className="w-20 py-1.5"
                   />
-                </Labeled>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase text-slate-500">
-                    Presets
-                  </span>
+                </Field>
+                <Field label="Presets">
                   <div className="flex gap-1">
                     {SV_PRESETS.map((sv) => (
-                      <MiniButton key={sv} onClick={() => onUpdate({ sv })}>
+                      <button
+                        key={sv}
+                        type="button"
+                        onClick={() => onUpdate({ sv })}
+                        className="rounded-lg border border-white/10 bg-ink-700/60 px-2 py-1.5 text-[11px] tabular-nums text-slate-300 transition duration-[var(--motion-quick)] hover:bg-ink-600 hover:text-slate-100"
+                      >
                         {sv}
-                      </MiniButton>
+                      </button>
                     ))}
                   </div>
-                </div>
+                </Field>
               </>
             )}
 
-            <Labeled label="Vol">
+            <Field label="Volume">
               <NumberInput
                 value={p.volume}
                 step={1}
@@ -795,19 +879,17 @@ function PointRow({
                     ),
                   })
                 }
-                className="w-16 py-1"
+                className="w-16 py-1.5"
               />
-            </Labeled>
+            </Field>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-3">
             <span className="font-mono text-[10px] text-slate-500">
               {formatTime(p.time)}
-              {!red && (
-                <> · {Math.round(svToBeatLength(p.sv) * 100) / 100}</>
-              )}
+              {!red && <> · {Math.round(svToBeatLength(p.sv) * 100) / 100}</>}
             </span>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-300">
               <Toggle
                 size="sm"
                 checked={p.kiai}
@@ -815,8 +897,8 @@ function PointRow({
                 aria-label="Kiai"
               />
               Kiai
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+            </label>
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-300">
               <Toggle
                 size="sm"
                 checked={p.omitFirstBarline}
@@ -824,55 +906,32 @@ function PointRow({
                 aria-label="Omit barline"
               />
               Omit barline
-            </div>
+            </label>
 
-            <div className="ml-auto flex gap-1">
-              <MiniButton onClick={onMove}>Move here</MiniButton>
-              <MiniButton onClick={onDuplicate}>Duplicate</MiniButton>
+            <div className="ml-auto flex items-center gap-1.5">
+              <Button className="px-2 py-1 text-xs" onClick={onMove}>
+                Move here
+              </Button>
+              <Button className="px-2 py-1 text-xs" onClick={onDuplicate}>
+                Duplicate
+              </Button>
               <button
+                type="button"
                 onClick={onDelete}
                 disabled={!canDelete}
-                className="grid h-6 w-6 place-items-center rounded-lg text-slate-400 transition hover:bg-ink-600 hover:text-red-300 disabled:opacity-30"
-                title="Delete timing point"
+                title={
+                  canDelete
+                    ? "Delete timing point"
+                    : "The last uninherited point cannot be deleted"
+                }
+                className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition duration-[var(--motion-quick)] hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
               >
                 <CloseIcon className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
-  );
-}
-
-function Labeled({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="flex flex-col">
-      <span className="text-[10px] uppercase text-slate-500">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function MiniButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="rounded bg-ink-600 px-1.5 py-0.5 text-[10px] text-slate-300 transition hover:bg-ink-500"
-    >
-      {children}
-    </button>
   );
 }
