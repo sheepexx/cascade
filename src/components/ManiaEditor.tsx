@@ -135,6 +135,8 @@ type Props = {
    */
   timeScale?: number;
   dimBackground: number;
+  /** Blur on the background picture, in pixels; 0 leaves it sharp. */
+  backgroundBlur?: number;
   /** Lane waveform transparency, 0–100%; 75 keeps the original look. */
   waveformTransparency?: number;
   skin: ManiaKeymodeSkin | null;
@@ -425,7 +427,12 @@ export function ManiaEditor(props: Props) {
   // moves, so settings changed from the Settings modal draw a frame here.
   useEffect(() => {
     markDirty();
-  }, [props.waveformTransparency, props.dimBackground, markDirty]);
+  }, [
+    props.waveformTransparency,
+    props.dimBackground,
+    props.backgroundBlur,
+    markDirty,
+  ]);
   const renderTimeRef = useRef(
     props.smoothScrolling === false
       ? props.getCurrentTime()
@@ -1481,14 +1488,22 @@ export function ManiaEditor(props: Props) {
       );
       ctx.globalAlpha = eased;
       const par = parallaxRef.current;
+      // A blur pulls the edges inward, so the picture is drawn with the radius
+      // added to the parallax overscan; without it the corners fade to nothing.
+      // The filter is cleared again before the dim overlay so only the picture
+      // is softened, never the dim or anything drawn after it.
+      const blur = Math.max(0, propsRef.current.backgroundBlur ?? 0);
+      const spread = PARALLAX_PX + blur * 2;
+      if (blur > 0) ctx.filter = `blur(${blur}px)`;
       drawCover(
         ctx,
         bg,
-        par.x - PARALLAX_PX,
-        par.y - PARALLAX_PX,
-        width + PARALLAX_PX * 2,
-        height + PARALLAX_PX * 2,
+        par.x - spread,
+        par.y - spread,
+        width + spread * 2,
+        height + spread * 2,
       );
+      if (blur > 0) ctx.filter = "none";
       const overlayAlpha = Math.max(0, Math.min(1, dimT - beatFlash * 0.05)) * eased;
       if (overlayAlpha > 0) {
         ctx.globalAlpha = overlayAlpha;
