@@ -88,6 +88,9 @@ export const zhCN: PartialCatalog = {
   "settings.simplifyBottomTimelineHint":
     "隐藏 BPM 和 SV 叠层，同时保留音符密度和书签。",
   "settings.backgroundDim": "背景变暗",
+  "settings.backgroundBlur": "背景模糊",
+  "settings.backgroundBlurHint":
+    "柔化音符后方的背景图片。想让插图可见又不喧宾夺主时，可搭配较低的变暗程度使用。",
   "settings.sizeZoom": "大小 / 缩放",
   "settings.playfieldHint":
     "背景越暗，音符区域越易读。大小 / 缩放仅影响显示，也可用 + / − 键调整。",
@@ -123,6 +126,16 @@ export const zhCN: PartialCatalog = {
     "默认长条主体（灰色部分）相对于轨道的宽度。仅在未使用皮肤主体贴图时生效。",
 
   "settings.mainMenu": "主菜单",
+  "settings.menuBackground": "背景",
+  "settings.menuBackgroundHint":
+    "在菜单后显示当前歌曲的插图，或你自己的图片。每个账号一张，在你登录的所有设备上通用。",
+  "settings.menuBackgroundSong": "歌曲插图",
+  "settings.menuBackgroundCustom": "我的图片",
+  "settings.menuBackgroundEmpty": "尚未上传图片",
+  "settings.menuBackgroundUpload": "上传",
+  "settings.menuBackgroundReplace": "替换",
+  "settings.menuBackgroundRemove": "移除",
+  "settings.menuBackgroundSignIn": "登录后即可上传自己的菜单背景。",
   "settings.menuMusic": "在主菜单随机播放歌曲",
   "settings.menuMusicHint":
     "从你的本地项目中挑一首在菜单背后播放。按 C 暂停，按 V 下一首，按 X 上一首。",

@@ -91,6 +91,9 @@ export const de: PartialCatalog = {
   "settings.simplifyBottomTimelineHint":
     "Blendet BPM- und SV-Overlays aus, behält aber Notendichte und Lesezeichen bei.",
   "settings.backgroundDim": "Hintergrund abdunkeln",
+  "settings.backgroundBlur": "Hintergrund weichzeichnen",
+  "settings.backgroundBlurHint":
+    "Zeichnet das Hintergrundbild hinter den Noten weich. Gut kombinierbar mit schwächerem Abdunkeln, wenn das Bild sichtbar, aber unaufdringlich sein soll.",
   "settings.sizeZoom": "Größe / Zoom",
   "settings.playfieldHint":
     "Stärkeres Abdunkeln hält das Notenfeld besser lesbar. Größe / Zoom ist rein visuell und lässt sich auch mit + / − anpassen.",
@@ -126,6 +129,17 @@ export const de: PartialCatalog = {
     "Breite des Standard-Long-Note-Körpers (der graue Teil), relativ zur Spur. Gilt nur, wenn kein Skin-Sprite verwendet wird.",
 
   "settings.mainMenu": "Hauptmenü",
+  "settings.menuBackground": "Hintergrund",
+  "settings.menuBackgroundHint":
+    "Zeigt hinter dem Menü das Bild des laufenden Songs oder ein eigenes. Ein Bild pro Konto, auf jedem Gerät, an dem du dich anmeldest.",
+  "settings.menuBackgroundSong": "Song-Bild",
+  "settings.menuBackgroundCustom": "Mein Bild",
+  "settings.menuBackgroundEmpty": "Kein Bild hochgeladen",
+  "settings.menuBackgroundUpload": "Hochladen",
+  "settings.menuBackgroundReplace": "Ersetzen",
+  "settings.menuBackgroundRemove": "Entfernen",
+  "settings.menuBackgroundSignIn":
+    "Melde dich an, um einen eigenen Menühintergrund hochzuladen.",
   "settings.menuMusic": "Zufälligen Song im Hauptmenü spielen",
   "settings.menuMusicHint":
     "Spielt einen Titel aus deinen lokalen Projekten hinter dem Menü. C pausiert, V springt zum nächsten Song, X zum vorherigen.",

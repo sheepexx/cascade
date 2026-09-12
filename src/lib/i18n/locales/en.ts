@@ -93,6 +93,9 @@ export const en = {
 
   "settings.playfield": "Playfield",
   "settings.backgroundDim": "Background dim",
+  "settings.backgroundBlur": "Background blur",
+  "settings.backgroundBlurHint":
+    "Softens the background picture behind the notes. Pairs well with a lower dim when you want the art visible but out of the way.",
   "settings.sizeZoom": "Size / zoom",
   "settings.playfieldHint":
     "Higher dim keeps the notefield easier to read. Size / zoom is visual only - also adjustable with the + / − keys.",
@@ -134,6 +137,17 @@ export const en = {
     "Width of the default long-note body (the gray part), relative to the lane. Only applies when no skin body sprite is used.",
 
   "settings.mainMenu": "Main menu",
+  "settings.menuBackground": "Background",
+  "settings.menuBackgroundHint":
+    "Show the playing song's art behind the menu, or a picture of your own. One picture per account, on every device you sign in to.",
+  "settings.menuBackgroundSong": "Song art",
+  "settings.menuBackgroundCustom": "My picture",
+  "settings.menuBackgroundEmpty": "No picture uploaded",
+  "settings.menuBackgroundUpload": "Upload",
+  "settings.menuBackgroundReplace": "Replace",
+  "settings.menuBackgroundRemove": "Remove",
+  "settings.menuBackgroundSignIn":
+    "Sign in to upload your own menu background.",
   "settings.menuMusic": "Play a random song in the main menu",
   "settings.menuMusicHint":
     "Picks a track from your local projects and plays it behind the menu. Press C to pause it, V for the next song and X for the one before.",

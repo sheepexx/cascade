@@ -7,6 +7,11 @@ import {
   Slider,
   Toggle,
 } from "../ui/Controls";
+import { Dropdown } from "../ui/Dropdown";
+import { formatBytes } from "../../lib/progress";
+import { formatMenuBackgroundRules } from "../../lib/menuBackground";
+import type { CloudMenuBackground } from "../../lib/accountCloud";
+import type { MenuBackgroundMode } from "../../types";
 import { Tooltip } from "../ui/Tooltip";
 import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
@@ -85,6 +90,8 @@ type Props = {
   onMusicVolume: (value: number) => void;
   dimBackground: number;
   onDimBackground: (value: number) => void;
+  backgroundBlur: number;
+  onBackgroundBlur: (value: number) => void;
   smoothScrolling: boolean;
   onSmoothScrolling: (value: boolean) => void;
   showWaveform: boolean;
@@ -119,6 +126,14 @@ type Props = {
   onHideStatus: (value: boolean) => void;
   menuMusicEnabled: boolean;
   onMenuMusicEnabled: (value: boolean) => void;
+  menuBackgroundMode: MenuBackgroundMode;
+  onMenuBackgroundMode: (value: MenuBackgroundMode) => void;
+  menuBackground: CloudMenuBackground | null;
+  menuBackgroundUrl: string | null;
+  menuBackgroundBusy: boolean;
+  menuBackgroundError: string | null;
+  onUploadMenuBackground: (file: File) => Promise<void>;
+  onRemoveMenuBackground: () => Promise<void>;
   logoSkinHitsounds: boolean;
   onLogoSkinHitsounds: (value: boolean) => void;
   menuTipsEnabled: boolean;
@@ -198,6 +213,8 @@ export function AppSettingsModal({
   onMusicVolume,
   dimBackground,
   onDimBackground,
+  backgroundBlur,
+  onBackgroundBlur,
   smoothScrolling,
   onSmoothScrolling,
   showWaveform,
@@ -230,6 +247,14 @@ export function AppSettingsModal({
   onShowMenuPlayers,
   menuMusicEnabled,
   onMenuMusicEnabled,
+  menuBackgroundMode,
+  onMenuBackgroundMode,
+  menuBackground,
+  menuBackgroundUrl,
+  menuBackgroundBusy,
+  menuBackgroundError,
+  onUploadMenuBackground,
+  onRemoveMenuBackground,
   logoSkinHitsounds,
   onLogoSkinHitsounds,
   menuTipsEnabled,
@@ -377,17 +402,16 @@ export function AppSettingsModal({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("settings.language")}
               </h3>
-              <Select
+              <Dropdown
                 className="w-full"
+                aria-label={t("settings.language")}
                 value={locale}
-                onChange={(e) => setLocale(e.target.value as Locale)}
-              >
-                {LOCALES.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.nativeName}
-                  </option>
-                ))}
-              </Select>
+                options={LOCALES.map((option) => ({
+                  value: option.code,
+                  label: option.nativeName,
+                }))}
+                onChange={(next: Locale) => setLocale(next)}
+              />
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -406,26 +430,23 @@ export function AppSettingsModal({
                 commitOnRelease
                 onChange={onUiScale}
               />
-              <label className="mt-4 block">
+              <div className="mt-4">
                 <span className="text-sm text-slate-200">
                   <Tip text={t("settings.altWheelHint")}>
                     {t("settings.altWheelAction")}
                   </Tip>
                 </span>
-                <Select
+                <Dropdown
                   className="mt-2 w-full"
+                  aria-label={t("settings.altWheelAction")}
                   value={altWheelAction}
-                  onChange={(e) =>
-                    onAltWheelAction(e.target.value as AltWheelAction)
-                  }
-                >
-                  {ALT_WHEEL_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {t(option.label)}
-                    </option>
-                  ))}
-                </Select>
-              </label>
+                  options={ALT_WHEEL_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: t(option.label),
+                  }))}
+                  onChange={onAltWheelAction}
+                />
+              </div>
               <div className="mt-4">
                 <SettingToggle
                   label={t("settings.shortcutNotices")}
@@ -464,6 +485,108 @@ export function AppSettingsModal({
                   checked={introEnabled}
                   onChange={onIntroEnabled}
                 />
+                <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-sm text-slate-200">
+                      <Tip text={t("settings.menuBackgroundHint")}>
+                        {t("settings.menuBackground")}
+                      </Tip>
+                    </span>
+                    <SegmentedControl
+                      className="w-56"
+                      value={menuBackgroundMode}
+                      onChange={onMenuBackgroundMode}
+                      options={[
+                        {
+                          value: "song",
+                          label: t("settings.menuBackgroundSong"),
+                        },
+                        {
+                          value: "custom",
+                          label: t("settings.menuBackgroundCustom"),
+                        },
+                      ]}
+                    />
+                  </div>
+
+                  {!user ? (
+                    <p className="rounded-lg border border-white/10 bg-ink-700/40 px-3 py-2 text-[11px] text-slate-400">
+                      {t("settings.menuBackgroundSignIn")}
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-ink-700/40 p-2.5">
+                      <div className="grid h-12 w-20 shrink-0 place-items-center overflow-hidden rounded-md border border-white/10 bg-ink-900/60">
+                        {menuBackgroundUrl ? (
+                          <img
+                            src={menuBackgroundUrl}
+                            alt=""
+                            aria-hidden
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-slate-600">—</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div
+                          className="truncate text-xs text-slate-200"
+                          title={menuBackground?.filename}
+                        >
+                          {menuBackground?.filename ??
+                            t("settings.menuBackgroundEmpty")}
+                        </div>
+                        <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                          {menuBackground
+                            ? `${menuBackground.width}×${menuBackground.height} · ${formatBytes(
+                                menuBackground.bytes,
+                              )}`
+                            : formatMenuBackgroundRules()}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <label
+                          className={`inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-2.5 text-xs font-medium text-slate-200 transition duration-[var(--motion-quick)] hover:bg-ink-500/85 ${
+                            menuBackgroundBusy
+                              ? "pointer-events-none opacity-40"
+                              : ""
+                          }`}
+                        >
+                          {menuBackgroundBusy
+                            ? "…"
+                            : menuBackground
+                              ? t("settings.menuBackgroundReplace")
+                              : t("settings.menuBackgroundUpload")}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/avif"
+                            className="hidden"
+                            disabled={menuBackgroundBusy}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file) void onUploadMenuBackground(file);
+                              event.target.value = "";
+                            }}
+                          />
+                        </label>
+                        {menuBackground && (
+                          <Button
+                            className="px-2 py-1 text-xs"
+                            disabled={menuBackgroundBusy}
+                            onClick={() => void onRemoveMenuBackground()}
+                          >
+                            {t("settings.menuBackgroundRemove")}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {menuBackgroundError && (
+                    <p className="text-[11px] text-rose-300">
+                      {menuBackgroundError}
+                    </p>
+                  )}
+                </div>
               </div>
             </section>
             <section>
@@ -622,6 +745,16 @@ export function AppSettingsModal({
                   step={1}
                   value={dimBackground}
                   onChange={onDimBackground}
+                />
+                <SliderRow
+                  label={t("settings.backgroundBlur")}
+                  tip={t("settings.backgroundBlurHint")}
+                  display={`${Math.round(backgroundBlur)}px`}
+                  min={0}
+                  max={40}
+                  step={1}
+                  value={backgroundBlur}
+                  onChange={onBackgroundBlur}
                 />
                 <SliderRow
                   label={t("settings.sizeZoom")}

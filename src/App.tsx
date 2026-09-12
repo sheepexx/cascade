@@ -307,14 +307,19 @@ import { setPerformanceMode } from "./lib/performanceMode";
 import { useAuth } from "./lib/auth";
 import { useLocale, useT, type MessageKey } from "./lib/i18n";
 import {
+  downloadCloudMenuBackground,
   downloadCloudSkin,
   listCloudSkins,
   loadAccountSettings,
+  loadCloudMenuBackground,
   normalizeAccountSettings,
+  removeCloudMenuBackground,
   removeCloudSkin,
   saveAccountSettings,
+  uploadCloudMenuBackground,
   uploadCloudSkin,
   type AccountSettings,
+  type CloudMenuBackground,
   type CloudSkin,
 } from "./lib/accountCloud";
 import {
@@ -699,6 +704,13 @@ export default function App() {
   const [skinLibrary, setSkinLibrary] = useState<SavedSkinBlob[]>([]);
   const [cloudSkins, setCloudSkins] = useState<CloudSkin[]>([]);
   const [cloudSkinsLoading, setCloudSkinsLoading] = useState(false);
+  const [menuBackground, setMenuBackground] =
+    useState<CloudMenuBackground | null>(null);
+  const [menuBackgroundUrl, setMenuBackgroundUrl] = useState<string | null>(null);
+  const [menuBackgroundBusy, setMenuBackgroundBusy] = useState(false);
+  const [menuBackgroundError, setMenuBackgroundError] = useState<string | null>(
+    null,
+  );
   const [skinError, setSkinError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -1029,6 +1041,21 @@ export default function App() {
   useEffect(() => {
     void refreshCloudSkins();
   }, [authUser?.id, refreshCloudSkins]);
+  const refreshMenuBackground = useCallback(async () => {
+    const userId = authUserRef.current?.id;
+    if (!userId) {
+      setMenuBackground(null);
+      return;
+    }
+    try {
+      setMenuBackground(await loadCloudMenuBackground(userId));
+    } catch {
+      setMenuBackground(null);
+    }
+  }, []);
+  useEffect(() => {
+    void refreshMenuBackground();
+  }, [authUser?.id, refreshMenuBackground]);
   const cloudProjectIdRef = useRef(cloudProjectId);
   cloudProjectIdRef.current = cloudProjectId;
   const inviteNoticeProjectsRef = useRef<Set<string>>(new Set());
@@ -2499,6 +2526,71 @@ export default function App() {
     },
     [refreshCloudSkins],
   );
+
+  // The picture itself is only fetched once it is going to be shown, so an
+  // account that stays on song art never pays for the download. Keyed by the
+  // checksum so replacing the picture swaps the object URL.
+  const menuBackgroundKey =
+    appSettings.menuBackgroundMode === "custom" && menuBackground
+      ? menuBackground.sha256
+      : null;
+  useEffect(() => {
+    if (!menuBackgroundKey) {
+      setMenuBackgroundUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    downloadCloudMenuBackground()
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setMenuBackgroundUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setMenuBackgroundUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [menuBackgroundKey]);
+
+  const onUploadMenuBackground = useCallback(async (file: File) => {
+    setMenuBackgroundError(null);
+    setMenuBackgroundBusy(true);
+    try {
+      setMenuBackground(await uploadCloudMenuBackground(file));
+      // Uploading one is a clear request to see it.
+      setAppSettings((s) => ({ ...s, menuBackgroundMode: "custom" }));
+    } catch (error) {
+      setMenuBackgroundError(
+        error instanceof Error ? error.message : "Couldn't upload that image.",
+      );
+    } finally {
+      setMenuBackgroundBusy(false);
+    }
+  }, []);
+
+  const onRemoveMenuBackground = useCallback(async () => {
+    setMenuBackgroundError(null);
+    setMenuBackgroundBusy(true);
+    try {
+      await removeCloudMenuBackground();
+      setMenuBackground(null);
+      setAppSettings((s) =>
+        s.menuBackgroundMode === "custom"
+          ? { ...s, menuBackgroundMode: "song" }
+          : s,
+      );
+    } catch (error) {
+      setMenuBackgroundError(
+        error instanceof Error ? error.message : "Couldn't remove that image.",
+      );
+    } finally {
+      setMenuBackgroundBusy(false);
+    }
+  }, []);
 
   const onClearSkin = useCallback(() => {
     setSkinError(null);
@@ -5965,6 +6057,7 @@ export default function App() {
     { key: "settings.showPpCounter", tab: "Editor", keywords: "speed" },
     { key: "settings.showPatternTools", tab: "Editor", keywords: "presets" },
     { key: "settings.backgroundDim", tab: "Editor" },
+    { key: "settings.backgroundBlur", tab: "Editor", keywords: "blur background" },
     { key: "settings.sizeZoom", tab: "Editor", keywords: "playfield" },
     { key: "settings.noteHeight", tab: "Editor" },
     { key: "settings.waveformOnLane", tab: "Editor" },
@@ -6782,6 +6875,7 @@ export default function App() {
                 playbackRate={audio.playbackRate}
                 timeScale={activeRate}
                 dimBackground={editorDimBackground}
+                backgroundBlur={appSettings.backgroundBlur}
                 skin={activeSkin}
                 playfieldScale={editorPlayfieldScale}
                 noteHeightScale={appSettings.noteHeightScale}
@@ -6860,6 +6954,7 @@ export default function App() {
                 }
                 logoSamples={appSettings.logoSkinHitsounds ? "skin" : "menu"}
                 skinHitsounds={skin?.hitsounds ?? null}
+                menuBackgroundUrl={menuBackgroundUrl}
                 editorKeybinds={editorKeybinds}
                 menuTips={appSettings.menuTipsEnabled}
               >
@@ -6890,6 +6985,7 @@ export default function App() {
                       backgroundUrl={null}
                       videoUrl={null}
                       dimBackground={appSettings.dimBackground}
+                      backgroundBlur={appSettings.backgroundBlur}
                       skin={referenceSkin}
                       playfieldScale={appSettings.playfieldScale}
                       noteHeightScale={appSettings.noteHeightScale}
@@ -7333,6 +7429,20 @@ export default function App() {
           onDimBackground={(v) =>
             setAppSettings((s) => ({ ...s, dimBackground: v }))
           }
+          backgroundBlur={appSettings.backgroundBlur}
+          onBackgroundBlur={(v) =>
+            setAppSettings((s) => ({ ...s, backgroundBlur: v }))
+          }
+          menuBackgroundMode={appSettings.menuBackgroundMode}
+          onMenuBackgroundMode={(v) =>
+            setAppSettings((s) => ({ ...s, menuBackgroundMode: v }))
+          }
+          menuBackground={menuBackground}
+          menuBackgroundUrl={menuBackgroundUrl}
+          menuBackgroundBusy={menuBackgroundBusy}
+          menuBackgroundError={menuBackgroundError}
+          onUploadMenuBackground={onUploadMenuBackground}
+          onRemoveMenuBackground={onRemoveMenuBackground}
           smoothScrolling={appSettings.smoothScrolling}
           onSmoothScrolling={(v) =>
             setAppSettings((s) => ({ ...s, smoothScrolling: v }))

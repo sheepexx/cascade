@@ -408,6 +408,9 @@ export function isAltWheelAction(value: unknown): value is AltWheelAction {
   return ALT_WHEEL_ACTIONS.some((action) => action === value);
 }
 
+/** "song" follows the menu music's art; "custom" uses the account's upload. */
+export type MenuBackgroundMode = "song" | "custom";
+
 export type AppSettings = {
   waveformSensitivity: number;
   uiScale: number;
@@ -421,6 +424,8 @@ export type AppSettings = {
   /** Scales every sound Cascade makes: music, hitsounds and interface sounds. */
   masterVolume: number;
   dimBackground: number;
+  /** Blur on the editor background, in pixels; 0 leaves the picture sharp. */
+  backgroundBlur: number;
   smoothScrolling: boolean;
   showWaveform: boolean;
   /** How see-through the lane waveform is, 0 (strongest) to 100 (hidden). */
@@ -443,6 +448,8 @@ export type AppSettings = {
   showMenuPlayers: boolean;
   hideStatus: boolean;
   menuMusicEnabled: boolean;
+  /** Whether the main menu shows the playing song's art or your own picture. */
+  menuBackgroundMode: MenuBackgroundMode;
   /** The menu logo's beat sounds come from the equipped skin, not lazer. */
   logoSkinHitsounds: boolean;
   /** The occasional "Did you know?" tips in the main menu. */
@@ -503,6 +510,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundVolume: 0.18,
   masterVolume: 1,
   dimBackground: 82,
+  backgroundBlur: 0,
   smoothScrolling: true,
   showWaveform: false,
   waveformTransparency: 75,
@@ -524,6 +532,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showMenuPlayers: true,
   hideStatus: false,
   menuMusicEnabled: true,
+  menuBackgroundMode: "song",
   logoSkinHitsounds: false,
   menuTipsEnabled: true,
   introEnabled: true,

@@ -2,9 +2,13 @@ import type { Locale } from "./i18n";
 import { isLocale } from "./i18n/core";
 import { supabase } from "./supabase";
 import {
+  deleteUserMenuBackground,
   deleteUserSkin,
+  downloadUserMenuBackground,
   downloadUserSkin,
+  uploadUserMenuBackground,
   uploadUserSkin,
+  type UserMenuBackgroundStorageRow,
 } from "./storage";
 import {
   DEFAULT_APP_SETTINGS,
@@ -35,6 +39,19 @@ export type CloudSkin = {
   bytes: number;
   updatedAt: string;
 };
+
+export type CloudMenuBackground = {
+  id: string;
+  filename: string;
+  storagePath: string;
+  sha256: string;
+  bytes: number;
+  width: number;
+  height: number;
+  updatedAt: string;
+};
+
+type UserMenuBackgroundRow = UserMenuBackgroundStorageRow;
 
 type UserSkinRow = {
   id: string;
@@ -160,6 +177,57 @@ export function downloadCloudSkin(slot: 1 | 2): Promise<Blob> {
 
 export function removeCloudSkin(slot: 1 | 2): Promise<void> {
   return deleteUserSkin(slot);
+}
+
+export async function loadCloudMenuBackground(
+  userId: string,
+): Promise<CloudMenuBackground | null> {
+  const { data, error } = await supabase
+    .from("user_menu_backgrounds")
+    .select("id,filename,storage_path,sha256,bytes,width,height,updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? cloudMenuBackgroundFromRow(data as UserMenuBackgroundRow) : null;
+}
+
+export async function uploadCloudMenuBackground(
+  file: File,
+): Promise<CloudMenuBackground> {
+  const { prepareMenuBackground } = await import("./menuBackground");
+  const prepared = await prepareMenuBackground(file);
+  const sha256 = await sha256Hex(prepared.blob);
+  const row = await uploadUserMenuBackground(
+    sha256,
+    file.name,
+    prepared.width,
+    prepared.height,
+    prepared.blob,
+  );
+  return cloudMenuBackgroundFromRow(row);
+}
+
+export function downloadCloudMenuBackground(): Promise<Blob> {
+  return downloadUserMenuBackground();
+}
+
+export function removeCloudMenuBackground(): Promise<void> {
+  return deleteUserMenuBackground();
+}
+
+function cloudMenuBackgroundFromRow(
+  row: UserMenuBackgroundRow,
+): CloudMenuBackground {
+  return {
+    id: row.id,
+    filename: row.filename,
+    storagePath: row.storage_path,
+    sha256: row.sha256,
+    bytes: Number(row.bytes) || 0,
+    width: Number(row.width) || 0,
+    height: Number(row.height) || 0,
+    updatedAt: row.updated_at,
+  };
 }
 
 function cloudSkinFromRow(row: UserSkinRow): CloudSkin {

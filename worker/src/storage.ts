@@ -20,6 +20,30 @@ type SharedMapStorageRow = {
   owner: string;
 };
 
+type UserMenuBackgroundRow = {
+  id: string;
+  user_id: string;
+  filename: string;
+  storage_path: string;
+  sha256: string;
+  bytes: number | string;
+  width: number;
+  height: number;
+  updated_at: string;
+};
+
+// Kept in step with the CHECK constraints in migration 0032; the SPA already
+// compresses to well inside these, so a request outside them is a bad client.
+const MENU_BACKGROUND_MAX_BYTES = 8 * 1024 * 1024;
+const MENU_BACKGROUND_BOUNDS = {
+  minWidth: 1280,
+  minHeight: 720,
+  maxWidth: 3840,
+  maxHeight: 2160,
+} as const;
+const MENU_BACKGROUND_COLUMNS =
+  "id,user_id,filename,storage_path,sha256,bytes,width,height,updated_at";
+
 type UserSkinRow = {
   id: string;
   user_id: string;
@@ -94,6 +118,34 @@ export async function handleStorageRoute(
       return getUserSkin(req, slot, auth, env);
     }
     if (req.method === "DELETE") return deleteUserSkin(slot, auth, env);
+    return storageJson({ error: "method not allowed" }, 405, env);
+  }
+
+  const menuBackgroundUpload = url.pathname.match(
+    /^\/storage\/users\/menu-background\/([0-9a-f]{64})\.jpg$/i,
+  );
+  if (menuBackgroundUpload && req.method === "PUT") {
+    const auth = await authenticate();
+    if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
+    return uploadUserMenuBackground(
+      req,
+      menuBackgroundUpload[1].toLowerCase(),
+      url.searchParams,
+      auth,
+      env,
+    );
+  }
+
+  const menuBackground = url.pathname.match(
+    /^\/storage\/users\/menu-background\/?$/i,
+  );
+  if (menuBackground) {
+    const auth = await authenticate();
+    if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
+    if (req.method === "GET" || req.method === "HEAD") {
+      return getUserMenuBackground(req, auth, env);
+    }
+    if (req.method === "DELETE") return deleteUserMenuBackground(auth, env);
     return storageJson({ error: "method not allowed" }, 405, env);
   }
 
@@ -697,6 +749,195 @@ async function fetchUserSkinRow(
   return rows[0] ?? null;
 }
 
+async function uploadUserMenuBackground(
+  req: Request,
+  sha256: string,
+  params: URLSearchParams,
+  auth: StorageAuthContext,
+  env: WorkerEnv,
+): Promise<Response> {
+  const filename = params.get("filename");
+  if (!validImageFilename(filename)) {
+    return storageJson({ error: "invalid image filename" }, 400, env);
+  }
+  const width = Number(params.get("width"));
+  const height = Number(params.get("height"));
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width < MENU_BACKGROUND_BOUNDS.minWidth ||
+    width > MENU_BACKGROUND_BOUNDS.maxWidth ||
+    height < MENU_BACKGROUND_BOUNDS.minHeight ||
+    height > MENU_BACKGROUND_BOUNDS.maxHeight
+  ) {
+    return storageJson({ error: "unsupported image dimensions" }, 400, env);
+  }
+  // A tighter cap than MAX_ASSET_BYTES: this is one decorative picture per
+  // account, not a map asset.
+  const declared = Number(req.headers.get("Content-Length"));
+  if (Number.isSafeInteger(declared) && declared > MENU_BACKGROUND_MAX_BYTES) {
+    return storageJson({ error: "image exceeds size limit" }, 413, env);
+  }
+
+  const previous = await fetchUserMenuBackgroundRow(auth.uid, env);
+  const storagePath = `users/${auth.uid}/menu-background/${sha256}.jpg`;
+  const uploadedResponse = await uploadObject(
+    req,
+    env.PROJECT_ASSETS,
+    storagePath,
+    false,
+    auth.uid,
+    env,
+  );
+  if (!uploadedResponse.ok) return uploadedResponse;
+  const uploaded = (await uploadedResponse.json()) as {
+    path: string;
+    bytes: number;
+    etag: string;
+  };
+  if (uploaded.bytes > MENU_BACKGROUND_MAX_BYTES) {
+    await env.PROJECT_ASSETS.delete(storagePath);
+    return storageJson({ error: "image exceeds size limit" }, 413, env);
+  }
+
+  const query = new URLSearchParams({
+    on_conflict: "user_id",
+    select: MENU_BACKGROUND_COLUMNS,
+  });
+  const databaseResponse = await supabaseRest(
+    env,
+    `/user_menu_backgrounds?${query}`,
+    {
+      method: "POST",
+      headers: {
+        ...serviceHeaders(env),
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify({
+        user_id: auth.uid,
+        filename,
+        storage_path: storagePath,
+        sha256,
+        bytes: uploaded.bytes,
+        width,
+        height,
+      }),
+    },
+  );
+  if (!databaseResponse.ok) {
+    if (previous?.storage_path !== storagePath) {
+      await env.PROJECT_ASSETS.delete(storagePath);
+    }
+    return storageJson(
+      { error: "could not save menu background metadata" },
+      502,
+      env,
+    );
+  }
+  const rows = (await databaseResponse.json()) as UserMenuBackgroundRow[];
+  const background = rows[0];
+  if (!background) {
+    return storageJson(
+      { error: "could not verify menu background metadata" },
+      502,
+      env,
+    );
+  }
+  if (previous && previous.storage_path !== storagePath) {
+    try {
+      await env.PROJECT_ASSETS.delete(previous.storage_path);
+    } catch (error) {
+      reportCleanupWarnings("menu background", previous.id, [
+        errorMessage(error),
+      ]);
+    }
+  }
+  return storageJson({ background }, 200, env);
+}
+
+async function getUserMenuBackground(
+  req: Request,
+  auth: StorageAuthContext,
+  env: WorkerEnv,
+): Promise<Response> {
+  const background = await fetchUserMenuBackgroundRow(auth.uid, env);
+  if (!background) {
+    return storageJson({ error: "no menu background set" }, 404, env);
+  }
+  const response = await serveR2Object(
+    env.PROJECT_ASSETS,
+    background.storage_path,
+    req,
+    env,
+    false,
+  );
+  return (
+    response ?? storageJson({ error: "menu background not found" }, 404, env)
+  );
+}
+
+async function deleteUserMenuBackground(
+  auth: StorageAuthContext,
+  env: WorkerEnv,
+): Promise<Response> {
+  const params = new URLSearchParams({
+    user_id: `eq.${auth.uid}`,
+    select: "id,storage_path",
+  });
+  const databaseResponse = await supabaseRest(
+    env,
+    `/user_menu_backgrounds?${params}`,
+    {
+      method: "DELETE",
+      headers: {
+        ...serviceHeaders(env),
+        Prefer: "return=representation",
+      },
+    },
+  );
+  if (!databaseResponse.ok) {
+    return storageJson(
+      { error: "could not remove menu background metadata" },
+      502,
+      env,
+    );
+  }
+  const rows = (await databaseResponse.json()) as Pick<
+    UserMenuBackgroundRow,
+    "id" | "storage_path"
+  >[];
+  const background = rows[0];
+  if (!background) return storageJson({ deleted: true }, 200, env);
+  const warnings: string[] = [];
+  try {
+    await env.PROJECT_ASSETS.delete(background.storage_path);
+  } catch (error) {
+    warnings.push(errorMessage(error));
+  }
+  reportCleanupWarnings("menu background", background.id, warnings);
+  return storageJson({ deleted: true, warnings }, 200, env);
+}
+
+async function fetchUserMenuBackgroundRow(
+  userId: string,
+  env: WorkerEnv,
+): Promise<UserMenuBackgroundRow | null> {
+  const params = new URLSearchParams({
+    user_id: `eq.${userId}`,
+    select: MENU_BACKGROUND_COLUMNS,
+    limit: "1",
+  });
+  const response = await supabaseRest(
+    env,
+    `/user_menu_backgrounds?${params}`,
+    { headers: serviceHeaders(env) },
+  );
+  if (!response.ok) throw new Error("could not read menu background metadata");
+  const rows = (await response.json()) as UserMenuBackgroundRow[];
+  return rows[0] ?? null;
+}
+
 async function serveR2Object(
   bucket: R2Bucket,
   key: string,
@@ -1188,6 +1429,14 @@ export function applyAssetResponseSecurity(headers: Headers): void {
     headers.set("Content-Type", "application/octet-stream");
     headers.set("Content-Disposition", "attachment");
   }
+}
+
+function validImageFilename(filename: string | null): filename is string {
+  if (!filename || !/\.(jpe?g|png|webp|avif|bmp|gif)$/i.test(filename)) {
+    return false;
+  }
+  if (filename.includes("/") || filename.includes("\\")) return false;
+  return new TextEncoder().encode(filename).byteLength <= 255;
 }
 
 function validSkinFilename(filename: string | null): filename is string {

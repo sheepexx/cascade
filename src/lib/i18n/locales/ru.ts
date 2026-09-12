@@ -91,6 +91,9 @@ export const ru: PartialCatalog = {
   "settings.simplifyBottomTimelineHint":
     "Скрывает BPM- и SV-слои, сохраняя плотность нот и закладки.",
   "settings.backgroundDim": "Затемнение фона",
+  "settings.backgroundBlur": "Размытие фона",
+  "settings.backgroundBlurHint":
+    "Размывает фоновое изображение за нотами. Хорошо сочетается со слабым затемнением, когда картинку хочется оставить видимой, но не отвлекающей.",
   "settings.sizeZoom": "Размер / масштаб",
   "settings.playfieldHint":
     "Более сильное затемнение упрощает чтение поля. Размер / масштаб влияет только на вид, его также можно менять клавишами + / −.",
@@ -127,6 +130,17 @@ export const ru: PartialCatalog = {
     "Ширина стандартного тела длинной ноты (серая часть) относительно дорожки. Действует, только если не используется спрайт из скина.",
 
   "settings.mainMenu": "Главное меню",
+  "settings.menuBackground": "Фон",
+  "settings.menuBackgroundHint":
+    "Показывать за меню обложку играющего трека или ваше собственное изображение. Одно изображение на аккаунт, на всех устройствах.",
+  "settings.menuBackgroundSong": "Обложка трека",
+  "settings.menuBackgroundCustom": "Моё изображение",
+  "settings.menuBackgroundEmpty": "Изображение не загружено",
+  "settings.menuBackgroundUpload": "Загрузить",
+  "settings.menuBackgroundReplace": "Заменить",
+  "settings.menuBackgroundRemove": "Удалить",
+  "settings.menuBackgroundSignIn":
+    "Войдите, чтобы загрузить собственный фон меню.",
   "settings.menuMusic": "Играть случайный трек в главном меню",
   "settings.menuMusicHint":
     "Берёт трек из ваших локальных проектов и играет его за меню. C ставит на паузу, V включает следующий трек, X предыдущий.",

@@ -91,6 +91,9 @@ export const ptBR: PartialCatalog = {
   "settings.simplifyBottomTimelineHint":
     "Oculta as camadas de BPM e SV, mantendo a densidade de notas e os marcadores.",
   "settings.backgroundDim": "Escurecer fundo",
+  "settings.backgroundBlur": "Desfoque do fundo",
+  "settings.backgroundBlurHint":
+    "Suaviza a imagem de fundo atrás das notas. Combina bem com um escurecimento menor quando você quer a arte visível, mas discreta.",
   "settings.sizeZoom": "Tamanho / zoom",
   "settings.playfieldHint":
     "Um fundo mais escuro deixa a área de notas mais fácil de ler. Tamanho / zoom é apenas visual e também pode ser ajustado com as teclas + / −.",
@@ -126,6 +129,17 @@ export const ptBR: PartialCatalog = {
     "Largura do corpo padrão da nota longa (a parte cinza), em relação à lane. Só se aplica quando nenhum sprite de skin é usado.",
 
   "settings.mainMenu": "Menu principal",
+  "settings.menuBackground": "Fundo",
+  "settings.menuBackgroundHint":
+    "Mostra a arte da música tocando atrás do menu, ou uma imagem sua. Uma imagem por conta, em todos os dispositivos em que você entrar.",
+  "settings.menuBackgroundSong": "Arte da música",
+  "settings.menuBackgroundCustom": "Minha imagem",
+  "settings.menuBackgroundEmpty": "Nenhuma imagem enviada",
+  "settings.menuBackgroundUpload": "Enviar",
+  "settings.menuBackgroundReplace": "Substituir",
+  "settings.menuBackgroundRemove": "Remover",
+  "settings.menuBackgroundSignIn":
+    "Entre para enviar seu próprio fundo de menu.",
   "settings.menuMusic": "Tocar uma música aleatória no menu principal",
   "settings.menuMusicHint":
     "Escolhe uma faixa dos seus projetos locais e toca atrás do menu. C pausa, V vai para a próxima música e X para a anterior.",

@@ -156,17 +156,19 @@ function PhoneStart({
   music,
   players,
   children,
+  menuBackgroundUrl,
 }: {
   music: MenuMusic;
   players?: OnlinePlayer[];
   children?: ReactNode;
+  menuBackgroundUrl?: string | null;
 }) {
   const t = useT();
   return (
     <div className="h-full overflow-y-auto">
       <div className="relative min-h-full overflow-hidden">
         <MenuBackground
-          url={music.track?.backgroundUrl ?? null}
+          url={menuBackgroundUrl ?? music.track?.backgroundUrl ?? null}
           players={players ?? []}
           phone
           open={false}
@@ -224,6 +226,7 @@ export function StartScreen({
   skinHitsounds = null,
   editorKeybinds = DEFAULT_EDITOR_KEYBINDS,
   menuTips = true,
+  menuBackgroundUrl = null,
 }: {
   music: MenuMusic;
   onOpenChange?: (open: boolean) => void;
@@ -248,6 +251,9 @@ export function StartScreen({
   editorKeybinds?: EditorKeybinds;
   /** The occasional "Did you know?" tips; off in Settings → General. */
   menuTips?: boolean;
+  /** The account's own menu picture, when they have one and have chosen it.
+   *  Null falls back to the playing song's art. */
+  menuBackgroundUrl?: string | null;
 }) {
   const counts = menuPanelCounts(Boolean(onExit));
   const panels = counts.left + counts.right;
@@ -449,7 +455,15 @@ export function StartScreen({
   const menuCenter = compactBanner ? `${compactCenter}px` : "50%";
 
   if (phone) {
-    return <PhoneStart music={music} players={players}>{children}</PhoneStart>;
+    return (
+      <PhoneStart
+        music={music}
+        players={players}
+        menuBackgroundUrl={menuBackgroundUrl}
+      >
+        {children}
+      </PhoneStart>
+    );
   }
 
   return (
@@ -464,7 +478,7 @@ export function StartScreen({
         } as CSSProperties}
       >
         <MenuBackground
-          url={music.track?.backgroundUrl ?? null}
+          url={menuBackgroundUrl ?? music.track?.backgroundUrl ?? null}
           players={players ?? []}
           phone={false}
           open={open}

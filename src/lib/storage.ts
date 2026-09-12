@@ -24,6 +24,17 @@ export type UserSkinStorageRow = {
   updated_at: string;
 };
 
+export type UserMenuBackgroundStorageRow = {
+  id: string;
+  filename: string;
+  storage_path: string;
+  sha256: string;
+  bytes: number | string;
+  width: number;
+  height: number;
+  updated_at: string;
+};
+
 export type StorageUsage = {
   bytes: number;
   objects: number;
@@ -171,6 +182,54 @@ export async function downloadUserSkin(slot: 1 | 2): Promise<Blob> {
 
 export async function deleteUserSkin(slot: 1 | 2): Promise<void> {
   await workerJson<DeleteResult>(`/storage/users/skins/${slot}`, {
+    method: "DELETE",
+    headers: sessionAuthHeaders(),
+  });
+}
+
+export async function uploadUserMenuBackground(
+  sha256: string,
+  filename: string,
+  width: number,
+  height: number,
+  blob: Blob,
+): Promise<UserMenuBackgroundStorageRow> {
+  const query = new URLSearchParams({
+    filename,
+    width: String(width),
+    height: String(height),
+  });
+  const result = await workerJson<{ background: UserMenuBackgroundStorageRow }>(
+    `/storage/users/menu-background/${sha256}.jpg?${query}`,
+    {
+      method: "PUT",
+      headers: {
+        ...sessionAuthHeaders(),
+        "Content-Type": blob.type || "image/jpeg",
+      },
+      body: blob,
+    },
+  );
+  if (
+    result.background.sha256 !== sha256 ||
+    Number(result.background.bytes) !== blob.size
+  ) {
+    throw new Error("Menu background upload verification failed.");
+  }
+  return result.background;
+}
+
+export async function downloadUserMenuBackground(): Promise<Blob> {
+  const response = await workerFetch("/storage/users/menu-background", {
+    method: "GET",
+    headers: sessionAuthHeaders(),
+  });
+  if (!response.ok) throw await responseError(response);
+  return response.blob();
+}
+
+export async function deleteUserMenuBackground(): Promise<void> {
+  await workerJson<DeleteResult>("/storage/users/menu-background", {
     method: "DELETE",
     headers: sessionAuthHeaders(),
   });
