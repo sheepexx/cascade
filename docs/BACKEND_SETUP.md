@@ -6,7 +6,7 @@ The editor is a static SPA on Vercel. Auth + storage are added via:
   Supabase JWT. Already deployed at `https://mania-editor.noahcraft01.workers.dev/`.
 - **Supabase** - Postgres (data) + Realtime collaboration.
 - **Cloudflare R2** - private project assets and public shared-map assets. See
-  [`R2_MIGRATION.md`](./R2_MIGRATION.md) for setup and rollout.
+  [`R2_MIGRATION.md`](./R2_MIGRATION.md) for setup.
 
 There is **no Supabase Auth user**. The Worker mints a Supabase-compatible JWT whose
 `sub` is a row id in `public.users`; Row-Level Security reads it as `auth.uid()`.
