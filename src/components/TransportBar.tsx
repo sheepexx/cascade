@@ -10,7 +10,8 @@ import {
 import type { AudioController } from "../hooks/useAudio";
 import { formatTime, parseTimestamp } from "../lib/timing";
 import { useT } from "../lib/i18n";
-import { Select, Slider } from "./ui/Controls";
+import { Slider } from "./ui/Controls";
+import { Dropdown, type DropdownOption } from "./ui/Dropdown";
 type Props = {
   audio: AudioController;
   view: ViewState;
@@ -146,27 +147,23 @@ export function TransportBar({
 
       <div className="order-2 flex min-w-0 items-center justify-end gap-2 uixl:order-3 uixl:gap-4">
 
-        <label className="flex items-center gap-2 text-xs text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="hidden uimd:inline">
             {t("transport.snap")}
           </span>
-          <Select
+          <Dropdown
             size="sm"
+            aria-label={t("transport.snap")}
             value={view.snapDivisor}
-            onChange={(e) =>
-              onView({
-                ...view,
-                snapDivisor: Number(e.target.value) as SnapDivisor,
-              })
-            }
-          >
-            {SNAP_OPTIONS.map((d) => (
-              <option key={d} value={d}>
-                {d === FREE_SNAP ? t("transport.snapFree") : `1/${d}`}
-              </option>
-            ))}
-          </Select>
-        </label>
+            options={SNAP_OPTIONS.map(
+              (d): DropdownOption<SnapDivisor> => ({
+                value: d,
+                label: d === FREE_SNAP ? t("transport.snapFree") : `1/${d}`,
+              }),
+            )}
+            onChange={(snapDivisor) => onView({ ...view, snapDivisor })}
+          />
+        </div>
 
         <label className="flex items-center gap-2 text-xs text-slate-400">
           <span className="hidden whitespace-nowrap uixl:inline">
