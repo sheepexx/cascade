@@ -1,6 +1,7 @@
-import type { ManiaNote, SnapDivisor, TimingPoint } from "../types";
+import { uid, type Difficulty, type ManiaNote, type SnapDivisor, type TimingPoint } from "../types";
 import { withoutNoteCollisions } from "./noteCollision";
 import { patternToNotes, type PatternNote } from "./patterns";
+import { uniqueDifficultyName } from "./rateChange";
 import { snapTime } from "./timing";
 
 export const NOTE_CLIP_DRAG_TYPE = "application/x-cascade-note-clip";
@@ -72,5 +73,57 @@ export function prepareNotePaste(
     candidates,
     notes,
     message: skipped.length ? `${message} Skipped ${skipped.join("; ")}.` : message,
+  };
+}
+
+/**
+ * A difficulty copied from any map, rebuilt to join this one: fresh ids so it
+ * cannot collide with the one it came from, no beatmap id, a name not taken
+ * here, and only asset names this map actually has. A missing audio file or
+ * background falls back to the active difficulty's, or this map's only one.
+ */
+export function adoptCopiedDifficulty(
+  source: Difficulty,
+  target: {
+    existingNames: Iterable<string>;
+    audioFilenames: string[];
+    backgroundFilenames: string[];
+    videoFilenames: string[];
+    base?: Pick<Difficulty, "audioFilename" | "backgroundFilename">;
+  },
+): Difficulty {
+  const pick = (
+    wanted: string | undefined,
+    fallback: string | undefined,
+    pool: string[],
+  ) =>
+    wanted && pool.includes(wanted)
+      ? wanted
+      : fallback && pool.includes(fallback)
+        ? fallback
+        : pool.length === 1
+          ? pool[0]
+          : undefined;
+  const keepVideo =
+    !!source.videoFilename && target.videoFilenames.includes(source.videoFilename);
+  return {
+    ...source,
+    id: uid("diff"),
+    name: uniqueDifficultyName(source.name, target.existingNames),
+    beatmapId: undefined,
+    audioFilename: pick(
+      source.audioFilename,
+      target.base?.audioFilename,
+      target.audioFilenames,
+    ),
+    backgroundFilename: pick(
+      source.backgroundFilename,
+      target.base?.backgroundFilename,
+      target.backgroundFilenames,
+    ),
+    videoFilename: keepVideo ? source.videoFilename : undefined,
+    videoOffsetMs: keepVideo ? source.videoOffsetMs : undefined,
+    timingPoints: source.timingPoints.map((p) => ({ ...p, id: uid("tp") })),
+    notes: source.notes.map((n) => ({ ...n, id: uid("n") })),
   };
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { makeRedPoint, type ManiaNote } from "../types";
-import { isClipboardTextTarget, positionPatternForDrop, prepareNotePaste } from "./editorClipboard";
+import { makeDifficulty, makeRedPoint, type ManiaNote } from "../types";
+import {
+  adoptCopiedDifficulty,
+  isClipboardTextTarget,
+  positionPatternForDrop,
+  prepareNotePaste,
+} from "./editorClipboard";
 import { notesToPattern } from "./patterns";
 
 const points = [makeRedPoint(0, 120)];
@@ -136,5 +141,62 @@ describe("prepareNotePaste", () => {
     expect(result.notes.map((n) => [n.startTime, n.endTime])).toEqual([
       [5000, undefined], [5063, 5250],
     ]);
+  });
+});
+
+describe("adoptCopiedDifficulty", () => {
+  const copied = {
+    ...makeDifficulty("Insane", 7),
+    beatmapId: 123,
+    audioFilename: "song.mp3",
+    backgroundFilename: "bg.jpg",
+    videoFilename: "video.mp4",
+    videoOffsetMs: 250,
+    notes: source,
+  };
+  const target = {
+    existingNames: ["Insane"],
+    audioFilenames: ["other.mp3"],
+    backgroundFilenames: ["cover.png", "alt.png"],
+    videoFilenames: [],
+    base: { audioFilename: "other.mp3", backgroundFilename: "alt.png" },
+  };
+
+  it("gives the copy fresh ids, a free name and no beatmap id", () => {
+    const diff = adoptCopiedDifficulty(copied, target);
+    expect(diff.id).not.toBe(copied.id);
+    expect(diff.name).toBe("Insane (2)");
+    expect(diff.beatmapId).toBeUndefined();
+    expect(diff.keyCount).toBe(7);
+    expect(diff.notes.map((n) => n.id)).not.toContain("a");
+    expect(diff.notes.map((n) => [n.column, n.startTime, n.endTime, n.hitSound])).toEqual([
+      [0, 1000, undefined, 4], [1, 1125, 1500, undefined],
+    ]);
+    expect(diff.timingPoints).toHaveLength(copied.timingPoints.length);
+    expect(diff.timingPoints[0].id).not.toBe(copied.timingPoints[0].id);
+  });
+
+  it("swaps assets this map lacks for the active difficulty's", () => {
+    const diff = adoptCopiedDifficulty(copied, target);
+    expect(diff.audioFilename).toBe("other.mp3");
+    expect(diff.backgroundFilename).toBe("alt.png");
+    expect(diff.videoFilename).toBeUndefined();
+    expect(diff.videoOffsetMs).toBeUndefined();
+  });
+
+  it("keeps assets this map shares with the source", () => {
+    const diff = adoptCopiedDifficulty(copied, {
+      existingNames: [],
+      audioFilenames: ["other.mp3", "song.mp3"],
+      backgroundFilenames: ["bg.jpg"],
+      videoFilenames: ["video.mp4"],
+    });
+    expect(diff).toMatchObject({
+      name: "Insane",
+      audioFilename: "song.mp3",
+      backgroundFilename: "bg.jpg",
+      videoFilename: "video.mp4",
+      videoOffsetMs: 250,
+    });
   });
 });

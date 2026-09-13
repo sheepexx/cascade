@@ -24,6 +24,8 @@ type Props = {
   onSelect: (id: string) => void;
   onAdd: () => void;
   onDuplicate: (id: string) => void;
+  /** Puts a copy on the clipboard, to paste into this or any other map. */
+  onCopy: (id: string) => void;
   onDelete: (ids: string[]) => void;
   onRename: (id: string, name: string) => void;
   onCreateRate: (options: RateCreateOptions) => void;
@@ -38,6 +40,7 @@ export function DifficultySidebar({
   onSelect,
   onAdd,
   onDuplicate,
+  onCopy,
   onDelete,
   onRename,
   onCreateRate,
@@ -159,6 +162,7 @@ export function DifficultySidebar({
               peersHere={peers?.filter((p) => p.activeDiffId === d.id) ?? []}
               onSelect={(additive) => handleRowSelect(d.id, additive)}
               onDuplicate={() => onDuplicate(d.id)}
+              onCopy={() => onCopy(d.id)}
               onDelete={() => handleRowDelete(d.id)}
               onRename={(name) => onRename(d.id, name)}
             />
@@ -277,6 +281,7 @@ function DiffRow({
   peersHere,
   onSelect,
   onDuplicate,
+  onCopy,
   onDelete,
   onRename,
 }: {
@@ -290,6 +295,7 @@ function DiffRow({
   peersHere: PeerLite[];
   onSelect: (additive: boolean) => void;
   onDuplicate: () => void;
+  onCopy: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
 }) {
@@ -423,6 +429,16 @@ function DiffRow({
       </div>
 
       <div className="mt-1.5 flex items-center gap-2 pl-5">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onCopy();
+          }}
+          title="Copy to the clipboard, to paste into this or any other map"
+          className="text-[10px] text-slate-400 transition duration-150 hover:text-slate-200"
+        >
+          Copy
+        </button>
         <button
           onClick={(e) => {
             e.stopPropagation();

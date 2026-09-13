@@ -223,6 +223,15 @@ import { chooseMapperName } from "./lib/mapperName";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
+import { pushClip, type DifficultyClip } from "./lib/clipboardStore";
+import {
+  loadClipAssets,
+  placeClipAssets,
+  saveClipAssets,
+  type ClipAsset,
+  type ClipAssetKind,
+} from "./lib/clipboardAssets";
+import { adoptCopiedDifficulty } from "./lib/editorClipboard";
 import {
   CommandPalette,
   type PaletteCommand,
@@ -902,10 +911,6 @@ export default function App() {
     null,
   );
   const [publishKeyCount, setPublishKeyCount] = useState(4);
-  const [presetToCopy, setPresetToCopy] = useState<{
-    id: string;
-    pattern: PatternNote[];
-  } | null>(null);
   const importStartedRef = useRef(false);
 
   const [myRole, setMyRole] = useState<AccessRole>(null);
@@ -3804,6 +3809,154 @@ export default function App() {
     [markStructural],
   );
 
+  // Copying needs no edit access: a map someone shared read-only is still a
+  // fine source to paste into one of your own. The music, background and video
+  // it plays go along, so it pastes whole into any project.
+  const copyDifficulty = useCallback(async (id: string) => {
+    const difficulty = difficultiesRef.current.find((d) => d.id === id);
+    if (!difficulty) return;
+    const audioNames = Object.keys(audioFilesRef.current);
+    const audio =
+      (difficulty.audioFilename && audioFilesRef.current[difficulty.audioFilename]) ||
+      (audioNames.length === 1 ? audioFilesRef.current[audioNames[0]] : null);
+    const background = difficulty.backgroundFilename
+      ? bgFilesRef.current[difficulty.backgroundFilename]
+      : null;
+    const video = difficulty.videoFilename
+      ? videoFilesRef.current[difficulty.videoFilename]
+      : null;
+    const files: ClipAsset[] = [];
+    if (audio) files.push({ kind: "audio", name: audio.name, blob: audio.blob });
+    if (background) {
+      files.push({ kind: "background", name: background.name, blob: background.blob });
+    }
+    if (video) files.push({ kind: "video", name: video.name, blob: video.blob });
+
+    const clipId = uid("clip");
+    const saved =
+      files.length > 0 &&
+      (await saveClipAssets(clipId, files).then(
+        () => true,
+        () => false,
+      ));
+    const label = difficulty.name || "the difficulty";
+    pushClip({
+      kind: "difficulty",
+      id: clipId,
+      // Named after the song it plays, so a map that only had one song and
+      // never named it still pastes with the right one.
+      difficulty: { ...difficulty, audioFilename: audio?.name ?? difficulty.audioFilename },
+      source: `${metaRef.current.artist} - ${metaRef.current.title}`,
+      meta: metaRef.current,
+      assets: saved
+        ? files.map(({ kind, name, blob }) => ({ kind, name, bytes: blob.size }))
+        : [],
+    });
+    setImportNotice(
+      files.length && !saved
+        ? `Copied ${label}, but its music and background didn't fit in browser storage`
+        : `Copied ${label} to the clipboard`,
+    );
+  }, []);
+
+  const pasteDifficulty = useCallback(
+    async (clip: DifficultyClip) => {
+      if (!canEditRef.current) return;
+      const expected = clip.assets?.length ?? 0;
+      const stored = expected
+        ? await loadClipAssets(clip.id).catch((): ClipAsset[] => [])
+        : [];
+      const { names, added } = await placeClipAssets(stored, {
+        audio: audioFilesRef.current,
+        background: bgFilesRef.current,
+        video: videoFilesRef.current,
+      });
+      if (!canEditRef.current) return;
+
+      const addedOf = (kind: ClipAssetKind) =>
+        added.filter((file) => file.kind === kind);
+      const loaded = (kind: ClipAssetKind): LoadedFile[] =>
+        addedOf(kind).map((file) => ({
+          name: file.name,
+          blob: file.blob,
+          url: URL.createObjectURL(file.blob),
+        }));
+      const register =
+        (files: LoadedFile[]) => (prev: Record<string, LoadedFile>) =>
+          files.length
+            ? { ...prev, ...Object.fromEntries(files.map((f) => [f.name, f])) }
+            : prev;
+      const newAudio = loaded("audio");
+      const newBackgrounds = loaded("background");
+      const newVideos = loaded("video");
+
+      const current = difficultiesRef.current;
+      const base =
+        current.find((d) => d.id === activeIdRef.current) ?? current[0];
+      const source = clip.difficulty;
+      const diff = adoptCopiedDifficulty(
+        {
+          ...source,
+          audioFilename: names.audio ?? source.audioFilename,
+          backgroundFilename: names.background ?? source.backgroundFilename,
+          videoFilename: names.video ?? source.videoFilename,
+        },
+        {
+          existingNames: current.map((d) => d.name),
+          audioFilenames: [
+            ...Object.keys(audioFilesRef.current),
+            ...newAudio.map((f) => f.name),
+          ],
+          backgroundFilenames: [
+            ...Object.keys(bgFilesRef.current),
+            ...newBackgrounds.map((f) => f.name),
+          ],
+          videoFilenames: [
+            ...Object.keys(videoFilesRef.current),
+            ...newVideos.map((f) => f.name),
+          ],
+          base,
+        },
+      );
+
+      // Difficulties that play this map's only song without naming it would
+      // lose it once a second song arrives, so name it for them first.
+      const ownSongs = Object.keys(audioFilesRef.current);
+      const lone = newAudio.length && ownSongs.length === 1 ? ownSongs[0] : null;
+      const pinned = (list: Difficulty[]) =>
+        lone
+          ? list.map((d) =>
+              d.audioFilename && audioFilesRef.current[d.audioFilename]
+                ? d
+                : { ...d, audioFilename: lone },
+            )
+          : list;
+
+      markStructural();
+      setAudioFiles(register(newAudio));
+      setBgFiles(register(newBackgrounds));
+      setVideoFiles(register(newVideos));
+      setDifficulties((prev) => [...pinned(prev), diff]);
+      setActiveId(diff.id);
+      // A fresh project takes the song details along with the song.
+      const own = metaRef.current;
+      if (
+        clip.meta &&
+        own.title === DEFAULT_SONG_META.title &&
+        own.artist === DEFAULT_SONG_META.artist
+      ) {
+        setMeta({ ...clip.meta, beatmapSetId: undefined });
+      }
+      announceAssetChange(`added the difficulty ${diff.name}`);
+      setImportNotice(
+        expected > stored.length
+          ? `Added ${diff.name}, but its copied music and background are no longer in browser storage`
+          : `Added ${diff.name} as a new difficulty`,
+      );
+    },
+    [markStructural, announceAssetChange],
+  );
+
   const pruneOrphanAssets = useCallback((remaining: Difficulty[]) => {
     const prune = (
       reg: Record<string, LoadedFile>,
@@ -5883,7 +6036,10 @@ export default function App() {
   );
 
   const copyPresetToClipboard = useCallback((pattern: PatternNote[]) => {
-    setPresetToCopy({ id: uid("clip"), pattern });
+    pushClip({ kind: "notes", id: uid("clip"), notes: pattern });
+    setImportNotice(
+      `Copied ${pattern.length} note${pattern.length === 1 ? "" : "s"} from the preset`,
+    );
     setModal(null);
   }, []);
 
@@ -6784,6 +6940,7 @@ export default function App() {
                   onSelect={setActiveId}
                   onAdd={addDifficulty}
                   onDuplicate={duplicateDifficulty}
+                  onCopy={copyDifficulty}
                   onDelete={queueDifficultyDelete}
                   onRename={renameDifficulty}
                   onCreateRate={createRateDifficulty}
@@ -6914,7 +7071,7 @@ export default function App() {
                     ? handlePublishPattern
                     : undefined
                 }
-                pendingClip={presetToCopy}
+                onPasteDifficulty={pasteDifficulty}
                 readOnly={!canEdit}
                 playtestMode={playtest.active}
                 heldLnIdsRef={playtestHeldLnRef}
@@ -7016,6 +7173,7 @@ export default function App() {
                       readOnly
                       keyboardShortcuts={false}
                       hideHints
+                      hideClipboard
                     />
                   </div>
                   <div className="absolute left-2 top-2 z-20 rounded border border-white/10 bg-ink-900/65 px-2 py-0.5 text-[11px] font-medium text-slate-200 shadow backdrop-blur-xl">

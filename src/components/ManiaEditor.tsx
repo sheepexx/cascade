@@ -43,6 +43,16 @@ import {
   positionPatternForDrop,
   prepareNotePaste,
 } from "../lib/editorClipboard";
+import {
+  activeClip,
+  clearClipboard,
+  getClipboard,
+  pushClip,
+  selectClip,
+  useClipboard,
+  type DifficultyClip,
+  type NoteClip,
+} from "../lib/clipboardStore";
 import { defaultLaneColour } from "../lib/laneColours";
 import type { Waveform } from "../hooks/useWaveform";
 import {
@@ -65,6 +75,7 @@ import {
 } from "../lib/noteTools";
 import { Menu } from "./ui/Menu";
 import { SnapBadge } from "./ui/SnapBadge";
+import { DifficultyClipLabel } from "./ui/DifficultyClipLabel";
 import { t } from "../lib/i18n/core";
 import { formatUiNumber } from "../lib/formatUiNumber";
 import {
@@ -163,7 +174,10 @@ type Props = {
   hitsoundSources?: HitsoundSource[];
   onCopyHitsounds?: (sourceId: string) => void;
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
-  pendingClip?: { id: string; pattern: PatternNote[] } | null;
+  /** Adds a difficulty pasted from the clipboard, with its files, to the open map. */
+  onPasteDifficulty?: (clip: DifficultyClip) => void;
+  /** For the reference playfield, which has nothing to paste into. */
+  hideClipboard?: boolean;
   readOnly?: boolean;
   keyboardShortcuts?: boolean;
   playtestMode?: boolean;
@@ -243,10 +257,7 @@ type MoveDragState = {
   } & Partial<ManiaNote>)[];
 };
 
-type Clip = {
-  id: string;
-  notes: PatternNote[];
-};
+type Clip = NoteClip;
 
 type ClipDropPreview = {
   clip: Clip;
@@ -349,8 +360,11 @@ export function ManiaEditor(props: Props) {
   const [hitsoundBarMounted, setHitsoundBarMounted] = useState(false);
   const [hitsoundBarClosing, setHitsoundBarClosing] = useState(false);
   const [selectionCount, setSelectionCount] = useState(0);
-  const [clipboard, setClipboard] = useState<Clip | null>(null);
-  const [history, setHistory] = useState<Clip[]>([]);
+  // One clipboard for the whole app, so a copy survives switching difficulty
+  // or project.
+  const clipboardState = useClipboard();
+  const clipboard = activeClip(clipboardState);
+  const history = clipboardState.entries;
   const [clipboardStatus, setClipboardStatus] = useState("");
 
   useEffect(() => {
@@ -385,23 +399,6 @@ export function ManiaEditor(props: Props) {
   const skinColsRef = useRef<ColumnRender[]>([]);
   const shiftActiveRef = useRef(false);
   const selectedNoteIdsRef = useRef<Set<string>>(new Set());
-  const clipboardRef = useRef<Clip | null>(null);
-  const activateClip = useCallback((clip: Clip | null) => {
-    clipboardRef.current = clip;
-    setClipboard(clip);
-  }, []);
-
-  const lastPendingClipRef = useRef<string | null>(null);
-  useEffect(() => {
-    const pc = props.pendingClip;
-    if (!pc || pc.id === lastPendingClipRef.current) return;
-    lastPendingClipRef.current = pc.id;
-    const clip: Clip = { id: pc.id, notes: pc.pattern };
-    activateClip(clip);
-    setHistory((prev) => [clip, ...prev].slice(0, 8));
-    setClipboardStatus(`Copied ${clip.notes.length} notes from preset.`);
-  }, [props.pendingClip, activateClip]);
-
   const propsRef = useRef(props);
   propsRef.current = props;
   const [patternImage, setPatternImage] = useState<Parameters<typeof renderPatternCard>[0] | null>(null);
@@ -659,16 +656,16 @@ export function ManiaEditor(props: Props) {
       return null;
     }
     const clip: Clip = {
+      kind: "notes",
       id: uid("clip"),
       notes: notesToPattern(selected, timingPoints),
     };
-    activateClip(clip);
-    setHistory((prev) => [clip, ...prev].slice(0, 8));
+    pushClip(clip);
     setClipboardStatus(
       `Copied ${selected.length} note${selected.length === 1 ? "" : "s"}.`,
     );
     return clip;
-  }, [activateClip]);
+  }, []);
 
   const deleteSelection = useCallback(() => {
     if (propsRef.current.readOnly) return;
@@ -782,9 +779,13 @@ export function ManiaEditor(props: Props) {
 
   const paste = useCallback(() => {
     if (propsRef.current.readOnly) return;
-    const clip = clipboardRef.current;
+    const clip = activeClip(getClipboard());
     if (!clip) {
       setClipboardStatus("Copy some notes before pasting.");
+      return;
+    }
+    if (clip.kind === "difficulty") {
+      propsRef.current.onPasteDifficulty?.(clip);
       return;
     }
     const { timingPoints, view, keyCount, notes } = propsRef.current;
@@ -3084,7 +3085,7 @@ export function ManiaEditor(props: Props) {
     if (!preview) return;
     setClipboardStatus(preview.result.message);
     if (!preview.result.notes.length) return;
-    activateClip(clip);
+    selectClip(clip.id);
     propsRef.current.onAddNotes(preview.result.notes);
     setSelection(new Set(preview.result.notes.map((n) => n.id)));
     focusCanvas();
@@ -3261,7 +3262,7 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {!props.playtestMode && (clipboard || history.length > 0) && (
+      {!props.playtestMode && !props.hideClipboard && (clipboard || history.length > 0) && (
         <div className="absolute right-3 top-14 w-44 select-none rounded-lg border border-ink-600 bg-ink-800/90 p-2 text-xs text-slate-300 shadow-xl backdrop-blur">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="font-medium text-slate-200">Clipboard</span>
@@ -3269,8 +3270,7 @@ export function ManiaEditor(props: Props) {
               <button
                 type="button"
                 onClick={() => {
-                  activateClip(null);
-                  setHistory([]);
+                  clearClipboard();
                   setClipboardStatus("");
                 }}
                 className="rounded px-1 py-0.5 text-[10px] text-slate-500 transition hover:bg-ink-600 hover:text-slate-200"
@@ -3281,7 +3281,22 @@ export function ManiaEditor(props: Props) {
               <span className="text-[10px] text-slate-500">Ctrl+V</span>
             </div>
           </div>
-          {clipboard ? (
+          {clipboard?.kind === "difficulty" ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-start gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5">
+                <DifficultyClipLabel clip={clipboard} detailed />
+              </div>
+              <button
+                type="button"
+                onClick={paste}
+                disabled={props.readOnly || !props.onPasteDifficulty}
+                className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-ink-600 disabled:opacity-40"
+                title="Add this difficulty to the open map (Ctrl+V)"
+              >
+                Add to this map
+              </button>
+            </div>
+          ) : clipboard ? (
             <div className="flex flex-col gap-1.5">
               <div
                 draggable={!props.readOnly}
@@ -3338,26 +3353,43 @@ export function ManiaEditor(props: Props) {
                 {history.map((item) => (
                   <button
                     key={item.id}
-                    draggable={!props.readOnly}
-                    onDragStart={(e) => onClipDragStart(e, item)}
-                    onDragEnd={clearClipDrag}
-                    title="Select this pattern, or drag it onto the playfield"
-                    onClick={() => {
-                      activateClip(item);
-                      setClipboardStatus(`${item.notes.length} notes ready to paste.`);
+                    draggable={!props.readOnly && item.kind === "notes"}
+                    onDragStart={(e) => {
+                      if (item.kind === "notes") onClipDragStart(e, item);
+                      else e.preventDefault();
                     }}
-                    className={`flex items-center gap-2 rounded-md border px-1.5 py-1 text-left transition ${
+                    onDragEnd={clearClipDrag}
+                    title={
+                      item.kind === "notes"
+                        ? "Select this pattern, or drag it onto the playfield"
+                        : "Select this difficulty to add it to the open map"
+                    }
+                    onClick={() => {
+                      selectClip(item.id);
+                      setClipboardStatus(
+                        item.kind === "notes"
+                          ? `${item.notes.length} notes ready to paste.`
+                          : `${item.difficulty.name || "Difficulty"} ready to add.`,
+                      );
+                    }}
+                    className={`flex min-h-[30px] items-center gap-2 rounded-md border px-1.5 py-1 text-left transition ${
                       item.id === clipboard?.id
                         ? "border-yellow-300/50 bg-yellow-500/10"
                         : "border-ink-600 bg-ink-700/40 hover:border-slate-500"
                     }`}
                   >
-                    <ClipThumb clip={item} keyCount={props.keyCount} small />
-                    <span className="min-w-0 flex-1 text-[10px] text-slate-400">
-                      {item.notes.length} note
-                      {item.notes.length === 1 ? "" : "s"}
-                    </span>
-                    <SnapBadge pattern={item.notes} />
+                    {item.kind === "notes" ? (
+                      <>
+                        <ClipThumb clip={item} keyCount={props.keyCount} small />
+                        <span className="min-w-0 flex-1 text-[10px] text-slate-400">
+                          {item.notes.length} note
+                          {item.notes.length === 1 ? "" : "s"}
+                        </span>
+                        <SnapBadge pattern={item.notes} />
+                      </>
+                    ) : (
+                      <DifficultyClipLabel clip={item} />
+                    )}
                   </button>
                 ))}
               </div>
