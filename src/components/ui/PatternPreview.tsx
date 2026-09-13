@@ -1,4 +1,5 @@
 import type { PatternNote } from "../../lib/patterns";
+import { defaultLaneColour } from "../../lib/laneColours";
 
 export function PatternPreview({
   pattern,
@@ -48,7 +49,7 @@ export function PatternPreview({
             width={cellW - 1}
             height={riceH}
             rx={1}
-            fill={n.column % 2 === 0 ? "#e9e9f0" : "#5bc0ff"}
+            fill={defaultLaneColour(n.column, keyCount)}
           />
         );
       })}

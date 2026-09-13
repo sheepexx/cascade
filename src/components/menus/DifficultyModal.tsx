@@ -3,6 +3,7 @@ import { MAX_KEYS, MIN_KEYS, type Difficulty } from "../../types";
 import { Modal } from "../ui/Modal";
 import { Slider, TextInput } from "../ui/Controls";
 import { maniaJudgementWindows } from "../../lib/playtestJudgements";
+import { defaultLaneColour } from "../../lib/laneColours";
 
 type Props = {
   open: boolean;
@@ -233,10 +234,10 @@ function LaneMeter({
   );
 }
 
-/** White and blue alternating in from both edges, the centre lane of an odd
- *  key count in amber, as on osu!mania's default playfield. */
+/** White and blue mirrored in from both edges; odd key counts use the
+ *  editor's own layout, blue at the edges around a gold centre lane. */
 function laneColor(lane: number, keys: number): string {
-  if (keys % 2 === 1 && lane === (keys - 1) / 2) return "#fbbf24";
+  if (keys % 2 === 1) return defaultLaneColour(lane, keys);
   const fromEdge = Math.min(lane, keys - 1 - lane);
   return fromEdge % 2 === 0 ? "#e9e9f0" : "#5bc0ff";
 }

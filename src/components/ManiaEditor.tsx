@@ -43,6 +43,7 @@ import {
   positionPatternForDrop,
   prepareNotePaste,
 } from "../lib/editorClipboard";
+import { defaultLaneColour } from "../lib/laneColours";
 import type { Waveform } from "../hooks/useWaveform";
 import {
   consumeLocalSeekSignal,
@@ -1272,7 +1273,7 @@ export function ManiaEditor(props: Props) {
   );
 
   const laneColor = (col: number) =>
-    col % 2 === 0 ? "#e9e9f0" : "#5bc0ff";
+    defaultLaneColour(col, propsRef.current.keyCount);
 
   const noteColor = (col: number) =>
     skinColsRef.current[col]?.colour ?? laneColor(col);
@@ -3428,11 +3429,11 @@ const ClipPreview = memo(function ClipPreview({
       const height = hold ? Math.max(2, ty(n.startTime) - top) : riceH;
       ctx.fillStyle = hold
         ? "rgba(232,104,104,0.85)"
-        : n.column % 2 === 0 ? "#e9e9f0" : "#5bc0ff";
+        : defaultLaneColour(n.column, keyCount);
       roundRect(ctx, x, top, cellW - 1, height, 1);
       ctx.fill();
     }
-  }, [clip, cellW, w, h, pad, riceH]);
+  }, [clip, keyCount, cellW, w, h, pad, riceH]);
   return (
     <canvas
       ref={ref}
