@@ -89,6 +89,8 @@ const PLAYHEAD_FROM_BOTTOM = 96;
 const NOTE_HEIGHT = 16;
 const SELECT_AUTOSCROLL_TOP_ZONE = 64;
 const SELECT_EDGE_INSET = 12;
+/** How far from a long note's tail a press still grabs it for resizing. */
+const LN_TAIL_GRAB_PX = 8;
 const SELECT_AUTOSCROLL_MIN_PX_PER_SEC = 280;
 const SELECT_AUTOSCROLL_MAX_PX_PER_SEC = 900;
 const RECEPTOR_HIT_WINDOW = 90;
@@ -210,6 +212,8 @@ type DragState = {
   startTime: number;
   currentTime: number;
   replace?: ManiaNote;
+  /** Dragging an existing long note's tail; currentTime is its new end. */
+  resize?: boolean;
 };
 
 type InteractionMode = "edit" | "select";
@@ -333,6 +337,8 @@ export function ManiaEditor(props: Props) {
   const interactionModeRef = useRef<InteractionMode>("edit");
   interactionModeRef.current = interactionMode;
   const [shiftActive, setShiftActive] = useState(false);
+  // Over a long note's tail, or dragging one: the cursor shows it resizes.
+  const [tailHover, setTailHover] = useState(false);
   const [receptorsOn, setReceptorsOn] = useState(true);
   const receptorsOnRef = useRef(true);
   receptorsOnRef.current = receptorsOn;
@@ -1858,6 +1864,7 @@ export function ManiaEditor(props: Props) {
     const defaultNoteHeight =
       NOTE_HEIGHT * (propsRef.current.noteHeightScale || 1);
     const move = moveDragRef.current;
+    const resizing = dragRef.current?.resize ? dragRef.current : null;
     // Derive the cull margin through yToTime so it stays 256px wide even when
     // SV compresses or stretches time near the screen edges.
     const cullEdgeA = yToTime(-256);
@@ -1873,10 +1880,13 @@ export function ManiaEditor(props: Props) {
     const paintNote = (original: ManiaNote) => {
       if (playtest && consumedIdsRef?.current.has(original.id)) return;
       const selected = selectedNoteIdsRef.current.has(original.id);
+      // A long note whose tail is being dragged draws at its new length.
       const note =
-        move && selected
-          ? movedNoteRaw(original, move)
-          : original;
+        resizing?.replace?.id === original.id
+          ? { ...original, endTime: resizing.currentTime }
+          : move && selected
+            ? movedNoteRaw(original, move)
+            : original;
       if (note.column < 0 || note.column >= keyCount) return;
       {
         const nA = note.startTime;
@@ -2104,7 +2114,7 @@ export function ManiaEditor(props: Props) {
       ctx.restore();
     }
     const drag = dragRef.current;
-    if (drag) {
+    if (drag && !drag.resize) {
       const x = originX + drag.column * laneWidth;
       const yStart = timeToY(drag.startTime);
       const yEnd = timeToY(drag.currentTime);
@@ -2375,6 +2385,36 @@ export function ManiaEditor(props: Props) {
     }) ?? null;
   };
 
+  // The far end of a long note, which drags to lengthen or shorten it. The
+  // zone takes in the tail sprite and reaches at most halfway down the body,
+  // so the rest of the hold still grabs the whole note.
+  const findTailAt = (x: number, y: number): ManiaNote | null => {
+    const { notes, keyCount } = propsRef.current;
+    const col = columnAtX(x);
+    if (col < 0 || col >= keyCount) return null;
+    const { laneWidth, originX } = laneGeometry();
+    const up = propsRef.current.upscroll === true;
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const n = notes[i];
+      if (n.column !== col || n.endTime === undefined || n.endTime <= n.startTime) {
+        continue;
+      }
+      const bounds = noteBounds(n, laneWidth, originX);
+      if (!bounds) continue;
+      const yEnd = timeToY(n.endTime);
+      const inward = Math.min(
+        LN_TAIL_GRAB_PX,
+        Math.abs(timeToY(n.startTime) - yEnd) / 2,
+      );
+      const outward = LN_TAIL_GRAB_PX / 2;
+      const onTail = up
+        ? y >= yEnd - inward && y <= Math.max(yEnd, bounds.y + bounds.h) + outward
+        : y <= yEnd + inward && y >= Math.min(yEnd, bounds.y) - outward;
+      if (onTail) return n;
+    }
+    return null;
+  };
+
   const selectNotesInRect = (rect: CanvasRect) => {
     const { notes } = propsRef.current;
     const { laneWidth, originX } = laneGeometry();
@@ -2545,6 +2585,20 @@ export function ManiaEditor(props: Props) {
       return;
     }
 
+    // Grabbing a long note's tail resizes it, in either mode.
+    const tail = e.ctrlKey || e.metaKey ? null : findTailAt(x, y);
+    if (tail) {
+      dragRef.current = {
+        column: tail.column,
+        startTime: tail.startTime,
+        currentTime: tail.endTime ?? tail.startTime,
+        replace: tail,
+        resize: true,
+      };
+      setTailHover(true);
+      return;
+    }
+
     if (hit) {
       if (
         interactionModeRef.current === "edit" &&
@@ -2664,7 +2718,14 @@ export function ManiaEditor(props: Props) {
       const { lo, hi } = playableBounds(propsRef.current);
       const snapped = snapTime(yToTime(y), timingPoints, view.snapDivisor);
       drag.currentTime = Math.min(Math.max(snapped, lo), hi);
+      if (drag.resize) {
+        // Shortening stops a snap past the head, so the hold stays a hold.
+        const shortest = stepToSnap(drag.startTime, timingPoints, view.snapDivisor, 1);
+        drag.currentTime = Math.max(drag.currentTime, shortest);
+      }
+      return;
     }
+    setTailHover(!propsRef.current.readOnly && !!findTailAt(x, y));
   };
 
   const onMouseUp = (e: React.MouseEvent) => {
@@ -2710,6 +2771,19 @@ export function ManiaEditor(props: Props) {
     dragRef.current = null;
     if (!drag) return;
 
+    if (drag.resize && drag.replace) {
+      const original = drag.replace;
+      if (drag.currentTime === original.endTime) return;
+      const resized: ManiaNote = { ...original, endTime: drag.currentTime };
+      const escapes =
+        !inBounds(resized.startTime, drag.currentTime) &&
+        inBounds(original.startTime, original.endTime);
+      const others = propsRef.current.notes.filter((n) => n.id !== original.id);
+      if (escapes || !withoutNoteCollisions([resized], others).length) return;
+      propsRef.current.onMoveNotes([resized]);
+      return;
+    }
+
     const start = Math.min(drag.startTime, drag.currentTime);
     const end = Math.max(drag.startTime, drag.currentTime);
     const id = drag.replace?.id ?? uid("n");
@@ -2740,6 +2814,7 @@ export function ManiaEditor(props: Props) {
 
   const onMouseLeave = () => {
     mouseRef.current.inside = false;
+    setTailHover(false);
     dragRef.current = null;
     moveDragRef.current = null;
     if (!boxSelectCapturedRef.current) {
@@ -3045,9 +3120,11 @@ export function ManiaEditor(props: Props) {
         className={`block h-full w-full touch-none ${
           props.playtestMode
             ? "cursor-default"
-            : interactionMode === "select"
-              ? "cursor-default"
-              : "cursor-crosshair"
+            : tailHover
+              ? "cursor-ns-resize"
+              : interactionMode === "select"
+                ? "cursor-default"
+                : "cursor-crosshair"
         }`}
         onBlur={(e) => {
           delete e.currentTarget.dataset.pointerFocus;
