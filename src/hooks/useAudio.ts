@@ -92,6 +92,7 @@ export function useAudio(
   preservePitch = false,
   exclusive = false,
   masterVolume = 1,
+  keepPitchWhenSlowed = false,
 ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -147,8 +148,17 @@ export function useAudio(
   // AudioBufferSourceNode.playbackRate has no pitch correction, so preserving
   // pitch means handing playback to the media element, which time-stretches
   // natively. Costs output-latency compensation; see `webAudioActive`.
-  const preservePitchRef = useRef(preservePitch);
-  preservePitchRef.current = preservePitch;
+  // Slowing the transport below 100% takes the same route when
+  // keepPitchWhenSlowed is on. Exclusive output cannot time-stretch, and
+  // reopening the device on every speed change would stall playback, so it
+  // keeps its engine and slowed audio still plays lower there.
+  const pitchLocked =
+    preservePitch ||
+    (keepPitchWhenSlowed &&
+      playbackRate < 1 &&
+      !(exclusive && supportsExclusiveAudio()));
+  const preservePitchRef = useRef(pitchLocked);
+  preservePitchRef.current = pitchLocked;
 
   /** Whether the buffer-source engine (rather than the element) drives playback. */
   const webAudioActive = useCallback(
@@ -820,10 +830,10 @@ export function useAudio(
 
   // Flipping pitch preservation swaps playback engines. Hand the playhead over
   // at its current position so the switch is inaudible in timing terms.
-  const appliedPitchRef = useRef(preservePitch);
+  const appliedPitchRef = useRef(pitchLocked);
   useEffect(() => {
-    if (appliedPitchRef.current === preservePitch) return;
-    appliedPitchRef.current = preservePitch;
+    if (appliedPitchRef.current === pitchLocked) return;
+    appliedPitchRef.current = pitchLocked;
 
     const audio = audioRef.current;
     const wasPlaying =
@@ -834,10 +844,10 @@ export function useAudio(
       audio.pause();
     }
 
-    if (audio) applyRate(audio, effectiveRate(), preservePitch);
+    if (audio) applyRate(audio, effectiveRate(), pitchLocked);
     if (!wasPlaying) return;
 
-    if (preservePitch) {
+    if (pitchLocked) {
       if (audio) {
         audio.currentTime = positionRef.current;
         void audio.play().catch(() => {});
@@ -845,7 +855,7 @@ export function useAudio(
     } else if (startWebRef.current()) {
       setIsPlaying(true);
     }
-  }, [preservePitch, stopWeb, effectiveRate]);
+  }, [pitchLocked, stopWeb, effectiveRate]);
 
   const setVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));

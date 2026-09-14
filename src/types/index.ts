@@ -423,6 +423,8 @@ export type AppSettings = {
   hitsoundVolume: number;
   /** Scales every sound Cascade makes: music, hitsounds and interface sounds. */
   masterVolume: number;
+  /** Playback under 100% keeps the song's pitch instead of dropping it. */
+  keepPitchWhenSlowed: boolean;
   dimBackground: number;
   /** Blur on the editor background, in pixels; 0 leaves the picture sharp. */
   backgroundBlur: number;
@@ -509,6 +511,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundSet: "normal",
   hitsoundVolume: 0.18,
   masterVolume: 1,
+  keepPitchWhenSlowed: true,
   dimBackground: 82,
   backgroundBlur: 0,
   smoothScrolling: true,

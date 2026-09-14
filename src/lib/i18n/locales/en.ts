@@ -244,6 +244,9 @@ export const en = {
     "Pick the output mode and measure your tap offset by tapping along with a click track.",
 
   "settings.hitsounds": "Hitsounds",
+  "settings.keepPitch": "Keep pitch when slowing down",
+  "settings.keepPitchHint":
+    "Playing at 25%, 50% or 75% keeps the song at its normal pitch instead of dropping it lower. Exclusive audio can't do this, so slowed songs still sound lower there.",
   "settings.playHitsounds": "Play hitsounds during playback",
   "settings.hitsoundsHint":
     "Hitsounds now follow the map: each note plays its own sample set (normal / soft / drum) and additions (whistle, finish, clap). Edit them with the hitsound toolbar at the bottom of the editor, or the W / F / C keys.",

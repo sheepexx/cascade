@@ -204,6 +204,9 @@ export const zhCN: PartialCatalog = {
   "settings.lane": "第 {number} 轨",
 
   "settings.hitsounds": "打击音效",
+  "settings.keepPitch": "减速时保持音调",
+  "settings.keepPitchHint":
+    "以 25%、50% 或 75% 播放时，歌曲保持原本的音调，不会变低。独占音频无法做到这一点，因此在独占模式下减速仍会变低。",
   "settings.playHitsounds": "播放时播放打击音效",
   "settings.hitsoundsHint":
     "打击音效现在跟随谱面：每个音符播放自己的采样组（normal / soft / drum）与附加音效（whistle、finish、clap）。可在编辑器底部的打击音效栏或用 W / F / C 键编辑。",

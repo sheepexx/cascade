@@ -208,6 +208,9 @@ export const de: PartialCatalog = {
   "settings.lane": "Spur {number}",
 
   "settings.hitsounds": "Hitsounds",
+  "settings.keepPitch": "Tonhöhe beim Verlangsamen beibehalten",
+  "settings.keepPitchHint":
+    "Bei 25 %, 50 % oder 75 % behält der Song seine normale Tonhöhe, statt tiefer zu klingen. Exklusives Audio kann das nicht, dort klingen verlangsamte Songs weiterhin tiefer.",
   "settings.playHitsounds": "Hitsounds während der Wiedergabe abspielen",
   "settings.hitsoundsHint":
     "Hitsounds folgen jetzt der Map: jede Note spielt ihr eigenes Sample-Set (normal / soft / drum) und ihre Additions (whistle, finish, clap). Bearbeite sie mit der Hitsound-Leiste am unteren Rand des Editors oder mit den Tasten W / F / C.",

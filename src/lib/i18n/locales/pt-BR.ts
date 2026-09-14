@@ -208,6 +208,9 @@ export const ptBR: PartialCatalog = {
   "settings.lane": "Lane {number}",
 
   "settings.hitsounds": "Hitsounds",
+  "settings.keepPitch": "Manter o tom ao desacelerar",
+  "settings.keepPitchHint":
+    "Em 25%, 50% ou 75% a música mantém o tom normal em vez de ficar mais grave. O áudio exclusivo não faz isso, então nele a música desacelerada continua mais grave.",
   "settings.playHitsounds": "Tocar hitsounds durante a reprodução",
   "settings.hitsoundsHint":
     "Os hitsounds agora seguem o mapa: cada nota toca o próprio conjunto de samples (normal / soft / drum) e as adições (whistle, finish, clap). Edite pela barra de hitsounds na parte de baixo do editor, ou com as teclas W / F / C.",

@@ -1328,6 +1328,7 @@ export default function App() {
     active.preservePitch === true,
     exclusiveAudio && modal !== "audioSetup" && projectStarted,
     appSettings.masterVolume,
+    appSettings.keepPitchWhenSlowed,
   );
   // Alt+wheel runs from a window listener mounted once, so it needs a live
   // handle on the controller rather than the render-time closure.
@@ -6270,6 +6271,7 @@ export default function App() {
     { key: "settings.masterVolume", tab: "Audio", keywords: "volume sound everything" },
     { key: "settings.musicVolume", tab: "Audio", keywords: "volume song menu" },
     { key: "settings.effectsVolume", tab: "Audio", keywords: "volume hitsound" },
+    { key: "settings.keepPitch", tab: "Audio", keywords: "pitch speed slow rate playback" },
     { key: "settings.uiSounds", tab: "Audio", keywords: "interface hover click" },
     { key: "settings.convertPng", tab: "Export", keywords: "background jpeg" },
     { key: "settings.jpegQuality", tab: "Export", keywords: "background image" },
@@ -7660,6 +7662,10 @@ export default function App() {
           uiSoundVolume={appSettings.uiSoundVolume}
           onUiSoundVolume={(v) =>
             setAppSettings((s) => ({ ...s, uiSoundVolume: v }))
+          }
+          keepPitchWhenSlowed={appSettings.keepPitchWhenSlowed}
+          onKeepPitchWhenSlowed={(v) =>
+            setAppSettings((s) => ({ ...s, keepPitchWhenSlowed: v }))
           }
           editorKeybinds={editorKeybinds}
           onEditorKeybinds={(value) =>

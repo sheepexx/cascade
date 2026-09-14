@@ -88,6 +88,8 @@ type Props = {
   onMasterVolume: (value: number) => void;
   musicVolume: number;
   onMusicVolume: (value: number) => void;
+  keepPitchWhenSlowed: boolean;
+  onKeepPitchWhenSlowed: (value: boolean) => void;
   dimBackground: number;
   onDimBackground: (value: number) => void;
   backgroundBlur: number;
@@ -211,6 +213,8 @@ export function AppSettingsModal({
   onMasterVolume,
   musicVolume,
   onMusicVolume,
+  keepPitchWhenSlowed,
+  onKeepPitchWhenSlowed,
   dimBackground,
   onDimBackground,
   backgroundBlur,
@@ -1381,6 +1385,18 @@ export function AppSettingsModal({
                   onChange={onHitsoundVolume}
                 />
               </div>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.playback")}
+              </h3>
+              <SettingToggle
+                label={t("settings.keepPitch")}
+                tip={t("settings.keepPitchHint")}
+                checked={keepPitchWhenSlowed}
+                onChange={onKeepPitchWhenSlowed}
+              />
             </section>
 
             <section>
