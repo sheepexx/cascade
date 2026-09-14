@@ -228,6 +228,10 @@ export const ptBR: PartialCatalog = {
   "settings.uiSoundsHint":
     "Cliques, confirmações e sons para convites, salvamentos na nuvem e exportações de mapas.",
 
+  "settings.mapTags": "Tags",
+  "settings.cascadeTag": "Adicionar Cascade às tags do mapa",
+  "settings.cascadeTagHint":
+    "Adiciona \"Cascade\" às tags de todo mapa exportado, para que outros encontrem mapas feitos com ele. Desative para exportar suas tags exatamente como você as escreveu.",
   "settings.backgroundImages": "Imagens de fundo",
   "settings.convertPng": "Converter fundos PNG para JPEG",
   "settings.convertPngHint":

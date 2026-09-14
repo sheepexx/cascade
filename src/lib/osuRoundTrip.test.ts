@@ -197,6 +197,20 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
     expect(tagsWithCascade(undefined)).toBe("Cascade");
   });
 
+  it("writes the tags exactly as typed when the Cascade tag is turned off", () => {
+    expect(tagsWithCascade("foo bar", false)).toBe("foo bar");
+    expect(tagsWithCascade(undefined, false)).toBe("");
+    const untagged = buildOsuFile({
+      meta,
+      difficulty,
+      timingPoints,
+      audioFilename: "audio.mp3",
+      cascadeTag: false,
+    });
+    expect(untagged).toContain("Tags:foo bar\n");
+    expect(parseOsuFile(untagged).meta.tags).toBe("foo bar");
+  });
+
   it("round-trips the red point BPM and green point SV", () => {
     const red = parsed.timingPoints.find((p) => p.uninherited);
     const green = parsed.timingPoints.find((p) => !p.uninherited);

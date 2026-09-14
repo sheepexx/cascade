@@ -116,6 +116,8 @@ type Props = {
   onExportPngBackgroundsAsJpeg: (value: boolean) => void;
   exportJpegQuality: number;
   onExportJpegQuality: (value: number) => void;
+  addCascadeTag: boolean;
+  onAddCascadeTag: (value: boolean) => void;
   uiSoundsEnabled: boolean;
   onUiSoundsEnabled: (value: boolean) => void;
   uiSoundVolume: number;
@@ -241,6 +243,8 @@ export function AppSettingsModal({
   onExportPngBackgroundsAsJpeg,
   exportJpegQuality,
   onExportJpegQuality,
+  addCascadeTag,
+  onAddCascadeTag,
   uiSoundsEnabled,
   onUiSoundsEnabled,
   uiSoundVolume,
@@ -1463,6 +1467,18 @@ export function AppSettingsModal({
                   onChange={onExportJpegQuality}
                 />
               </div>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.mapTags")}
+              </h3>
+              <SettingToggle
+                label={t("settings.cascadeTag")}
+                tip={t("settings.cascadeTagHint")}
+                checked={addCascadeTag}
+                onChange={onAddCascadeTag}
+              />
             </section>
           </div>
         )}

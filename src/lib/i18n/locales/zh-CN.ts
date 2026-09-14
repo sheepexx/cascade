@@ -221,6 +221,10 @@ export const zhCN: PartialCatalog = {
   "settings.uiSounds": "界面音效",
   "settings.uiSoundsHint": "邀请、云端保存和谱面导出时的点击、确认与提示音。",
 
+  "settings.mapTags": "标签",
+  "settings.cascadeTag": "在谱面标签中添加 Cascade",
+  "settings.cascadeTagHint":
+    "在每张导出谱面的标签中添加“Cascade”，方便他人找到用它制作的谱面。关闭后将完全按你填写的标签导出。",
   "settings.backgroundImages": "背景图片",
   "settings.convertPng": "将 PNG 背景转换为 JPEG",
   "settings.convertPngHint":

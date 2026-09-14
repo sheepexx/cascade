@@ -229,6 +229,10 @@ export const ru: PartialCatalog = {
   "settings.uiSoundsHint":
     "Клики, подтверждения и сигналы для приглашений, облачных сохранений и экспорта карт.",
 
+  "settings.mapTags": "Теги",
+  "settings.cascadeTag": "Добавлять Cascade в теги карты",
+  "settings.cascadeTagHint":
+    "Добавляет «Cascade» в теги каждой экспортируемой карты, чтобы другие могли находить карты, сделанные в нём. Выключите, чтобы экспортировать теги ровно так, как вы их написали.",
   "settings.backgroundImages": "Фоновые изображения",
   "settings.convertPng": "Преобразовывать фоны PNG в JPEG",
   "settings.convertPngHint":

@@ -83,10 +83,13 @@ export function PackCreator({
   open,
   onClose,
   jpegQuality,
+  cascadeTag = true,
 }: {
   open: boolean;
   onClose: () => void;
   jpegQuality?: number;
+  /** Adds "Cascade" to the tags of maps the pack builds or converts. */
+  cascadeTag?: boolean;
 }) {
   const { user } = useAuth();
   const [metadata, setMetadata] = useState<PackMetadata>(DEFAULT_PACK_METADATA);
@@ -244,6 +247,7 @@ export function PackCreator({
         items,
         settings,
         jpegQuality,
+        cascadeTag,
         onProgress: setExportProgress,
       });
       triggerDownload(blob, filename);
@@ -260,7 +264,7 @@ export function PackCreator({
       setExporting(false);
       setExportProgress(null);
     }
-  }, [runValidation, metadata, items, settings, jpegQuality, user?.id]);
+  }, [runValidation, metadata, items, settings, jpegQuality, cascadeTag, user?.id]);
 
   const selected = items.find((it) => it.id === selectedId) ?? null;
   const placeholderItem =
@@ -291,7 +295,7 @@ export function PackCreator({
         if (hasFolder) {
           for (const song of await scanPackFromDrop(entries)) {
             inputs.push({
-              file: await packSongToOszFile(song),
+              file: await packSongToOszFile(song, cascadeTag),
               sourceLabel: song.info.sourceSmName,
             });
           }
@@ -302,7 +306,7 @@ export function PackCreator({
             if (songs.length) {
               for (const song of songs) {
                 inputs.push({
-                  file: await packSongToOszFile(song),
+                  file: await packSongToOszFile(song, cascadeTag),
                   sourceLabel: song.info.sourceSmName,
                 });
               }
@@ -326,7 +330,7 @@ export function PackCreator({
         setImporting(false);
       }
     },
-    [importFiles, importInputs],
+    [importFiles, importInputs, cascadeTag],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -901,6 +905,7 @@ export function PackCreator({
         open={browseOpen}
         onClose={() => setBrowseOpen(false)}
         onAdd={(files) => importFiles(files)}
+        cascadeTag={cascadeTag}
       />
     </div>
   );

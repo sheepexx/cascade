@@ -463,6 +463,7 @@ export type PlaceholderArgs = {
   audioItem: PackItem;
   audioFilename: string;
   lastNoteMs: number;
+  cascadeTag?: boolean;
 };
 
 export function generatePlaceholderDifficulty({
@@ -471,6 +472,7 @@ export function generatePlaceholderDifficulty({
   audioItem,
   audioFilename,
   lastNoteMs,
+  cascadeTag,
 }: PlaceholderArgs): string {
   const keyCount = settings.placeholderKeyCount;
   const notes: ManiaNote[] = [
@@ -491,6 +493,7 @@ export function generatePlaceholderDifficulty({
     difficulty,
     timingPoints: difficulty.timingPoints,
     audioFilename,
+    cascadeTag,
   });
 }
 
@@ -622,6 +625,8 @@ export type BuildPackArgs = {
   items: PackItem[];
   settings: PackCreatorSettings;
   jpegQuality?: number;
+  /** Adds "Cascade" to the placeholder difficulty's tags; defaults to on. */
+  cascadeTag?: boolean;
   onProgress?: ProgressFn;
 };
 
@@ -630,6 +635,7 @@ export async function buildPack({
   items,
   settings,
   jpegQuality,
+  cascadeTag,
   onProgress,
 }: BuildPackArgs): Promise<{ blob: Blob; filename: string }> {
   // Packs are mostly bytes: collecting assets and zipping them dwarfs the
@@ -682,6 +688,7 @@ export async function buildPack({
         audioItem,
         audioFilename,
         lastNoteMs,
+        cascadeTag,
       });
       const filename = packOsuFilename(
         artistFieldFor(metadata, audioItem),

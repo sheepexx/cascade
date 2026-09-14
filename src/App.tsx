@@ -5081,10 +5081,18 @@ export default function App() {
       backgroundFilename: active.backgroundFilename,
       videoFilename: active.videoFilename,
       videoOffsetMs: active.videoOffsetMs,
+      cascadeTag: appSettings.addCascadeTag,
     });
     playUiSound("mapExportDone");
     void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
-  }, [audioFile, active, activeTimingPoints, meta, authUser?.id]);
+  }, [
+    audioFile,
+    active,
+    activeTimingPoints,
+    meta,
+    authUser?.id,
+    appSettings.addCascadeTag,
+  ]);
 
   const doExportSm = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
@@ -5158,6 +5166,7 @@ export default function App() {
         jpegQuality: appSettings.exportPngBackgroundsAsJpeg
           ? appSettings.exportJpegQuality
           : undefined,
+        cascadeTag: appSettings.addCascadeTag,
         onProgress: setExportProgress,
       });
       playUiSound("mapExportDone");
@@ -5182,6 +5191,7 @@ export default function App() {
     authUser?.id,
     appSettings.exportPngBackgroundsAsJpeg,
     appSettings.exportJpegQuality,
+    appSettings.addCascadeTag,
   ]);
 
   const checkAndExport = useCallback(
@@ -5287,6 +5297,7 @@ export default function App() {
         jpegQuality: appSettings.exportPngBackgroundsAsJpeg
           ? appSettings.exportJpegQuality
           : undefined,
+        cascadeTag: appSettings.addCascadeTag,
         onProgress: setExportProgress,
       });
       await osuSendMap(archive, setFilename(songMeta));
@@ -5312,6 +5323,7 @@ export default function App() {
     timingPoints,
     appSettings.exportPngBackgroundsAsJpeg,
     appSettings.exportJpegQuality,
+    appSettings.addCascadeTag,
     ensureOsuFolder,
     t,
   ]);
@@ -5342,6 +5354,7 @@ export default function App() {
         jpegQuality: appSettings.exportPngBackgroundsAsJpeg
           ? appSettings.exportJpegQuality
           : undefined,
+        cascadeTag: appSettings.addCascadeTag,
         onProgress: setExportProgress,
       });
       await osuSyncMap(
@@ -5370,6 +5383,7 @@ export default function App() {
     timingPoints,
     appSettings.exportPngBackgroundsAsJpeg,
     appSettings.exportJpegQuality,
+    appSettings.addCascadeTag,
     ensureOsuFolder,
     t,
   ]);
@@ -6275,6 +6289,7 @@ export default function App() {
     { key: "settings.uiSounds", tab: "Audio", keywords: "interface hover click" },
     { key: "settings.convertPng", tab: "Export", keywords: "background jpeg" },
     { key: "settings.jpegQuality", tab: "Export", keywords: "background image" },
+    { key: "settings.cascadeTag", tab: "Export", keywords: "tags metadata credit" },
     { key: "settings.tabShortcuts", tab: "Shortcuts", keywords: "keyboard commands hotkeys" },
   ];
 
@@ -7104,7 +7119,11 @@ export default function App() {
                 onGhostNotes={setGhostNotes}
               />
             ) : sharedSlug ? (
-              <SharedMapPage slug={sharedSlug} onOpen={openSharedMap} />
+              <SharedMapPage
+                slug={sharedSlug}
+                onOpen={openSharedMap}
+                cascadeTag={appSettings.addCascadeTag}
+              />
             ) : (
               <StartScreen
                 music={menuMusic}
@@ -7464,6 +7483,7 @@ export default function App() {
                 ? appSettings.exportJpegQuality
                 : undefined
             }
+            cascadeTag={appSettings.addCascadeTag}
             open={packCreatorOpen}
             onClose={() => setPackCreatorOpen(false)}
           />
@@ -7654,6 +7674,10 @@ export default function App() {
           exportJpegQuality={appSettings.exportJpegQuality}
           onExportJpegQuality={(v) =>
             setAppSettings((s) => ({ ...s, exportJpegQuality: v }))
+          }
+          addCascadeTag={appSettings.addCascadeTag}
+          onAddCascadeTag={(v) =>
+            setAppSettings((s) => ({ ...s, addCascadeTag: v }))
           }
           uiSoundsEnabled={appSettings.uiSoundsEnabled}
           onUiSoundsEnabled={(v) =>

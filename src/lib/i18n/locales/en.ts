@@ -265,6 +265,10 @@ export const en = {
   "settings.uiSoundsHint":
     "Clicks, confirmations, and chimes for invites, cloud saves and map exports.",
 
+  "settings.mapTags": "Tags",
+  "settings.cascadeTag": "Add Cascade to map tags",
+  "settings.cascadeTagHint":
+    "Adds \"Cascade\" to the tags of every map you export, so others can find maps made with it. Turn it off to export your tags exactly as you wrote them.",
   "settings.backgroundImages": "Background images",
   "settings.convertPng": "Convert PNG backgrounds to JPEG",
   "settings.convertPngHint":

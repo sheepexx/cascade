@@ -228,6 +228,10 @@ export const de: PartialCatalog = {
   "settings.uiSoundsHint":
     "Klicks, Bestätigungen und Klänge für Einladungen, Cloud-Speicherungen und Map-Exporte.",
 
+  "settings.mapTags": "Tags",
+  "settings.cascadeTag": "Cascade zu den Map-Tags hinzufügen",
+  "settings.cascadeTagHint":
+    "Fügt „Cascade“ zu den Tags jeder exportierten Map hinzu, damit andere mit Cascade erstellte Maps finden. Schalte es aus, um deine Tags genau so zu exportieren, wie du sie geschrieben hast.",
   "settings.backgroundImages": "Hintergrundbilder",
   "settings.convertPng": "PNG-Hintergründe in JPEG umwandeln",
   "settings.convertPngHint":

@@ -32,9 +32,12 @@ async function fetchAsset(
 export function SharedMapPage({
   slug,
   onOpen,
+  cascadeTag = true,
 }: {
   slug: string;
   onOpen: (file: File) => void;
+  /** Adds "Cascade" to the tags of the .osz this page builds; defaults to on. */
+  cascadeTag?: boolean;
 }) {
   const t = useT();
   const { user } = useAuth();
@@ -208,8 +211,9 @@ export function SharedMapPage({
       timingPoints: map.data.timingPoints,
       audioFiles: Object.fromEntries(audio.map((file) => [file.name, file])),
       bgFiles: background ? { [background.name]: background } : {},
+      cascadeTag,
     });
-  }, [map]);
+  }, [map, cascadeTag]);
 
   const open = useCallback(async () => {
     if (!map || busy) return;

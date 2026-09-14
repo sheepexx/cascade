@@ -56,9 +56,9 @@ function formatDecimal(value: number): string {
   return String(Number(value.toFixed(6)));
 }
 
-export function tagsWithCascade(tags: string | undefined): string {
+export function tagsWithCascade(tags: string | undefined, add = true): string {
   const list = (tags ?? "").split(/\s+/).filter(Boolean);
-  if (!list.some((t) => t.toLowerCase() === "cascade")) list.push("Cascade");
+  if (add && !list.some((t) => t.toLowerCase() === "cascade")) list.push("Cascade");
   return list.join(" ");
 }
 
@@ -70,6 +70,8 @@ export type BuildOsuArgs = {
   backgroundFilename?: string;
   videoFilename?: string;
   videoOffsetMs?: number;
+  /** Adds "Cascade" to the tags. On unless the Export settings turn it off. */
+  cascadeTag?: boolean;
 };
 
 export function buildOsuFile({
@@ -80,6 +82,7 @@ export function buildOsuFile({
   backgroundFilename,
   videoFilename,
   videoOffsetMs,
+  cascadeTag = true,
 }: BuildOsuArgs): string {
   const points = sortedPoints(
     timingPoints.length ? timingPoints : [makeRedPoint(0, 120)],
@@ -158,7 +161,7 @@ export function buildOsuFile({
     `Creator:${meta.creator}`,
     `Version:${difficulty.name}`,
     `Source:${meta.source ?? ""}`,
-    `Tags:${tagsWithCascade(meta.tags)}`,
+    `Tags:${tagsWithCascade(meta.tags, cascadeTag)}`,
     // Preserved from the import so an export updates the existing submission
     // rather than looking like a new one. Map Settings can override these with
     // 0/-1 to deliberately detach the map, which osu! then imports as local.

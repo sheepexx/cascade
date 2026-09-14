@@ -37,6 +37,8 @@ export type BuildOszArgs = {
   bgFiles?: Record<string, LoadedFile>;
   videoFiles?: Record<string, LoadedFile>;
   jpegQuality?: number;
+  /** Adds "Cascade" to every difficulty's tags; defaults to on. */
+  cascadeTag?: boolean;
   onProgress?: ProgressFn;
 };
 
@@ -48,6 +50,7 @@ export async function buildOsz({
   bgFiles,
   videoFiles,
   jpegQuality,
+  cascadeTag,
   onProgress,
 }: BuildOszArgs): Promise<Blob> {
   // Audio work and zip compression dominate the wall clock; images and the
@@ -252,6 +255,7 @@ export async function buildOsz({
             ? difficulty.videoFilename
             : undefined,
         videoOffsetMs: exportDiff.videoOffsetMs,
+        cascadeTag,
       });
       zip.file(osuFilename(meta, difficulty), osu);
     }

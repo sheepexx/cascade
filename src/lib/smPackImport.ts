@@ -234,7 +234,10 @@ function blobRegistry(blobs: Record<string, Blob>): Record<string, LoadedFile> {
   return out;
 }
 
-export async function packSongToOszFile(song: PackSong): Promise<File> {
+export async function packSongToOszFile(
+  song: PackSong,
+  cascadeTag = true,
+): Promise<File> {
   const smAudio =
     song.parsed.audioFilename ?? Object.keys(song.audioBlobs)[0];
   const smBg = song.parsed.backgroundFilename ?? Object.keys(song.bgBlobs)[0];
@@ -254,6 +257,7 @@ export async function packSongToOszFile(song: PackSong): Promise<File> {
     timingPoints: normalizeTimingPoints(song.parsed.timingPoints ?? []),
     audioFiles: blobRegistry(song.audioBlobs),
     bgFiles: blobRegistry(song.bgBlobs),
+    cascadeTag,
   });
   return new File(
     [blob],

@@ -29,7 +29,7 @@ function toRegistry(
   return out;
 }
 
-async function localProjectToFile(id: string): Promise<File> {
+async function localProjectToFile(id: string, cascadeTag: boolean): Promise<File> {
   const saved = await loadProject(id);
   if (!saved) throw new Error("That local project could not be loaded.");
   const audioFiles = toRegistry(saved.audioFiles);
@@ -56,6 +56,7 @@ async function localProjectToFile(id: string): Promise<File> {
     audioFiles,
     bgFiles,
     videoFiles: toRegistry(saved.videoFiles),
+    cascadeTag,
   });
   return new File(
     [blob],
@@ -63,7 +64,7 @@ async function localProjectToFile(id: string): Promise<File> {
   );
 }
 
-async function cloudProjectToFile(id: string): Promise<File> {
+async function cloudProjectToFile(id: string, cascadeTag: boolean): Promise<File> {
   const proj = await loadProjectCloud(id);
   const blob = await buildOsz({
     meta: proj.data.meta,
@@ -74,6 +75,7 @@ async function cloudProjectToFile(id: string): Promise<File> {
     timingPoints: normalizeTimingPoints(proj.data.timingPoints),
     audioFiles: toRegistry(proj.audio),
     bgFiles: toRegistry(proj.bg),
+    cascadeTag,
   });
   return new File(
     [blob],
@@ -85,10 +87,12 @@ export function PackProjectBrowser({
   open,
   onClose,
   onAdd,
+  cascadeTag = true,
 }: {
   open: boolean;
   onClose: () => void;
   onAdd: (files: File[]) => Promise<void> | void;
+  cascadeTag?: boolean;
 }) {
   const { user, login } = useAuth();
   const [localProjects, setLocalProjects] = useState<LocalProjectSummary[] | null>(null);
@@ -171,7 +175,9 @@ export function PackProjectBrowser({
       for (const key of selected) {
         const [scope, id] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
         files.push(
-          scope === "local" ? await localProjectToFile(id) : await cloudProjectToFile(id),
+          scope === "local"
+            ? await localProjectToFile(id, cascadeTag)
+            : await cloudProjectToFile(id, cascadeTag),
         );
       }
       await onAdd(files);
