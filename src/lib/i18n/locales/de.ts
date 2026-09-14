@@ -200,6 +200,13 @@ export const de: PartialCatalog = {
   "settings.showErrorBar": "Fehlerleiste (UR) anzeigen",
   "settings.skinComboFont": "Combo-Schrift des Skins",
   "settings.skinJudgements": "Bewertungen des Skins",
+  "settings.playtestSkin": "Playtest-Skin",
+  "settings.playtestSkinHint":
+    "Spielt mit einem anderen Skin als der Editor. Importierte Skins erscheinen hier.",
+  "settings.playtestSkinEditor": "Wie im Editor",
+  "settings.playtestSkinDefault": "Kein Skin",
+  "settings.playtestSkinPresets": "Mitgeliefert",
+  "settings.playtestSkinSaved": "Importiert",
   "settings.quickRestartKey": "Taste für Schnellneustart",
   "settings.quickRestartHint":
     "Startet den Durchlauf im Playtest sofort neu. Esc öffnet das Pausenmenü; F5 startet oder beendet den Playtest.",

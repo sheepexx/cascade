@@ -390,6 +390,8 @@ import {
   type PlaytestNoteIndex,
 } from "./lib/playtestIndex";
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
+import { normalizePlaytestSkin } from "./lib/playtestSkin";
+import { PRESET_SKINS } from "./lib/presetSkins";
 import {
   loadProject,
   requestPersistentStorage,
@@ -575,6 +577,8 @@ type PlaytestRuntimeState = PlaytestState & {
   autoplay: boolean;
   runKey: number;
   countdownEndsAt: number | null;
+  /** The countdown is bringing a paused run back rather than starting one. */
+  resuming: boolean;
   skipBeforeTime: number;
 };
 
@@ -588,6 +592,7 @@ function initialPlaytestState(): PlaytestRuntimeState {
     autoplay: false,
     runKey: 0,
     countdownEndsAt: null,
+    resuming: false,
     skipBeforeTime: 0,
     startTime: 0,
     score: 0,
@@ -647,6 +652,7 @@ function normalizeAppSettings(
       ...DEFAULT_APP_SETTINGS.playtest,
       ...(playtestPrefs ?? {}),
       keybinds: normalizePlaytestKeybinds(playtestPrefs?.keybinds),
+      skin: normalizePlaytestSkin(playtestPrefs?.skin),
       humanize: normalizeHumanize(playtestPrefs?.humanize),
       skill: {
         ...DEFAULT_APP_SETTINGS.playtest.skill,
@@ -1694,10 +1700,85 @@ export default function App() {
     null,
   );
 
-  const activeSkin = skin?.keymodes[active.keyCount] ?? null;
   const playtestSettings = appSettings.playtest;
   const playtestSettingsRef = useRef(playtestSettings);
   playtestSettingsRef.current = playtestSettings;
+
+  // Playtest can draw with a different skin than the editor. It is imported
+  // as soon as it is picked, so starting a run never waits on it; until it is
+  // ready, or if it has gone missing, the editor's skin stands in.
+  const [playtestSkin, setPlaytestSkin] = useState<LoadedSkin | null>(null);
+  const playtestSkinChoice = playtestSettings.skin;
+  const playtestSkinSource = playtestSkinChoice?.source ?? null;
+  const playtestSkinFile =
+    playtestSkinChoice && playtestSkinChoice.source !== "none"
+      ? playtestSkinChoice.fileName
+      : null;
+  const skinLibraryRef = useRef(skinLibrary);
+  skinLibraryRef.current = skinLibrary;
+  const playtestSavedSkin =
+    playtestSkinSource === "saved"
+      ? skinLibrary.find((saved) => saved.name === playtestSkinFile)
+      : undefined;
+  // Reloading the library hands back fresh blobs; only a re-import of this
+  // skin should load it again.
+  const playtestSavedStamp = playtestSavedSkin
+    ? (playtestSavedSkin.savedAt ?? 0)
+    : null;
+  const playtestReusesEditorSkin =
+    playtestSkinFile !== null && skin?.fileName === playtestSkinFile;
+  useEffect(() => {
+    const replace = (next: LoadedSkin | null) =>
+      setPlaytestSkin((prev) => {
+        if (prev && prev !== next) prev.objectUrls.forEach(URL.revokeObjectURL);
+        return next;
+      });
+    if (!playtestSkinFile || playtestReusesEditorSkin) {
+      replace(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      let blob: Blob | null = null;
+      if (playtestSkinSource === "preset") {
+        const preset = PRESET_SKINS.find((p) => p.fileName === playtestSkinFile);
+        if (preset) {
+          blob = await fetch(preset.url)
+            .then((res) => (res.ok ? res.blob() : null))
+            .catch(() => null);
+        }
+      } else {
+        blob =
+          skinLibraryRef.current.find((saved) => saved.name === playtestSkinFile)
+            ?.blob ?? null;
+      }
+      const { importOsk } = await import("./lib/skinImport");
+      const loaded = blob
+        ? await importOsk(blob, playtestSkinFile).catch(() => null)
+        : null;
+      if (cancelled) {
+        loaded?.objectUrls.forEach(URL.revokeObjectURL);
+        return;
+      }
+      replace(loaded);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    playtestSkinFile,
+    playtestSkinSource,
+    playtestSavedStamp,
+    playtestReusesEditorSkin,
+  ]);
+
+  const playtestLook =
+    playtest.active && playtestSkinChoice
+      ? playtestSkinChoice.source === "none"
+        ? null
+        : (playtestSkin ?? skin)
+      : skin;
+  const activeSkin = playtestLook?.keymodes[active.keyCount] ?? null;
   const playtestRate = clampPlaytestRate(playtestSettings.rate);
   const playtestWindows = useMemo(
     () => scaleWindows(maniaJudgementWindows(active.overallDifficulty), playtestRate),
@@ -1974,7 +2055,7 @@ export default function App() {
       if (!current.active || current.countdownEndsAt !== countdownEndsAt) return;
       setPlaytest((prev) =>
         prev.active && prev.countdownEndsAt === countdownEndsAt
-          ? { ...prev, countdownEndsAt: null }
+          ? { ...prev, countdownEndsAt: null, resuming: false }
           : prev,
       );
       playAudio();
@@ -1997,14 +2078,20 @@ export default function App() {
     pauseAudio();
   }, [pauseAudio]);
 
+  // Continuing counts down like the start of a run, so the notes after the
+  // pause are not sprung on the player; the countdown effect restarts audio.
   const resumePlaytest = useCallback(() => {
     setPlaytest((prev) =>
       prev.active && !prev.ended && prev.paused
-        ? { ...prev, paused: false }
+        ? {
+            ...prev,
+            paused: false,
+            resuming: true,
+            countdownEndsAt: performance.now() + PLAYTEST_COUNTDOWN_MS,
+          }
         : prev,
     );
-    if (playtestRef.current.active && !playtestRef.current.ended) playAudio();
-  }, [playAudio]);
+  }, []);
 
   const togglePlaytestPause = useCallback(() => {
     const pt = playtestRef.current;
@@ -6226,6 +6313,9 @@ export default function App() {
     { key: "settings.uiScale", tab: "General", keywords: "interface size zoom" },
     { key: "settings.altWheelAction", tab: "General", keywords: "mouse scroll audio" },
     { key: "settings.menuMusic", tab: "General" },
+    { key: "settings.menuBackground", tab: "General", keywords: "main menu wallpaper image picture song art" },
+    { key: "settings.menuTips", tab: "General", keywords: "main menu hints" },
+    { key: "settings.logoSkinHitsounds", tab: "General", keywords: "main menu logo click sound" },
     { key: "settings.sessionIntro", tab: "General", keywords: "logo launch animation" },
     { key: "settings.shortcutNotices", tab: "General", keywords: "popup overlay toast" },
     { key: "settings.performanceMode", tab: "General" },
@@ -6246,6 +6336,7 @@ export default function App() {
     { key: "settings.sizeZoom", tab: "Editor", keywords: "playfield" },
     { key: "settings.noteHeight", tab: "Editor" },
     { key: "settings.waveformOnLane", tab: "Editor" },
+    { key: "settings.waveformTransparency", tab: "Editor", keywords: "waveform opacity" },
     { key: "settings.timingLines", tab: "Editor", keywords: "bookmarks" },
     { key: "settings.smoothScrolling", tab: "Editor" },
     { key: "settings.svPreview", tab: "Editor" },
@@ -6265,6 +6356,7 @@ export default function App() {
     { key: "settings.showErrorBar", tab: "Playtest", keywords: "unstable rate ur" },
     { key: "settings.skinComboFont", tab: "Playtest", keywords: "hud typography" },
     { key: "settings.skinJudgements", tab: "Playtest", keywords: "hud graphics" },
+    { key: "settings.playtestSkin", tab: "Playtest", keywords: "skin look notes osk appearance" },
     { key: "settings.autoplay", tab: "Playtest" },
     { key: "settings.showNpsGraph", tab: "Playtest", keywords: "density" },
     { key: "settings.showRunStats", tab: "Playtest" },
@@ -6337,6 +6429,7 @@ export default function App() {
             ? [{ id: "sv", label: t("nav.sv"), group: "Editor", keywords: "scroll velocity", run: () => setModal("sv" as ModalId) }]
             : []),
           { id: "difficulty", label: t("nav.difficulty"), group: "Editor", keywords: "keys od hp", run: () => setModal("difficulty") },
+          { id: "add-difficulty", label: "Add difficulty", group: "Editor", keywords: "new diff", disabled: !canEdit, run: addDifficulty },
           { id: "tools", label: t("nav.tools"), group: "Editor", keywords: "ghost notes full ln rice crop", run: () => setModal("tools") },
           { id: "aimod", label: t("nav.aiMod"), group: "Editor", keywords: "check validation", run: openAiMod },
           ...(appSettings.showPatternTools
@@ -6346,12 +6439,21 @@ export default function App() {
           { id: "history", label: "Undo history", group: "Edit", keywords: "versions changes", run: () => setModal("history") },
           { id: "undo", label: t("nav.undo"), group: "Edit", hint: "Ctrl Z", disabled: !canUndo, run: undo },
           { id: "redo", label: t("nav.redo"), group: "Edit", hint: "Ctrl Y", disabled: !canRedo, run: redo },
+          { id: "new-open", label: t("file.newOpen"), group: "File", keywords: "project map welcome", run: () => setModal("welcome") },
           { id: "save", label: t("file.saveLocally"), group: "File", hint: "Ctrl S", run: () => void handleSave() },
           { id: "save-cloud", label: t("file.saveToCloud"), group: "File", keywords: "account collaborate", disabled: !authUser || !canEdit, run: () => void handleCloudSave() },
           { id: "export-osu", label: t("file.exportOsu"), group: "Export", disabled: !canExport, run: handleExportOsu },
           { id: "export-osz", label: t("file.exportOsz"), group: "Export", disabled: !canExport || exporting, run: handleExportOsz },
           { id: "export-sm", label: t("file.exportSm"), group: "Export", disabled: !canExport, run: handleExportSm },
           { id: "export-qua", label: t("file.exportQua"), group: "Export", disabled: !canExport, run: handleExportQua },
+          ...(osuApp?.supported
+            ? [
+                { id: "import-into-osu", label: t("file.importIntoOsu"), group: "osu!", keywords: "send export stable", disabled: !canExport || osuBusy || exporting, run: handleSendToOsu },
+                { id: "sync-to-osu", label: t("file.syncToOsu"), group: "osu!", keywords: "songs folder export stable", disabled: !canExport || osuBusy || exporting, run: handleSyncToOsu },
+                { id: "import-from-osu", label: t("file.importFromOsu"), group: "osu!", keywords: "load selected map stable", disabled: osuBusy || importingMap, run: () => void handleLoadFromOsu() },
+              ]
+            : []),
+          { id: "home", label: t("home.returnTitle"), group: "Cascade", keywords: "main menu start screen close project", run: () => setShowHomeConfirm(true) },
           {
             id: "play-pause",
             label: audio.isPlaying ? "Pause playback" : "Play audio",
@@ -6415,6 +6517,20 @@ export default function App() {
             group: "View",
             run: () => setAppSettings((value) => ({ ...value, showBottomTimeline: !value.showBottomTimeline })),
           },
+          ...(!zenMode && !playtest.active
+            ? [
+                ...eligibleRefs.map((d) => ({
+                  id: `reference-${d.id}`,
+                  label: `Reference: ${d.name} (${d.keyCount}K)`,
+                  group: "View",
+                  keywords: "compare difficulty side by side",
+                  run: () => setReferenceId(d.id),
+                })),
+                ...(referenceDiff
+                  ? [{ id: "reference-off", label: "Turn off reference", group: "View", keywords: "compare difficulty", run: () => setReferenceId(null) }]
+                  : []),
+              ]
+            : []),
           ...(cloudProjectId
             ? [
                 { id: "comments", label: t("nav.comments"), group: "Collaboration", run: () => setCommentsOpen((value) => !value) },
@@ -6433,6 +6549,9 @@ export default function App() {
       keywords: "report bug suggestion",
       run: () => setModal("feedback"),
     },
+    ...(canExitDesktop()
+      ? [{ id: "exit", label: t("menu.exit"), group: "Cascade", keywords: "quit close app", run: handleExitApp }]
+      : []),
     {
       id: "settings",
       label: t("settings.title"),
@@ -6779,6 +6898,7 @@ export default function App() {
               )}
               <Menu
                 label={t("nav.file")}
+                tone="accent"
                 items={[
                   {
                     label: t("file.newOpen"),
@@ -7233,7 +7353,7 @@ export default function App() {
             )}
             {hasProject &&
               playtest.active &&
-              playtest.countdownEndsAt === null &&
+              (playtest.countdownEndsAt === null || playtest.resuming) &&
               playtestSettings.showRunStats && (
                 <PlaytestRunStats
                   state={playtest}
@@ -7254,10 +7374,11 @@ export default function App() {
                 ended={playtest.ended}
                 paused={playtest.paused}
                 countdownEndsAt={playtest.countdownEndsAt}
+                resuming={playtest.resuming}
                 settings={playtestSettings}
                 windows={playtestWindows}
                 currentTimeMs={audio.currentTime}
-                skin={skin}
+                skin={playtestLook}
                 keyCount={active.keyCount}
                 heldCodes={heldPlaytestKeys}
                 onContinue={resumePlaytest}
@@ -7663,6 +7784,7 @@ export default function App() {
           }
           playtest={appSettings.playtest}
           onPlaytest={(v) => setAppSettings((s) => ({ ...s, playtest: v }))}
+          savedSkinNames={skinLibrary.map((saved) => saved.name)}
           localAutosaveEnabled={appSettings.localAutosaveEnabled}
           onLocalAutosaveEnabled={(v) =>
             setAppSettings((s) => ({ ...s, localAutosaveEnabled: v }))

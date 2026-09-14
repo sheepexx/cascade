@@ -372,7 +372,14 @@ export const DEFAULT_SKILL: SkillSettings = {
   },
 };
 
+/** A skin playtest draws with instead of the editor's; "none" is the built-in look. */
+export type PlaytestSkinChoice =
+  | { source: "none" }
+  | { source: "preset" | "saved"; fileName: string };
+
 export type PlaytestSettings = {
+  /** null keeps whatever skin the editor is using. */
+  skin: PlaytestSkinChoice | null;
   scrollSpeed: number;
   zoom: number;
   rate: number;
@@ -546,6 +553,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   performanceMode: false,
   osuListenerEnabled: true,
   playtest: {
+    skin: null,
     scrollSpeed: 35,
     zoom: 1.5,
     rate: 1,

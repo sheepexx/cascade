@@ -228,6 +228,13 @@ export const en = {
   "settings.showErrorBar": "Show error (UR) bar",
   "settings.skinComboFont": "Skin combo font",
   "settings.skinJudgements": "Skin judgements",
+  "settings.playtestSkin": "Playtest skin",
+  "settings.playtestSkinHint":
+    "Plays with a different skin than the editor uses. Skins you import show up here.",
+  "settings.playtestSkinEditor": "Same as editor",
+  "settings.playtestSkinDefault": "No skin",
+  "settings.playtestSkinPresets": "Included",
+  "settings.playtestSkinSaved": "Imported",
   "settings.playback": "Playback",
   "settings.offset": "Offset",
   "settings.hud": "HUD",

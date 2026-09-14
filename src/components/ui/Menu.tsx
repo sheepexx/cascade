@@ -20,14 +20,28 @@ export type MenuItem =
     }
   | { separator: true };
 
+const TRIGGER_TONES = {
+  plain: {
+    trigger: "text-slate-300 hover:bg-white/10 hover:text-slate-100",
+    chevron: "text-slate-500",
+  },
+  // Filled with the Cascade accent so a menu people hunt for stands out.
+  accent: {
+    trigger: "bg-accent/90 font-medium text-white shadow-sm hover:bg-accent-soft/95",
+    chevron: "text-white/80",
+  },
+};
+
 export function Menu({
   label,
   items,
   className = "",
+  tone = "plain",
 }: {
   label: ReactNode;
   items: MenuItem[];
   className?: string;
+  tone?: keyof typeof TRIGGER_TONES;
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -101,11 +115,11 @@ export function Menu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-300 transition duration-[var(--motion-quick)] hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${className}`}
+        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${TRIGGER_TONES[tone].trigger} ${className}`}
       >
         {label}
         <ChevronDownIcon
-          className={`h-3 w-3 text-slate-500 transition-transform duration-[var(--motion-exit)] ${
+          className={`h-3 w-3 ${TRIGGER_TONES[tone].chevron} transition-transform duration-[var(--motion-exit)] ${
             open ? "rotate-180" : ""
           }`}
         />

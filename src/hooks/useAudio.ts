@@ -27,6 +27,15 @@ import { supportsExclusiveAudio } from "../lib/nativeAudio";
 const RATE_RAMP_SECONDS = 0.34;
 const CLOCK_UI_INTERVAL_MS = 100;
 
+/** Wall time the media element gets to seek and buffer before it takes over. */
+const PITCH_HANDOFF_LEAD_SECONDS = 0.25;
+/** Misses allowed, each aiming further ahead, before swapping on the spot. */
+const PITCH_HANDOFF_ATTEMPTS = 3;
+/** Close enough to the swap to hand the last stretch to a timer. */
+const PITCH_HANDOFF_TIMER_SECONDS = 0.1;
+/** A late swap re-seeks the element only past this much drift. */
+const PITCH_HANDOFF_TOLERANCE_SECONDS = 0.03;
+
 const MIN_EFFECTIVE_RATE = 0.0625;
 const MAX_EFFECTIVE_RATE = 8;
 
@@ -159,10 +168,16 @@ export function useAudio(
       !(exclusive && supportsExclusiveAudio()));
   const preservePitchRef = useRef(pitchLocked);
   preservePitchRef.current = pitchLocked;
+  // The engine actually playing. It trails `pitchLocked` while the element is
+  // getting ready to take over, so until then everything keeps reading the
+  // buffer engine. See `armPitchHandoff`.
+  const appliedPitchRef = useRef(pitchLocked);
+  const cancelPitchHandoffRef = useRef<(() => void) | null>(null);
+  const armPitchHandoffRef = useRef<() => void>(() => {});
 
   /** Whether the buffer-source engine (rather than the element) drives playback. */
   const webAudioActive = useCallback(
-    (): boolean => bufferRef.current !== null && !preservePitchRef.current,
+    (): boolean => bufferRef.current !== null && !appliedPitchRef.current,
     [],
   );
 
@@ -355,6 +370,7 @@ export function useAudio(
 
   const stopWeb = useCallback(
     (savePosition: boolean) => {
+      cancelPitchHandoffRef.current?.();
       const source = sourceRef.current;
       if (!source) return;
       if (savePosition) positionRef.current = webPosition();
@@ -462,6 +478,9 @@ export function useAudio(
     manualStopRef.current = false;
     source.start(0, positionRef.current);
     sourceRef.current = source;
+    // Restarted while the element was getting ready (a seek or a loop), so
+    // aim it again from the new position.
+    if (preservePitchRef.current) armPitchHandoffRef.current();
     return true;
   }, [duration, effectiveRate, ensureCtx, scheduleFadeEnvelope, stopWeb]);
 
@@ -612,6 +631,9 @@ export function useAudio(
   }, [isPlaying, webPosition, stopWeb, webAudioActive]);
 
   const play = useCallback(() => {
+    // With the buffer engine silent there is nothing to hand over, so start
+    // straight on the engine the pitch setting asks for.
+    if (!sourceRef.current) appliedPitchRef.current = preservePitchRef.current;
     const region = regionRef.current;
     if (region) {
       const startMs = Math.max(0, region.startMs ?? 0);
@@ -828,35 +850,6 @@ export function useAudio(
     appliedScaleRef.current = scale;
   }, [scale, retargetRate]);
 
-  // Flipping pitch preservation swaps playback engines. Hand the playhead over
-  // at its current position so the switch is inaudible in timing terms.
-  const appliedPitchRef = useRef(pitchLocked);
-  useEffect(() => {
-    if (appliedPitchRef.current === pitchLocked) return;
-    appliedPitchRef.current = pitchLocked;
-
-    const audio = audioRef.current;
-    const wasPlaying =
-      sourceRef.current !== null || (audio !== null && !audio.paused);
-    if (sourceRef.current) stopWeb(true);
-    else if (audio && !audio.paused) {
-      positionRef.current = audio.currentTime;
-      audio.pause();
-    }
-
-    if (audio) applyRate(audio, effectiveRate(), pitchLocked);
-    if (!wasPlaying) return;
-
-    if (pitchLocked) {
-      if (audio) {
-        audio.currentTime = positionRef.current;
-        void audio.play().catch(() => {});
-      }
-    } else if (startWebRef.current()) {
-      setIsPlaying(true);
-    }
-  }, [pitchLocked, stopWeb, effectiveRate]);
-
   const setVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
     volumeRef.current = clamped;
@@ -925,6 +918,157 @@ export function useAudio(
     seekVisualClockRef.current.cancel();
   }, []);
 
+  /** Context time at which the buffer engine's playhead reaches `position`. */
+  const ctxTimeAtPosition = useCallback(
+    (position: number, from: number): number => {
+      let span = 0.25;
+      while (positionAtCtxTime(from + span) < position && span < 3600) span *= 2;
+      let lo = from;
+      let hi = from + span;
+      for (let i = 0; i < 32; i++) {
+        const mid = (lo + hi) / 2;
+        if (positionAtCtxTime(mid) < position) lo = mid;
+        else hi = mid;
+      }
+      return hi;
+    },
+    [positionAtCtxTime],
+  );
+
+  // Moving onto the pitch-preserving element used to stop the buffer engine,
+  // then seek and start the element, and the song went quiet while it buffered
+  // — the playfield showed that as a stutter. Now the buffer engine plays on
+  // while the element seeks a little ahead and buffers there, and the swap
+  // lands on the moment the playhead reaches that spot.
+  const armPitchHandoff = useCallback(() => {
+    const audio = audioRef.current;
+    const ctx = ctxRef.current;
+    const source = sourceRef.current;
+    if (!audio || !ctx || !source || cancelPitchHandoffRef.current) return;
+
+    let frame = 0;
+    let timer = 0;
+    let attempts = 0;
+    let target = 0;
+    const cancel = () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      if (cancelPitchHandoffRef.current === cancel) {
+        cancelPitchHandoffRef.current = null;
+      }
+    };
+    cancelPitchHandoffRef.current = cancel;
+
+    const aim = () => {
+      attempts += 1;
+      const rate = Math.max(syncLivePlaybackRate(), effectiveRate());
+      target =
+        positionAtCtxTime(ctx.currentTime) +
+        PITCH_HANDOFF_LEAD_SECONDS * attempts * rate;
+      applyRate(audio, effectiveRate(), true);
+      audio.currentTime = target;
+    };
+
+    const commit = () => {
+      cancel();
+      if (sourceRef.current !== source || !preservePitchRef.current) return;
+      const now = performance.now();
+      const previousVisual = seekVisualClockRef.current.read(getCurrentTime(), now);
+      stopWeb(true);
+      appliedPitchRef.current = true;
+      applyRate(audio, effectiveRate(), true);
+      if (
+        Math.abs(audio.currentTime - positionRef.current) >
+        PITCH_HANDOFF_TOLERANCE_SECONDS
+      ) {
+        audio.currentTime = positionRef.current;
+      }
+      clockRef.current.reset();
+      void audio.play().catch(() => {});
+      // The engines compensate output latency differently; glide across the
+      // difference instead of jumping the playfield.
+      seekVisualClockRef.current.begin(previousVisual, getCurrentTime(), "smooth", now);
+    };
+
+    const step = () => {
+      frame = 0;
+      if (sourceRef.current !== source || !preservePitchRef.current) {
+        cancel();
+        return;
+      }
+      const remaining = ctxTimeAtPosition(target, ctx.currentTime) - ctx.currentTime;
+      // Current data is enough: WebKit may not buffer further for a paused
+      // element, and a seeked local file starts at once from here.
+      const ready =
+        !audio.seeking && audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+      if (remaining <= 0) {
+        // Not ready in time: aim further ahead, and after a few misses swap
+        // on the spot rather than keep the pitch wrong.
+        if (attempts >= PITCH_HANDOFF_ATTEMPTS) {
+          commit();
+          return;
+        }
+        aim();
+      } else if (ready && remaining < PITCH_HANDOFF_TIMER_SECONDS) {
+        timer = window.setTimeout(commit, remaining * 1000);
+        return;
+      }
+      frame = requestAnimationFrame(step);
+    };
+
+    aim();
+    frame = requestAnimationFrame(step);
+  }, [
+    ctxTimeAtPosition,
+    effectiveRate,
+    getCurrentTime,
+    positionAtCtxTime,
+    stopWeb,
+    syncLivePlaybackRate,
+  ]);
+  armPitchHandoffRef.current = armPitchHandoff;
+
+  // Flipping pitch preservation swaps playback engines, keeping the playhead
+  // where it is.
+  useEffect(() => {
+    if (!pitchLocked) cancelPitchHandoffRef.current?.();
+    if (appliedPitchRef.current === pitchLocked) return;
+    const audio = audioRef.current;
+
+    if (pitchLocked && sourceRef.current) {
+      armPitchHandoff();
+      return;
+    }
+
+    // The buffer engine starts the instant it is asked, so coming back needs
+    // no run-up.
+    if (!pitchLocked && audio && !audio.paused && bufferRef.current) {
+      const now = performance.now();
+      const previousVisual = seekVisualClockRef.current.read(getCurrentTime(), now);
+      positionRef.current = clockRef.current.read(
+        audio.currentTime,
+        audio.playbackRate,
+        now,
+      );
+      appliedPitchRef.current = false;
+      audio.pause();
+      if (startWebRef.current()) {
+        // Glide over the output latency rather than holding the playhead
+        // still until the buffer engine's audible position catches up.
+        audibleStartPositionRef.current =
+          Math.max(0, regionRef.current?.startMs ?? 0) / 1000;
+        seekVisualClockRef.current.begin(previousVisual, getCurrentTime(), "smooth", now);
+        setIsPlaying(true);
+      }
+      return;
+    }
+
+    // Stopped, or the element is the only engine because the song has not
+    // decoded yet: only the element's pitch flag needs to follow.
+    appliedPitchRef.current = pitchLocked;
+    if (audio) applyRate(audio, effectiveRate(), pitchLocked);
+  }, [pitchLocked, armPitchHandoff, effectiveRate, getCurrentTime]);
+
   const seek = useCallback(
     (mapMs: number, transition: AudioSeekTransition = "instant") => {
       if (!Number.isFinite(mapMs)) return;
@@ -988,6 +1132,7 @@ export function useAudio(
 
   useEffect(() => {
     return () => {
+      cancelPitchHandoffRef.current?.();
       stopWeb(false);
       if (elementVolumeRafRef.current !== null) {
         cancelAnimationFrame(elementVolumeRafRef.current);

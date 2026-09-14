@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "../ui/Modal";
 import {
   Button,
@@ -40,7 +40,16 @@ import {
   regularLevelForSkill,
   resolveSkillForKeyCount,
 } from "../../lib/danSkill";
-import { keyLabel, keybindWarnings } from "../../lib/playtestKeybinds";
+import {
+  assignPlaytestKey,
+  keyLabel,
+  keybindWarnings,
+} from "../../lib/playtestKeybinds";
+import { PRESET_SKINS } from "../../lib/presetSkins";
+import {
+  parsePlaytestSkinValue,
+  playtestSkinValue,
+} from "../../lib/playtestSkin";
 import { useLocale, type Locale, type MessageKey } from "../../lib/i18n";
 import { LOCALES } from "../../lib/i18n/core";
 import type { EditorKeybinds } from "../../lib/editorKeybinds";
@@ -110,6 +119,8 @@ type Props = {
   onBpmAffectsScroll: (value: boolean) => void;
   playtest: PlaytestSettings;
   onPlaytest: (value: PlaytestSettings) => void;
+  /** File names of the imported skins playtest can use. */
+  savedSkinNames: string[];
   localAutosaveEnabled: boolean;
   onLocalAutosaveEnabled: (value: boolean) => void;
   exportPngBackgroundsAsJpeg: boolean;
@@ -237,6 +248,7 @@ export function AppSettingsModal({
   onBpmAffectsScroll,
   playtest,
   onPlaytest,
+  savedSkinNames,
   localAutosaveEnabled,
   onLocalAutosaveEnabled,
   exportPngBackgroundsAsJpeg,
@@ -285,7 +297,10 @@ export function AppSettingsModal({
   const { user, login } = useAuth();
   const [tab, setTab] = useState<Tab>("General");
   const [keyMode, setKeyMode] = useState(4);
-  const [capturing, setCapturing] = useState<number | null>(null);
+  // Lanes still waiting for a key; the first one is listening.
+  const [captureQueue, setCaptureQueue] = useState<number[]>([]);
+  const capturing = captureQueue[0] ?? null;
+  const laneButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [capturingRestart, setCapturingRestart] = useState(false);
   const selectedKeybinds = playtest.keybinds[keyMode] ?? [];
   const warnings = keybindWarnings(selectedKeybinds);
@@ -359,21 +374,34 @@ export function AppSettingsModal({
     onPlaytest({ ...playtest, ...patch });
   };
 
-  const setKeybind = (column: number, code: string) => {
-    const next = Array.from({ length: keyMode }, (_, i) => selectedKeybinds[i] || "");
-    if (code && next.some((existing, i) => i !== column && existing === code)) {
-      setCapturing(null);
-      return;
-    }
-    next[column] = code;
-    patchPlaytest({
-      keybinds: {
-        ...playtest.keybinds,
-        [keyMode]: next,
-      },
-    });
-    setCapturing(null);
+  const laneKeys = () =>
+    Array.from({ length: keyMode }, (_, i) => selectedKeybinds[i] || "");
+  const saveLaneKeys = (keys: string[]) =>
+    patchPlaytest({ keybinds: { ...playtest.keybinds, [keyMode]: keys } });
+
+  // Binding a lane moves straight on to the next one, and a lane that loses
+  // its key to another is asked for a new one before capture ends.
+  const captureKey = (code: string) => {
+    const { keys, queue } = assignPlaytestKey(laneKeys(), captureQueue, code);
+    saveLaneKeys(keys);
+    setCaptureQueue(queue);
+    if (queue.length) laneButtonRefs.current[queue[0]]?.focus();
   };
+
+  const clearLane = (column: number) => {
+    const keys = laneKeys();
+    keys[column] = "";
+    saveLaneKeys(keys);
+    setCaptureQueue([]);
+  };
+
+  // A saved skin picked earlier and since removed stays listed, so the
+  // select still shows what is stored.
+  const savedSkinOptions =
+    playtest.skin?.source === "saved" &&
+    !savedSkinNames.includes(playtest.skin.fileName)
+      ? [...savedSkinNames, playtest.skin.fileName]
+      : savedSkinNames;
 
   return (
     <Modal
@@ -1018,6 +1046,50 @@ export function AppSettingsModal({
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <Tip text={t("settings.playtestSkinHint")}>
+                  {t("settings.playtestSkin")}
+                </Tip>
+              </h3>
+              <Select
+                className="w-full sm:w-72"
+                value={playtestSkinValue(playtest.skin)}
+                onChange={(e) =>
+                  patchPlaytest({ skin: parsePlaytestSkinValue(e.target.value) })
+                }
+              >
+                <option value="">{t("settings.playtestSkinEditor")}</option>
+                <option value="none">{t("settings.playtestSkinDefault")}</option>
+                {PRESET_SKINS.length > 0 && (
+                  <optgroup label={t("settings.playtestSkinPresets")}>
+                    {PRESET_SKINS.map((preset) => (
+                      <option
+                        key={preset.fileName}
+                        value={playtestSkinValue({
+                          source: "preset",
+                          fileName: preset.fileName,
+                        })}
+                      >
+                        {preset.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {savedSkinOptions.length > 0 && (
+                  <optgroup label={t("settings.playtestSkinSaved")}>
+                    {savedSkinOptions.map((name) => (
+                      <option
+                        key={name}
+                        value={playtestSkinValue({ source: "saved", fileName: name })}
+                      >
+                        {name.replace(/\.osk$/i, "")}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </Select>
+            </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 <Tip diagram="hud">{t("settings.hud")}</Tip>
               </h3>
               <div className="grid gap-2 text-sm text-slate-200 sm:grid-cols-2">
@@ -1075,7 +1147,7 @@ export function AppSettingsModal({
                   size="sm"
                   value={keyMode}
                   onChange={(e) => {
-                    setCapturing(null);
+                    setCaptureQueue([]);
                     setKeyMode(Number(e.target.value));
                   }}
                 >
@@ -1090,20 +1162,35 @@ export function AppSettingsModal({
                 {Array.from({ length: keyMode }, (_, i) => (
                   <button
                     key={i}
+                    ref={(el) => {
+                      laneButtonRefs.current[i] = el;
+                    }}
                     type="button"
-                    onClick={() => setCapturing(i)}
+                    // Space binds a lane and then clicks whichever lane is
+                    // listening next; that click must not restart capture.
+                    onClick={() => {
+                      if (capturing === i) return;
+                      setCaptureQueue(
+                        Array.from({ length: keyMode - i }, (_, offset) => i + offset),
+                      );
+                    }}
+                    onBlur={() =>
+                      setCaptureQueue((queue) => (queue[0] === i ? [] : queue))
+                    }
                     onKeyDown={(e) => {
                       if (capturing !== i) return;
                       e.preventDefault();
-                      if (e.key === "Escape") setCapturing(null);
+                      if (e.key === "Escape") setCaptureQueue([]);
                       else if (e.key === "Backspace" || e.key === "Delete") {
-                        setKeybind(i, "");
-                      } else setKeybind(i, e.code);
+                        clearLane(i);
+                      } else captureKey(e.code);
                     }}
                     className={`rounded-lg border px-2 py-2 text-xs transition ${
                       capturing === i
                         ? "border-accent/80 bg-accent/20 text-slate-100"
-                        : "border-white/10 bg-ink-700/60 text-slate-300 hover:border-accent/50"
+                        : !selectedKeybinds[i]
+                          ? "border-amber-400/50 bg-ink-700/60 text-amber-200 hover:border-accent/50"
+                          : "border-white/10 bg-ink-700/60 text-slate-300 hover:border-accent/50"
                     }`}
                   >
                     <span className="block text-[10px] text-slate-500">

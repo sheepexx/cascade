@@ -56,6 +56,26 @@ export function normalizePlaytestKeybinds(
   return out;
 }
 
+/**
+ * Binds `code` to the lane at the front of `queue`, the lanes still waiting
+ * for a key. A key drives one lane only, so a lane already using it is
+ * cleared and joins the end of the queue to get a new one.
+ */
+export function assignPlaytestKey(
+  keys: string[],
+  queue: number[],
+  code: string,
+): { keys: string[]; queue: number[] } {
+  const [column, ...rest] = queue;
+  if (column === undefined) return { keys, queue: [] };
+  const next = [...keys];
+  const stolen = next.findIndex((existing, i) => i !== column && existing === code);
+  if (stolen !== -1) next[stolen] = "";
+  next[column] = code;
+  if (stolen !== -1 && !rest.includes(stolen)) rest.push(stolen);
+  return { keys: next, queue: rest };
+}
+
 export function keyLabel(code: string): string {
   if (!code) return "Unset";
   if (code === "Space") return "Space";

@@ -29,6 +29,7 @@ export function PlaytestOverlay({
   ended,
   paused,
   countdownEndsAt,
+  resuming,
   settings,
   windows,
   currentTimeMs,
@@ -43,6 +44,8 @@ export function PlaytestOverlay({
   ended: boolean;
   paused: boolean;
   countdownEndsAt: number | null;
+  /** The countdown is bringing a paused run back, so the HUD stays up. */
+  resuming: boolean;
   settings: PlaytestSettings;
   windows: JudgementWindows;
   currentTimeMs: number;
@@ -54,7 +57,7 @@ export function PlaytestOverlay({
   onReturn: () => void;
 }) {
   if (!state.active) return null;
-  if (countdownEndsAt !== null) {
+  if (countdownEndsAt !== null && !resuming) {
     return <PlaytestCountdown endsAt={countdownEndsAt} />;
   }
   const latest = state.hitResults[state.hitResults.length - 1] ?? null;
@@ -203,11 +206,21 @@ export function PlaytestOverlay({
           </div>
         </div>
       )}
+
+      {countdownEndsAt !== null && (
+        <PlaytestCountdown endsAt={countdownEndsAt} resuming />
+      )}
     </div>
   );
 }
 
-function PlaytestCountdown({ endsAt }: { endsAt: number }) {
+function PlaytestCountdown({
+  endsAt,
+  resuming = false,
+}: {
+  endsAt: number;
+  resuming?: boolean;
+}) {
   const [remaining, setRemaining] = useState(() =>
     Math.max(0, endsAt - performance.now()),
   );
@@ -230,7 +243,7 @@ function PlaytestCountdown({ endsAt }: { endsAt: number }) {
     <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-ink-900/28 backdrop-blur-[2px]">
       <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/10 bg-ink-900/76 px-10 py-7 text-center shadow-2xl backdrop-blur-xl">
         <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-300">
-          Get ready
+          {resuming ? "Resuming" : "Get ready"}
         </span>
         <div
           className="grid h-24 w-24 place-items-center rounded-full p-1 shadow-[0_0_32px_rgba(91,192,255,0.2)]"
@@ -242,7 +255,9 @@ function PlaytestCountdown({ endsAt }: { endsAt: number }) {
             {seconds}
           </div>
         </div>
-        <span className="text-xs text-slate-400">Early notes are skipped</span>
+        {!resuming && (
+          <span className="text-xs text-slate-400">Early notes are skipped</span>
+        )}
       </div>
     </div>
   );

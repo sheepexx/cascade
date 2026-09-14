@@ -201,6 +201,13 @@ export const ru: PartialCatalog = {
   "settings.showErrorBar": "Показывать полосу отклонений (UR)",
   "settings.skinComboFont": "Шрифт комбо из скина",
   "settings.skinJudgements": "Судейства из скина",
+  "settings.playtestSkin": "Скин для плейтеста",
+  "settings.playtestSkinHint":
+    "Плейтест использует другой скин, чем редактор. Импортированные скины появляются здесь.",
+  "settings.playtestSkinEditor": "Как в редакторе",
+  "settings.playtestSkinDefault": "Без скина",
+  "settings.playtestSkinPresets": "Встроенные",
+  "settings.playtestSkinSaved": "Импортированные",
   "settings.quickRestartKey": "Клавиша быстрого перезапуска",
   "settings.quickRestartHint":
     "Мгновенно перезапускает попытку в плейтесте. Esc открывает меню паузы; F5 запускает и завершает плейтест.",

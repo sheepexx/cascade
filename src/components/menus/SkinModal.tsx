@@ -8,19 +8,7 @@ import { Button, FileButton } from "../ui/Controls";
 import { isDesktopApp } from "../../lib/pwa";
 import { osuListSkins, osuReadSkin } from "../../lib/osuDesktop";
 import { InfoTip } from "../ui/Tooltip";
-
-const PRESET_MODULES = import.meta.glob("../../../skin/*.osk", {
-  eager: true,
-  query: "?url",
-  import: "default",
-}) as Record<string, string>;
-
-const PRESET_SKINS = Object.entries(PRESET_MODULES)
-  .map(([path, url]) => {
-    const fileName = path.split("/").pop() ?? path;
-    return { fileName, name: fileName.replace(/\.osk$/i, ""), url };
-  })
-  .sort((a, b) => a.name.localeCompare(b.name));
+import { PRESET_SKINS } from "../../lib/presetSkins";
 
 const AUTHOR_PROFILES: Record<string, string> = {
   kxxn: "https://osu.ppy.sh/users/26595459",

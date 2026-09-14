@@ -200,6 +200,13 @@ export const ptBR: PartialCatalog = {
   "settings.showErrorBar": "Mostrar barra de erro (UR)",
   "settings.skinComboFont": "Fonte de combo da skin",
   "settings.skinJudgements": "Julgamentos da skin",
+  "settings.playtestSkin": "Skin do teste",
+  "settings.playtestSkinHint":
+    "Joga com uma skin diferente da do editor. As skins que você importar aparecem aqui.",
+  "settings.playtestSkinEditor": "Igual ao editor",
+  "settings.playtestSkinDefault": "Sem skin",
+  "settings.playtestSkinPresets": "Incluídas",
+  "settings.playtestSkinSaved": "Importadas",
   "settings.quickRestartKey": "Tecla de reinício rápido",
   "settings.quickRestartHint":
     "Reinicia a tentativa na hora durante o teste. Esc abre o menu de pausa; F5 entra e sai do teste.",

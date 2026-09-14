@@ -196,6 +196,13 @@ export const zhCN: PartialCatalog = {
   "settings.showErrorBar": "显示误差条（UR）",
   "settings.skinComboFont": "使用皮肤连击字体",
   "settings.skinJudgements": "使用皮肤判定图",
+  "settings.playtestSkin": "试玩皮肤",
+  "settings.playtestSkinHint":
+    "试玩时使用与编辑器不同的皮肤。导入的皮肤会显示在这里。",
+  "settings.playtestSkinEditor": "与编辑器相同",
+  "settings.playtestSkinDefault": "不使用皮肤",
+  "settings.playtestSkinPresets": "内置",
+  "settings.playtestSkinSaved": "已导入",
   "settings.quickRestartKey": "快速重开按键",
   "settings.quickRestartHint":
     "在试玩中立即重开本次游玩。Esc 打开暂停菜单；F5 进入 / 退出试玩。",
