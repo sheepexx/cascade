@@ -552,6 +552,10 @@ export const en = {
   "editor.trimStart": "TRIM START",
   "editor.trimEnd": "TRIM END",
 
+  "drop.title": "Drop to load",
+  "drop.formats":
+    "Audio (.mp3 / .ogg) · background image · .osz / .osu / .sm / .ssc / .qua map or folder · .osk skin",
+
   "empty.title": "Drop audio anywhere to start mapping",
   "empty.subtitleBefore": "Or press Enter and pick a sample map.",
   "empty.subtitleAfter": "plays, clicks place notes.",

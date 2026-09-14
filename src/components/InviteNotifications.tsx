@@ -1,5 +1,6 @@
 import { Button } from "./ui/Controls";
 import { TimedNotification } from "./ui/TimedNotification";
+import { MailIcon } from "./ui/Icons";
 
 export type InviteNotice = {
   notificationId?: string;
@@ -42,7 +43,7 @@ export function InviteNotifications({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                "✉"
+                <MailIcon className="h-4 w-4 text-slate-300" />
               )}
             </span>
             <div className="min-w-0 text-sm">

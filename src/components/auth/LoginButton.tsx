@@ -6,9 +6,11 @@ import { Button } from "../ui/Controls";
 import { Skeleton } from "../ui/Skeleton";
 import { ChevronDownIcon } from "../ui/Icons";
 import { siteUrl } from "../../lib/siteAssets";
+import { MOTION } from "../../lib/motion";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
-const MENU_EXIT_MS = 160;
+// The account menu shares the menu-pop exit, so it unmounts on the same beat.
+const MENU_EXIT_MS = MOTION.exit;
 const COVER_KEY = "mania-editor:osu-cover";
 const COVER_DELAY_MS = 700;
 
@@ -203,7 +205,7 @@ export function AccountControl({
             ref={menuRef}
             style={{ position: "fixed", top: pos.top, right: pos.right }}
             className={`z-[100] w-52 overflow-hidden rounded-xl border border-ink-500/60 bg-ink-800 pb-1 shadow-2xl ${
-              open ? "dropdown-in" : "dropdown-out pointer-events-none"
+              open ? "menu-pop-in" : "menu-pop-out"
             }`}
           >
             <div className="relative h-20 w-full overflow-hidden bg-ink-700">

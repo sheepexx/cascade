@@ -850,7 +850,7 @@ export function AppSettingsModal({
                 >
                   <span
                     aria-hidden
-                    className={`inline-block leading-none transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    className={`inline-block leading-none transition-transform duration-300 ease-[var(--ease-emphasized)] ${
                       upscroll ? "-rotate-180" : "rotate-0"
                     }`}
                   >

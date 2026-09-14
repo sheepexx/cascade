@@ -1169,7 +1169,7 @@ function MenuBackground({
         {/* Leans in while the logo stands alone and eases back out as the
             menu opens; kept apart from the parallax transform above. */}
         <div
-          className="absolute inset-0 transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+          className="absolute inset-0 transition-transform duration-[600ms] ease-[var(--ease-emphasized)] motion-reduce:transition-none"
           style={{ transform: `scale(${!open && !phone ? BG_CLOSED_ZOOM : 1})` }}
         >
           {/* Sharp across the middle; a blurred copy on top is masked in

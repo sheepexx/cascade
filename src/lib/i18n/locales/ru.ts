@@ -501,6 +501,10 @@ export const ru: PartialCatalog = {
   "editor.trimStart": "НАЧАЛО ОБРЕЗКИ",
   "editor.trimEnd": "КОНЕЦ ОБРЕЗКИ",
 
+  "drop.title": "Отпустите, чтобы загрузить",
+  "drop.formats":
+    "Аудио (.mp3 / .ogg) · фоновое изображение · карта .osz / .osu / .sm / .ssc / .qua или папка · скин .osk",
+
   "empty.title": "Перетащите аудио куда угодно, чтобы начать маппинг",
   "empty.subtitleBefore": "Или нажмите Enter и выберите пример карты.",
   "empty.subtitleAfter": "воспроизводит, клики ставят ноты.",

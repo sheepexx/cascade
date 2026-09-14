@@ -487,6 +487,10 @@ export const de: PartialCatalog = {
   "editor.trimStart": "SCHNITT ANFANG",
   "editor.trimEnd": "SCHNITT ENDE",
 
+  "drop.title": "Zum Laden loslassen",
+  "drop.formats":
+    "Audio (.mp3 / .ogg) · Hintergrundbild · .osz / .osu / .sm / .ssc / .qua Map oder Ordner · .osk Skin",
+
   "empty.title": "Zieh Audio irgendwo hin, um mit dem Mappen zu starten",
   "empty.subtitleBefore": "Oder drücke Enter und wähle eine Beispiel-Map.",
   "empty.subtitleAfter": "spielt ab, Klicks setzen Noten.",

@@ -4,6 +4,11 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // A bare `transition` follows the motion tokens in index.css, so a hover
+      // with no explicit duration moves like the rest of the interface instead
+      // of on Tailwind's own 150ms curve.
+      transitionDuration: { DEFAULT: "var(--motion-quick)" },
+      transitionTimingFunction: { DEFAULT: "var(--ease-standard)" },
       borderRadius: {
         md: "0.5rem",
         lg: "0.7rem",

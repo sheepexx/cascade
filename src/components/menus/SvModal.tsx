@@ -39,6 +39,8 @@ import {
 } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
 import { Menu } from "../ui/Menu";
+import { BookmarkIcon } from "../ui/Icons";
+import { FONT_STACK } from "../../lib/fontStack";
 import { InfoTip } from "../ui/Tooltip";
 
 type Props = {
@@ -295,7 +297,7 @@ export function SvModal({
       ctx.lineTo(cssWidth, y);
       ctx.stroke();
       ctx.fillStyle = "rgba(148,163,184,0.6)";
-      ctx.font = "9px ui-sans-serif, system-ui";
+      ctx.font = `9px ${FONT_STACK}`;
       ctx.fillText(`${v}×`, 4, y - 2);
     }
 
@@ -401,7 +403,7 @@ export function SvModal({
         className="shrink-0 rounded-lg border border-white/10 bg-ink-700/65 !px-2 !py-2"
         label={
           <span aria-label={`Set ${id} from a bookmark`} title="Set from a bookmark">
-            🔖
+            <BookmarkIcon className="block h-5 w-5 text-slate-300" />
           </span>
         }
         // Names repeat often, so every entry carries its timestamp.

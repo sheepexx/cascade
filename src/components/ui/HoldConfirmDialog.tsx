@@ -70,7 +70,7 @@ export function HoldConfirmDialog({
   return (
     <div
       className={`fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/72 p-4 backdrop-blur-md ${
-        closing ? "confirm-backdrop-out pointer-events-none" : "confirm-backdrop-in"
+        closing ? "modal-backdrop-out pointer-events-none" : "modal-backdrop-in"
       }`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !busy) onCancel();
@@ -83,7 +83,7 @@ export function HoldConfirmDialog({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={`flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] outline-none ring-1 ring-rose-500/20 ${
-          closing ? "confirm-pop-out" : "confirm-pop-in"
+          closing ? "modal-panel-out" : "modal-panel-in"
         }`}
       >
         <header className="border-b border-white/10 bg-ink-700 px-5 py-3.5">

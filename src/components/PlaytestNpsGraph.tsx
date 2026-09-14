@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { ManiaNote } from "../types";
 import { computeNpsSeries, rollingNpsAt, type NpsSeries } from "../lib/nps";
+import { FONT_STACK } from "../lib/fontStack";
 
 const WIDTH = 76;
 const PADDING_TOP = 26;
 const PADDING_BOTTOM = 18;
-const FONT_STACK =
-  '"Quicksand", "Inter", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 
 function intensityColor(ratio: number, alpha = 1): string {
   const r = Math.max(0, Math.min(1, ratio));

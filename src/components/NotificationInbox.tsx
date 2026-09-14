@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { InboxNotification } from "../lib/notifications";
 import { SkeletonRows } from "./ui/Skeleton";
+import { MailIcon } from "./ui/Icons";
 
 export function NotificationInbox({
   notifications,
@@ -301,7 +302,11 @@ function NotificationAvatar({
           : "bg-cyan-400/10 text-cyan-300"
       }`}
     >
-      {notification.kind === "invite" ? "✉" : "✦"}
+      {notification.kind === "invite" ? (
+        <MailIcon className="h-[18px] w-[18px]" />
+      ) : (
+        <BellIcon />
+      )}
     </span>
   );
 }

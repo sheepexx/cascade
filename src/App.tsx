@@ -189,7 +189,12 @@ import {
   SampleMapsIcon,
   UsersIcon,
 } from "./components/ui/StartIcons";
-import { RedoIcon, UndoIcon } from "./components/ui/Icons";
+import {
+  MusicNoteIcon,
+  RedoIcon,
+  UndoIcon,
+  UserIcon,
+} from "./components/ui/Icons";
 import {
   createRateDifficulty as makeRateDifficulty,
   difficultyRate,
@@ -6456,7 +6461,7 @@ export default function App() {
         </div>
       )}
       <div
-        className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[var(--ease-emphasized)] ${
           sceneEntering && hasProject ? "editor-scene-in" : ""
         } ${
           exiting ? "app-power-off" : ""
@@ -6469,11 +6474,9 @@ export default function App() {
       {isDragging && (
         <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-ink-900/76 backdrop-blur-md">
           <div className="rounded-2xl border-2 border-dashed border-accent/70 bg-ink-800/82 px-12 py-10 text-center shadow-2xl backdrop-blur-xl">
-            <div className="mb-2 text-3xl">🎵</div>
-            <p className="text-lg font-semibold text-slate-100">Drop to load</p>
-            <p className="text-sm text-slate-400">
-              audio (.mp3 / .ogg) · image background · .osz / .osu / .sm / .ssc / .qua map (folder) · .osk skin
-            </p>
+            <MusicNoteIcon className="mx-auto mb-2 h-9 w-9 text-accent" />
+            <p className="text-lg font-semibold text-slate-100">{t("drop.title")}</p>
+            <p className="text-sm text-slate-400">{t("drop.formats")}</p>
           </div>
         </div>
       )}
@@ -8058,7 +8061,7 @@ export default function App() {
                 className="h-full w-full object-cover"
               />
             ) : (
-              "👤"
+              <UserIcon className="h-4 w-4 text-slate-300" />
             )}
           </span>
           {peerNotice.text}

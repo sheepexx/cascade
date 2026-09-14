@@ -1,6 +1,7 @@
 import type { ValidationResult } from "../../lib/validation";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
+import { ErrorIcon, WarningIcon } from "../ui/Icons";
 
 type Props = {
   open: boolean;
@@ -61,7 +62,7 @@ export function ExportValidationModal({
                   key={i}
                   className="flex gap-2 rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-1.5 text-sm text-red-200"
                 >
-                  <span>✕</span>
+                  <ErrorIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
                   <span>
                     {e.message}
                     {e.scope && (
@@ -85,7 +86,7 @@ export function ExportValidationModal({
                   key={i}
                   className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-1.5 text-sm text-amber-100"
                 >
-                  <span>⚠</span>
+                  <WarningIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
                   <span>
                     {w.message}
                     {w.scope && (

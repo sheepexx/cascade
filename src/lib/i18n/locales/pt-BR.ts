@@ -487,6 +487,10 @@ export const ptBR: PartialCatalog = {
   "editor.trimStart": "INÍCIO DO CORTE",
   "editor.trimEnd": "FIM DO CORTE",
 
+  "drop.title": "Solte para carregar",
+  "drop.formats":
+    "Áudio (.mp3 / .ogg) · imagem de fundo · mapa .osz / .osu / .sm / .ssc / .qua ou pasta · skin .osk",
+
   "empty.title": "Solte um áudio em qualquer lugar para começar a mapear",
   "empty.subtitleBefore": "Ou pressione Enter e escolha um mapa de exemplo.",
   "empty.subtitleAfter": "toca, cliques posicionam notas.",

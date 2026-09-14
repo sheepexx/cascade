@@ -14,4 +14,5 @@ export const MOTION_EASE = {
   standard: "cubic-bezier(0.2, 0, 0, 1)",
   emphasized: "cubic-bezier(0.16, 1, 0.3, 1)",
   overshoot: "cubic-bezier(0.2, 1.35, 0.35, 1)",
+  exit: "cubic-bezier(0.55, 0, 1, 0.45)",
 } as const;

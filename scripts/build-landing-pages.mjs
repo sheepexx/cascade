@@ -6,9 +6,11 @@ import {
   CONTENT as DOWNLOAD,
   SLUG as DOWNLOAD_SLUG,
 } from "./download-content.mjs";
+import { fontStyles, PAGE_FONT_FAMILY } from "./page-fonts.mjs";
 
 const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const FONT_STYLE = await fontStyles();
 
 function fileFor(slug, locale) {
   const prefix = LOCALES[locale].prefix;
@@ -61,7 +63,7 @@ const STYLE = `      :root { color-scheme: dark; }
         margin: 0;
         background: #0b0b10;
         color: #9aa0ad;
-        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-family: ${PAGE_FONT_FAMILY};
         line-height: 1.65;
       }
       main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
@@ -155,6 +157,7 @@ ${
 ${ld(breadcrumb(page.slug, locale, c.navLabel))}
     </script>
     <style>
+${FONT_STYLE}
 ${STYLE}
     </style>
   </head>

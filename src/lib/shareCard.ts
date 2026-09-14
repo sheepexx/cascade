@@ -2,6 +2,7 @@ import { starColor } from "./starRating";
 import type { ManiaNote, TimingPoint } from "../types";
 import { gridLinesInRange, gridLineColor } from "./timing";
 import { nearestSnap } from "./aimod";
+import { FONT_STACK } from "./fontStack";
 
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 630;
@@ -79,12 +80,13 @@ export function renderPatternCard(info: {
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("PNG export failed.")), "image/png"));
 }
 
+// Cards are shared as images, so they carry the same typeface as the app.
 function headFont(size: number, weight = 700): string {
-  return `${weight} ${size}px Quicksand, Inter, "Segoe UI", sans-serif`;
+  return `${weight} ${size}px ${FONT_STACK}`;
 }
 
 function bodyFont(size: number, weight = 400): string {
-  return `${weight} ${size}px Inter, "Segoe UI", sans-serif`;
+  return `${weight} ${size}px ${FONT_STACK}`;
 }
 
 export function formatLength(ms: number | null): string | null {

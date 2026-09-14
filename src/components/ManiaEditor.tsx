@@ -77,6 +77,7 @@ import { Menu } from "./ui/Menu";
 import { SnapBadge } from "./ui/SnapBadge";
 import { DifficultyClipLabel } from "./ui/DifficultyClipLabel";
 import { t } from "../lib/i18n/core";
+import { FONT_STACK as CANVAS_FONT_STACK } from "../lib/fontStack";
 import { formatUiNumber } from "../lib/formatUiNumber";
 import {
   reduceMotion,
@@ -118,8 +119,6 @@ const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
-const CANVAS_FONT_STACK =
-  '"Quicksand", "Inter", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 
 type Props = {
   audioBuffer?: AudioBuffer | null;
@@ -309,7 +308,7 @@ function drawHitsoundLetters(
   const label = hitsoundLabel(hitSound);
   if (!label) return;
   ctx.save();
-  ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = `700 8px ${CANVAS_FONT_STACK}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.lineJoin = "round";

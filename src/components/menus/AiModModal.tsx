@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDownIcon } from "../ui/Icons";
+import { ChevronDownIcon, ErrorIcon, WarningIcon } from "../ui/Icons";
 import {
   AIMOD_CATEGORIES,
   formatAiModObjects,
@@ -213,7 +213,11 @@ export function AiModModal({
                       }`}
                       aria-hidden
                     >
-                      {issue.severity === "error" ? "⛔" : "⚠"}
+                      {issue.severity === "error" ? (
+                        <ErrorIcon className="h-4 w-4" />
+                      ) : (
+                        <WarningIcon className="h-4 w-4" />
+                      )}
                     </span>
                     {details.length > 0 ? (
                       <button

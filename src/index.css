@@ -12,6 +12,7 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-overshoot: cubic-bezier(0.2, 1.35, 0.35, 1);
+  --ease-exit: cubic-bezier(0.55, 0, 1, 0.45);
 
   --font-osu: "Quicksand", "Inter", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
@@ -25,22 +26,24 @@ body,
   margin: 0;
 }
 
-@keyframes page-fade-in {
+/* The one plain opacity fade, shared by every backdrop, overlay and background
+   that only fades. Each use sets its own duration. */
+@keyframes fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-@keyframes page-fade-out {
+@keyframes fade-out {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
 
 body {
-  animation: page-fade-in 0.15s ease;
+  animation: fade-in 0.15s ease;
 }
 
 body.fade-out {
-  animation: page-fade-out 0.12s ease forwards;
+  animation: fade-out 0.12s ease forwards;
 }
 
 body {
@@ -90,7 +93,7 @@ button,
 input,
 select,
 textarea {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-timing-function: var(--ease-emphasized);
 }
 
 #root button:focus,
@@ -218,22 +221,6 @@ img {
   transition: width 200ms var(--ease-emphasized);
 }
 
-@keyframes modal-backdrop-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes modal-backdrop-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
 @keyframes modal-panel-in {
   0% {
     opacity: 0;
@@ -280,10 +267,10 @@ img {
 }
 
 .modal-backdrop-in {
-  animation: modal-backdrop-in var(--motion-enter) var(--ease-standard);
+  animation: fade-in var(--motion-enter) var(--ease-standard);
 }
 .modal-backdrop-out {
-  animation: modal-backdrop-out var(--motion-exit) var(--ease-standard) forwards;
+  animation: fade-out var(--motion-exit) var(--ease-standard) forwards;
 }
 .modal-panel-in {
   animation: modal-panel-in var(--motion-enter) var(--ease-emphasized);
@@ -313,54 +300,6 @@ img {
 .modal-body .text-\[11px\] { font-size: 0.75rem; }
 .modal-body .text-xs { font-size: 0.8125rem; }
 .modal-body .text-sm { font-size: 0.9375rem; }
-
-@keyframes confirm-backdrop-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes confirm-pop-in {
-  0% {
-    opacity: 0;
-    transform: translateY(20px) scale(0.78);
-  }
-  55% {
-    opacity: 1;
-    transform: translateY(0) scale(1.045);
-  }
-  75% {
-    transform: translateY(0) scale(0.99);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-@keyframes confirm-pop-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(8px) scale(0.96);
-  }
-}
-.confirm-backdrop-in {
-  animation: confirm-backdrop-in 200ms ease-out;
-}
-.confirm-backdrop-out {
-  animation: modal-backdrop-out 200ms ease-in forwards;
-}
-.confirm-pop-in {
-  animation: confirm-pop-in 380ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-.confirm-pop-out {
-  animation: confirm-pop-out 200ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
-}
 
 .segmented-pill {
   transition:
@@ -406,7 +345,7 @@ img {
   }
 }
 .pfp-pop-in {
-  animation: pfp-pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: pfp-pop-in 180ms var(--ease-emphasized);
   transform-origin: bottom center;
 }
 
@@ -418,7 +357,7 @@ img {
 
 .group:hover .float-player-tip-card {
   opacity: 1;
-  animation: pfp-pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: pfp-pop-in 180ms var(--ease-emphasized);
 }
 
 .menu-panel-face {
@@ -555,11 +494,11 @@ img {
 }
 
 .osu-banner-in {
-  animation: osu-banner-in 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: osu-banner-in 340ms var(--ease-emphasized) both;
 }
 
 .osu-banner-swap {
-  animation: osu-banner-swap 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: osu-banner-swap 260ms var(--ease-emphasized) both;
 }
 
 /* The start screen's slot for the banner. osu! coming into view drives the
@@ -588,43 +527,25 @@ img {
 }
 
 .osu-banner-slot[data-state="in"] {
-  animation: osu-banner-slot-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: osu-banner-slot-in 420ms var(--ease-emphasized) both;
 }
 
 .osu-banner-slot[data-state="out"] {
-  animation: osu-banner-slot-out 300ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: osu-banner-slot-out 300ms var(--ease-exit) both;
 }
 
 /* Artwork fades over whatever it replaces, quicker than a start-screen
    background so it keeps up with the song details. */
 .osu-art-in {
-  animation: bg-fade-in 420ms ease-out;
-}
-
-@keyframes bg-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes bg-fade-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
+  animation: fade-in 420ms ease-out;
 }
 
 .bg-fade-in {
-  animation: bg-fade-in 900ms ease-out;
+  animation: fade-in 900ms ease-out;
 }
 
 .bg-fade-out {
-  animation: bg-fade-out 700ms ease-in forwards;
+  animation: fade-out 700ms ease-in forwards;
 }
 
 @keyframes float-player-in {
@@ -709,39 +630,7 @@ img {
 }
 
 .track-fade-in {
-  animation: track-fade-in 340ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes dropdown-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes dropdown-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.96);
-  }
-}
-
-.dropdown-in {
-  animation: dropdown-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: top right;
-}
-
-.dropdown-out {
-  animation: dropdown-out 150ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
-  transform-origin: top right;
+  animation: track-fade-in 340ms var(--ease-emphasized);
 }
 
 @keyframes hitsound-bar-in {
@@ -767,11 +656,11 @@ img {
 }
 
 .hitsound-bar-in {
-  animation: hitsound-bar-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: hitsound-bar-in 240ms var(--ease-emphasized);
 }
 
 .hitsound-bar-out {
-  animation: hitsound-bar-out 200ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  animation: hitsound-bar-out 200ms var(--ease-exit) forwards;
 }
 
 @keyframes rate-panel-in {
@@ -795,20 +684,20 @@ img {
   }
 }
 .rate-panel-in {
-  animation: rate-panel-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: rate-panel-in 220ms var(--ease-emphasized);
 }
 .rate-panel-out {
-  animation: rate-panel-out 180ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  animation: rate-panel-out 180ms var(--ease-exit) forwards;
 }
 .rate-panel-reveal {
   overflow: hidden;
   max-height: 0;
   /* Matches rate-panel-out, so the collapse finishes as the panel unmounts. */
-  transition: max-height 180ms cubic-bezier(0.55, 0, 1, 0.45);
+  transition: max-height 180ms var(--ease-exit);
 }
 .rate-panel-reveal[data-open="true"] {
   max-height: 34rem;
-  transition: max-height 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: max-height 220ms var(--ease-emphasized);
 }
 
 @keyframes notification-stack-in {
@@ -916,19 +805,11 @@ img {
 .notification-shell[data-placement="right"][data-state="out"] {
   animation: notification-right-out var(--motion-exit) var(--ease-standard) both;
 }
-@keyframes notification-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes notification-overlay-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
 .notification-shell[data-placement="overlay"][data-state="in"] {
-  animation: notification-overlay-in var(--motion-quick) var(--ease-standard) both;
+  animation: fade-in var(--motion-quick) var(--ease-standard) both;
 }
 .notification-shell[data-placement="overlay"][data-state="out"] {
-  animation: notification-overlay-out var(--motion-exit) var(--ease-standard) both;
+  animation: fade-out var(--motion-exit) var(--ease-standard) both;
 }
 
 @keyframes notification-progress {
@@ -1020,7 +901,7 @@ img {
   animation: loader-fade-in 320ms ease-out both;
 }
 .loader-content-in {
-  animation: loader-content-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: loader-content-in 420ms var(--ease-emphasized) both;
 }
 .loader-bar {
   transform-origin: bottom center;
@@ -1075,7 +956,7 @@ img {
 }
 
 .skeleton-swap-in {
-  animation: skeleton-swap-in 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: skeleton-swap-in 300ms var(--ease-emphasized);
 }
 
 @keyframes scroll-dir-in-up {
@@ -1099,10 +980,10 @@ img {
   }
 }
 .scroll-dir-in-up {
-  animation: scroll-dir-in-up 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: scroll-dir-in-up 300ms var(--ease-emphasized);
 }
 .scroll-dir-in-down {
-  animation: scroll-dir-in-down 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: scroll-dir-in-down 300ms var(--ease-emphasized);
 }
 
 @keyframes playtest-judgement-pop {
@@ -1134,7 +1015,7 @@ img {
   }
 }
 .playtest-judgement {
-  animation: playtest-judgement-pop 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: playtest-judgement-pop 680ms var(--ease-emphasized) both;
 }
 .playtest-hit-error {
   animation: playtest-hit-error 620ms ease-out both;
@@ -1193,18 +1074,9 @@ img {
   animation: exit-beam 560ms 260ms cubic-bezier(0.5, 0, 0.28, 1) both;
 }
 
-@keyframes desktop-hint-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
+/* Pops in the way menus do. */
 .desktop-hint-in {
-  animation: desktop-hint-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: menu-pop-in var(--motion-enter) var(--ease-emphasized) both;
 }
 
 @keyframes tooltip-in {
@@ -1230,9 +1102,9 @@ img {
 @keyframes command-palette-out {
   to { opacity: 0; transform: translateY(-14px) scale(0.98); }
 }
-.command-palette-backdrop { animation: modal-backdrop-in var(--motion-enter) var(--ease-standard) both; }
+.command-palette-backdrop { animation: fade-in var(--motion-enter) var(--ease-standard) both; }
 .command-palette-panel { animation: command-palette-in var(--motion-enter) var(--ease-emphasized) both; }
-.command-palette-backdrop.is-closing { animation: modal-backdrop-out var(--motion-exit) var(--ease-standard) both; }
+.command-palette-backdrop.is-closing { animation: fade-out var(--motion-exit) var(--ease-standard) both; }
 .command-palette-panel.is-closing { animation: command-palette-out var(--motion-exit) var(--ease-standard) both; }
 
 /* Alt+wheel audio HUD: three independent lazer-style discs. */
@@ -1270,15 +1142,8 @@ img {
   stroke: #ffe6fb;
   filter: drop-shadow(0 0 5px rgb(244 114 182 / 35%));
 }
-@keyframes volume-rings-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes volume-rings-out {
-  to { opacity: 0; }
-}
-.volume-rings { animation: volume-rings-in var(--motion-quick) var(--ease-standard) both; }
-.volume-rings.is-closing { animation: volume-rings-out var(--motion-exit) var(--ease-standard) both; }
+.volume-rings { animation: fade-in var(--motion-quick) var(--ease-standard) both; }
+.volume-rings.is-closing { animation: fade-out var(--motion-exit) var(--ease-standard) both; }
 
 @media (max-width: 640px) {
   .volume-rings {
@@ -1367,10 +1232,6 @@ canvas[data-pointer-focus]:focus-visible {
   .modal-panel-out,
   .modal-panel-up-in,
   .modal-panel-up-out,
-  .confirm-backdrop-in,
-  .confirm-backdrop-out,
-  .confirm-pop-in,
-  .confirm-pop-out,
   .hold-charging,
   .hold-shine,
   .pfp-pop-in,
@@ -1401,7 +1262,13 @@ canvas[data-pointer-focus]:focus-visible {
   .editor-scene-in,
   .scene-logo-out,
   .start-logo-shockwaves > span,
-  .exit-shutter {
+  .exit-shutter,
+  .hitsound-bar-in,
+  .hitsound-bar-out,
+  .track-fade-in,
+  .bg-fade-in,
+  .bg-fade-out,
+  .float-player-out {
     animation-duration: 1ms;
   }
 
@@ -1410,7 +1277,9 @@ canvas[data-pointer-focus]:focus-visible {
     animation-delay: 0ms;
   }
 
-  .skeleton::after {
+  .skeleton::after,
+  .loader-bar,
+  .loader-logo-pulse {
     animation: none;
   }
 

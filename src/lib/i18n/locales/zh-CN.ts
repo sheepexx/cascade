@@ -464,6 +464,10 @@ export const zhCN: PartialCatalog = {
   "editor.trimStart": "裁剪开始",
   "editor.trimEnd": "裁剪结束",
 
+  "drop.title": "松开即可载入",
+  "drop.formats":
+    "音频（.mp3 / .ogg）· 背景图片 · .osz / .osu / .sm / .ssc / .qua 谱面或文件夹 · .osk 皮肤",
+
   "empty.title": "把音频拖到任意位置即可开始制谱",
   "empty.subtitleBefore": "或按 Enter 选择一张示例谱面。",
   "empty.subtitleAfter": "播放，点击放置音符。",
