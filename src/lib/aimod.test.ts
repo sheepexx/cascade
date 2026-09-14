@@ -29,10 +29,12 @@ describe("nearestSnap / isUnsnapped", () => {
     expect(nearestSnap(127, points).snapped).toBe(125);
   });
 
-  it("recognises 1/3 (triplet) snaps", () => {
-    // beat = 500ms, 1/3 ≈ 166.67 → rounds to 167, 1/6 → 83
-    expect(isUnsnapped(167, points)).toBe(false);
+  it("recognises 1/3 (triplet) snaps on the millisecond osu! stable uses", () => {
+    // beat = 500ms, 1/3 ≈ 166.67 → stable floors it to 166, 1/6 → 83
+    expect(isUnsnapped(166, points)).toBe(false);
     expect(isUnsnapped(83, points)).toBe(false);
+    // Rounding put the triplet 1 ms late, which stable reports as unsnapped.
+    expect(nearestSnap(167, points)).toMatchObject({ snapped: 166, unsnap: 1 });
   });
 
   it("flags a 1/5-only position osu! can't represent", () => {

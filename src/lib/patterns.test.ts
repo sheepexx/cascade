@@ -38,7 +38,9 @@ describe("pattern snap preservation", () => {
     const pattern = notesToPattern(snapped(180, 4, 4), at(180));
     const pasted = patternToNotes(pattern, 0, 4, at(180));
 
-    expect(pasted.map((n) => n.startTime)).toEqual([0, 83, 167, 250]);
+    // 1/4 of a 180 BPM beat is 83.33ms; the third tick sits on 166, where
+    // osu! stable floors 166.67.
+    expect(pasted.map((n) => n.startTime)).toEqual([0, 83, 166, 250]);
   });
 
   it("scales long notes with the target BPM", () => {

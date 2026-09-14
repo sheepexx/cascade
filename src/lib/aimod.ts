@@ -1,6 +1,12 @@
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta, TimingPoint } from "../types";
 import { difficultyRate } from "./rateChange";
-import { activeTimingAt, beatLength, redPoints, sortedPoints } from "./timing";
+import {
+  STABLE_SNAP_DIVISORS,
+  nearestStableSnap,
+  redPoints,
+  sortedPoints,
+  type StableSnap,
+} from "./timing";
 import { formatUiNumber } from "./formatUiNumber";
 import { analyzePatterns, readinessScore, type CriteriaPenalty, type PatternFeatures } from "./patternQuality";
 import { compareToCorpus, formatCorpusValue, type CorpusComparison } from "./patternCorpus";
@@ -9,39 +15,18 @@ import { checkRankingCriteria, difficultyTier, type Tier } from "./rankingCriter
 // osu! only recognises objects snapped to one of these beat divisors. Notes on a
 // 1/5, 1/7, 1/9 or finer grid (or drifted off-grid by float rounding) are shown
 // as "Object isn't snapped!" in the real editor's AiMod.
-export const AIMOD_SNAP_DIVISORS = [1, 2, 3, 4, 6, 8, 12, 16] as const;
+export const AIMOD_SNAP_DIVISORS = STABLE_SNAP_DIVISORS;
 
-export type SnapResult = {
-  /** Integer ms position of the closest osu! snap. */
-  snapped: number;
-  /** Distance in ms from the (rounded) object time to that snap. 0 = on-grid. */
-  unsnap: number;
-  divisor: number;
-};
+export type SnapResult = StableSnap;
 
 /**
- * Mirror how osu! decides whether an object is snapped: round the object time to
- * an integer (osu! stores integer ms), then find the nearest snap across the
- * recognised divisors relative to the active red timing point. If the object
- * time does not land exactly on that grid it is "unsnapped".
+ * Mirror how osu! decides whether an object is snapped: the object time as the
+ * whole millisecond osu! stores, against every recognised divisor of the active
+ * red line, with each tick floored the way stable places it. If the object does
+ * not land exactly on one of those ticks it is "unsnapped".
  */
 export function nearestSnap(time: number, points: TimingPoint[]): SnapResult {
-  const t = Math.round(time);
-  const reds = redPoints(points);
-  if (reds.length === 0) return { snapped: t, unsnap: 0, divisor: 1 };
-  const tp = activeTimingAt(t, points);
-  const beat = beatLength(tp.bpm);
-  let best: SnapResult = { snapped: t, unsnap: Infinity, divisor: 1 };
-  for (const d of AIMOD_SNAP_DIVISORS) {
-    const interval = beat / d;
-    if (!(interval > 0)) continue;
-    const k = Math.round((t - tp.time) / interval);
-    const snapped = Math.round(tp.time + k * interval);
-    const unsnap = Math.abs(t - snapped);
-    if (unsnap < best.unsnap) best = { snapped, unsnap, divisor: d };
-    if (best.unsnap === 0) break;
-  }
-  return best;
+  return nearestStableSnap(time, points);
 }
 
 export function isUnsnapped(time: number, points: TimingPoint[]): boolean {

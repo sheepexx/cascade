@@ -206,6 +206,44 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
     expect(green?.kiai).toBe(true);
   });
 
+  it("writes notes on the millisecond osu! stable snaps to", () => {
+    const exported = buildOsuFile({
+      meta,
+      difficulty: {
+        ...difficulty,
+        notes: [
+          { id: "late", column: 0, startTime: 167 }, // the old rounded 1/3
+          { id: "early", column: 1, startTime: 332 }, // 1 ms before 333
+          { id: "on", column: 2, startTime: 500 },
+          { id: "off", column: 3, startTime: 300 }, // a real unsnap stays put
+          { id: "hold", column: 0, startTime: 1000, endTime: 1167 },
+        ],
+      },
+      timingPoints: [makeRedPoint(0, 120)],
+      audioFilename: "audio.mp3",
+    });
+    const times = parseOsuFile(exported)
+      .difficulty.notes.map((n) => [n.startTime, n.endTime])
+      .sort((a, b) => (a[0] ?? 0) - (b[0] ?? 0));
+    expect(times).toEqual([
+      [166, undefined],
+      [300, undefined],
+      [333, undefined],
+      [500, undefined],
+      [1000, 1166],
+    ]);
+  });
+
+  it("leaves notes alone on a map with no timing to snap to", () => {
+    const exported = buildOsuFile({
+      meta,
+      difficulty: { ...difficulty, notes: [{ id: "x", column: 0, startTime: 167 }] },
+      timingPoints: [],
+      audioFilename: "audio.mp3",
+    });
+    expect(parseOsuFile(exported).difficulty.notes[0].startTime).toBe(167);
+  });
+
   it("preserves fractional timing offsets so snapped objects stay snapped", () => {
     const fractional = [makeRedPoint(12.345, 177.7)];
     const exported = buildOsuFile({

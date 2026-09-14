@@ -6,7 +6,7 @@ import type {
   TimingPoint,
 } from "../types";
 import { makeRedPoint, svToBeatLength } from "../types";
-import { sortedPoints } from "./timing";
+import { sortedPoints, toStableTick } from "./timing";
 
 export function columnToX(column: number, keyCount: number): number {
   return Math.floor((column + 0.5) * 512 / keyCount);
@@ -17,10 +17,21 @@ export function xToColumn(x: number, keyCount: number): number {
   return Math.max(0, Math.min(keyCount - 1, col));
 }
 
-function formatHitObject(note: ManiaNote, keyCount: number): string {
+/**
+ * Times go out on the millisecond osu! stable snaps to. Notes Cascade placed
+ * before it followed stable's rule, or pasted from beat offsets, can sit 1 ms
+ * off a tick, which stable, its AiMod and hitsound copiers read as unsnapped;
+ * those land on the tick. Anything further off is a real unsnap and is written
+ * as it is.
+ */
+function formatHitObject(
+  note: ManiaNote,
+  keyCount: number,
+  timingPoints: TimingPoint[],
+): string {
   const x = columnToX(note.column, keyCount);
   const y = 192;
-  const time = Math.round(note.startTime);
+  const time = toStableTick(note.startTime, timingPoints);
   const hitSound = note.hitSound ?? 0;
   const sample = [
     note.sampleSet ?? 0,
@@ -31,7 +42,8 @@ function formatHitObject(note: ManiaNote, keyCount: number): string {
   ].join(":");
 
   if (note.endTime !== undefined && note.endTime > note.startTime) {
-    const end = Math.round(note.endTime);
+    const snappedEnd = toStableTick(note.endTime, timingPoints);
+    const end = snappedEnd > time ? snappedEnd : Math.round(note.endTime);
     return `${x},${y},${time},128,${hitSound},${end}:${sample}`;
   }
   return `${x},${y},${time},1,${hitSound},${sample}`;
@@ -108,7 +120,9 @@ export function buildOsuFile({
     (a, b) => a.startTime - b.startTime || a.column - b.column,
   );
   const hitObjects = sortedNotes.map((n) =>
-    formatHitObject(n, difficulty.keyCount),
+    // The map's own timing, never the 120 BPM stand-in above: a map without
+    // timing has no ticks to snap to.
+    formatHitObject(n, difficulty.keyCount, timingPoints),
   );
 
   const lines = [

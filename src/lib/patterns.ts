@@ -1,5 +1,5 @@
 import { uid, type ManiaNote, type TimingPoint } from "../types";
-import { beatsBetween, timeAtBeatOffset } from "./timing";
+import { beatsBetween, timeAtBeatOffset, toStableTick } from "./timing";
 
 export type PatternNote = {
   column: number;
@@ -64,10 +64,10 @@ export function patternToNotes(
       const startTime =
         n.beat === undefined
           ? n.startTime + baseTime
-          : Math.round(timeAtBeatOffset(baseTime, n.beat, points));
+          : toStableTick(timeAtBeatOffset(baseTime, n.beat, points), points);
       const tail =
         n.endBeat !== undefined
-          ? Math.round(timeAtBeatOffset(baseTime, n.endBeat, points))
+          ? toStableTick(timeAtBeatOffset(baseTime, n.endBeat, points), points)
           : n.endTime !== undefined
             ? n.endTime + baseTime
             : undefined;

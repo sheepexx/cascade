@@ -138,8 +138,9 @@ describe("prepareNotePaste", () => {
 
   it("keeps musical spacing across a BPM change", () => {
     const result = prepareNotePaste(pattern, 5000, 4, [makeRedPoint(0, 120), makeRedPoint(5000, 240)], 4, [], bounds);
+    // A 1/4 at 240 BPM is 62.5ms; osu! stable floors that tick to 5062.
     expect(result.notes.map((n) => [n.startTime, n.endTime])).toEqual([
-      [5000, undefined], [5063, 5250],
+      [5000, undefined], [5062, 5250],
     ]);
   });
 });

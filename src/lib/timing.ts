@@ -175,6 +175,75 @@ export function snapIntervalAt(
   return beatLength(tp.bpm) / snapTickDivisor(divisor);
 }
 
+/** The beat divisors osu! stable accepts as snapped. */
+export const STABLE_SNAP_DIVISORS = [1, 2, 3, 4, 6, 8, 12, 16] as const;
+
+/**
+ * The whole millisecond osu! stable puts a snap tick on. Stable floors a tick
+ * that falls between milliseconds, and Mapping Tools resnaps the same way, so
+ * rounding lands up to half of all ticks 1 ms late: every 1/3 and 1/6 at 120
+ * BPM, and most ticks after a red line with a decimal offset. The epsilon keeps
+ * a tick that is whole in theory but a hair under it in floating point from
+ * losing a millisecond.
+ */
+export function stableTickMs(tick: number): number {
+  return Math.floor(tick + 1e-6);
+}
+
+export type StableSnap = {
+  /** Integer ms position of the closest osu! snap. */
+  snapped: number;
+  /** Distance in ms from the (rounded) time to that snap. 0 = on-grid. */
+  unsnap: number;
+  divisor: number;
+};
+
+/**
+ * The closest snap osu! stable accepts for a time: rounded to the whole
+ * millisecond osu! stores, measured against every recognised divisor of the red
+ * line in force with each tick where stable places it, and against the next
+ * red line itself, which stable also floors onto a millisecond just before it.
+ */
+export function nearestStableSnap(
+  time: number,
+  points: TimingPoint[],
+): StableSnap {
+  const t = Math.round(time);
+  const reds = redPoints(points);
+  if (reds.length === 0) return { snapped: t, unsnap: 0, divisor: 1 };
+  const tp = activeTimingAt(t, points);
+  const beat = beatLength(tp.bpm);
+  let best: StableSnap = { snapped: t, unsnap: Infinity, divisor: 1 };
+  const next = reds[lastPointAtOrBefore(reds, t) + 1];
+  if (next) {
+    const snapped = stableTickMs(next.time);
+    best = { snapped, unsnap: Math.abs(t - snapped), divisor: 1 };
+    if (best.unsnap === 0) return best;
+  }
+  for (const d of STABLE_SNAP_DIVISORS) {
+    const interval = beat / d;
+    if (!(interval > 0)) continue;
+    const k = Math.round((t - tp.time) / interval);
+    const snapped = stableTickMs(tp.time + k * interval);
+    const unsnap = Math.abs(t - snapped);
+    if (unsnap < best.unsnap) best = { snapped, unsnap, divisor: d };
+    if (best.unsnap === 0) break;
+  }
+  return best;
+}
+
+/**
+ * A computed time placed on the stable tick it lands within a millisecond of,
+ * or simply rounded when no tick is that close. Beat offsets taken from a base
+ * that was itself floored drift up to 1 ms, and notes Cascade snapped before it
+ * followed stable's rule sit exactly 1 ms late; both come out on the tick that
+ * stable, its AiMod and hitsound copiers expect.
+ */
+export function toStableTick(time: number, points: TimingPoint[]): number {
+  const snap = nearestStableSnap(time, points);
+  return snap.unsnap <= 1 ? snap.snapped : Math.round(time);
+}
+
 export function snapTime(
   time: number,
   points: TimingPoint[],
@@ -185,7 +254,7 @@ export function snapTime(
   const interval = beatLength(tp.bpm) / divisor;
   if (interval <= 0) return Math.round(time);
   const snapped = tp.time + Math.round((time - tp.time) / interval) * interval;
-  return Math.round(snapped);
+  return stableTickMs(snapped);
 }
 
 export function stepToSnap(

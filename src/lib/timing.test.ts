@@ -14,6 +14,9 @@ import {
   kiaiAt,
   kiaiRanges,
   snapTime,
+  stableTickMs,
+  nearestStableSnap,
+  toStableTick,
   snapIntervalAt,
   snapTickDivisor,
   stepToSnap,
@@ -172,6 +175,42 @@ describe("snapTime / snapIntervalAt", () => {
     expect(snapTickDivisor(FREE_SNAP)).toBe(16);
     expect(snapTickDivisor(4)).toBe(4);
     expect(snapIntervalAt(0, points, FREE_SNAP)).toBe(31.25);
+  });
+
+  it("floors a tick between milliseconds the way osu! stable does", () => {
+    // 1/3 of a 500ms beat is 166.67; stable places it on 166, not 167.
+    expect(snapTime(170, points, 3)).toBe(166);
+    expect(snapTime(420, points, 6)).toBe(416);
+    expect(snapTime(130, points, 4)).toBe(125);
+  });
+});
+
+describe("osu! stable ticks", () => {
+  const points = [makeRedPoint(0, 120)];
+
+  it("floors to the millisecond without losing a whole tick to float error", () => {
+    expect(stableTickMs(166.667)).toBe(166);
+    expect(stableTickMs(999.9999999)).toBe(1000);
+    expect(stableTickMs(1000)).toBe(1000);
+  });
+
+  it("finds the stable snap and how far a time is from it", () => {
+    expect(nearestStableSnap(166, points)).toMatchObject({ snapped: 166, unsnap: 0, divisor: 3 });
+    expect(nearestStableSnap(167, points)).toMatchObject({ snapped: 166, unsnap: 1 });
+    expect(nearestStableSnap(127, points)).toMatchObject({ snapped: 125, unsnap: 2 });
+  });
+
+  it("counts a decimal red line's own floored millisecond as snapped", () => {
+    const pts = [makeRedPoint(0, 120), makeRedPoint(1000.6, 200)];
+    expect(nearestStableSnap(1000, pts)).toMatchObject({ snapped: 1000, unsnap: 0 });
+  });
+
+  it("moves times within a millisecond of a tick onto it and leaves the rest", () => {
+    expect(toStableTick(167, points)).toBe(166);
+    expect(toStableTick(165, points)).toBe(166);
+    expect(toStableTick(166.4, points)).toBe(166);
+    expect(toStableTick(300, points)).toBe(300);
+    expect(toStableTick(7.4, [])).toBe(7);
   });
 });
 
