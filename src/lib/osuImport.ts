@@ -215,7 +215,9 @@ export function parseOsuFile(text: string): ParsedOsu {
       });
     }
   }
-  notes.sort((a, b) => a.startTime - b.startTime || a.column - b.column);
+  // Notes at the same time keep the file's order: osu! works out the star
+  // rating in that order, and exporting writes them back the same way.
+  notes.sort((a, b) => a.startTime - b.startTime);
 
   const difficulty: Difficulty = {
     id: uid("diff"),

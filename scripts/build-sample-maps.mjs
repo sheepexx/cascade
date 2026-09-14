@@ -5,6 +5,9 @@ import { join, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import JSZip from "jszip";
+// The app's own calculator (a port of osu!'s), so the listed stars match what
+// the editor shows. Node runs the TypeScript file directly.
+import { computeStarRating } from "../src/lib/starRating.ts";
 
 const run = promisify(execFile);
 
@@ -89,7 +92,8 @@ function parseOsu(text) {
       notes.push({ column, startTime: time, endTime: null });
     }
   }
-  notes.sort((a, b) => a.startTime - b.startTime || a.column - b.column);
+  // Same-time notes keep the file's order, which osu!'s star rating depends on.
+  notes.sort((a, b) => a.startTime - b.startTime);
 
   return {
     mode: Number(general["Mode"] ?? 0),
@@ -101,123 +105,6 @@ function parseOsu(text) {
     background,
     notes,
   };
-}
-
-const SECTION_MS = 400;
-const INDIVIDUAL_DECAY_BASE = 0.125;
-const OVERALL_DECAY_BASE = 0.3;
-const RELEASE_THRESHOLD = 30;
-const LOGISTIC_MULTIPLIER = 0.27;
-const DECAY_WEIGHT = 0.9;
-const DIFFICULTY_MULTIPLIER = 0.018;
-
-const applyDecay = (value, deltaMs, base) => value * Math.pow(base, deltaMs / 1000);
-const definitelyBigger = (a, b) => a > b + 1;
-const logistic = (x, midpoint, mult) => 1 / (1 + Math.exp(mult * (midpoint - x)));
-
-function computeStarRating(notes, keyCount) {
-  if (notes.length < 2 || keyCount <= 0) return 0;
-
-  const objs = notes
-    .map((n) => ({
-      start: n.startTime,
-      end: n.endTime ?? n.startTime,
-      col: Math.max(0, Math.min(keyCount - 1, n.column)),
-    }))
-    .sort((a, b) => a.start - b.start || a.col - b.col);
-
-  const individualStrains = new Array(keyCount).fill(0);
-  const startTimes = new Array(keyCount).fill(0);
-  const endTimes = new Array(keyCount).fill(0);
-  const hasPrev = new Array(keyCount).fill(false);
-  let highestIndividualStrain = 0;
-  let overallStrain = 1;
-  let currentStrain = 0;
-  let prevStart = objs[0].start;
-
-  const strainValueOf = (cur, deltaTime) => {
-    const { start, end, col } = cur;
-
-    let individualHoldFactor = 1.0;
-    for (let i = 0; i < keyCount; i++) {
-      if (!hasPrev[i]) continue;
-      if (definitelyBigger(endTimes[i], end) && definitelyBigger(start, startTimes[i]))
-        individualHoldFactor = 1.25;
-    }
-
-    let overallHoldFactor = 1.0;
-    let isOverlapping = false;
-    let closestEnd = Math.abs(end - start);
-    for (let i = 0; i < keyCount; i++) {
-      if (!hasPrev[i]) continue;
-      isOverlapping ||=
-        definitelyBigger(endTimes[i], start) && definitelyBigger(end, endTimes[i]);
-      if (definitelyBigger(endTimes[i], end)) overallHoldFactor = 1.25;
-      closestEnd = Math.min(closestEnd, Math.abs(end - endTimes[i]));
-    }
-    const holdAddition = isOverlapping
-      ? logistic(closestEnd, RELEASE_THRESHOLD, LOGISTIC_MULTIPLIER)
-      : 0;
-
-    individualStrains[col] = applyDecay(
-      individualStrains[col],
-      start - startTimes[col],
-      INDIVIDUAL_DECAY_BASE,
-    );
-    individualStrains[col] += 2.0 * individualHoldFactor;
-
-    highestIndividualStrain =
-      deltaTime <= 1
-        ? Math.max(highestIndividualStrain, individualStrains[col])
-        : individualStrains[col];
-
-    overallStrain = applyDecay(overallStrain, deltaTime, OVERALL_DECAY_BASE);
-    overallStrain += (1 + holdAddition) * overallHoldFactor;
-
-    startTimes[col] = start;
-    endTimes[col] = end;
-    hasPrev[col] = true;
-    return highestIndividualStrain + overallStrain - currentStrain;
-  };
-
-  const initialStrain = (time) =>
-    applyDecay(highestIndividualStrain, time - prevStart, INDIVIDUAL_DECAY_BASE) +
-    applyDecay(overallStrain, time - prevStart, OVERALL_DECAY_BASE);
-
-  const peaks = [];
-  let sectionPeak = 0;
-  let sectionEnd = 0;
-  let started = false;
-
-  for (let i = 1; i < objs.length; i++) {
-    const cur = objs[i];
-    const deltaTime = cur.start - objs[i - 1].start;
-
-    if (!started) {
-      sectionEnd = Math.ceil(cur.start / SECTION_MS) * SECTION_MS;
-      started = true;
-    }
-    while (cur.start > sectionEnd) {
-      peaks.push(sectionPeak);
-      sectionPeak = initialStrain(sectionEnd);
-      sectionEnd += SECTION_MS;
-    }
-
-    currentStrain += strainValueOf(cur, deltaTime);
-    sectionPeak = Math.max(sectionPeak, currentStrain);
-    prevStart = cur.start;
-  }
-  peaks.push(sectionPeak);
-
-  const sortedPeaks = peaks.filter((p) => p > 0).sort((a, b) => b - a);
-  let difficulty = 0;
-  let weight = 1;
-  for (const peak of sortedPeaks) {
-    difficulty += peak * weight;
-    weight *= DECAY_WEIGHT;
-  }
-
-  return difficulty * DIFFICULTY_MULTIPLIER;
 }
 
 async function downscaleBanner(src, dst) {

@@ -1,134 +1,265 @@
 import type { ManiaNote } from "../types";
 
-const SECTION_MS = 400;
+// Star rating, ported from osu!'s own mania difficulty calculator so a map
+// shows the stars osu! gives it (ppy/osu, osu.Game.Rulesets.Mania/Difficulty,
+// calculator version 20241007).
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence:
+// https://github.com/ppy/osu/blob/master/LICENCE
+
+const SECTION_LENGTH = 400;
+const DECAY_WEIGHT = 0.9;
 const INDIVIDUAL_DECAY_BASE = 0.125;
 const OVERALL_DECAY_BASE = 0.3;
 const RELEASE_THRESHOLD = 30;
-const LOGISTIC_MULTIPLIER = 0.27;
-const DECAY_WEIGHT = 0.9;
+const RELEASE_MULTIPLIER = 0.27;
 const DIFFICULTY_MULTIPLIER = 0.018;
 
-const applyDecay = (value: number, deltaMs: number, base: number): number =>
-  value * Math.pow(base, deltaMs / 1000);
+type HitObject = { start: number; end: number; column: number };
 
-const definitelyBigger = (a: number, b: number): boolean => a > b + 1;
+/** osu-framework's Precision.DefinitelyBigger, with the 1 ms tolerance mania uses. */
+const definitelyBigger = (a: number, b: number): boolean => a - 1 > b;
 
-const logistic = (x: number, midpoint: number, mult: number): number =>
-  1 / (1 + Math.exp(mult * (midpoint - x)));
+const applyDecay = (value: number, deltaTime: number, decayBase: number): number =>
+  value * Math.pow(decayBase, deltaTime / 1000);
 
+const logistic = (x: number, midpointOffset: number, multiplier: number): number =>
+  1 / (1 + Math.exp(multiplier * (midpointOffset - x)));
+
+/**
+ * The star rating osu! gives a difficulty. `clockRate` speeds it up or slows
+ * it down the way Double Time (1.5) and Half Time (0.75) do; rate difficulties
+ * already carry their rate in their note times.
+ */
 export function computeStarRating(
   notes: ManiaNote[],
   keyCount: number,
+  clockRate = 1,
 ): number {
   if (notes.length < 2 || keyCount <= 0) return 0;
+  const rate = Number.isFinite(clockRate) && clockRate > 0 ? clockRate : 1;
 
-  const objs = notes
-    .map((n) => ({
-      start: n.startTime,
-      end: n.endTime ?? n.startTime,
-      col: Math.max(0, Math.min(keyCount - 1, n.column)),
-    }))
-    .sort((a, b) => a.start - b.start || a.col - b.col);
+  // The hit objects osu! reads from Cascade's export: whole milliseconds, in
+  // time order, with notes at the same time in the order the difficulty holds
+  // them. Its decoder keeps that order, and it can change the result.
+  const objects: HitObject[] = [...notes]
+    .sort((a, b) => a.startTime - b.startTime)
+    .map((note) => {
+      const start = Math.round(note.startTime);
+      return {
+        start,
+        end:
+          note.endTime !== undefined && note.endTime > note.startTime
+            ? Math.round(note.endTime)
+            : start,
+        column: Math.max(0, Math.min(keyCount - 1, note.column)),
+      };
+    })
+    .sort((a, b) => a.start - b.start);
+  // osu! then sorts again with the old .NET quicksort, which is not stable.
+  // How it shuffles notes at the same time changes which releases count as
+  // close together, so the shuffle is reproduced exactly.
+  legacySort(objects, (a, b) => a.start - b.start);
 
-  const individualStrains = new Array(keyCount).fill(0);
-  const startTimes = new Array(keyCount).fill(0);
-  const endTimes = new Array(keyCount).fill(0);
-  const hasPrev = new Array(keyCount).fill(false);
+  const individualStrains = new Array<number>(keyCount).fill(0);
+  // The latest object in each column, with rate-adjusted times.
+  const previous: ({ start: number; end: number } | null)[] = new Array(
+    keyCount,
+  ).fill(null);
   let highestIndividualStrain = 0;
   let overallStrain = 1;
   let currentStrain = 0;
-  let prevStart = objs[0].start;
-
-  const strainValueOf = (
-    cur: { start: number; end: number; col: number },
-    deltaTime: number,
-  ): number => {
-    const { start, end, col } = cur;
-
-    let individualHoldFactor = 1.0;
-    for (let i = 0; i < keyCount; i++) {
-      if (!hasPrev[i]) continue;
-      if (
-        definitelyBigger(endTimes[i], end) &&
-        definitelyBigger(start, startTimes[i])
-      )
-        individualHoldFactor = 1.25;
-    }
-
-    let overallHoldFactor = 1.0;
-    let isOverlapping = false;
-    let closestEnd = Math.abs(end - start);
-    for (let i = 0; i < keyCount; i++) {
-      if (!hasPrev[i]) continue;
-      isOverlapping ||=
-        definitelyBigger(endTimes[i], start) &&
-        definitelyBigger(end, endTimes[i]);
-      if (definitelyBigger(endTimes[i], end)) overallHoldFactor = 1.25;
-      closestEnd = Math.min(closestEnd, Math.abs(end - endTimes[i]));
-    }
-    const holdAddition = isOverlapping
-      ? logistic(closestEnd, RELEASE_THRESHOLD, LOGISTIC_MULTIPLIER)
-      : 0;
-
-    individualStrains[col] = applyDecay(
-      individualStrains[col],
-      start - startTimes[col],
-      INDIVIDUAL_DECAY_BASE,
-    );
-    individualStrains[col] += 2.0 * individualHoldFactor;
-
-    highestIndividualStrain =
-      deltaTime <= 1
-        ? Math.max(highestIndividualStrain, individualStrains[col])
-        : individualStrains[col];
-
-    overallStrain = applyDecay(overallStrain, deltaTime, OVERALL_DECAY_BASE);
-    overallStrain += (1 + holdAddition) * overallHoldFactor;
-
-    startTimes[col] = start;
-    endTimes[col] = end;
-    hasPrev[col] = true;
-    return highestIndividualStrain + overallStrain - currentStrain;
-  };
-
-  const initialStrain = (time: number): number =>
-    applyDecay(highestIndividualStrain, time - prevStart, INDIVIDUAL_DECAY_BASE) +
-    applyDecay(overallStrain, time - prevStart, OVERALL_DECAY_BASE);
 
   const peaks: number[] = [];
   let sectionPeak = 0;
   let sectionEnd = 0;
-  let started = false;
 
-  for (let i = 1; i < objs.length; i++) {
-    const cur = objs[i];
-    const deltaTime = cur.start - objs[i - 1].start;
+  // The first object only times the second; it adds no strain of its own.
+  for (let i = 1; i < objects.length; i++) {
+    const object = objects[i];
+    const last = objects[i - 1];
+    const startTime = object.start / rate;
+    const endTime = object.end / rate;
+    const deltaTime = (object.start - last.start) / rate;
+    const column = object.column;
 
-    if (!started) {
-      sectionEnd = Math.ceil(cur.start / SECTION_MS) * SECTION_MS;
-      started = true;
+    if (i === 1) {
+      sectionEnd = Math.ceil(startTime / SECTION_LENGTH) * SECTION_LENGTH;
     }
-    while (cur.start > sectionEnd) {
+    while (startTime > sectionEnd) {
       peaks.push(sectionPeak);
-      sectionPeak = initialStrain(sectionEnd);
-      sectionEnd += SECTION_MS;
+      const sinceLast = sectionEnd - last.start / rate;
+      sectionPeak =
+        applyDecay(highestIndividualStrain, sinceLast, INDIVIDUAL_DECAY_BASE) +
+        applyDecay(overallStrain, sinceLast, OVERALL_DECAY_BASE);
+      sectionEnd += SECTION_LENGTH;
     }
 
-    currentStrain += strainValueOf(cur, deltaTime);
-    sectionPeak = Math.max(sectionPeak, currentStrain);
-    prevStart = cur.start;
+    // A note ending inside a hold that started earlier is harder to hit.
+    let individualHoldFactor = 1;
+    for (const held of previous) {
+      if (
+        held &&
+        definitelyBigger(held.end, endTime) &&
+        definitelyBigger(startTime, held.start)
+      ) {
+        individualHoldFactor = 1.25;
+        break;
+      }
+    }
+
+    // A hold released while another is still down is awkward, unless another
+    // note lets go at nearly the same moment.
+    let isOverlapping = false;
+    let overallHoldFactor = 1;
+    let closestEndTime = Math.abs(endTime - startTime);
+    for (const held of previous) {
+      if (!held) continue;
+      isOverlapping ||=
+        definitelyBigger(held.end, startTime) &&
+        definitelyBigger(endTime, held.end) &&
+        definitelyBigger(startTime, held.start);
+      if (definitelyBigger(held.end, endTime) && definitelyBigger(startTime, held.start)) {
+        overallHoldFactor = 1.25;
+      }
+      closestEndTime = Math.min(closestEndTime, Math.abs(endTime - held.end));
+    }
+    const holdAddition = isOverlapping
+      ? logistic(closestEndTime, RELEASE_THRESHOLD, RELEASE_MULTIPLIER)
+      : 0;
+
+    const inColumn = previous[column];
+    const columnStrainTime = inColumn ? startTime - inColumn.start : startTime;
+    individualStrains[column] = applyDecay(
+      individualStrains[column],
+      columnStrainTime,
+      INDIVIDUAL_DECAY_BASE,
+    );
+    individualStrains[column] += 2 * individualHoldFactor;
+
+    // Notes in a chord take the hardest column, so their order can't matter.
+    highestIndividualStrain =
+      deltaTime <= 1
+        ? Math.max(highestIndividualStrain, individualStrains[column])
+        : individualStrains[column];
+
+    overallStrain = applyDecay(overallStrain, deltaTime, OVERALL_DECAY_BASE);
+    overallStrain += (1 + holdAddition) * overallHoldFactor;
+
+    currentStrain += highestIndividualStrain + overallStrain - currentStrain;
+    sectionPeak = Math.max(currentStrain, sectionPeak);
+    previous[column] = { start: startTime, end: endTime };
   }
   peaks.push(sectionPeak);
 
-  const sortedPeaks = peaks.filter((p) => p > 0).sort((a, b) => b - a);
   let difficulty = 0;
   let weight = 1;
-  for (const peak of sortedPeaks) {
+  for (const peak of peaks.filter((p) => p > 0).sort((a, b) => b - a)) {
     difficulty += peak * weight;
     weight *= DECAY_WEIGHT;
   }
 
   return difficulty * DIFFICULTY_MULTIPLIER;
+}
+
+/**
+ * The unstable quicksort .NET Framework 4 used for Array.Sort, which osu!
+ * still uses for mania. Port of osu!'s LegacySortHelper, which comes from
+ * Microsoft's reference source (MIT).
+ */
+function legacySort<T>(keys: T[], compare: (a: T, b: T) => number): void {
+  if (keys.length === 0) return;
+  depthLimitedQuickSort(keys, 0, keys.length - 1, compare, 32);
+}
+
+function depthLimitedQuickSort<T>(
+  keys: T[],
+  left: number,
+  right: number,
+  compare: (a: T, b: T) => number,
+  depthLimit: number,
+): void {
+  do {
+    if (depthLimit === 0) {
+      heapsort(keys, left, right, compare);
+      return;
+    }
+
+    let i = left;
+    let j = right;
+    const middle = i + ((j - i) >> 1);
+    swapIfGreater(keys, compare, i, middle);
+    swapIfGreater(keys, compare, i, j);
+    swapIfGreater(keys, compare, middle, j);
+    const pivot = keys[middle];
+
+    do {
+      while (compare(keys[i], pivot) < 0) i++;
+      while (compare(pivot, keys[j]) < 0) j--;
+      if (i > j) break;
+      if (i < j) swap(keys, i, j);
+      i++;
+      j--;
+    } while (i <= j);
+
+    depthLimit--;
+    if (j - left <= right - i) {
+      if (left < j) depthLimitedQuickSort(keys, left, j, compare, depthLimit);
+      left = i;
+    } else {
+      if (i < right) depthLimitedQuickSort(keys, i, right, compare, depthLimit);
+      right = j;
+    }
+  } while (left < right);
+}
+
+function heapsort<T>(
+  keys: T[],
+  lo: number,
+  hi: number,
+  compare: (a: T, b: T) => number,
+): void {
+  const n = hi - lo + 1;
+  for (let i = n >> 1; i >= 1; i--) downHeap(keys, i, n, lo, compare);
+  for (let i = n; i > 1; i--) {
+    swap(keys, lo, lo + i - 1);
+    downHeap(keys, 1, i - 1, lo, compare);
+  }
+}
+
+function downHeap<T>(
+  keys: T[],
+  i: number,
+  n: number,
+  lo: number,
+  compare: (a: T, b: T) => number,
+): void {
+  const d = keys[lo + i - 1];
+  while (i <= n >> 1) {
+    let child = 2 * i;
+    if (child < n && compare(keys[lo + child - 1], keys[lo + child]) < 0) {
+      child++;
+    }
+    if (!(compare(d, keys[lo + child - 1]) < 0)) break;
+    keys[lo + i - 1] = keys[lo + child - 1];
+    i = child;
+  }
+  keys[lo + i - 1] = d;
+}
+
+function swap<T>(keys: T[], a: number, b: number): void {
+  if (a === b) return;
+  const tmp = keys[a];
+  keys[a] = keys[b];
+  keys[b] = tmp;
+}
+
+function swapIfGreater<T>(
+  keys: T[],
+  compare: (a: T, b: T) => number,
+  a: number,
+  b: number,
+): void {
+  if (a !== b && compare(keys[a], keys[b]) > 0) swap(keys, a, b);
 }
 
 type Stop = { star: number; color: [number, number, number] };

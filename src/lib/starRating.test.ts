@@ -1,6 +1,46 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import type { ManiaNote } from "../types";
+import { parseOsuFile } from "./osuImport";
 import { computeStarRating, starColor, starTier } from "./starRating";
+
+// The values osu! itself expects for this map, from
+// osu.Game.Rulesets.Mania.Tests/ManiaDifficultyCalculatorTest.cs in ppy/osu.
+describe("computeStarRating against osu!", () => {
+  const { difficulty } = parseOsuFile(
+    new TextDecoder().decode(
+      readFileSync(new URL("./fixtures/osu-mania-diffcalc-test.osu", import.meta.url)),
+    ),
+  );
+
+  it("matches osu!'s star rating for its mania test map", () => {
+    expect(computeStarRating(difficulty.notes, difficulty.keyCount)).toBeCloseTo(
+      2.3493769750220914,
+      10,
+    );
+  });
+
+  it("matches osu!'s star rating with Double Time", () => {
+    expect(computeStarRating(difficulty.notes, difficulty.keyCount, 1.5)).toBeCloseTo(
+      2.797245912537965,
+      10,
+    );
+  });
+
+  // A bundled ranked map whose chords are not listed left to right, which
+  // osu!'s result depends on. osu! rates it 10.3326 on its website.
+  it("matches osu! on a ranked map whose chords are out of column order", async () => {
+    const { default: JSZip } = await import("jszip");
+    const zip = await JSZip.loadAsync(
+      readFileSync(new URL("../../public/maps/1887426-aoi-king-atlantis.osz", import.meta.url)),
+    );
+    const entry = Object.values(zip.files).find((file) =>
+      file.name.endsWith("[Abyssal Overlord].osu"),
+    );
+    const ranked = parseOsuFile(await entry!.async("string")).difficulty;
+    expect(computeStarRating(ranked.notes, ranked.keyCount)).toBeCloseTo(10.3326, 4);
+  });
+});
 
 function column(col: number, times: number[]): ManiaNote[] {
   return times.map((t, i) => ({ id: `n${col}_${i}`, column: col, startTime: t }));

@@ -10,6 +10,26 @@ import {
 } from "./osuExport";
 import { parseOsuFile } from "./osuImport";
 
+describe("notes at the same time", () => {
+  it("keep their order through export and import, as osu!'s star rating needs", () => {
+    const text = buildOsuFile({
+      meta: { title: "Chords", artist: "Test", creator: "Mapper" },
+      difficulty: {
+        ...makeDifficulty("Insane", 4),
+        notes: [
+          { id: "a", column: 2, startTime: 500 },
+          { id: "b", column: 0, startTime: 500 },
+          { id: "c", column: 3, startTime: 500, endTime: 900 },
+          { id: "d", column: 1, startTime: 0 },
+        ],
+      },
+      timingPoints: [makeRedPoint(0, 120)],
+      audioFilename: "audio.mp3",
+    });
+    expect(parseOsuFile(text).difficulty.notes.map((n) => n.column)).toEqual([1, 2, 0, 3]);
+  });
+});
+
 describe("columnToX / xToColumn", () => {
   it("round-trips every column for common key counts", () => {
     for (const keys of [4, 5, 7, 10]) {

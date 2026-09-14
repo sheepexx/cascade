@@ -13,6 +13,7 @@ import {
 } from "../lib/audioAtmosphere";
 import {
   createPlaybackClock,
+  createSteadyClock,
   latencyCompensatedPosition,
   sourcePositionForAudible,
 } from "../lib/playbackClock";
@@ -117,10 +118,15 @@ export function useAudio(
   const startOffsetRef = useRef(0);
   const audibleStartPositionRef = useRef(0);
   const manualStopRef = useRef(false);
-  // Shared by both backends: the Web Audio context ticks once per render
-  // quantum and HTMLMediaElement.currentTime is coarser still, so the raw
-  // reading repeats for several frames at a high refresh rate.
+  // The buffer engine's clock: the Web Audio context ticks once per render
+  // quantum, so the raw reading repeats for several frames at a high refresh
+  // rate.
   const clockRef = useRef(createPlaybackClock());
+  // The media element's clock. Its currentTime is a snapshot refreshed once
+  // per task, so on a busy page it arrives a varying amount stale; pulling the
+  // playhead toward each reading made the playfield jitter during pitch-kept
+  // slow playback.
+  const elementClockRef = useRef(createSteadyClock());
   const seekVisualClockRef = useRef(createSeekVisualClock());
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -658,7 +664,7 @@ export function useAudio(
     if (audio) {
       applyRate(audio, effectiveRate(), preservePitchRef.current);
       audio.currentTime = positionRef.current;
-      clockRef.current.reset();
+      elementClockRef.current.reset();
       void audio.play().catch(() => {});
     }
   }, [startWeb, webAudioActive, effectiveRate]);
@@ -682,9 +688,9 @@ export function useAudio(
         audibleStartPositionRef.current,
       );
     } else if (audio && !audio.paused) {
-      resumePosition = clockRef.current.read(
+      resumePosition = elementClockRef.current.read(
         audio.currentTime,
-        effectiveRate(),
+        audio.playbackRate,
         now,
       );
       liveAudioPosition = resumePosition;
@@ -722,6 +728,7 @@ export function useAudio(
     );
 
     clockRef.current.reset();
+    elementClockRef.current.reset();
     if (webWasPlaying) stopWeb(false);
     if (audio && !audio.paused) audio.pause();
     positionRef.current = resumePosition;
@@ -743,7 +750,6 @@ export function useAudio(
     setIsPlaying(false);
   }, [
     duration,
-    effectiveRate,
     outputLatencyMs,
     stopWeb,
     syncLivePlaybackRate,
@@ -882,12 +888,12 @@ export function useAudio(
       }
       const audio = audioRef.current;
       if (!webAudioActive() && audio && !audio.paused) {
-        // Preserve-pitch runs on the media element, whose currentTime holds
-        // still for many frames at a time; smooth it the same way.
+        // Pitch-kept playback runs on the media element, read through its
+        // own steady clock at the rate the element is actually playing.
         return (
-          clockRef.current.read(
+          elementClockRef.current.read(
             audio.currentTime,
-            effectiveRate(),
+            audio.playbackRate,
             performance.now(),
           ) * 1000
         );
@@ -899,7 +905,6 @@ export function useAudio(
     webPosition,
     audibleWebPosition,
     webAudioActive,
-    effectiveRate,
   ]);
 
   const getVisualCurrentTime = useCallback(
@@ -983,7 +988,7 @@ export function useAudio(
       ) {
         audio.currentTime = positionRef.current;
       }
-      clockRef.current.reset();
+      elementClockRef.current.reset();
       void audio.play().catch(() => {});
       // The engines compensate output latency differently; glide across the
       // difference instead of jumping the playfield.
@@ -1045,7 +1050,7 @@ export function useAudio(
     if (!pitchLocked && audio && !audio.paused && bufferRef.current) {
       const now = performance.now();
       const previousVisual = seekVisualClockRef.current.read(getCurrentTime(), now);
-      positionRef.current = clockRef.current.read(
+      positionRef.current = elementClockRef.current.read(
         audio.currentTime,
         audio.playbackRate,
         now,
@@ -1090,6 +1095,7 @@ export function useAudio(
       );
       // Drop the interpolation anchor so the actual audio jump remains exact.
       clockRef.current.reset();
+      elementClockRef.current.reset();
 
       if (webAudioActive()) {
         const wasPlaying = sourceRef.current !== null;

@@ -100,3 +100,88 @@ export function createPlaybackClock(): PlaybackClock {
     },
   };
 }
+
+/** A disagreement past this is a seek or a stall, not a stale reading. */
+const STEADY_RESYNC_SECONDS = 0.3;
+/** Share of the remaining disagreement the steady clock absorbs per second. */
+const STEADY_CATCH_UP_PER_SECOND = 2;
+/** The most the steady clock runs fast or slow to catch up, as a share of the rate. */
+const STEADY_MAX_SLEW = 0.15;
+/**
+ * Browsers refresh currentTime every frame or so while playing, so a reading
+ * that has not moved for this long means playback itself stopped.
+ */
+const STEADY_FROZEN_MS = 500;
+
+/**
+ * A clock for HTMLMediaElement.currentTime, which browsers refresh once per
+ * task. On a busy page each reading is a varying amount stale, and easing
+ * toward every one of them, as createPlaybackClock does, shows that staleness
+ * as jitter. This clock runs on the wall clock at the element's rate and
+ * absorbs any disagreement gradually, never running more than 15% fast or
+ * slow, so the playhead keeps an even pace. Only a seek or a stall snaps it.
+ */
+export function createSteadyClock(): PlaybackClock {
+  let started = false;
+  let position = 0;
+  let lastRead = 0;
+  let lastSource = Number.NaN;
+  let lastSourceAt = 0;
+  let offset = 0;
+
+  const anchor = (source: number, now: number): number => {
+    started = true;
+    position = source;
+    lastRead = now;
+    lastSource = source;
+    lastSourceAt = now;
+    offset = 0;
+    return source;
+  };
+
+  return {
+    reset() {
+      started = false;
+    },
+    read(source, rate, now) {
+      if (!Number.isFinite(source)) return position;
+      if (!started) return anchor(source, now);
+      const safeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+
+      // Advance at the rate playing now, so a rate change never rewrites the
+      // time already covered. Readers can arrive out of order; only move on.
+      let elapsed = 0;
+      if (now > lastRead) {
+        elapsed = (now - lastRead) / 1000;
+        lastRead = now;
+      }
+
+      // Only a reading that has moved says anything new; until the element
+      // refreshes it, the same snapshot just keeps getting older.
+      if (source !== lastSource) {
+        // Moving again after a stop: start from where the element is.
+        if (now - lastSourceAt > STEADY_FROZEN_MS) return anchor(source, now);
+        position += elapsed * safeRate;
+        lastSource = source;
+        lastSourceAt = now;
+        const error = source - position;
+        if (Math.abs(error) > STEADY_RESYNC_SECONDS) return anchor(source, now);
+        offset = error;
+      } else if (now - lastSourceAt > STEADY_FROZEN_MS) {
+        // Playback stopped without saying so; hold rather than run away.
+        return position;
+      } else {
+        position += elapsed * safeRate;
+      }
+
+      const limit = STEADY_MAX_SLEW * safeRate * elapsed;
+      const step = Math.max(
+        -limit,
+        Math.min(limit, offset * Math.min(1, elapsed * STEADY_CATCH_UP_PER_SECOND)),
+      );
+      position += step;
+      offset -= step;
+      return position;
+    },
+  };
+}

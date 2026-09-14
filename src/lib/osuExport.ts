@@ -119,8 +119,10 @@ export function buildOsuFile({
     "//Storyboard Sound Samples",
   ];
 
+  // Notes at the same time go out in the order the difficulty holds them,
+  // which is the order Cascade's star rating assumes osu! reads them in.
   const sortedNotes = [...difficulty.notes].sort(
-    (a, b) => a.startTime - b.startTime || a.column - b.column,
+    (a, b) => a.startTime - b.startTime,
   );
   const hitObjects = sortedNotes.map((n) =>
     // The map's own timing, never the 120 BPM stand-in above: a map without
