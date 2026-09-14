@@ -204,7 +204,7 @@ fn header(request: &Request<'_>, name: &str) -> Option<String> {
 /// The archive always carries `project.json`; it carries media only when the
 /// media changed, and `x-cascade-media` says which, so an unchanged audio file
 /// is neither recopied nor mistaken for one the project dropped.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn vault_save(app: AppHandle, request: Request<'_>) -> Result<String, String> {
     use tauri::ipc::InvokeBody;
 
@@ -295,7 +295,7 @@ pub fn vault_save(app: AppHandle, request: Request<'_>) -> Result<String, String
 }
 
 /// The snapshots kept for a project, newest first.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn vault_history(app: AppHandle, id: String) -> Result<Vec<Entry>, String> {
     let root = root_for(&app)?;
     let Some(dir) = find_by_id(&root, &id) else {
@@ -325,7 +325,7 @@ pub fn vault_history(app: AppHandle, id: String) -> Result<Vec<Entry>, String> {
 }
 
 /// Reads one snapshot back so the editor can restore it.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn vault_restore(app: AppHandle, id: String, stamp: String) -> Result<Response, String> {
     // The stamp comes from the frontend, so it must not be able to walk out of
     // the history folder.
@@ -342,7 +342,7 @@ pub fn vault_restore(app: AppHandle, id: String, stamp: String) -> Result<Respon
 }
 
 /// Opens a project's folder, or the projects folder itself, in the file manager.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn vault_reveal(app: AppHandle, id: Option<String>) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
 

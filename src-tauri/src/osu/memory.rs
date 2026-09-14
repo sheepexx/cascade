@@ -6,7 +6,8 @@ use std::time::{Duration, Instant};
 use rosu_mem::process::{Process, ProcessTraits};
 use rosu_mem::signature::Signature;
 use serde::Serialize;
-use windows::Win32::Foundation::CloseHandle;
+use windows::Win32::Foundation::{CloseHandle, BOOL};
+use windows::Win32::System::Threading::IsWow64Process;
 
 const PROCESS_NAME: &str = "osu!.exe";
 const BASE_SIGNATURE: &str = "F8 01 74 04 83 65";
@@ -24,6 +25,9 @@ const SET_ID: i32 = 0xCC;
 
 const STRING_LIMIT: usize = 300;
 const SHORT_LIMIT: usize = 100;
+
+/// The end of the 32-bit address space, the only part rosu-mem can address.
+const ADDRESS_LIMIT: u64 = 1 << 32;
 
 /// Reading an attached process is a handful of `ReadProcessMemory` calls, so the
 /// watcher can follow song select closely. Finding osu! again is far dearer,
@@ -103,25 +107,49 @@ impl Live {
 struct Owned(Option<Process>);
 
 impl Owned {
+    /// The running osu! stable, if there is one.
     fn find() -> Option<Self> {
-        Process::find_process(PROCESS_NAME, &EXCLUDE_WORDS)
+        let owned = Process::find_process(PROCESS_NAME, &EXCLUDE_WORDS)
             .ok()
-            .map(|process| Self(Some(process)))
+            .map(|process| Self(Some(process)))?;
+        owned.is_stable().then_some(owned)
+    }
+
+    /// osu!lazer is an `osu!.exe` too, but a 64-bit one, and rosu-mem only reads
+    /// 32-bit addresses. Scanning lazer walks a 64-bit address space whose
+    /// reservations can run to hundreds of gigabytes, and rosu-mem allocates a
+    /// buffer the size of every region, so an attach could exhaust memory.
+    /// Cascade ships 64-bit, so stable always runs beside it under WOW64.
+    fn is_stable(&self) -> bool {
+        let Some(process) = self.get() else {
+            return false;
+        };
+        let mut wow64 = BOOL(0);
+        unsafe { IsWow64Process(process.handle, &mut wow64) }.as_bool() && wow64.as_bool()
     }
 
     fn get(&self) -> Option<&Process> {
         self.0.as_ref()
     }
 
+    fn executable_dir(&self) -> Option<PathBuf> {
+        self.get().and_then(|process| process.executable_dir.clone())
+    }
+
     /// Collects the memory regions the signature scan searches. `read_regions`
     /// takes the process by value, so ownership moves into the returned guard and
     /// the old one drops without closing anything.
+    ///
+    /// rosu-mem reads each region at its address cut to 32 bits. The 64-bit side
+    /// of a WOW64 process lies above that, where those reads land on the wrong
+    /// memory, so only regions inside the 32-bit address space are kept.
     fn scan_regions(mut self) -> Option<Self> {
         let process = self.0.take()?;
-        process
-            .read_regions()
-            .ok()
-            .map(|scanned| Self(Some(scanned)))
+        let mut scanned = process.read_regions().ok()?;
+        scanned
+            .maps
+            .retain(|region| region.from as u64 + region.size as u64 <= ADDRESS_LIMIT);
+        Some(Self(Some(scanned)))
     }
 }
 
@@ -150,20 +178,48 @@ enum Reading {
 /// Holds the attachment to osu! across calls. The previous reader re-found the
 /// process and re-walked every memory region on each call, which cost hundreds
 /// of milliseconds and leaked a process handle every time.
+///
+/// Only the watcher thread polls. Attaching can take seconds, and a command
+/// that waited for it would stall the window, so commands read what the last
+/// poll saw instead.
 #[derive(Default)]
 pub struct Watcher {
     state: Mutex<State>,
+    seen: Mutex<Seen>,
+}
+
+/// The last poll's result, kept apart from [`State`] so reading it never waits
+/// behind a scan in progress.
+#[derive(Clone, Default)]
+struct Seen {
+    live: Live,
+    root: Option<PathBuf>,
 }
 
 impl Watcher {
     /// Reads osu! once, reusing the existing attachment when there is one.
     pub fn poll(&self) -> Live {
-        self.lock().read()
+        let seen = {
+            let mut state = self.lock();
+            let live = state.read();
+            Seen {
+                live,
+                root: state.root.clone(),
+            }
+        };
+        let live = seen.live.clone();
+        *self.seen.lock().unwrap_or_else(PoisonError::into_inner) = seen;
+        live
+    }
+
+    /// What the last poll saw.
+    pub fn latest(&self) -> Live {
+        self.seen().live
     }
 
     /// The map osu! sits on, or the reason there is not one.
     pub fn selected_map(&self) -> Result<SelectedMap, String> {
-        let live = self.poll();
+        let live = self.latest();
         if let Some(map) = live.map {
             return Ok(map);
         }
@@ -177,22 +233,14 @@ impl Watcher {
     /// Where the running client lives, used to locate an osu! that is neither in
     /// the registry nor the usual folder.
     pub fn running_root(&self) -> Option<PathBuf> {
-        {
-            let state = self.lock();
-            let attached = state
-                .attached
-                .as_ref()
-                .and_then(|attached| attached.owned.get())
-                .and_then(|process| process.executable_dir.clone());
-            if attached.is_some() {
-                return attached;
-            }
-        }
-        Owned::find().and_then(|owned| {
-            owned
-                .get()
-                .and_then(|process| process.executable_dir.clone())
-        })
+        self.seen().root
+    }
+
+    fn seen(&self) -> Seen {
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     fn lock(&self) -> MutexGuard<'_, State> {
@@ -204,6 +252,7 @@ impl Watcher {
 struct State {
     attached: Option<Attached>,
     retry_after: Option<Instant>,
+    root: Option<PathBuf>,
 }
 
 impl State {
@@ -223,9 +272,13 @@ impl State {
             // Cheap liveness check that skips the region walk we are backing off
             // from, so a closed osu! still clears the problem promptly.
             return match Owned::find() {
-                Some(_) => Live::unreadable(),
+                Some(found) => {
+                    self.root = found.executable_dir();
+                    Live::unreadable()
+                }
                 None => {
                     self.retry_after = None;
+                    self.root = None;
                     Live::default()
                 }
             };
@@ -233,8 +286,10 @@ impl State {
 
         let Some(found) = Owned::find() else {
             self.retry_after = None;
+            self.root = None;
             return Live::default();
         };
+        self.root = found.executable_dir();
         let Some(owned) = found.scan_regions() else {
             return self.hold_off();
         };

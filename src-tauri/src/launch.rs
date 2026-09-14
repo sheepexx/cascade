@@ -52,7 +52,7 @@ pub fn take_launch_files(pending: tauri::State<'_, Pending>) -> Vec<String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn read_launch_file(path: String) -> Result<Response, String> {
     if !is_supported(&path) {
         return Err("Cascade cannot open that kind of file.".to_string());

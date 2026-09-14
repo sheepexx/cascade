@@ -54,7 +54,7 @@ fn locate(app: &tauri::AppHandle) -> Option<(std::path::PathBuf, std::path::Path
 
 #[cfg(windows)]
 fn status_for(app: &tauri::AppHandle) -> OsuStatus {
-    let running = watcher(app).poll().running;
+    let running = watcher(app).latest().running;
     let chosen = config_dir(app)
         .as_deref()
         .and_then(install::read_override)
@@ -76,7 +76,7 @@ fn status_for(app: &tauri::AppHandle) -> OsuStatus {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_status(app: tauri::AppHandle) -> OsuStatus {
     #[cfg(windows)]
     {
@@ -89,7 +89,7 @@ pub fn osu_status(app: tauri::AppHandle) -> OsuStatus {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_choose_root(app: tauri::AppHandle) -> Result<OsuStatus, String> {
     #[cfg(windows)]
     {
@@ -118,7 +118,7 @@ pub fn osu_choose_root(app: tauri::AppHandle) -> Result<OsuStatus, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_forget_root(app: tauri::AppHandle) -> Result<OsuStatus, String> {
     #[cfg(windows)]
     {
@@ -133,7 +133,7 @@ pub fn osu_forget_root(app: tauri::AppHandle) -> Result<OsuStatus, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_selected_map(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     #[cfg(windows)]
     {
@@ -184,11 +184,11 @@ pub fn spawn_watcher(app: tauri::AppHandle) {
 /// The current connection snapshot. The watcher also pushes this on the
 /// `cascade://osu-live` event whenever it changes; this is for the first read
 /// when a window mounts.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_live(app: tauri::AppHandle) -> serde_json::Value {
     #[cfg(windows)]
     {
-        serde_json::to_value(watcher(&app).poll()).unwrap_or(serde_json::Value::Null)
+        serde_json::to_value(watcher(&app).latest()).unwrap_or(serde_json::Value::Null)
     }
     #[cfg(not(windows))]
     {
@@ -202,7 +202,7 @@ pub fn osu_live(app: tauri::AppHandle) -> serde_json::Value {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_read_map(app: tauri::AppHandle, folder: String) -> Result<Response, String> {
     #[cfg(windows)]
     {
@@ -229,7 +229,7 @@ pub fn osu_read_map(app: tauri::AppHandle, folder: String) -> Result<Response, S
 ///
 /// Empty when the map has no background — a normal state the banner draws a
 /// fallback for, not an error worth surfacing.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_map_background(
     app: tauri::AppHandle,
     folder: String,
@@ -298,7 +298,7 @@ fn difficulty_file(dir: &std::path::Path, file: &str) -> Option<std::path::PathB
     charts.sort();
     charts.into_iter().next()
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_list_skins(app: tauri::AppHandle) -> Result<Vec<String>, String> {
     #[cfg(windows)]
     {
@@ -325,7 +325,7 @@ pub fn osu_list_skins(app: tauri::AppHandle) -> Result<Vec<String>, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_read_skin(app: tauri::AppHandle, name: String) -> Result<Response, String> {
     #[cfg(windows)]
     {
@@ -349,7 +349,7 @@ pub fn osu_read_skin(app: tauri::AppHandle, name: String) -> Result<Response, St
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_sync_map(app: tauri::AppHandle, request: Request<'_>) -> Result<String, String> {
     #[cfg(windows)]
     {
@@ -398,7 +398,7 @@ fn header_name(request: &Request<'_>) -> String {
         .unwrap_or_default()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn osu_send_map(app: tauri::AppHandle, request: Request<'_>) -> Result<String, String> {
     #[cfg(windows)]
     {
