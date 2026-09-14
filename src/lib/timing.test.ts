@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { FREE_SNAP, makeRedPoint, makeGreenPoint } from "../types";
+import {
+  FREE_SNAP,
+  makeRedPoint,
+  makeGreenPoint,
+  type TimingPoint,
+} from "../types";
 import {
   beatLength,
   activeTimingAt,
@@ -79,6 +84,51 @@ describe("volumeAt / kiaiAt", () => {
     expect(kiaiAt(250, points)).toBe(false);
     expect(kiaiAt(700, points)).toBe(true);
     expect(kiaiAt(1200, points)).toBe(false);
+  });
+});
+
+describe("timing lookups on dense maps", () => {
+  // The lookups binary search; a straight scan is what they must agree with.
+  const lastAtOrBefore = (list: TimingPoint[], time: number) =>
+    [...list]
+      .sort((a, b) => a.time - b.time)
+      .filter((p) => p.time <= time)
+      .pop();
+
+  const points = [
+    makeRedPoint(0, 120),
+    makeGreenPoint(250, 0.5, { volume: 60, kiai: true }),
+    makeGreenPoint(250, 1.5, { volume: 70, kiai: false }),
+    makeRedPoint(500, 180, { volume: 90 }),
+    ...Array.from({ length: 400 }, (_, i) =>
+      makeGreenPoint(600 + i * 10, 1 + (i % 7) / 10, {
+        volume: 20 + (i % 50),
+        kiai: i % 3 === 0,
+      }),
+    ),
+    makeRedPoint(4000, 200),
+    makeRedPoint(4000, 210),
+  ];
+  const times = [-100, 0, 1, 249, 250, 251, 500, 605, 610, 3990, 3999, 4000, 9000];
+
+  it("agrees with a scan for the last point at or before each time", () => {
+    const reds = points.filter((p) => p.uninherited);
+    for (const time of times) {
+      const last = lastAtOrBefore(points, time);
+      expect(effectiveSvAt(time, points)).toBe(
+        !last || last.uninherited ? 1 : last.sv,
+      );
+      expect(volumeAt(time, points)).toBe(last ? last.volume : 100);
+      expect(kiaiAt(time, points)).toBe(last ? last.kiai : false);
+      expect(activeTimingAt(time, points)).toBe(
+        lastAtOrBefore(reds, time) ?? reds[0],
+      );
+    }
+  });
+
+  it("lets the later of two points at the same time win", () => {
+    expect(effectiveSvAt(250, points)).toBe(1.5);
+    expect(activeTimingAt(4000, points).bpm).toBe(210);
   });
 });
 

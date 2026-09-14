@@ -5569,16 +5569,27 @@ export default function App() {
   }, [saveStatus]);
 
   const localAutosaveTimerRef = useRef<number | undefined>(undefined);
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+  const localAutosaveActive =
+    projectStarted && appSettings.localAutosaveEnabled && canEdit;
+  // Every edit gives handleSave a new identity. The first change arms the
+  // timer and later ones leave it running, so steady editing still saves once
+  // a minute instead of pushing the save back on every change until a crash.
   useEffect(() => {
-    if (!projectStarted || !appSettings.localAutosaveEnabled || !canEdit) return;
-    window.clearTimeout(localAutosaveTimerRef.current);
+    if (!localAutosaveActive || localAutosaveTimerRef.current !== undefined) return;
     localAutosaveTimerRef.current = window.setTimeout(() => {
-      void handleSave(true);
+      localAutosaveTimerRef.current = undefined;
+      void handleSaveRef.current(true);
     }, LOCAL_AUTOSAVE_MS);
+  }, [localAutosaveActive, handleSave]);
 
+  useEffect(() => {
+    if (!localAutosaveActive) return;
     const flush = () => {
       window.clearTimeout(localAutosaveTimerRef.current);
-      void handleSave(true);
+      localAutosaveTimerRef.current = undefined;
+      void handleSaveRef.current(true);
     };
     const flushWhenHidden = () => {
       if (document.visibilityState === "hidden") flush();
@@ -5587,16 +5598,14 @@ export default function App() {
     document.addEventListener("visibilitychange", flushWhenHidden);
 
     return () => {
+      // A pending save was armed for the project that was open. Switching
+      // projects starts the wait over rather than saving halfway through a load.
       window.clearTimeout(localAutosaveTimerRef.current);
+      localAutosaveTimerRef.current = undefined;
       window.removeEventListener("pagehide", flush);
       document.removeEventListener("visibilitychange", flushWhenHidden);
     };
-  }, [
-    projectStarted,
-    appSettings.localAutosaveEnabled,
-    canEdit,
-    handleSave,
-  ]);
+  }, [localAutosaveActive, localProjectId]);
 
   const handleCloudSave = useCallback(async () => {
     if (!authUser) return;

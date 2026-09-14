@@ -32,17 +32,29 @@ export function greenPoints(points: TimingPoint[]): TimingPoint[] {
   return greens;
 }
 
+/**
+ * Index of the last point at or before `time` in a time-sorted list, or -1.
+ * Among points sharing a time the later one wins, as a forward scan would.
+ * The editor asks this per visible note per frame, and SV-heavy maps carry
+ * thousands of points, so it must not walk the list.
+ */
+function lastPointAtOrBefore(sorted: TimingPoint[], time: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid].time > time) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo - 1;
+}
+
 export function activeTimingAt(
   time: number,
   points: TimingPoint[],
 ): TimingPoint {
   const reds = redPoints(points);
-  let active = reds[0];
-  for (const p of reds) {
-    if (p.time <= time) active = p;
-    else break;
-  }
-  return active;
+  return reds[Math.max(0, lastPointAtOrBefore(reds, time))];
 }
 
 export function bpmAt(time: number, points: TimingPoint[]): number {
@@ -51,32 +63,21 @@ export function bpmAt(time: number, points: TimingPoint[]): number {
 
 export function effectiveSvAt(time: number, points: TimingPoint[]): number {
   const sorted = sortedPoints(points);
-  let sv = 1;
-  for (const p of sorted) {
-    if (p.time > time) break;
-    sv = p.uninherited ? 1 : p.sv;
-  }
-  return sv;
+  const index = lastPointAtOrBefore(sorted, time);
+  if (index < 0 || sorted[index].uninherited) return 1;
+  return sorted[index].sv;
 }
 
 export function volumeAt(time: number, points: TimingPoint[]): number {
   const sorted = sortedPoints(points);
-  let vol = 100;
-  for (const p of sorted) {
-    if (p.time > time) break;
-    vol = p.volume;
-  }
-  return vol;
+  const index = lastPointAtOrBefore(sorted, time);
+  return index < 0 ? 100 : sorted[index].volume;
 }
 
 export function kiaiAt(time: number, points: TimingPoint[]): boolean {
   const sorted = sortedPoints(points);
-  let kiai = false;
-  for (const p of sorted) {
-    if (p.time > time) break;
-    kiai = p.kiai;
-  }
-  return kiai;
+  const index = lastPointAtOrBefore(sorted, time);
+  return index < 0 ? false : sorted[index].kiai;
 }
 
 export type KiaiRange = { start: number; end: number };

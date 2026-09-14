@@ -4,11 +4,20 @@ import type { AudioRegion } from "./useAudio";
 import type { AudioSeekSignal, AudioSeekTransition } from "../lib/audioSeek";
 import { createSeekVisualClock } from "../lib/seekVisualClock";
 
+// Matches the shared engine's clock readout, so playback time on screen moves
+// at the same pace in both modes.
+const STATUS_UI_INTERVAL_MS = 100;
+
 export function useNativeAudio(options: { enabled: boolean; buffer: AudioBuffer | null; region?: AudioRegion | null; timeScale: number; rate: number; volume: number; initialPositionMs: number }) {
   const opts = useRef(options); opts.current = options;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<NativeAudioStatus | null>(null);
+  // Position is read from `state` below, so the device poll only needs React
+  // when something on screen changes. A fresh object every 30 ms re-rendered
+  // the whole app, even while paused.
+  const shown = useRef<{ status: NativeAudioStatus | null; at: number }>({ status: null, at: 0 });
+  const showStatus = useCallback((next: NativeAudioStatus | null) => { shown.current = { status: next, at: performance.now() }; setStatus(next); }, []);
   const [seekSignal, setSeekSignal] = useState<AudioSeekSignal>({ revision: 0, transition: "instant", targetTime: 0 });
   const state = useRef({ session: 0, revision: 0, playing: false, position: 0, at: performance.now(), ready: false, pendingPlay: false });
   const visual = useRef(createSeekVisualClock());
@@ -36,7 +45,7 @@ export function useNativeAudio(options: { enabled: boolean; buffer: AudioBuffer 
     queue.current = queue.current.then(() => nativeInvoke("native_audio_control", { session, control: { ...control, revision } })).catch(reason => { if (session === state.current.session) fail(reason); });
   }, [fail]);
   useEffect(() => {
-    setError(""); setReady(false); setStatus(null); state.current.ready = false;
+    setError(""); setReady(false); showStatus(null); state.current.ready = false;
     state.current.playing = false; state.current.pendingPlay = false; visual.current.cancel();
     if (!options.enabled || !options.buffer) return;
     const session = newNativeSession(); state.current.session = session;
@@ -51,7 +60,10 @@ export function useNativeAudio(options: { enabled: boolean; buffer: AudioBuffer 
         if (next.error) { fail(next.error); return; }
         if (next.revision >= state.current.revision) {
           state.current.position = next.positionMs; state.current.at = (requestedAt + performance.now()) / 2;
-          state.current.playing = next.playing; setStatus(next);
+          state.current.playing = next.playing;
+          const last = shown.current, was = last.status;
+          const changed = !was || was.playing !== next.playing || was.latencyMs !== next.latencyMs || was.device !== next.device;
+          if (changed || (next.playing && performance.now() - last.at >= STATUS_UI_INTERVAL_MS)) showStatus(next);
         }
       } catch (reason) { if (!cancelled) fail(reason); return; }
       if (!cancelled) timer = window.setTimeout(() => void poll(), 30);
@@ -61,7 +73,7 @@ export function useNativeAudio(options: { enabled: boolean; buffer: AudioBuffer 
       const pcm = encodeNativePcm(options.buffer!, session);
       const next = await nativeInvoke<NativeAudioStatus>("native_audio_load", pcm);
       if (cancelled) { await nativeInvoke("native_audio_close", { session }); return; }
-      state.current.ready = true; setReady(true); setStatus(next); setNativeEffectSession(session);
+      state.current.ready = true; setReady(true); showStatus(next); setNativeEffectSession(session);
       const o = opts.current;
       command({ action: state.current.pendingPlay ? "play" : "seek", positionMs: state.current.position,
         rate: o.rate * o.timeScale, volume: o.volume, startMs: (o.region?.startMs ?? 0) * o.timeScale,
@@ -74,7 +86,7 @@ export function useNativeAudio(options: { enabled: boolean; buffer: AudioBuffer 
       setNativeEffectSession(null, session);
       void nativeLifecycle(() => nativeInvoke("native_audio_close", { session })).catch(() => {});
     };
-  }, [options.enabled, options.buffer, command, fail]);
+  }, [options.enabled, options.buffer, command, fail, showStatus]);
   const { rate, volume, timeScale, region } = options;
   const startMs = region?.startMs ?? 0, endMs = region?.endMs ?? (options.buffer?.duration ?? 0) * 1000 / timeScale;
   const fadeInMs = region?.fadeInMs ?? 0, fadeOutMs = region?.fadeOutMs ?? 0, looping = region?.loop ?? false;
@@ -86,8 +98,8 @@ export function useNativeAudio(options: { enabled: boolean; buffer: AudioBuffer 
   const pause = useCallback(() => {
     state.current.position = getCurrentTime() * opts.current.timeScale; state.current.at = performance.now();
     state.current.playing = false; state.current.pendingPlay = false; visual.current.cancel();
-    command({ action: "pause" }); setStatus(s => s ? { ...s, playing: false } : s);
-  }, [command, getCurrentTime]);
+    command({ action: "pause" }); if (shown.current.status) showStatus({ ...shown.current.status, playing: false });
+  }, [command, getCurrentTime, showStatus]);
   const play = useCallback(() => {
     if (!state.current.ready) { state.current.pendingPlay = true; return; }
     state.current.at = performance.now();

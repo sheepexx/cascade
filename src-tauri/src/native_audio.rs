@@ -105,7 +105,10 @@ pub async fn native_audio_load(state: tauri::State<'_, NativeAudio>, request: Re
     }).await.map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+// Control, status and effect run off the main thread. They share a lock with
+// load and close, which hold it while the device opens, so a call waiting there
+// on the main thread froze the window.
+#[tauri::command(async)]
 pub fn native_audio_control(state: tauri::State<'_, NativeAudio>, session: u32, control: Control) -> Result<(), String> {
     if [&control.position_ms, &control.rate, &control.volume, &control.start_ms, &control.end_ms, &control.fade_in_ms, &control.fade_out_ms].iter().any(|v| v.is_some_and(|n| !n.is_finite())) {
         return Err("Invalid transport value.".into());
@@ -116,7 +119,7 @@ pub fn native_audio_control(state: tauri::State<'_, NativeAudio>, session: u32, 
     s.tx.try_send(Command::Control(control)).map_err(|_| "Audio device is not responding.".into())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn native_audio_status(state: tauri::State<'_, NativeAudio>, session: u32) -> Result<Status, String> {
     let state = state.inner.lock().map_err(|_| "Audio lock failed")?;
     let s = state.as_ref().filter(|s| s.id == session).ok_or("Audio session closed")?;
@@ -133,7 +136,7 @@ pub async fn native_audio_close(state: tauri::State<'_, NativeAudio>, session: u
     }).await.map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn native_audio_effect(state: tauri::State<'_, NativeAudio>, request: Request<'_>) -> Result<(), String> {
     let (id, pcm, volume) = decode(&request)?;
     if pcm.frames() > pcm.sample_rate as usize * 10 { return Err("Effect is too long.".into()); }
