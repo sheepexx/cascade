@@ -466,6 +466,7 @@ export const ptBR: PartialCatalog = {
   "transport.jumpTitle": "Ir para o tempo - Enter confirma, Esc cancela",
   "transport.copyMs": "Clique para copiar o tempo em milissegundos",
   "transport.copyTimestamp": "Clique para copiar o timestamp",
+  "transport.copySelectionTimestamp": "Clique para copiar um link do osu! para as notas selecionadas",
   "transport.jumpButton": "Ir para o tempo (Ctrl+G)",
   "transport.hitsoundVolume": "Volume dos hitsounds",
   "transport.hit": "Hit",

@@ -22,20 +22,22 @@ import type {
   AudioSeekTransition,
 } from "../lib/audioSeek";
 import { createSeekVisualClock } from "../lib/seekVisualClock";
+import {
+  HANDOFF_CROSSFADE_SECONDS,
+  HANDOFF_GIVE_UP_MS,
+  HANDOFF_LOCK_FRAMES,
+  HANDOFF_LOCK_SECONDS,
+  HANDOFF_MAX_SEEKS,
+  HANDOFF_RESEEK_SECONDS,
+  HANDOFF_STARTUP_GUESS_SECONDS,
+  handoffCatchUpRate,
+  learnHandoffStartup,
+} from "../lib/pitchHandoff";
 import { useNativeAudio } from "./useNativeAudio";
 import { supportsExclusiveAudio } from "../lib/nativeAudio";
 
 const RATE_RAMP_SECONDS = 0.34;
 const CLOCK_UI_INTERVAL_MS = 100;
-
-/** Wall time the media element gets to seek and buffer before it takes over. */
-const PITCH_HANDOFF_LEAD_SECONDS = 0.25;
-/** Misses allowed, each aiming further ahead, before swapping on the spot. */
-const PITCH_HANDOFF_ATTEMPTS = 3;
-/** Close enough to the swap to hand the last stretch to a timer. */
-const PITCH_HANDOFF_TIMER_SECONDS = 0.1;
-/** A late swap re-seeks the element only past this much drift. */
-const PITCH_HANDOFF_TOLERANCE_SECONDS = 0.03;
 
 const MIN_EFFECTIVE_RATE = 0.0625;
 const MAX_EFFECTIVE_RATE = 8;
@@ -923,113 +925,185 @@ export function useAudio(
     seekVisualClockRef.current.cancel();
   }, []);
 
-  /** Context time at which the buffer engine's playhead reaches `position`. */
-  const ctxTimeAtPosition = useCallback(
-    (position: number, from: number): number => {
-      let span = 0.25;
-      while (positionAtCtxTime(from + span) < position && span < 3600) span *= 2;
-      let lo = from;
-      let hi = from + span;
-      for (let i = 0; i < 32; i++) {
-        const mid = (lo + hi) / 2;
-        if (positionAtCtxTime(mid) < position) lo = mid;
-        else hi = mid;
+  /**
+   * Stops the buffer engine over `seconds` instead of cutting it, so the
+   * element taking over can fade in across it.
+   */
+  const fadeOutWeb = useCallback(
+    (seconds: number) => {
+      const ctx = ctxRef.current;
+      const source = sourceRef.current;
+      if (!ctx || !source) return;
+      positionRef.current = webPosition();
+      manualStopRef.current = true;
+      sourceRef.current = null;
+      const fade = ctx.createGain();
+      fade.connect(
+        fadeGainRef.current ?? filterRef.current ?? gainRef.current ?? ctx.destination,
+      );
+      const now = ctx.currentTime;
+      fade.gain.setValueAtTime(1, now);
+      fade.gain.linearRampToValueAtTime(0, now + seconds);
+      // Rewired within one task, so the graph switches between render quanta
+      // without a click.
+      source.disconnect();
+      source.connect(fade);
+      source.onended = () => {
+        source.disconnect();
+        fade.disconnect();
+      };
+      try {
+        source.stop(now + seconds);
+      } catch {
+        // Already stopped.
       }
-      return hi;
     },
-    [positionAtCtxTime],
+    [webPosition],
   );
 
-  // Moving onto the pitch-preserving element used to stop the buffer engine,
-  // then seek and start the element, and the song went quiet while it buffered
-  // — the playfield showed that as a stutter. Now the buffer engine plays on
-  // while the element seeks a little ahead and buffers there, and the swap
-  // lands on the moment the playhead reaches that spot.
+  // How long a paused element takes to start playing, learned from each
+  // handoff so the next one is aimed closer.
+  const handoffStartupRef = useRef(HANDOFF_STARTUP_GUESS_SECONDS);
+
+  // Moving onto the pitch-preserving element used to stop the buffer engine
+  // and start the element, so the song went quiet until the element really
+  // played, and the playhead waited with it. Now the element starts muted
+  // beside the buffer engine, aimed where that will be once it has started,
+  // runs a touch fast or slow until the two line up, and they crossfade.
   const armPitchHandoff = useCallback(() => {
     const audio = audioRef.current;
     const ctx = ctxRef.current;
     const source = sourceRef.current;
     if (!audio || !ctx || !source || cancelPitchHandoffRef.current) return;
 
+    const startedAt = performance.now();
     let frame = 0;
-    let timer = 0;
-    let attempts = 0;
-    let target = 0;
-    const cancel = () => {
+    let seeks = 0;
+    let lastSeen = Number.NaN;
+    let moving = false;
+    let lined = 0;
+
+    const release = () => {
       cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
       if (cancelPitchHandoffRef.current === cancel) {
         cancelPitchHandoffRef.current = null;
       }
     };
+    const cancel = () => {
+      release();
+      // Called off before the swap: the muted element must not play on.
+      if (!appliedPitchRef.current) audio.pause();
+      audio.muted = false;
+    };
     cancelPitchHandoffRef.current = cancel;
 
+    const bufferPosition = () => audibleWebPosition(webPosition());
+    // Both engines follow the same rate ramp; nudging waits until it is over.
+    const rateSettled = () => {
+      const tr = rateTransitionRef.current;
+      return (
+        elementRateRafRef.current === null &&
+        (!tr || ctx.currentTime - tr.startCtxTime >= tr.duration)
+      );
+    };
+
     const aim = () => {
-      attempts += 1;
-      const rate = Math.max(syncLivePlaybackRate(), effectiveRate());
-      target =
-        positionAtCtxTime(ctx.currentTime) +
-        PITCH_HANDOFF_LEAD_SECONDS * attempts * rate;
+      seeks += 1;
+      moving = false;
+      lined = 0;
       applyRate(audio, effectiveRate(), true);
-      audio.currentTime = target;
+      audio.muted = true;
+      // Where the buffer engine will be heard once the element has started,
+      // mid rate-ramp included.
+      audio.currentTime = latencyCompensatedPosition(
+        positionAtCtxTime(ctx.currentTime + handoffStartupRef.current),
+        outputLatencyMs() / 1000,
+        effectiveRate(),
+      );
+      lastSeen = audio.currentTime;
+      void audio.play().catch(() => {});
     };
 
     const commit = () => {
-      cancel();
-      if (sourceRef.current !== source || !preservePitchRef.current) return;
-      const now = performance.now();
-      const previousVisual = seekVisualClockRef.current.read(getCurrentTime(), now);
-      stopWeb(true);
-      appliedPitchRef.current = true;
-      applyRate(audio, effectiveRate(), true);
-      if (
-        Math.abs(audio.currentTime - positionRef.current) >
-        PITCH_HANDOFF_TOLERANCE_SECONDS
-      ) {
-        audio.currentTime = positionRef.current;
-      }
-      elementClockRef.current.reset();
-      void audio.play().catch(() => {});
-      // The engines compensate output latency differently; glide across the
-      // difference instead of jumping the playfield.
-      seekVisualClockRef.current.begin(previousVisual, getCurrentTime(), "smooth", now);
-    };
-
-    const step = () => {
-      frame = 0;
+      release();
       if (sourceRef.current !== source || !preservePitchRef.current) {
         cancel();
         return;
       }
-      const remaining = ctxTimeAtPosition(target, ctx.currentTime) - ctx.currentTime;
-      // Current data is enough: WebKit may not buffer further for a paused
-      // element, and a seeked local file starts at once from here.
-      const ready =
-        !audio.seeking && audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
-      if (remaining <= 0) {
-        // Not ready in time: aim further ahead, and after a few misses swap
-        // on the spot rather than keep the pitch wrong.
-        if (attempts >= PITCH_HANDOFF_ATTEMPTS) {
-          commit();
-          return;
-        }
-        aim();
-      } else if (ready && remaining < PITCH_HANDOFF_TIMER_SECONDS) {
-        timer = window.setTimeout(commit, remaining * 1000);
+      const now = performance.now();
+      const previousVisual = seekVisualClockRef.current.read(getCurrentTime(), now);
+      const playing = moving && !audio.paused && !audio.seeking;
+      fadeOutWeb(HANDOFF_CROSSFADE_SECONDS);
+      appliedPitchRef.current = true;
+      applyRate(audio, effectiveRate(), true);
+      if (playing) {
+        positionRef.current = audio.currentTime;
+      } else {
+        // Never got going: start it where the buffer engine left off.
+        audio.currentTime = positionRef.current;
+        void audio.play().catch(() => {});
+      }
+      audio.volume = 0;
+      audio.muted = false;
+      rampElementVolume(effectivePower(), HANDOFF_CROSSFADE_SECONDS);
+      elementClockRef.current.reset();
+      // Whatever gap is left between the engines glides away instead of
+      // jumping the playfield.
+      seekVisualClockRef.current.begin(previousVisual, getCurrentTime(), "smooth", now);
+    };
+
+    const step = () => {
+      frame = requestAnimationFrame(step);
+      if (sourceRef.current !== source || !preservePitchRef.current) {
+        cancel();
         return;
       }
-      frame = requestAnimationFrame(step);
+      const overdue = performance.now() - startedAt > HANDOFF_GIVE_UP_MS;
+      const position = audio.currentTime;
+      if (!moving) {
+        if (audio.paused || audio.seeking || position === lastSeen) {
+          if (overdue) commit();
+          return;
+        }
+        moving = true;
+        if (seeks === 1) {
+          handoffStartupRef.current = learnHandoffStartup(
+            handoffStartupRef.current,
+            position - bufferPosition(),
+            effectiveRate(),
+          );
+        }
+      }
+      const gap = position - bufferPosition();
+      if (
+        Math.abs(gap) > HANDOFF_RESEEK_SECONDS &&
+        seeks < HANDOFF_MAX_SEEKS &&
+        !overdue
+      ) {
+        aim();
+        return;
+      }
+      if (!rateSettled() && !overdue) return;
+      lined = Math.abs(gap) <= HANDOFF_LOCK_SECONDS ? lined + 1 : 0;
+      if (lined >= HANDOFF_LOCK_FRAMES || overdue) {
+        commit();
+        return;
+      }
+      applyRate(audio, handoffCatchUpRate(gap, effectiveRate()), true);
     };
 
     aim();
     frame = requestAnimationFrame(step);
   }, [
-    ctxTimeAtPosition,
+    audibleWebPosition,
+    effectivePower,
     effectiveRate,
+    fadeOutWeb,
     getCurrentTime,
+    outputLatencyMs,
     positionAtCtxTime,
-    stopWeb,
-    syncLivePlaybackRate,
+    rampElementVolume,
+    webPosition,
   ]);
   armPitchHandoffRef.current = armPitchHandoff;
 

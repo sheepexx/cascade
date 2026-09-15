@@ -480,6 +480,7 @@ export const ru: PartialCatalog = {
   "transport.jumpTitle": "Перейти ко времени - Enter подтверждает, Esc отменяет",
   "transport.copyMs": "Нажмите, чтобы скопировать время в миллисекундах",
   "transport.copyTimestamp": "Нажмите, чтобы скопировать таймстамп",
+  "transport.copySelectionTimestamp": "Нажмите, чтобы скопировать ссылку osu! на выбранные ноты",
   "transport.jumpButton": "Перейти ко времени (Ctrl+G)",
   "transport.hitsoundVolume": "Громкость хитсаундов",
   "transport.hit": "Hit",

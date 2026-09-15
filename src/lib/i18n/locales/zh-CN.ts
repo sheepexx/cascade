@@ -443,6 +443,7 @@ export const zhCN: PartialCatalog = {
   "transport.jumpTitle": "跳转到时间 - 回车确认，Esc 取消",
   "transport.copyMs": "点击复制以毫秒表示的时间",
   "transport.copyTimestamp": "点击复制时间戳",
+  "transport.copySelectionTimestamp": "点击复制指向所选音符的 osu! 链接",
   "transport.jumpButton": "跳转到时间 (Ctrl+G)",
   "transport.hitsoundVolume": "打击音效音量",
   "transport.hit": "打击音",

@@ -233,6 +233,7 @@ import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
 import { pushClip, type DifficultyClip } from "./lib/clipboardStore";
+import { formatOsuTimestamp } from "./lib/osuTimestamp";
 import {
   loadClipAssets,
   placeClipAssets,
@@ -782,6 +783,7 @@ export default function App() {
     start: number;
     end: number;
     count: number;
+    ids: ReadonlySet<string>;
   } | null>(null);
   // Admin kill switches; cached copy renders instantly, then the fetch and a
   // realtime subscription keep it current. Fails open (see lib/featureFlags).
@@ -7250,6 +7252,15 @@ export default function App() {
                 onView={setView}
                 jumpOpen={jumpToTimeOpen}
                 onJumpOpenChange={setJumpToTimeOpen}
+                getSelectionTimestamp={
+                  selectionRange
+                    ? () =>
+                        formatOsuTimestamp(
+                          active.notes.filter((n) => selectionRange.ids.has(n.id)),
+                          activeTimingPoints,
+                        )
+                    : undefined
+                }
               />
             )}
           </div>

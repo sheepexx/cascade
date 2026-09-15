@@ -11,6 +11,8 @@ export type NoteClip = {
   kind: "notes";
   id: string;
   notes: PatternNote[];
+  /** The osu! timestamp this copy also put on the system clipboard. */
+  timestamp?: string;
 };
 
 export type DifficultyClip = {

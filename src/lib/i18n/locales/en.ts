@@ -531,6 +531,7 @@ export const en = {
   "transport.jumpTitle": "Jump to time - Enter to go, Esc to cancel",
   "transport.copyMs": "Click to copy the time in milliseconds",
   "transport.copyTimestamp": "Click to copy the timestamp",
+  "transport.copySelectionTimestamp": "Click to copy an osu! link to the selected notes",
   "transport.jumpButton": "Jump to time (Ctrl+G)",
   "transport.hitsoundVolume": "Hitsound volume",
   "transport.hit": "Hit",

@@ -466,6 +466,7 @@ export const de: PartialCatalog = {
   "transport.jumpTitle": "Zu Zeit springen - Enter bestätigt, Esc bricht ab",
   "transport.copyMs": "Klicken, um die Zeit in Millisekunden zu kopieren",
   "transport.copyTimestamp": "Klicken, um den Zeitstempel zu kopieren",
+  "transport.copySelectionTimestamp": "Klicken, um einen osu!-Link zu den ausgewählten Noten zu kopieren",
   "transport.jumpButton": "Zu Zeit springen (Strg+G)",
   "transport.hitsoundVolume": "Hitsound-Lautstärke",
   "transport.hit": "Hit",

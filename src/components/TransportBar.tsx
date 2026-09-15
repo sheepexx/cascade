@@ -8,6 +8,7 @@ import {
   type ViewState,
 } from "../types";
 import type { AudioController } from "../hooks/useAudio";
+import { formatOsuClock, osuEditLink } from "../lib/osuTimestamp";
 import { formatTime, parseTimestamp } from "../lib/timing";
 import { useT } from "../lib/i18n";
 import { Slider } from "./ui/Controls";
@@ -18,6 +19,8 @@ type Props = {
   onView: (v: ViewState) => void;
   jumpOpen: boolean;
   onJumpOpenChange: (open: boolean) => void;
+  /** The selected notes as an osu! timestamp, while there is a selection. */
+  getSelectionTimestamp?: () => string | null;
 };
 
 export function TransportBar({
@@ -26,6 +29,7 @@ export function TransportBar({
   onView,
   jumpOpen,
   onJumpOpenChange,
+  getSelectionTimestamp,
 }: Props) {
   const { currentTime } = audio;
   const [jumpDraft, setJumpDraft] = useState("");
@@ -123,13 +127,25 @@ export function TransportBar({
             <span className="text-slate-500">/</span>
             <button
               type="button"
-              onClick={() => copyValue(formatTime(currentTime), "timestamp")}
+              onClick={() => {
+                // osu!'s own format, which modding posts turn into a link.
+                // With notes selected it is the osu:// link naming each note.
+                const stamp = getSelectionTimestamp?.();
+                copyValue(
+                  stamp ? osuEditLink(stamp) : formatOsuClock(currentTime),
+                  "timestamp",
+                );
+              }}
               className={`cursor-pointer rounded-r py-1 pl-1 pr-2 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:bg-white/15 ${
                 copied === "timestamp" ? "text-accent" : "text-slate-500"
               }`}
-              title={t("transport.copyTimestamp")}
+              title={t(
+                getSelectionTimestamp
+                  ? "transport.copySelectionTimestamp"
+                  : "transport.copyTimestamp",
+              )}
             >
-              {formatTime(currentTime)}
+              {formatOsuClock(currentTime)}
             </button>
           </span>
         )}

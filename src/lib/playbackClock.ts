@@ -120,17 +120,24 @@ const STEADY_FROZEN_MS = 500;
  * as jitter. This clock runs on the wall clock at the element's rate and
  * absorbs any disagreement gradually, never running more than 15% fast or
  * slow, so the playhead keeps an even pace. Only a seek or a stall snaps it.
+ *
+ * After a play, a seek or a snap it holds still until the element's position
+ * first moves. Browsers report the start position until sound actually comes
+ * out, which can take hundreds of ms; running on meanwhile put the playhead
+ * that far ahead, and at slow rates the 15% limit took seconds to take it back.
  */
 export function createSteadyClock(): PlaybackClock {
   let started = false;
+  let moving = false;
   let position = 0;
   let lastRead = 0;
   let lastSource = Number.NaN;
   let lastSourceAt = 0;
   let offset = 0;
 
-  const anchor = (source: number, now: number): number => {
+  const anchor = (source: number, now: number, isMoving: boolean): number => {
     started = true;
+    moving = isMoving;
     position = source;
     lastRead = now;
     lastSource = source;
@@ -145,7 +152,7 @@ export function createSteadyClock(): PlaybackClock {
     },
     read(source, rate, now) {
       if (!Number.isFinite(source)) return position;
-      if (!started) return anchor(source, now);
+      if (!started) return anchor(source, now, false);
       const safeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
 
       // Advance at the rate playing now, so a rate change never rewrites the
@@ -159,16 +166,24 @@ export function createSteadyClock(): PlaybackClock {
       // Only a reading that has moved says anything new; until the element
       // refreshes it, the same snapshot just keeps getting older.
       if (source !== lastSource) {
-        // Moving again after a stop: start from where the element is.
-        if (now - lastSourceAt > STEADY_FROZEN_MS) return anchor(source, now);
+        // Moving for the first time since a start or seek, or again after a
+        // stall: start from where the element is.
+        if (!moving || now - lastSourceAt > STEADY_FROZEN_MS) {
+          return anchor(source, now, true);
+        }
         position += elapsed * safeRate;
         lastSource = source;
         lastSourceAt = now;
         const error = source - position;
-        if (Math.abs(error) > STEADY_RESYNC_SECONDS) return anchor(source, now);
+        // A jump this far is a seek, and the element may sit on its target
+        // before it plays on.
+        if (Math.abs(error) > STEADY_RESYNC_SECONDS) {
+          return anchor(source, now, false);
+        }
         offset = error;
-      } else if (now - lastSourceAt > STEADY_FROZEN_MS) {
-        // Playback stopped without saying so; hold rather than run away.
+      } else if (!moving || now - lastSourceAt > STEADY_FROZEN_MS) {
+        // Not playing yet, or playback stopped without saying so; hold rather
+        // than run away.
         return position;
       } else {
         position += elapsed * safeRate;

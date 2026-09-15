@@ -70,6 +70,29 @@ describe("createSteadyClock", () => {
     expect(Math.abs(out - source) * 1000).toBeLessThan(1);
   });
 
+  it("waits for the element to start moving after a play or seek", () => {
+    // Browsers report the seek target until playback actually resumes, which
+    // can take a few hundred ms; running ahead meanwhile left the playfield
+    // ahead of the song for seconds at slow rates.
+    for (const rate of [0.25, 0.5, 0.75]) {
+      for (const startupMs of [80, 200, 450]) {
+        const clock = createSteadyClock();
+        const frame = 1000 / 60;
+        let worstMs = 0;
+        let prev = -Infinity;
+        for (let i = 0; i <= 240; i++) {
+          const wall = i * frame;
+          const source = 30 + (Math.max(0, wall - startupMs) * rate) / 1000;
+          const out = clock.read(source, rate, wall);
+          worstMs = Math.max(worstMs, Math.abs(out - source) * 1000);
+          expect(out).toBeGreaterThanOrEqual(prev);
+          prev = out;
+        }
+        expect(worstMs).toBeLessThan(1);
+      }
+    }
+  });
+
   it("follows a gradual rate change", () => {
     const clock = createSteadyClock();
     const frame = 1000 / 60;

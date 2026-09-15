@@ -44,6 +44,14 @@ import {
   prepareNotePaste,
 } from "../lib/editorClipboard";
 import {
+  formatOsuClock,
+  formatOsuTimestamp,
+  notesAtOsuTimestamp,
+  parseOsuTimestamp,
+  type OsuTimestamp,
+} from "../lib/osuTimestamp";
+import { catchPastedText } from "../lib/pasteText";
+import {
   activeClip,
   clearClipboard,
   getClipboard,
@@ -198,9 +206,14 @@ type Props = {
   svPreview?: boolean;
   /** Also scale scroll with BPM, the way osu!mania stable does. */
   svBpmScroll?: boolean;
-  /** Reports the time span of the current note selection (for the SV modal). */
+  /** Reports the current note selection: its time span (for the SV modal) and ids. */
   onSelectionRange?: (
-    range: { start: number; end: number; count: number } | null,
+    range: {
+      start: number;
+      end: number;
+      count: number;
+      ids: ReadonlySet<string>;
+    } | null,
   ) => void;
   /** Remappable notefield shortcuts; falls back to the defaults. */
   editorKeybinds?: EditorKeybinds;
@@ -617,7 +630,7 @@ export function ManiaEditor(props: Props) {
       if (tail > end) end = tail;
     }
     report(
-      Number.isFinite(start) ? { start, end, count: ids.size } : null,
+      Number.isFinite(start) ? { start, end, count: ids.size, ids } : null,
     );
   }, [markDirty]);
 
@@ -654,12 +667,17 @@ export function ManiaEditor(props: Props) {
       setClipboardStatus("Select notes to copy.");
       return null;
     }
+    const timestamp = formatOsuTimestamp(selected, timingPoints) ?? undefined;
     const clip: Clip = {
       kind: "notes",
       id: uid("clip"),
       notes: notesToPattern(selected, timingPoints),
+      timestamp,
     };
     pushClip(clip);
+    // The system clipboard gets the osu! timestamp, as stable's editor copies
+    // it, so the selection pastes into a modding post or Discord as a link.
+    if (timestamp) void navigator.clipboard?.writeText(timestamp).catch(() => {});
     setClipboardStatus(
       `Copied ${selected.length} note${selected.length === 1 ? "" : "s"}.`,
     );
@@ -804,6 +822,60 @@ export function ManiaEditor(props: Props) {
     propsRef.current.onAddNotes(result.notes);
     setSelection(new Set(result.notes.map((n) => n.id)));
   }, [setSelection]);
+
+  /** Jumps to an osu! timestamp and selects the notes it names that are here. */
+  const goToOsuTimestamp = useCallback(
+    (stamp: OsuTimestamp) => {
+      const { notes, timingPoints } = propsRef.current;
+      pendingInteractiveSeekRef.current = null;
+      propsRef.current.onSeek(stamp.time);
+      const clock = formatOsuClock(stamp.time);
+      const named = stamp.notes.length;
+      if (!named) {
+        setClipboardStatus(`Jumped to ${clock}.`);
+        return;
+      }
+      const found = notesAtOsuTimestamp(stamp, notes, timingPoints);
+      setSelection(new Set(found.map((n) => n.id)));
+      setClipboardStatus(
+        found.length >= named
+          ? `Jumped to ${clock} and selected ${named} note${named === 1 ? "" : "s"}.`
+          : found.length
+            ? `Jumped to ${clock} and selected ${found.length} of ${named} notes; the rest are not in this difficulty.`
+            : named === 1
+              ? `Jumped to ${clock}. Its note is not in this difficulty.`
+              : `Jumped to ${clock}. None of its ${named} notes are in this difficulty.`,
+      );
+    },
+    [setSelection],
+  );
+
+  /**
+   * Ctrl+V: an osu! timestamp or osu://edit link on the system clipboard, from
+   * a modding thread or Discord, jumps to it and selects its notes. Anything
+   * else, including the timestamp Cascade's own copy left there, pastes the
+   * copied notes as before.
+   */
+  const pasteFromKeyboard = useCallback(() => {
+    const canvas = canvasRef.current;
+    const pointerFocus = canvas?.dataset.pointerFocus;
+    void catchPastedText().then((text) => {
+      // The hidden paste field blurred the canvas; keep its focus ring as it was.
+      if (canvas && pointerFocus !== undefined && document.activeElement === canvas) {
+        canvas.dataset.pointerFocus = pointerFocus;
+      }
+      const stamp = text ? parseOsuTimestamp(text) : null;
+      // Any copy in the pasteboard counts, not just the active one: picking an
+      // older entry leaves the newest copy's timestamp on the system clipboard.
+      const ownCopy =
+        !!text &&
+        getClipboard().entries.some(
+          (e) => e.kind === "notes" && e.timestamp?.trim() === text.trim(),
+        );
+      if (stamp && !ownCopy) goToOsuTimestamp(stamp);
+      else paste();
+    });
+  }, [goToOsuTimestamp, paste]);
 
   const toggleAddition = useCallback((bit: number) => {
     if (propsRef.current.readOnly) return;
@@ -982,8 +1054,9 @@ export function ManiaEditor(props: Props) {
           cutSelection();
         }
       } else if (key === "v") {
-        e.preventDefault();
-        paste();
+        // Left to the browser, so the native paste delivers the clipboard's
+        // text without a permission prompt.
+        pasteFromKeyboard();
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -1015,7 +1088,7 @@ export function ManiaEditor(props: Props) {
     setSelection,
     copySelection,
     cutSelection,
-    paste,
+    pasteFromKeyboard,
     toggleAddition,
     mirrorSelection,
     reverseSelection,
