@@ -3,6 +3,7 @@ import { buildOsz } from "./oszExport";
 import { sanitizePackFilename } from "./packCreator";
 import { makeDifficulty, normalizeTimingPoints, type LoadedFile } from "../types";
 import { loadSafeZip } from "./archiveLimits";
+import { assertFolderEntry, MAX_FOLDER_DEPTH } from "./importLimits";
 
 export type PackSongInfo = {
   title: string;
@@ -162,8 +163,10 @@ export async function scanPackFromPicker(
   dirHandle: FileSystemDirectoryHandle,
 ): Promise<PackSong[]> {
   const all: { file: File; relPath: string }[] = [];
+  let totalBytes = 0;
 
-  async function walk(handle: FileSystemDirectoryHandle, path: string) {
+  async function walk(handle: FileSystemDirectoryHandle, path: string, depth = 0) {
+    if (depth > MAX_FOLDER_DEPTH) throw new Error("Folder nesting is too deep.");
     const iter = (handle as unknown as {
       values(): AsyncIterableIterator<FileSystemHandle>;
     }).values();
@@ -171,9 +174,10 @@ export async function scanPackFromPicker(
       const entryPath = path ? `${path}/${entry.name}` : entry.name;
       if (entry.kind === "file") {
         const file = await (entry as FileSystemFileHandle).getFile();
+        totalBytes = assertFolderEntry(all.length, totalBytes, file.size, depth);
         all.push({ file, relPath: entryPath });
       } else if (entry.kind === "directory") {
-        await walk(entry as FileSystemDirectoryHandle, entryPath);
+        await walk(entry as FileSystemDirectoryHandle, entryPath, depth + 1);
       }
     }
   }
@@ -186,13 +190,24 @@ export async function scanPackFromDrop(
   entries: FileSystemEntry[],
 ): Promise<PackSong[]> {
   const all: { file: File; relPath: string }[] = [];
+  let totalBytes = 0;
 
-  const readEntry = (entry: FileSystemEntry, path: string): Promise<void> => {
-    return new Promise((resolve) => {
+  const readEntry = (entry: FileSystemEntry, path: string, depth = 0): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (depth > MAX_FOLDER_DEPTH) {
+        reject(new Error("Folder nesting is too deep."));
+        return;
+      }
       if (entry.isFile) {
         const fileEntry = entry as FileSystemFileEntry;
         fileEntry.file(
           (file) => {
+            try {
+              totalBytes = assertFolderEntry(all.length, totalBytes, file.size, depth);
+            } catch (error) {
+              reject(error);
+              return;
+            }
             all.push({ file, relPath: path ? `${path}/${file.name}` : file.name });
             resolve();
           },
@@ -207,8 +222,14 @@ export async function scanPackFromDrop(
                 resolve();
               } else {
                 void Promise.all(
-                  entries.map((e) => readEntry(e, path ? `${path}/${entry.name}` : entry.name)),
-                ).then(() => readBatch());
+                  entries.map((e) =>
+                    readEntry(
+                      e,
+                      path ? `${path}/${entry.name}` : entry.name,
+                      depth + 1,
+                    ),
+                  ),
+                ).then(() => readBatch(), reject);
               }
             },
             () => resolve(),

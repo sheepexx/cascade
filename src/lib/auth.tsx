@@ -88,8 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSupabaseToken(data.user ? data.supabaseToken ?? null : null);
       setUser(data.user);
     } catch {
-      setSupabaseToken(null);
-      setUser(null);
+      // A temporary network failure is not a logout. Keep the last verified
+      // session and retry on the next focus/refresh interval.
     } finally {
       setLoading(false);
     }

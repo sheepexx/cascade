@@ -1206,7 +1206,7 @@ export function ManiaEditor(props: Props) {
     const amount = 1 - Math.exp(-SCROLL_SPEED_EASE * dt);
     smoothScrollSpeedRef.current = current + (target - current) * amount;
     return true;
-  }, []);
+  }, [svMap]);
 
   const ppms = useCallback(() => {
     const scrollSpeed = smoothScrollSpeedRef.current;
@@ -1255,6 +1255,17 @@ export function ManiaEditor(props: Props) {
     [liveCurrentTime, playheadY, ppms, scrollDir, svMap],
   );
 
+  const selectionScreenRect = useCallback(
+    (selection: SelectionDragState): CanvasRect =>
+      normalizeRect(
+        selection.startX,
+        timeToY(selection.startTime),
+        selection.currentX,
+        timeToY(selection.currentTime),
+      ),
+    [timeToY],
+  );
+
   const laneGeometry = useCallback(() => {
     const { width } = sizeRef.current;
     const keys = propsRef.current.keyCount;
@@ -1278,11 +1289,15 @@ export function ManiaEditor(props: Props) {
     [laneGeometry],
   );
 
-  const laneColor = (col: number) =>
-    defaultLaneColour(col, propsRef.current.keyCount);
+  const laneColor = useCallback(
+    (col: number) => defaultLaneColour(col, propsRef.current.keyCount),
+    [],
+  );
 
-  const noteColor = (col: number) =>
-    skinColsRef.current[col]?.colour ?? laneColor(col);
+  const noteColor = useCallback(
+    (col: number) => skinColsRef.current[col]?.colour ?? laneColor(col),
+    [laneColor],
+  );
 
   const noteBounds = useCallback(
     (
@@ -2219,11 +2234,16 @@ export function ManiaEditor(props: Props) {
     ctx.restore();
   }, [
     columnAtX,
+    firstNoteFrom,
     firstPointFrom,
+    laneColor,
     laneGeometry,
     liveCurrentTime,
+    noteColor,
     noteBounds,
     playheadY,
+    ppms,
+    selectionScreenRect,
     timeToY,
     yToTime,
   ]);
@@ -2460,15 +2480,6 @@ export function ManiaEditor(props: Props) {
       endTime,
     };
   };
-
-  function selectionScreenRect(selection: SelectionDragState): CanvasRect {
-    return normalizeRect(
-      selection.startX,
-      timeToY(selection.startTime),
-      selection.currentX,
-      timeToY(selection.currentTime),
-    );
-  }
 
   const startSelectionAutoscroll = useCallback(() => {
     if (selectionAutoscrollRafRef.current) return;

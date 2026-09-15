@@ -38,8 +38,8 @@ export function parseLoopbackPort(raw: string | null): number | null {
   return port;
 }
 
-export function loopbackRedirect(port: number, session: string): string {
-  return `http://127.0.0.1:${port}/callback?session=${encodeURIComponent(session)}`;
+export function loopbackRedirect(port: number, session: string, nonce: string): string {
+  return `http://127.0.0.1:${port}/callback?session=${encodeURIComponent(session)}&nonce=${encodeURIComponent(nonce)}`;
 }
 
 export function resolveAllowedOrigin(
@@ -123,6 +123,8 @@ async function route(
         case "/auth/osu/cover":
           return await handleCover(req, env);
         case "/auth/logout":
+          if (req.method !== "POST")
+            return json({ error: "method not allowed" }, 405, env);
           return handleLogout(env);
         case "/presence/roster":
           if (req.method !== "GET")
@@ -213,21 +215,31 @@ async function handleBeatmapLookup(
   return json({ error: "beatmap not found" }, 404, env);
 }
 
-export function desktopState(port: number): string {
-  return `${crypto.randomUUID()}.desktop.${port}`;
+export function desktopState(port: number, nonce: string): string {
+  return `${crypto.randomUUID()}.desktop.${port}.${nonce}`;
 }
 
 export function desktopPortFromState(state: string): number | null {
-  const match = /\.desktop\.(\d{4,5})$/.exec(state);
+  const match = /\.desktop\.(\d{4,5})\.[A-Za-z0-9_-]{16,128}$/.exec(state);
   return match ? parseLoopbackPort(match[1]) : null;
 }
 
+export function desktopNonceFromState(state: string): string | null {
+  const match = /\.desktop\.\d{4,5}\.([A-Za-z0-9_-]{16,128})$/.exec(state);
+  return match?.[1] ?? null;
+}
+
 async function handleLogin(url: URL, env: WorkerEnv): Promise<Response> {
-  const port =
-    url.searchParams.get("client") === "desktop"
-      ? parseLoopbackPort(url.searchParams.get("port"))
-      : null;
-  const state = port === null ? crypto.randomUUID() : desktopState(port);
+  const desktop = url.searchParams.get("client") === "desktop";
+  const port = desktop ? parseLoopbackPort(url.searchParams.get("port")) : null;
+  const nonce = desktop ? url.searchParams.get("nonce") : null;
+  if (
+    desktop &&
+    (port === null || !nonce || !/^[A-Za-z0-9_-]{16,128}$/.test(nonce))
+  ) {
+    return json({ error: "invalid desktop callback" }, 400, env);
+  }
+  const state = desktop ? desktopState(port!, nonce!) : crypto.randomUUID();
   const authorize = new URL("https://osu.ppy.sh/oauth/authorize");
   authorize.searchParams.set("client_id", env.CLIENT_ID);
   authorize.searchParams.set("redirect_uri", env.OSU_REDIRECT_URI);
@@ -299,8 +311,9 @@ async function handleCallback(
 
   const session = await signSession(env, user.id);
   const desktopPort = desktopPortFromState(state);
-  if (desktopPort !== null) {
-    return redirect(loopbackRedirect(desktopPort, session), env, [
+  const desktopNonce = desktopNonceFromState(state);
+  if (desktopPort !== null && desktopNonce !== null) {
+    return redirect(loopbackRedirect(desktopPort, session, desktopNonce), env, [
       cookie(STATE_COOKIE, "", { maxAge: 0 }),
     ]);
   }

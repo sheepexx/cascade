@@ -142,6 +142,9 @@ describe("shared publication ownership", () => {
   function sharedUploadEnv(put: ReturnType<typeof vi.fn>): WorkerEnv {
     const bucket = {
       put,
+      async list() {
+        return { objects: [], delimitedPrefixes: [], truncated: false };
+      },
     } as unknown as R2Bucket;
     return {
       PROJECT_ASSETS: bucket,
@@ -180,7 +183,7 @@ describe("project deletion", () => {
     supabaseToken: "user-token",
   };
 
-  it("removes both storage prefixes before deleting the database row", async () => {
+  it("deletes the database row before removing both storage prefixes", async () => {
     const events: string[] = [];
     const env = deleteEnv(events);
     vi.stubGlobal("fetch", deleteFetch(events));
@@ -196,16 +199,16 @@ describe("project deletion", () => {
     );
 
     expect(response?.status).toBe(200);
-    expect(await response?.json()).toEqual({ deleted: true });
-    expect(events.indexOf("r2-delete")).toBeLessThan(
-      events.indexOf("database-delete"),
+    expect(await response?.json()).toEqual({ deleted: true, warnings: [] });
+    expect(events.indexOf("database-delete")).toBeLessThan(
+      events.indexOf("r2-delete"),
     );
-    expect(events.indexOf("supabase-delete")).toBeLessThan(
-      events.indexOf("database-delete"),
+    expect(events.indexOf("database-delete")).toBeLessThan(
+      events.indexOf("supabase-delete"),
     );
   });
 
-  it("keeps the database row when storage cleanup fails", async () => {
+  it("reports cleanup warnings after the database row is safely deleted", async () => {
     const events: string[] = [];
     const env = deleteEnv(events, true);
     vi.stubGlobal("fetch", deleteFetch(events));
@@ -220,8 +223,12 @@ describe("project deletion", () => {
       async () => auth,
     );
 
-    expect(response?.status).toBe(502);
-    expect(events).not.toContain("database-delete");
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toEqual({
+      deleted: true,
+      warnings: ["R2 deletion failed"],
+    });
+    expect(events).toContain("database-delete");
   });
 
   it("does not remove files for a user who does not own the project", async () => {

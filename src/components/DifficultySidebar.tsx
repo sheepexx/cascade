@@ -114,6 +114,7 @@ export function DifficultySidebar({
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setRateOpen((v) => !v)}
+            aria-label={t("diffSidebar.rateChanger")}
             aria-expanded={rateOpen}
             className={`grid h-6 w-6 place-items-center rounded-md border shadow-sm backdrop-blur-sm transition ${
               rateOpen
@@ -126,6 +127,7 @@ export function DifficultySidebar({
           </button>
           <button
             onClick={onAdd}
+            aria-label={t("diffSidebar.addDifficulty")}
             className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-600/70 text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85"
             title={t("diffSidebar.addDifficulty")}
           >
@@ -331,6 +333,16 @@ function DiffRow({
   return (
     <div
       onClick={(e) => onSelect(e.ctrlKey || e.metaKey)}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(event.ctrlKey || event.metaKey);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
       className={`group cursor-pointer rounded-lg border px-3 py-2.5 transition ${
         active
           ? "border-accent/70 bg-ink-600/72 shadow-lg shadow-black/15"

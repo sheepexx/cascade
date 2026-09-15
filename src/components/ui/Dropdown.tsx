@@ -96,10 +96,12 @@ export function Dropdown<T extends string | number>({
   // the top, so the choice in effect is the one under the pointer.
   useEffect(() => {
     if (!open) return;
-    menuRef.current
-      ?.querySelector<HTMLElement>('[data-selected="true"]')
-      ?.scrollIntoView({ block: "nearest" });
-  }, [open]);
+    const selectedOption = menuRef.current?.querySelector<HTMLElement>(
+      '[data-selected="true"]',
+    );
+    selectedOption?.scrollIntoView({ block: "nearest" });
+    selectedOption?.focus();
+  }, [mounted, open]);
 
   useEffect(() => {
     if (!open) return;

@@ -30,15 +30,28 @@ fn focus(window: &WebviewWindow) {
     let _ = window.set_focus();
 }
 
-fn session_from_request(line: &str) -> Option<String> {
+fn session_from_request(line: &str, expected_nonce: &str) -> Option<String> {
+    if !line.starts_with("GET ") {
+        return None;
+    }
     let target = line.split_whitespace().nth(1)?;
-    let query = target.split_once('?')?.1;
+    let (path, query) = target.split_once('?')?;
+    if path != "/callback" {
+        return None;
+    }
+    let mut session = None;
+    let mut nonce = None;
     for pair in query.split('&') {
         if let Some(value) = pair.strip_prefix("session=") {
-            return urlencoding_decode(value);
+            session = urlencoding_decode(value);
+        } else if let Some(value) = pair.strip_prefix("nonce=") {
+            nonce = urlencoding_decode(value);
         }
     }
-    None
+    if nonce.as_deref() != Some(expected_nonce) {
+        return None;
+    }
+    session
 }
 
 pub(crate) fn urlencoding_decode(raw: &str) -> Option<String> {
@@ -76,32 +89,49 @@ fn answer(stream: &mut TcpStream, body: &str) {
 }
 
 #[tauri::command]
-fn start_oauth_listener(app: AppHandle) -> Result<u16, String> {
+fn start_oauth_listener(app: AppHandle, nonce: String) -> Result<u16, String> {
+    if nonce.len() < 16
+        || nonce.len() > 128
+        || !nonce
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+    {
+        return Err("invalid oauth nonce".to_string());
+    }
     let listener =
         TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(|err| err.to_string())?;
     let port = listener.local_addr().map_err(|err| err.to_string())?.port();
+    listener.set_nonblocking(true).map_err(|err| err.to_string())?;
 
     std::thread::spawn(move || {
-        let _ = listener.set_nonblocking(false);
         let deadline = std::time::Instant::now() + Duration::from_secs(OAUTH_TIMEOUT_SECS);
-        for incoming in listener.incoming() {
-            if std::time::Instant::now() > deadline {
-                break;
-            }
-            let Ok(mut stream) = incoming else { continue };
+        while std::time::Instant::now() <= deadline {
+            let mut stream = match listener.accept() {
+                Ok((stream, _)) => stream,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(50));
+                    continue;
+                }
+                Err(_) => break,
+            };
+            // Accepted sockets inherit the listener's non-blocking mode on macOS and
+            // Windows, which would make the read below fail before the request lands.
+            let _ = stream.set_nonblocking(false);
             let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
             let mut line = String::new();
             if BufReader::new(&stream).read_line(&mut line).is_err() {
                 continue;
             }
-            let session = session_from_request(&line);
-            answer(&mut stream, DONE_PAGE);
+            let session = session_from_request(&line, &nonce);
             if let Some(session) = session {
+                answer(&mut stream, DONE_PAGE);
                 let _ = app.emit(OAUTH_EVENT, session);
                 if let Some(window) = app.get_webview_window("main") {
                     focus(&window);
                 }
                 break;
+            } else {
+                answer(&mut stream, "Invalid or expired sign-in callback.");
             }
         }
     });

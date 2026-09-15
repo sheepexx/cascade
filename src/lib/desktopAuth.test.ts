@@ -11,9 +11,10 @@ describe("desktopLoginUrl", () => {
     // import. Otherwise the test only passes where a .env happens to set it.
     vi.stubEnv("VITE_WORKER_URL", "https://worker.example");
     const { desktopLoginUrl } = await import("./desktopAuth");
-    const url = new URL(desktopLoginUrl(51234));
+    const url = new URL(desktopLoginUrl(51234, "12345678-1234-1234-1234-123456789abc"));
     expect(url.pathname).toBe("/auth/osu/login");
     expect(url.searchParams.get("client")).toBe("desktop");
     expect(url.searchParams.get("port")).toBe("51234");
+    expect(url.searchParams.get("nonce")).toBe("12345678-1234-1234-1234-123456789abc");
   });
 });

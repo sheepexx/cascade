@@ -11,10 +11,14 @@ import {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-function restBroadcast(projectId: string, event: string, payload: unknown): void {
+async function restBroadcast(
+  projectId: string,
+  event: string,
+  payload: unknown,
+): Promise<void> {
   if (!SUPABASE_URL || !projectId) return;
   const token = getSupabaseToken() ?? SUPABASE_ANON;
-  void fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+  const response = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
     method: "POST",
     headers: {
       apikey: SUPABASE_ANON,
@@ -24,7 +28,8 @@ function restBroadcast(projectId: string, event: string, payload: unknown): void
     body: JSON.stringify({
       messages: [{ topic: `project:${projectId}`, event, payload, private: true }],
     }),
-  }).catch(() => {});
+  });
+  if (!response.ok) throw new Error(`Realtime broadcast failed (${response.status}).`);
 }
 
 export type Peer = PresencePeer;
@@ -45,6 +50,12 @@ export type AssetChange = {
   sha256: string | null;
 };
 
+export type ProjectSyncChange = {
+  revision: number | null;
+  mutationId: string | null;
+  updatedBy: string | null;
+};
+
 type Me = { id: string; username: string; avatar: string | null };
 
 const PRESENCE_SEND_MS = 800;
@@ -62,7 +73,7 @@ export function useCollab(opts: {
   invisible?: boolean;
   me: Me | null;
   onRemoteOp: (op: CollabOp) => void;
-  onRefresh: () => void;
+  onRefresh: (change?: ProjectSyncChange) => void;
   onAssetChange?: (change: AssetChange) => void;
   onPeerJoin?: (peer: Peer) => void;
   onPeerLeave?: (peer: Peer) => void;
@@ -94,6 +105,11 @@ export function useCollab(opts: {
   meRef.current = me;
   const peersRef = useRef<Map<string, Peer>>(new Map());
   const lastPresenceSendRef = useRef(0);
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
+  const sendQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const opSequenceRef = useRef(0);
+  const seenOpIdsRef = useRef<Set<string>>(new Set());
 
   const updateStatus = (next: CollabStatus) => {
     statusRef.current = next;
@@ -109,6 +125,7 @@ export function useCollab(opts: {
     }
 
     updateStatus("connecting");
+    seenOpIdsRef.current.clear();
     peersRef.current.clear();
     setPeers([]);
     const myColor = colorForId(me.id);
@@ -212,8 +229,18 @@ export function useCollab(opts: {
 
       ch.on("broadcast", { event: "op" }, ({ payload }) => {
         if (!isCollabOp(payload)) return;
-        const sender = (payload as Record<string, unknown>)._from;
+        const record = payload as unknown as Record<string, unknown>;
+        const sender = record._from;
         if (typeof sender === "string" && sender === meRef.current?.id) return;
+        const opId = record._opId;
+        if (typeof opId === "string") {
+          if (seenOpIdsRef.current.has(opId)) return;
+          seenOpIdsRef.current.add(opId);
+          if (seenOpIdsRef.current.size > 10_000) {
+            const oldest = seenOpIdsRef.current.values().next().value;
+            if (oldest) seenOpIdsRef.current.delete(oldest);
+          }
+        }
         onRemoteOpRef.current(payload);
       });
       ch.on("broadcast", { event: "doc.bump" }, ({ payload }) => {
@@ -267,7 +294,23 @@ export function useCollab(opts: {
             table: "projects",
             filter: `id=eq.${projectId}`,
           },
-          () => onRefreshRef.current(),
+          (payload) => {
+            const row = payload.new as Record<string, unknown>;
+            const rawRevision = row.revision;
+            onRefreshRef.current({
+              revision:
+                typeof rawRevision === "number"
+                  ? rawRevision
+                  : typeof rawRevision === "string" && /^\d+$/.test(rawRevision)
+                    ? Number(rawRevision)
+                    : null,
+              mutationId:
+                typeof row.last_mutation_id === "string"
+                  ? row.last_mutation_id
+                  : null,
+              updatedBy: typeof row.updated_by === "string" ? row.updated_by : null,
+            });
+          },
         )
         .on(
           "postgres_changes",
@@ -369,20 +412,42 @@ export function useCollab(opts: {
 
   const sendBroadcast = (event: string, payload: unknown) => {
     if (!projectId) return;
-    const activeChannel = channelRef.current;
-    if (!activeChannel || statusRef.current !== "connected") {
-      restBroadcast(projectId, event, payload);
-      return;
-    }
-    void activeChannel
-      .send({ type: "broadcast", event, payload })
-      .then((result) => {
-        if (result !== "ok") restBroadcast(projectId, event, payload);
-      })
-      .catch(() => restBroadcast(projectId, event, payload));
+    const targetProject = projectId;
+    const deliver = async () => {
+      const activeChannel = channelRef.current;
+      if (
+        activeChannel &&
+        statusRef.current === "connected" &&
+        projectIdRef.current === targetProject
+      ) {
+        try {
+          const result = await activeChannel.send({
+            type: "broadcast",
+            event,
+            payload,
+          });
+          if (result === "ok") return;
+        } catch {
+        }
+      }
+      await restBroadcast(targetProject, event, payload);
+    };
+    sendQueueRef.current = sendQueueRef.current
+      .catch(() => {})
+      .then(deliver)
+      .catch((error) => {
+        console.warn("[collab] broadcast delivery failed", error);
+      });
   };
   const sendOp = (op: CollabOp) => {
-    sendBroadcast("op", { ...op, _from: meRef.current?.id });
+    opSequenceRef.current += 1;
+    sendBroadcast("op", {
+      ...op,
+      _from: meRef.current?.id,
+      _opId: crypto.randomUUID(),
+      _clientId: sessionIdRef.current,
+      _seq: opSequenceRef.current,
+    });
   };
   const sendRefresh = () => {
     sendBroadcast("doc.bump", { _from: meRef.current?.id });

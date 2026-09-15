@@ -333,7 +333,9 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_WORKER_URL=https://your-worker.workers.dev
 ```
 
-[docs/BACKEND_SETUP.md](docs/BACKEND_SETUP.md) covers the Supabase project, database migrations, Worker secrets and admin access. [docs/R2_MIGRATION.md](docs/R2_MIGRATION.md) covers asset storage in Cloudflare R2.
+Apply the SQL files in `supabase/migrations` in numeric order when updating the
+database. [docs/R2_MIGRATION.md](docs/R2_MIGRATION.md) covers asset storage in
+Cloudflare R2.
 
 ## Architecture
 

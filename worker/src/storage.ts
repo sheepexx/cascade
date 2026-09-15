@@ -184,7 +184,14 @@ export async function handleStorageRoute(
       return storageJson({ error: "forbidden" }, 403, env);
     }
     if (req.method === "PUT") {
-      return uploadObject(req, env.PROJECT_ASSETS, key, false, auth.uid, env);
+      if (!/^[0-9a-f]{64}\.[a-z0-9]{1,8}$/.test(relativePath)) {
+        return storageJson({ error: "invalid project asset path" }, 400, env);
+      }
+      return uploadObject(req, env.PROJECT_ASSETS, key, false, auth.uid, env, {
+        prefix: `${projectId}/`,
+        maxBytes: Number(env.MAX_ASSET_BYTES),
+        maxObjects: 100,
+      });
     }
     if (req.method === "DELETE") {
       if (await projectPathReferenced(env, projectId, key)) {
@@ -228,7 +235,11 @@ export async function handleStorageRoute(
         return storageJson({ error: "shared slug already exists" }, 409, env);
       }
       const key = `${auth.uid}/${sharedUpload[1]}/${relativePath}`;
-      return uploadObject(req, env.SHARED_ASSETS, key, true, auth.uid, env);
+      return uploadObject(req, env.SHARED_ASSETS, key, true, auth.uid, env, {
+        prefix: `${auth.uid}/${sharedUpload[1]}/`,
+        maxBytes: Number(env.MAX_ASSET_BYTES),
+        maxObjects: 100,
+      });
     }
   }
 
@@ -577,6 +588,7 @@ async function uploadObject(
   isPublic: boolean,
   uid: string,
   env: WorkerEnv,
+  quota?: { prefix: string; maxBytes: number; maxObjects: number },
 ): Promise<Response> {
   const rawLength = req.headers.get("Content-Length");
   if (!rawLength || !/^\d+$/.test(rawLength)) {
@@ -589,6 +601,10 @@ async function uploadObject(
   }
   if (size > max) return storageJson({ error: "asset exceeds size limit" }, 413, env);
   if (!req.body) return storageJson({ error: "request body required" }, 400, env);
+  if (quota) {
+    const quotaError = await uploadQuotaError(bucket, key, size, quota);
+    if (quotaError) return storageJson({ error: quotaError }, 413, env);
+  }
   const contentType = normalizedContentType(req.headers.get("Content-Type"));
   if (!allowedContentType(contentType)) {
     return storageJson({ error: "unsupported content type" }, 415, env);
@@ -611,6 +627,43 @@ async function uploadObject(
     return storageJson({ error: "uploaded size did not match" }, 502, env);
   }
   return storageJson({ path: key, bytes: object.size, etag: object.httpEtag }, 200, env);
+}
+
+async function uploadQuotaError(
+  bucket: R2Bucket,
+  key: string,
+  incomingBytes: number,
+  quota: { prefix: string; maxBytes: number; maxObjects: number },
+): Promise<string | null> {
+  let bytes = 0;
+  let objects = 0;
+  let replacedBytes = 0;
+  let replacesObject = false;
+  let cursor: string | undefined;
+  do {
+    const page = await bucket.list({
+      prefix: quota.prefix,
+      limit: 1000,
+      ...(cursor ? { cursor } : {}),
+    });
+    for (const object of page.objects) {
+      bytes += object.size;
+      objects += 1;
+      if (object.key === key) {
+        replacesObject = true;
+        replacedBytes = object.size;
+      }
+    }
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+
+  if (bytes - replacedBytes + incomingBytes > quota.maxBytes) {
+    return "storage quota exceeded";
+  }
+  if (objects + (replacesObject ? 0 : 1) > quota.maxObjects) {
+    return "storage object limit exceeded";
+  }
+  return null;
 }
 
 async function uploadUserSkin(
@@ -1066,28 +1119,12 @@ async function deleteProject(
   if (!rowsResponse.ok) throw new Error("could not read project assets");
   const rows = (await rowsResponse.json()) as { storage_path: string }[];
 
-  const warnings: string[] = [];
   const known = rows
     .map((row) => row.storage_path)
     .filter((path) => path.startsWith(`${projectId}/`));
-  const cleanup = await Promise.allSettled([
-    deleteR2Prefix(env.PROJECT_ASSETS, `${projectId}/`),
-    deleteSupabasePrefix("maps", projectId, env, known),
-  ]);
-  for (const result of cleanup) {
-    if (result.status === "rejected") warnings.push(errorMessage(result.reason));
-  }
-  if (warnings.length) {
-    reportCleanupWarnings("project", projectId, warnings);
-    return storageJson(
-      {
-        error: "Project was not deleted because its files could not be fully removed. Try again.",
-      },
-      502,
-      env,
-    );
-  }
-
+  // Delete the authoritative row before garbage-collecting its objects. A failed
+  // database delete now leaves the project completely intact; cleanup failures
+  // leave harmless orphans instead of a visible project with missing media.
   const deleteResponse = await supabaseRest(
     env,
     `/projects?id=eq.${projectId}&select=id`,
@@ -1103,7 +1140,17 @@ async function deleteProject(
   const deleted = (await deleteResponse.json()) as { id: string }[];
   if (!deleted.length) return storageJson({ error: "project not found" }, 404, env);
 
-  return storageJson({ deleted: true }, 200, env);
+  const warnings: string[] = [];
+  const cleanup = await Promise.allSettled([
+    deleteR2Prefix(env.PROJECT_ASSETS, `${projectId}/`),
+    deleteSupabasePrefix("maps", projectId, env, known),
+  ]);
+  for (const result of cleanup) {
+    if (result.status === "rejected") warnings.push(errorMessage(result.reason));
+  }
+  if (warnings.length) reportCleanupWarnings("project", projectId, warnings);
+
+  return storageJson({ deleted: true, warnings }, 200, env);
 }
 
 async function deleteSharedMap(

@@ -85,10 +85,25 @@ export function Menu({
     };
     const close = () => setOpen(false);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+      const enabled = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]:not(:disabled)',
+      ) ?? [])];
+      if (!enabled.length) return;
+      const current = enabled.indexOf(document.activeElement as HTMLButtonElement);
+      const focusAt = (index: number) => {
+        e.preventDefault();
+        enabled[(index + enabled.length) % enabled.length]?.focus();
+      };
+      if (e.key === "ArrowDown") focusAt(current + 1);
+      else if (e.key === "ArrowUp") focusAt(current < 0 ? enabled.length - 1 : current - 1);
+      else if (e.key === "Home") focusAt(0);
+      else if (e.key === "End") focusAt(enabled.length - 1);
     };
     // A menu taller than the window scrolls itself; only a scroll elsewhere
     // moves the trigger out from under it.
@@ -106,6 +121,13 @@ export function Menu({
       window.removeEventListener("scroll", onScroll, true);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !mounted) return;
+    menuRef.current
+      ?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')
+      ?.focus();
+  }, [mounted, open]);
 
   return (
     <>
@@ -134,7 +156,7 @@ export function Menu({
           >
             {items.map((item, i) =>
               "separator" in item ? (
-                <div key={i} className="my-1 h-px bg-white/10" />
+                <div key={i} role="separator" className="my-1 h-px bg-white/10" />
               ) : (
                 <button
                   key={i}

@@ -213,6 +213,18 @@ describe("project media records", () => {
     expect(puts.filter((k) => k === "media:current")).toHaveLength(2);
   });
 
+  it("rewrites media when contents change but name, size and type do not", async () => {
+    const { puts } = installStore();
+    const { saveProject } = await freshPersistence();
+    const first = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "audio/mpeg" });
+    const second = new Blob([new Uint8Array([4, 3, 2, 1])], { type: "audio/mpeg" });
+
+    await saveProject(project({ audioFiles: [{ name: "same.mp3", blob: first }] }));
+    await saveProject(project({ audioFiles: [{ name: "same.mp3", blob: second }] }));
+
+    expect(puts.filter((key) => key === "media:current")).toHaveLength(2);
+  });
+
   it("round-trips media through save and load", async () => {
     installStore();
     const { saveProject, loadProject } = await freshPersistence();

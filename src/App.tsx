@@ -213,7 +213,11 @@ import {
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
 import { supabase, getSupabaseToken } from "./lib/supabase";
-import { useCollab, type AssetChange } from "./hooks/useCollab";
+import {
+  useCollab,
+  type AssetChange,
+  type ProjectSyncChange,
+} from "./hooks/useCollab";
 import {
   applyNoteOp,
   applyOp,
@@ -251,7 +255,17 @@ import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
 import { LanguagePicker } from "./components/LanguagePicker";
 import { isDesktopApp, setLaunchFileConsumer } from "./lib/pwa";
-import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
+import {
+  osuChooseRoot,
+  osuFolderName,
+  osuMapLabel,
+  osuReadMap,
+  osuSelectedMap,
+  osuSendMap,
+  osuStatus,
+  osuSyncMap,
+  type OsuStatus,
+} from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
 import { updatePresence } from "./lib/discordPresence";
 import {
@@ -355,7 +369,7 @@ import {
   sameNoteGeometry,
   withoutNoteCollisions,
 } from "./lib/noteCollision";
-import { downloadOsu } from "./lib/osuExport";
+import { downloadOsu, setFilename } from "./lib/osuExport";
 import {
   adoptOsuDifficulty,
   importOsz,
@@ -367,6 +381,7 @@ import {
 import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
 import { parseSmFile } from "./lib/smImport";
 import type { PackSong } from "./lib/smPackImport";
+import { assertTextImportSize } from "./lib/importLimits";
 import {
   emptyJudgementCounts,
   judgeHitError,
@@ -908,6 +923,7 @@ export default function App() {
     null | "saving" | "saved" | "error"
   >(null);
   const [cloudError, setCloudError] = useState<string | null>(null);
+  const [cloudSyncRetry, setCloudSyncRetry] = useState(0);
   const [invites, setInvites] = useState<InviteNotice[]>([]);
   const [notifications, setNotifications] = useState<InboxNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -1092,6 +1108,10 @@ export default function App() {
   const lastDiffOpSendRef = useRef(0);
   const diffOpTimerRef = useRef<number | null>(null);
   const pendingDocSyncRef = useRef(false);
+  const cloudSyncTimerRef = useRef<number | null>(null);
+  const localEditVersionRef = useRef(0);
+  const cloudRevisionRef = useRef<number | null>(null);
+  const ownMutationIdsRef = useRef<Set<string>>(new Set());
   const collabRef = useRef<ReturnType<typeof useCollab> | null>(null);
   const publishedAssetBlobsRef = useRef<Map<string, Blob>>(new Map());
   const assetPublishPromiseRef = useRef<Promise<void>>(Promise.resolve());
@@ -1106,6 +1126,11 @@ export default function App() {
   const lastCloudSettingsRef = useRef<string | null>(null);
   const accountSettingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const accountSettingsSaveVersionRef = useRef(0);
+
+  const markStructural = useCallback(() => {
+    localEditVersionRef.current += 1;
+    if (sessionActiveRef.current) pendingDocSyncRef.current = true;
+  }, []);
 
   useEffect(() => {
     if (!cloudProjectId || !authUser) return;
@@ -1139,13 +1164,42 @@ export default function App() {
     applyingRemoteRef.current = true;
     setDifficulties((prev) => applyOp(prev, op));
   }, []);
-  const refreshFromCloud = useCallback(() => {
+  const refreshFromCloud = useCallback((change?: ProjectSyncChange) => {
     const pid = cloudProjectIdRef.current;
     if (!pid) return;
+    if (change?.mutationId && ownMutationIdsRef.current.has(change.mutationId)) {
+      if (change.revision !== null) cloudRevisionRef.current = change.revision;
+      return;
+    }
+    if (
+      change?.revision !== null &&
+      change?.revision !== undefined &&
+      cloudRevisionRef.current !== null &&
+      change.revision <= cloudRevisionRef.current
+    ) {
+      return;
+    }
     const refreshId = ++cloudRefreshIdRef.current;
+    const editVersion = localEditVersionRef.current;
     void loadProjectChartCloud(pid)
-      .then((data) => {
+      .then((snapshot) => {
         if (refreshId !== cloudRefreshIdRef.current) return;
+        if (
+          localEditVersionRef.current !== editVersion ||
+          pendingDocSyncRef.current ||
+          cloudSyncTimerRef.current !== null
+        ) {
+          return;
+        }
+        if (
+          snapshot.revision !== null &&
+          cloudRevisionRef.current !== null &&
+          snapshot.revision <= cloudRevisionRef.current
+        ) {
+          return;
+        }
+        if (snapshot.revision !== null) cloudRevisionRef.current = snapshot.revision;
+        const data = snapshot.data;
         const localChart = JSON.stringify({
           meta: metaRef.current,
           timingPoints: timingPointsRef.current,
@@ -1214,11 +1268,24 @@ export default function App() {
 
   const queueCloudSave = useCallback(
     (projectId: string, data: Parameters<typeof saveProjectDataCloud>[1]) => {
+      const mutationId = crypto.randomUUID();
+      ownMutationIdsRef.current.add(mutationId);
+      if (ownMutationIdsRef.current.size > 1_000) {
+        const oldest = ownMutationIdsRef.current.values().next().value;
+        if (oldest) ownMutationIdsRef.current.delete(oldest);
+      }
       const save = async () => {
         await assetPublishPromiseRef.current;
-        await saveProjectDataCloud(projectId, data);
+        const stamp = await saveProjectDataCloud(projectId, data, mutationId);
+        if (stamp.revision !== null) cloudRevisionRef.current = stamp.revision;
       };
-      const queued = cloudSavePromiseRef.current.catch(() => {}).then(save);
+      const queued = cloudSavePromiseRef.current
+        .catch(() => {})
+        .then(save)
+        .catch((error) => {
+          ownMutationIdsRef.current.delete(mutationId);
+          throw error;
+        });
       cloudSavePromiseRef.current = queued;
       return queued;
     },
@@ -1227,6 +1294,7 @@ export default function App() {
 
   const commitNoteOp = useCallback((op: NoteOp) => {
     if (!canEditRef.current) return;
+    markStructural();
     setDifficulties((prev) => applyNoteOp(prev, op));
     if (sessionActiveRef.current) {
       opUndoRef.current.push(op);
@@ -1234,7 +1302,7 @@ export default function App() {
       opRedoRef.current = [];
       collabRef.current?.sendOp(op);
     }
-  }, []);
+  }, [markStructural]);
 
   const flushDiffOp = useCallback(() => {
     if (diffOpTimerRef.current !== null) {
@@ -1251,6 +1319,7 @@ export default function App() {
   const commitDiffFields = useCallback(
     (fields: Partial<Record<keyof DiffFieldOp["fields"], number | null>>) => {
       if (!canEditRef.current) return;
+      markStructural();
       const diffId = activeIdRef.current;
       const op: DiffFieldOp = { t: "diff.fields", diffId, fields };
       setDifficulties((prev) => applyDiffFieldOp(prev, op));
@@ -1270,12 +1339,8 @@ export default function App() {
         );
       }
     },
-    [flushDiffOp],
+    [flushDiffOp, markStructural],
   );
-
-  const markStructural = useCallback(() => {
-    if (sessionActiveRef.current) pendingDocSyncRef.current = true;
-  }, []);
 
   const announceAssetChange = useCallback((action: string) => {
     if (!sessionActiveRef.current) return;
@@ -1463,24 +1528,6 @@ export default function App() {
       pendingSeekRef.current = null;
     }
   }, [audio.duration, seekAudio]);
-
-  const autoSaveTimerRef = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    if (!cloudProjectId || !canEdit) return;
-    window.clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = window.setTimeout(() => {
-      void queueCloudSave(cloudProjectId, {
-        meta: metaRef.current,
-        timingPoints: timingPointsRef.current,
-        difficulties: difficultiesRef.current,
-        activeId: activeIdRef.current,
-        view,
-        bgScope,
-      }).catch(() => {});
-    }, 1500);
-    return () => window.clearTimeout(autoSaveTimerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudProjectId, canEdit, difficulties, meta, timingPoints, assetPublishTick]);
 
   useEffect(() => {
     if (!cloudProjectId || !liveEnabled || !canEdit) return;
@@ -2456,6 +2503,7 @@ export default function App() {
   const onVideoOffsetMs = useCallback((ms: number) => {
     const videoName = active.videoFilename;
     if (!videoName) return;
+    markStructural();
     setDifficulties((prev) =>
       prev.map((d) =>
         d.videoFilename === videoName
@@ -2463,7 +2511,7 @@ export default function App() {
           : d,
       ),
     );
-  }, [active.videoFilename]);
+  }, [active.videoFilename, markStructural]);
 
   const onClearBackground = useCallback(() => {
     const bgName = active.backgroundFilename;
@@ -3002,6 +3050,7 @@ export default function App() {
     setImportError(null);
     setImportingMap(true);
     try {
+      assertTextImportSize(file);
       const text = await file.text();
       const map = parseSmFile(text);
       void logAnalyticsEvent("import_sm", authUserRef.current?.id).catch(
@@ -3011,6 +3060,18 @@ export default function App() {
       setCloudOwnerId(null);
       setMyRole(null);
       setReferenceId(null);
+      setAudioFiles((previous) => {
+        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
+        return {};
+      });
+      setBgFiles((previous) => {
+        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
+        return {};
+      });
+      setVideoFiles((previous) => {
+        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
+        return {};
+      });
       setProjectStarted(true);
       setMeta(map.meta);
       setTimingPoints(
@@ -3049,6 +3110,7 @@ export default function App() {
     setImportError(null);
     setImportingMap(true);
     try {
+      assertTextImportSize(file);
       const { parseQuaFile } = await import("./lib/qua");
       const map = parseQuaFile(await file.text());
       setAudioFiles((previous) => {
@@ -3118,6 +3180,7 @@ export default function App() {
   const readOsuFiles = useCallback(async (files: File[]) => {
     const entries: OsuEntry[] = [];
     for (const file of files) {
+      assertTextImportSize(file);
       const text = await file.text();
       if (!isManiaOsu(text)) {
         throw new Error(`${file.name} isn't an osu!mania (Mode 3) difficulty.`);
@@ -4327,21 +4390,64 @@ export default function App() {
 
   useEffect(() => {
     if (!sessionActiveRef.current || !pendingDocSyncRef.current) return;
-    pendingDocSyncRef.current = false;
-    const pid = cloudProjectIdRef.current;
-    if (!pid || !canEditRef.current) return;
-    void queueCloudSave(pid, {
-      meta,
-      timingPoints,
-      difficulties,
-      activeId: activeIdRef.current,
-      view,
-      bgScope,
-    })
-      .then(() => collabRef.current?.sendRefresh())
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta, timingPoints, difficulties]);
+    if (cloudSyncTimerRef.current !== null) {
+      window.clearTimeout(cloudSyncTimerRef.current);
+    }
+    cloudSyncTimerRef.current = window.setTimeout(() => {
+      cloudSyncTimerRef.current = null;
+      if (!pendingDocSyncRef.current) return;
+      pendingDocSyncRef.current = false;
+      const pid = cloudProjectIdRef.current;
+      if (!pid || !canEditRef.current) return;
+      void queueCloudSave(pid, {
+        meta: metaRef.current,
+        timingPoints: timingPointsRef.current,
+        difficulties: difficultiesRef.current,
+        activeId: activeIdRef.current,
+        view,
+        bgScope,
+      })
+        // doc.bump keeps old deployments functional; revision-aware peers ignore
+        // the duplicate refresh produced by Postgres Changes.
+        .then(() => {
+          if (cloudProjectIdRef.current !== pid) return;
+          setCloudError((current) =>
+            current?.startsWith("Live collaboration save failed:") ? null : current,
+          );
+          collabRef.current?.sendRefresh();
+        })
+        .catch((error) => {
+          if (cloudProjectIdRef.current !== pid || !canEditRef.current) return;
+          pendingDocSyncRef.current = true;
+          const detail = error instanceof Error ? error.message : "Unknown error";
+          setCloudError(
+            `Live collaboration save failed: ${detail}. Retrying automatically.`,
+          );
+          if (cloudSyncTimerRef.current !== null) {
+            window.clearTimeout(cloudSyncTimerRef.current);
+          }
+          cloudSyncTimerRef.current = window.setTimeout(() => {
+            cloudSyncTimerRef.current = null;
+            setCloudSyncRetry((value) => value + 1);
+          }, 2_000);
+        });
+    }, 250);
+    return () => {
+      if (cloudSyncTimerRef.current !== null) {
+        window.clearTimeout(cloudSyncTimerRef.current);
+        cloudSyncTimerRef.current = null;
+      }
+    };
+  }, [
+    meta,
+    timingPoints,
+    difficulties,
+    activeId,
+    view,
+    bgScope,
+    cloudSyncRetry,
+    queueCloudSave,
+  ]);
 
   const applySnapshot = useCallback((s: DocSnapshot) => {
     applyingHistoryRef.current = true;
@@ -4357,6 +4463,7 @@ export default function App() {
       const op = opUndoRef.current.pop();
       if (!op) return;
       const inv = invertNoteOp(op);
+      markStructural();
       setDifficulties((prev) => applyNoteOp(prev, inv));
       opRedoRef.current.push(op);
       collabRef.current?.sendOp(inv);
@@ -4368,12 +4475,13 @@ export default function App() {
     if (presentRef.current) redoStackRef.current.push(presentRef.current);
     applySnapshot(prev);
     bumpHistory((v) => v + 1);
-  }, [applySnapshot]);
+  }, [applySnapshot, markStructural]);
 
   const redo = useCallback(() => {
     if (sessionActiveRef.current) {
       const op = opRedoRef.current.pop();
       if (!op) return;
+      markStructural();
       setDifficulties((prev) => applyNoteOp(prev, op));
       opUndoRef.current.push(op);
       collabRef.current?.sendOp(op);
@@ -4385,7 +4493,7 @@ export default function App() {
     if (presentRef.current) undoStackRef.current.push(presentRef.current);
     applySnapshot(next);
     bumpHistory((v) => v + 1);
-  }, [applySnapshot]);
+  }, [applySnapshot, markStructural]);
 
   const canUndo = liveEnabled
     ? opUndoRef.current.length > 0
@@ -4420,6 +4528,7 @@ export default function App() {
         opUndoRef.current.push(op); operations.push(op);
       }
       if (!operations.length) return;
+      markStructural();
       setDifficulties(prev => operations.reduce((state, op) => applyNoteOp(state, op), prev));
       for (const op of operations) collabRef.current?.sendOp(op);
     } else {
@@ -4430,7 +4539,7 @@ export default function App() {
       applySnapshot(result.present);
     }
     bumpHistory(v => v + 1);
-  }, [applySnapshot]);
+  }, [applySnapshot, markStructural]);
 
   const applySavedProject = useCallback((saved: SavedProject) => {
     applyingHistoryRef.current = true;
@@ -5351,10 +5460,7 @@ export default function App() {
   );
 
   const ensureOsuFolder = useCallback(async () => {
-    const { osuStatus: readStatus, osuChooseRoot } = await import(
-      "./lib/osuDesktop"
-    );
-    const current = await readStatus();
+    const current = await osuStatus();
     setOsuApp(current);
     if (current.installed) return true;
     const picked = await osuChooseRoot();
@@ -5369,11 +5475,7 @@ export default function App() {
     setImportError(null);
     setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
     try {
-      const [{ buildOsz }, { setFilename }, { osuSendMap }] = await Promise.all([
-        import("./lib/oszExport"),
-        import("./lib/osuExport"),
-        import("./lib/osuDesktop"),
-      ]);
+      const { buildOsz } = await import("./lib/oszExport");
       const archive = await buildOsz({
         meta: songMeta,
         difficulties,
@@ -5427,10 +5529,7 @@ export default function App() {
     setImportError(null);
     setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
     try {
-      const [{ buildOsz }, { osuSyncMap, osuFolderName }] = await Promise.all([
-        import("./lib/oszExport"),
-        import("./lib/osuDesktop"),
-      ]);
+      const { buildOsz } = await import("./lib/oszExport");
       const archive = await buildOsz({
         meta: songMeta,
         difficulties,
@@ -5486,9 +5585,6 @@ export default function App() {
     setOsuBusy(true);
     setImportError(null);
     try {
-      const { osuSelectedMap, osuReadMap, osuMapLabel } = await import(
-        "./lib/osuDesktop"
-      );
       const selected = await osuSelectedMap();
       const archive = await osuReadMap(selected.folder);
       const file = new File([archive], `${selected.folder}.osz`, {
@@ -5578,7 +5674,7 @@ export default function App() {
   }, [pendingOsuDiffs, hasProjectContent, openOsuAsProject]);
 
   const removeDuplicates = useCallback(() => {
-    if (!exportCheck) return;
+    if (!exportCheck || !canEditRef.current) return;
     const dupMap = exportCheck.result.duplicateNoteIds;
     const nextDiffs = difficulties.map((d) => {
       const ids = new Set(dupMap[d.id] ?? []);
@@ -5586,6 +5682,7 @@ export default function App() {
         ? { ...d, notes: d.notes.filter((n) => !ids.has(n.id)) }
         : d;
     });
+    markStructural();
     setDifficulties(nextDiffs);
     const result = validateProject({
       meta,
@@ -5595,7 +5692,7 @@ export default function App() {
       target: exportCheck.target,
     });
     setExportCheck((check) => (check ? { ...check, result } : check));
-  }, [exportCheck, difficulties, meta, audioFiles, bgFiles]);
+  }, [exportCheck, difficulties, meta, audioFiles, bgFiles, markStructural]);
 
   const buildSavedProject = useCallback((): SavedProject => ({
     version: PROJECT_VERSION,
@@ -5739,6 +5836,8 @@ export default function App() {
     try {
       await cloudSavePromiseRef.current.catch(() => {});
       const creatingProject = !cloudProjectId;
+      const mutationId = crypto.randomUUID();
+      if (!creatingProject) ownMutationIdsRef.current.add(mutationId);
       const id = await saveProjectCloud({
         ownerId: authUser.id,
         projectId: cloudProjectId,
@@ -5751,6 +5850,7 @@ export default function App() {
           name: f.name,
           blob: f.blob,
         })),
+        mutationId,
       });
       publishedAssetBlobsRef.current = new Map([
         ...Object.values(audioFiles).map(
@@ -5820,6 +5920,10 @@ export default function App() {
     setCloudError(null);
     setModal(null);
     setImportingMap(true);
+    pendingDocSyncRef.current = false;
+    cloudRevisionRef.current = null;
+    ownMutationIdsRef.current.clear();
+    localEditVersionRef.current = 0;
     try {
       const proj = await loadProjectCloud(id);
       void logAnalyticsEvent("collab_joined", authUserRef.current?.id).catch(

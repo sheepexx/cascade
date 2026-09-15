@@ -136,15 +136,40 @@ const MEDIA_FIELDS: (keyof MediaPayload)[] = [
   "skin",
 ];
 
-function fileTag(file: { name: string; blob: Blob } | null | undefined) {
-  return file ? `${file.name}:${file.blob.size}:${file.blob.type}` : "-";
+const blobDigestCache = new WeakMap<Blob, Promise<string>>();
+
+function blobDigest(blob: Blob): Promise<string> {
+  const cached = blobDigestCache.get(blob);
+  if (cached) return cached;
+  const digest = blob
+    .arrayBuffer()
+    .then((bytes) => crypto.subtle.digest("SHA-256", bytes))
+    .then((hash) =>
+      [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join(""),
+    );
+  blobDigestCache.set(blob, digest);
+  return digest;
 }
 
-function mediaSignature(media: MediaPayload): string {
-  return MEDIA_FIELDS.map((field) => {
-    const value = media[field];
-    return Array.isArray(value) ? value.map(fileTag).join(",") : fileTag(value);
-  }).join("|");
+async function fileTag(
+  file: { name: string; blob: Blob } | null | undefined,
+): Promise<string> {
+  return file
+    ? `${file.name}:${file.blob.size}:${file.blob.type}:${await blobDigest(file.blob)}`
+    : "-";
+}
+
+async function mediaSignature(media: MediaPayload): Promise<string> {
+  return (
+    await Promise.all(
+      MEDIA_FIELDS.map(async (field) => {
+        const value = media[field];
+        return Array.isArray(value)
+          ? (await Promise.all(value.map(fileTag))).join(",")
+          : fileTag(value);
+      }),
+    )
+  ).join("|");
 }
 
 function splitMedia(project: SavedProject): {
@@ -357,7 +382,7 @@ export async function saveProject(
 ): Promise<void> {
   const key = projectKey(localId);
   const { chart, media } = splitMedia(project);
-  const signature = mediaSignature(media);
+  const signature = await mediaSignature(media);
   const mediaUnchanged = lastMediaSignature.get(key) === signature;
 
   await withStore<void>("readwrite", (store) => {

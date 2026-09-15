@@ -109,50 +109,55 @@ function parseStops(str: string): StopEntry[] {
   return stops;
 }
 
-function beatToMs(
-  beat: number,
+function makeBeatToMs(
   bpms: BpmEntry[],
   stops: StopEntry[],
   offsetMs: number,
-): number {
-  let time = offsetMs;
-  let prevBeat = 0;
-
-  for (let i = 0; i < bpms.length; i++) {
-    const bpm = bpms[i].bpm;
-    const segEnd = i + 1 < bpms.length ? bpms[i + 1].beat : Infinity;
-
-    if (beat < segEnd) {
-      const beatDiff = beat - prevBeat;
-      time += beatDiff * (60_000 / bpm);
-      for (const s of stops) {
-        if (s.beat >= prevBeat && s.beat < beat) {
-          time += s.seconds * 1000;
-        }
-      }
-      return time;
-    }
-
-    const beatDiff = segEnd - prevBeat;
-    time += beatDiff * (60_000 / bpm);
-    for (const s of stops) {
-      if (s.beat >= prevBeat && s.beat < segEnd) {
-        time += s.seconds * 1000;
-      }
-    }
-    prevBeat = segEnd;
+): (beat: number) => number {
+  const segments = bpms.map((entry, index) => ({
+    startBeat: index === 0 ? 0 : entry.beat,
+    bpm: entry.bpm,
+    startMs: 0,
+  }));
+  for (let index = 1; index < segments.length; index += 1) {
+    const previous = segments[index - 1];
+    segments[index].startMs =
+      previous.startMs +
+      (segments[index].startBeat - previous.startBeat) * (60_000 / previous.bpm);
   }
 
-  if (beat > prevBeat) {
-    const lastBpm = bpms.length > 0 ? bpms[bpms.length - 1].bpm : 120;
-    time += (beat - prevBeat) * (60_000 / lastBpm);
-    for (const s of stops) {
-      if (s.beat >= prevBeat && s.beat < beat) {
-        time += s.seconds * 1000;
-      }
-    }
+  const sortedStops = stops
+    .filter((stop) => stop.beat >= 0)
+    .sort((a, b) => a.beat - b.beat);
+  const stopPrefixMs = new Array<number>(sortedStops.length + 1).fill(0);
+  for (let index = 0; index < sortedStops.length; index += 1) {
+    stopPrefixMs[index + 1] = stopPrefixMs[index] + sortedStops[index].seconds * 1000;
   }
-  return time;
+
+  return (beat: number) => {
+    let lo = 0;
+    let hi = segments.length;
+    while (lo + 1 < hi) {
+      const mid = (lo + hi) >> 1;
+      if (segments[mid].startBeat <= beat) lo = mid;
+      else hi = mid;
+    }
+    const segment = segments[lo];
+
+    let stopLo = 0;
+    let stopHi = sortedStops.length;
+    while (stopLo < stopHi) {
+      const mid = (stopLo + stopHi) >> 1;
+      if (sortedStops[mid].beat < beat) stopLo = mid + 1;
+      else stopHi = mid;
+    }
+    return (
+      offsetMs +
+      segment.startMs +
+      (beat - segment.startBeat) * (60_000 / segment.bpm) +
+      stopPrefixMs[stopLo]
+    );
+  };
 }
 
 function buildTimingPoints(
@@ -253,6 +258,7 @@ function notesFromRows(
   if (current.length > 0) measures.push(current);
 
   const notes: ManiaNote[] = [];
+  const beatToMs = makeBeatToMs(bpms, stops, offsetMs);
   let beatsAccumulated = 0;
   const inHold = new Array(keys).fill(false);
   const holdStart = new Array(keys).fill(0);
@@ -267,7 +273,7 @@ function notesFromRows(
     for (let ri = 0; ri < rows.length; ri++) {
       const beatInMeasure = (ri / rowsPerMeasure) * 4;
       const currentBeat = beatsAccumulated + beatInMeasure;
-      const time = Math.round(beatToMs(currentBeat, bpms, stops, offsetMs));
+      const time = Math.round(beatToMs(currentBeat));
       const row = rows[ri];
 
       for (let col = 0; col < Math.min(row.length, keys); col++) {

@@ -37,7 +37,9 @@ export function isUpdateReady(): boolean {
 }
 
 export function applyPendingUpdate(): void {
-  void applyUpdate?.(true);
+  void applyUpdate?.(true).catch((error) => {
+    console.warn("[pwa] update could not be applied", error);
+  });
 }
 
 const pendingFiles: File[] = [];
@@ -90,13 +92,17 @@ export function initPwa(): void {
   });
 
   if (import.meta.env.DEV) return;
-  void import("virtual:pwa-register").then(({ registerSW }) => {
-    applyUpdate = registerSW({
-      immediate: true,
-      onNeedRefresh() {
-        updateReady = true;
-        notify();
-      },
+  void import("virtual:pwa-register")
+    .then(({ registerSW }) => {
+      applyUpdate = registerSW({
+        immediate: true,
+        onNeedRefresh() {
+          updateReady = true;
+          notify();
+        },
+      });
+    })
+    .catch((error) => {
+      console.warn("[pwa] service worker registration failed", error);
     });
-  });
 }

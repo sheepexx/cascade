@@ -25,6 +25,20 @@ export type CloudProjectData = {
 
 export type CloudAsset = { name: string; blob: Blob };
 
+export type CloudSyncStamp = {
+  revision: number | null;
+  mutationId: string;
+  updatedBy: string | null;
+};
+
+/** Videos are intentionally local/export-only and must not leave dangling cloud references. */
+export function cloudSafeProjectData(data: CloudProjectData): CloudProjectData {
+  return {
+    ...data,
+    difficulties: data.difficulties.map(({ videoFilename: _video, videoOffsetMs: _offset, ...d }) => d),
+  };
+}
+
 export type CloudProjectSummary = {
   id: string;
   owner: string;
@@ -42,10 +56,13 @@ type SaveParams = {
   data: CloudProjectData;
   audioFiles: CloudAsset[];
   bgFiles: CloudAsset[];
+  mutationId?: string;
 };
 
 export async function saveProjectCloud(params: SaveParams): Promise<string> {
-  const { ownerId, projectId, data, audioFiles, bgFiles } = params;
+  const { ownerId, projectId, audioFiles, bgFiles } = params;
+  const data = cloudSafeProjectData(params.data);
+  const mutationId = params.mutationId ?? crypto.randomUUID();
 
   const assets = [
     ...audioFiles.map((a) => ({ ...a, kind: "audio" as const })),
@@ -123,25 +140,43 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
       });
     }
 
-    const { data: obsolete, error: replaceError } = await supabase.rpc(
-      "replace_project_assets",
-      { p_project: id, p_assets: assetRows },
-    );
-    if (replaceError) throw new Error(replaceError.message);
-
-    // For an existing collaborative project, publish the assets first and the
-    // chart reference last. Peers can never observe a new filename before its
-    // blob and project_assets row are ready to download.
+    let obsolete: { obsolete_path: string | null }[] | null = null;
     if (projectId) {
-      const { error } = await supabase
-        .from("projects")
-        .update(row)
-        .eq("id", id);
-      if (error) throw new Error(error.message);
+      const combined = await supabase.rpc("save_project_with_assets", {
+        p_project: id,
+        p_assets: assetRows,
+        p_data: data,
+        p_mutation_id: mutationId,
+      });
+      const missingCombined =
+        combined.error?.code === "PGRST202" ||
+        (combined.error &&
+          /could not find (?:the )?function .*save_project_with_assets/i.test(
+            combined.error.message,
+          ));
+      if (combined.error && !missingCombined) throw new Error(combined.error.message);
+      if (missingCombined) {
+        const replaced = await supabase.rpc("replace_project_assets", {
+          p_project: id,
+          p_assets: assetRows,
+        });
+        if (replaced.error) throw new Error(replaced.error.message);
+        obsolete = replaced.data as { obsolete_path: string | null }[] | null;
+        await saveProjectDataCloud(id, data, mutationId);
+      } else {
+        obsolete = combined.data as { obsolete_path: string | null }[] | null;
+      }
+    } else {
+      const replaced = await supabase.rpc("replace_project_assets", {
+        p_project: id,
+        p_assets: assetRows,
+      });
+      if (replaced.error) throw new Error(replaced.error.message);
+      obsolete = replaced.data as { obsolete_path: string | null }[] | null;
     }
 
-    for (const row of (obsolete ?? []) as { obsolete_path: string }[]) {
-      await deleteProjectAsset(id, row.obsolete_path);
+    for (const row of obsolete ?? []) {
+      if (row.obsolete_path) await deleteProjectAsset(id, row.obsolete_path);
     }
   } catch (err) {
     if (!projectId) {
@@ -163,29 +198,90 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
 export async function saveProjectDataCloud(
   projectId: string,
   data: CloudProjectData,
-): Promise<void> {
+  mutationId: string = crypto.randomUUID(),
+): Promise<CloudSyncStamp> {
+  const safeData = cloudSafeProjectData(data);
+  const { data: saved, error: rpcError } = await supabase.rpc(
+    "save_project_snapshot",
+    {
+      p_project: projectId,
+      p_data: safeData,
+      p_mutation_id: mutationId,
+    },
+  );
+  if (!rpcError) {
+    const row = (saved as unknown as {
+      revision?: number | string;
+      last_mutation_id?: string;
+      updated_by?: string | null;
+    }[] | null)?.[0];
+    return {
+      revision: row?.revision == null ? null : Number(row.revision),
+      mutationId: row?.last_mutation_id ?? mutationId,
+      updatedBy: row?.updated_by ?? null,
+    };
+  }
+
+  // Rolling-deploy compatibility: old databases can keep saving until migration
+  // 0033 is applied. Other RPC failures must not be hidden by a direct update.
+  const missingRpc =
+    rpcError.code === "PGRST202" ||
+    /could not find (?:the )?function .*save_project_snapshot/i.test(rpcError.message);
+  if (!missingRpc) throw new Error(rpcError.message);
   const { error } = await supabase
     .from("projects")
     .update({
-      title: data.meta.title,
-      artist: data.meta.artist,
-      creator: data.meta.creator,
-      data,
+      title: safeData.meta.title,
+      artist: safeData.meta.artist,
+      creator: safeData.meta.creator,
+      data: safeData,
     })
     .eq("id", projectId);
   if (error) throw new Error(error.message);
+  return { revision: null, mutationId, updatedBy: null };
 }
+
+export type CloudChartSnapshot = CloudSyncStamp & { data: CloudProjectData };
 
 export async function loadProjectChartCloud(
   id: string,
-): Promise<CloudProjectData> {
-  const { data, error } = await supabase
+): Promise<CloudChartSnapshot> {
+  const rich = await supabase
+    .from("projects")
+    .select("data,revision,last_mutation_id,updated_by")
+    .eq("id", id)
+    .single();
+  if (!rich.error) {
+    const row = rich.data as unknown as {
+      data: CloudProjectData;
+      revision: number | string;
+      last_mutation_id: string | null;
+      updated_by: string | null;
+    };
+    return {
+      data: cloudSafeProjectData(row.data),
+      revision: Number(row.revision),
+      mutationId: row.last_mutation_id ?? "",
+      updatedBy: row.updated_by,
+    };
+  }
+
+  const missingColumns =
+    rich.error.code === "42703" ||
+    /revision|last_mutation_id|updated_by/i.test(rich.error.message);
+  if (!missingColumns) throw new Error(rich.error.message);
+  const legacy = await supabase
     .from("projects")
     .select("data")
     .eq("id", id)
     .single();
-  if (error) throw new Error(error.message);
-  return data.data as CloudProjectData;
+  if (legacy.error) throw new Error(legacy.error.message);
+  return {
+    data: cloudSafeProjectData(legacy.data.data as CloudProjectData),
+    revision: null,
+    mutationId: "",
+    updatedBy: null,
+  };
 }
 
 export async function listProjectsCloud(): Promise<CloudProjectSummary[]> {
@@ -261,17 +357,26 @@ export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> 
 
   const audio: CloudAsset[] = [];
   const bg: CloudAsset[] = [];
-  for (const a of assets ?? []) {
-    const blob = await downloadProjectAsset(id, a.storage_path as string);
-    const entry = { name: a.filename as string, blob };
-    if (a.kind === "audio") audio.push(entry);
-    else bg.push(entry);
-  }
+  const rows = assets ?? [];
+  let nextAsset = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(4, rows.length) }, async () => {
+      for (;;) {
+        const index = nextAsset++;
+        const asset = rows[index];
+        if (!asset) return;
+        const blob = await downloadProjectAsset(id, asset.storage_path as string);
+        const entry = { name: asset.filename as string, blob };
+        if (asset.kind === "audio") audio.push(entry);
+        else bg.push(entry);
+      }
+    }),
+  );
 
   return {
     id: project.id as string,
     owner: project.owner as string,
-    data: project.data as CloudProjectData,
+    data: cloudSafeProjectData(project.data as CloudProjectData),
     audio,
     bg,
   };

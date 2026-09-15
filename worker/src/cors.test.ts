@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DESKTOP_ORIGINS,
+  desktopNonceFromState,
   desktopPortFromState,
   desktopState,
   loopbackRedirect,
@@ -60,9 +61,11 @@ describe("loopback port parsing", () => {
 
 describe("desktop oauth round trip", () => {
   it("carries the port through the state", () => {
-    const state = desktopState(51234);
-    expect(state).toMatch(/^[0-9a-f-]{36}.desktop.51234$/);
+    const nonce = "12345678-1234-1234-1234-123456789abc";
+    const state = desktopState(51234, nonce);
+    expect(state).toMatch(/^[0-9a-f-]{36}.desktop.51234.[A-Za-z0-9_-]{16,128}$/);
     expect(desktopPortFromState(state)).toBe(51234);
+    expect(desktopNonceFromState(state)).toBe(nonce);
   });
 
   it.each([
@@ -77,8 +80,8 @@ describe("desktop oauth round trip", () => {
   });
 
   it("only ever builds a loopback url", () => {
-    expect(loopbackRedirect(51234, "tok en/+1")).toBe(
-      "http://127.0.0.1:51234/callback?session=tok%20en%2F%2B1",
+    expect(loopbackRedirect(51234, "tok en/+1", "nonce-value-123456")).toBe(
+      "http://127.0.0.1:51234/callback?session=tok%20en%2F%2B1&nonce=nonce-value-123456",
     );
   });
 });

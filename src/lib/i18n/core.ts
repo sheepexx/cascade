@@ -62,6 +62,9 @@ export function loadCatalog(locale: Locale): Promise<void> {
     .then((catalog) => registerCatalog(locale, catalog))
     .catch(() => {});
   pending.set(locale, task);
+  void task.finally(() => {
+    if (pending.get(locale) === task) pending.delete(locale);
+  });
   return task;
 }
 
