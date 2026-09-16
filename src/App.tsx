@@ -8129,6 +8129,8 @@ export default function App() {
           timeScale={activeRate}
           onShiftMarkers={shiftTimingMarkers}
           onSelectionChange={setTimingSelection}
+          previewTime={active.previewTime}
+          onPreviewTime={canEdit ? setPreviewPoint : undefined}
         />
       )}
       {modal === "history" && <HistoryModal open onClose={close} entries={historyEntries} current={historyCurrent} onJump={jumpHistory} readOnly={!canEdit} live={liveEnabled} />}

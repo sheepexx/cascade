@@ -37,6 +37,10 @@ type Props = {
   audioBuffer: AudioBuffer | null;
   /** Rate of the active difficulty; detection runs in audio-file time. */
   timeScale: number;
+  /** Preview point of the active difficulty, or -1 when it is unset. */
+  previewTime: number;
+  /** Omitted for viewers, who cannot change the map. */
+  onPreviewTime?: (ms: number) => void;
   onShiftMarkers?: (deltaMs: number) => void;
   /** Reports the selected rows so the bottom timeline can highlight them. */
   onSelectionChange?: (ids: ReadonlySet<string>) => void;
@@ -64,6 +68,8 @@ export const TimingModal = memo(function TimingModal({
   onSetPlaybackRate,
   audioBuffer,
   timeScale,
+  previewTime,
+  onPreviewTime,
   onShiftMarkers,
   onSelectionChange,
 }: Props) {
@@ -383,6 +389,38 @@ export const TimingModal = memo(function TimingModal({
                 </div>
               )}
             </section>
+
+            {onPreviewTime && (
+              <section className={CARD}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className={LABEL}>
+                    <span className="text-purple-300">◆</span> Preview point
+                  </span>
+                  <span className="font-mono text-xs text-slate-300">
+                    {previewTime >= 0
+                      ? `${Math.round(previewTime)} ms · ${formatTime(previewTime)}`
+                      : "Not set"}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] leading-snug text-slate-500">
+                  Where the song starts playing in song select.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="primary"
+                    onClick={() => onPreviewTime(getCurrentTime())}
+                  >
+                    Set preview point
+                  </Button>
+                  <Button
+                    disabled={previewTime < 0}
+                    onClick={() => onPreviewTime(-1)}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </section>
+            )}
 
             <SegmentedControl
               value={pointTab}
