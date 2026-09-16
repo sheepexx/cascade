@@ -7,6 +7,11 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useDialog } from "../../hooks/useDialog";
+import {
+  loadRecentCommands,
+  orderByRecency,
+  rememberCommand,
+} from "../../lib/commandRecents";
 import { MOTION } from "../../lib/motion";
 import { playUiSound } from "../../lib/uiSounds";
 
@@ -53,16 +58,18 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useDialog(open && mounted);
 
-  const results = useMemo(
-    () =>
-      commands
-        .map((command, order) => ({ command, order, score: rank(command, query) }))
-        .filter((entry) => entry.score >= 0)
-        .sort((a, b) => b.score - a.score || a.order - b.order)
-        .map((entry) => entry.command)
-        .slice(0, 60),
-    [commands, query],
-  );
+  const [recents, setRecents] = useState<string[]>(loadRecentCommands);
+
+  const results = useMemo(() => {
+    const matched = commands
+      .map((command, order) => ({ command, order, score: rank(command, query) }))
+      .filter((entry) => entry.score >= 0)
+      .sort((a, b) => b.score - a.score || a.order - b.order)
+      .map((entry) => entry.command);
+    // Recents only reorder the unfiltered list. Once someone types, their
+    // query is the stronger signal and ranking stays as it was.
+    return (query ? matched : orderByRecency(matched, recents)).slice(0, 60);
+  }, [commands, query, recents]);
 
   useEffect(() => {
     if (open) {
@@ -71,6 +78,7 @@ export function CommandPalette({
       setClosing(false);
       setQuery("");
       setSelected(0);
+      setRecents(loadRecentCommands());
       window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
       return;
     }
@@ -94,6 +102,7 @@ export function CommandPalette({
 
   const run = (command: PaletteCommand) => {
     if (command.disabled) return;
+    setRecents(rememberCommand(command.id));
     onClose();
     // Let the palette begin its exit before an underlying modal opens.
     window.setTimeout(command.run, 0);
