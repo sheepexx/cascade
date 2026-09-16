@@ -364,7 +364,16 @@ import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
 import { usePlaytestInput } from "./hooks/usePlaytestInput";
 import { usePlaytestAutoplay } from "./hooks/usePlaytestAutoplay";
-import { fullLongNotes, fullRiceNotes, copyHitsounds, countHitsounds } from "./lib/noteTools";
+import {
+  fullLongNotes,
+  fullRiceNotes,
+  fullLongNotesWithin,
+  fullRiceNotesWithin,
+  shiftLongNoteEnds,
+  dropShortLongNotes,
+  copyHitsounds,
+  countHitsounds,
+} from "./lib/noteTools";
 import {
   hasNoteCollisions,
   sameNoteGeometry,
@@ -4265,6 +4274,64 @@ export default function App() {
     });
   }, [commitNoteOp]);
 
+  /**
+   * The selection-scoped note tools. Each takes the ids the editor reports and
+   * commits one undoable update, the same way the difficulty-wide tools do.
+   */
+  const commitSelectionEdit = useCallback(
+    (edit: (notes: ManiaNote[], ids: ReadonlySet<string>) => ManiaNote[]) => {
+      const ids = selectionRange?.ids;
+      if (!ids?.size) return;
+      const did = activeIdRef.current;
+      const target = difficultiesRef.current.find((d) => d.id === did);
+      if (!target) return;
+      const after = edit(target.notes, ids);
+      if (after === target.notes || hasNoteCollisions(after)) return;
+      commitNoteOp({
+        t: "note.update",
+        diffId: did,
+        before: target.notes,
+        after,
+      });
+    },
+    [commitNoteOp, selectionRange],
+  );
+
+  const applySelectionLong = useCallback(
+    (ticks: number) =>
+      commitSelectionEdit((notes, ids) => {
+        const target = difficultiesRef.current.find(
+          (d) => d.id === activeIdRef.current,
+        );
+        const points = target?.timingPoints?.length
+          ? target.timingPoints
+          : timingPointsRef.current;
+        return fullLongNotesWithin(notes, ids, points, view.snapDivisor, ticks);
+      }),
+    [commitSelectionEdit, view.snapDivisor],
+  );
+
+  const applySelectionRice = useCallback(
+    () => commitSelectionEdit((notes, ids) => fullRiceNotesWithin(notes, ids)),
+    [commitSelectionEdit],
+  );
+
+  const applyShiftLnEnds = useCallback(
+    (deltaMs: number) =>
+      commitSelectionEdit((notes, ids) =>
+        shiftLongNoteEnds(notes, ids, deltaMs),
+      ),
+    [commitSelectionEdit],
+  );
+
+  const applyDropShortLns = useCallback(
+    (minMs: number) =>
+      commitSelectionEdit((notes, ids) =>
+        dropShortLongNotes(notes, ids, minMs),
+      ),
+    [commitSelectionEdit],
+  );
+
   const applyCopyHitsounds = useCallback(
     (sourceId: string) => {
       const did = activeIdRef.current;
@@ -6386,6 +6453,20 @@ export default function App() {
     [active.notes],
   );
 
+  /** Rice and hold counts inside the current selection, for the Tools panel. */
+  const selectionCounts = useMemo(() => {
+    const ids = selectionRange?.ids;
+    if (!ids?.size) return { rice: 0, holds: 0 };
+    let rice = 0;
+    let holdCount = 0;
+    for (const n of active.notes) {
+      if (!ids.has(n.id)) continue;
+      if (n.endTime !== undefined && n.endTime > n.startTime) holdCount++;
+      else rice++;
+    }
+    return { rice, holds: holdCount };
+  }, [active.notes, selectionRange]);
+
   const [ghostNotesFor, setGhostNotesFor] = useState<string | null>(null);
   const ghostNotes = ghostNotesFor === active.id;
   const setGhostNotes = useCallback(
@@ -8006,6 +8087,12 @@ export default function App() {
           onLnTicks={setLnTicks}
           onFullLong={applyFullLong}
           onFullRice={applyFullRice}
+          selectionRice={selectionCounts.rice}
+          selectionHolds={selectionCounts.holds}
+          onSelectionLong={applySelectionLong}
+          onSelectionRice={applySelectionRice}
+          onShiftLnEnds={applyShiftLnEnds}
+          onDropShortLns={applyDropShortLns}
           trimActive={cropInfo.trimActive}
           cropRemoveCount={cropInfo.remove}
           cropClampCount={cropInfo.clamp}

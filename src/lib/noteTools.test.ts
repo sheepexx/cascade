@@ -1,11 +1,15 @@
 import { describe, it, expect } from "vitest";
-import type { ManiaNote } from "../types";
+import { makeRedPoint, type ManiaNote } from "../types";
 import {
   mirrorColumns,
   copyHitsounds,
   countHitsounds,
+  dropShortLongNotes,
+  fullLongNotesWithin,
+  fullRiceNotesWithin,
   reverseTime,
   scaleTime,
+  shiftLongNoteEnds,
   shuffleColumns,
 } from "./noteTools";
 
@@ -216,5 +220,86 @@ describe("countHitsounds", () => {
       { id: "c", column: 2, startTime: 200, sampleFile: "clap.wav" },
     ];
     expect(countHitsounds(notes)).toBe(2);
+  });
+});
+
+describe("fullLongNotesWithin", () => {
+  const points = [makeRedPoint(0, 120)];
+  // Two lanes that both have somewhere to extend to.
+  const notes = [
+    note("a", 0, 0),
+    note("b", 0, 500),
+    note("c", 1, 0),
+    note("d", 1, 800),
+  ];
+
+  it("extends only the selected notes", () => {
+    const out = fullLongNotesWithin(notes, new Set(["a"]), points, 4, 0);
+    const byId = Object.fromEntries(out.map((n) => [n.id, n]));
+    expect(byId.a.endTime).toBe(500);
+    // "c" could have been extended but was not selected.
+    expect(byId.c.endTime).toBeUndefined();
+    expect(byId.b.endTime).toBeUndefined();
+  });
+
+  it("measures the tail against the whole difficulty, not just the selection", () => {
+    // "b" is not selected, but it still stops "a" short of running through it.
+    const out = fullLongNotesWithin(notes, new Set(["a"]), points, 4, 0);
+    expect(out.find((n) => n.id === "a")!.endTime).toBe(500);
+  });
+
+  it("leaves the notes alone for an empty selection", () => {
+    expect(fullLongNotesWithin(notes, new Set(), points, 4, 0)).toBe(notes);
+  });
+});
+
+describe("fullRiceNotesWithin", () => {
+  const notes = [note("ln1", 0, 0, 400), note("ln2", 1, 0, 400), note("r", 2, 0)];
+
+  it("converts only the selected holds", () => {
+    const out = fullRiceNotesWithin(notes, new Set(["ln1"]));
+    const byId = Object.fromEntries(out.map((n) => [n.id, n]));
+    expect(byId.ln1.endTime).toBeUndefined();
+    expect(byId.ln2.endTime).toBe(400);
+  });
+
+  it("leaves rice and empty selections untouched", () => {
+    expect(fullRiceNotesWithin(notes, new Set(["r"]))[2]).toEqual(notes[2]);
+    expect(fullRiceNotesWithin(notes, new Set())).toBe(notes);
+  });
+});
+
+describe("shiftLongNoteEnds", () => {
+  const notes = [note("ln", 0, 100, 400), note("r", 1, 100)];
+
+  it("moves selected tails", () => {
+    expect(shiftLongNoteEnds(notes, new Set(["ln"]), 100)[0].endTime).toBe(500);
+    expect(shiftLongNoteEnds(notes, new Set(["ln"]), -100)[0].endTime).toBe(300);
+  });
+
+  it("never pulls a tail through its own head", () => {
+    const out = shiftLongNoteEnds(notes, new Set(["ln"]), -10_000);
+    expect(out[0].endTime).toBe(101);
+  });
+
+  it("ignores rice notes and no-op shifts", () => {
+    expect(shiftLongNoteEnds(notes, new Set(["r"]), 100)[1].endTime).toBeUndefined();
+    expect(shiftLongNoteEnds(notes, new Set(["ln"]), 0)).toBe(notes);
+  });
+});
+
+describe("dropShortLongNotes", () => {
+  const notes = [note("stub", 0, 100, 120), note("keep", 1, 100, 400)];
+  const all = new Set(["stub", "keep"]);
+
+  it("turns holds under the threshold back into rice", () => {
+    const out = dropShortLongNotes(notes, all, 50);
+    expect(out[0].endTime).toBeUndefined();
+    expect(out[1].endTime).toBe(400);
+  });
+
+  it("does nothing without a selection or a threshold", () => {
+    expect(dropShortLongNotes(notes, new Set(), 50)).toBe(notes);
+    expect(dropShortLongNotes(notes, all, 0)).toBe(notes);
   });
 });

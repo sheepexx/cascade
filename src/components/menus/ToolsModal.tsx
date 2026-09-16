@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { SnapDivisor } from "../../types";
 import { snapTickDivisor } from "../../lib/timing";
 import { InfoTip } from "../ui/Tooltip";
@@ -16,6 +16,13 @@ type Props = {
   onLnTicks: (ticks: number) => void;
   onFullLong: (ticks: number) => void;
   onFullRice: () => void;
+  /** Rice and hold counts inside the current selection. */
+  selectionRice: number;
+  selectionHolds: number;
+  onSelectionLong: (ticks: number) => void;
+  onSelectionRice: () => void;
+  onShiftLnEnds: (deltaMs: number) => void;
+  onDropShortLns: (minMs: number) => void;
   trimActive: boolean;
   cropRemoveCount: number;
   cropClampCount: number;
@@ -67,6 +74,12 @@ export function ToolsModal({
   onLnTicks,
   onFullLong,
   onFullRice,
+  selectionRice,
+  selectionHolds,
+  onSelectionLong,
+  onSelectionRice,
+  onShiftLnEnds,
+  onDropShortLns,
   trimActive,
   cropRemoveCount,
   cropClampCount,
@@ -78,6 +91,10 @@ export function ToolsModal({
 }: Props) {
   const cropTotal = cropRemoveCount + cropClampCount;
   const noteTotal = riceCount + holdCount;
+  const selectionTotal = selectionRice + selectionHolds;
+  const [endShiftMs, setEndShiftMs] = useState(10);
+  // Matches the shortest hold AiMod accepts.
+  const [minLnMs, setMinLnMs] = useState(30);
 
   return (
     <Modal open={open} onClose={onClose} title="Tools" width="max-w-2xl">
@@ -162,6 +179,93 @@ export function ToolsModal({
           >
             <Button variant="accent" onClick={onFullRice} disabled={holdCount === 0}>
               Apply
+            </Button>
+          </ToolCard>
+
+          <ToolCard
+            title="Selected notes"
+            image="fullLn"
+            info="Runs the same LN and RC conversions over just your selection. Tails still stop before the next note in the lane, even when that note is not selected."
+            status={
+              selectionTotal === 0
+                ? "Select notes in the editor first."
+                : `${selectionRice} rice · ${selectionHolds} hold${
+                    selectionHolds === 1 ? "" : "s"
+                  } selected.`
+            }
+          >
+            <Field label={`Gap (ticks @ 1/${snapTickDivisor(snapDivisor)})`}>
+              <NumberInput
+                min={0}
+                max={64}
+                step={1}
+                value={lnTicks}
+                onChange={(e) =>
+                  onLnTicks(clampInt(e.target.value, 0, 64, lnTicks))
+                }
+                className="w-20"
+              />
+            </Field>
+            <Button
+              variant="accent"
+              onClick={() => onSelectionLong(lnTicks)}
+              disabled={selectionTotal === 0}
+            >
+              To LN
+            </Button>
+            <Button onClick={onSelectionRice} disabled={selectionHolds === 0}>
+              To rice
+            </Button>
+          </ToolCard>
+
+          <ToolCard
+            title="Long note ends"
+            image="fullRc"
+            info="Moves every selected tail by the same amount, or turns the stubs left behind by scaling and resnapping back into rice. A tail never crosses its own head."
+            status={
+              selectionHolds === 0
+                ? "Select some long notes in the editor first."
+                : `${selectionHolds} hold${
+                    selectionHolds === 1 ? "" : "s"
+                  } selected.`
+            }
+          >
+            <Field label="Move ends (ms)">
+              <NumberInput
+                min={-2000}
+                max={2000}
+                step={1}
+                value={endShiftMs}
+                onChange={(e) =>
+                  setEndShiftMs(clampInt(e.target.value, -2000, 2000, endShiftMs))
+                }
+                className="w-24"
+              />
+            </Field>
+            <Button
+              variant="accent"
+              onClick={() => onShiftLnEnds(endShiftMs)}
+              disabled={selectionHolds === 0 || endShiftMs === 0}
+            >
+              Move
+            </Button>
+            <Field label="Drop under (ms)">
+              <NumberInput
+                min={1}
+                max={2000}
+                step={1}
+                value={minLnMs}
+                onChange={(e) =>
+                  setMinLnMs(clampInt(e.target.value, 1, 2000, minLnMs))
+                }
+                className="w-24"
+              />
+            </Field>
+            <Button
+              onClick={() => onDropShortLns(minLnMs)}
+              disabled={selectionHolds === 0}
+            >
+              Drop
             </Button>
           </ToolCard>
 

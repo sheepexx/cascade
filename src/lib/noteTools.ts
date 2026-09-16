@@ -42,6 +42,76 @@ export function fullRiceNotes(notes: ManiaNote[]): ManiaNote[] {
   });
 }
 
+/**
+ * Long-note conversion limited to `ids`. Tails are still measured against the
+ * next note in the whole difficulty, not just the selection, so filling a
+ * selected run never runs its holds through notes that were left out.
+ */
+export function fullLongNotesWithin(
+  notes: ManiaNote[],
+  ids: ReadonlySet<string>,
+  timingPoints: TimingPoint[],
+  divisor: SnapDivisor,
+  ticksGap: number,
+): ManiaNote[] {
+  if (!ids.size) return notes;
+  const filled = fullLongNotes(notes, timingPoints, divisor, ticksGap);
+  const byId = new Map(filled.map((n) => [n.id, n]));
+  return notes.map((n) => (ids.has(n.id) ? (byId.get(n.id) ?? n) : n));
+}
+
+/** Rice conversion limited to `ids`. */
+export function fullRiceNotesWithin(
+  notes: ManiaNote[],
+  ids: ReadonlySet<string>,
+): ManiaNote[] {
+  if (!ids.size) return notes;
+  return notes.map((n) => {
+    if (!ids.has(n.id) || n.endTime === undefined) return n;
+    const { endTime: _drop, ...rice } = n;
+    return rice;
+  });
+}
+
+/**
+ * Move the tail of every selected long note by `deltaMs`. Rice notes are left
+ * alone, and a tail never crosses its own head: shortening past `minLengthMs`
+ * stops there rather than turning the hold inside out.
+ */
+export function shiftLongNoteEnds(
+  notes: ManiaNote[],
+  ids: ReadonlySet<string>,
+  deltaMs: number,
+  minLengthMs = 1,
+): ManiaNote[] {
+  if (!ids.size || deltaMs === 0) return notes;
+  const floor = Math.max(1, Math.round(minLengthMs));
+  return notes.map((n) => {
+    if (!ids.has(n.id) || n.endTime === undefined) return n;
+    if (n.endTime <= n.startTime) return n;
+    const end = Math.max(n.startTime + floor, Math.round(n.endTime + deltaMs));
+    return end === n.endTime ? n : { ...n, endTime: end };
+  });
+}
+
+/**
+ * Turn selected holds shorter than `minMs` back into rice. Cleans up the stubs
+ * left behind after scaling or resnapping a section.
+ */
+export function dropShortLongNotes(
+  notes: ManiaNote[],
+  ids: ReadonlySet<string>,
+  minMs: number,
+): ManiaNote[] {
+  if (!ids.size || minMs <= 0) return notes;
+  return notes.map((n) => {
+    if (!ids.has(n.id) || n.endTime === undefined) return n;
+    if (n.endTime - n.startTime >= minMs) return n;
+    const { endTime: _drop, ...rice } = n;
+    return rice;
+  });
+}
+
 export function mirrorColumns(
   notes: ManiaNote[],
   keyCount: number,
