@@ -7281,6 +7281,7 @@ export default function App() {
                   onRename={renameDifficulty}
                   onCreateRate={createRateDifficulty}
                   canEdit={canEdit}
+                  timingPoints={activeTimingPoints}
                   songDurationMs={audio.duration > 0 ? audio.duration : null}
                   peers={liveEnabled ? collab.peers : undefined}
                 />

@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import type { Difficulty } from "../types";
+import type { Difficulty, TimingPoint } from "../types";
 import { computeStarRating, starColor, starTextOn, starTier } from "../lib/starRating";
 import { computeMapStats } from "../lib/mapStats";
 import { useMsdRatings } from "../lib/msd/useMsd";
@@ -8,7 +8,11 @@ import { msdSupportsKeyCount, type MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
 import { RateChangerPanel } from "./RateChangerPanel";
 import { useT } from "../lib/i18n";
-import type { RateCreateOptions } from "../lib/rateChange";
+import {
+  bpmRange,
+  formatBpmRange,
+  type RateCreateOptions,
+} from "../lib/rateChange";
 
 type PeerLite = {
   id: string;
@@ -30,6 +34,8 @@ type Props = {
   onRename: (id: string, name: string) => void;
   onCreateRate: (options: RateCreateOptions) => void;
   canEdit: boolean;
+  /** Points in force for the active difficulty, shared fallback already applied. */
+  timingPoints: TimingPoint[];
   songDurationMs: number | null;
   peers?: PeerLite[];
 };
@@ -45,6 +51,7 @@ export function DifficultySidebar({
   onRename,
   onCreateRate,
   canEdit,
+  timingPoints,
   songDurationMs,
   peers,
 }: Props) {
@@ -88,6 +95,11 @@ export function DifficultySidebar({
   const stats = useMemo(
     () => (active ? computeMapStats(active.notes, active.keyCount) : null),
     [active],
+  );
+  /** "180", or "150–200" when the map changes tempo. */
+  const bpmLabel = useMemo(
+    () => formatBpmRange(bpmRange(timingPoints)),
+    [timingPoints],
   );
   const sorted = useMemo(
     () =>
@@ -180,6 +192,7 @@ export function DifficultySidebar({
             })}
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+            <Stat label="BPM" value={bpmLabel} />
             <Stat label={t("diffSidebar.notes")} value={String(stats.notes)} />
             <Stat label="LN" value={`${Math.round(stats.lnRatio * 100)}%`} />
             <Stat
