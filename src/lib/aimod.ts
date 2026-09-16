@@ -103,6 +103,8 @@ export type AiModSeverity = "warning" | "error";
 
 export const AIMOD_CONCURRENT_MS = 30;
 export const AIMOD_MIN_LONG_NOTE_MS = 30;
+/** Density ratio between neighbouring difficulties that counts as a spread gap. */
+export const AIMOD_SPREAD_GAP_RATIO = 2;
 
 export type AiModObject = { time: number; column: number };
 
@@ -247,6 +249,41 @@ export function runAiMod({
       severity: "warning",
       message: `Mapset mixes key counts (${[...keyCounts].sort((a, b) => a - b).join("K, ")}K).`,
     });
+  }
+
+  // A large jump in density between neighbouring difficulties is one of the
+  // first things a spread gets modded for. Compared only within a key count,
+  // since a 4K and a 7K difficulty aren't a spread of one another.
+  const byKeyCount = new Map<number, Difficulty[]>();
+  for (const d of difficulties) {
+    if (d.notes.length === 0) continue;
+    const arr = byKeyCount.get(d.keyCount);
+    if (arr) arr.push(d);
+    else byKeyCount.set(d.keyCount, [d]);
+  }
+  for (const group of byKeyCount.values()) {
+    if (group.length < 2) continue;
+    const ranked = group
+      .map((d) => {
+        const span = mappedSpanMs(d);
+        return { d, density: span > 0 ? (d.notes.length / span) * 1000 : 0 };
+      })
+      .filter((entry) => entry.density > 0)
+      .sort((a, b) => a.density - b.density);
+    for (let i = 0; i < ranked.length - 1; i++) {
+      const lower = ranked[i];
+      const upper = ranked[i + 1];
+      if (upper.density < lower.density * AIMOD_SPREAD_GAP_RATIO) continue;
+      add({
+        category: "Mapset",
+        severity: "warning",
+        message: `Large spread gap: "${upper.d.name}" is ${(
+          upper.density / lower.density
+        ).toFixed(1)}x as dense as "${lower.d.name}" (${upper.density.toFixed(
+          1,
+        )} vs ${lower.density.toFixed(1)} notes/s).`,
+      });
+    }
   }
 
   const nameCounts = new Map<string, number>();

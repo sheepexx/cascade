@@ -14,6 +14,51 @@ function note(startTime: number, column = 0, endTime?: number): ManiaNote {
   return { id: `n_${startTime}_${column}`, column, startTime, endTime };
 }
 
+describe("spread gap", () => {
+  const meta = { title: "T", artist: "A", creator: "C", tags: "x" };
+  const files = { "a.mp3": { name: "a.mp3", url: "", blob: new Blob() } };
+  const bg = { "bg.jpg": { name: "bg.jpg", url: "", blob: new Blob() } };
+
+  /** A difficulty with `count` notes spread evenly across a minute. */
+  function diffOfDensity(name: string, count: number, keyCount = 4) {
+    const d = makeDifficulty(name, keyCount);
+    d.audioFilename = "a.mp3";
+    d.backgroundFilename = "bg.jpg";
+    d.previewTime = 1000;
+    d.notes = Array.from({ length: count }, (_, i) =>
+      note(Math.round((i * 60_000) / count), i % keyCount),
+    );
+    return d;
+  }
+
+  const gaps = (difficulties: ReturnType<typeof makeDifficulty>[]) =>
+    runAiMod({ meta, difficulties, audioFiles: files, bgFiles: bg }).issues.filter(
+      (i) => /spread gap/i.test(i.message),
+    );
+
+  it("warns when a difficulty is far denser than the one below it", () => {
+    expect(gaps([diffOfDensity("Easy", 60), diffOfDensity("Insane", 600)])).toHaveLength(1);
+  });
+
+  it("stays quiet across a gentle spread", () => {
+    expect(
+      gaps([
+        diffOfDensity("Easy", 100),
+        diffOfDensity("Normal", 150),
+        diffOfDensity("Hard", 220),
+      ]),
+    ).toHaveLength(0);
+  });
+
+  it("does not compare difficulties of different key counts", () => {
+    expect(gaps([diffOfDensity("4K", 60, 4), diffOfDensity("7K", 600, 7)])).toHaveLength(0);
+  });
+
+  it("says nothing about a single difficulty", () => {
+    expect(gaps([diffOfDensity("Only", 300)])).toHaveLength(0);
+  });
+});
+
 describe("nearestSnap / isUnsnapped", () => {
   const points = [makeRedPoint(0, 120)]; // 1/4 = 125ms
 
