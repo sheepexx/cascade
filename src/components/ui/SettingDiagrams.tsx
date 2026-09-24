@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useT } from "../../lib/i18n";
 
 const W = 136;
 const H = 74;
@@ -154,6 +155,7 @@ export function SettingDiagram({
   name: DiagramName;
   value?: number;
 }) {
+  const t = useT();
   switch (name) {
     case "uiScale": {
       const s = value == null ? 1 : Math.max(0.75, Math.min(1.5, value));
@@ -280,10 +282,10 @@ export function SettingDiagram({
       return (
         <Frame>
           <text x={34} y={13} fontSize={7} fill={MUTED} textAnchor="middle">
-            off
+            {t("diagram.off")}
           </text>
           <text x={102} y={13} fontSize={7} fill={ACCENT} textAnchor="middle">
-            on
+            {t("diagram.on")}
           </text>
           <line x1={12} y1={62} x2={58} y2={62} stroke={LINE} strokeWidth={1} />
           <line x1={12} y1={62} x2={12} y2={20} stroke={LINE} strokeWidth={1} />
@@ -306,10 +308,10 @@ export function SettingDiagram({
             strokeLinecap="round"
           />
           <text x={34} y={71} fontSize={6} fill={MUTED} textAnchor="middle">
-            jumps
+            {t("diagram.jumps")}
           </text>
           <text x={102} y={71} fontSize={6} fill={MUTED} textAnchor="middle">
-            glides
+            {t("diagram.glides")}
           </text>
         </Frame>
       );
@@ -317,10 +319,10 @@ export function SettingDiagram({
       return (
         <Frame>
           <text x={34} y={13} fontSize={7} fill={MUTED} textAnchor="middle">
-            off
+            {t("diagram.off")}
           </text>
           <text x={102} y={13} fontSize={7} fill={ACCENT} textAnchor="middle">
-            on
+            {t("diagram.on")}
           </text>
           <Lane x={14} />
           {[20, 30, 40, 50, 60].map((y) => note(16, y, 36, 4, MUTED))}
@@ -341,10 +343,10 @@ export function SettingDiagram({
       return (
         <Frame>
           <text x={34} y={13} fontSize={7} fill={MUTED} textAnchor="middle">
-            off
+            {t("diagram.off")}
           </text>
           <text x={102} y={13} fontSize={7} fill={ACCENT} textAnchor="middle">
-            on
+            {t("diagram.on")}
           </text>
           <Lane x={14} />
           {[20, 30, 40].map((y) => note(16, y, 36, 4, MUTED))}
@@ -451,7 +453,7 @@ export function SettingDiagram({
             <rect key={x} x={x - 5} y={H / 2 + 5} width={10} height={8} rx={1.5} fill={ACCENT} />
           ))}
           <text x={W / 2} y={H - 6} fontSize={7} fill={MUTED} textAnchor="middle">
-            nudged
+            {t("diagram.nudged")}
           </text>
         </Frame>
       );

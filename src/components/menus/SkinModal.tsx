@@ -9,6 +9,7 @@ import { isDesktopApp } from "../../lib/pwa";
 import { osuListSkins, osuReadSkin } from "../../lib/osuDesktop";
 import { InfoTip } from "../ui/Tooltip";
 import { PRESET_SKINS } from "../../lib/presetSkins";
+import { useT } from "../../lib/i18n";
 
 const AUTHOR_PROFILES: Record<string, string> = {
   kxxn: "https://osu.ppy.sh/users/26595459",
@@ -67,6 +68,7 @@ export function SkinModal({
   onUseVisualHitsounds,
   error,
 }: Props) {
+  const t = useT();
   const [loadingName, setLoadingName] = useState<string | null>(null);
   const [cloudBusy, setCloudBusy] = useState<string | null>(null);
 
@@ -80,12 +82,12 @@ export function SkinModal({
   const hitCount = (s: LoadedSkin | null) => Object.keys(s?.hitsounds ?? {}).length;
   const activeHitsoundName =
     hitsoundSource === "default"
-      ? "Default"
+      ? t("skin.default")
       : hitsoundSource === "visual"
         ? skin
           ? skin.name
-          : "Default"
-        : hitsoundSkin?.name ?? "None selected";
+          : t("skin.default")
+        : hitsoundSkin?.name ?? t("skin.noneSelected");
 
   const apply = async (
     preset: (typeof PRESET_SKINS)[number],
@@ -142,11 +144,11 @@ export function SkinModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Skins">
+    <Modal open={open} onClose={onClose} title={t("skin.title")}>
       <div className="flex flex-col gap-6">
         <section>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Preset skins
+            {t("skin.presets")}
           </h3>
           <div className="flex flex-col gap-2">
             <button
@@ -160,24 +162,24 @@ export function SkinModal({
             >
               <span className="flex min-w-0 items-center gap-2">
                 <span className="truncate">
-                  Normal{" "}
-                  <span className="text-slate-500">- default look</span>
+                  {t("skin.normal")}{" "}
+                  <span className="text-slate-500">- {t("skin.defaultLook")}</span>
                 </span>
                 <span
                   className="shrink-0 rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-medium text-sky-300"
-                  title="Notes light up blue on the beat during kiai sections"
+                  title={t("skin.kiaiHint")}
                 >
-                  Kiai Support
+                  {t("skin.kiaiSupport")}
                 </span>
                 <span
                   className="shrink-0 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300"
-                  title="Shows applied hitsounds (W/F/C letters) on notes in hitsound mode (H)"
+                  title={t("skin.hitsoundHint")}
                 >
-                  Hitsound Support
+                  {t("skin.hitsoundSupport")}
                 </span>
               </span>
               <span className="ml-2 shrink-0 text-[11px] text-slate-400">
-                {!skin ? "Active" : "Use"}
+                {!skin ? t("skin.active") : t("skin.use")}
               </span>
             </button>
 
@@ -197,7 +199,7 @@ export function SkinModal({
                 >
                   <span className="truncate">{preset.name}</span>
                   <span className="ml-2 shrink-0 text-[11px] text-slate-400">
-                    {isLoading ? "Loading…" : isActive ? "Active" : "Apply"}
+                    {isLoading ? t("common.loading") : isActive ? t("skin.active") : t("common.apply")}
                   </span>
                 </button>
               );
@@ -205,27 +207,25 @@ export function SkinModal({
           </div>
           {PRESET_SKINS.length === 0 && (
             <p className="mt-2 text-[11px] text-slate-500">
-              Drop an <code className="text-slate-400">.osk</code> into the
-              project's <code className="text-slate-400">/skin/</code> folder to
-              add more presets.
+              {t("skin.dropHint", { file: ".osk", folder: "/skin/" })}
             </p>
           )}
         </section>
 
         <section>
           <h3 className="flex items-center gap-1.5 mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Custom skin
-            <InfoTip className="normal-case tracking-normal" content="Upload your own osu! .osk skin. The editor reads skin.ini and applies each keymode's lane colours and note images to the playfield. Anything the skin doesn't define falls back to the default style." />
+            {t("skin.custom")}
+            <InfoTip className="normal-case tracking-normal" content={t("skin.customInfo")} />
           </h3>
           <div className="flex items-center gap-2">
             <FileButton
-              label={skin ? "Replace skin…" : "Upload .osk skin"}
+              label={skin ? t("skin.replace") : t("skin.upload")}
               accept=".osk,.zip,application/zip"
               onFile={(file) => onSkinFile(file, "visual")}
             />
             {skin && (
-              <Button onClick={onClearSkin} title="Remove the current skin">
-                Remove
+              <Button onClick={onClearSkin} title={t("skin.removeHint")}>
+                {t("common.remove")}
               </Button>
             )}
           </div>
@@ -235,16 +235,16 @@ export function SkinModal({
 
         <section>
           <h3 className="flex items-center gap-1.5 mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Account skins
-            <InfoTip className="normal-case tracking-normal" content="Store up to two skins in your account. Other devices only load the names and file sizes until you press the cloud download button." />
+            {t("skin.account")}
+            <InfoTip className="normal-case tracking-normal" content={t("skin.accountInfo")} />
           </h3>
           {!cloudAvailable ? (
             <p className="rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2 text-xs text-slate-400">
-              Sign in to save skins to your account.
+              {t("skin.signIn")}
             </p>
           ) : cloudLoading ? (
             <p className="rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2 text-xs text-slate-400">
-              Loading cloud skin slots…
+              {t("skin.loadingSlots")}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -258,17 +258,17 @@ export function SkinModal({
                   >
                     <div className="min-w-0">
                       <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                        Slot {slot}
+                        {t("skin.slot", { slot })}
                       </div>
                       <div
                         className="truncate text-sm text-slate-200"
                         title={cloudSkin?.filename}
                       >
-                        {cloudSkin?.filename ?? "Empty"}
+                        {cloudSkin?.filename ?? t("skin.empty")}
                       </div>
                       {cloudSkin && (
                         <div className="text-[10px] text-slate-500">
-                          Stored in cloud · {formatBytes(cloudSkin.bytes)}
+                          {t("skin.stored", { size: formatBytes(cloudSkin.bytes) })}
                         </div>
                       )}
                     </div>
@@ -279,8 +279,8 @@ export function SkinModal({
                           disabled={cloudBusy !== null}
                           onClick={() => void downloadCloud(cloudSkin)}
                           className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-ink-600/75 text-sky-300 transition hover:bg-ink-500/85 disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label={`Download ${cloudSkin.filename} from cloud`}
-                          title="Download and apply this skin"
+                          aria-label={t("skin.downloadLabel", { file: cloudSkin.filename })}
+                          title={t("skin.downloadHint")}
                         >
                           {cloudBusy === `download:${slot}` ? (
                             <span className="text-[10px]">…</span>
@@ -297,10 +297,10 @@ export function SkinModal({
                         }`}
                       >
                         {cloudBusy === `upload:${slot}`
-                          ? "Uploading…"
+                          ? t("skin.uploading")
                           : cloudSkin
-                            ? "Replace"
-                            : "Upload"}
+                            ? t("skin.replaceShort")
+                            : t("skin.uploadShort")}
                         <input
                           type="file"
                           accept=".osk,.zip,application/zip"
@@ -319,8 +319,8 @@ export function SkinModal({
                           disabled={cloudBusy !== null}
                           onClick={() => void deleteCloud(cloudSkin)}
                           className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-ink-600/75 text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label={`Delete ${cloudSkin.filename} from cloud`}
-                          title="Delete this cloud skin"
+                          aria-label={t("skin.deleteLabel", { file: cloudSkin.filename })}
+                          title={t("skin.deleteHint")}
                         >
                           {cloudBusy === `delete:${slot}` ? (
                             <span className="text-[10px]">…</span>
@@ -343,7 +343,7 @@ export function SkinModal({
         {savedSkins.length > 0 && (
           <section>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Saved imports
+              {t("skin.saved")}
             </h3>
             <div className="flex flex-col gap-2">
               {savedSkins.map((saved) => {
@@ -364,10 +364,10 @@ export function SkinModal({
                         onClick={() => void applySaved(saved, "visual")}
                       >
                         {loadingName === `visual:${saved.name}`
-                          ? "Loading..."
+                          ? t("common.loading")
                           : visualActive
-                            ? "Look active"
-                            : "Use look"}
+                            ? t("skin.lookActive")
+                            : t("skin.useLook")}
                       </Button>
                       <Button
                         className="px-2 py-1 text-xs"
@@ -375,10 +375,10 @@ export function SkinModal({
                         onClick={() => void applySaved(saved, "hitsound")}
                       >
                         {loadingName === `hitsound:${saved.name}`
-                          ? "Loading..."
+                          ? t("common.loading")
                           : soundActive
-                            ? "Sound active"
-                            : "Use sound"}
+                            ? t("skin.soundActive")
+                            : t("skin.useSound")}
                       </Button>
                     </span>
                   </div>
@@ -390,7 +390,7 @@ export function SkinModal({
 
         <section>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Hitsound source
+            {t("skin.hitsoundSource")}
           </h3>
           <div className="mb-3 rounded-lg border border-ink-600 bg-ink-700/40 p-3">
             <div className="flex items-baseline justify-between gap-2">
@@ -399,10 +399,10 @@ export function SkinModal({
               </span>
               <span className="shrink-0 text-[11px] text-slate-500">
                 {hitsoundSource === "default"
-                  ? "Bundled samples"
+                  ? t("skin.bundled")
                   : hitsoundSource === "visual"
-                    ? `${hitCount(skin)} skin samples`
-                    : `${hitCount(hitsoundSkin)} skin samples`}
+                    ? t("skin.samples", { count: hitCount(skin) })
+                    : t("skin.samples", { count: hitCount(hitsoundSkin) })}
               </span>
             </div>
           </div>
@@ -411,16 +411,16 @@ export function SkinModal({
               variant={hitsoundSource === "visual" ? "accent" : "primary"}
               onClick={onUseVisualHitsounds}
             >
-              Follow visual skin
+              {t("skin.followVisual")}
             </Button>
             <Button
               variant={hitsoundSource === "default" ? "accent" : "primary"}
               onClick={onUseDefaultHitsounds}
             >
-              Default sounds
+              {t("skin.defaultSounds")}
             </Button>
             <FileButton
-              label="Upload sound skin"
+              label={t("skin.uploadSound")}
               accept=".osk,.zip,application/zip"
               onFile={(file) => onSkinFile(file, "hitsound")}
             />
@@ -446,7 +446,7 @@ export function SkinModal({
                   >
                     <span className="truncate">{preset.name}</span>
                     <span className="ml-2 shrink-0 text-[11px] text-slate-400">
-                      {isLoading ? "Loading..." : isActive ? "Active" : "Use sound"}
+                      {isLoading ? t("common.loading") : isActive ? t("skin.active") : t("skin.useSound")}
                     </span>
                   </button>
                 );
@@ -472,7 +472,7 @@ export function SkinModal({
               </span>
               {skin.author && (
                 <span className="shrink-0 text-[11px] text-slate-500">
-                  by{" "}
+                  {t("skin.by")}{" "}
                   {AUTHOR_PROFILES[skin.author.toLowerCase()] ? (
                     <a
                       href={AUTHOR_PROFILES[skin.author.toLowerCase()]}
@@ -491,7 +491,7 @@ export function SkinModal({
 
             {keymodes.length > 0 ? (
               <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-slate-500">Keymodes:</span>
+                <span className="text-[11px] text-slate-500">{t("skin.keymodes")}</span>
                 {keymodes.map((k) => (
                   <span
                     key={k}
@@ -507,15 +507,13 @@ export function SkinModal({
               </div>
             ) : (
               <p className="mt-2 text-[11px] text-slate-500">
-                No mania keymodes found in this skin&apos;s{" "}
-                <code className="text-slate-400">skin.ini</code>.
+                {t("skin.noKeymodes", { file: "skin.ini" })}
               </p>
             )}
 
             {keymodes.length > 0 && !activeSupported && (
               <p className="mt-2 text-[11px] text-amber-300/80">
-                This skin has no {activeKeyCount}K layout, so the current
-                difficulty uses the default style.
+                {t("skin.noLayout", { keys: activeKeyCount })}
               </p>
             )}
           </div>
@@ -561,6 +559,7 @@ function TrashIcon() {
 }
 
 function OsuSkinsSection({ onUse }: { onUse: (file: File) => void }) {
+  const t = useT();
   const [skins, setSkins] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -588,7 +587,7 @@ function OsuSkinsSection({ onUse }: { onUse: (file: File) => void }) {
     osuReadSkin(name)
       .then(onUse)
       .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Could not read that skin."),
+        setError(err instanceof Error ? err.message : t("skin.readFailed")),
       )
       .finally(() => setBusy(null));
   };
@@ -596,7 +595,7 @@ function OsuSkinsSection({ onUse }: { onUse: (file: File) => void }) {
   return (
     <section>
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        Skins in osu!
+        {t("skin.inOsu")}
       </h3>
       {error && <p className="mb-2 text-[11px] text-rose-400">{error}</p>}
       <div className="flex max-h-56 flex-col gap-1.5 overflow-y-auto pr-1">
@@ -609,7 +608,7 @@ function OsuSkinsSection({ onUse }: { onUse: (file: File) => void }) {
               {name}
             </span>
             <Button onClick={() => use(name)} disabled={busy !== null}>
-              {busy === name ? "Loading…" : "Use"}
+              {busy === name ? t("common.loading") : t("skin.use")}
             </Button>
           </div>
         ))}

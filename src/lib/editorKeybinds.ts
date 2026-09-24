@@ -1,4 +1,5 @@
 import { keyLabel } from "./playtestKeybinds";
+import { t } from "./i18n/core";
 
 export const EDITOR_SNAP_ACTIONS = [
   { action: "snapFree", divisor: 0 },
@@ -212,7 +213,7 @@ export function editorKeybindConflicts(binds: EditorKeybinds): string[] {
     for (const [code, actions] of byCode) {
       if (actions.length > 1) {
         warnings.push(
-          `${editorKeyLabel(code)} is bound to ${actions.join(" and ")}`,
+          t("shortcuts.conflict", { key: editorKeyLabel(code), actions: actions.join(t("rc.and")) }),
         );
       }
     }
