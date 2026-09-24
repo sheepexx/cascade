@@ -106,3 +106,61 @@ export function notesToMsdRows(
     .sort((a, b) => a[0] - b[0])
     .map(([ms, mask]) => ({ mask, timeSec: ms / 1000 }));
 }
+
+/** The skillsets the timeline graph shows; overall and stamina need a whole song. */
+export const SKILLSET_GRAPH_KEYS = [
+  "stream",
+  "jumpstream",
+  "handstream",
+  "jackspeed",
+  "chordjack",
+  "technical",
+] as const;
+
+export type SkillsetGraphKey = (typeof SKILLSET_GRAPH_KEYS)[number];
+
+export type SkillsetWindow = { startSec: number; endSec: number; rows: MsdRow[] };
+
+export type SkillsetPoint = {
+  startSec: number;
+  endSec: number;
+  values: Record<SkillsetGraphKey, number>;
+};
+
+/**
+ * Overlapping slices of a chart for rating each moment on its own. Every
+ * window is `windowSec` long and starts `stepSec` after the last; its rows are
+ * shifted to start at zero so MinaCalc rates it like a short chart. A window
+ * is reported over the middle `stepSec` of its span, so neighbours tile the
+ * song without overlapping on the graph.
+ */
+export function skillsetWindows(
+  rows: MsdRow[],
+  windowSec = 6,
+  stepSec = 1.5,
+  minRows = 4,
+): SkillsetWindow[] {
+  if (rows.length < minRows) return [];
+  const first = rows[0].timeSec;
+  const last = rows[rows.length - 1].timeSec;
+  const windows: SkillsetWindow[] = [];
+  let from = 0;
+  for (let start = first - (windowSec - stepSec) / 2; start <= last; start += stepSec) {
+    const end = start + windowSec;
+    while (from < rows.length && rows[from].timeSec < start) from++;
+    let to = from;
+    while (to < rows.length && rows[to].timeSec < end) to++;
+    const middle = start + (windowSec - stepSec) / 2;
+    if (to - from >= minRows) {
+      windows.push({
+        startSec: Math.max(0, middle),
+        endSec: middle + stepSec,
+        rows: rows.slice(from, to).map((row) => ({
+          mask: row.mask,
+          timeSec: row.timeSec - start,
+        })),
+      });
+    }
+  }
+  return windows;
+}

@@ -88,6 +88,8 @@ export const de: PartialCatalog = {
 
   "settings.colourblindLanes": "Farbenblind-freundliche Spurfarben",
   "settings.colourblindLanesHint": "Noten des Standard-Skins nutzen Weiß, Orange und Himmelblau, die bei jeder häufigen Form von Farbenblindheit unterscheidbar bleiben. Importierte Skins behalten ihre eigenen Farben.",
+  "settings.showSkillsetGraph": "Skillset-Graph",
+  "settings.showSkillsetGraphHint": "Zeigt über der unteren Zeitleiste, welches Skillset jeden Teil des Songs schwer macht. Nutzt Etternas MinaCalc und bewertet daher 4K-, 6K- und 7K-Maps.",
   "settings.playfield": "Spielfeld",
   "settings.simplifyBottomTimeline": "Untere Zeitleiste vereinfachen",
   "settings.simplifyBottomTimelineHint":

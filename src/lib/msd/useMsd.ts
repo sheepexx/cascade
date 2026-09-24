@@ -4,12 +4,13 @@ import {
   msdSupportsKeyCount,
   notesToMsdRows,
   type MsdRating,
+  type SkillsetPoint,
 } from "./minacalc";
 import type { MsdWorkerRequest, MsdWorkerResponse } from "./msdWorker";
 
 const DEBOUNCE_MS = 600;
 
-type Pending = { resolve: (rating: MsdRating | null) => void };
+type Pending = { resolve: (response: MsdWorkerResponse | null) => void };
 
 let worker: Worker | null = null;
 let workerFailed = false;
@@ -27,7 +28,7 @@ function getWorker(): Worker | null {
         const entry = pending.get(event.data.id);
         if (!entry) return;
         pending.delete(event.data.id);
-        entry.resolve(event.data.rating);
+        entry.resolve(event.data);
       };
       worker.onerror = () => {
         workerFailed = true;
@@ -55,9 +56,55 @@ export function requestMsd(
   if (!w) return Promise.resolve(null);
   return new Promise((resolve) => {
     const id = nextId++;
-    pending.set(id, { resolve });
+    pending.set(id, { resolve: (response) => resolve(response?.rating ?? null) });
     w.postMessage({ id, rows, keyCount } satisfies MsdWorkerRequest);
   });
+}
+
+/** Skillset difficulty over time for the timeline graph, or null when unrated. */
+export function requestSkillsetTimeline(
+  notes: ManiaNote[],
+  keyCount: number,
+): Promise<SkillsetPoint[] | null> {
+  if (!msdSupportsKeyCount(keyCount)) return Promise.resolve(null);
+  const rows = notesToMsdRows(notes, keyCount);
+  if (rows.length <= 1) return Promise.resolve(null);
+  const w = getWorker();
+  if (!w) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const id = nextId++;
+    pending.set(id, { resolve: (response) => resolve(response?.timeline ?? null) });
+    w.postMessage({ id, rows, keyCount, kind: "timeline" } satisfies MsdWorkerRequest);
+  });
+}
+
+/**
+ * The skillset graph for one difficulty, recomputed a moment after edits stop
+ * and only while the graph is switched on.
+ */
+export function useSkillsetTimeline(
+  notes: ManiaNote[],
+  keyCount: number,
+  enabled: boolean,
+): SkillsetPoint[] | null {
+  const [timeline, setTimeline] = useState<SkillsetPoint[] | null>(null);
+  useEffect(() => {
+    if (!enabled) {
+      setTimeline(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void requestSkillsetTimeline(notes, keyCount).then((points) => {
+        if (!cancelled) setTimeline(points);
+      });
+    }, DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [notes, keyCount, enabled]);
+  return timeline;
 }
 
 type CacheEntry = {

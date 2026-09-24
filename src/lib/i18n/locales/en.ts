@@ -90,6 +90,8 @@ export const en = {
   "settings.showPatternTools": "Pattern preset tools",
   "settings.layoutHint":
     "Hide panels you do not use. Settings stays available in the editor header so you can restore them at any time.",
+  "settings.showSkillsetGraph": "Skillset graph",
+  "settings.showSkillsetGraphHint": "Shows which skillset makes each part of the song hard, above the bottom timeline. Uses Etterna's MinaCalc, so it rates 4K, 6K and 7K maps.",
   "settings.colourblindLanes": "Colourblind-friendly lane colours",
   "settings.colourblindLanesHint": "Default-skin notes use white, orange and sky blue, which stay distinct with any common kind of colour blindness. Imported skins keep their own colours.",
 

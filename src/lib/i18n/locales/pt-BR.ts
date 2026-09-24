@@ -88,6 +88,8 @@ export const ptBR: PartialCatalog = {
 
   "settings.colourblindLanes": "Cores de coluna para daltônicos",
   "settings.colourblindLanesHint": "As notas da skin padrão usam branco, laranja e azul-celeste, que continuam distintas em qualquer tipo comum de daltonismo. Skins importadas mantêm as próprias cores.",
+  "settings.showSkillsetGraph": "Gráfico de skillsets",
+  "settings.showSkillsetGraphHint": "Mostra acima da linha do tempo inferior qual skillset deixa cada parte da música difícil. Usa o MinaCalc do Etterna, então avalia mapas 4K, 6K e 7K.",
   "settings.playfield": "Área de jogo",
   "settings.simplifyBottomTimeline": "Simplificar linha do tempo inferior",
   "settings.simplifyBottomTimelineHint":

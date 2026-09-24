@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   loadMinacalc,
   notesToMsdRows,
+  skillsetWindows,
   msdSupportsKeyCount,
   type Minacalc,
 } from "./minacalc";
@@ -134,5 +135,46 @@ describe("msd display helpers", () => {
     for (const v of [0, 10, 25, 40, 99]) {
       expect(msdColor(v)).toMatch(/^hsl\(-?[\d.]+ 85% 66%\)$/);
     }
+  });
+});
+
+describe("skillset timeline windows", () => {
+  it("tiles the song with non-overlapping spans and rebases each window to zero", () => {
+    const rows = notesToMsdRows(streamNotes(30, 8), 4);
+    const windows = skillsetWindows(rows, 6, 1.5);
+    expect(windows.length).toBeGreaterThan(15);
+    for (let i = 1; i < windows.length; i++) {
+      expect(windows[i].startSec).toBeCloseTo(windows[i - 1].endSec, 6);
+    }
+    for (const window of windows) {
+      expect(window.rows[0].timeSec).toBeGreaterThanOrEqual(0);
+      expect(window.rows[window.rows.length - 1].timeSec).toBeLessThan(6);
+    }
+  });
+
+  it("skips stretches with too few notes to rate", () => {
+    const rows = notesToMsdRows(
+      [0, 250, 500, 750, 20000].map((startTime, i) => ({ column: i % 4, startTime })),
+      4,
+    );
+    const windows = skillsetWindows(rows, 6, 1.5);
+    expect(windows.every((w) => w.endSec < 10)).toBe(true);
+  });
+
+  it("rates a jack section as jackier than a stream section", async () => {
+    const calc = await getCalc();
+    const notes = [
+      ...streamNotes(20, 8),
+      ...Array.from({ length: 160 }, (_, i) => ({ column: 0, startTime: 20000 + i * 125 })),
+    ];
+    const windows = skillsetWindows(notesToMsdRows(notes, 4));
+    const rate = (sec: number) =>
+      calc.compute(windows.find((w) => w.startSec <= sec && sec < w.endSec)!.rows, 4);
+    const jack = rate(35);
+    const stream = rate(8);
+    expect(jack.jackspeed).toBeGreaterThan(stream.jackspeed);
+    // MinaCalc scores a fast one-column jack high on stream too, so compare
+    // each section's lean rather than the raw stream values.
+    expect(jack.jackspeed / jack.stream).toBeGreaterThan(stream.jackspeed / stream.stream);
   });
 });

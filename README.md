@@ -57,6 +57,11 @@ Mapping needs a keyboard and a mouse. On a phone, Cascade shows an overview page
 - The rate changer creates a new difficulty at a different playback rate. It can preserve pitch and put the rate or BPM in the difficulty name.
 - Stats for the active difficulty: note count, long note share, chord share, average and peak NPS, rice and long note counts, and notes per column with the split between left and right hand.
 - A star rating on every difficulty and a max pp readout that update as you map.
+- A skillset graph above the bottom timeline shows which skillset makes each part of the song hard: stream, jumpstream, handstream, jackspeed, chordjack or technical. Bar height is how hard that moment is. Hover a bar for all six values, or click it to jump there. It uses Etterna's MinaCalc, so it rates 4K, 6K and 7K maps. It starts minimised; the arrow next to "Skillsets" opens and closes it, and Settings → Editor turns it off.
+
+![The skillset graph above the bottom timeline, with a tooltip listing the six skillset ratings for one moment of a 4K map](docs/images/skillset-graph.jpg)
+
+*Each bar is coloured by the skillset that leads at that moment. The tooltip lists all six ratings for the part of the song under the cursor.*
 
 ### Audio and media
 

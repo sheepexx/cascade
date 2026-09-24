@@ -85,6 +85,8 @@ export const zhCN: PartialCatalog = {
 
   "settings.colourblindLanes": "色盲友好的轨道颜色",
   "settings.colourblindLanesHint": "默认皮肤的音符使用白色、橙色和天蓝色，在常见的各类色盲下都能区分。导入的皮肤保留自身颜色。",
+  "settings.showSkillsetGraph": "技能分布图",
+  "settings.showSkillsetGraphHint": "在底部时间轴上方显示歌曲每一段主要难在哪种技能。使用 Etterna 的 MinaCalc，因此支持 4K、6K 和 7K 谱面。",
   "settings.playfield": "游戏区域",
   "settings.simplifyBottomTimeline": "简化底部时间轴",
   "settings.simplifyBottomTimelineHint":

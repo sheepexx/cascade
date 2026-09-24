@@ -390,6 +390,9 @@ import {
 } from "./lib/osuImport";
 import { MALODY_MAX_KEYS } from "./lib/malody";
 import { setLaneColourScheme } from "./lib/laneColours";
+import { useSkillsetTimeline } from "./lib/msd/useMsd";
+import { msdSupportsKeyCount } from "./lib/msd/minacalc";
+import { SkillsetGraph } from "./components/SkillsetGraph";
 import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
 import { parseSmFile } from "./lib/smImport";
 import type { PackSong } from "./lib/smPackImport";
@@ -1755,6 +1758,19 @@ export default function App() {
 
   const activeTimingPoints =
     active.timingPoints?.length ? active.timingPoints : timingPoints;
+  const toggleSkillsetGraphCollapsed = useCallback(
+    () =>
+      setAppSettings((s) => ({
+        ...s,
+        skillsetGraphCollapsed: !s.skillsetGraphCollapsed,
+      })),
+    [],
+  );
+  const skillsetTimeline = useSkillsetTimeline(
+    active.notes,
+    active.keyCount,
+    appSettings.showSkillsetGraph,
+  );
 
   const [autoTimeOpen, setAutoTimeOpen] = useState(false);
   const [autoTimeStatus, setAutoTimeStatus] = useState<AutoTimeStatus>("idle");
@@ -6599,6 +6615,7 @@ export default function App() {
     { key: "settings.simplifyBottomTimeline", tab: "Editor" },
     { key: "settings.showPpCounter", tab: "Editor", keywords: "speed" },
     { key: "settings.showPatternTools", tab: "Editor", keywords: "presets" },
+    { key: "settings.showSkillsetGraph", tab: "Editor", keywords: "msd minacalc etterna stream jack chordjack difficulty graph" },
     { key: "settings.colourblindLanes", tab: "Editor", keywords: "colorblind color blind colours lanes notes accessibility" },
     { key: "settings.backgroundDim", tab: "Editor" },
     { key: "settings.backgroundBlur", tab: "Editor", keywords: "blur background" },
@@ -7762,6 +7779,16 @@ export default function App() {
             }`}
             aria-hidden={!showChrome}
           >
+            <SkillsetGraph
+              open={showChrome && appSettings.showBottomTimeline && appSettings.showSkillsetGraph}
+              collapsed={appSettings.skillsetGraphCollapsed}
+              onToggleCollapsed={toggleSkillsetGraphCollapsed}
+              points={skillsetTimeline}
+              duration={audio.duration}
+              keyCount={active.keyCount}
+              supported={msdSupportsKeyCount(active.keyCount)}
+              onSeek={seekAudio}
+            />
             {showChrome && appSettings.showBottomTimeline && (
               <MemoizedBottomTimeline
                 waveform={waveform}
@@ -8009,6 +8036,16 @@ export default function App() {
           simplifyBottomTimeline={appSettings.simplifyBottomTimeline}
           onSimplifyBottomTimeline={(v) =>
             setAppSettings((s) => ({ ...s, simplifyBottomTimeline: v }))
+          }
+          showSkillsetGraph={appSettings.showSkillsetGraph}
+          onShowSkillsetGraph={(v) =>
+            // Switching the graph back on shows it in full, whatever state it
+            // was minimised to before.
+            setAppSettings((s) => ({
+              ...s,
+              showSkillsetGraph: v,
+              ...(v ? { skillsetGraphCollapsed: false } : {}),
+            }))
           }
           colourblindLanes={appSettings.colourblindLanes}
           onColourblindLanes={(v) =>

@@ -86,6 +86,8 @@ type Props = {
   onDiscordPresence: (mode: DiscordPresenceMode) => void;
   onSimplifyBottomTimeline: (value: boolean) => void;
   showPpCounter: boolean;
+  showSkillsetGraph: boolean;
+  onShowSkillsetGraph: (value: boolean) => void;
   colourblindLanes: boolean;
   onColourblindLanes: (value: boolean) => void;
   onShowPpCounter: (value: boolean) => void;
@@ -217,6 +219,8 @@ export function AppSettingsModal({
   discordPresence,
   onDiscordPresence,
   showPpCounter,
+  showSkillsetGraph,
+  onShowSkillsetGraph,
   colourblindLanes,
   onColourblindLanes,
   onShowPpCounter,
@@ -766,6 +770,13 @@ export function AppSettingsModal({
                   label={t("settings.showPatternTools")} tip={t("settings.layoutHint")}
                   checked={showPatternTools}
                   onChange={onShowPatternTools}
+                />
+                <SettingToggle
+                  label={t("settings.showSkillsetGraph")}
+                  tip={t("settings.showSkillsetGraphHint")}
+                  checked={showSkillsetGraph}
+                  disabled={!showBottomTimeline}
+                  onChange={onShowSkillsetGraph}
                 />
               </div>
             </section>

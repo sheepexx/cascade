@@ -445,6 +445,10 @@ export type AppSettings = {
   simplifyBottomTimeline: boolean;
   showPpCounter: boolean;
   showPatternTools: boolean;
+  /** Stream, jack and other skillset difficulty drawn along the timeline. */
+  showSkillsetGraph: boolean;
+  /** The graph is folded to its header row until the user opens it. */
+  skillsetGraphCollapsed: boolean;
   /** Default-skin notes use a palette that stays distinct for colour blindness. */
   colourblindLanes: boolean;
   upscroll: boolean;
@@ -534,6 +538,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   simplifyBottomTimeline: false,
   showPpCounter: true,
   showPatternTools: true,
+  showSkillsetGraph: true,
+  skillsetGraphCollapsed: true,
   colourblindLanes: false,
   upscroll: false,
   svPreviewPlayback: false,

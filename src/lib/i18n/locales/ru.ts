@@ -88,6 +88,8 @@ export const ru: PartialCatalog = {
 
   "settings.colourblindLanes": "Цвета линий для дальтоников",
   "settings.colourblindLanesHint": "Ноты стандартного скина окрашены в белый, оранжевый и голубой — они различимы при любом распространённом типе дальтонизма. Импортированные скины сохраняют свои цвета.",
+  "settings.showSkillsetGraph": "График скиллсетов",
+  "settings.showSkillsetGraphHint": "Показывает над нижней шкалой, какой скиллсет делает каждую часть песни сложной. Использует MinaCalc из Etterna, поэтому оценивает карты 4K, 6K и 7K.",
   "settings.playfield": "Игровое поле",
   "settings.simplifyBottomTimeline": "Упростить нижнюю шкалу",
   "settings.simplifyBottomTimelineHint":
