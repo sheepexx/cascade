@@ -187,11 +187,11 @@ Before an export, Cascade lists errors that block it and warnings you can ignore
 
 ### Tools menu
 
+- **Map Card** makes a shareable image of the difficulty. See [Map Card](#map-card).
 - **Note suggestions** (experimental): analyzes the song and shows dashed notes on the snap grid where the music hits. Placement is guided by a bundled pattern model. Click a suggestion to place it, right-click to dismiss it, or place them all as a rough first draft.
 - **Full LN** turns every note into a long note that ends a set number of ticks before the next note in its column.
 - **Full RC** turns every long note back into a rice note.
 - **Crop to brackets** deletes notes outside the trim brackets and shortens holds that run past the end.
-- **Map Card** makes a shareable image of the difficulty. See [Map Card](#map-card).
 
 ### Pattern presets and batch apply
 

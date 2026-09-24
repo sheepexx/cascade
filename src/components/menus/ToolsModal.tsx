@@ -109,6 +109,19 @@ export function ToolsModal({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <ToolCard
+            title={t("mapCard.title")}
+            image="mapCard"
+            info={t("mapCard.toolInfo")}
+            status={
+              noteTotal === 0 ? t("mapCard.toolNoNotes") : t("mapCard.toolIdle")
+            }
+          >
+            <Button variant="accent" onClick={onMapCard}>
+              {t("mapCard.create")}
+            </Button>
+          </ToolCard>
+
+          <ToolCard
             title={t("tools.ghostTitle")}
             image="ghostNotes"
             info={t("tools.ghostInfo")}
@@ -287,19 +300,6 @@ export function ToolsModal({
               disabled={!trimActive || cropTotal === 0}
             >
               {t("tools.crop")}
-            </Button>
-          </ToolCard>
-
-          <ToolCard
-            title={t("mapCard.title")}
-            image="mapCard"
-            info={t("mapCard.toolInfo")}
-            status={
-              noteTotal === 0 ? t("mapCard.toolNoNotes") : t("mapCard.toolIdle")
-            }
-          >
-            <Button variant="accent" onClick={onMapCard}>
-              {t("mapCard.create")}
             </Button>
           </ToolCard>
         </div>

@@ -1,10 +1,12 @@
 import { supabase } from "./supabase";
 import {
+  deleteMapCard,
   deleteProjectWithAssets,
   deleteSharedAssets,
   getAdminStorageStats,
   type AdminStorageStats,
 } from "./storage";
+import { mapCardUrl } from "./mapCardCloud";
 
 export type { AdminStorageStats };
 
@@ -151,9 +153,10 @@ export type AdminSharedMap = {
 };
 
 export async function listUserSummaries(): Promise<AdminUserSummary[]> {
-  const [usersResult, previews] = await Promise.all([
+  const [usersResult, previews, cards] = await Promise.all([
     supabase.rpc("admin_user_summaries"),
     listAdminSharedMaps(),
+    listAdminMapCards().catch((): AdminMapCard[] => []),
   ]);
   if (usersResult.error) throw new Error(usersResult.error.message);
   const previewBytes = new Map<string, number>();
@@ -162,6 +165,9 @@ export async function listUserSummaries(): Promise<AdminUserSummary[]> {
       preview.owner,
       (previewBytes.get(preview.owner) ?? 0) + Number(preview.asset_bytes || 0),
     );
+  }
+  for (const card of cards) {
+    previewBytes.set(card.owner, (previewBytes.get(card.owner) ?? 0) + card.bytes);
   }
   return ((usersResult.data ?? []) as AdminUserSummary[]).map((user) => ({
     ...user,
@@ -198,6 +204,53 @@ export async function listAdminSharedMaps(
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminSharedMap[];
+}
+
+export type AdminMapCard = {
+  id: string;
+  slug: string;
+  map_key: string;
+  owner: string;
+  owner_username: string | null;
+  owner_osu_id: number | null;
+  url: string;
+  bytes: number;
+  width: number;
+  height: number;
+  version: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type AdminMapCardRow = Omit<AdminMapCard, "owner" | "owner_username" | "owner_osu_id" | "url"> & {
+  user_id: string;
+  users: { username: string | null; osu_id: number | null } | null;
+};
+
+export async function listAdminMapCards(
+  userId: string | null = null,
+): Promise<AdminMapCard[]> {
+  let query = supabase
+    .from("map_cards")
+    .select(
+      "id,slug,map_key,user_id,bytes,width,height,version,created_at,updated_at,users(username,osu_id)",
+    )
+    .order("updated_at", { ascending: false });
+  if (userId) query = query.eq("user_id", userId);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as AdminMapCardRow[]).map(({ users, user_id, ...row }) => ({
+    ...row,
+    owner: user_id,
+    owner_username: users?.username ?? null,
+    owner_osu_id: users?.osu_id ?? null,
+    url: mapCardUrl(row.slug),
+    bytes: Number(row.bytes),
+  }));
+}
+
+export async function deleteMapCardAdmin(card: Pick<AdminMapCard, "slug">): Promise<void> {
+  await deleteMapCard(card.slug);
 }
 
 export async function deleteSharedMapAdmin(

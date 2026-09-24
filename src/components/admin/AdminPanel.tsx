@@ -29,10 +29,8 @@ import {
   adminPlatformStats,
   adminUserEvents,
   adminUserProjects,
-  deleteSharedMapAdmin,
   getAdminStats,
   getStorageStats,
-  listAdminSharedMaps,
   listUserSummaries,
   platformRank,
   setUserAdmin,
@@ -50,9 +48,9 @@ import {
   type AdminUserProject,
   type AdminUserSummary,
   type AdminProject,
-  type AdminSharedMap,
 } from "../../lib/admin";
-import { sharedMapUrl } from "../../lib/sharedMap";
+import { LinksTab, UserLinksSection } from "./AdminLinks";
+import { formatBytes, formatMoment } from "./format";
 import {
   listFeedback,
   setFeedbackStatus,
@@ -72,7 +70,7 @@ type Tab =
   | "presets"
   | "users"
   | "projects"
-  | "previews"
+  | "links"
   | "feedback"
   | "notifications"
   | "settings";
@@ -112,7 +110,7 @@ export function AdminPanel({
             "presets",
             "users",
             "projects",
-            "previews",
+            "links",
             "feedback",
             "notifications",
             "settings",
@@ -136,7 +134,7 @@ export function AdminPanel({
         {tab === "presets" && <PresetsTab />}
         {tab === "users" && <UsersTab />}
         {tab === "projects" && <ProjectsTab />}
-        {tab === "previews" && <PreviewsTab />}
+        {tab === "links" && <LinksTab />}
         {tab === "feedback" && <FeedbackTab />}
         {tab === "notifications" && <NotificationsTab />}
         {tab === "settings" && (
@@ -485,58 +483,136 @@ function DesktopDownloadSection({
         </p>
       )}
       {stats && stats.length > 0 && (
-        <AdminTable
+        <CollapsedRows
           rows={stats}
-          rowKey={(row) => `${row.version}-${row.asset}`}
-          columns={[
-            { label: "Version", render: (row) => `v${row.version}` },
-            { label: "Installer", render: (row) => row.asset },
-            { label: "7 days", right: true, render: (row) => row.last_7d },
-            { label: "30 days", right: true, render: (row) => row.last_30d },
-            { label: "All time", right: true, render: (row) => row.total },
-            {
-              label: "Last",
-              right: true,
-              render: (row) => formatMoment(row.last_at),
-            },
-          ]}
-        />
+          visible={recentDownloadRows(stats)}
+          hiddenLabel="older downloads"
+        >
+          {(rows) => (
+            <AdminTable
+              rows={rows}
+              rowKey={(row) => `${row.version}-${row.asset}`}
+              columns={[
+                { label: "Version", render: (row) => `v${row.version}` },
+                { label: "Installer", render: (row) => row.asset },
+                { label: "7 days", right: true, render: (row) => row.last_7d },
+                { label: "30 days", right: true, render: (row) => row.last_30d },
+                { label: "All time", right: true, render: (row) => row.total },
+                {
+                  label: "Last",
+                  right: true,
+                  render: (row) => formatMoment(row.last_at),
+                },
+              ]}
+            />
+          )}
+        </CollapsedRows>
       )}
     </AdminSection>
   );
 }
 
+const RECENT_DOWNLOAD_VERSIONS = 3;
+const RECENT_APP_VERSIONS = 5;
+
+function recentDownloadRows(
+  rows: AdminDesktopDownloadStat[],
+): AdminDesktopDownloadStat[] {
+  const versions = [...new Set(rows.map((row) => row.version))].slice(
+    0,
+    RECENT_DOWNLOAD_VERSIONS,
+  );
+  return rows.filter((row) => versions.includes(row.version));
+}
+
+function recentAppVersionRows(
+  rows: AdminAppVersionStat[],
+): AdminAppVersionStat[] {
+  const seen = new Map<string, number>();
+  return rows.filter((row) => {
+    const count = seen.get(row.platform) ?? 0;
+    seen.set(row.platform, count + 1);
+    return count < RECENT_APP_VERSIONS;
+  });
+}
+
+function CollapsedRows<T>({
+  rows,
+  visible,
+  hiddenLabel,
+  children,
+}: {
+  rows: T[];
+  visible: T[];
+  hiddenLabel: string;
+  children: (rows: T[]) => ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hidden = rows.length - visible.length;
+  return (
+    <>
+      <div
+        className={
+          expanded && hidden > 0 ? "max-h-[26rem] overflow-y-auto pr-1" : ""
+        }
+      >
+        {children(expanded ? rows : visible)}
+      </div>
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="mt-3 rounded-md px-2 py-1 text-xs text-slate-400 transition hover:bg-ink-700 hover:text-slate-200"
+        >
+          {expanded ? "Show only the recent ones" : `Show ${hidden} ${hiddenLabel}`}
+        </button>
+      )}
+    </>
+  );
+}
+
 function AppVersionSection({ stats }: { stats: AdminAppVersionStat[] | null }) {
+  const recent = useMemo(() => (stats ? recentAppVersionRows(stats) : []), [stats]);
   return (
     <AdminSection title="App versions in use">
       {!stats && <SkeletonTable rows={3} columns={5} label="Loading versions" />}
       {stats && stats.length === 0 && (
         <p className="text-sm text-slate-500">{MIGRATION_HINT}</p>
       )}
+      {stats && stats.length > recent.length && (
+        <p className="mb-3 text-[11px] text-slate-500">
+          {stats.length} versions seen · showing the {RECENT_APP_VERSIONS} most
+          recently used per platform
+        </p>
+      )}
       {stats && stats.length > 0 && (
-        <AdminTable
-          rows={stats}
-          rowKey={(row) => `${row.platform}-${row.app_version}`}
-          columns={[
-            {
-              label: "Platform",
-              render: (row) => <PlatformBadge platform={row.platform} />,
-            },
-            { label: "Version", render: (row) => `v${row.app_version}` },
-            { label: "Accounts", right: true, render: (row) => row.users },
-            {
-              label: "Events 30d",
-              right: true,
-              render: (row) => row.events_30d,
-            },
-            { label: "All time", right: true, render: (row) => row.events },
-            {
-              label: "Last",
-              right: true,
-              render: (row) => formatMoment(row.last_at),
-            },
-          ]}
-        />
+        <CollapsedRows rows={stats} visible={recent} hiddenLabel="older versions">
+          {(rows) => (
+            <AdminTable
+              rows={rows}
+              rowKey={(row) => `${row.platform}-${row.app_version}`}
+              columns={[
+                {
+                  label: "Platform",
+                  render: (row) => <PlatformBadge platform={row.platform} />,
+                },
+                { label: "Version", render: (row) => `v${row.app_version}` },
+                { label: "Accounts", right: true, render: (row) => row.users },
+                {
+                  label: "Events 30d",
+                  right: true,
+                  render: (row) => row.events_30d,
+                },
+                { label: "All time", right: true, render: (row) => row.events },
+                {
+                  label: "Last",
+                  right: true,
+                  render: (row) => formatMoment(row.last_at),
+                },
+              ]}
+            />
+          )}
+        </CollapsedRows>
       )}
     </AdminSection>
   );
@@ -782,7 +858,7 @@ function UsersTab() {
         isSelf={selected.id === user?.id}
         onBack={() => setSelectedId(null)}
         onToggleAdmin={() => toggle(selected)}
-        onPreviewDeleted={(bytes) =>
+        onLinkDeleted={(bytes) =>
           setUsers(
             (prev) =>
               prev?.map((item) =>
@@ -945,11 +1021,6 @@ function formatLastSeen(u: AdminUserSummary): string {
   return at ? new Date(at).toLocaleDateString() : "never";
 }
 
-function formatMoment(value: string | null): string {
-  if (!value) return "never";
-  return new Date(value).toLocaleString();
-}
-
 function formatVersion(value: string | null): string {
   return value ? `v${value}` : "unknown";
 }
@@ -959,29 +1030,22 @@ function UserDetail({
   isSelf,
   onBack,
   onToggleAdmin,
-  onPreviewDeleted,
+  onLinkDeleted,
 }: {
   user: AdminUserSummary;
   isSelf: boolean;
   onBack: () => void;
   onToggleAdmin: () => void;
-  onPreviewDeleted: (bytes: number) => void;
+  onLinkDeleted: (bytes: number) => void;
 }) {
   const [events, setEvents] = useState<AdminUserEvent[] | null>(null);
   const [projects, setProjects] = useState<AdminUserProject[] | null>(null);
-  const [previews, setPreviews] = useState<AdminSharedMap[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [deletingPreviewId, setDeletingPreviewId] = useState<string | null>(
-    null,
-  );
 
   useEffect(() => {
     setEvents(null);
     setProjects(null);
-    setPreviews(null);
     setError(null);
-    setPreviewError(null);
     adminUserEvents(user.id)
       .then(setEvents)
       .catch((e) =>
@@ -990,35 +1054,7 @@ function UserDetail({
     adminUserProjects(user.id)
       .then(setProjects)
       .catch(() => setProjects([]));
-    listAdminSharedMaps(user.id)
-      .then(setPreviews)
-      .catch((e) =>
-        setPreviewError(
-          e instanceof Error ? e.message : "Failed to load previews.",
-        ),
-      );
   }, [user.id]);
-
-  const removePreview = async (preview: AdminSharedMap) => {
-    if (!window.confirm("Delete this public preview and all of its files?")) {
-      return;
-    }
-    setDeletingPreviewId(preview.id);
-    setPreviewError(null);
-    try {
-      await deleteSharedMapAdmin(preview);
-      setPreviews((previous) =>
-        previous?.filter((item) => item.id !== preview.id) ?? null,
-      );
-      onPreviewDeleted(Number(preview.asset_bytes || 0));
-    } catch (e) {
-      setPreviewError(
-        e instanceof Error ? e.message : "Failed to delete preview.",
-      );
-    } finally {
-      setDeletingPreviewId(null);
-    }
-  };
 
   return (
     <div>
@@ -1076,9 +1112,6 @@ function UserDetail({
         <StatCard label="Collaborations" value={Number(user.collab_count)} />
         <StatCard label="Desktop events" value={Number(user.desktop_events)} />
         <StatCard label="Web events" value={Number(user.web_events)} />
-        {previews && (
-          <StatCard label="Public previews" value={previews.length} />
-        )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-ink-600 bg-ink-800 px-4 py-3 text-[11px] text-slate-500">
@@ -1177,33 +1210,7 @@ function UserDetail({
         )}
       </section>
 
-      <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Public previews
-        </h2>
-        {previewError && (
-          <p className="text-sm text-rose-400">{previewError}</p>
-        )}
-        {!previews && !previewError && (
-          <SkeletonRows
-            count={2}
-            lines={2}
-            action={false}
-            label="Loading previews"
-          />
-        )}
-        {previews && previews.length === 0 && (
-          <p className="text-sm text-slate-500">No public previews.</p>
-        )}
-        {previews && previews.length > 0 && (
-          <SharedMapList
-            previews={previews}
-            showOwner={false}
-            deletingId={deletingPreviewId}
-            onDelete={removePreview}
-          />
-        )}
-      </section>
+      <UserLinksSection userId={user.id} onDeleted={onLinkDeleted} />
     </div>
   );
 }
@@ -1454,233 +1461,6 @@ function ProjectsTab() {
   );
 }
 
-type PreviewSort =
-  | "last_view"
-  | "created"
-  | "storage"
-  | "views"
-  | "title";
-
-function PreviewsTab() {
-  const [previews, setPreviews] = useState<AdminSharedMap[] | null>(null);
-  const [sort, setSort] = useState<PreviewSort>("last_view");
-  const [query, setQuery] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const { error, setError } = useAsyncError();
-
-  useEffect(() => {
-    listAdminSharedMaps()
-      .then(setPreviews)
-      .catch((e) =>
-        setError(e instanceof Error ? e.message : "Failed to load previews."),
-      );
-  }, [setError]);
-
-  const rows = useMemo(() => {
-    if (!previews) return null;
-    const needle = query.trim().toLowerCase();
-    const filtered = needle
-      ? previews.filter((preview) =>
-          [
-            preview.title,
-            preview.artist,
-            preview.owner_username,
-            preview.slug,
-          ].some((value) => value?.toLowerCase().includes(needle)),
-        )
-      : previews;
-    return [...filtered].sort((a, b) => {
-      if (sort === "title") {
-        return (a.title || "Untitled").localeCompare(b.title || "Untitled");
-      }
-      if (sort === "storage") {
-        return Number(b.asset_bytes) - Number(a.asset_bytes);
-      }
-      if (sort === "views") return Number(b.views) - Number(a.views);
-      if (sort === "last_view") {
-        return (
-          new Date(b.last_viewed_at ?? 0).getTime() -
-          new Date(a.last_viewed_at ?? 0).getTime()
-        );
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  }, [previews, query, sort]);
-
-  const remove = async (preview: AdminSharedMap) => {
-    if (!window.confirm("Delete this public preview and all of its files?")) {
-      return;
-    }
-    setDeletingId(preview.id);
-    setError(null);
-    try {
-      await deleteSharedMapAdmin(preview);
-      setPreviews((previous) =>
-        previous?.filter((item) => item.id !== preview.id) ?? null,
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete preview.");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const totalBytes =
-    previews?.reduce(
-      (sum, preview) => sum + Number(preview.asset_bytes || 0),
-      0,
-    ) ?? 0;
-
-  return (
-    <div>
-      {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-      {!previews && !error && (
-        <SkeletonRows count={8} lines={3} label="Loading previews" />
-      )}
-      {previews && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-slate-400">
-            <span className="font-semibold text-slate-200">
-              {previews.length}
-            </span>{" "}
-            public previews · total storage{" "}
-            <span className="font-semibold text-slate-200">
-              {formatBytes(totalBytes)}
-            </span>
-            {rows && rows.length !== previews.length && (
-              <span className="text-slate-500"> · {rows.length} shown</span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <TextInput
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search map, owner, or slug"
-              className="w-64"
-            />
-            <label className="flex items-center gap-2 text-xs text-slate-400">
-              Sort
-              <Select
-                size="sm"
-                value={sort}
-                onChange={(event) => setSort(event.target.value as PreviewSort)}
-              >
-                <option value="last_view">Latest view</option>
-                <option value="created">Published</option>
-                <option value="storage">Storage</option>
-                <option value="views">Views</option>
-                <option value="title">Title</option>
-              </Select>
-            </label>
-          </div>
-        </div>
-      )}
-      {rows && rows.length === 0 && (
-        <p className="text-sm text-slate-400">
-          {previews?.length ? "No matching previews." : "No public previews."}
-        </p>
-      )}
-      {rows && rows.length > 0 && (
-        <SharedMapList
-          previews={rows}
-          showOwner
-          deletingId={deletingId}
-          onDelete={remove}
-        />
-      )}
-    </div>
-  );
-}
-
-function SharedMapList({
-  previews,
-  showOwner,
-  deletingId,
-  onDelete,
-}: {
-  previews: AdminSharedMap[];
-  showOwner: boolean;
-  deletingId: string | null;
-  onDelete: (preview: AdminSharedMap) => void;
-}) {
-  return (
-    <ul className="flex flex-col gap-2">
-      {previews.map((preview) => {
-        const url = sharedMapUrl(preview.slug);
-        return (
-          <li
-            key={preview.id}
-            className="flex flex-wrap items-center gap-3 rounded-lg border border-ink-700 bg-ink-800 p-3"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm text-slate-200">
-                {preview.title || "Untitled"}
-                {preview.artist && (
-                  <span className="text-slate-500"> - {preview.artist}</span>
-                )}
-              </div>
-              <div className="mt-0.5 text-[11px] text-slate-500">
-                {showOwner && (
-                  <>
-                    owner{" "}
-                    {preview.owner_osu_id ? (
-                      <a
-                        href={`https://osu.ppy.sh/users/${preview.owner_osu_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent hover:underline"
-                      >
-                        {preview.owner_username ?? preview.owner.slice(0, 8)}
-                      </a>
-                    ) : (
-                      (preview.owner_username ?? preview.owner.slice(0, 8))
-                    )}
-                    {" · "}
-                  </>
-                )}
-                published {new Date(preview.created_at).toLocaleString()}
-              </div>
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-accent hover:underline"
-                >
-                  /m/{preview.slug}
-                </a>
-                <span>last view {formatMoment(preview.last_viewed_at)}</span>
-                <span>{Number(preview.views).toLocaleString()} views</span>
-                <span>{formatBytes(Number(preview.asset_bytes))}</span>
-                <span>
-                  {Number(preview.asset_count)}{" "}
-                  {Number(preview.asset_count) === 1 ? "file" : "files"}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg border border-white/10 bg-ink-700 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-accent/50 hover:text-white"
-              >
-                Open
-              </a>
-              <Button
-                disabled={deletingId !== null}
-                onClick={() => onDelete(preview)}
-              >
-                {deletingId === preview.id ? "Deleting…" : "Delete"}
-              </Button>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 type ProjectSort =
   | "last_activity"
   | "updated"
@@ -1707,18 +1487,6 @@ function compareProjects(
     new Date(b.last_activity_at).getTime() -
     new Date(a.last_activity_at).getTime()
   );
-}
-
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
 function FeatureFlagsSection() {

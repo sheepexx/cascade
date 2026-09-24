@@ -7829,7 +7829,7 @@ export default function App() {
           <div
             className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
               showChrome && appSettings.showBottomTimeline
-                ? "max-h-24 translate-y-0 opacity-100"
+                ? "max-h-[144px] translate-y-0 opacity-100"
                 : "pointer-events-none max-h-0 translate-y-4 opacity-0"
             }`}
             aria-hidden={!showChrome}
