@@ -36,7 +36,7 @@ native speaker who plays mania should confirm or correct.
 
 ### Left in English on purpose, all locales
 
-`SV`, `BPM`, `OD`, `HP`, `UR`, `AiMod`, `Pack Creator`, `kiai`, `normal` /
+`SV`, `BPM`, `OD`, `HP`, `UR`, `AiMod`, `Pack Creator`, `Map Card`, `MSD`, `BBCode`, `kiai`, `normal` /
 `soft` / `drum`, `whistle` / `finish` / `clap`, `.osu` / `.osz` / `.sm` /
 `.ssc`, `Live`, `Realtime`, the `#SUBTITLE`-style StepMania header tags, and the Etterna skillset names
 (`Stream`, `Jumpstream`, `Handstream`, `Stamina`, `Jackspeed`, `Chordjack`,

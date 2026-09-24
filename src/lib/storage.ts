@@ -36,6 +36,16 @@ export type UserMenuBackgroundStorageRow = {
   updated_at: string;
 };
 
+export type MapCardStorageRow = {
+  slug: string;
+  map_key: string;
+  bytes: number | string;
+  width: number;
+  height: number;
+  version: number;
+  updated_at: string;
+};
+
 export type StorageUsage = {
   bytes: number;
   objects: number;
@@ -231,6 +241,34 @@ export async function downloadUserMenuBackground(): Promise<Blob> {
 
 export async function deleteUserMenuBackground(): Promise<void> {
   await workerJson<DeleteResult>("/storage/users/menu-background", {
+    method: "DELETE",
+    headers: sessionAuthHeaders(),
+  });
+}
+
+export async function uploadMapCard(
+  mapKey: string,
+  blob: Blob,
+): Promise<MapCardStorageRow> {
+  const result = await workerJson<{ card: MapCardStorageRow }>(
+    `/storage/cards?key=${encodeURIComponent(mapKey)}`,
+    {
+      method: "PUT",
+      headers: {
+        ...sessionAuthHeaders(),
+        "Content-Type": "image/png",
+      },
+      body: blob,
+    },
+  );
+  if (result.card.map_key !== mapKey || Number(result.card.bytes) !== blob.size) {
+    throw new Error(t("mapCard.errVerify"));
+  }
+  return result.card;
+}
+
+export async function deleteMapCard(slug: string): Promise<void> {
+  await workerJson<DeleteResult>(`/storage/cards/${encodeURIComponent(slug)}`, {
     method: "DELETE",
     headers: sessionAuthHeaders(),
   });

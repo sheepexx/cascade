@@ -133,6 +133,8 @@ type Props = {
   onExportJpegQuality: (value: number) => void;
   addCascadeTag: boolean;
   onAddCascadeTag: (value: boolean) => void;
+  offerMapCardAfterExport: boolean;
+  onOfferMapCardAfterExport: (value: boolean) => void;
   uiSoundsEnabled: boolean;
   onUiSoundsEnabled: (value: boolean) => void;
   uiSoundVolume: number;
@@ -265,6 +267,8 @@ export function AppSettingsModal({
   onExportJpegQuality,
   addCascadeTag,
   onAddCascadeTag,
+  offerMapCardAfterExport,
+  onOfferMapCardAfterExport,
   uiSoundsEnabled,
   onUiSoundsEnabled,
   uiSoundVolume,
@@ -1586,6 +1590,18 @@ export function AppSettingsModal({
                 tip={t("settings.cascadeTagHint")}
                 checked={addCascadeTag}
                 onChange={onAddCascadeTag}
+              />
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.mapCard")}
+              </h3>
+              <SettingToggle
+                label={t("settings.mapCardPrompt")}
+                tip={t("settings.mapCardPromptHint")}
+                checked={offerMapCardAfterExport}
+                onChange={onOfferMapCardAfterExport}
               />
             </section>
           </div>

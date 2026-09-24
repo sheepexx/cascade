@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 const W = 148;
 const H = 72;
@@ -19,7 +19,7 @@ const WELL = "#0d0d14";
 const GHOST = "#5eead4";
 const GHOST_FOCUS = "#99f6e4";
 
-export type ToolDiagramName = "ghostNotes" | "fullLn" | "fullRc" | "crop";
+export type ToolDiagramName = "ghostNotes" | "fullLn" | "fullRc" | "crop" | "mapCard";
 
 type Note = { lane: number; y: number; end?: number };
 
@@ -271,8 +271,74 @@ function GhostNotesDiagram() {
   );
 }
 
+const CARD_X = 28;
+const CARD_Y = 6;
+const CARD_W = 92;
+const CARD_H = 60;
+const CARD_BANNER = 21;
+const CARD_SKILLS = [
+  { width: 0.92, color: "#ff9d5c" },
+  { width: 0.7, color: NOTE_ALT },
+  { width: 0.82, color: ACCENT },
+  { width: 0.48, color: GHOST },
+];
+
+function MapCardDiagram() {
+  const clip = useId();
+  const x = CARD_X;
+  const y = CARD_Y;
+  const hills = [
+    [0, CARD_BANNER],
+    [14, 12],
+    [27, 17],
+    [46, 7],
+    [66, 16],
+    [CARD_W, 9],
+    [CARD_W, CARD_BANNER],
+  ]
+    .map(([dx, dy]) => `${x + dx},${y + dy}`)
+    .join(" ");
+  return (
+    <Frame>
+      <defs>
+        <clipPath id={clip}>
+          <rect x={x} y={y} width={CARD_W} height={CARD_H} rx={5} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clip})`}>
+        <rect x={x} y={y} width={CARD_W} height={CARD_H} fill={WELL} />
+        <rect x={x} y={y} width={CARD_W} height={CARD_BANNER} fill={NOTE_ALT} opacity={0.18} />
+        <polygon points={hills} fill={NOTE_ALT} opacity={0.32} />
+        <rect x={x} y={y + CARD_BANNER - 6} width={CARD_W} height={6} fill={WELL} opacity={0.55} />
+      </g>
+      <rect x={x + 6} y={y + 12} width={40} height={3.6} rx={1.6} fill={NOTE} />
+      <rect x={x + 6} y={y + 17.5} width={24} height={2.4} rx={1.2} fill={MUTED} />
+      <rect x={x + 6} y={y + 24} width={9} height={4.5} rx={1.6} fill={ACCENT} />
+      <rect x={x + 18} y={y + 25} width={22} height={2.6} rx={1.2} fill={MUTED} opacity={0.8} />
+      <rect x={x + CARD_W - 20} y={y + 24} width={14} height={4.5} rx={2.2} fill="#f6f05c" opacity={0.9} />
+      <rect x={x + 6} y={y + 33} width={18} height={20} rx={2.5} fill={LINE} opacity={0.6} />
+      <rect x={x + 9} y={y + 38} width={12} height={5} rx={1.4} fill="#ff9d5c" />
+      <rect x={x + 9} y={y + 46} width={8} height={2} rx={1} fill={MUTED} />
+      {CARD_SKILLS.map((skill, i) => {
+        const bx = x + 30;
+        const bw = CARD_W - 36;
+        const by = y + 35 + i * 5;
+        return (
+          <g key={i}>
+            <rect x={bx} y={by} width={bw} height={2.2} rx={1.1} fill={LINE} />
+            <rect x={bx} y={by} width={bw * skill.width} height={2.2} rx={1.1} fill={skill.color} />
+          </g>
+        );
+      })}
+      <rect x={x} y={y} width={CARD_W} height={CARD_H} rx={5} fill="none" stroke={LINE} />
+    </Frame>
+  );
+}
+
 export function ToolDiagram({ name }: { name: ToolDiagramName }) {
   switch (name) {
+    case "mapCard":
+      return <MapCardDiagram />;
     case "ghostNotes":
       return <GhostNotesDiagram />;
     case "fullLn":

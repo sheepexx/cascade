@@ -5,6 +5,10 @@
     {
       "source": "/m/:slug",
       "destination": "https://mania-editor.noahcraft01.workers.dev/m/:slug"
+    },
+    {
+      "source": "/card/:file",
+      "destination": "https://mania-editor.noahcraft01.workers.dev/card/:file"
     }
   ],
   "redirects": [

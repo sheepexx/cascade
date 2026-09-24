@@ -32,6 +32,7 @@ type Props = {
   ghostNotesReady: boolean;
   ghostNotesAllowed: boolean;
   onGhostNotes: (enabled: boolean) => void;
+  onMapCard: () => void;
 };
 
 function ToolCard({
@@ -89,6 +90,7 @@ export function ToolsModal({
   ghostNotesReady,
   ghostNotesAllowed,
   onGhostNotes,
+  onMapCard,
 }: Props) {
   const t = useT();
   const cropTotal = cropRemoveCount + cropClampCount;
@@ -285,6 +287,19 @@ export function ToolsModal({
               disabled={!trimActive || cropTotal === 0}
             >
               {t("tools.crop")}
+            </Button>
+          </ToolCard>
+
+          <ToolCard
+            title={t("mapCard.title")}
+            image="mapCard"
+            info={t("mapCard.toolInfo")}
+            status={
+              noteTotal === 0 ? t("mapCard.toolNoNotes") : t("mapCard.toolIdle")
+            }
+          >
+            <Button variant="accent" onClick={onMapCard}>
+              {t("mapCard.create")}
             </Button>
           </ToolCard>
         </div>

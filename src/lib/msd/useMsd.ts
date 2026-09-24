@@ -127,10 +127,12 @@ export function useMsdRatings(
   useEffect(() => {
     mountedRef.current = true;
     const timers = timersRef.current;
+    const pending = pendingRef.current;
     return () => {
       mountedRef.current = false;
       for (const t of timers.values()) window.clearTimeout(t);
       timers.clear();
+      pending.clear();
     };
   }, []);
 

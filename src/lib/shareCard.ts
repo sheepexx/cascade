@@ -108,7 +108,7 @@ export function cardChips(info: ShareCardInfo): string[] {
   return chips;
 }
 
-function fitText(
+export function fitText(
   ctx: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
@@ -135,7 +135,7 @@ function drawCover(
   ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
-async function loadImage(url: string): Promise<HTMLImageElement | null> {
+export async function loadImage(url: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";

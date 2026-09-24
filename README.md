@@ -30,6 +30,7 @@ Mapping needs a keyboard and a mouse. On a phone, Cascade shows an overview page
 | [Timing and audio](#timing-and-audio) | Red and green points, tap tempo, BPM detection, metronome, offset calibration |
 | [Scroll velocity](#scroll-velocity) | Constant, curve and stutter SV with a preview before you apply |
 | [Checks and mapping tools](#checks-and-mapping-tools) | AiMod report, export validation, resnapping, note suggestions, pattern presets |
+| [Map Card](#map-card) | A shareable image of a difficulty's stats and MSD skillsets, with a direct link for osu! descriptions |
 | [Import and export](#import-export-and-pack-creator) | osu!mania, StepMania, Etterna, Quaver and Malody formats, osu! links, Pack Creator |
 | [Accounts and collaboration](#accounts-cloud-collaboration-and-sharing) | osu! login, cloud projects, realtime collaboration, comments, public share links |
 | [Desktop app](#desktop-app) | Project folder on disk, version history, file associations, osu! integration on Windows |
@@ -189,11 +190,29 @@ Before an export, Cascade lists errors that block it and warnings you can ignore
 - **Full LN** turns every note into a long note that ends a set number of ticks before the next note in its column.
 - **Full RC** turns every long note back into a rice note.
 - **Crop to brackets** deletes notes outside the trim brackets and shortens holds that run past the end.
+- **Map Card** makes a shareable image of the difficulty. See [Map Card](#map-card).
 
 ### Pattern presets and batch apply
 
 - Save a copied pattern as a preset. Keep it private, or submit it as a public preset. Public presets appear in the preset browser after an admin approves them. Presets are stored on your account, so they need an osu! login.
 - Batch apply, in Map Settings, copies timing (BPM and offset only, or all timing, SV and volume), the preview point, and HP, OD and default sample set from one difficulty to other difficulties that use the same audio.
+
+## Map Card
+
+![The Map Card editor with presets, background, style and stat controls on the left and a live preview of a 4K card with its MSD skillsets on the right](docs/images/map-card.jpg)
+
+*The Map Card editor. The preview is the exact PNG you download or host.*
+
+A Map Card is an image of one difficulty for your osu! map description or Discord. Open it from **Tools**, from **File > Create Map Card**, from the command palette, or from the prompt Cascade can show after an export.
+
+- **Built from the map**: title, artist, mapper, difficulty name, key count, star rating, BPM (with the range when the tempo changes), length, note and long note counts, notes per second, OD and HP.
+- **Every MSD skillset** for 4K, 6K and 7K from Etterna's MinaCalc: the overall rating next to stream, jumpstream, handstream, stamina, jackspeed, chordjack and technical. Other key counts show the star rating and map stats.
+- **Background**: the map's background as a banner, blurred behind the whole card, or the plain Cascade style, with blur and darkness sliders.
+- **Style**: a detailed or compact layout, skillsets as bars, tiles or pills, an accent colour, and a switch for every stat.
+- **Presets**: Default, Minimal, Background Banner, Full Background and Tournament Style, plus your own, saved to your account.
+- **Export**: download a 1600 px wide PNG, copy it straight into Discord, or host it on Cascade. A hosted card gets a direct image link and a ready `[img]` BBCode for osu! descriptions. Updating the card keeps the same link.
+
+Hosting and saved presets need an osu! login. How hosting works is in [docs/MAP_CARDS.md](docs/MAP_CARDS.md).
 
 ## Import, export and Pack Creator
 

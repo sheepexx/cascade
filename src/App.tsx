@@ -116,6 +116,16 @@ const ToolsModal = lazyWithPreload(() =>
     default: m.ToolsModal,
   })),
 );
+const MapCardModal = lazyWithPreload(() =>
+  import("./components/menus/MapCardModal").then((m) => ({
+    default: m.MapCardModal,
+  })),
+);
+const MapCardPrompt = lazyWithPreload(() =>
+  import("./components/menus/MapCardPrompt").then((m) => ({
+    default: m.MapCardPrompt,
+  })),
+);
 const AiModModal = lazyWithPreload(() =>
   import("./components/menus/AiModModal").then((m) => ({
     default: m.AiModModal,
@@ -303,6 +313,8 @@ function preloadLazyChunks(): Promise<unknown> {
       TimingModal,
       SvModal,
       ToolsModal,
+      MapCardModal,
+      MapCardPrompt,
       AiModModal,
       WelcomeModal,
       SampleMapsModal,
@@ -471,6 +483,7 @@ import {
   type TimingPoint,
   type ViewState,
 } from "./types";
+import type { MapCardPresetOption } from "./lib/mapCard";
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
 import { sortedPoints } from "./lib/timing";
 import { hasSv } from "./lib/sv";
@@ -535,6 +548,7 @@ type ModalId =
   | "sv"
   | "difficulty"
   | "tools"
+  | "mapCard"
   | "aimod"
   | "myMaps"
   | "presets"
@@ -763,6 +777,11 @@ export default function App() {
   );
   const [skinError, setSkinError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [mapCardStart, setMapCardStart] = useState<MapCardPresetOption | null>(null);
+  const [mapCardOffer, setMapCardOffer] = useState<{
+    target: string;
+    open: boolean;
+  } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragDepthRef = useRef(0);
   const [invisibleMode, setInvisibleMode] = useState<boolean>(() => {
@@ -5412,6 +5431,17 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuMusicEnabled, toggleMenuMusic, nextMenuTrack, previousMenuTrack]);
 
+  const openMapCard = useCallback((start: MapCardPresetOption | null = null) => {
+    setMapCardStart(start);
+    setModal("mapCard");
+  }, []);
+
+  const offerMapCard = useCallback((target: string) => {
+    if (appSettingsRef.current.offerMapCardAfterExport) {
+      setMapCardOffer({ target, open: true });
+    }
+  }, []);
+
   const doExportOsu = useCallback((songMeta: SongMeta = meta) => {
     if (!audioFile) return;
     downloadOsu({
@@ -5426,6 +5456,7 @@ export default function App() {
     });
     playUiSound("mapExportDone");
     void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
+    offerMapCard(".osu");
   }, [
     audioFile,
     active,
@@ -5433,6 +5464,7 @@ export default function App() {
     meta,
     authUser?.id,
     appSettings.addCascadeTag,
+    offerMapCard,
   ]);
 
   const doExportSm = useCallback(async (songMeta: SongMeta = meta) => {
@@ -5450,6 +5482,7 @@ export default function App() {
       });
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_sm", authUser?.id).catch(() => {});
+      offerMapCard(".sm");
     } catch (error) {
       setImportError(
         error instanceof Error
@@ -5459,7 +5492,7 @@ export default function App() {
     } finally {
       setExporting(false);
     }
-  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id, t]);
+  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id, t, offerMapCard]);
 
   const doExportQua = useCallback(async (songMeta: SongMeta = meta) => {
     if (!audioFile || (active.keyCount !== 4 && active.keyCount !== 7)) return;
@@ -5475,6 +5508,7 @@ export default function App() {
         bpmAffectsScroll: appSettings.bpmAffectsScroll,
       });
       playUiSound("mapExportDone");
+      offerMapCard(".qua");
     } catch (error) {
       setImportError(
         error instanceof Error
@@ -5489,6 +5523,7 @@ export default function App() {
     activeTimingPoints,
     meta,
     appSettings.bpmAffectsScroll,
+    offerMapCard,
   ]);
 
   const doExportMcz = useCallback(async (songMeta: SongMeta = meta) => {
@@ -5505,6 +5540,7 @@ export default function App() {
         bgFiles,
       });
       playUiSound("mapExportDone");
+      offerMapCard(".mcz");
     } catch (error) {
       setImportError(
         t("malody.exportFailed", {
@@ -5514,7 +5550,7 @@ export default function App() {
     } finally {
       setExporting(false);
     }
-  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, t]);
+  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, t, offerMapCard]);
 
   const doExportOsz = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
@@ -5538,6 +5574,7 @@ export default function App() {
       });
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
+      offerMapCard(".osz");
     } catch (error) {
       setImportError(
         error instanceof Error
@@ -5560,6 +5597,7 @@ export default function App() {
     appSettings.exportPngBackgroundsAsJpeg,
     appSettings.exportJpegQuality,
     appSettings.addCascadeTag,
+    offerMapCard,
   ]);
 
   const checkAndExport = useCallback(
@@ -6728,6 +6766,7 @@ export default function App() {
           { id: "difficulty", label: t("nav.difficulty"), group: t("palette.group.editor"), keywords: "keys od hp", run: () => setModal("difficulty") },
           { id: "add-difficulty", label: t("app.addDifficulty"), group: t("palette.group.editor"), keywords: "new diff", disabled: !canEdit, run: addDifficulty },
           { id: "tools", label: t("nav.tools"), group: t("palette.group.editor"), keywords: "ghost notes full ln rice crop", run: () => setModal("tools") },
+          { id: "map-card", label: t("file.mapCard"), group: t("palette.group.export"), keywords: "image png share description msd skillsets bbcode discord", run: () => openMapCard() },
           { id: "aimod", label: t("nav.aiMod"), group: t("palette.group.editor"), keywords: "check validation", run: openAiMod },
           ...(appSettings.showPatternTools
             ? [{ id: "presets", label: t("nav.presets"), group: t("palette.group.editor"), keywords: "patterns clipboard", run: () => setModal("presets" as ModalId) }]
@@ -7256,6 +7295,11 @@ export default function App() {
                       ? t("malody.maxKeys", { count: MALODY_MAX_KEYS })
                       : undefined,
                     onClick: handleExportMcz,
+                  },
+                  { separator: true },
+                  {
+                    label: t("file.mapCard"),
+                    onClick: () => openMapCard(),
                   },
                   ...(isDesktopApp()
                     ? [
@@ -8147,6 +8191,10 @@ export default function App() {
           onAddCascadeTag={(v) =>
             setAppSettings((s) => ({ ...s, addCascadeTag: v }))
           }
+          offerMapCardAfterExport={appSettings.offerMapCardAfterExport}
+          onOfferMapCardAfterExport={(v) =>
+            setAppSettings((s) => ({ ...s, offerMapCardAfterExport: v }))
+          }
           uiSoundsEnabled={appSettings.uiSoundsEnabled}
           onUiSoundsEnabled={(v) =>
             setAppSettings((s) => ({ ...s, uiSoundsEnabled: v }))
@@ -8251,6 +8299,35 @@ export default function App() {
           ghostNotesReady={!!waveform?.buffer}
           ghostNotesAllowed={canEdit}
           onGhostNotes={setGhostNotes}
+          onMapCard={() => openMapCard()}
+        />
+      )}
+      {modalMounted("mapCard") && (
+        <MapCardModal
+          open={modal === "mapCard"}
+          onClose={close}
+          meta={meta}
+          difficulties={difficulties}
+          activeId={active.id}
+          sharedTimingPoints={timingPoints}
+          bgFiles={bgFiles}
+          projectId={cloudProjectId ?? localProjectId}
+          start={mapCardStart}
+        />
+      )}
+      {mapCardOffer && (
+        <MapCardPrompt
+          open={mapCardOffer.open}
+          target={mapCardOffer.target}
+          askAfterExport={appSettings.offerMapCardAfterExport}
+          onAskAfterExport={(v) =>
+            setAppSettings((s) => ({ ...s, offerMapCardAfterExport: v }))
+          }
+          onSkip={() => setMapCardOffer((offer) => offer && { ...offer, open: false })}
+          onCreate={(preset) => {
+            setMapCardOffer((offer) => offer && { ...offer, open: false });
+            openMapCard(preset);
+          }}
         />
       )}
       {autoTimeOpen && (

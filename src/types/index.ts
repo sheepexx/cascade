@@ -459,6 +459,7 @@ export type AppSettings = {
   exportJpegQuality: number;
   /** Exported maps carry "Cascade" in their tags. */
   addCascadeTag: boolean;
+  offerMapCardAfterExport: boolean;
   discordPresence: DiscordPresenceMode;
   uiSoundsEnabled: boolean;
   uiSoundVolume: number;
@@ -549,6 +550,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   exportPngBackgroundsAsJpeg: true,
   exportJpegQuality: 0.9,
   addCascadeTag: true,
+  offerMapCardAfterExport: true,
   uiSoundsEnabled: true,
   uiSoundVolume: 1,
   showMenuPlayers: true,

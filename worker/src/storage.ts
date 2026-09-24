@@ -44,6 +44,28 @@ const MENU_BACKGROUND_BOUNDS = {
 const MENU_BACKGROUND_COLUMNS =
   "id,user_id,filename,storage_path,sha256,bytes,width,height,updated_at";
 
+type MapCardRow = {
+  id: string;
+  user_id: string;
+  slug: string;
+  map_key: string;
+  storage_path: string;
+  bytes: number | string;
+  width: number;
+  height: number;
+  version: number;
+  updated_at: string;
+};
+
+const MAP_CARD_MAX_BYTES = 8 * 1024 * 1024;
+const MAP_CARD_MAX_SIDE = 4096;
+const MAP_CARD_LIMIT = 100;
+const MAP_CARD_KEY_RE = /^[A-Za-z0-9_.:-]{1,200}$/;
+const MAP_CARD_SLUG_ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789";
+const MAP_CARD_CACHE_CONTROL = "public, max-age=300";
+const MAP_CARD_COLUMNS =
+  "id,user_id,slug,map_key,storage_path,bytes,width,height,version,updated_at";
+
 type UserSkinRow = {
   id: string;
   user_id: string;
@@ -147,6 +169,25 @@ export async function handleStorageRoute(
     }
     if (req.method === "DELETE") return deleteUserMenuBackground(auth, env);
     return storageJson({ error: "method not allowed" }, 405, env);
+  }
+
+  if (/^\/storage\/cards\/?$/.test(url.pathname)) {
+    if (req.method !== "PUT") {
+      return storageJson({ error: "method not allowed" }, 405, env);
+    }
+    const auth = await authenticate();
+    if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
+    return uploadMapCard(req, url.searchParams.get("key"), auth, env);
+  }
+
+  const mapCard = url.pathname.match(/^\/storage\/cards\/([a-z0-9]{10})\/?$/);
+  if (mapCard) {
+    if (req.method !== "DELETE") {
+      return storageJson({ error: "method not allowed" }, 405, env);
+    }
+    const auth = await authenticate();
+    if (!auth) return storageJson({ error: "unauthorized" }, 401, env);
+    return deleteMapCard(mapCard[1], auth, env);
   }
 
   const projectRoot = url.pathname.match(
@@ -386,6 +427,20 @@ export async function handleDesktopRoute(
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", "public, max-age=60");
   return new Response(response.body, { status: response.status, headers });
+}
+
+export async function handleMapCardRoute(
+  req: Request,
+  url: URL,
+  env: WorkerEnv,
+): Promise<Response | null> {
+  if (!url.pathname.startsWith("/card/")) return null;
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return storageJson({ error: "method not allowed" }, 405, env, true);
+  }
+  const match = url.pathname.match(/^\/card\/([a-z0-9]{10})\.png$/);
+  if (!match) return storageJson({ error: "not found" }, 404, env, true);
+  return serveMapCard(req, mapCardStoragePath(match[1]), env);
 }
 
 async function adminStorageStats(env: WorkerEnv): Promise<Response> {
@@ -989,6 +1044,282 @@ async function fetchUserMenuBackgroundRow(
   if (!response.ok) throw new Error("could not read menu background metadata");
   const rows = (await response.json()) as UserMenuBackgroundRow[];
   return rows[0] ?? null;
+}
+
+export function pngDimensions(
+  bytes: Uint8Array,
+): { width: number; height: number } | null {
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.byteLength < 33) return null;
+  if (signature.some((byte, index) => bytes[index] !== byte)) return null;
+  if (String.fromCharCode(...bytes.subarray(12, 16)) !== "IHDR") return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const width = view.getUint32(16);
+  const height = view.getUint32(20);
+  if (!width || !height) return null;
+  return { width, height };
+}
+
+function mapCardStoragePath(slug: string): string {
+  return `cards/${slug}.png`;
+}
+
+function makeMapCardSlug(): string {
+  const bytes = new Uint8Array(10);
+  crypto.getRandomValues(bytes);
+  let slug = "";
+  for (const byte of bytes) {
+    slug += MAP_CARD_SLUG_ALPHABET[byte % MAP_CARD_SLUG_ALPHABET.length];
+  }
+  return slug;
+}
+
+function publicMapCard(row: MapCardRow) {
+  return {
+    slug: row.slug,
+    map_key: row.map_key,
+    bytes: Number(row.bytes),
+    width: row.width,
+    height: row.height,
+    version: row.version,
+    updated_at: row.updated_at,
+  };
+}
+
+async function fetchMapCardRows(
+  filter: Record<string, string>,
+  env: WorkerEnv,
+  limit = 1,
+): Promise<MapCardRow[]> {
+  const params = new URLSearchParams({
+    ...filter,
+    select: MAP_CARD_COLUMNS,
+    limit: String(limit),
+  });
+  const response = await supabaseRest(env, `/map_cards?${params}`, {
+    headers: serviceHeaders(env),
+  });
+  if (!response.ok) throw new Error("could not read map card metadata");
+  return (await response.json()) as MapCardRow[];
+}
+
+async function insertMapCardRow(
+  uid: string,
+  mapKey: string,
+  image: { bytes: number; width: number; height: number },
+  env: WorkerEnv,
+): Promise<{ row: MapCardRow; created: boolean } | null> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const slug = makeMapCardSlug();
+    const response = await supabaseRest(
+      env,
+      `/map_cards?select=${MAP_CARD_COLUMNS}`,
+      {
+        method: "POST",
+        headers: {
+          ...serviceHeaders(env),
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({
+          user_id: uid,
+          slug,
+          map_key: mapKey,
+          storage_path: mapCardStoragePath(slug),
+          bytes: image.bytes,
+          width: image.width,
+          height: image.height,
+        }),
+      },
+    );
+    if (response.status === 409) {
+      const raced = await fetchMapCardRows(
+        { user_id: `eq.${uid}`, map_key: `eq.${mapKey}` },
+        env,
+      );
+      if (raced[0]) return { row: raced[0], created: false };
+      continue;
+    }
+    if (!response.ok) return null;
+    const rows = (await response.json()) as MapCardRow[];
+    return rows[0] ? { row: rows[0], created: true } : null;
+  }
+  return null;
+}
+
+async function uploadMapCard(
+  req: Request,
+  mapKey: string | null,
+  auth: StorageAuthContext,
+  env: WorkerEnv,
+): Promise<Response> {
+  if (!mapKey || !MAP_CARD_KEY_RE.test(mapKey)) {
+    return storageJson({ error: "invalid map card key" }, 400, env);
+  }
+  if (normalizedContentType(req.headers.get("Content-Type")) !== "image/png") {
+    return storageJson({ error: "map cards must be PNG images" }, 415, env);
+  }
+  const rawLength = req.headers.get("Content-Length");
+  if (!rawLength || !/^\d+$/.test(rawLength)) {
+    return storageJson({ error: "content length required" }, 411, env);
+  }
+  const size = Number(rawLength);
+  if (!Number.isSafeInteger(size) || size < 1) {
+    return storageJson({ error: "invalid content length" }, 400, env);
+  }
+  if (size > MAP_CARD_MAX_BYTES) {
+    return storageJson({ error: "map card exceeds size limit" }, 413, env);
+  }
+  const bytes = new Uint8Array(await req.arrayBuffer());
+  if (bytes.byteLength !== size) {
+    return storageJson({ error: "uploaded size did not match" }, 400, env);
+  }
+  const dimensions = pngDimensions(bytes);
+  if (
+    !dimensions ||
+    dimensions.width > MAP_CARD_MAX_SIDE ||
+    dimensions.height > MAP_CARD_MAX_SIDE
+  ) {
+    return storageJson({ error: "not a valid map card image" }, 415, env);
+  }
+
+  let existing = (
+    await fetchMapCardRows({ user_id: `eq.${auth.uid}`, map_key: `eq.${mapKey}` }, env)
+  )[0];
+  let created = false;
+  if (!existing) {
+    const owned = await fetchMapCardRows(
+      { user_id: `eq.${auth.uid}` },
+      env,
+      MAP_CARD_LIMIT,
+    );
+    if (owned.length >= MAP_CARD_LIMIT) {
+      return storageJson(
+        { error: `map card limit reached (${MAP_CARD_LIMIT}); delete an old card first` },
+        409,
+        env,
+      );
+    }
+    const inserted = await insertMapCardRow(
+      auth.uid,
+      mapKey,
+      { bytes: size, ...dimensions },
+      env,
+    );
+    if (!inserted) {
+      return storageJson({ error: "could not save map card metadata" }, 502, env);
+    }
+    existing = inserted.row;
+    created = inserted.created;
+  }
+
+  try {
+    await env.SHARED_ASSETS.put(existing.storage_path, bytes, {
+      httpMetadata: {
+        contentType: "image/png",
+        cacheControl: MAP_CARD_CACHE_CONTROL,
+      },
+      customMetadata: { uploadedBy: auth.uid },
+    });
+  } catch (error) {
+    if (created) {
+      await supabaseRest(env, `/map_cards?id=eq.${existing.id}`, {
+        method: "DELETE",
+        headers: { ...serviceHeaders(env), Prefer: "return=minimal" },
+      }).catch(() => undefined);
+    }
+    reportCleanupWarnings("map card", existing.id, [errorMessage(error)]);
+    return storageJson({ error: "could not store the map card image" }, 502, env);
+  }
+
+  if (created) return storageJson({ card: publicMapCard(existing) }, 200, env);
+
+  const patched = await supabaseRest(
+    env,
+    `/map_cards?id=eq.${existing.id}&select=${MAP_CARD_COLUMNS}`,
+    {
+      method: "PATCH",
+      headers: {
+        ...serviceHeaders(env),
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        bytes: size,
+        width: dimensions.width,
+        height: dimensions.height,
+        version: existing.version + 1,
+      }),
+    },
+  );
+  if (!patched.ok) {
+    return storageJson({ error: "could not save map card metadata" }, 502, env);
+  }
+  const rows = (await patched.json()) as MapCardRow[];
+  return storageJson({ card: publicMapCard(rows[0] ?? existing) }, 200, env);
+}
+
+async function deleteMapCard(
+  slug: string,
+  auth: StorageAuthContext,
+  env: WorkerEnv,
+): Promise<Response> {
+  const row = (await fetchMapCardRows({ slug: `eq.${slug}` }, env))[0];
+  if (!row) return storageJson({ error: "map card not found" }, 404, env);
+  if (row.user_id !== auth.uid && !auth.isAdmin) {
+    return storageJson({ error: "forbidden" }, 403, env);
+  }
+  const response = await supabaseRest(env, `/map_cards?id=eq.${row.id}`, {
+    method: "DELETE",
+    headers: { ...serviceHeaders(env), Prefer: "return=minimal" },
+  });
+  if (!response.ok) {
+    return storageJson({ error: "could not remove map card metadata" }, 502, env);
+  }
+  const warnings: string[] = [];
+  try {
+    await env.SHARED_ASSETS.delete(row.storage_path);
+  } catch (error) {
+    warnings.push(errorMessage(error));
+  }
+  reportCleanupWarnings("map card", row.id, warnings);
+  return storageJson({ deleted: true, warnings }, 200, env);
+}
+
+async function serveMapCard(
+  req: Request,
+  key: string,
+  env: WorkerEnv,
+): Promise<Response> {
+  if (req.method === "HEAD") {
+    const object = await env.SHARED_ASSETS.head(key);
+    if (!object) return storageJson({ error: "not found" }, 404, env, true);
+    const headers = mapCardHeaders(object, env);
+    headers.set("Content-Length", String(object.size));
+    return new Response(null, { status: 200, headers });
+  }
+  const object = await env.SHARED_ASSETS.get(key, { onlyIf: req.headers });
+  if (!object) return storageJson({ error: "not found" }, 404, env, true);
+  const headers = mapCardHeaders(object, env);
+  if (!("body" in object)) {
+    const conditional =
+      req.headers.has("If-None-Match") || req.headers.has("If-Modified-Since");
+    return new Response(null, { status: conditional ? 304 : 412, headers });
+  }
+  headers.set("Content-Length", String(object.size));
+  return new Response(object.body, { status: 200, headers });
+}
+
+function mapCardHeaders(object: R2Object, env: WorkerEnv): Headers {
+  const headers = new Headers(storageCors(env, true));
+  object.writeHttpMetadata(headers);
+  headers.set("Content-Type", "image/png");
+  headers.set("Cache-Control", MAP_CARD_CACHE_CONTROL);
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("ETag", object.httpEtag);
+  headers.set("Last-Modified", object.uploaded.toUTCString());
+  applyAssetResponseSecurity(headers);
+  return headers;
 }
 
 async function serveR2Object(
