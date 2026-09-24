@@ -3,6 +3,7 @@ import { Button } from "../ui/Controls";
 import { Modal } from "../ui/Modal";
 import { MusicNoteIcon } from "../ui/Icons";
 import { MENU_ACCENTS } from "../../lib/menuTheme";
+import { useT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export function NewMapModal({ open, onClose, onCreate, banner }: Props) {
+  const t = useT();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [audio, setAudio] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,12 +45,12 @@ export function NewMapModal({ open, onClose, onCreate, banner }: Props) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Create a new map" width="max-w-xl" accent={MENU_ACCENTS.newMap}>
+    <Modal open={open} onClose={onClose} title={t("newMap.title")} width="max-w-xl" accent={MENU_ACCENTS.newMap}>
       <div className="flex flex-col gap-4">
         {banner}
         <div>
           <h3 className="text-base font-semibold text-slate-100">
-            Start with the song
+            {t("newMap.startWithSong")}
           </h3>
         </div>
 
@@ -84,12 +86,12 @@ export function NewMapModal({ open, onClose, onCreate, banner }: Props) {
         >
           <MusicNoteIcon className="h-8 w-8 text-slate-400" />
           <span className="mt-3 text-sm font-semibold text-slate-100">
-            {audio ? audio.name : "Choose or drop audio"}
+            {audio ? audio.name : t("newMap.chooseAudio")}
           </span>
           <span className="mt-1 text-xs text-slate-500">
             {audio
-              ? `${(audio.size / 1024 / 1024).toFixed(1)} MB · click to replace`
-              : "MP3 or OGG"}
+              ? t("newMap.replace", { size: (audio.size / 1024 / 1024).toFixed(1) })
+              : t("newMap.formats")}
           </span>
         </button>
         <input
@@ -110,18 +112,18 @@ export function NewMapModal({ open, onClose, onCreate, banner }: Props) {
             onClick={() => void create(null)}
             className="text-xs text-slate-500 transition hover:text-slate-300 disabled:opacity-50"
           >
-            Create without audio
+            {t("newMap.withoutAudio")}
           </button>
           <div className="flex gap-2">
             <Button onClick={onClose} disabled={busy}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="accent"
               disabled={!audio || busy}
               onClick={() => void create(audio)}
             >
-              {busy ? "Creating…" : "Create map"}
+              {busy ? t("newMap.creating") : t("newMap.create")}
             </Button>
           </div>
         </div>

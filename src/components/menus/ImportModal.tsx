@@ -4,6 +4,7 @@ import { Button } from "../ui/Controls";
 import { FolderIcon, ImportIcon } from "../ui/StartIcons";
 import { InfoTip } from "../ui/Tooltip";
 import { MENU_ACCENTS } from "../../lib/menuTheme";
+import { useT } from "../../lib/i18n";
 
 export function ImportModal({
   open,
@@ -21,6 +22,7 @@ export function ImportModal({
   /** Offer to open the map osu! is sitting on, when there is one. */
   banner?: ReactNode;
 }) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,28 +36,28 @@ export function ImportModal({
       await onImportFromOsu(link);
       setLink("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Import failed - try again.");
+      setError(e instanceof Error ? e.message : t("importModal.failed"));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Modal open={open} title="Import a map" onClose={onClose} width="max-w-lg" accent={MENU_ACCENTS.import}>
+    <Modal open={open} title={t("importModal.title")} onClose={onClose} width="max-w-lg" accent={MENU_ACCENTS.import}>
       <div className="flex flex-col gap-3">
         {banner}
         <div className="grid gap-3 sm:grid-cols-2">
           <ImportCard
             icon={<ImportIcon className="h-6 w-6" />}
-            title="Map file"
+            title={t("importModal.mapFile")}
             hint=".osz, .osu, .sm, .ssc, .qua, .mc, .mcz or .zip"
             onClick={() => fileRef.current?.click()}
           />
           {onFolder && (
             <ImportCard
               icon={<FolderIcon className="h-6 w-6" />}
-              title="Song folder"
-              hint="A StepMania / Etterna pack folder"
+              title={t("importModal.songFolder")}
+              hint={t("importModal.songFolderHint")}
               onClick={onFolder}
             />
           )}
@@ -86,7 +88,7 @@ export function ImportModal({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void runLinkImport();
                 }}
-                placeholder="osu! beatmap link or ID"
+                placeholder={t("importModal.linkPlaceholder")}
                 disabled={busy}
                 className="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-accent/70 focus:ring-1 focus:ring-accent/40 disabled:opacity-50"
               />
@@ -96,7 +98,7 @@ export function ImportModal({
                 onClick={() => void runLinkImport()}
                 className="whitespace-nowrap"
               >
-                {busy ? "Downloading…" : "Import"}
+                {busy ? t("importModal.downloading") : t("common.import")}
               </Button>
             </div>
             {error && <p className="mt-1 text-xs text-rose-400">{error}</p>}
@@ -104,8 +106,8 @@ export function ImportModal({
         )}
 
         <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-          You can also drop files anywhere on the page.
-          <InfoTip content="Drag a map file, an audio file or a song folder onto the page. With a map open, dropping .osu files of the same song adds them as difficulties, no audio file needed." />
+          {t("importModal.dropHint")}
+          <InfoTip content={t("importModal.dropInfo")} />
         </p>
       </div>
     </Modal>

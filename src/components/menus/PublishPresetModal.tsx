@@ -11,6 +11,7 @@ import {
   DuplicatePresetError,
 } from "../../lib/presets";
 import type { PatternNote } from "../../lib/patterns";
+import { useT } from "../../lib/i18n";
 
 export function PublishPresetModal({
   open,
@@ -23,6 +24,7 @@ export function PublishPresetModal({
   pattern: PatternNote[] | null;
   keyCount: number;
 }) {
+  const t = useT();
   const { user } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -57,7 +59,7 @@ export function PublishPresetModal({
         pattern,
         tags: tags
           .split(",")
-          .map((t) => t.trim())
+          .map((tag) => tag.trim())
           .filter(Boolean),
       };
       if (visibility === "public") {
@@ -70,10 +72,10 @@ export function PublishPresetModal({
     } catch (err) {
       setError(
         err instanceof DuplicatePresetError
-          ? "This exact pattern already exists as a public preset, so it can't be submitted again."
+          ? t("publishPreset.duplicate")
           : err instanceof Error
             ? err.message
-            : "Failed to save.",
+            : t("publishPreset.saveFailed"),
       );
       setStatus("error");
     }
@@ -82,27 +84,27 @@ export function PublishPresetModal({
   return (
     <Modal
       open={open}
-      title="Save pattern as preset"
+      title={t("publishPreset.title")}
       onClose={onClose}
       width="max-w-md"
       footer={
         status === "done" ? (
           <Button variant="accent" onClick={onClose}>
-            Done
+            {t("common.done")}
           </Button>
         ) : (
           <>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={onClose}>{t("common.cancel")}</Button>
             <Button
               variant="accent"
               onClick={() => void submit()}
               disabled={!name.trim() || status === "saving"}
             >
               {status === "saving"
-                ? "Saving..."
+                ? t("publishPreset.saving")
                 : visibility === "public"
-                  ? "Submit public preset"
-                  : "Save private preset"}
+                  ? t("publishPreset.submitPublic")
+                  : t("publishPreset.savePrivate")}
             </Button>
           </>
         )
@@ -112,14 +114,13 @@ export function PublishPresetModal({
         <p className="text-sm text-slate-300">
           {visibility === "public" ? (
             <>
-              Submitted. Your preset is now <strong>pending review</strong>.
-              Once an admin approves it, it will appear in the preset browser for
-              everyone.
+              {t("publishPreset.submittedBefore")}{" "}
+              <strong>{t("publishPreset.pending")}</strong>
+              {t("publishPreset.submittedAfter")}
             </>
           ) : (
             <>
-              Saved. This preset is synced to your account and is only visible to
-              you.
+              {t("publishPreset.savedPrivate")}
             </>
           )}
         </p>
@@ -133,18 +134,17 @@ export function PublishPresetModal({
                 size="large"
               />
             ) : (
-              <span className="text-xs text-slate-500">No pattern selected.</span>
+              <span className="text-xs text-slate-500">{t("publishPreset.noPattern")}</span>
             )}
             <div className="flex flex-wrap items-center gap-1 text-xs text-slate-400">
               <span>
-                {keyCount}K · {pattern?.length ?? 0} notes
+                {keyCount}K · {t("diffModal.notes", { count: pattern?.length ?? 0 })}
               </span>
               {pattern && <SnapBadge pattern={pattern} />}
             </div>
           </div>
           <div className="rounded-lg border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
-            Saving or sharing a pattern does not make it rankable. Anyone using
-            it in a ranked map must review and adapt it themselves.
+            {t("publishPreset.rankNote")}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -156,7 +156,7 @@ export function PublishPresetModal({
                   : "border-white/10 bg-ink-700/40 text-slate-400 hover:bg-ink-700"
               }`}
             >
-              Private
+              {t("publishPreset.private")}
             </button>
             <button
               type="button"
@@ -167,30 +167,30 @@ export function PublishPresetModal({
                   : "border-white/10 bg-ink-700/40 text-slate-400 hover:bg-ink-700"
               }`}
             >
-              Public review
+              {t("publishPreset.public")}
             </button>
           </div>
-          <Field label="Name">
+          <Field label={t("common.name")}>
             <TextInput
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. 4K jumpstream burst"
+              placeholder={t("publishPreset.namePlaceholder")}
               maxLength={80}
             />
           </Field>
-          <Field label="Description" hint="Optional.">
+          <Field label={t("publishPreset.description")} hint={t("publishPreset.optional")}>
             <TextInput
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this pattern good for?"
+              placeholder={t("publishPreset.descriptionPlaceholder")}
               maxLength={200}
             />
           </Field>
-          <Field label="Tags" hint="Comma-separated, optional.">
+          <Field label={t("pack.tags")} hint={t("publishPreset.tagsHint")}>
             <TextInput
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              placeholder="stream, jack, tech"
+              placeholder={t("publishPreset.tagsPlaceholder")}
             />
           </Field>
           {error && <p className="text-sm text-rose-400">{error}</p>}

@@ -10,6 +10,7 @@ import {
   type CloudProjectSummary,
 } from "../../lib/cloud";
 import { MENU_ACCENTS } from "../../lib/menuTheme";
+import { useT } from "../../lib/i18n";
 
 export function MyMapsModal({
   open,
@@ -20,6 +21,7 @@ export function MyMapsModal({
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
+  const t = useT();
   const { user } = useAuth();
   const [maps, setMaps] = useState<CloudProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +42,12 @@ export function MyMapsModal({
       })
       .catch((err) => {
         if (!cancelled)
-          setError(err instanceof Error ? err.message : "Failed to load maps.");
+          setError(err instanceof Error ? err.message : t("myMaps.loadFailed"));
       });
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, t]);
 
   const handleDelete = async (id: string) => {
     setBusyId(id);
@@ -53,7 +55,7 @@ export function MyMapsModal({
       await deleteProjectCloud(id);
       setMaps((prev) => prev?.filter((m) => m.id !== id) ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete.");
+      setError(err instanceof Error ? err.message : t("myMaps.deleteFailed"));
     } finally {
       setBusyId(null);
     }
@@ -61,14 +63,14 @@ export function MyMapsModal({
 
   return (
     <>
-    <Modal open={open} title="My Maps" onClose={onClose} width="max-w-2xl" accent={MENU_ACCENTS.myMaps}>
+    <Modal open={open} title={t("menu.myMaps")} onClose={onClose} width="max-w-2xl" accent={MENU_ACCENTS.myMaps}>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!maps && !error && (
-        <SkeletonRows count={3} lines={3} label="Loading your maps" />
+        <SkeletonRows count={3} lines={3} label={t("myMaps.loading")} />
       )}
       {maps && maps.length === 0 && (
         <p className="text-sm text-slate-400">
-          No saved maps yet. Use “Save to cloud” to store the current project.
+          {t("myMaps.empty")}
         </p>
       )}
       {maps && maps.length > 0 && (
@@ -81,20 +83,20 @@ export function MyMapsModal({
               <div className="min-w-0 flex-1 basis-48">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-semibold text-slate-100">
-                    {m.title || "Untitled"}
+                    {m.title || t("common.untitled")}
                   </span>
                   {user && m.owner !== user.id && (
                     <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-                      Shared
+                      {t("myMaps.shared")}
                     </span>
                   )}
                 </div>
                 <div className="truncate text-xs text-slate-400">
                   {m.artist}
-                  {m.creator ? ` · mapped by ${m.creator}` : ""}
+                  {m.creator ? ` · ${t("myMaps.mappedBy", { name: m.creator })}` : ""}
                 </div>
                 <div className="mt-0.5 text-[11px] text-slate-500">
-                  saved {new Date(m.updated_at).toLocaleString()}
+                  {t("packBrowser.savedOn", { date: new Date(m.updated_at).toLocaleString() })}
                 </div>
               </div>
               {/* Kept together so the pair wraps below the details on a phone
@@ -105,15 +107,15 @@ export function MyMapsModal({
                   onClick={() => onSelect(m.id)}
                   disabled={busyId !== null}
                 >
-                  Open
+                  {t("common.open")}
                 </Button>
                 {user && m.owner === user.id && (
                   <Button
                     onClick={() => setConfirmId(m.id)}
                     disabled={busyId !== null}
-                    title="Delete this saved map"
+                    title={t("myMaps.deleteHint")}
                   >
-                    {busyId === m.id ? "…" : "Delete"}
+                    {busyId === m.id ? "…" : t("common.delete")}
                   </Button>
                 )}
               </div>
@@ -125,8 +127,8 @@ export function MyMapsModal({
 
     <HoldConfirmDialog
       open={confirmId !== null}
-      title="Delete saved map?"
-      message="This saved map and all of its stored files will be permanently deleted from Cloudflare R2 and Supabase Storage. This can't be undone."
+      title={t("myMaps.deleteTitle")}
+      message={t("myMaps.deleteBody")}
       busy={busyId !== null}
       onConfirm={() => {
         const id = confirmId;

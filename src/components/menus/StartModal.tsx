@@ -265,12 +265,12 @@ export function WelcomeModal({
       })
       .catch((e) => {
         if (!cancelled)
-          setError(e instanceof Error ? e.message : "Couldn't load your maps.");
+          setError(e instanceof Error ? e.message : t("start.loadFailed"));
       });
     return () => {
       cancelled = true;
     };
-  }, [open, user]);
+  }, [open, user, t]);
 
   const owned = user
     ? browse(
@@ -387,7 +387,7 @@ export function WelcomeModal({
         }
       } catch (e) {
         setError(
-          e instanceof Error ? e.message : "Couldn't delete that project.",
+          e instanceof Error ? e.message : t("start.deleteFailed"),
         );
       }
     }
@@ -407,7 +407,7 @@ export function WelcomeModal({
         );
       } catch (e) {
         setError(
-          e instanceof Error ? e.message : "Couldn't update that project.",
+          e instanceof Error ? e.message : t("start.updateFailed"),
         );
       } finally {
         setBusyId(null);
@@ -1140,6 +1140,7 @@ function ProjectCard({
   selected?: boolean;
   onOpen: (additive: boolean) => void;
 }) {
+  const t = useT();
   return (
     <div
       className={`group relative flex flex-col overflow-hidden rounded-xl border bg-ink-700/40 transition hover:bg-ink-700 ${
@@ -1171,7 +1172,7 @@ function ProjectCard({
           ) : sourceFormat ? (
             <img
               src={asset(`${sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`)}
-              alt={sourceFormat === "sm" ? "Etterna Map" : "osu! Map"}
+              alt={sourceFormat === "sm" ? t("start.etternaMap") : t("start.osuMap")}
               className="absolute left-2 top-2 h-5 w-5 object-contain drop-shadow-md opacity-90"
             />
           ) : null}
@@ -1295,11 +1296,12 @@ function DeleteAction({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
-      title={count > 1 ? `Delete ${count} projects` : "Delete"}
-      aria-label={count > 1 ? `Delete ${count} projects` : "Delete"}
+      title={count > 1 ? t("start.deleteProjects", { count }) : t("common.delete")}
+      aria-label={count > 1 ? t("start.deleteProjects", { count }) : t("common.delete")}
       disabled={disabled}
       data-no-uisound=""
       onClick={(e) => {

@@ -3,6 +3,7 @@ import { Modal } from "../ui/Modal";
 import { Button, Field } from "../ui/Controls";
 import { useAuth } from "../../lib/auth";
 import { submitFeedback } from "../../lib/feedback";
+import { useT } from "../../lib/i18n";
 
 export function FeedbackModal({
   open,
@@ -11,6 +12,7 @@ export function FeedbackModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const { user } = useAuth();
   const [body, setBody] = useState("");
   const [status, setStatus] = useState<null | "saving" | "done" | "error">(null);
@@ -36,7 +38,7 @@ export function FeedbackModal({
       });
       setStatus("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit feedback.");
+      setError(err instanceof Error ? err.message : t("feedback.failed"));
       setStatus("error");
     }
   };
@@ -44,23 +46,23 @@ export function FeedbackModal({
   return (
     <Modal
       open={open}
-      title="Feedback"
+      title={t("feedback.title")}
       onClose={onClose}
       width="max-w-lg"
       footer={
         status === "done" ? (
           <Button variant="accent" onClick={onClose}>
-            Done
+            {t("common.done")}
           </Button>
         ) : (
           <>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={onClose}>{t("common.cancel")}</Button>
             <Button
               variant="accent"
               onClick={() => void send()}
               disabled={!user || !body.trim() || status === "saving"}
             >
-              {status === "saving" ? "Sending..." : "Send feedback"}
+              {status === "saving" ? t("feedback.sending") : t("app.sendFeedback")}
             </Button>
           </>
         )
@@ -68,13 +70,13 @@ export function FeedbackModal({
     >
       {!user ? (
         <p className="text-sm text-slate-400">
-          Sign in with osu! before submitting feedback.
+          {t("feedback.signIn")}
         </p>
       ) : status === "done" ? (
-        <p className="text-sm text-slate-300">Feedback sent. Thank you.</p>
+        <p className="text-sm text-slate-300">{t("feedback.sent")}</p>
       ) : (
         <div className="flex flex-col gap-3">
-          <Field label="Message">
+          <Field label={t("feedback.message")}>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
