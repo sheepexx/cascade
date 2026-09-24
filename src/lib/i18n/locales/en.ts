@@ -398,6 +398,7 @@ export const en = {
   "file.exportOsz": "Export .osz",
   "file.exportSm": "Export .sm",
   "file.exportQua": "Export .qua",
+  "file.exportMcz": "Export .mcz",
   "file.importIntoOsu": "Import into osu!",
   "file.importFromOsu": "Import from osu!",
   "file.syncToOsu": "Save into osu! Songs",
@@ -569,7 +570,7 @@ export const en = {
 
   "drop.title": "Drop to load",
   "drop.formats":
-    "Audio (.mp3 / .ogg) · background image · .osz / .osu / .sm / .ssc / .qua map or folder · .osk skin",
+    "Audio (.mp3 / .ogg) · background image · .osz / .osu / .sm / .ssc / .qua / .mc / .mcz map or folder · .osk skin",
 
   "empty.title": "Drop audio anywhere to start mapping",
   "empty.subtitleBefore": "Or press Enter and pick a sample map.",
@@ -602,9 +603,9 @@ export const en = {
   "landing.do2":
     "Edit StepMania and Etterna charts in a browser-based ArrowVortex-style workflow",
   "landing.do3": "Preview and view osu!mania maps right in the browser",
-  "landing.do4": "Import `.osz` / `.osu`, export `.osu`, `.osz`, or `.sm`",
+  "landing.do4": "Import `.osz`, `.osu`, `.sm`, `.qua` or Malody `.mcz`, and export `.osu`, `.osz`, `.sm`, `.qua` or `.mcz`",
   "landing.do5":
-    "Convert osu!mania maps to Etterna or StepMania-compatible .sm files",
+    "Convert charts between osu!mania, StepMania, Etterna, Quaver and Malody",
   "landing.do6":
     "Combine multiple maps into one .osz song pack with the Pack Creator",
   "landing.do7": "Set BPM and timing with tap tempo and a metronome",
@@ -633,7 +634,7 @@ export const en = {
     "Yes. The Pack Creator on the start menu merges several beatmaps into a single .osz song pack with shared metadata, mapper credits, and generated difficulty names, for local play.",
   "landing.guidesTitle": "Guides",
   "landing.guide1": "How to make an osu!mania map online",
-  "landing.guide2": "Convert osu!mania maps to StepMania / Etterna (.osz to .sm)",
+  "landing.guide2": "Convert osu!mania, StepMania, Quaver and Malody charts",
   "landing.guide3": "Preview osu!mania maps online",
   "landing.guide4": "Combine multiple maps into one .osz pack",
 

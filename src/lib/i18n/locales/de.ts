@@ -346,6 +346,7 @@ export const de: PartialCatalog = {
   "file.exportOsz": ".osz exportieren",
   "file.exportSm": ".sm exportieren",
   "file.exportQua": ".qua exportieren",
+  "file.exportMcz": ".mcz exportieren",
   "file.importIntoOsu": "In osu! importieren",
   "file.importFromOsu": "Aus osu! importieren",
   "file.syncToOsu": "In osu!-Songs speichern",
@@ -504,7 +505,7 @@ export const de: PartialCatalog = {
 
   "drop.title": "Zum Laden loslassen",
   "drop.formats":
-    "Audio (.mp3 / .ogg) · Hintergrundbild · .osz / .osu / .sm / .ssc / .qua Map oder Ordner · .osk Skin",
+    "Audio (.mp3 / .ogg) · Hintergrundbild · .osz / .osu / .sm / .ssc / .qua / .mc / .mcz Map oder Ordner · .osk Skin",
 
   "empty.title": "Zieh Audio irgendwo hin, um mit dem Mappen zu starten",
   "empty.subtitleBefore": "Oder drücke Enter und wähle eine Beispiel-Map.",
@@ -538,9 +539,9 @@ export const de: PartialCatalog = {
     "StepMania- und Etterna-Charts im Browser bearbeiten, im Stil von ArrowVortex",
   "landing.do3": "osu!mania-Maps direkt im Browser ansehen und vorspielen",
   "landing.do4":
-    "`.osz` / `.osu` importieren, `.osu`, `.osz` oder `.sm` exportieren",
+    "`.osz`, `.osu`, `.sm`, `.qua` oder Malody-`.mcz` importieren und als `.osu`, `.osz`, `.sm`, `.qua` oder `.mcz` exportieren",
   "landing.do5":
-    "osu!mania-Maps in Etterna- oder StepMania-kompatible .sm-Dateien konvertieren",
+    "Charts zwischen osu!mania, StepMania, Etterna, Quaver und Malody konvertieren",
   "landing.do6":
     "Mehrere Maps mit dem Pack Creator zu einem einzigen .osz-Songpack zusammenfassen",
   "landing.do7": "BPM und Timing mit Tap-Tempo und Metronom festlegen",
@@ -570,7 +571,7 @@ export const de: PartialCatalog = {
   "landing.guidesTitle": "Anleitungen",
   "landing.guide1": "Wie man online eine osu!mania-Map erstellt",
   "landing.guide2":
-    "osu!mania-Maps nach StepMania / Etterna konvertieren (.osz zu .sm)",
+    "osu!mania-, StepMania-, Quaver- und Malody-Charts konvertieren",
   "landing.guide3": "osu!mania-Maps online ansehen",
   "landing.guide4": "Mehrere Maps zu einem .osz-Pack zusammenfassen",
 

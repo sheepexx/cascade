@@ -1134,7 +1134,7 @@ function ProjectCard({
   thumbUrl?: string;
   thumbPending?: boolean;
   badge?: string;
-  sourceFormat?: "osu" | "sm" | "qua";
+  sourceFormat?: "osu" | "sm" | "qua" | "mc";
   participants?: ProjectParticipant[];
   actions?: React.ReactNode;
   selected?: boolean;
@@ -1164,9 +1164,9 @@ function ProjectCard({
               </div>
             }
           />
-          {sourceFormat === "qua" ? (
+          {sourceFormat === "qua" || sourceFormat === "mc" ? (
             <span className="absolute left-2 top-2 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
-              qua
+              {sourceFormat}
             </span>
           ) : sourceFormat ? (
             <img

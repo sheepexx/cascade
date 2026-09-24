@@ -90,7 +90,7 @@ export type LocalProjectSummary = {
   difficultyCount: number;
   difficulties: LocalProjectDifficulty[];
   sizeBytes: number;
-  sourceFormat?: "osu" | "sm" | "qua";
+  sourceFormat?: "osu" | "sm" | "qua" | "mc";
   backgroundBlob?: Blob;
 };
 

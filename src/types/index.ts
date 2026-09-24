@@ -161,7 +161,7 @@ export type DiscordPresenceMode = "off" | "minimal" | "detailed";
 
 export type Difficulty = {
   id: string;
-  sourceFormat?: "osu" | "sm" | "qua";
+  sourceFormat?: "osu" | "sm" | "qua" | "mc";
   smMeta?: SmMeta;
   name: string;
   audioFilename?: string;

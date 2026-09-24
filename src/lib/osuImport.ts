@@ -16,6 +16,7 @@ import {
   makeRedPoint,
   uid,
 } from "../types";
+import { parseMalodyChart } from "./malody";
 import { xToColumn } from "./osuExport";
 import { uniqueDifficultyName } from "./rateChange";
 
@@ -395,25 +396,40 @@ export async function importOsz(
   progress.advance();
 
   const osuPaths: string[] = [];
+  const malodyPaths: string[] = [];
   zip.forEach((path) => {
-    if (path.toLowerCase().endsWith(".osu")) osuPaths.push(path);
+    const lower = path.toLowerCase();
+    if (lower.endsWith(".osu")) osuPaths.push(path);
+    else if (lower.endsWith(".mc")) malodyPaths.push(path);
   });
-  if (osuPaths.length === 0) {
-    throw new Error("No .osu difficulty found inside the .osz archive.");
+  // A Malody set (.mcz) carries .mc charts instead of .osu difficulties.
+  const malody = osuPaths.length === 0 && malodyPaths.length > 0;
+  const chartPaths = (malody ? malodyPaths : osuPaths).sort();
+  if (chartPaths.length === 0) {
+    throw new Error("No .osu or Malody .mc difficulty found inside the archive.");
   }
-  osuPaths.sort();
 
   const parsed: ParsedOsu[] = [];
-  for (const path of osuPaths) {
+  let malodyError: Error | null = null;
+  for (const path of chartPaths) {
     progress.phase(
-      `Reading difficulties (${parsed.length + 1}/${osuPaths.length})`,
-      parsed.length / osuPaths.length,
+      `Reading difficulties (${parsed.length + 1}/${chartPaths.length})`,
+      parsed.length / chartPaths.length,
     );
     const text = await zip.file(path)!.async("string");
-    if (isManiaOsu(text)) parsed.push(parseOsuFile(text));
+    if (malody) {
+      try {
+        parsed.push({ ...parseMalodyChart(text), videoFilename: null, videoOffsetMs: 0 });
+      } catch (error) {
+        malodyError = error instanceof Error ? error : new Error(String(error));
+      }
+    } else if (isManiaOsu(text)) {
+      parsed.push(parseOsuFile(text));
+    }
   }
   if (parsed.length === 0) {
-    throw new Error("No osu!mania (Mode 3) difficulties found in the archive.");
+    throw malodyError ??
+      new Error("No osu!mania (Mode 3) difficulties found in the archive.");
   }
   progress.advance();
 

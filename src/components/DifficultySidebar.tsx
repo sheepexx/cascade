@@ -394,7 +394,12 @@ function DiffRow({
             className="min-w-0 flex-1 text-sm font-medium text-slate-100"
           />
         )}
-        {difficulty.sourceFormat && (
+        {(difficulty.sourceFormat === "qua" || difficulty.sourceFormat === "mc") && (
+          <span className="ml-1.5 flex-shrink-0 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+            {difficulty.sourceFormat}
+          </span>
+        )}
+        {(difficulty.sourceFormat === "osu" || difficulty.sourceFormat === "sm") && (
           <img
             src={`/${difficulty.sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`}
             alt={difficulty.sourceFormat}

@@ -350,6 +350,7 @@ export const ru: PartialCatalog = {
   "file.exportOsz": "Экспорт .osz",
   "file.exportSm": "Экспорт .sm",
   "file.exportQua": "Экспорт .qua",
+  "file.exportMcz": "Экспорт .mcz",
   "file.importIntoOsu": "Импорт в osu!",
   "file.importFromOsu": "Импорт из osu!",
   "file.syncToOsu": "Сохранить в osu! Songs",
@@ -518,7 +519,7 @@ export const ru: PartialCatalog = {
 
   "drop.title": "Отпустите, чтобы загрузить",
   "drop.formats":
-    "Аудио (.mp3 / .ogg) · фоновое изображение · карта .osz / .osu / .sm / .ssc / .qua или папка · скин .osk",
+    "Аудио (.mp3 / .ogg) · фоновое изображение · карта .osz / .osu / .sm / .ssc / .qua / .mc / .mcz или папка · скин .osk",
 
   "empty.title": "Перетащите аудио куда угодно, чтобы начать маппинг",
   "empty.subtitleBefore": "Или нажмите Enter и выберите пример карты.",
@@ -552,9 +553,9 @@ export const ru: PartialCatalog = {
     "Редактировать чарты StepMania и Etterna в браузере, в стиле ArrowVortex",
   "landing.do3": "Смотреть и проигрывать карты osu!mania прямо в браузере",
   "landing.do4":
-    "Импортировать `.osz` / `.osu`, экспортировать `.osu`, `.osz` или `.sm`",
+    "Импортировать `.osz`, `.osu`, `.sm`, `.qua` или `.mcz` из Malody и экспортировать в `.osu`, `.osz`, `.sm`, `.qua` или `.mcz`",
   "landing.do5":
-    "Конвертировать карты osu!mania в .sm-файлы для Etterna или StepMania",
+    "Конвертировать карты между osu!mania, StepMania, Etterna, Quaver и Malody",
   "landing.do6":
     "Объединять несколько карт в один .osz-сборник с помощью Pack Creator",
   "landing.do7": "Задавать BPM и тайминг через тап-темп и метроном",
@@ -584,7 +585,7 @@ export const ru: PartialCatalog = {
   "landing.guidesTitle": "Руководства",
   "landing.guide1": "Как сделать карту osu!mania онлайн",
   "landing.guide2":
-    "Конвертация карт osu!mania в StepMania / Etterna (.osz в .sm)",
+    "Конвертация карт osu!mania, StepMania, Quaver и Malody",
   "landing.guide3": "Просмотр карт osu!mania онлайн",
   "landing.guide4": "Объединение нескольких карт в один .osz-пак",
 

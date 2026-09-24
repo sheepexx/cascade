@@ -5,7 +5,7 @@ use tauri::ipc::Response;
 
 pub const OPEN_EVENT: &str = "cascade://open-files";
 
-pub const SUPPORTED: [&str; 6] = ["osu", "osz", "sm", "ssc", "qua", "osk"];
+pub const SUPPORTED: [&str; 8] = ["osu", "osz", "sm", "ssc", "qua", "mc", "mcz", "osk"];
 
 pub const MAX_LAUNCH_BYTES: u64 = 512 * 1024 * 1024;
 
@@ -79,7 +79,8 @@ mod tests {
     #[test]
     fn accepts_every_format_the_editor_can_open() {
         for name in [
-            "map.osu", "set.osz", "chart.sm", "chart.ssc", "map.qua", "skin.osk",
+            "map.osu", "set.osz", "chart.sm", "chart.ssc", "map.qua", "chart.mc",
+            "set.mcz", "skin.osk",
         ] {
             assert!(is_supported(name), "{name} should be supported");
         }

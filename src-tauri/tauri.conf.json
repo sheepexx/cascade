@@ -86,6 +86,13 @@
         "role": "Editor"
       },
       {
+        "ext": ["mc", "mcz"],
+        "name": "malody-chart",
+        "description": "Malody chart",
+        "mimeType": "application/x-malody",
+        "role": "Editor"
+      },
+      {
         "ext": ["osk"],
         "name": "osu-skin",
         "description": "osu! skin",

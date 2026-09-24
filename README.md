@@ -1,6 +1,6 @@
 # Cascade
 
-Cascade is a beatmap editor for vertical scrolling rhythm games (VSRG) that runs in the browser. It is built around osu!mania and also reads and writes StepMania, Etterna and Quaver charts.
+Cascade is a beatmap editor for vertical scrolling rhythm games (VSRG) that runs in the browser. It is built around osu!mania and also reads and writes StepMania, Etterna, Quaver and Malody charts.
 
 - Browser editor: https://cascade.sheepex.net
 - Desktop app for Windows, macOS and Linux: https://cascade.sheepex.net/download
@@ -11,7 +11,7 @@ Cascade is a beatmap editor for vertical scrolling rhythm games (VSRG) that runs
 
 ## What Cascade is
 
-Cascade lets you time a song, chart it, play it, check it and export it in one place. You can start from a blank project, open an existing `.osz`, `.osu`, `.sm`, `.ssc` or `.qua` file, or load one of the sample maps from the main menu.
+Cascade lets you time a song, chart it, play it, check it and export it in one place. You can start from a blank project, open an existing `.osz`, `.osu`, `.sm`, `.ssc`, `.qua`, `.mc` or `.mcz` file, or load one of the sample maps from the main menu.
 
 You do not need to install anything or create an account. Projects are saved in your browser on your device. Logging in with osu! adds cloud saves, settings sync, realtime collaboration and public share links.
 
@@ -30,7 +30,7 @@ Mapping needs a keyboard and a mouse. On a phone, Cascade shows an overview page
 | [Timing and audio](#timing-and-audio) | Red and green points, tap tempo, BPM detection, metronome, offset calibration |
 | [Scroll velocity](#scroll-velocity) | Constant, curve and stutter SV with a preview before you apply |
 | [Checks and mapping tools](#checks-and-mapping-tools) | AiMod report, export validation, resnapping, note suggestions, pattern presets |
-| [Import and export](#import-export-and-pack-creator) | osu!mania, StepMania, Etterna and Quaver formats, osu! links, Pack Creator |
+| [Import and export](#import-export-and-pack-creator) | osu!mania, StepMania, Etterna, Quaver and Malody formats, osu! links, Pack Creator |
 | [Accounts and collaboration](#accounts-cloud-collaboration-and-sharing) | osu! login, cloud projects, realtime collaboration, comments, public share links |
 | [Desktop app](#desktop-app) | Project folder on disk, version history, file associations, osu! integration on Windows |
 
@@ -198,6 +198,8 @@ Before an export, Cascade lists errors that block it and warnings you can ignore
 | StepMania and Etterna `.sm` | Yes | Yes | Export writes step types for 4K, 5K, 6K, 7K, 8K and 10K |
 | StepMania `.ssc` | Yes | No | |
 | Quaver `.qua` | Yes | Yes | Export is limited to 4K and 7K difficulties |
+| Malody `.mc` | Yes | No | A single Key mode chart; add the song after opening it |
+| Malody set `.mcz` | Yes | Yes | Import opens every Key mode chart with its audio and background. Export packs every difficulty up to 10K into one set |
 | osu! skin `.osk` | Yes | No | Skins, not charts |
 
 Because import and export go through the same project, Cascade also works as a converter between these formats.
@@ -273,7 +275,7 @@ The builds are not code-signed yet, so Windows SmartScreen and macOS Gatekeeper 
 
 - **Projects on disk:** every save also writes `Documents/Cascade/Projects/<map>/`, so you can back up, sync or open your maps like any other folder.
 - **Version history:** the last 20 autosaves of each map are kept. Restoring swaps back the notes and timing and leaves the audio and background alone.
-- **File associations** for `.osu`, `.osz`, `.sm`, `.ssc`, `.qua` and `.osk`, whether Cascade is already running or not.
+- **File associations** for `.osu`, `.osz`, `.sm`, `.ssc`, `.qua`, `.mc`, `.mcz` and `.osk`, whether Cascade is already running or not.
 - **Signed in-app updates.**
 - **Discord status** showing the song and difficulty, only "Cascade", or nothing.
 

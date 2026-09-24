@@ -337,6 +337,7 @@ export const zhCN: PartialCatalog = {
   "file.exportOsz": "导出 .osz",
   "file.exportSm": "导出 .sm",
   "file.exportQua": "导出 .qua",
+  "file.exportMcz": "导出 .mcz",
   "file.importIntoOsu": "导入到 osu!",
   "file.importFromOsu": "从 osu! 导入",
   "file.syncToOsu": "保存到 osu! Songs",
@@ -481,7 +482,7 @@ export const zhCN: PartialCatalog = {
 
   "drop.title": "松开即可载入",
   "drop.formats":
-    "音频（.mp3 / .ogg）· 背景图片 · .osz / .osu / .sm / .ssc / .qua 谱面或文件夹 · .osk 皮肤",
+    "音频（.mp3 / .ogg）· 背景图片 · .osz / .osu / .sm / .ssc / .qua / .mc / .mcz 谱面或文件夹 · .osk 皮肤",
 
   "empty.title": "把音频拖到任意位置即可开始制谱",
   "empty.subtitleBefore": "或按 Enter 选择一张示例谱面。",
@@ -512,8 +513,8 @@ export const zhCN: PartialCatalog = {
   "landing.do1": "在线编辑 osu!mania 谱面（1K 到 18K），支持单点和长条",
   "landing.do2": "在浏览器里以 ArrowVortex 式的流程编辑 StepMania 和 Etterna 谱面",
   "landing.do3": "直接在浏览器里预览和观看 osu!mania 谱面",
-  "landing.do4": "导入 `.osz` / `.osu`，导出 `.osu`、`.osz` 或 `.sm`",
-  "landing.do5": "把 osu!mania 谱面转换成 Etterna 或 StepMania 可用的 .sm 文件",
+  "landing.do4": "导入 `.osz`、`.osu`、`.sm`、`.qua` 或 Malody 的 `.mcz`，导出 `.osu`、`.osz`、`.sm`、`.qua` 或 `.mcz`",
+  "landing.do5": "在 osu!mania、StepMania、Etterna、Quaver 和 Malody 之间转换谱面",
   "landing.do6": "用 Pack Creator 把多张谱面合并成一个 .osz 曲包",
   "landing.do7": "用打拍测速和节拍器设置 BPM 与时间轴",
   "landing.do8": "像上架的 osu! 谱面一样设置背景图片或静音背景视频",
@@ -540,7 +541,7 @@ export const zhCN: PartialCatalog = {
     "可以。开始菜单里的 Pack Creator 会把多张谱面合并成一个 .osz 曲包，共用元数据、保留各自的作者署名并生成难度名，适合本地游玩。",
   "landing.guidesTitle": "指南",
   "landing.guide1": "如何在线制作 osu!mania 谱面",
-  "landing.guide2": "把 osu!mania 谱面转换成 StepMania / Etterna（.osz 转 .sm）",
+  "landing.guide2": "转换 osu!mania、StepMania、Quaver 和 Malody 谱面",
   "landing.guide3": "在线预览 osu!mania 谱面",
   "landing.guide4": "把多张谱面合并成一个 .osz 曲包",
 

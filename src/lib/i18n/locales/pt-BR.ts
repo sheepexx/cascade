@@ -346,6 +346,7 @@ export const ptBR: PartialCatalog = {
   "file.exportOsz": "Exportar .osz",
   "file.exportSm": "Exportar .sm",
   "file.exportQua": "Exportar .qua",
+  "file.exportMcz": "Exportar .mcz",
   "file.importIntoOsu": "Importar para o osu!",
   "file.importFromOsu": "Importar do osu!",
   "file.syncToOsu": "Salvar na pasta Songs do osu!",
@@ -504,7 +505,7 @@ export const ptBR: PartialCatalog = {
 
   "drop.title": "Solte para carregar",
   "drop.formats":
-    "Áudio (.mp3 / .ogg) · imagem de fundo · mapa .osz / .osu / .sm / .ssc / .qua ou pasta · skin .osk",
+    "Áudio (.mp3 / .ogg) · imagem de fundo · mapa .osz / .osu / .sm / .ssc / .qua / .mc / .mcz ou pasta · skin .osk",
 
   "empty.title": "Solte um áudio em qualquer lugar para começar a mapear",
   "empty.subtitleBefore": "Ou pressione Enter e escolha um mapa de exemplo.",
@@ -538,9 +539,9 @@ export const ptBR: PartialCatalog = {
     "Editar charts de StepMania e Etterna no navegador, num fluxo parecido com o do ArrowVortex",
   "landing.do3": "Visualizar e assistir mapas de osu!mania direto no navegador",
   "landing.do4":
-    "Importar `.osz` / `.osu` e exportar `.osu`, `.osz` ou `.sm`",
+    "Importar `.osz`, `.osu`, `.sm`, `.qua` ou `.mcz` do Malody e exportar `.osu`, `.osz`, `.sm`, `.qua` ou `.mcz`",
   "landing.do5":
-    "Converter mapas de osu!mania para arquivos .sm compatíveis com Etterna ou StepMania",
+    "Converter mapas entre osu!mania, StepMania, Etterna, Quaver e Malody",
   "landing.do6":
     "Juntar vários mapas em um único song pack .osz com o Pack Creator",
   "landing.do7": "Definir BPM e timing com tap tempo e metrônomo",
@@ -570,7 +571,7 @@ export const ptBR: PartialCatalog = {
   "landing.guidesTitle": "Guias",
   "landing.guide1": "Como fazer um mapa de osu!mania online",
   "landing.guide2":
-    "Converter mapas de osu!mania para StepMania / Etterna (.osz para .sm)",
+    "Converter mapas de osu!mania, StepMania, Quaver e Malody",
   "landing.guide3": "Visualizar mapas de osu!mania online",
   "landing.guide4": "Juntar vários mapas em um pack .osz",
 

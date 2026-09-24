@@ -388,6 +388,7 @@ import {
   parseOsuFile,
   type ParsedOsu,
 } from "./lib/osuImport";
+import { MALODY_MAX_KEYS } from "./lib/malody";
 import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
 import { parseSmFile } from "./lib/smImport";
 import type { PackSong } from "./lib/smPackImport";
@@ -3122,8 +3123,11 @@ export default function App() {
     setImportingMap(true);
     try {
       assertTextImportSize(file);
-      const { parseQuaFile } = await import("./lib/qua");
-      const map = parseQuaFile(await file.text());
+      const malody = /\.mc$/i.test(file.name);
+      const source = await file.text();
+      const map = malody
+        ? { ...(await import("./lib/malody")).parseMalodyChart(source), bpmAffectsScroll: null }
+        : (await import("./lib/qua")).parseQuaFile(source);
       setAudioFiles((previous) => {
         Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
         return {};
@@ -3149,10 +3153,10 @@ export default function App() {
       };
       setDifficulties([difficulty]);
       setActiveId(difficulty.id);
-      setAppSettings((settings) => ({
-        ...settings,
-        bpmAffectsScroll: map.bpmAffectsScroll,
-      }));
+      const bpmAffectsScroll = map.bpmAffectsScroll;
+      if (bpmAffectsScroll !== null) {
+        setAppSettings((settings) => ({ ...settings, bpmAffectsScroll }));
+      }
       setNeedsSongHint(true);
       setPendingImport(null);
       setModal(null);
@@ -3162,7 +3166,7 @@ export default function App() {
       );
     } catch (error) {
       setImportError(
-        error instanceof Error ? error.message : "Failed to import .qua file.",
+        error instanceof Error ? error.message : `Failed to import ${file.name}.`,
       );
     } finally {
       setImportingMap(false);
@@ -5144,11 +5148,11 @@ export default function App() {
   const isVideoFile = (f: File) =>
     f.type.startsWith("video/") ||
     /\.(mp4|webm|avi|flv|mov|wmv|m4v|mpe?g)$/i.test(f.name);
-  const isOszFile = (f: File) => /\.(osz|zip)$/i.test(f.name);
+  const isOszFile = (f: File) => /\.(osz|zip|mcz)$/i.test(f.name);
   const isOsuFile = (f: File) => /\.osu$/i.test(f.name);
   const isOskFile = (f: File) => /\.osk$/i.test(f.name);
   const isSmFile = (f: File) => /\.(sm|ssc)$/i.test(f.name);
-  const isQuaFile = (f: File) => /\.qua$/i.test(f.name);
+  const isSingleChartFile = (f: File) => /\.(qua|mc)$/i.test(f.name);
 
   const resetFileDrag = useCallback(() => {
     dragDepthRef.current = 0;
@@ -5224,7 +5228,7 @@ export default function App() {
         requestImportSm(sm);
         return;
       }
-      const qua = files.find(isQuaFile);
+      const qua = files.find(isSingleChartFile);
       if (qua) {
         requestImportQua(qua);
         return;
@@ -5300,6 +5304,9 @@ export default function App() {
   );
 
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
+  const hasMalodyDifficulty = difficulties.some(
+    (difficulty) => difficulty.keyCount <= MALODY_MAX_KEYS,
+  );
 
   useEffect(() => {
     setAudioAmbientDucking(modalAtmosphereActive);
@@ -5414,6 +5421,31 @@ export default function App() {
     appSettings.bpmAffectsScroll,
   ]);
 
+  const doExportMcz = useCallback(async (songMeta: SongMeta = meta) => {
+    if (Object.keys(audioFiles).length === 0) return;
+    setExporting(true);
+    setImportError(null);
+    try {
+      const { downloadMcz } = await import("./lib/malody");
+      await downloadMcz({
+        meta: songMeta,
+        difficulties,
+        timingPoints,
+        audioFiles,
+        bgFiles,
+      });
+      playUiSound("mapExportDone");
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? `Malody export failed: ${error.message}`
+          : "Malody export failed.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }, [meta, difficulties, timingPoints, audioFiles, bgFiles]);
+
   const doExportOsz = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
@@ -5526,6 +5558,11 @@ export default function App() {
   const handleExportQua = useCallback(
     () => requestExport(".qua", (songMeta) => void doExportQua(songMeta)),
     [requestExport, doExportQua],
+  );
+
+  const handleExportMcz = useCallback(
+    () => requestExport(".mcz", (songMeta) => void doExportMcz(songMeta)),
+    [requestExport, doExportMcz],
   );
 
   const ensureOsuFolder = useCallback(async () => {
@@ -5700,7 +5737,7 @@ export default function App() {
     (file: File) => {
       if (/\.(sm|ssc)$/i.test(file.name)) {
         void importSmFile(file);
-      } else if (/\.qua$/i.test(file.name)) {
+      } else if (/\.(qua|mc)$/i.test(file.name)) {
         void importQuaFile(file);
       } else if (/\.osu$/i.test(file.name)) {
         void importOsuProjectFile(file);
@@ -6633,6 +6670,7 @@ export default function App() {
           { id: "export-osz", label: t("file.exportOsz"), group: "Export", disabled: !canExport || exporting, run: handleExportOsz },
           { id: "export-sm", label: t("file.exportSm"), group: "Export", disabled: !canExport, run: handleExportSm },
           { id: "export-qua", label: t("file.exportQua"), group: "Export", disabled: !canExport, run: handleExportQua },
+          { id: "export-mcz", label: t("file.exportMcz"), group: "Export", keywords: "malody mc", disabled: !canExport || exporting || !hasMalodyDifficulty, run: handleExportMcz },
           ...(osuApp?.supported
             ? [
                 { id: "import-into-osu", label: t("file.importIntoOsu"), group: "osu!", keywords: "send export stable", disabled: !canExport || osuBusy || exporting, run: handleSendToOsu },
@@ -7136,6 +7174,14 @@ export default function App() {
                         ? "Quaver supports 4K and 7K maps"
                         : undefined,
                     onClick: handleExportQua,
+                  },
+                  {
+                    label: t("file.exportMcz"),
+                    disabled: !canExport || exporting || !hasMalodyDifficulty,
+                    title: !hasMalodyDifficulty
+                      ? "Malody supports up to 10K maps"
+                      : undefined,
+                    onClick: handleExportMcz,
                   },
                   ...(isDesktopApp()
                     ? [
@@ -7777,7 +7823,7 @@ export default function App() {
           onFile={(file) => {
             setModal(null);
             if (isSmFile(file)) void importSmFile(file);
-            else if (isQuaFile(file)) void importQuaFile(file);
+            else if (isSingleChartFile(file)) void importQuaFile(file);
             else if (isOsuFile(file)) void openOsuFiles([file]);
             else void importMapFile(file);
           }}

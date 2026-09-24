@@ -7,23 +7,23 @@
     <link rel="canonical" href="https://cascade.sheepex.net/osu-to-stepmania" />
     <meta name="theme-color" content="#0b0d12" />
     <meta name="robots" content="index, follow" />
-    <title>Convert osu!mania to StepMania / Etterna (.osz to .sm) Online | Cascade</title>
+    <title>Convert osu! to StepMania, Etterna, Quaver &amp; Malody | Cascade</title>
     <meta
       name="description"
-      content="Convert osu!mania maps to StepMania or Etterna online. Import an .osz or .osu and export an .sm chart with timing, BPM changes, holds and metadata intact."
+      content="Convert charts between osu!mania, StepMania, Etterna, Quaver and Malody in your browser. Open .osz, .sm, .qua or .mcz and save it as any other. Free."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cascade" />
-    <meta property="og:title" content="Convert osu!mania to StepMania / Etterna online" />
-    <meta property="og:description" content="Import .osz / .osu, export a ready-to-play .sm chart for StepMania and Etterna. Free, in your browser." />
+    <meta property="og:title" content="Convert osu!mania, StepMania, Etterna, Quaver and Malody charts online" />
+    <meta property="og:description" content="Open a chart from one rhythm game and save it for another: .osz, .osu, .sm, .ssc, .qua, .mc and .mcz. Free, in your browser." />
     <meta property="og:url" content="https://cascade.sheepex.net/osu-to-stepmania" />
     <meta property="og:image" content="https://cascade.sheepex.net/og.png?v=2" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Cascade, the osu!mania editor that runs in your browser" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Convert osu!mania to StepMania / Etterna online" />
-    <meta name="twitter:description" content="Import .osz / .osu, export a ready-to-play .sm chart for StepMania and Etterna. Free, in your browser." />
+    <meta name="twitter:title" content="Convert osu!mania, StepMania, Etterna, Quaver and Malody charts online" />
+    <meta name="twitter:description" content="Open a chart from one rhythm game and save it for another: .osz, .osu, .sm, .ssc, .qua, .mc and .mcz. Free, in your browser." />
     <meta name="twitter:image" content="https://cascade.sheepex.net/og.png?v=2" />
     <style>
       :root { color-scheme: dark; }
@@ -53,6 +53,22 @@
       .cta:hover { background: #f47070; }
       footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
       footer a { color: #9aa0ad; }
+      .table-wrap { overflow-x: auto; margin: 0 0 12px; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+      th, td { padding: 7px 10px; border-bottom: 1px solid #1d1d27; text-align: left; vertical-align: top; }
+      th { color: #cfd2dc; font-weight: 600; }
+      td:nth-child(2), td:nth-child(3), th:nth-child(2), th:nth-child(3) { white-space: nowrap; }
+      @media (max-width: 560px) {
+        table, tbody, tr { display: block; }
+        thead { display: none; }
+        tr { padding: 10px 0; border-bottom: 1px solid #1d1d27; }
+        td { display: inline-block; padding: 2px 10px 2px 0; border: 0; }
+        td:empty { display: none; }
+        td:nth-child(1) { display: block; color: #cfd2dc; font-weight: 600; }
+        td:nth-child(2)::before { content: "Open "; }
+        td:nth-child(3)::before { content: "Save as "; }
+        td:nth-child(4) { display: block; }
+      }
     </style>
     <script type="application/ld+json">
       {
@@ -68,7 +84,7 @@
           {
             "@type": "ListItem",
             "position": 2,
-            "name": "Convert osu!mania to StepMania",
+            "name": "Convert osu!mania, StepMania, Quaver and Malody charts",
             "item": "https://cascade.sheepex.net/osu-to-stepmania"
           }
         ]
@@ -82,37 +98,90 @@
         <a href="/">Cascade</a>
       </header>
 
-      <h1>Convert osu!mania maps to StepMania / Etterna online</h1>
+      <h1>Convert osu!mania, StepMania, Etterna, Quaver and Malody charts online</h1>
       <p>
-        Cascade converts <strong>osu!mania</strong> beatmaps
-        (<code>.osz</code> / <code>.osu</code>) into StepMania and
-        Etterna-compatible <code>.sm</code> charts directly in your browser.
-        There is nothing to install and nothing to upload to a server: the
-        conversion runs locally on your machine.
+        Cascade opens charts from five vertical scrolling rhythm games and saves
+        them for any of the others, directly in your browser. Open an
+        <strong>osu!mania</strong> <code>.osz</code>, a <strong>StepMania</strong>
+        or <strong>Etterna</strong> <code>.sm</code>, a <strong>Quaver</strong>
+        <code>.qua</code> or a <strong>Malody</strong> <code>.mcz</code>, check it
+        on the playfield, and export it in the format you need. There is nothing
+        to install, and the conversion runs on your own machine.
       </p>
       <a class="cta" href="/">Open the converter</a>
 
-      <h2>How to convert .osz to .sm</h2>
+      <h2>Every conversion Cascade can do</h2>
+      <p>
+        Anything Cascade can open, it can save in every format it writes. So
+        each of these converts to each of the others:
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Format</th><th>Open</th><th>Save as</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>osu!mania set</td><td><code>.osz</code></td><td><code>.osz</code></td><td>Every mania difficulty in the set, with audio, background and video</td></tr>
+            <tr><td>osu!mania difficulty</td><td><code>.osu</code></td><td><code>.osu</code></td><td>One difficulty; add the song after opening it</td></tr>
+            <tr><td>StepMania / Etterna</td><td><code>.sm</code>, <code>.ssc</code></td><td><code>.sm</code></td><td>Export writes a zipped song folder with audio and background, for 4K, 5K, 6K, 7K, 8K and 10K</td></tr>
+            <tr><td>StepMania / Etterna pack</td><td>folder or <code>.zip</code></td><td></td><td>Pick any song from the pack</td></tr>
+            <tr><td>Quaver</td><td><code>.qua</code></td><td><code>.qua</code></td><td>One difficulty; Quaver export is 4K and 7K only</td></tr>
+            <tr><td>Malody set</td><td><code>.mcz</code></td><td><code>.mcz</code></td><td>Every Key mode chart with audio and background; export packs every difficulty up to 10K</td></tr>
+            <tr><td>Malody chart</td><td><code>.mc</code></td><td></td><td>One Key mode chart; add the song after opening it</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        That covers osu! to StepMania and Etterna, osu! to Quaver, osu! to
+        Malody, Malody to osu!, Quaver to osu!, StepMania to Malody and every
+        other pair in the table.
+      </p>
+
+      <h2>How to convert a chart</h2>
       <ol>
-        <li>Open <a href="/">Cascade</a> and drag your <code>.osz</code> (or a single <code>.osu</code> with its audio) onto the page.</li>
-        <li>Check the chart: notes, holds, BPM changes and offsets are all editable before export.</li>
-        <li>Choose <em>File → Export .sm</em>. Cascade writes a StepMania package with the audio and background bundled.</li>
+        <li>Open <a href="/">Cascade</a> and drag your file onto the page: an <code>.osz</code>, <code>.osu</code>, <code>.sm</code>, <code>.ssc</code>, <code>.qua</code>, <code>.mc</code> or <code>.mcz</code>. For a single chart without its song, drop the audio file too.</li>
+        <li>Check the chart: play it back, and fix any notes, holds, BPM changes or offsets before you export.</li>
+        <li>Open the <em>File</em> menu and pick <em>Export .osz</em>, <em>Export .osu</em>, <em>Export .sm</em>, <em>Export .qua</em> or <em>Export .mcz</em>.</li>
       </ol>
 
       <h2>What carries over</h2>
       <ul>
-        <li>Notes and long notes (holds), for 4K up to 10K+ keymodes</li>
-        <li>BPM changes and the timing offset</li>
-        <li>Song metadata: title, artist, creator, plus StepMania-specific fields like <code>#SUBTITLE</code>, <code>#GENRE</code> and <code>#DISPLAYBPM</code> which you can edit in Map Settings</li>
-        <li>Audio (WAV is re-encoded automatically) and the background image</li>
+        <li>Notes and long notes (holds), from 1K up to 10K and beyond where the target game allows it</li>
+        <li>BPM changes, time signatures and the song offset</li>
+        <li>Scroll speed changes (SV) for osu!mania, Quaver and Malody</li>
+        <li>Title, artist, mapper and difficulty names, including original-language titles for osu! and Malody</li>
+        <li>The audio, background image and preview point, in every format that stores them</li>
       </ul>
-
-      <h2>Converting in the other direction</h2>
       <p>
-        Cascade also imports <code>.sm</code> files and whole StepMania /
-        Etterna packs, so you can bring an Etterna chart in, edit it on an
-        osu!-style playfield, and export it as <code>.osu</code> or
-        <code>.osz</code> for osu!mania.
+        What a game has no place for stays behind: StepMania and Malody have no
+        osu!-style hitsounds, Quaver and Malody have no OD or HP, and Malody
+        keysounds are not imported. Each export keeps everything the target
+        format can hold.
+      </p>
+
+      <h2>osu!mania to StepMania and Etterna</h2>
+      <p>
+        Export .sm downloads a zipped StepMania song folder with the audio and
+        background bundled, which Etterna reads too. StepMania header fields such as
+        <code>#SUBTITLE</code>, <code>#GENRE</code> and <code>#DISPLAYBPM</code>
+        can be edited in Map Settings. Rate-changed difficulties are left out,
+        because Etterna applies rates in game.
+      </p>
+
+      <h2>osu!mania to Malody, and back</h2>
+      <p>
+        Export .mcz packs every difficulty into one Malody set, with each chart
+        placed on Malody's beat grid so notes keep clean snaps. Opening a
+        Malody <code>.mcz</code> brings every Key mode chart in with its song
+        and background, ready to export as an <code>.osz</code> for osu!mania.
+      </p>
+
+      <h2>osu!mania to Quaver, and back</h2>
+      <p>
+        Export .qua saves the difficulty you are editing as a Quaver map, with
+        its scroll speed changes and bookmarks. Opening a <code>.qua</code>
+        also applies that map's scroll setting, so SV and BPM gimmicks look the
+        way they do in Quaver.
       </p>
 
       <h2>Why not a script?</h2>
@@ -121,8 +190,8 @@
         result. Cascade shows the converted chart on a scrolling playfield with
         audio, so you can play it back, fix timing or patterns, and only then
         export. It doubles as a full
-        <a href="/"> online osu!mania editor</a> and an
-        <a href="/osu-mania-map-viewer"> osu!mania map viewer</a>.
+        <a href="/">online osu!mania editor</a> and an
+        <a href="/osu-mania-map-viewer">osu!mania map viewer</a>.
       </p>
 
       <footer>
