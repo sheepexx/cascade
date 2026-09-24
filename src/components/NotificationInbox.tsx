@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { InboxNotification } from "../lib/notifications";
 import { SkeletonRows } from "./ui/Skeleton";
 import { MailIcon } from "./ui/Icons";
+import { useT, type Translate } from "../lib/i18n";
 
 export function NotificationInbox({
   notifications,
@@ -23,6 +24,7 @@ export function NotificationInbox({
   onMarkAllRead: () => void;
   onDismiss: (id: string) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -76,11 +78,11 @@ export function NotificationInbox({
         ref={buttonRef}
         type="button"
         aria-label={
-          unread > 0 ? `Notifications, ${unread} unread` : "Notifications"
+          unread > 0 ? t("inbox.labelUnread", { count: unread }) : t("inbox.title")
         }
         aria-haspopup="dialog"
         aria-expanded={open}
-        title="Notifications"
+        title={t("inbox.title")}
         onClick={() => setOpen((value) => !value)}
         className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition ${
           open
@@ -101,19 +103,19 @@ export function NotificationInbox({
           <div
             ref={panelRef}
             role="dialog"
-            aria-label="Notification inbox"
+            aria-label={t("inbox.label")}
             style={{ position: "fixed", top: pos.top, right: pos.right }}
             className="z-[110] flex max-h-[min(36rem,calc(100vh-5rem))] w-96 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-ink-500/70 bg-ink-800/[0.98] shadow-2xl backdrop-blur-2xl"
           >
             <div className="flex items-center justify-between gap-3 border-b border-ink-600 px-4 py-3">
               <div>
                 <h2 className="text-sm font-semibold text-slate-100">
-                  Notifications
+                  {t("inbox.title")}
                 </h2>
                 <p className="text-[11px] text-slate-500">
                   {unread > 0
-                    ? `${unread} unread`
-                    : "You're all caught up"}
+                    ? t("inbox.unread", { count: unread })
+                    : t("inbox.caughtUp")}
                 </p>
               </div>
               {unread > 0 && (
@@ -122,7 +124,7 @@ export function NotificationInbox({
                   onClick={onMarkAllRead}
                   className="rounded-md px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent/10 hover:text-accent-soft"
                 >
-                  Mark all read
+                  {t("inbox.markAll")}
                 </button>
               )}
             </div>
@@ -134,14 +136,14 @@ export function NotificationInbox({
                   avatar
                   action={false}
                   className="p-4"
-                  label="Loading notifications"
+                  label={t("inbox.loading")}
                 />
               )}
 
               {!loading && error && (
                 <div className="p-6 text-center">
                   <div className="text-sm font-medium text-rose-300">
-                    Inbox unavailable
+                    {t("inbox.unavailable")}
                   </div>
                   <p className="mt-1 text-xs text-slate-500">{error}</p>
                   <button
@@ -149,7 +151,7 @@ export function NotificationInbox({
                     onClick={onRefresh}
                     className="mt-3 rounded-lg bg-ink-600 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-ink-500"
                   >
-                    Try again
+                    {t("audioSetup.tryAgain")}
                   </button>
                 </div>
               )}
@@ -160,11 +162,10 @@ export function NotificationInbox({
                     <BellIcon />
                   </span>
                   <div className="mt-3 text-sm font-medium text-slate-300">
-                    Nothing here yet
+                    {t("inbox.empty")}
                   </div>
                   <p className="mt-1 max-w-60 text-xs text-slate-500">
-                    Project invitations and Cascade updates will stay here until
-                    you read them.
+                    {t("inbox.emptyHint")}
                   </p>
                 </div>
               )}
@@ -201,11 +202,12 @@ function NotificationRow({
   onMarkRead: () => void;
   onDismiss: () => void;
 }) {
+  const t = useT();
   const hasAction =
     (notification.kind === "invite" && notification.project_id) ||
     notification.action_url;
   const actionLabel =
-    notification.kind === "invite" ? "Open map" : "View update";
+    notification.kind === "invite" ? t("inbox.openMap") : t("inbox.viewUpdate");
 
   return (
     <li
@@ -216,7 +218,7 @@ function NotificationRow({
       {!notification.read_at && (
         <span
           className="absolute left-1.5 top-5 h-1.5 w-1.5 rounded-full bg-accent"
-          aria-label="Unread"
+          aria-label={t("inbox.unreadDot")}
         />
       )}
       <NotificationAvatar notification={notification} />
@@ -236,8 +238,8 @@ function NotificationRow({
             type="button"
             onClick={onDismiss}
             className="-mr-1 -mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-base text-slate-500 transition hover:bg-white/10 hover:text-slate-200"
-            aria-label={`Dismiss ${notification.title}`}
-            title="Dismiss"
+            aria-label={t("inbox.dismissLabel", { title: notification.title })}
+            title={t("pack.dismiss")}
           >
             ×
           </button>
@@ -247,9 +249,9 @@ function NotificationRow({
             className="min-w-0 truncate text-[10px] text-slate-500"
             title={new Date(notification.created_at).toLocaleString()}
           >
-            {formatRelativeTime(notification.created_at)}
+            {formatRelativeTime(notification.created_at, t)}
             {notification.kind !== "invite" && notification.actor_username && (
-              <> · from {notification.actor_username}</>
+              <> · {t("inbox.from", { name: notification.actor_username })}</>
             )}
           </span>
           <div className="flex items-center gap-1">
@@ -259,7 +261,7 @@ function NotificationRow({
                 onClick={onMarkRead}
                 className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
               >
-                Mark read
+                {t("inbox.markRead")}
               </button>
             )}
             {hasAction && (
@@ -330,14 +332,14 @@ function BellIcon() {
   );
 }
 
-function formatRelativeTime(value: string): string {
+function formatRelativeTime(value: string, t: Translate): string {
   const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
   const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return t("inbox.justNow");
+  if (minutes < 60) return t("menu.minutesAgo", { n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("menu.hoursAgo", { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return t("menu.daysAgo", { n: days });
   return new Date(value).toLocaleDateString();
 }

@@ -195,7 +195,7 @@ export function SharedMapPage({
       (file): file is LoadedFile => file !== null,
     );
     if (audioSources.length > 0 && audio.length !== audioSources.length) {
-      throw new Error("One or more map audio files could not be downloaded.");
+      throw new Error(t("shared.audioFailed"));
     }
     const legacyAudio = Object.keys(map.audioUrls).length ? null : audio[0];
     const difficulties = map.data.difficulties.map((d) => ({
@@ -213,7 +213,7 @@ export function SharedMapPage({
       bgFiles: background ? { [background.name]: background } : {},
       cascadeTag,
     });
-  }, [map, cascadeTag]);
+  }, [map, cascadeTag, t]);
 
   const open = useCallback(async () => {
     if (!map || busy) return;
@@ -306,7 +306,7 @@ export function SharedMapPage({
           </a>
 
           <h1 className="text-3xl font-bold leading-tight text-slate-100 sm:text-4xl">
-            {map.title || "Untitled"}
+            {map.title || t("common.untitled")}
           </h1>
           {map.artist && (
             <p className="mt-2 text-lg text-slate-400">{map.artist}</p>

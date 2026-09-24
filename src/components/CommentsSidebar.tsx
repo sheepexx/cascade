@@ -12,6 +12,7 @@ import {
   subscribeComments,
   type Comment,
 } from "../lib/comments";
+import { useT } from "../lib/i18n";
 
 function fmt(ms: number): string {
   const sign = ms < 0 ? "-" : "";
@@ -66,6 +67,7 @@ export function CommentsSidebar({
   onCommentsChange?: (comments: Comment[]) => void;
   onUnreadCountChange?: (count: number) => void;
 }) {
+  const t = useT();
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
   const [hideResolved, setHideResolved] = useState(false);
@@ -92,7 +94,7 @@ export function CommentsSidebar({
         onCommentsChange?.(c);
       })
       .catch((e) =>
-        setError(e instanceof Error ? e.message : "Failed to load comments."),
+        setError(e instanceof Error ? e.message : t("comments.loadFailed")),
       )
       .finally(() => setLoaded(true));
 
@@ -172,7 +174,7 @@ export function CommentsSidebar({
       await reload();
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to post.");
+      setError(e instanceof Error ? e.message : t("comments.postFailed"));
       return false;
     }
   };
@@ -184,7 +186,7 @@ export function CommentsSidebar({
       await reload();
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to edit.");
+      setError(e instanceof Error ? e.message : t("comments.editFailed"));
       return false;
     }
   };
@@ -201,7 +203,7 @@ export function CommentsSidebar({
       <header className="border-b border-ink-600 px-4 py-3">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-            Comments
+            {t("nav.comments")}
             {unreadIds.size > 0 && (
               <span className="rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold text-ink-900">
                 {unreadIds.size}
@@ -211,7 +213,7 @@ export function CommentsSidebar({
           <button
             onClick={onClose}
             className="grid h-6 w-6 place-items-center rounded text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"
-            aria-label="Close comments"
+            aria-label={t("comments.close")}
           >
             <CloseIcon className="h-3.5 w-3.5" />
           </button>
@@ -228,7 +230,7 @@ export function CommentsSidebar({
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                {value === "active" ? "This difficulty" : "All"}
+                {value === "active" ? t("comments.thisDifficulty") : t("aimodUi.tabAll")}
               </button>
             ))}
           </div>
@@ -237,9 +239,9 @@ export function CommentsSidebar({
               size="sm"
               checked={hideResolved}
               onChange={setHideResolved}
-              aria-label="Hide resolved comments"
+              aria-label={t("comments.hideResolvedLabel")}
             />
-            Hide resolved
+            {t("comments.hideResolved")}
           </div>
         </div>
       </header>
@@ -263,13 +265,13 @@ export function CommentsSidebar({
               });
             }
           }}
-          placeholder="Add a comment…"
+          placeholder={t("comments.placeholder")}
           rows={2}
           className="w-full resize-none rounded-lg border border-ink-500/60 bg-ink-700 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-accent/70"
         />
         <div className="mt-1.5 flex items-center justify-between">
           <span className="text-[11px] text-slate-500">
-            at {fmt(currentTimeMs)} · Ctrl+Enter
+            {t("comments.at", { time: fmt(currentTimeMs) })} · Ctrl+Enter
           </span>
           <Button
             variant="accent"
@@ -283,7 +285,7 @@ export function CommentsSidebar({
             }
             disabled={!body.trim()}
           >
-            Comment
+            {t("comments.post")}
           </Button>
         </div>
       </div>
@@ -296,14 +298,14 @@ export function CommentsSidebar({
             count={3}
             lines={3}
             action={false}
-            label="Loading comments"
+            label={t("comments.loading")}
           />
         )}
         {loaded && threads.length === 0 && (
           <p className="text-sm text-slate-500">
             {scope === "active"
-              ? "No comments on this difficulty."
-              : "No comments yet."}
+              ? t("comments.noneHere")
+              : t("comments.none")}
           </p>
         )}
         <div className="flex flex-col gap-3">
@@ -315,7 +317,7 @@ export function CommentsSidebar({
               ownerId={ownerId}
               difficultyName={
                 difficulties.find((d) => d.id === root.difficulty_id)?.name ??
-                "Project"
+                t("comments.project")
               }
               showDifficulty={scope === "all"}
               unread={
@@ -327,12 +329,12 @@ export function CommentsSidebar({
               onResolve={(v) =>
                 void resolveComment(root.id, v)
                   .then(reload)
-                  .catch(() => setError("Couldn't update."))
+                  .catch(() => setError(t("comments.updateFailed")))
               }
               onDelete={(id) =>
                 void deleteComment(id)
                   .then(reload)
-                  .catch(() => setError("Couldn't delete."))
+                  .catch(() => setError(t("comments.deleteFailed")))
               }
               canModify={canModify}
               canEditComment={canEditComment}
@@ -373,6 +375,7 @@ function CommentThread({
   canModify: (c: Comment) => boolean;
   canEditComment: (c: Comment) => boolean;
 }) {
+  const t = useT();
   const [reply, setReply] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
@@ -391,7 +394,7 @@ function CommentThread({
       {unread && (
         <span
           className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-ink-800 bg-accent"
-          title="Unread activity"
+          title={t("comments.unread")}
         />
       )}
       <div className="flex items-center justify-between">
@@ -417,7 +420,7 @@ function CommentThread({
               onClick={() => onResolve(!root.resolved)}
               className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 transition duration-150 hover:bg-ink-600 hover:text-slate-200"
             >
-              {root.resolved ? "Reopen" : "Resolve"}
+              {root.resolved ? t("comments.reopen") : t("comments.resolve")}
             </button>
           )}
           {canModify(root) && (
@@ -425,7 +428,7 @@ function CommentThread({
               onClick={() => setPendingDelete({ id: root.id, isReply: false })}
               className="rounded px-1.5 py-0.5 text-[10px] text-rose-300 transition duration-150 hover:bg-ink-600"
             >
-              Delete
+              {t("common.delete")}
             </button>
           )}
         </div>
@@ -449,7 +452,7 @@ function CommentThread({
               onClick={() => setPendingDelete({ id: r.id, isReply: true })}
               className="rounded px-1 text-[10px] text-rose-300/80 hover:underline"
             >
-              delete
+              {t("comments.deleteLower")}
             </button>
           )}
         </div>
@@ -465,18 +468,18 @@ function CommentThread({
               });
             }
           }}
-          placeholder="Reply…"
+          placeholder={t("comments.reply")}
           className="flex-1 rounded border border-ink-500/60 bg-ink-700 px-2 py-1 text-xs text-slate-100 outline-none focus:border-accent/70"
         />
       </div>
 
       <HoldConfirmDialog
         open={pendingDelete !== null}
-        title={pendingDelete?.isReply ? "Delete reply?" : "Delete comment?"}
+        title={pendingDelete?.isReply ? t("comments.deleteReplyTitle") : t("comments.deleteCommentTitle")}
         message={
           pendingDelete?.isReply
-            ? "This reply will be permanently deleted."
-            : "This comment and its replies will be permanently deleted."
+            ? t("comments.deleteReplyBody")
+            : t("comments.deleteCommentBody")
         }
         onConfirm={() => {
           if (pendingDelete) onDelete(pendingDelete.id);
@@ -499,6 +502,7 @@ function CommentBody({
   canEdit: boolean;
   onEdit: (id: string, text: string) => Promise<boolean>;
 }) {
+  const t = useT();
   const isHost = !!ownerId && c.author === ownerId;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(c.body);
@@ -524,14 +528,14 @@ function CommentBody({
             rel="noopener noreferrer"
             className="hover:underline"
           >
-            {c.author_username ?? "unknown"}
+            {c.author_username ?? t("comments.unknown")}
           </a>
         ) : (
-          (c.author_username ?? "unknown")
+          (c.author_username ?? t("comments.unknown"))
         )}
         {isHost && (
           <span className="rounded bg-accent/20 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent">
-            Host
+            {t("comments.host")}
           </span>
         )}
         {canEdit && !editing && (
@@ -539,7 +543,7 @@ function CommentBody({
             onClick={() => setEditing(true)}
             className="ml-auto text-[9px] font-normal text-slate-500 transition duration-150 hover:text-slate-300"
           >
-            edit
+            {t("comments.editLower")}
           </button>
         )}
       </div>
@@ -568,14 +572,14 @@ function CommentBody({
               }}
               className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 transition duration-150 hover:bg-ink-600"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               onClick={save}
               disabled={!draft.trim()}
               className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-ink-900 disabled:opacity-40"
             >
-              Save
+              {t("common.save")}
             </button>
           </div>
         </div>

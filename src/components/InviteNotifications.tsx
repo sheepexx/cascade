@@ -1,6 +1,7 @@
 import { Button } from "./ui/Controls";
 import { TimedNotification } from "./ui/TimedNotification";
 import { MailIcon } from "./ui/Icons";
+import { useT } from "../lib/i18n";
 
 export type InviteNotice = {
   notificationId?: string;
@@ -19,6 +20,7 @@ export function InviteNotifications({
   onJoin: (n: InviteNotice) => void;
   onIgnore: (n: InviteNotice) => void;
 }) {
+  const t = useT();
   if (!notices.length) return null;
   return (
     <div className="fixed right-4 top-4 z-[70] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
@@ -48,20 +50,20 @@ export function InviteNotifications({
             </span>
             <div className="min-w-0 text-sm">
               <div className="font-semibold text-slate-100">
-                Mapping invitation
+                {t("invite.title")}
               </div>
               <div className="truncate text-xs text-slate-400">
-                {n.who ? `${n.who} invited you to ` : "You were invited to "}
+                {n.who ? t("invite.from", { who: n.who }) : t("invite.anonymous")}{" "}
                 <span className="text-slate-200">{n.title}</span>
               </div>
             </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => dismiss()}>
-              Ignore
+              {t("invite.ignore")}
             </Button>
             <Button variant="accent" onClick={() => dismiss(() => onJoin(n))}>
-              Join
+              {t("invite.join")}
             </Button>
           </div>
             </>
