@@ -10,7 +10,7 @@ const HEAD = {
   de: {
     title: "Cascade | osu!mania-Editor und Map-Viewer im Browser",
     description:
-      "Cascade ist ein osu!mania-Editor im Browser für osu!mania-, StepMania- und Etterna-Beatmaps. Mania-Maps ansehen, Scroll-Geschwindigkeit im SV-Editor bearbeiten, Beatmaps per Link direkt aus osu! importieren, osu nach Etterna oder StepMania konvertieren, Timing und Noten bearbeiten, in Echtzeit zusammenarbeiten und als .osu, .osz oder .sm exportieren.",
+      "Kostenloser osu!mania-Editor und Map-Viewer im Browser. Maps erstellen, ansehen und testspielen, nach StepMania oder Etterna konvertieren und exportieren.",
     ogTitle: "osu!mania-Editor im Browser",
     ogDescription:
       "osu!mania-, StepMania- und Etterna-Beatmaps im Browser erstellen, ansehen, importieren, konvertieren und exportieren, mit Zusammenarbeit in Echtzeit.",
@@ -21,7 +21,7 @@ const HEAD = {
   ru: {
     title: "Cascade | Онлайн-редактор osu!mania и просмотр карт",
     description:
-      "Cascade - это онлайн-редактор mania для битмапов osu!mania, StepMania и Etterna. Смотри mania-карты, редактируй скорость скролла в SV-редакторе, импортируй битмапы прямо из osu! по ссылке, конвертируй osu в Etterna или StepMania, правь тайминг и ноты, работай вместе в реальном времени и экспортируй .osu, .osz или .sm.",
+      "Бесплатный онлайн-редактор osu!mania и просмотр карт. Создавай и тестируй карты, конвертируй в StepMania или Etterna и экспортируй .osu, .osz или .sm.",
     ogTitle: "Онлайн-редактор osu!mania",
     ogDescription:
       "Создавай, смотри, импортируй, конвертируй и экспортируй карты osu!mania, StepMania и Etterna в браузерном mania-редакторе с совместной работой в реальном времени.",
@@ -32,7 +32,7 @@ const HEAD = {
   "zh-CN": {
     title: "Cascade | 在线 osu!mania 编辑器与谱面预览",
     description:
-      "Cascade 是一个在线 mania 编辑器，支持 osu!mania、StepMania 和 Etterna 谱面。预览 mania 谱面，用 SV 编辑器调整滚动速度，通过链接直接从 osu! 导入谱面，把 osu 转换成 Etterna 或 StepMania，编辑时间轴和音符，实时协作，并导出 .osu、.osz 或 .sm。",
+      "免费的在线 osu!mania 编辑器与谱面预览。制作和试玩谱面，转换为 StepMania 或 Etterna，导出 .osu、.osz 或 .sm，无需安装。",
     ogTitle: "在线 osu!mania 编辑器",
     ogDescription:
       "在浏览器里的 mania 编辑器中创建、预览、导入、转换和导出 osu!mania、StepMania 与 Etterna 谱面，并支持实时协作。",
@@ -43,7 +43,7 @@ const HEAD = {
   "pt-BR": {
     title: "Cascade | Editor de osu!mania e visualizador de mapas online",
     description:
-      "O Cascade é um editor de mania online para beatmaps de osu!mania, StepMania e Etterna. Visualize mapas de mania, ajuste a velocidade de rolagem no editor de SV, importe beatmaps direto do osu! por link, converta osu para Etterna ou StepMania, edite timing e notas, colabore em tempo real e exporte .osu, .osz ou .sm.",
+      "Editor e visualizador de osu!mania online e grátis. Crie, visualize e teste mapas, converta para StepMania ou Etterna e exporte .osu, .osz ou .sm.",
     ogTitle: "Editor de osu!mania online",
     ogDescription:
       "Crie, visualize, importe, converta e exporte mapas de osu!mania, StepMania e Etterna em um editor de mania no navegador, com colaboração em tempo real.",

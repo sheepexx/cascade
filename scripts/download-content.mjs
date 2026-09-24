@@ -6,7 +6,7 @@ export const CONTENT = {
     navLabel: "Download",
     title: "Download Cascade for Windows, macOS and Linux | osu!mania Editor",
     description:
-      "Get the Cascade desktop app for Windows, macOS and Linux. Installer, MSI, portable exe, disk image, AppImage, deb or rpm. The same osu!mania, StepMania and Etterna editor, in its own window and working offline.",
+      "Download Cascade for Windows, macOS and Linux. The same osu!mania, StepMania and Etterna editor, in its own window and working offline.",
     keywords:
       "cascade download, osu!mania editor download, mania editor for windows, osu mania editor mac, mania editor linux, osu mania desktop app, stepmania editor download, vsrg editor",
     ogTitle: "Cascade for desktop",
@@ -126,7 +126,7 @@ export const CONTENT = {
     navLabel: "Herunterladen",
     title: "Cascade für Windows, macOS und Linux herunterladen | osu!mania-Editor",
     description:
-      "Hol dir die Cascade-Desktop-App für Windows, macOS und Linux. Installer, MSI, portable EXE, Disk-Image, AppImage, deb oder rpm. Derselbe Editor für osu!mania, StepMania und Etterna, in einem eigenen Fenster und offline nutzbar.",
+      "Lade Cascade für Windows, macOS und Linux herunter. Derselbe Editor für osu!mania, StepMania und Etterna, im eigenen Fenster und offline nutzbar.",
     keywords:
       "cascade download, osu!mania editor herunterladen, mania editor windows, osu mania editor mac, mania editor linux, osu mania desktop app, stepmania editor download, vsrg editor",
     ogTitle: "Cascade für den Desktop",
@@ -246,7 +246,7 @@ export const CONTENT = {
     navLabel: "Скачать",
     title: "Скачать Cascade для Windows, macOS и Linux | редактор osu!mania",
     description:
-      "Десктопное приложение Cascade для Windows, macOS и Linux. Установщик, MSI, портативный exe, образ диска, AppImage, deb или rpm. Тот же редактор osu!mania, StepMania и Etterna, в отдельном окне и с работой офлайн.",
+      "Десктопное приложение Cascade для Windows, macOS и Linux. Тот же редактор osu!mania, StepMania и Etterna, в отдельном окне и с работой офлайн.",
     keywords:
       "cascade скачать, редактор osu!mania скачать, mania редактор windows, osu mania редактор mac, mania редактор linux, osu mania десктоп, stepmania редактор скачать, vsrg редактор",
     ogTitle: "Cascade для десктопа",
@@ -366,7 +366,7 @@ export const CONTENT = {
     navLabel: "下载",
     title: "下载 Windows、macOS 与 Linux 版 Cascade | osu!mania 编辑器",
     description:
-      "获取 Windows、macOS 与 Linux 版 Cascade 桌面应用。安装程序、MSI、便携版 exe、磁盘映像、AppImage、deb 或 rpm。和网页版同一个 osu!mania、StepMania 与 Etterna 编辑器，拥有独立窗口，可离线使用。",
+      "下载 Windows、macOS 与 Linux 版 Cascade。与网页版相同的 osu!mania、StepMania 和 Etterna 编辑器，独立窗口，支持离线使用。",
     keywords:
       "cascade 下载, osu!mania 编辑器下载, mania 编辑器 windows, osu mania 编辑器 mac, mania 编辑器 linux, osu mania 桌面版, stepmania 编辑器下载, vsrg 编辑器",
     ogTitle: "Cascade 桌面版",
@@ -484,7 +484,7 @@ export const CONTENT = {
     navLabel: "Baixar",
     title: "Baixar o Cascade para Windows, macOS e Linux | Editor de osu!mania",
     description:
-      "Baixe o app do Cascade para Windows, macOS e Linux. Instalador, MSI, exe portátil, imagem de disco, AppImage, deb ou rpm. O mesmo editor de osu!mania, StepMania e Etterna, em uma janela própria e funcionando offline.",
+      "Baixe o Cascade para Windows, macOS e Linux. O mesmo editor de osu!mania, StepMania e Etterna, em uma janela própria e funcionando offline.",
     keywords:
       "cascade download, editor de osu!mania download, editor mania windows, editor osu mania mac, editor mania linux, osu mania app desktop, editor stepmania download, editor vsrg",
     ogTitle: "Cascade para desktop",
