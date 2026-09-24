@@ -2,6 +2,7 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { SampleMapsIcon } from "../ui/StartIcons";
 import type { PackSong } from "../../lib/smPackImport";
+import { useT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -22,34 +23,34 @@ export function PackBrowserModal({
   error,
   scanning,
 }: Props) {
+  const t = useT();
   return (
     <Modal
       open={open}
-      title="Import SM Pack"
+      title={t("smPack.title")}
       onClose={onClose}
       width="max-w-4xl"
       footer={
         <Button variant="ghost" onClick={onBack}>
-          Back
+          {t("common.back")}
         </Button>
       }
     >
       {scanning && (
-        <p className="text-sm text-slate-400">Scanning pack folder…</p>
+        <p className="text-sm text-slate-400">{t("smPack.scanning")}</p>
       )}
       {error && (
         <p className="text-sm text-rose-400">{error}</p>
       )}
       {!scanning && !error && songs.length === 0 && (
         <p className="text-sm text-slate-400">
-          No .sm / .ssc beatmaps found in this folder.
+          {t("smPack.none")}
         </p>
       )}
       {!scanning && songs.length > 0 && (
         <>
           <p className="mb-4 text-xs text-slate-500">
-            Found {songs.length} song{songs.length === 1 ? "" : "s"}.
-            Select one to open in the editor.
+            {t("smPack.found", { count: songs.length })}
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {songs.map((song, i) => (
@@ -63,16 +64,16 @@ export function PackBrowserModal({
                   <SampleMapsIcon className="h-5 w-5 shrink-0 text-slate-400" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold text-slate-100">
-                      {song.info.title || "Untitled"}
+                      {song.info.title || t("common.untitled")}
                     </div>
                     <div className="truncate text-xs text-slate-400">
-                      {song.info.artist || "Unknown Artist"}
+                      {song.info.artist || t("smPack.unknownArtist")}
                     </div>
                   </div>
                 </div>
                 {song.info.creator && (
                   <div className="mb-2 text-[11px] text-slate-500">
-                    by {song.info.creator}
+                    {t("smPack.by", { name: song.info.creator })}
                   </div>
                 )}
                 {song.info.dirName && (

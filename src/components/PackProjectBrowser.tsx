@@ -18,6 +18,8 @@ import { sanitizePackFilename } from "../lib/packCreator";
 import { normalizeTimingPoints, type LoadedFile } from "../types";
 import { SampleMapsIcon } from "./ui/StartIcons";
 import { AsyncImage, SkeletonCards } from "./ui/Skeleton";
+import { useT } from "../lib/i18n";
+import { t as tr } from "../lib/i18n/core";
 
 type SelectionKey = string;
 
@@ -31,7 +33,7 @@ function toRegistry(
 
 async function localProjectToFile(id: string, cascadeTag: boolean): Promise<File> {
   const saved = await loadProject(id);
-  if (!saved) throw new Error("That local project could not be loaded.");
+  if (!saved) throw new Error(tr("packBrowser.localFailed"));
   const audioFiles = toRegistry(saved.audioFiles);
   if (!Object.keys(audioFiles).length && saved.audio)
     audioFiles[saved.audio.name] = {
@@ -60,7 +62,7 @@ async function localProjectToFile(id: string, cascadeTag: boolean): Promise<File
   });
   return new File(
     [blob],
-    `${sanitizePackFilename(saved.meta.title || "Local project")}.osz`,
+    `${sanitizePackFilename(saved.meta.title || tr("packBrowser.localProject"))}.osz`,
   );
 }
 
@@ -79,7 +81,7 @@ async function cloudProjectToFile(id: string, cascadeTag: boolean): Promise<File
   });
   return new File(
     [blob],
-    `${sanitizePackFilename(proj.data.meta.title || "Cloud project")}.osz`,
+    `${sanitizePackFilename(proj.data.meta.title || tr("packBrowser.cloudProject"))}.osz`,
   );
 }
 
@@ -94,6 +96,7 @@ export function PackProjectBrowser({
   onAdd: (files: File[]) => Promise<void> | void;
   cascadeTag?: boolean;
 }) {
+  const t = useT();
   const { user, login } = useAuth();
   const [localProjects, setLocalProjects] = useState<LocalProjectSummary[] | null>(null);
   const [cloudProjects, setCloudProjects] = useState<CloudProjectRich[] | null>(null);
@@ -184,7 +187,7 @@ export function PackProjectBrowser({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Couldn't add the selected projects.",
+        err instanceof Error ? err.message : t("packBrowser.addFailed"),
       );
     } finally {
       setAdding(false);
@@ -195,12 +198,12 @@ export function PackProjectBrowser({
     <Modal
       open={open}
       onClose={onClose}
-      title="Browse Projects"
+      title={t("pack.browse")}
       width="max-w-3xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={adding}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             variant="accent"
@@ -208,31 +211,33 @@ export function PackProjectBrowser({
             disabled={adding || selected.size === 0}
           >
             {adding
-              ? "Adding…"
-              : `Add to pack${selected.size ? ` (${selected.size})` : ""}`}
+              ? t("packBrowser.adding")
+              : selected.size
+                ? t("packBrowser.addCount", { count: selected.size })
+                : t("packBrowser.add")}
           </Button>
         </>
       }
     >
       <p className="mb-4 text-xs text-slate-500">
-        Pick maps from your saved projects
+        {t("packBrowser.hint")}
       </p>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
 
-      <BrowserSection title="Local projects" hint="saved on this device">
+      <BrowserSection title={t("packBrowser.local")} hint={t("packBrowser.localHint")}>
         {localProjects === null ? (
-          <SkeletonCards count={3} label="Loading local projects" />
+          <SkeletonCards count={3} label={t("packBrowser.loadingLocal")} />
         ) : localProjects.length === 0 ? (
-          <p className="text-sm text-slate-500">No local saves yet.</p>
+          <p className="text-sm text-slate-500">{t("packBrowser.noLocal")}</p>
         ) : (
           <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {localProjects.map((p) => (
               <SelectableCard
                 key={p.id}
                 selected={selected.has(`local:${p.id}`)}
-                title={p.title || "Untitled"}
+                title={p.title || t("common.untitled")}
                 subtitle={[p.artist, p.creator].filter(Boolean).join(" · ")}
-                note={`${p.difficultyCount} diff${p.difficultyCount === 1 ? "" : "s"}`}
+                note={t("packBrowser.diffs", { count: p.difficultyCount })}
                 thumbUrl={localThumbs[p.id]}
                 thumbPending={!!p.backgroundBlob && !localThumbs[p.id]}
                 disabled={adding}
@@ -243,29 +248,29 @@ export function PackProjectBrowser({
         )}
       </BrowserSection>
 
-      <BrowserSection title="Cloud projects" hint="saved to your account">
+      <BrowserSection title={t("packBrowser.cloud")} hint={t("packBrowser.cloudHint")}>
         {!user ? (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
             <span className="text-sm text-slate-400">
-              Log in with osu! to browse your cloud maps.
+              {t("packBrowser.loginHint")}
             </span>
             <Button variant="accent" onClick={login} className="whitespace-nowrap">
-              Log in with osu!
+              {t("startModal.loginWithOsu")}
             </Button>
           </div>
         ) : cloudProjects === null ? (
-          <SkeletonCards count={3} label="Loading cloud projects" />
+          <SkeletonCards count={3} label={t("packBrowser.loadingCloud")} />
         ) : cloudProjects.length === 0 ? (
-          <p className="text-sm text-slate-500">No cloud maps yet.</p>
+          <p className="text-sm text-slate-500">{t("packBrowser.noCloud")}</p>
         ) : (
           <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {cloudProjects.map((p) => (
               <SelectableCard
                 key={p.id}
                 selected={selected.has(`cloud:${p.id}`)}
-                title={p.title || "Untitled"}
+                title={p.title || t("common.untitled")}
                 subtitle={[p.artist, p.creator].filter(Boolean).join(" · ")}
-                note={`saved ${new Date(p.updated_at).toLocaleDateString()}`}
+                note={t("packBrowser.savedOn", { date: new Date(p.updated_at).toLocaleDateString() })}
                 thumbUrl={p.bg_path ? cloudThumbs[p.bg_path] : undefined}
                 thumbPending={!!p.bg_path && !cloudThumbs[p.bg_path]}
                 disabled={adding}
@@ -320,6 +325,7 @@ function SelectableCard({
   disabled?: boolean;
   onToggle: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -345,7 +351,7 @@ function SelectableCard({
         />
         {selected && (
           <span className="absolute right-2 top-2 rounded-md bg-emerald-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
-            Selected ✓
+            {t("packBrowser.selected")} ✓
           </span>
         )}
       </div>

@@ -17,6 +17,7 @@ import { parseOsuFile } from "./osuImport";
 import { ProgressSplitter, type ProgressFn } from "./progress";
 import { buildOsuFile } from "./osuExport";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
+import { t } from "./i18n/core";
 
 
 export function sanitizePackFilename(s: string): string {
@@ -271,7 +272,7 @@ export async function importOszForPack(
     else assetEntries.push({ name, entry });
   });
   if (osuEntries.length === 0) {
-    throw new Error(`${file.name} contains no .osu difficulties.`);
+    throw new Error(t("packLib.noOsu", { name: file.name }));
   }
   osuEntries.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -284,7 +285,7 @@ export async function importOszForPack(
     try {
       parsedList.push({ name: e.name, parsed: parseOsuForPack(text) });
     } catch {
-      problems.push(`${file.name}: could not parse ${e.name}; skipped.`);
+      problems.push(t("packLib.parseFailed", { name: file.name, file: e.name }));
     }
   }
 
@@ -512,54 +513,54 @@ export function validatePack({
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (items.length === 0) errors.push("No maps imported.");
-  if (!metadata.title.trim()) errors.push("Missing pack title.");
-  if (!metadata.creator.trim()) errors.push("Missing pack creator.");
+  if (items.length === 0) errors.push(t("packLib.noMaps"));
+  if (!metadata.title.trim()) errors.push(t("packLib.noTitle"));
+  if (!metadata.creator.trim()) errors.push(t("packLib.noCreator"));
   if (metadata.artistMode === "custom-shared" && !metadata.customSharedArtist?.trim())
-    errors.push("Custom shared artist is empty.");
+    errors.push(t("packLib.noCustomArtist"));
 
   const diffNames = new Map<string, number>();
   for (const item of items) {
-    const label = item.songDisplayName.trim() || item.originalTitle || "(unnamed)";
+    const label = item.songDisplayName.trim() || item.originalTitle || t("app.unnamed");
     if (!item.songDisplayName.trim())
-      errors.push(`"${item.originalTitle || item.originalOsuFilename}": missing song display name.`);
+      errors.push(t("packLib.noDisplayName", { label: item.originalTitle || item.originalOsuFilename }));
     if (item.includeMapperInBrackets && !item.mapperName.trim())
-      errors.push(`"${label}": missing mapper name.`);
+      errors.push(t("packLib.noMapper", { label }));
     if (!item.originalAudioFilename)
-      errors.push(`"${label}": the imported map has no audio file reference.`);
+      errors.push(t("packLib.noAudioRef", { label }));
     else if (
       !item.assets.some(
         (a) => a.name.toLowerCase() === item.originalAudioFilename.toLowerCase(),
       )
     )
-      errors.push(`"${label}": audio "${item.originalAudioFilename}" is missing from the imported .osz.`);
+      errors.push(t("packLib.audioMissing", { label, file: item.originalAudioFilename }));
     if (item.parsedOsu.keyCount < MIN_KEYS || item.parsedOsu.keyCount > MAX_KEYS)
-      errors.push(`"${label}": invalid key count (${item.parsedOsu.keyCount}).`);
+      errors.push(t("packLib.invalidKeys", { label, keys: item.parsedOsu.keyCount }));
 
     const final = generatePackDifficultyName(item);
     diffNames.set(final.toLowerCase(), (diffNames.get(final.toLowerCase()) ?? 0) + 1);
 
     if (item.nonMania)
-      warnings.push(`"${label}" is not an osu!mania map; it will export unconverted.`);
+      warnings.push(t("packLib.notMania", { label }));
     if (!item.parsedOsu.backgroundFilename)
-      warnings.push(`"${label}": no background image.`);
+      warnings.push(t("packLib.noBackground", { label }));
     if (
       item.parsedOsu.videoFilename &&
       !item.assets.some(
         (a) => a.name.toLowerCase() === item.parsedOsu.videoFilename!.toLowerCase(),
       )
     )
-      warnings.push(`"${label}": background video "${item.parsedOsu.videoFilename}" is missing from the imported .osz.`);
+      warnings.push(t("packLib.videoMissing", { label, file: item.parsedOsu.videoFilename }));
     if (
       !item.rate &&
       /\d\s*x|x\s*\d/i.test(item.originalVersion) &&
       item.includeRateInDifficultyName
     )
-      warnings.push(`"${label}": rate could not be detected from "${item.originalVersion}"; set it manually if needed.`);
+      warnings.push(t("packLib.rateUndetected", { label, version: item.originalVersion }));
   }
   for (const [name, count] of diffNames) {
     if (count > 1)
-      errors.push(`Duplicate final difficulty name "${name}" (${count} difficulties). Adjust rates, mappers or display names.`);
+      errors.push(t("packLib.duplicateName", { name, count }));
   }
 
   if (settings.placeholderEnabled) {
@@ -567,32 +568,32 @@ export function validatePack({
       !settings.placeholderAudioItemId ||
       !items.some((i) => i.id === settings.placeholderAudioItemId)
     )
-      errors.push("Thumbnail difficulty is enabled but no audio source is selected.");
+      errors.push(t("packLib.thumbnailNoAudio"));
     if (
       !Number.isInteger(settings.placeholderKeyCount) ||
       settings.placeholderKeyCount < MIN_KEYS ||
       settings.placeholderKeyCount > MAX_KEYS
     )
-      errors.push(`Invalid thumbnail key count (${settings.placeholderKeyCount}).`);
-    warnings.push("The <Delete thumbnail difficulty is only meant as a local pack helper.");
+      errors.push(t("packLib.thumbnailKeys", { keys: settings.placeholderKeyCount }));
+    warnings.push(t("packLib.thumbnailLocal"));
   }
 
   const distinctArtists = new Set(items.map((i) => i.originalArtist.toLowerCase()));
   if (metadata.artistMode !== "various") {
-    warnings.push("Changing artist metadata may make the pack less consistent or unsuitable for upload.");
+    warnings.push(t("pack.artistWarning"));
     if (distinctArtists.size > 1)
-      warnings.push("Multiple imported maps have different original artists; using Various Artists is recommended.");
+      warnings.push(t("packLib.variousRecommended"));
   }
   if (settings.creatorFieldMode === "original")
-    warnings.push("Using the original mapper in the Creator field may make the pack unsuitable for official upload/submission.");
+    warnings.push(t("pack.creatorWarning"));
 
   const { droppedNames } = resolveAssetCollisions(items);
   if (droppedNames.length)
-    warnings.push(`Some custom hitsounds may not be referenced correctly: colliding files (${[...new Set(droppedNames)].join(", ")}) share a name but differ in content, so only the first copy is kept.`);
+    warnings.push(t("packLib.collisions", { files: [...new Set(droppedNames)].join(", ") }));
 
   const distinctSongs = new Set(items.map((i) => i.originalTitle.toLowerCase()));
   if (distinctSongs.size > 1)
-    warnings.push("Packs with multiple songs may not be suitable for official osu! submission.");
+    warnings.push(t("packLib.multipleSongs"));
 
   return { errors, warnings };
 }
@@ -642,16 +643,16 @@ export async function buildPack({
   // .osu rewriting.
   const progress = new ProgressSplitter([3, 1, 8], onProgress);
 
-  progress.phase("Collecting song assets");
+  progress.phase(t("pack.collecting"));
   const zip = new JSZip();
   const { files, renamesByArchive } = resolveAssetCollisions(items);
   if (typeof jpegQuality === "number" && jpegQuality > 0) {
-    progress.phase("Converting backgrounds", 0.5);
+    progress.phase(t("packLib.backgrounds"), 0.5);
     await convertPackBackgroundsToJpeg(files, renamesByArchive, items, jpegQuality);
   }
   for (const f of files) zip.file(f.name, f.blob);
   progress.advance();
-  progress.phase("Writing difficulties");
+  progress.phase(t("packLib.writing"));
 
   const takenOsuNames = new Set<string>();
   for (const item of items) {
@@ -702,7 +703,7 @@ export async function buildPack({
   }
 
   progress.advance();
-  progress.phase("Compressing the pack");
+  progress.phase(t("packLib.compressing"));
 
   const blob = await zip.generateAsync(
     {
@@ -713,12 +714,12 @@ export async function buildPack({
     (update) => {
       progress.phase(
         update.currentFile
-          ? `Compressing ${update.currentFile}`
-          : "Compressing the pack",
+          ? t("packLib.compressingFile", { file: update.currentFile })
+          : t("packLib.compressing"),
         (update.percent ?? 0) / 100,
       );
     },
   );
-  progress.done("Pack ready");
+  progress.done(t("packLib.ready"));
   return { blob, filename: packOszFilename(metadata) };
 }

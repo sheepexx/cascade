@@ -40,6 +40,7 @@ import { logAnalyticsEvent } from "../lib/analytics";
 import type { ProgressReport } from "../lib/progress";
 import { MOTION } from "../lib/motion";
 import { MENU_ACCENTS } from "../lib/menuTheme";
+import { useT } from "../lib/i18n";
 
 const EXIT_MS = MOTION.exit;
 
@@ -91,6 +92,7 @@ export function PackCreator({
   /** Adds "Cascade" to the tags of maps the pack builds or converts. */
   cascadeTag?: boolean;
 }) {
+  const t = useT();
   const { user } = useAuth();
   const [metadata, setMetadata] = useState<PackMetadata>(DEFAULT_PACK_METADATA);
   const [settings, setSettings] = useState<PackCreatorSettings>(
@@ -161,9 +163,7 @@ export function PackCreator({
             problems.push(...res.problems);
             if (res.nonManiaItems.length)
               problems.push(
-                `${label}: ${res.nonManiaItems.length} non-mania difficult${
-                  res.nonManiaItems.length === 1 ? "y" : "ies"
-                } skipped (include below if wanted).`,
+                `${label}: ${t("pack.nonManiaSkipped", { count: res.nonManiaItems.length })}`,
               );
             setItems((prev) => [...prev, ...res.items]);
             setExcluded((prev) => [...prev, ...res.nonManiaItems]);
@@ -177,7 +177,7 @@ export function PackCreator({
             }
           } catch (err) {
             problems.push(
-              err instanceof Error ? err.message : `Failed to import ${label}.`,
+              err instanceof Error ? err.message : t("import.failed", { name: label }),
             );
           }
         }
@@ -187,7 +187,7 @@ export function PackCreator({
         setValidation(null);
       }
     },
-    [],
+    [t],
   );
 
   const importFiles = useCallback(
@@ -240,7 +240,7 @@ export function PackCreator({
     const result = runValidation();
     if (result.errors.length > 0) return;
     setExporting(true);
-    setExportProgress({ ratio: 0, label: "Collecting song assets" });
+    setExportProgress({ ratio: 0, label: t("pack.collecting") });
     try {
       const { blob, filename } = await buildPack({
         metadata,
@@ -256,7 +256,7 @@ export function PackCreator({
     } catch (err) {
       setValidation({
         errors: [
-          err instanceof Error ? `Export failed: ${err.message}` : "Export failed.",
+          err instanceof Error ? t("pack.exportFailedDetail", { detail: err.message }) : t("pack.exportFailed"),
         ],
         warnings: [],
       });
@@ -264,7 +264,7 @@ export function PackCreator({
       setExporting(false);
       setExportProgress(null);
     }
-  }, [runValidation, metadata, items, settings, jpegQuality, cascadeTag, user?.id]);
+  }, [runValidation, metadata, items, settings, jpegQuality, cascadeTag, user?.id, t]);
 
   const selected = items.find((it) => it.id === selectedId) ?? null;
   const placeholderItem =
@@ -319,18 +319,18 @@ export function PackCreator({
         else
           setImportProblems((prev) => [
             ...prev,
-            "No osu! or StepMania/Etterna maps found in the drop.",
+            t("pack.nothingInDrop"),
           ]);
       } catch (err) {
         setImportProblems((prev) => [
           ...prev,
-          err instanceof Error ? err.message : "Failed to read the drop.",
+          err instanceof Error ? err.message : t("pack.dropFailed"),
         ]);
       } finally {
         setImporting(false);
       }
     },
-    [importFiles, importInputs, cascadeTag],
+    [importFiles, importInputs, cascadeTag, t],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -386,14 +386,14 @@ export function PackCreator({
           style={{ "--modal-accent": MENU_ACCENTS.packCreator } as CSSProperties}
         >
           <Button variant="ghost" onClick={onClose} className="shrink-0">
-            ← Back
+            ← {t("common.back")}
           </Button>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-slate-100">
               Pack Creator
             </h2>
             <p className="truncate text-[11px] text-white/75">
-              Combine multiple mania maps into one .osz pack
+              {t("pack.subtitle")}
             </p>
           </div>
           <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-[var(--modal-accent)] shadow-[0_0_16px_var(--modal-accent)]" />
@@ -401,7 +401,7 @@ export function PackCreator({
 
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-4">
           <section className="flex min-h-0 w-[330px] shrink-0 flex-col">
-            <StepHeader n={1} label="Add maps" />
+            <StepHeader n={1} label={t("pack.step1")} />
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
             <div className="grid grid-cols-2 gap-2">
               <label
@@ -413,10 +413,10 @@ export function PackCreator({
               >
                 <PackageIcon className="h-5 w-5 text-slate-300" />
                 <span className="text-xs font-semibold text-slate-100">
-                  {importing ? "Importing…" : "Import .osz"}
+                  {importing ? t("pack.importing") : t("pack.importOsz")}
                 </span>
                 <span className="text-[10px] text-slate-500">
-                  or drop files anywhere
+                  {t("pack.orDrop")}
                 </span>
                 <input
                   type="file"
@@ -438,10 +438,10 @@ export function PackCreator({
               >
                 <FolderIcon className="h-5 w-5 text-slate-300" />
                 <span className="text-xs font-semibold text-slate-100">
-                  Browse Projects
+                  {t("pack.browse")}
                 </span>
                 <span className="text-[10px] text-slate-500">
-                  local &amp; cloud saves
+                  {t("pack.browseHint")}
                 </span>
               </button>
             </div>
@@ -458,13 +458,13 @@ export function PackCreator({
                   onClick={() => setImportProblems([])}
                   className="mt-1 text-[11px] text-amber-300 hover:underline"
                 >
-                  Dismiss
+                  {t("pack.dismiss")}
                 </button>
               </div>
             )}
 
             <Panel
-              title="Imported maps"
+              title={t("pack.imported")}
               badge={
                 <span className="grid min-w-[1.25rem] place-items-center rounded-full bg-ink-600 px-1.5 text-[10px] font-semibold text-slate-300">
                   {items.length}
@@ -473,8 +473,7 @@ export function PackCreator({
             >
               {items.length === 0 ? (
                 <p className="text-xs text-slate-500">
-                  Nothing here yet. Import .osz files or browse your projects
-                  above; every difficulty becomes one entry in the pack.
+                  {t("pack.importedEmpty")}
                 </p>
               ) : (
                 <ul className="flex flex-col gap-1.5">
@@ -503,12 +502,12 @@ export function PackCreator({
                           <span className="block truncate text-[11px] text-slate-500">
                             {item.originalArtist} · {item.originalCreator} ·{" "}
                             {item.parsedOsu.keyCount}K
-                            {item.nonMania ? " · not mania" : ""}
+                            {item.nonMania ? ` · ${t("pack.notMania")}` : ""}
                           </span>
                         </button>
                         <button
                           type="button"
-                          title="Remove from pack"
+                          title={t("pack.removeFromPack")}
                           onClick={() => removeItem(item.id)}
                           className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-300 opacity-40 transition hover:bg-rose-600/80 hover:text-white group-hover:opacity-100"
                         >
@@ -522,7 +521,7 @@ export function PackCreator({
             </Panel>
 
             {excluded.length > 0 && (
-              <Panel title="Skipped (not mania)">
+              <Panel title={t("pack.skipped")}>
                 <ul className="flex flex-col gap-1.5">
                   {excluded.map((item) => (
                     <li
@@ -534,7 +533,7 @@ export function PackCreator({
                           {item.originalTitle} [{item.originalVersion}]
                         </span>
                         <span className="block truncate text-[11px] text-slate-500">
-                          mode {item.parsedOsu.mode} · {item.sourceFileName}
+                          {t("pack.mode", { mode: item.parsedOsu.mode })} · {item.sourceFileName}
                         </span>
                       </div>
                       <button
@@ -542,7 +541,7 @@ export function PackCreator({
                         onClick={() => includeExcluded(item.id)}
                         className="shrink-0 rounded-md border border-amber-400/40 px-2 py-1 text-[11px] font-medium text-amber-200 transition hover:bg-amber-400/15"
                       >
-                        Include anyway
+                        {t("pack.includeAnyway")}
                       </button>
                     </li>
                   ))}
@@ -553,31 +552,31 @@ export function PackCreator({
           </section>
 
           <section className="flex min-h-0 w-[330px] shrink-0 flex-col">
-            <StepHeader n={2} label="Set up the pack" />
+            <StepHeader n={2} label={t("pack.step2")} />
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
-            <Panel title="Basics">
+            <Panel title={t("pack.basics")}>
               <div className="flex flex-col gap-3">
-                <Field label="Pack title">
+                <Field label={t("pack.title")}>
                   <TextInput
                     value={metadata.title}
                     onChange={(e) => {
                       setMetadata((m) => ({ ...m, title: e.target.value }));
                       setValidation(null);
                     }}
-                    placeholder="e.g. Jumpstream Collection"
+                    placeholder={t("pack.titlePlaceholder")}
                   />
                 </Field>
-                <Field label="Pack creator">
+                <Field label={t("pack.creator")}>
                   <TextInput
                     value={metadata.creator}
                     onChange={(e) => {
                       setMetadata((m) => ({ ...m, creator: e.target.value }));
                       setValidation(null);
                     }}
-                    placeholder="your name"
+                    placeholder={t("pack.creatorPlaceholder")}
                   />
                 </Field>
-                <Field label="Tags" hint="space-separated; added to every difficulty">
+                <Field label={t("pack.tags")} hint={t("pack.tagsHint")}>
                   <TextInput
                     value={tagsText}
                     onChange={(e) => {
@@ -587,23 +586,22 @@ export function PackCreator({
                         tags: e.target.value.split(/\s+/).filter(Boolean),
                       }));
                     }}
-                    placeholder="e.g. pack jumpstream dump"
+                    placeholder={t("pack.tagsPlaceholder")}
                   />
                 </Field>
                 <p className="text-[11px] text-slate-500">
-                  Every difficulty exports with this shared title and creator.
-                  Artist defaults to{" "}
-                  <span className="text-slate-300">Various Artists</span>.
+                  {t("pack.basicsHint")}{" "}
+                  <span className="text-slate-300">Various Artists</span>{t("pack.basicsHintAfter")}
                 </p>
               </div>
             </Panel>
 
             <Panel
-              title="Advanced"
+              title={t("pack.advanced")}
               badge={
                 advancedActive ? (
                   <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft">
-                    modified
+                    {t("pack.modified")}
                   </span>
                 ) : undefined
               }
@@ -613,19 +611,19 @@ export function PackCreator({
                   onClick={() => setShowAdvanced((v) => !v)}
                   className="text-[11px] text-slate-400 transition hover:text-slate-200"
                 >
-                  {showAdvanced ? "Hide ▲" : "Show ▼"}
+                  {showAdvanced ? `${t("pack.hide")} ▲` : `${t("pack.show")} ▼`}
                 </button>
               }
             >
               {!showAdvanced ? (
                 <p className="text-xs text-slate-500">
-                  Artist and Creator field modes, unicode title, source.
+                  {t("pack.advancedHint")}
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
                   <Field
-                    label="Artist field mode"
-                    hint="How the exported Artist field is filled."
+                    label={t("pack.artistMode")}
+                    hint={t("pack.artistModeHint")}
                   >
                     <Select
                       className="w-full"
@@ -639,16 +637,16 @@ export function PackCreator({
                       }}
                     >
                       <option value="various">
-                        Various Artists for all difficulties (recommended)
+                        {t("pack.artistVarious")}
                       </option>
                       <option value="original-per-map">
-                        Keep original artist per map
+                        {t("pack.artistOriginal")}
                       </option>
-                      <option value="custom-shared">Custom shared artist</option>
+                      <option value="custom-shared">{t("pack.artistCustom")}</option>
                     </Select>
                   </Field>
                   {metadata.artistMode === "custom-shared" && (
-                    <Field label="Custom shared artist">
+                    <Field label={t("pack.artistCustom")}>
                       <TextInput
                         value={metadata.customSharedArtist ?? ""}
                         onChange={(e) =>
@@ -662,14 +660,13 @@ export function PackCreator({
                   )}
                   {metadata.artistMode !== "various" && (
                     <p className="rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
-                      Changing artist metadata may make the pack less consistent
-                      or unsuitable for upload.
+                      {t("pack.artistWarning")}
                     </p>
                   )}
 
                   <Field
-                    label="Creator field mode"
-                    hint="How the exported Creator field is filled."
+                    label={t("pack.creatorMode")}
+                    hint={t("pack.creatorModeHint")}
                   >
                     <Select
                       className="w-full"
@@ -684,24 +681,23 @@ export function PackCreator({
                       }}
                     >
                       <option value="pack-append-mapper">
-                        Pack creator + mapper in difficulty name (recommended)
+                        {t("pack.creatorAppend")}
                       </option>
                       <option value="pack">
-                        Pack creator for all difficulties
+                        {t("pack.creatorPack")}
                       </option>
                       <option value="original">
-                        Original mapper per difficulty
+                        {t("pack.creatorOriginal")}
                       </option>
                     </Select>
                   </Field>
                   {settings.creatorFieldMode === "original" && (
                     <p className="rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
-                      Using the original mapper in the Creator field may make the
-                      pack unsuitable for official upload/submission.
+                      {t("pack.creatorWarning")}
                     </p>
                   )}
 
-                  <Field label="Pack title unicode (optional)">
+                  <Field label={t("pack.titleUnicode")}>
                     <TextInput
                       value={metadata.titleUnicode ?? ""}
                       onChange={(e) =>
@@ -712,7 +708,7 @@ export function PackCreator({
                       }
                     />
                   </Field>
-                  <Field label="Source (optional)">
+                  <Field label={t("pack.source")}>
                     <TextInput
                       value={metadata.source ?? ""}
                       onChange={(e) =>
@@ -724,7 +720,7 @@ export function PackCreator({
                     />
                   </Field>
                   <label className="flex items-center justify-between gap-3 text-xs text-slate-300">
-                    Append original artist / mapper / tags to Tags
+                    {t("pack.keepTags")}
                     <Toggle
                       size="sm"
                       checked={settings.keepOriginalTags}
@@ -738,7 +734,7 @@ export function PackCreator({
             </Panel>
 
             <Panel
-              title="Thumbnail difficulty"
+              title={t("pack.thumbnail")}
               badge={
                 <code className="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] text-slate-300">
                   &lt;Delete
@@ -751,13 +747,13 @@ export function PackCreator({
                   onChange={(v) =>
                     setSettings((s) => ({ ...s, placeholderEnabled: v }))
                   }
-                  aria-label="Add a <Delete placeholder difficulty"
+                  aria-label={t("pack.thumbnailLabel")}
                 />
               }
             >
               {settings.placeholderEnabled ? (
                 <div className="flex flex-col gap-2.5">
-                  <Field label="Audio source">
+                  <Field label={t("pack.audioSource")}>
                     <Select
                       className="w-full"
                       value={settings.placeholderAudioItemId ?? ""}
@@ -768,7 +764,7 @@ export function PackCreator({
                         }))
                       }
                     >
-                      <option value="">(select a song)</option>
+                      <option value="">{t("pack.selectSong")}</option>
                       {items.map((it) => (
                         <option key={it.id} value={it.id}>
                           {it.songDisplayName || it.originalTitle} ·{" "}
@@ -777,7 +773,7 @@ export function PackCreator({
                       ))}
                     </Select>
                   </Field>
-                  <Field label={`Key count (${MIN_KEYS}-${MAX_KEYS})`}>
+                  <Field label={t("pack.keyCount", { min: MIN_KEYS, max: MAX_KEYS })}>
                     <TextInput
                       type="number"
                       min={MIN_KEYS}
@@ -798,14 +794,12 @@ export function PackCreator({
                     {placeholderFilename}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    This creates a minimal &lt;Delete difficulty with two notes. It
-                    is intended as a local pack helper.
+                    {t("pack.thumbnailOn")}
                   </p>
                 </div>
               ) : (
                 <p className="text-xs text-slate-500">
-                  Off. Enable to add a minimal placeholder difficulty (two
-                  notes) that acts as the pack's thumbnail entry.
+                  {t("pack.thumbnailOff")}
                 </p>
               )}
             </Panel>
@@ -813,9 +807,9 @@ export function PackCreator({
           </section>
 
           <section className="flex min-h-0 min-w-[340px] flex-1 flex-col">
-            <StepHeader n={3} label="Review & export" />
+            <StepHeader n={3} label={t("pack.step3")} />
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
-            <Panel title="Selected map">
+            <Panel title={t("pack.selected")}>
               {selected ? (
                 <PackCreatorItem
                   item={selected}
@@ -825,13 +819,13 @@ export function PackCreator({
               ) : (
                 <p className="text-xs text-slate-500">
                   {items.length === 0
-                    ? "Add some maps in step 1, then review each one here."
-                    : "Select a map in step 1 to review its difficulty naming."}
+                    ? t("pack.selectedEmpty")
+                    : t("pack.selectedHint")}
                 </p>
               )}
             </Panel>
 
-            <Panel title="Validation">
+            <Panel title={t("pack.validation")}>
               <PackCreatorValidation result={validation} />
             </Panel>
             </div>
@@ -839,9 +833,9 @@ export function PackCreator({
             <div className="mt-3 shrink-0 rounded-xl border border-white/10 bg-ink-800 p-3.5">
               <div className="mb-2.5 flex items-baseline justify-between gap-3 text-xs">
                 <span className="shrink-0 font-medium text-slate-300">
-                  {items.length} map{items.length === 1 ? "" : "s"}
+                  {t("pack.mapCount", { count: items.length })}
                   {settings.placeholderEnabled && items.length > 0
-                    ? " + thumbnail"
+                    ? ` + ${t("pack.thumbnailShort")}`
                     : ""}
                 </span>
                 <span
@@ -856,7 +850,7 @@ export function PackCreator({
                   onClick={runValidation}
                   disabled={importing || items.length === 0}
                 >
-                  Validate
+                  {t("pack.validate")}
                 </Button>
                 <Button
                   variant="accent"
@@ -866,11 +860,11 @@ export function PackCreator({
                 >
                   {exporting ? (
                     <span className="tabular-nums">
-                      Exporting…{" "}
+                      {t("pack.exporting")}{" "}
                       {Math.round((exportProgress?.ratio ?? 0) * 100)}%
                     </span>
                   ) : (
-                    "Export .osz"
+                    t("file.exportOsz")
                   )}
                 </Button>
               </div>
@@ -882,7 +876,7 @@ export function PackCreator({
                     aria-valuenow={Math.round((exportProgress?.ratio ?? 0) * 100)}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={exportProgress?.label ?? "Exporting"}
+                    aria-label={exportProgress?.label ?? t("app.exporting")}
                   >
                     <div
                       className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
