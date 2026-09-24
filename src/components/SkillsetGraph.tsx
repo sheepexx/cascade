@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "../lib/i18n";
 import { MOTION } from "../lib/motion";
 import { msdSkillsetLabel } from "../lib/msd/display";
 import {
@@ -116,6 +117,7 @@ function SkillsetStrip({
   supported,
   onSeek,
 }: Omit<Props, "open">) {
+  const t = useT();
   const barsRef = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<{ index: number; x: number } | null>(null);
@@ -164,7 +166,7 @@ function SkillsetStrip({
   };
 
   const hovered = hover && points ? points[hover.index] : null;
-  const toggleLabel = collapsed ? "Show the skillset graph" : "Minimise the skillset graph";
+  const toggleLabel = collapsed ? t("skillsets.show") : t("skillsets.hide");
 
   return (
     <div className="w-full select-none border-t border-ink-600 bg-ink-900">
@@ -185,10 +187,10 @@ function SkillsetStrip({
               collapsed ? "rotate-180" : ""
             }`}
           />
-          Skillsets
+          {t("skillsets.title")}
         </button>
         {!supported ? (
-          <span className="text-slate-500">Rates 4K, 6K and 7K maps</span>
+          <span className="text-slate-500">{t("skillsets.unsupported")}</span>
         ) : (
           <>
             {present.map((key) => (
@@ -205,7 +207,7 @@ function SkillsetStrip({
                 {msdSkillsetLabel(key, keyCount)}
               </span>
             ))}
-            {!points && <span className="text-slate-500">Rating…</span>}
+            {!points && <span className="text-slate-500">{t("skillsets.rating")}</span>}
           </>
         )}
       </div>
@@ -225,7 +227,7 @@ function SkillsetStrip({
           if (index >= 0 && points) onSeek(points[index].startSec * 1000);
         }}
         role="img"
-        aria-label="Skillset difficulty across the song"
+        aria-label={t("skillsets.graphLabel")}
       >
         {supported && (
           <svg width={width} height={BARS_HEIGHT} className="block cursor-pointer">

@@ -3185,12 +3185,12 @@ export default function App() {
       );
     } catch (error) {
       setImportError(
-        error instanceof Error ? error.message : `Failed to import ${file.name}.`,
+        error instanceof Error ? error.message : t("import.failed", { name: file.name }),
       );
     } finally {
       setImportingMap(false);
     }
-  }, []);
+  }, [t]);
 
   const requestImportSm = useCallback(
     (file: File) => {
@@ -4364,16 +4364,20 @@ export default function App() {
       const source = diffs.find((d) => d.id === sourceId);
       if (!target || !source) return;
       const { before, after } = copyHitsounds(target.notes, source.notes);
+      const name = source.name || t("hitsounds.unnamed");
       if (after.length === 0) {
-        announceShortcut(`${source.name || "That difficulty"} has no new hitsounds for these notes`);
+        announceShortcut(t("hitsounds.nothingNewFrom", { name }));
         return;
       }
       commitNoteOp({ t: "note.update", diffId: did, before, after });
       announceShortcut(
-        `Copied hitsounds from ${source.name || "(unnamed)"} onto ${after.length} ${after.length === 1 ? "note" : "notes"}`,
+        t("hitsounds.copiedFrom", {
+          name,
+          notes: t("hitsounds.noteCount", { count: after.length }),
+        }),
       );
     },
-    [commitNoteOp, announceShortcut],
+    [commitNoteOp, announceShortcut, t],
   );
 
   // Rate-changed difficulties sit on a stretched copy of the song, so only
@@ -4406,10 +4410,13 @@ export default function App() {
     }
     announceShortcut(
       changedNotes
-        ? `Copied hitsounds onto ${changedNotes} ${changedNotes === 1 ? "note" : "notes"} in ${changedDiffs} ${changedDiffs === 1 ? "difficulty" : "difficulties"}`
-        : "The other difficulties already match these hitsounds",
+        ? t("hitsounds.copiedToAll", {
+            notes: t("hitsounds.noteCount", { count: changedNotes }),
+            difficulties: t("hitsounds.difficultyCount", { count: changedDiffs }),
+          })
+        : t("hitsounds.allMatch"),
     );
-  }, [commitNoteOp, announceShortcut]);
+  }, [commitNoteOp, announceShortcut, t]);
 
   const hitsoundSources = useMemo(
     () =>
@@ -5497,14 +5504,14 @@ export default function App() {
       playUiSound("mapExportDone");
     } catch (error) {
       setImportError(
-        error instanceof Error
-          ? `Malody export failed: ${error.message}`
-          : "Malody export failed.",
+        t("malody.exportFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        }),
       );
     } finally {
       setExporting(false);
     }
-  }, [meta, difficulties, timingPoints, audioFiles, bgFiles]);
+  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, t]);
 
   const doExportOsz = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
@@ -6728,7 +6735,7 @@ export default function App() {
           { id: "new-open", label: t("file.newOpen"), group: "File", keywords: "project map welcome", run: () => setModal("welcome") },
           { id: "save", label: t("file.saveLocally"), group: "File", hint: "Ctrl S", run: () => void handleSave() },
           { id: "save-cloud", label: t("file.saveToCloud"), group: "File", keywords: "account collaborate", disabled: !authUser || !canEdit, run: () => void handleCloudSave() },
-          { id: "copy-hitsounds-all", label: "Copy hitsounds to all difficulties", group: "Edit", keywords: "hitsound whistle finish clap samples apply", disabled: !canEdit || hitsoundTargets.length === 0 || countHitsounds(active.notes) === 0, run: applyCopyHitsoundsToAll },
+          { id: "copy-hitsounds-all", label: t("hitsounds.copyToAllCommand"), group: "Edit", keywords: "hitsound whistle finish clap samples apply", disabled: !canEdit || hitsoundTargets.length === 0 || countHitsounds(active.notes) === 0, run: applyCopyHitsoundsToAll },
           { id: "export-osu", label: t("file.exportOsu"), group: "Export", disabled: !canExport, run: handleExportOsu },
           { id: "export-osz", label: t("file.exportOsz"), group: "Export", disabled: !canExport || exporting, run: handleExportOsz },
           { id: "export-sm", label: t("file.exportSm"), group: "Export", disabled: !canExport, run: handleExportSm },
@@ -7242,7 +7249,7 @@ export default function App() {
                     label: t("file.exportMcz"),
                     disabled: !canExport || exporting || !hasMalodyDifficulty,
                     title: !hasMalodyDifficulty
-                      ? "Malody supports up to 10K maps"
+                      ? t("malody.maxKeys", { count: MALODY_MAX_KEYS })
                       : undefined,
                     onClick: handleExportMcz,
                   },

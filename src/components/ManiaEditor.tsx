@@ -3493,7 +3493,7 @@ export function ManiaEditor(props: Props) {
             hitsoundBarClosing ? "hitsound-bar-out" : "hitsound-bar-in"
           }`}
         >
-          <span className="font-medium text-slate-300">Hitsound</span>
+          <span className="font-medium text-slate-300">{t("hitsoundBar.title")}</span>
           <div className="flex gap-1">
             {SAMPLE_SET_NAMES.map((name, s) => (
               <button
@@ -3505,10 +3505,12 @@ export function ManiaEditor(props: Props) {
                     : "bg-ink-700 text-slate-300 hover:bg-ink-600"
                 }`}
                 title={
-                  s === 0 ? "Auto (use timing point)" : `${name} sample set`
+                  s === 0
+                    ? t("hitsoundBar.autoTitle")
+                    : t("hitsoundBar.sampleSetTitle", { name })
                 }
               >
-                {s === 0 ? "Auto" : name}
+                {s === 0 ? t("hitsoundBar.auto") : name}
               </button>
             ))}
           </div>
@@ -3516,61 +3518,60 @@ export function ManiaEditor(props: Props) {
           <div className="flex gap-1">
             <HitsoundAddBtn
               label="W"
-              title="Whistle (W)"
+              title={t("hitsoundBar.whistle")}
               active={toolbarHasAddition(HITSOUND_WHISTLE)}
               onClick={() => toggleAddition(HITSOUND_WHISTLE)}
             />
             <HitsoundAddBtn
               label="F"
-              title="Finish (F)"
+              title={t("hitsoundBar.finish")}
               active={toolbarHasAddition(HITSOUND_FINISH)}
               onClick={() => toggleAddition(HITSOUND_FINISH)}
             />
             <HitsoundAddBtn
               label="C"
-              title="Clap (C)"
+              title={t("hitsoundBar.clap")}
               active={toolbarHasAddition(HITSOUND_CLAP)}
               onClick={() => toggleAddition(HITSOUND_CLAP)}
             />
           </div>
           <span className="text-[10px] text-slate-500">
             {selectionCount > 0
-              ? `→ ${selectionCount} selected`
-              : "→ new notes"}
+              ? t("hitsoundBar.selected", { count: selectionCount })
+              : t("hitsoundBar.newNotes")}
           </span>
           {props.onCopyHitsounds && (props.hitsoundSources?.length ?? 0) > 0 && (
             <>
               <span className="text-slate-600">·</span>
               <Menu
-                label="Copy"
+                label={t("hitsoundBar.copy")}
                 className="!rounded !bg-ink-700 !px-2 !py-0.5 !text-xs hover:!bg-ink-600"
                 items={[
                   ...(props.onCopyHitsoundsToAll
                     ? [
                         {
-                          label: "Onto every other difficulty",
+                          label: t("hitsoundBar.copyToAll"),
                           onClick: props.onCopyHitsoundsToAll,
-                          title:
-                            "Copy this difficulty's hitsounds onto every other difficulty that uses the same song",
+                          title: t("hitsoundBar.copyToAllTitle"),
                         },
                         { separator: true as const },
                       ]
                     : []),
                   ...(props.hitsoundSources ?? []).map((s) => ({
-                  label: `From ${s.name} (${s.hitsoundCount} hitsounded)`,
+                  label: t("hitsoundBar.copyFrom", { name: s.name, count: s.hitsoundCount }),
                   disabled: s.hitsoundCount === 0,
                   onClick: () => props.onCopyHitsounds?.(s.id),
                   title:
                     s.hitsoundCount === 0
-                      ? "This difficulty has no hitsounds"
-                      : `Copy hitsounds from ${s.name} onto this difficulty`,
+                      ? t("hitsoundBar.noHitsounds")
+                      : t("hitsoundBar.copyFromTitle", { name: s.name }),
                   })),
                 ]}
               />
             </>
           )}
           <span className="text-slate-600">·</span>
-          <span className="text-[10px] text-slate-500">press H to exit</span>
+          <span className="text-[10px] text-slate-500">{t("hitsoundBar.exit")}</span>
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { t } from "./i18n/core";
 import {
   MAX_KEYS,
   MIN_KEYS,
@@ -105,13 +106,11 @@ export function parseMalodyChart(source: string): ParsedMalody {
   try {
     root = record(JSON.parse(source));
   } catch {
-    throw new Error("This .mc file isn't a readable Malody chart.");
+    throw new Error(t("malody.unreadable"));
   }
   const meta = record(root.meta);
   if (number(meta.mode, 0) !== 0) {
-    throw new Error(
-      "This Malody chart isn't for Key mode, the only mode Cascade can open.",
-    );
+    throw new Error(t("malody.notKeyMode"));
   }
   const keyCount = Math.max(
     MIN_KEYS,
@@ -123,7 +122,7 @@ export function parseMalodyChart(source: string): ParsedMalody {
     .filter((entry) => Number.isFinite(entry.beat) && entry.bpm > 0)
     .sort((a, b) => a.beat - b.beat);
   if (!bpmEntries.length) {
-    throw new Error("This Malody chart has no BPM, so its notes can't be placed.");
+    throw new Error(t("malody.noBpm"));
   }
 
   const notes = array(root.note);
@@ -441,7 +440,7 @@ export function malodyDifficulties(difficulties: Difficulty[]): Difficulty[] {
 export async function buildMcz(args: BuildMczArgs): Promise<Blob> {
   const difficulties = malodyDifficulties(args.difficulties);
   if (!difficulties.length) {
-    throw new Error(`Malody's Key mode supports up to ${MALODY_MAX_KEYS}K.`);
+    throw new Error(t("malody.maxKeys", { count: MALODY_MAX_KEYS }));
   }
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
@@ -455,7 +454,7 @@ export async function buildMcz(args: BuildMczArgs): Promise<Blob> {
       (difficulty.audioFilename && args.audioFiles[difficulty.audioFilename]) ||
       fallbackAudio;
     if (!audio) {
-      throw new Error(`${difficulty.name} has no audio loaded.`);
+      throw new Error(t("malody.noAudio", { name: difficulty.name }));
     }
     if (!folder.file(audio.name)) folder.file(audio.name, audio.blob);
     const background = difficulty.backgroundFilename

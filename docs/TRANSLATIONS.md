@@ -38,7 +38,10 @@ native speaker who plays mania should confirm or correct.
 
 `SV`, `BPM`, `OD`, `HP`, `UR`, `AiMod`, `Pack Creator`, `kiai`, `normal` /
 `soft` / `drum`, `whistle` / `finish` / `clap`, `.osu` / `.osz` / `.sm` /
-`.ssc`, `Live`, `Realtime`, and the `#SUBTITLE`-style StepMania header tags.
+`.ssc`, `Live`, `Realtime`, the `#SUBTITLE`-style StepMania header tags, and the Etterna skillset names
+(`Stream`, `Jumpstream`, `Handstream`, `Stamina`, `Jackspeed`, `Chordjack`,
+`Technical`, and `Chordstream` / `Bracketing` above 4K) in the MSD tooltip and
+the skillset graph.
 These are file formats, product names, or terms every mania mapper reads in
 English regardless of locale.
 

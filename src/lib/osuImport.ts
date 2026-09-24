@@ -16,6 +16,7 @@ import {
   makeRedPoint,
   uid,
 } from "../types";
+import { t } from "./i18n/core";
 import { parseMalodyChart } from "./malody";
 import { xToColumn } from "./osuExport";
 import { uniqueDifficultyName } from "./rateChange";
@@ -406,7 +407,7 @@ export async function importOsz(
   const malody = osuPaths.length === 0 && malodyPaths.length > 0;
   const chartPaths = (malody ? malodyPaths : osuPaths).sort();
   if (chartPaths.length === 0) {
-    throw new Error("No .osu or Malody .mc difficulty found inside the archive.");
+    throw new Error(t("malody.noChartInArchive"));
   }
 
   const parsed: ParsedOsu[] = [];
