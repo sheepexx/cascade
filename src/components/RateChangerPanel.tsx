@@ -16,6 +16,7 @@ import {
   type RateCreateOptions,
 } from "../lib/rateChange";
 import { Slider, Toggle } from "./ui/Controls";
+import { useT } from "../lib/i18n";
 
 const EXIT_MS = 180;
 
@@ -41,6 +42,7 @@ export function RateChangerPanel({
   onCreate,
   onClose,
 }: Props) {
+  const t = useT();
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   const [rate, setRate] = useState(1);
@@ -158,7 +160,7 @@ export function RateChangerPanel({
       >
         <div className="mb-2.5 flex items-baseline justify-between">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Rate changer
+            {t("rate.title")}
           </span>
           <span className="text-lg font-semibold tabular-nums leading-none text-accent">
             {formatRateDisplay(rate)}x
@@ -172,7 +174,7 @@ export function RateChangerPanel({
           value={rate}
           disabled={!canEdit}
           onChange={(value) => commitRate(value)}
-          aria-label="Rate"
+          aria-label={t("rate.rate")}
         />
 
         <div className="mt-2.5 flex items-center gap-1.5">
@@ -182,7 +184,7 @@ export function RateChangerPanel({
             value={rateDraft}
             inputMode="decimal"
             disabled={!canEdit}
-            aria-label="Rate value"
+            aria-label={t("rate.rateValue")}
             aria-invalid={invalid === "rate"}
             onChange={(e) => {
               setRateDraft(e.target.value);
@@ -213,7 +215,7 @@ export function RateChangerPanel({
             value={bpmDraft}
             inputMode="decimal"
             disabled={!canEdit || baseBpm <= 0}
-            aria-label="Target BPM"
+            aria-label={t("rate.targetBpm")}
             aria-invalid={invalid === "bpm"}
             onChange={(e) => {
               setBpmDraft(e.target.value);
@@ -244,10 +246,8 @@ export function RateChangerPanel({
         {invalid && (
           <p className="mt-1.5 text-[10px] leading-tight text-red-300/90">
             {invalid === "rate"
-              ? `Enter a rate between ${formatRate(RATE_MIN)} and ${formatRate(RATE_MAX)}.`
-              : `Enter a BPM between ${Math.round(baseBpm * RATE_MIN)} and ${Math.round(
-                  baseBpm * RATE_MAX,
-                )}.`}
+              ? t("rate.invalidRate", { min: formatRate(RATE_MIN), max: formatRate(RATE_MAX) })
+              : t("rate.invalidBpm", { min: Math.round(baseBpm * RATE_MIN), max: Math.round(baseBpm * RATE_MAX) })}
           </p>
         )}
 
@@ -274,20 +274,20 @@ export function RateChangerPanel({
 
         <div className="mt-2.5 flex flex-col gap-1.5">
           <ToggleRow
-            label="Only use the rate as the name"
+            label={t("rate.onlyRateName")}
             checked={onlyRateAsName}
             disabled={!canEdit}
             onChange={setOnlyRateAsName}
           />
           <ToggleRow
-            label="Show BPM in the name"
+            label={t("rate.showBpm")}
             checked={showBpm}
             disabled={!canEdit}
             onChange={setShowBpm}
           />
           <ToggleRow
-            label="Preserve pitch"
-            title="Time-stretch instead of resampling, so speed changes without the pitch shifting."
+            label={t("rate.preservePitch")}
+            title={t("rate.preservePitchHint")}
             checked={preservePitch}
             disabled={!canEdit}
             onChange={setPreservePitch}
@@ -299,13 +299,13 @@ export function RateChangerPanel({
             <PreviewRow label="BPM" from={preview.bpmBefore} to={preview.bpmAfter} />
             {preview.lengthBefore && preview.lengthAfter && (
               <PreviewRow
-                label="Length"
+                label={t("rate.length")}
                 from={preview.lengthBefore}
                 to={preview.lengthAfter}
               />
             )}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-slate-500">Name</span>
+              <span className="text-slate-500">{t("common.name")}</span>
               <span
                 className="min-w-0 truncate font-medium text-slate-200"
                 title={preview.name}
@@ -322,12 +322,12 @@ export function RateChangerPanel({
           onClick={() => create()}
           className="mt-2.5 w-full rounded-lg border border-accent-deep/40 bg-accent/90 px-3 py-2 text-[12px] font-medium text-white shadow-sm backdrop-blur-sm transition hover:bg-accent-soft/95 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Create Rate Difficulty
+          {t("rate.create")}
         </button>
 
         {neutral && (
           <p className="mt-1.5 text-center text-[10px] leading-tight text-slate-500">
-            At 1.00x nothing would change, so pick another rate.
+            {t("rate.neutral")}
           </p>
         )}
       </div>

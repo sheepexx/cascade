@@ -4,6 +4,7 @@ import { Modal } from "../ui/Modal";
 import { Slider, TextInput } from "../ui/Controls";
 import { maniaJudgementWindows } from "../../lib/playtestJudgements";
 import { defaultLaneColour, laneColourSet } from "../../lib/laneColours";
+import { useT, type Translate } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -34,6 +35,7 @@ export function DifficultyModal({
   difficulty,
   onDifficulty,
 }: Props) {
+  const t = useT();
   const set = <K extends keyof Difficulty>(key: K, value: Difficulty[K]) =>
     onDifficulty({ ...difficulty, [key]: value });
 
@@ -69,14 +71,14 @@ export function DifficultyModal({
   const windows = maniaJudgementWindows(od);
 
   return (
-    <Modal open={open} onClose={onClose} title="Difficulty" width="max-w-xl">
+    <Modal open={open} onClose={onClose} title={t("nav.difficulty")} width="max-w-xl">
       <div className="flex flex-col gap-4" style={CARD_SURFACE}>
         <label className="flex flex-col gap-1.5">
-          <span className={LABEL}>Name</span>
+          <span className={LABEL}>{t("common.name")}</span>
           <TextInput
             value={difficulty.name}
             onChange={(e) => set("name", e.target.value)}
-            placeholder="e.g. Hard"
+            placeholder={t("diffModal.namePlaceholder")}
             className="py-2.5 text-base font-semibold"
           />
         </label>
@@ -84,15 +86,14 @@ export function DifficultyModal({
         <section className="rounded-xl border border-white/10 bg-ink-700/40 p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <span className={LABEL}>Keys</span>
+              <span className={LABEL}>{t("diffModal.keys")}</span>
               <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                Exported as CircleSize. Lowering it removes the notes in the
-                lanes it drops.
+                {t("diffModal.keysHint")}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               <StepButton
-                label="One key fewer"
+                label={t("diffModal.keyFewer")}
                 disabled={shownKeys <= MIN_KEYS}
                 onClick={() => chooseKeys(shownKeys - 1)}
               >
@@ -102,7 +103,7 @@ export function DifficultyModal({
                 {shownKeys}K
               </span>
               <StepButton
-                label="One key more"
+                label={t("diffModal.keyMore")}
                 disabled={shownKeys >= MAX_KEYS}
                 onClick={() => chooseKeys(shownKeys + 1)}
               >
@@ -141,18 +142,16 @@ export function DifficultyModal({
               className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100"
             >
               <span className="min-w-0 flex-1">
-                {pendingKeys}K drops{" "}
                 {pendingKeys + 1 === keyCount
-                  ? `lane ${keyCount}`
-                  : `lanes ${pendingKeys + 1}–${keyCount}`}
-                , removing {removing} note{removing === 1 ? "" : "s"}.
+                  ? t("diffModal.dropsLane", { keys: pendingKeys, lane: keyCount, notes: t("diffModal.notes", { count: removing }) })
+                  : t("diffModal.dropsLanes", { keys: pendingKeys, from: pendingKeys + 1, to: keyCount, notes: t("diffModal.notes", { count: removing }) })}
               </span>
               <button
                 type="button"
                 onClick={() => setPendingKeys(null)}
                 className="rounded-md px-2 py-1 font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
               >
-                Keep {keyCount}K
+                {t("diffModal.keep", { keys: keyCount })}
               </button>
               <button
                 type="button"
@@ -162,7 +161,7 @@ export function DifficultyModal({
                 }}
                 className="rounded-md bg-rose-500/80 px-2 py-1 font-semibold text-white transition hover:bg-rose-500"
               >
-                Remove notes
+                {t("diffModal.removeNotes")}
               </button>
             </div>
           )}
@@ -170,20 +169,18 @@ export function DifficultyModal({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <StatCard
-            label="HP drain"
+            label={t("diffModal.hp")}
             value={hp}
             onChange={(v) => set("hpDrainRate", v)}
-            detail={describeHp(hp)}
+            detail={describeHp(hp, t)}
           >
             <HpMeter value={hp} />
           </StatCard>
           <StatCard
-            label="Overall difficulty"
+            label={t("diffModal.od")}
             value={od}
             onChange={(v) => set("overallDifficulty", v)}
-            detail={`A 300 needs ±${ms(windows.hit300)} ms, a MAX ±${ms(
-              windows.max,
-            )} ms.`}
+            detail={t("diffModal.odDetail", { hit300: ms(windows.hit300), max: ms(windows.max) })}
           >
             <JudgementWindows windows={windows} />
           </StatCard>
@@ -204,6 +201,7 @@ function LaneMeter({
   keys: number;
   counts: number[];
 }) {
+  const t = useT();
   let peak = 1;
   for (let i = 0; i < lanes; i++) peak = Math.max(peak, counts[i]);
   return (
@@ -215,7 +213,7 @@ function LaneMeter({
         return (
           <div
             key={lane}
-            title={`Lane ${lane + 1}: ${counts[lane]} note${counts[lane] === 1 ? "" : "s"}`}
+            title={t("diffModal.laneTitle", { lane: lane + 1, notes: t("diffModal.notes", { count: counts[lane] }) })}
             className="relative flex-1 overflow-hidden rounded-[5px] transition-colors duration-[var(--motion-quick)]"
             style={{ backgroundColor: `${color}${dropped ? "26" : "14"}` }}
           >
@@ -351,11 +349,11 @@ function StepButton({
   );
 }
 
-function describeHp(hp: number): string {
-  if (hp < 3) return "Forgiving: misses cost little health.";
-  if (hp < 6) return "Balanced: a few misses in a row are survivable.";
-  if (hp < 8) return "Strict: each miss takes a big bite out of health.";
-  return "Punishing: a short run of misses fails the play.";
+function describeHp(hp: number, t: Translate): string {
+  if (hp < 3) return t("diffModal.hpForgiving");
+  if (hp < 6) return t("diffModal.hpBalanced");
+  if (hp < 8) return t("diffModal.hpStrict");
+  return t("diffModal.hpPunishing");
 }
 
 function ms(value: number): string {

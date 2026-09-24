@@ -42,6 +42,7 @@ import { Menu } from "../ui/Menu";
 import { BookmarkIcon } from "../ui/Icons";
 import { FONT_STACK } from "../../lib/fontStack";
 import { InfoTip } from "../ui/Tooltip";
+import { useT, type MessageKey, type Translate } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -59,12 +60,12 @@ type Props = {
 
 type Tab = "constant" | "curve" | "stutter" | "normalize" | "remove";
 
-const TABS: { value: Tab; label: string }[] = [
-  { value: "constant", label: "Constant" },
-  { value: "curve", label: "Curve" },
-  { value: "stutter", label: "Stutter" },
-  { value: "normalize", label: "Normalize" },
-  { value: "remove", label: "Remove" },
+const TABS: { value: Tab; label: MessageKey }[] = [
+  { value: "constant", label: "sv.tabConstant" },
+  { value: "curve", label: "sv.tabCurve" },
+  { value: "stutter", label: "sv.tabStutter" },
+  { value: "normalize", label: "sv.tabNormalize" },
+  { value: "remove", label: "sv.tabRemove" },
 ];
 
 const DENSITIES = [1, 2, 4, 8, 16] as const;
@@ -72,29 +73,36 @@ const DENSITIES = [1, 2, 4, 8, 16] as const;
 const CARD = "rounded-xl border border-white/10 bg-ink-700/40 p-4";
 const LABEL = "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
 
-const EASING_LABELS: Record<SvEasing, string> = {
-  linear: "Linear",
-  sineIn: "Sine in",
-  sineOut: "Sine out",
-  sineInOut: "Sine in-out",
-  quadIn: "Quad in",
-  quadOut: "Quad out",
-  quadInOut: "Quad in-out",
-  expoIn: "Expo in",
-  expoOut: "Expo out",
-  expoInOut: "Expo in-out",
+const EASING_PARTS: Record<SvEasing, [string, "in" | "out" | "inOut"] | null> = {
+  linear: null,
+  sineIn: ["Sine", "in"],
+  sineOut: ["Sine", "out"],
+  sineInOut: ["Sine", "inOut"],
+  quadIn: ["Quad", "in"],
+  quadOut: ["Quad", "out"],
+  quadInOut: ["Quad", "inOut"],
+  expoIn: ["Expo", "in"],
+  expoOut: ["Expo", "out"],
+  expoInOut: ["Expo", "inOut"],
 };
 
-const TAB_HELP: Record<Tab, string> = {
-  constant:
-    "Holds one scroll speed across the range. 2× makes notes travel twice as fast; 0.5× crawls.",
-  curve:
-    "Shapes the scroll speed across the range. Drag the keyframes and their handles, double-click the line to add one, Delete to remove.",
-  stutter:
-    "Bursts fast at the start of each cycle, then slows to compensate, so the chart never drifts out of place. A classic jump-scroll effect.",
-  normalize:
-    "Adds compensation at every BPM change so the visible scroll rate stays constant across the range.",
-  remove: "Deletes every SV point inside the range, returning it to 1× scroll.",
+function easingLabel(id: SvEasing, t: Translate): string {
+  const parts = EASING_PARTS[id];
+  if (!parts) return t("sv.easeLinear");
+  const [curve, kind] = parts;
+  return kind === "in"
+    ? t("sv.easeIn", { curve })
+    : kind === "out"
+      ? t("sv.easeOut", { curve })
+      : t("sv.easeInOut", { curve });
+}
+
+const TAB_HELP: Record<Tab, MessageKey> = {
+  constant: "sv.helpConstant",
+  curve: "sv.helpCurve",
+  stutter: "sv.helpStutter",
+  normalize: "sv.helpNormalize",
+  remove: "sv.helpRemove",
 };
 
 export function SvModal({
@@ -109,6 +117,7 @@ export function SvModal({
   bookmarks,
   bookmarkLabels,
 }: Props) {
+  const t = useT();
   const [tab, setTab] = useState<Tab>("constant");
   const [rangeStart, setRangeStart] = useState(0);
   const [rangeEnd, setRangeEnd] = useState(2000);
@@ -402,7 +411,7 @@ export function SvModal({
       <Menu
         className="shrink-0 rounded-lg border border-white/10 bg-ink-700/65 !px-2 !py-2"
         label={
-          <span aria-label={`Set ${id} from a bookmark`} title="Set from a bookmark">
+          <span aria-label={id === "from" ? t("sv.fromBookmarkFrom") : t("sv.fromBookmarkTo")} title={t("sv.fromBookmark")}>
             <BookmarkIcon className="block h-5 w-5 text-slate-300" />
           </span>
         }
@@ -459,7 +468,7 @@ export function SvModal({
         />
         <Button
           className="shrink-0"
-          title="Set to playhead"
+          title={t("timing.setToPlayhead")}
           onClick={() => {
             onChange(Math.max(0, Math.round(getCurrentTime())));
             setApplied(false);
@@ -476,7 +485,7 @@ export function SvModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="SV editor"
+      title={t("sv.title")}
       width="max-w-2xl"
       height="h-[38rem]"
       modeless
@@ -484,18 +493,16 @@ export function SvModal({
         <>
           <span className="mr-auto self-center text-[11px] text-slate-500">
             {tab === "remove"
-              ? `Removes ${replacedCount} SV point${replacedCount === 1 ? "" : "s"}.`
-              : `Replaces ${replacedCount} SV point${
-                  replacedCount === 1 ? "" : "s"
-                } with ${addedCount}.`}
-            {applied && <span className="ml-2 text-emerald-300">Applied ✓</span>}
+              ? t("sv.removes", { count: replacedCount })
+              : t("sv.replaces", { count: replacedCount, added: addedCount })}
+            {applied && <span className="ml-2 text-emerald-300">{t("timing.applied")} ✓</span>}
           </span>
           <Button
             variant="accent"
             disabled={!rangeValid || !!readOnly}
             onClick={apply}
           >
-            {tab === "remove" ? "Remove SV" : "Apply SV"}
+            {tab === "remove" ? t("sv.removeSv") : t("sv.applySv")}
           </Button>
         </>
       }
@@ -507,18 +514,18 @@ export function SvModal({
             setTab(next);
             setApplied(false);
           }}
-          options={TABS}
+          options={TABS.map((entry) => ({ value: entry.value, label: t(entry.label) }))}
         />
 
         <section className={CARD}>
           <div className="flex items-center gap-1.5">
-            <span className={LABEL}>Range</span>
-            <InfoTip content="The stretch of the song the generator writes into. Set it by hand, from the playhead, from a bookmark, or from the notes you have selected." />
+            <span className={LABEL}>{t("sv.range")}</span>
+            <InfoTip content={t("sv.rangeInfo")} />
           </div>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {rangeField("From (ms)", rangeStart, setRangeStart, "from")}
-            {rangeField("To (ms)", rangeEnd, setRangeEnd, "to")}
+            {rangeField(t("sv.fromMs"), rangeStart, setRangeStart, "from")}
+            {rangeField(t("sv.toMs"), rangeEnd, setRangeEnd, "to")}
           </div>
 
           {selectionRange && selectionRange.count >= 2 && (
@@ -535,15 +542,13 @@ export function SvModal({
                 setApplied(false);
               }}
             >
-              Use selection ({selectionRange.count} notes,{" "}
-              {formatTime(selectionRange.start)} –{" "}
-              {formatTime(selectionRange.end)})
+              {t("sv.useSelection", { notes: t("diffModal.notes", { count: selectionRange.count }), start: formatTime(selectionRange.start), end: formatTime(selectionRange.end) })}
             </button>
           )}
 
           {!rangeValid && (
             <p className="mt-3 text-[11px] text-rose-300">
-              &ldquo;To&rdquo; must be after &ldquo;From&rdquo;.
+              {t("sv.rangeInvalid")}
             </p>
           )}
         </section>
@@ -551,22 +556,21 @@ export function SvModal({
         <section className={CARD}>
           <div className="flex items-center gap-1.5">
             <span className={LABEL}>
-              {TABS.find((t) => t.value === tab)?.label}
+              {t(TABS.find((entry) => entry.value === tab)?.label ?? "sv.tabConstant")}
             </span>
             <InfoTip
               content={
                 <>
-                  <p className="m-0">Preview follows time-based scroll, like Quaver.</p>
+                  <p className="m-0">{t("sv.previewInfo1")}</p>
                   <p className="mt-2">
-                    Turn on &ldquo;Preview SV while playing&rdquo; in Settings or
-                    press F5 to feel it.
+                    {t("sv.previewInfo2")}
                   </p>
                 </>
               }
             />
           </div>
           <p className="mt-1 text-[11px] leading-snug text-slate-500">
-            {TAB_HELP[tab]}
+            {t(TAB_HELP[tab])}
           </p>
 
           <div className="mt-3 flex flex-col gap-3">
@@ -590,7 +594,7 @@ export function SvModal({
                 />
 
                 <div className="grid grid-cols-[1fr,1fr,auto] items-end gap-3">
-                  <Field label="Keyframe time (ms)">
+                  <Field label={t("sv.kfTime")}>
                     <NumberInput
                       min={rangeStart}
                       max={rangeEnd}
@@ -604,7 +608,7 @@ export function SvModal({
                       }}
                     />
                   </Field>
-                  <Field label="Keyframe SV ×">
+                  <Field label={t("sv.kfSv")}>
                     <PrecisionNumberInput
                       min={MIN_SV}
                       max={MAX_SV}
@@ -619,8 +623,8 @@ export function SvModal({
                     disabled={isEdgeKf || !!readOnly}
                     title={
                       isEdgeKf
-                        ? "The first and last keyframes cannot be removed"
-                        : "Remove this keyframe"
+                        ? t("sv.kfEdge")
+                        : t("sv.kfRemove")
                     }
                     onClick={() => {
                       setKeyframes((kfs) =>
@@ -630,25 +634,25 @@ export function SvModal({
                       setApplied(false);
                     }}
                   >
-                    Remove
+                    {t("common.remove")}
                   </Button>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field
-                    label="Segment shape"
-                    hint="Applies a preset to the whole curve."
+                    label={t("sv.shape")}
+                    hint={t("sv.shapeHint")}
                   >
                     <Dropdown
-                      aria-label="Segment shape"
+                      aria-label={t("sv.shape")}
                       value={matchedPreset ?? ""}
                       options={[
                         ...(matchedPreset
                           ? []
-                          : [{ value: "" as SvEasing | "", label: "Custom curve" }]),
+                          : [{ value: "" as SvEasing | "", label: t("sv.customCurve") }]),
                         ...SV_EASINGS.map((id) => ({
                           value: id as SvEasing | "",
-                          label: EASING_LABELS[id],
+                          label: easingLabel(id, t),
                         })),
                       ]}
                       onChange={(preset) => {
@@ -665,7 +669,7 @@ export function SvModal({
                       }}
                     />
                   </Field>
-                  <Field label="Point spacing">
+                  <Field label={t("sv.spacing")}>
                     <div className="flex gap-1">
                       {DENSITIES.map((d) => (
                         <button
@@ -694,8 +698,8 @@ export function SvModal({
             {tab === "stutter" && (
               <>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  {svField("Peak SV ×", peakSv, setPeakSv)}
-                  <Field label="Peak length %">
+                  {svField(t("sv.peakSv"), peakSv, setPeakSv)}
+                  <Field label={t("sv.peakLength")}>
                     <NumberInput
                       min={5}
                       max={95}
@@ -710,7 +714,7 @@ export function SvModal({
                       }}
                     />
                   </Field>
-                  <Field label="Cycle (beats)">
+                  <Field label={t("sv.cycle")}>
                     <NumberInput
                       min={0.25}
                       max={8}
@@ -725,13 +729,11 @@ export function SvModal({
                   </Field>
                 </div>
                 <p className="text-[11px] leading-snug text-slate-500">
-                  Each cycle: {peakSv}× for {peakPercent}% of the cycle, then{" "}
-                  {stutterLow.toFixed(2)}× to catch up.
+                  {t("sv.cycleSummary", { peak: peakSv, percent: peakPercent, low: stutterLow.toFixed(2) })}
                   {stutterDrifts && (
                     <span className="text-amber-300">
                       {" "}
-                      Peak too strong to fully compensate, so the field will
-                      drift forward.
+                      {t("sv.drift")}
                     </span>
                   )}
                 </p>
@@ -740,21 +742,20 @@ export function SvModal({
 
             {tab === "normalize" && (
               <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3 text-xs leading-snug text-slate-300">
-                Compensation follows every red timing point in the range. This is
-                useful for BPM changes that should keep a steady visual speed.
+                {t("sv.normalizeNote")}
               </p>
             )}
 
             {tab !== "remove" && (
               <label className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 text-xs text-slate-300">
-                Return to the previous SV at the end of the range
+                {t("sv.restore")}
                 <Toggle
                   checked={restoreAtEnd}
                   onChange={(v) => {
                     setRestoreAtEnd(v);
                     setApplied(false);
                   }}
-                  aria-label="Return to previous SV at end of range"
+                  aria-label={t("sv.restore")}
                 />
               </label>
             )}
@@ -766,14 +767,14 @@ export function SvModal({
           <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
             <span className="inline-flex items-center gap-1">
               <span className="inline-block h-0.5 w-4 bg-slate-400/60" />
-              current
+              {t("sv.current")}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="inline-block h-0.5 w-4 bg-teal-400" />
-              after apply
+              {t("sv.afterApply")}
             </span>
             <span className="ml-auto text-slate-600">
-              scroll rate {bpmScroll ? "including BPM" : "from SV only"}
+              {bpmScroll ? t("sv.scrollWithBpm") : t("sv.scrollSvOnly")}
             </span>
           </div>
         </section>

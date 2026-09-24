@@ -1,5 +1,6 @@
 import type { BackgroundScope } from "../../types";
 import { Modal } from "../ui/Modal";
+import { useT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -14,18 +15,19 @@ export function BackgroundScopeModal({
   onChoose,
   onClose,
 }: Props) {
+  const t = useT();
   return (
-    <Modal open={open} onClose={onClose} title="Background added">
+    <Modal open={open} onClose={onClose} title={t("bgScope.title")}>
       <div className="flex flex-col gap-4">
         {previewUrl && (
           <img
             src={previewUrl}
-            alt="background preview"
+            alt={t("bgScope.previewAlt")}
             className="h-32 w-full rounded-lg object-cover"
           />
         )}
         <p className="text-sm text-slate-300">
-          Where should this background apply?
+          {t("bgScope.question")}
         </p>
         <div className="grid gap-2">
           <button
@@ -33,10 +35,10 @@ export function BackgroundScopeModal({
             className="rounded-xl border border-ink-500/60 bg-ink-700 px-4 py-3 text-left transition hover:border-accent/60 hover:bg-ink-600"
           >
             <div className="text-sm font-semibold text-slate-100">
-              Whole mapset
+              {t("bgScope.mapset")}
             </div>
             <div className="text-xs text-slate-400">
-              Use for every difficulty in this set.
+              {t("bgScope.mapsetHint")}
             </div>
           </button>
           <button
@@ -44,10 +46,10 @@ export function BackgroundScopeModal({
             className="rounded-xl border border-ink-500/60 bg-ink-700 px-4 py-3 text-left transition hover:border-accent/60 hover:bg-ink-600"
           >
             <div className="text-sm font-semibold text-slate-100">
-              Just this difficulty
+              {t("bgScope.difficulty")}
             </div>
             <div className="text-xs text-slate-400">
-              Only the difficulty you're editing now.
+              {t("bgScope.difficultyHint")}
             </div>
           </button>
         </div>

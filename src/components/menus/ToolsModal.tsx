@@ -5,6 +5,7 @@ import { InfoTip } from "../ui/Tooltip";
 import { Modal } from "../ui/Modal";
 import { Button, Field, NumberInput } from "../ui/Controls";
 import { ToolDiagram, type ToolDiagramName } from "../ui/ToolDiagrams";
+import { useT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -89,6 +90,7 @@ export function ToolsModal({
   ghostNotesAllowed,
   onGhostNotes,
 }: Props) {
+  const t = useT();
   const cropTotal = cropRemoveCount + cropClampCount;
   const noteTotal = riceCount + holdCount;
   const selectionTotal = selectionRice + selectionHolds;
@@ -97,29 +99,29 @@ export function ToolsModal({
   const [minLnMs, setMinLnMs] = useState(30);
 
   return (
-    <Modal open={open} onClose={onClose} title="Tools" width="max-w-2xl">
+    <Modal open={open} onClose={onClose} title={t("nav.tools")} width="max-w-2xl">
       <div className="flex flex-col gap-3">
         <p className="text-[11px] text-slate-500">
-          Active difficulty: {riceCount} rice · {holdCount} holds
+          {t("tools.activeSummary", { rice: riceCount, holds: holdCount })}
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <ToolCard
-            title="Note suggestions"
+            title={t("tools.ghostTitle")}
             image="ghostNotes"
-            info="Listens to the song and puts dashed notes on your snap grid wherever the music hits. Click a dashed note to place it, right-click to dismiss it, or use Place all for a quick first draft you can then edit."
+            info={t("tools.ghostInfo")}
             status={
               !ghostNotesAllowed
-                ? "Only editors of this map can place notes."
+                ? t("tools.ghostNoAccess")
                 : !ghostNotesReady
-                  ? "Load audio to get suggestions."
+                  ? t("tools.ghostNoAudio")
                   : ghostNotesActive
-                    ? "Suggestions are showing in the editor."
-                    : "Shows dashed notes where the music hits. Click one to place it."
+                    ? t("tools.ghostShowing")
+                    : t("tools.ghostIdle")
             }
           >
             {ghostNotesActive ? (
-              <Button onClick={() => onGhostNotes(false)}>Hide suggestions</Button>
+              <Button onClick={() => onGhostNotes(false)}>{t("tools.hideSuggestions")}</Button>
             ) : (
               <Button
                 variant="accent"
@@ -129,7 +131,7 @@ export function ToolsModal({
                   onClose();
                 }}
               >
-                Show suggestions
+                {t("tools.showSuggestions")}
               </Button>
             )}
           </ToolCard>
@@ -137,14 +139,14 @@ export function ToolsModal({
           <ToolCard
             title="Full LN"
             image="fullLn"
-            info="Turns every note into a long note ending a set number of ticks before the next note in its lane. Existing holds only get longer."
+            info={t("tools.fullLnInfo")}
             status={
               noteTotal === 0
-                ? "This difficulty has no notes yet."
-                : "Every note becomes a long note."
+                ? t("tools.noNotes")
+                : t("tools.fullLnStatus")
             }
           >
-            <Field label={`Gap (ticks @ 1/${snapTickDivisor(snapDivisor)})`}>
+            <Field label={t("tools.gap", { divisor: snapTickDivisor(snapDivisor) })}>
               <NumberInput
                 min={0}
                 max={64}
@@ -161,40 +163,36 @@ export function ToolsModal({
               onClick={() => onFullLong(lnTicks)}
               disabled={noteTotal === 0}
             >
-              Apply
+              {t("common.apply")}
             </Button>
           </ToolCard>
 
           <ToolCard
             title="Full RC"
             image="fullRc"
-            info="Turns every long note back into a single rice note at its start. Rice notes stay as they are."
+            info={t("tools.fullRcInfo")}
             status={
               holdCount === 0
-                ? "No long notes to convert."
-                : `${holdCount} long note${holdCount === 1 ? "" : "s"} become${
-                    holdCount === 1 ? "s" : ""
-                  } rice.`
+                ? t("tools.noLongNotes")
+                : t("tools.fullRcStatus", { count: holdCount })
             }
           >
             <Button variant="accent" onClick={onFullRice} disabled={holdCount === 0}>
-              Apply
+              {t("common.apply")}
             </Button>
           </ToolCard>
 
           <ToolCard
-            title="Selected notes"
+            title={t("tools.selectedTitle")}
             image="fullLn"
-            info="Runs the same LN and RC conversions over just your selection. Tails still stop before the next note in the lane, even when that note is not selected."
+            info={t("tools.selectedInfo")}
             status={
               selectionTotal === 0
-                ? "Select notes in the editor first."
-                : `${selectionRice} rice · ${selectionHolds} hold${
-                    selectionHolds === 1 ? "" : "s"
-                  } selected.`
+                ? t("tools.selectFirst")
+                : t("tools.selectionSummary", { rice: selectionRice, holds: t("tools.holds", { count: selectionHolds }) })
             }
           >
-            <Field label={`Gap (ticks @ 1/${snapTickDivisor(snapDivisor)})`}>
+            <Field label={t("tools.gap", { divisor: snapTickDivisor(snapDivisor) })}>
               <NumberInput
                 min={0}
                 max={64}
@@ -211,26 +209,24 @@ export function ToolsModal({
               onClick={() => onSelectionLong(lnTicks)}
               disabled={selectionTotal === 0}
             >
-              To LN
+              {t("tools.toLn")}
             </Button>
             <Button onClick={onSelectionRice} disabled={selectionHolds === 0}>
-              To rice
+              {t("tools.toRice")}
             </Button>
           </ToolCard>
 
           <ToolCard
-            title="Long note ends"
+            title={t("tools.endsTitle")}
             image="fullRc"
-            info="Moves every selected tail by the same amount, or turns the stubs left behind by scaling and resnapping back into rice. A tail never crosses its own head."
+            info={t("tools.endsInfo")}
             status={
               selectionHolds === 0
-                ? "Select some long notes in the editor first."
-                : `${selectionHolds} hold${
-                    selectionHolds === 1 ? "" : "s"
-                  } selected.`
+                ? t("tools.selectLnFirst")
+                : t("tools.holdsSelected", { count: selectionHolds })
             }
           >
-            <Field label="Move ends (ms)">
+            <Field label={t("tools.moveEnds")}>
               <NumberInput
                 min={-2000}
                 max={2000}
@@ -247,9 +243,9 @@ export function ToolsModal({
               onClick={() => onShiftLnEnds(endShiftMs)}
               disabled={selectionHolds === 0 || endShiftMs === 0}
             >
-              Move
+              {t("tools.move")}
             </Button>
-            <Field label="Drop under (ms)">
+            <Field label={t("tools.dropUnder")}>
               <NumberInput
                 min={1}
                 max={2000}
@@ -265,28 +261,22 @@ export function ToolsModal({
               onClick={() => onDropShortLns(minLnMs)}
               disabled={selectionHolds === 0}
             >
-              Drop
+              {t("tools.drop")}
             </Button>
           </ToolCard>
 
           <ToolCard
-            title="Crop to brackets"
+            title={t("tools.cropTitle")}
             image="crop"
-            info="Deletes every note that starts outside the trim brackets and trims any hold running past the end bracket, the same cut the .osz export bakes in."
+            info={t("tools.cropInfo")}
             status={
               !trimActive
-                ? "Set the trim brackets on the timeline first."
+                ? t("tools.setBrackets")
                 : cropTotal === 0
-                  ? "Nothing is outside the brackets."
-                  : `${cropRemoveCount} note${
-                      cropRemoveCount === 1 ? "" : "s"
-                    } to delete${
-                      cropClampCount
-                        ? `, ${cropClampCount} hold${
-                            cropClampCount === 1 ? "" : "s"
-                          } to trim`
-                        : ""
-                    }.`
+                  ? t("tools.nothingOutside")
+                  : cropClampCount
+                    ? t("tools.cropBoth", { notes: t("tools.cropNotes", { count: cropRemoveCount }), holds: t("tools.cropHolds", { count: cropClampCount }) })
+                    : t("tools.cropOnly", { notes: t("tools.cropNotes", { count: cropRemoveCount }) })
             }
           >
             <Button
@@ -294,7 +284,7 @@ export function ToolsModal({
               onClick={onCropToBrackets}
               disabled={!trimActive || cropTotal === 0}
             >
-              Crop
+              {t("tools.crop")}
             </Button>
           </ToolCard>
         </div>
