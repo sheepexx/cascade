@@ -2,6 +2,7 @@ import type { Difficulty, ManiaNote } from "../types";
 import { activeTimingAt } from "./timing";
 import { monotoneRuns, toRows } from "./patternRows";
 import type { AiModDetail, AiModObject, AiModSeverity } from "./aimod";
+import { t } from "./i18n/core";
 
 export type PatternRule = "jack-spike" | "hand-imbalance" | "anchor-overuse" | "ln-gap" | "repetitive-pattern";
 export type PatternFinding = { rule: PatternRule; message: string; details: AiModDetail[]; count: number; coverage?: number };
@@ -123,14 +124,14 @@ export function analyzePatterns(difficulty: Difficulty): { findings: PatternFind
       const share = left + right >= 20 ? Math.max(left, right) / (left + right) : 0.5;
       maxShare = Math.max(maxShare, share);
       if (half > 0 && share > 0.75 && time >= lastHand + window) {
-        hands.push({ time, label: `${Math.round(share * 100)}% of ${left + right} side-lane attacks use the ${left > right ? "left" : "right"} hand across ${(window / 1000).toFixed(1)}s. Centre lanes are excluded; check whether the strain fits the music.` });
+        hands.push({ time, label: t(left > right ? "pq.handLeft" : "pq.handRight", { percent: Math.round(share * 100), total: left + right, seconds: (window / 1000).toFixed(1) }) });
         lastHand = time;
       }
       const max = Math.max(...counts), column = counts.indexOf(max);
       if (difficulty.keyCount >= 4 && max >= 12 && max / total >= Math.max(0.35, 2 / difficulty.keyCount)) {
         anchorWindows++;
         if (time >= lastAnchor + window) {
-          anchors.push({ time, label: `Lane ${column + 1} carries ${max}/${total} attacks across ${(window / 1000).toFixed(1)}s. Consider varying the anchor if this emphasis is unintentional.` });
+          anchors.push({ time, label: t("pq.anchor", { lane: column + 1, max, total, seconds: (window / 1000).toFixed(1) }) });
           lastAnchor = time;
         }
       }
@@ -138,11 +139,11 @@ export function analyzePatterns(difficulty: Difficulty): { findings: PatternFind
     time += window / 2;
   }
   const jackDetails = groupSpots(jacks, group => group.length === 1
-    ? `Lane ${group[0].column + 1}: ${Math.round(group[0].value)} ms repeat versus ${Math.round(group[0].context)} ms nearby. Check whether this sudden jack is intended.`
-    : `${group.length} sudden jacks, tightest ${Math.round(Math.min(...group.map(s => s.value)))} ms versus about ${Math.round(median(group.map(s => s.context)))} ms nearby.`);
+    ? t("pq.jackOne", { lane: group[0].column + 1, ms: Math.round(group[0].value), context: Math.round(group[0].context) })
+    : t("pq.jackMany", { count: group.length, ms: Math.round(Math.min(...group.map(s => s.value))), context: Math.round(median(group.map(s => s.context))) }));
   const gapDetails = groupSpots(gaps, group => group.length === 1
-    ? `Lane ${group[0].column + 1}: only ${Math.round(group[0].value)} ms to release and press again. Check the release rhythm.`
-    : `${group.length} tight releases, shortest ${Math.round(Math.min(...group.map(s => s.value)))} ms. Check the release rhythm.`);
+    ? t("pq.gapOne", { lane: group[0].column + 1, ms: Math.round(group[0].value) })
+    : t("pq.gapMany", { count: group.length, ms: Math.round(Math.min(...group.map(s => s.value))) }));
   const rows = toRows(notes, difficulty.keyCount);
   const monotone: AiModDetail[] = [];
   let monotoneMs = 0;
@@ -152,15 +153,15 @@ export function analyzePatterns(difficulty: Difficulty): { findings: PatternFind
     if (!(beats >= MONOTONE_MIN_BEATS) || run.to - run.from + 1 < MONOTONE_MIN_ROWS) continue;
     monotoneMs += to - from;
     monotone.push({ time: from, endTime: to, label: run.kind === "repeat"
-      ? `The same ${run.period}-step pattern repeats for ${beats} beats. Vary it where the music changes.`
-      : `Notes keep rolling in one direction across the lanes for ${beats} beats. Vary the movement with the music.` });
+      ? t("pq.repeat", { period: run.period, beats })
+      : t("pq.roll", { beats }) });
   }
   const findings: PatternFinding[] = [
-    { rule: "jack-spike", message: "Abrupt jack speed spikes", details: jackDetails, count: jacks.length },
-    { rule: "hand-imbalance", message: "Sustained hand imbalance", details: hands, count: hands.length },
-    { rule: "anchor-overuse", message: "Heavy anchor repetition", details: anchors, count: anchors.length },
-    { rule: "ln-gap", message: "Tight long-note release gaps", details: gapDetails, count: gaps.length },
-    { rule: "repetitive-pattern", message: "Long repetitive patterns", details: monotone, count: monotone.length, coverage: monotoneMs / Math.max(1, end - start) },
+    { rule: "jack-spike", message: t("pq.jackSpike"), details: jackDetails, count: jacks.length },
+    { rule: "hand-imbalance", message: t("pq.handImbalance"), details: hands, count: hands.length },
+    { rule: "anchor-overuse", message: t("pq.anchorOveruse"), details: anchors, count: anchors.length },
+    { rule: "ln-gap", message: t("pq.lnGap"), details: gapDetails, count: gaps.length },
+    { rule: "repetitive-pattern", message: t("pq.repetitive"), details: monotone, count: monotone.length, coverage: monotoneMs / Math.max(1, end - start) },
   ].filter(f => f.details.length > 0) as PatternFinding[];
   return { findings, windows, features: { nps: notes.length / Math.max(1, (end - start) / 1000), lnRatio: longNotes / Math.max(1, notes.length), jackFraction: jackPairs / Math.max(1, notes.length), handShare: maxShare, anchorFraction: anchorWindows / Math.max(1, windowCount), lnGapFraction: gaps.length / Math.max(1, longNotes) } };
 }

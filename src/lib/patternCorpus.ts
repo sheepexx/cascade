@@ -1,5 +1,6 @@
 import corpusData from "./patternCorpus.json";
 import { WINDOW_FEATURE_KEYS, type PatternWindow, type WindowFeatureKey } from "./patternQuality";
+import { t, type MessageKey } from "./i18n/core";
 
 export type CorpusBucket = {
   keyCount: number;
@@ -32,13 +33,13 @@ export type PatternCorpus = {
 
 export const patternCorpus = corpusData as PatternCorpus;
 
-export const CORPUS_FEATURE_LABELS: Record<WindowFeatureKey, string> = {
-  nps: "density spikes",
-  jack: "jack density",
-  hand: "hand imbalance",
-  anchor: "anchor use",
-  ln: "long-note density",
-  chord: "chord density",
+export const CORPUS_FEATURE_LABELS: Record<WindowFeatureKey, MessageKey> = {
+  nps: "corpus.nps",
+  jack: "corpus.jack",
+  hand: "corpus.hand",
+  anchor: "corpus.anchor",
+  ln: "corpus.ln",
+  chord: "corpus.chord",
 };
 
 const FLAGGED_FEATURES: WindowFeatureKey[] = ["nps", "jack", "hand", "anchor"];
@@ -129,14 +130,14 @@ export function compareToCorpus(keyCount: number, windows: PatternWindow[]): Cor
     const above = windows.filter((w) => w[key] > threshold);
     const share = above.length / windows.length;
     const percentile = percentileIn(share, shareValues, patternCorpus.shareQuantiles);
-    profile.push({ key, label: CORPUS_FEATURE_LABELS[key], percentile });
+    profile.push({ key, label: t(CORPUS_FEATURE_LABELS[key]), percentile });
     if (!FLAGGED_FEATURES.includes(key)) continue;
     if (above.length < MIN_FLAGGED_WINDOWS) continue;
     if (percentile < FLAG_PERCENTILE) continue;
     if (share <= shareValues[0] + MIN_SHARE_MARGIN) continue;
     outliers.push({
       key,
-      label: CORPUS_FEATURE_LABELS[key],
+      label: t(CORPUS_FEATURE_LABELS[key]),
       share,
       typicalShare: shareValues[0],
       percentile,

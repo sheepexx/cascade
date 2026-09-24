@@ -2,6 +2,7 @@ import type { ValidationResult } from "../../lib/validation";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { ErrorIcon, WarningIcon } from "../ui/Icons";
+import { useT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -20,6 +21,7 @@ export function ExportValidationModal({
   onProceed,
   onRemoveDuplicates,
 }: Props) {
+  const t = useT();
   if (!result) return null;
   const { errors, warnings, duplicateCount } = result;
   const canExport = errors.length === 0;
@@ -28,18 +30,18 @@ export function ExportValidationModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Before exporting"
+      title={t("exportCheck.title")}
       width="max-w-lg"
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
           {duplicateCount > 0 && (
             <Button variant="primary" onClick={onRemoveDuplicates}>
-              Remove {duplicateCount} duplicate{duplicateCount === 1 ? "" : "s"}
+              {t("exportCheck.removeDuplicates", { count: duplicateCount })}
             </Button>
           )}
           <Button variant="accent" onClick={onProceed} disabled={!canExport}>
-            {canExport ? `Export ${target}` : "Fix errors first"}
+            {canExport ? t("exportCheck.export", { target }) : t("exportCheck.fixFirst")}
           </Button>
         </>
       }
@@ -47,14 +49,14 @@ export function ExportValidationModal({
       <div className="flex flex-col gap-5">
         {errors.length === 0 && warnings.length === 0 && (
           <p className="text-sm text-emerald-300">
-            Everything looks good - ready to export.
+            {t("exportCheck.allGood")}
           </p>
         )}
 
         {errors.length > 0 && (
           <section className="flex flex-col gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-red-300">
-              Errors ({errors.length}) · must fix
+              {t("exportCheck.errors", { count: errors.length })}
             </h3>
             <ul className="flex flex-col gap-1">
               {errors.map((e, i) => (
@@ -78,7 +80,7 @@ export function ExportValidationModal({
         {warnings.length > 0 && (
           <section className="flex flex-col gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-300">
-              Warnings ({warnings.length}) · optional
+              {t("exportCheck.warnings", { count: warnings.length })}
             </h3>
             <ul className="flex flex-col gap-1">
               {warnings.map((w, i) => (

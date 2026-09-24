@@ -11,6 +11,7 @@ import { formatUiNumber } from "./formatUiNumber";
 import { analyzePatterns, readinessScore, type CriteriaPenalty, type PatternFeatures } from "./patternQuality";
 import { compareToCorpus, formatCorpusValue, type CorpusComparison } from "./patternCorpus";
 import { checkRankingCriteria, difficultyTier, type Tier } from "./rankingCriteria";
+import { t } from "./i18n/core";
 
 // osu! only recognises objects snapped to one of these beat divisors. Notes on a
 // 1/5, 1/7, 1/9 or finer grid (or drifted off-grid by float rounding) are shown
@@ -218,27 +219,27 @@ export function runAiMod({
 
   // --- Mapset-wide metadata (Meta) ---
   if (!meta.title.trim())
-    add({ category: "Meta", severity: "error", message: "Missing romanised title." });
+    add({ category: "Meta", severity: "error", message: t("aimod.missingTitle") });
   if (!meta.artist.trim())
-    add({ category: "Meta", severity: "error", message: "Missing romanised artist." });
+    add({ category: "Meta", severity: "error", message: t("aimod.missingArtist") });
   if (!meta.creator.trim())
-    add({ category: "Meta", severity: "error", message: "Missing creator." });
+    add({ category: "Meta", severity: "error", message: t("aimod.missingCreator") });
   if (!(meta.tags ?? "").trim())
     add({
       category: "Meta",
       severity: "warning",
-      message: "Tags field is empty. Consider adding search tags.",
+      message: t("aimod.noTags"),
     });
 
   // --- Mapset (audio + set-wide) ---
   if (Object.keys(audioFiles).length === 0)
-    add({ category: "Mapset", severity: "error", message: "No audio file loaded." });
+    add({ category: "Mapset", severity: "error", message: t("aimod.noAudio") });
 
   if (difficulties.length === 0)
     add({
       category: "Mapset",
       severity: "error",
-      message: "The mapset has no difficulties.",
+      message: t("aimod.noDifficulties"),
     });
 
   const keyCounts = new Set(difficulties.map((d) => d.keyCount));
@@ -247,7 +248,7 @@ export function runAiMod({
     add({
       category: "Mapset",
       severity: "warning",
-      message: `Mapset mixes key counts (${[...keyCounts].sort((a, b) => a - b).join("K, ")}K).`,
+      message: t("aimod.mixedKeys", { keys: `${[...keyCounts].sort((a, b) => a - b).join("K, ")}K` }),
     });
   }
 
@@ -277,11 +278,13 @@ export function runAiMod({
       add({
         category: "Mapset",
         severity: "warning",
-        message: `Large spread gap: "${upper.d.name}" is ${(
-          upper.density / lower.density
-        ).toFixed(1)}x as dense as "${lower.d.name}" (${upper.density.toFixed(
-          1,
-        )} vs ${lower.density.toFixed(1)} notes/s).`,
+        message: t("aimod.spreadGap", {
+          upper: upper.d.name,
+          ratio: (upper.density / lower.density).toFixed(1),
+          lower: lower.d.name,
+          upperNps: upper.density.toFixed(1),
+          lowerNps: lower.density.toFixed(1),
+        }),
       });
     }
   }
@@ -300,7 +303,7 @@ export function runAiMod({
     add({
       category: "Mapset",
       severity: "error",
-      message: `${n} difficulties share the name "${d.name.trim()}".`,
+      message: t("aimod.sharedName", { count: n, name: d.name.trim() }),
     });
   }
 
@@ -321,7 +324,7 @@ export function runAiMod({
       add({
         category: "Timing",
         severity: "error",
-        message: `[${d.name}] No uninherited (red) timing point.`,
+        message: `[${d.name}] ${t("aimod.noRedPoint")}`,
         diffId,
       });
     } else {
@@ -331,7 +334,7 @@ export function runAiMod({
         add({
           category: "Timing",
           severity: "warning",
-          message: `[${d.name}] First object starts before the first timing point.`,
+          message: `[${d.name}] ${t("aimod.objectBeforeTiming")}`,
           diffId,
           time: firstNote.startTime,
         });
@@ -344,25 +347,25 @@ export function runAiMod({
     const seenPoints = new Set<string>();
     for (const p of sortedPoints(points)) {
       if (p.uninherited && !(Number.isFinite(p.bpm) && p.bpm > 0))
-        badBpm.push({ time: p.time, label: `BPM is ${formatUiNumber(p.bpm)}.` });
+        badBpm.push({ time: p.time, label: t("aimod.bpmIs", { bpm: formatUiNumber(p.bpm) }) });
       const key = `${p.uninherited ? "red" : "green"}@${Math.round(p.time)}`;
       if (seenPoints.has(key))
         duplicatePoints.push({
           time: p.time,
-          label: `Two ${p.uninherited ? "red" : "green"} points share this time.`,
+          label: p.uninherited ? t("aimod.twoRed") : t("aimod.twoGreen"),
         });
       else seenPoints.add(key);
       if (!p.uninherited && reds.length > 0 && p.time < reds[0].time)
         earlyGreens.push({
           time: p.time,
-          label: "Inherited point before the first timing point; osu! ignores it.",
+          label: t("aimod.earlyGreenDetail"),
         });
     }
     addGroup(
       {
         category: "Timing",
         severity: "error",
-        message: `[${d.name}] Timing point with an invalid BPM.`,
+        message: `[${d.name}] ${t("aimod.invalidBpm")}`,
         diffId,
       },
       badBpm,
@@ -371,7 +374,7 @@ export function runAiMod({
       {
         category: "Timing",
         severity: "warning",
-        message: `[${d.name}] Duplicate timing points.`,
+        message: `[${d.name}] ${t("aimod.duplicatePoints")}`,
         diffId,
       },
       duplicatePoints,
@@ -380,7 +383,7 @@ export function runAiMod({
       {
         category: "Timing",
         severity: "warning",
-        message: `[${d.name}] Inherited points before the first timing point.`,
+        message: `[${d.name}] ${t("aimod.earlyGreens")}`,
         diffId,
       },
       earlyGreens,
@@ -396,7 +399,7 @@ export function runAiMod({
           unsnappedStarts.push({
             time: n.startTime,
             objects: [objectRef(n.startTime, n.column)],
-            label: `Unsnapped by ${start.unsnap} ms (nearest 1/${start.divisor}).`,
+            label: t("aimod.unsnappedBy", { ms: start.unsnap, divisor: start.divisor }),
           });
         if (n.endTime !== undefined) {
           const end = nearestSnap(n.endTime, points);
@@ -404,7 +407,7 @@ export function runAiMod({
             unsnappedEnds.push({
               time: n.endTime,
               objects: [objectRef(n.endTime, n.column)],
-              label: `Unsnapped by ${end.unsnap} ms (nearest 1/${end.divisor}).`,
+              label: t("aimod.unsnappedBy", { ms: end.unsnap, divisor: end.divisor }),
             });
         }
       }
@@ -412,7 +415,7 @@ export function runAiMod({
         {
           category: "Compose",
           severity: "warning",
-          message: `[${d.name}] Objects aren't snapped!`,
+          message: `[${d.name}] ${t("aimod.unsnapped")}`,
           diffId,
         },
         unsnappedStarts,
@@ -421,7 +424,7 @@ export function runAiMod({
         {
           category: "Compose",
           severity: "warning",
-          message: `[${d.name}] Object ends aren't snapped!`,
+          message: `[${d.name}] ${t("aimod.unsnappedEnds")}`,
           diffId,
         },
         unsnappedEnds,
@@ -452,8 +455,8 @@ export function runAiMod({
           ],
           label:
             gap < 0
-              ? `Overlapping by ${-gap} ms.`
-              : `Within ${gap} ms of one another.`,
+              ? t("aimod.overlapping", { ms: -gap })
+              : t("aimod.within", { ms: gap }),
         });
       }
     }
@@ -461,7 +464,7 @@ export function runAiMod({
       {
         category: "Compose",
         severity: "error",
-        message: `[${d.name}] Concurrent hit objects.`,
+        message: `[${d.name}] ${t("aimod.concurrent")}`,
         diffId,
       },
       concurrent,
@@ -479,21 +482,21 @@ export function runAiMod({
           objects,
           label:
             length === 0
-              ? "Long note has no length."
-              : `Long note ends ${-length} ms before it starts.`,
+              ? t("aimod.lnNoLength")
+              : t("aimod.lnEndsBefore", { ms: -length }),
         });
       else if (length < AIMOD_MIN_LONG_NOTE_MS)
         shortHolds.push({
           time: n.startTime,
           objects,
-          label: `Long note held for only ${length} ms.`,
+          label: t("aimod.lnHeldOnly", { ms: length }),
         });
     }
     addGroup(
       {
         category: "Compose",
         severity: "error",
-        message: `[${d.name}] Long notes that end before they start.`,
+        message: `[${d.name}] ${t("aimod.invalidHolds")}`,
         diffId,
       },
       invalidHolds,
@@ -502,7 +505,7 @@ export function runAiMod({
       {
         category: "Compose",
         severity: "warning",
-        message: `[${d.name}] Too short long notes (less than ${AIMOD_MIN_LONG_NOTE_MS}ms).`,
+        message: `[${d.name}] ${t("aimod.shortHolds", { ms: AIMOD_MIN_LONG_NOTE_MS })}`,
         diffId,
       },
       shortHolds,
@@ -518,27 +521,27 @@ export function runAiMod({
         invalidCol.push({
           time: n.startTime,
           objects,
-          label: `Column ${n.column + 1} is outside 1-${d.keyCount}K.`,
+          label: t("aimod.columnOutside", { column: n.column + 1, keys: d.keyCount }),
         });
       if (n.startTime < 0)
         beforeAudio.push({
           time: n.startTime,
           objects,
-          label: `Starts ${Math.round(-n.startTime)} ms before the audio.`,
+          label: t("aimod.startsBeforeAudio", { ms: Math.round(-n.startTime) }),
         });
       const end = n.endTime ?? n.startTime;
       if (audioEnd !== undefined && end > audioEnd)
         afterAudio.push({
           time: n.startTime,
           objects,
-          label: `Ends ${Math.round(end - audioEnd)} ms past the end of the audio.`,
+          label: t("aimod.endsAfterAudio", { ms: Math.round(end - audioEnd) }),
         });
     }
     addGroup(
       {
         category: "Compose",
         severity: "error",
-        message: `[${d.name}] Objects in a column outside 1-${d.keyCount}K.`,
+        message: `[${d.name}] ${t("aimod.invalidColumns", { keys: d.keyCount })}`,
         diffId,
       },
       invalidCol,
@@ -547,7 +550,7 @@ export function runAiMod({
       {
         category: "Compose",
         severity: "error",
-        message: `[${d.name}] Objects before the start of the audio.`,
+        message: `[${d.name}] ${t("aimod.beforeAudio")}`,
         diffId,
       },
       beforeAudio,
@@ -556,7 +559,7 @@ export function runAiMod({
       {
         category: "Compose",
         severity: "warning",
-        message: `[${d.name}] Objects past the end of the audio.`,
+        message: `[${d.name}] ${t("aimod.afterAudio")}`,
         diffId,
       },
       afterAudio,
@@ -567,7 +570,7 @@ export function runAiMod({
       add({
         category: "Compose",
         severity: "error",
-        message: `[${d.name}] There are no objects in this difficulty.`,
+        message: `[${d.name}] ${t("aimod.noObjects")}`,
         diffId,
       });
     } else {
@@ -578,7 +581,7 @@ export function runAiMod({
         add({
           category: "Compose",
           severity: "warning",
-          message: `[${d.name}] There are no hitsounds. Consider adding some.`,
+          message: `[${d.name}] ${t("aimod.noHitsounds")}`,
           diffId,
         });
     }
@@ -588,14 +591,14 @@ export function runAiMod({
       add({
         category: "Design",
         severity: "error",
-        message: `[${d.name}] Overall Difficulty (${d.overallDifficulty}) must be between 0 and 10.`,
+        message: `[${d.name}] ${t("aimod.odRange", { value: d.overallDifficulty })}`,
         diffId,
       });
     if (d.hpDrainRate < 0 || d.hpDrainRate > 10)
       add({
         category: "Design",
         severity: "error",
-        message: `[${d.name}] HP Drain Rate (${d.hpDrainRate}) must be between 0 and 10.`,
+        message: `[${d.name}] ${t("aimod.hpRange", { value: d.hpDrainRate })}`,
         diffId,
       });
 
@@ -604,7 +607,7 @@ export function runAiMod({
       add({
         category: "Design",
         severity: "warning",
-        message: `[${d.name}] No background image.`,
+        message: `[${d.name}] ${t("aimod.noBackground")}`,
         diffId,
       });
 
@@ -613,7 +616,7 @@ export function runAiMod({
       add({
         category: "Meta",
         severity: "error",
-        message: "A difficulty has no name.",
+        message: t("aimod.noName"),
         diffId,
       });
 
@@ -622,14 +625,14 @@ export function runAiMod({
       add({
         category: "Timing",
         severity: "warning",
-        message: `[${d.name}] No preview point set.`,
+        message: `[${d.name}] ${t("aimod.noPreview")}`,
         diffId,
       });
     else if (audioEnd !== undefined && d.previewTime > audioEnd)
       add({
         category: "Timing",
         severity: "warning",
-        message: `[${d.name}] Preview point is past the end of the audio.`,
+        message: `[${d.name}] ${t("aimod.previewAfterAudio")}`,
         diffId,
         time: d.previewTime,
       });
@@ -643,7 +646,7 @@ export function runAiMod({
       add({
         category: "Mapset",
         severity: "error",
-        message: `[${d.name}] Audio file "${d.audioFilename}" is not in the mapset.`,
+        message: `[${d.name}] ${t("aimod.audioMissing", { file: d.audioFilename })}`,
         diffId,
       });
 
@@ -653,14 +656,14 @@ export function runAiMod({
       add({
         category: "Mapset",
         severity: "error",
-        message: `[${d.name}] Drain time should be over 30 seconds.`,
+        message: `[${d.name}] ${t("aimod.drainShort")}`,
         diffId,
       });
     else if (audioEnd !== undefined && audioEnd < RECOMMENDED_MAP_LENGTH_MS)
       add({
         category: "Mapset",
         severity: "warning",
-        message: `[${d.name}] Your beatmap is shorter than 45 seconds. Consider making it longer.`,
+        message: `[${d.name}] ${t("aimod.mapShort")}`,
         diffId,
       });
   }
@@ -694,9 +697,9 @@ export function runAiMod({
     const comparison = compareToCorpus(d.keyCount, analysis.windows);
     for (const outlier of comparison.outliers) addGroup({
       category: "Patterns", severity: "warning", rule: `corpus-${outlier.key}`,
-      message: `[${d.name}] ${outlier.label[0].toUpperCase()}${outlier.label.slice(1)} runs heavier than ${Math.round(outlier.percentile * 100)}% of comparable ranked maps.`,
+      message: `[${d.name}] ${t("aimod.corpusOutlier", { feature: `${outlier.label[0].toUpperCase()}${outlier.label.slice(1)}`, percent: Math.round(outlier.percentile * 100) })}`,
       diffId: d.id,
-    }, outlier.spans.map(span => ({ time: span.start, endTime: span.end, label: `peaks at ${formatCorpusValue(outlier.key, span.peak)}, against a ranked 95th percentile of ${formatCorpusValue(outlier.key, outlier.threshold)}.` })));
+    }, outlier.spans.map(span => ({ time: span.start, endTime: span.end, label: t("aimod.corpusPeak", { peak: formatCorpusValue(outlier.key, span.peak), threshold: formatCorpusValue(outlier.key, outlier.threshold) }) })));
     const rules = [...mapsetPenalties, ...(criteriaPenalties.get(d.id) ?? [])];
     return { id: d.id, name: d.name, tier: difficultyTier(d), score: readinessScore(d.notes.length, analysis.findings, rules), features: analysis.features, comparison };
   });

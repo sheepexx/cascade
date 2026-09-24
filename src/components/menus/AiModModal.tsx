@@ -12,10 +12,23 @@ import { patternCorpus } from "../../lib/patternCorpus";
 import { InfoTip } from "../ui/Tooltip";
 import { Modal } from "../ui/Modal";
 import { Button, Toggle } from "../ui/Controls";
+import { useT, type MessageKey } from "../../lib/i18n";
 
 type Tab = "All" | AiModCategory;
 const TABS: Tab[] = ["All", ...AIMOD_CATEGORIES];
 const PREVIEW_DETAILS = 5;
+
+const TAB_LABELS: Record<Tab, MessageKey> = {
+  All: "aimodUi.tabAll",
+  Criteria: "aimodUi.tabCriteria",
+  Guidelines: "aimodUi.tabGuidelines",
+  Patterns: "aimodUi.tabPatterns",
+  Compose: "aimodUi.tabCompose",
+  Design: "aimodUi.tabDesign",
+  Timing: "aimodUi.tabTiming",
+  Meta: "aimodUi.tabMeta",
+  Mapset: "aimodUi.tabMapset",
+};
 
 type Props = {
   open: boolean;
@@ -40,6 +53,7 @@ export function AiModModal({
   unsnappedCount,
   onResnap,
 }: Props) {
+  const t = useT();
   const [tab, setTab] = useState<Tab>("All");
   const [allDifficulties, setAllDifficulties] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, number>>({});
@@ -101,13 +115,13 @@ export function AiModModal({
             <Button
               variant="primary"
               onClick={onResnap}
-              title="Unsnapped objects are the usual reason a perfectly timed converted map shows as off-grid in osu!. This moves them onto the nearest valid beat divisor."
+              title={t("aimodUi.resnapHint")}
             >
-              Resnap {unsnappedCount} object{unsnappedCount === 1 ? "" : "s"}
+              {t("aimodUi.resnap", { count: unsnappedCount })}
             </Button>
           )}
           <Button variant="ghost" onClick={onClose}>
-            Close
+            {t("common.close")}
           </Button>
         </>
       }
@@ -116,7 +130,7 @@ export function AiModModal({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Button variant="accent" onClick={onRefresh}>
-              Refresh
+              {t("aimodUi.refresh")}
             </Button>
             <span className="mx-1 h-5 w-px bg-white/10" />
             <Toggle
@@ -124,24 +138,24 @@ export function AiModModal({
               size="sm"
               checked={allDifficulties}
               onChange={setAllDifficulties}
-              aria-label="Show issues from all difficulties"
+              aria-label={t("aimodUi.allDiffsLabel")}
             />
             <label htmlFor="aimod-all-difficulties" className="cursor-pointer text-xs text-slate-400">
-              All difficulties
+              {t("aimodUi.allDiffs")}
             </label>
           </div>
           <div className="flex gap-6 rounded-xl border border-white/10 bg-ink-700/40 px-4 py-2 text-sm">
             <Summary
-              label="Scope"
-              value={allDifficulties ? "Whole mapset" : activeDiffName}
+              label={t("aimodUi.scope")}
+              value={allDifficulties ? t("bgScope.mapset") : activeDiffName}
             />
             <Summary
-              label="Warnings"
+              label={t("aimodUi.warnings")}
               value={String(report ? counts.warnings : 0)}
               tone="warning"
             />
             <Summary
-              label="Errors"
+              label={t("aimodUi.errors")}
               value={String(report ? counts.errors : 0)}
               tone="error"
             />
@@ -149,37 +163,37 @@ export function AiModModal({
         </div>
 
         {report && <section className="rounded-xl border border-teal-300/20 bg-teal-300/5 p-4">
-          <div className="flex items-start justify-between gap-4"><div><h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">Ranking readiness <InfoTip content={<>
-            <p className="m-0">Heuristic guidance, not a probability of being ranked. The set score uses its lowest difficulty score.</p>
-            <p className="mt-2">Each difficulty starts at 100 and drops for every ranking criteria breach, guideline breach and pattern finding it carries, weighted by how widespread each one is.</p>
-            <p className="mt-2">Each difficulty is judged at a tier estimated from its star rating, not from its name, and that tier decides which guidelines apply. Patterns are compared against {patternCorpus.source.difficulties} difficulties from {patternCorpus.source.mapsets} mapsets ranked between {patternCorpus.source.rankedFrom} and {patternCorpus.source.rankedTo}. That comparison flags what is rare among them, not what is wrong, so it does not move the score.</p>
-            <p className="mt-2">Jacks, anchors, asymmetry and repetition can be intentional. Musical interpretation, difficulty spread and full ranking criteria still need human review.</p>
+          <div className="flex items-start justify-between gap-4"><div><h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">{t("aimodUi.readiness")} <InfoTip content={<>
+            <p className="m-0">{t("aimodUi.info1")}</p>
+            <p className="mt-2">{t("aimodUi.info2")}</p>
+            <p className="mt-2">{t("aimodUi.info3", { difficulties: patternCorpus.source.difficulties, mapsets: patternCorpus.source.mapsets, from: patternCorpus.source.rankedFrom, to: patternCorpus.source.rankedTo })}</p>
+            <p className="mt-2">{t("aimodUi.info4")}</p>
           </>} /></h3>
-            <p className={`mt-1 text-xs ${report.errors ? "text-amber-200" : "text-teal-200"}`}>{report.errors ? `${report.errors} structural issue${report.errors === 1 ? "" : "s"} across the mapset to fix before review` : "No automatic structural blockers found"}</p></div>
-            <div className="text-right"><strong className="text-xl text-teal-100">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-xs text-slate-500"> / 100</span>}</strong><p className="text-[10px] text-slate-400">Readiness score</p></div>
+            <p className={`mt-1 text-xs ${report.errors ? "text-amber-200" : "text-teal-200"}`}>{report.errors ? t("aimodUi.structural", { count: report.errors }) : t("aimodUi.noBlockers")}</p></div>
+            <div className="text-right"><strong className="text-xl text-teal-100">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-xs text-slate-500"> / 100</span>}</strong><p className="text-[10px] text-slate-400">{t("aimodUi.score")}</p></div>
           </div>
           <ul className="mt-3 flex flex-col gap-2">{report.quality.difficulties.map(d => <li key={d.id} className="rounded-lg bg-black/15 p-2 text-xs">
-            <div className="flex justify-between gap-3"><span className="text-slate-200">{d.name} <span className="whitespace-nowrap text-[10px] text-slate-500">judged as {d.tier}</span></span><span className="text-teal-200">{d.score === null ? "Too few notes to score" : `${d.score}/100`}</span></div>
+            <div className="flex justify-between gap-3"><span className="text-slate-200">{d.name} <span className="whitespace-nowrap text-[10px] text-slate-500">{t("aimodUi.judgedAs", { tier: d.tier })}</span></span><span className="text-teal-200">{d.score === null ? t("aimodUi.tooFew") : `${d.score}/100`}</span></div>
             <p className="mt-1 text-[10px] text-slate-500">
-              {d.comparison.bucket === null ? "No comparable ranked maps" : d.comparison.outliers.length ? `Above the usual range: ${d.comparison.outliers.map(o => o.label).join(", ")}` : "Within the usual range"}
+              {d.comparison.bucket === null ? t("aimodUi.noComparable") : d.comparison.outliers.length ? t("aimodUi.aboveRange", { list: d.comparison.outliers.map(o => o.label).join(", ") }) : t("aimodUi.withinRange")}
             </p>
           </li>)}</ul>
         </section>}
         <div className="flex flex-wrap gap-1 border-b border-white/10 pb-2">
-          {TABS.map((t) => {
-            const count = t === "All" ? scoped.length : byCategory.get(t) ?? 0;
-            const activeTab = t === tab;
+          {TABS.map((entry) => {
+            const count = entry === "All" ? scoped.length : byCategory.get(entry) ?? 0;
+            const activeTab = entry === tab;
             return (
               <button
-                key={t}
-                onClick={() => setTab(t)}
+                key={entry}
+                onClick={() => setTab(entry)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                   activeTab
                     ? "bg-accent/90 text-white"
                     : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
                 }`}
               >
-                {t} ({count})
+                {t(TAB_LABELS[entry])} ({count})
               </button>
             );
           })}
@@ -188,10 +202,10 @@ export function AiModModal({
         {shown.length === 0 ? (
           <p className="py-6 text-center text-sm text-emerald-300">
             {report && report.issues.length === 0
-              ? "Everything looks good - no issues found."
+              ? t("aimodUi.noIssues")
               : !allDifficulties && scoped.length === 0
-                ? "Nothing to fix in this difficulty. Turn on All difficulties to see the rest of the mapset."
-                : "No issues in this category."}
+                ? t("aimodUi.nothingHere")
+                : t("aimodUi.noIssuesCategory")}
           </p>
         ) : (
           <ul className="flex flex-col divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10">
@@ -249,7 +263,7 @@ export function AiModModal({
                       <button
                         onClick={() => onJump(issue)}
                         className="shrink-0 font-mono text-xs text-accent hover:underline"
-                        title="Jump to this time"
+                        title={t("aimodUi.jump")}
                       >
                         {formatAiModTime(issue.time)}
                       </button>
@@ -265,7 +279,7 @@ export function AiModModal({
                           <button
                             onClick={() => onJump(issue, d.time)}
                             className="font-mono text-accent hover:underline"
-                            title={d.endTime === undefined ? "Jump to this time" : "Jump to the start of this passage"}
+                            title={d.endTime === undefined ? t("aimodUi.jump") : t("aimodUi.jumpPassage")}
                           >
                             {formatAiModTime(d.time)}
                             {d.endTime !== undefined && ` → ${formatAiModTime(d.endTime)}`}{" "}
@@ -285,13 +299,13 @@ export function AiModModal({
                             }
                             className="text-xs font-medium text-accent hover:underline"
                           >
-                            Show {hidden} more
+                            {t("aimodUi.showMore", { count: hidden })}
                           </button>
                         </li>
                       )}
                       {hidden === 0 && untracked > 0 && (
                         <li className="py-1 text-xs text-slate-500">
-                          {untracked} more not listed.
+                          {t("aimodUi.notListed", { count: untracked })}
                         </li>
                       )}
                     </ul>

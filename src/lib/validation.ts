@@ -1,6 +1,7 @@
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta } from "../types";
 import { MAX_KEYS, MIN_KEYS } from "../types";
 import { isRateDifficulty } from "./rateChange";
+import { t } from "./i18n/core";
 
 export type ValidationIssue = {
   message: string;
@@ -76,7 +77,7 @@ export function validateProject({
   let duplicateCount = 0;
 
   if (Object.keys(audioFiles).length === 0)
-    errors.push({ message: "Missing audio file." });
+    errors.push({ message: t("validation.missingAudio") });
 
   // .sm has no per-chart audio, and Etterna applies rates in-game, so rate
   // difficulties are skipped rather than exported out of sync.
@@ -84,28 +85,24 @@ export function validateProject({
     const rated = difficulties.filter(isRateDifficulty);
     if (rated.length === difficulties.length && rated.length > 0) {
       errors.push({
-        message:
-          "Every difficulty is a rate difficulty. Etterna applies rates in-game, " +
-          "so there would be nothing left to export — use the base difficulty instead.",
+        message: t("validation.allRated"),
       });
     } else if (rated.length > 0) {
       warnings.push({
-        message:
-          `${rated.length} rate ${rated.length === 1 ? "difficulty" : "difficulties"} ` +
-          "will be skipped — Etterna applies rates in-game.",
-        scope: rated.map((d) => d.name || "(unnamed)").join(", "),
+        message: t("validation.ratedSkipped", { count: rated.length }),
+        scope: rated.map((d) => d.name || t("app.unnamed")).join(", "),
       });
     }
   }
-  if (!meta.title.trim()) errors.push({ message: "Missing song title." });
-  if (!meta.artist.trim()) errors.push({ message: "Missing artist." });
-  if (!meta.creator.trim()) errors.push({ message: "Missing creator." });
+  if (!meta.title.trim()) errors.push({ message: t("validation.missingTitle") });
+  if (!meta.artist.trim()) errors.push({ message: t("validation.missingArtist") });
+  if (!meta.creator.trim()) errors.push({ message: t("aimod.missingCreator") });
 
   for (const d of difficulties) {
-    const scope = d.name || "(unnamed)";
+    const scope = d.name || t("app.unnamed");
 
     if (!d.name.trim())
-      errors.push({ message: "Missing difficulty name.", scope });
+      errors.push({ message: t("validation.missingDiffName"), scope });
 
     if (
       !Number.isInteger(d.keyCount) ||
@@ -113,16 +110,16 @@ export function validateProject({
       d.keyCount > MAX_KEYS
     )
       errors.push({
-        message: `Invalid key count (${d.keyCount}). Must be ${MIN_KEYS}–${MAX_KEYS}.`,
+        message: t("validation.invalidKeys", { keys: d.keyCount, min: MIN_KEYS, max: MAX_KEYS }),
         scope,
       });
 
     if (Object.keys(audioFiles).length > 0 && !resolveAudio(d, audioFiles))
-      errors.push({ message: "Difficulty has no resolvable audio.", scope });
+      errors.push({ message: t("validation.noAudio"), scope });
 
     const reds = d.timingPoints.filter((p) => p.uninherited);
     if (reds.length === 0)
-      errors.push({ message: "No red (uninherited) timing point.", scope });
+      errors.push({ message: t("validation.noRed"), scope });
 
     let invalidColumn = 0;
     let invalidLong = 0;
@@ -132,33 +129,33 @@ export function validateProject({
     }
     if (invalidColumn > 0)
       errors.push({
-        message: `${invalidColumn} note(s) in an invalid column.`,
+        message: t("validation.invalidColumn", { count: invalidColumn }),
         scope,
       });
     if (invalidLong > 0)
       errors.push({
-        message: `${invalidLong} invalid long note(s) (end ≤ start).`,
+        message: t("validation.invalidLong", { count: invalidLong }),
         scope,
       });
 
     if (!d.backgroundFilename || !bgFiles[d.backgroundFilename])
-      warnings.push({ message: "No background image.", scope });
+      warnings.push({ message: t("aimod.noBackground"), scope });
     if (d.notes.length === 0)
-      warnings.push({ message: "No notes.", scope });
+      warnings.push({ message: t("validation.noNotes"), scope });
 
     const dupes = findDuplicateIds(d.notes);
     if (dupes.length > 0) {
       duplicateNoteIds[d.id] = dupes;
       duplicateCount += dupes.length;
       warnings.push({
-        message: `${dupes.length} duplicate note(s) (same column & time).`,
+        message: t("validation.duplicates", { count: dupes.length }),
         scope,
       });
     }
 
     if (hasColumnOverlap(d.notes))
       warnings.push({
-        message: "Overlapping notes in the same column.",
+        message: t("validation.overlap"),
         scope,
       });
   }
