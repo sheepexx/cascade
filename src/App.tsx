@@ -1060,10 +1060,10 @@ export default function App() {
     void installDesktopUpdate().catch((error: unknown) => {
       setUpdating(false);
       setImportError(
-        error instanceof Error ? error.message : "The update failed to install.",
+        error instanceof Error ? error.message : t("app.updateFailed"),
       );
     });
-  }, []);
+  }, [t]);
   const appOpenLoggedRef = useRef(false);
   useEffect(() => {
     if (authLoading || appOpenLoggedRef.current) return;
@@ -1454,10 +1454,10 @@ export default function App() {
   const toggleWaveformOverlay = useCallback(() => {
     setAppSettings((settings) => {
       const showWaveform = !settings.showWaveform;
-      announceShortcut(`Waveform: ${showWaveform ? "On" : "Off"}`);
+      announceShortcut(showWaveform ? t("shortcut.waveformOn") : t("shortcut.waveformOff"));
       return { ...settings, showWaveform };
     });
-  }, [announceShortcut]);
+  }, [announceShortcut, t]);
 
   useEffect(() => {
     if (!activeBookmarkLoop?.enabled) return;
@@ -1721,7 +1721,7 @@ export default function App() {
           if (action === "timelineZoom") {
             setView((current) => {
               const scrollSpeed = timelineZoomFromWheel(current.scrollSpeed, e.deltaY);
-              announceShortcut(`Timeline zoom: ${scrollSpeed}`);
+              announceShortcut(t("shortcut.timelineZoom", { zoom: scrollSpeed }));
               return { ...current, scrollSpeed };
             });
           } else if (action === "playfieldScale") {
@@ -1730,7 +1730,7 @@ export default function App() {
                 settings.playfieldScale,
                 e.deltaY,
               );
-              announceShortcut(`Playfield size: ${Math.round(playfieldScale * 100)}%`);
+              announceShortcut(t("shortcut.playfieldSize", { percent: Math.round(playfieldScale * 100) }));
               return { ...settings, playfieldScale };
             });
           } else if (action === "volume") {
@@ -1738,7 +1738,7 @@ export default function App() {
           } else {
             setAppSettings((settings) => {
               const uiScale = uiScaleFromWheel(settings.uiScale, e.deltaY);
-              announceShortcut(`Interface size: ${Math.round(uiScale * 100)}%`);
+              announceShortcut(t("shortcut.interfaceSize", { percent: Math.round(uiScale * 100) }));
               return { ...settings, uiScale };
             });
           }
@@ -1751,7 +1751,7 @@ export default function App() {
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("wheel", onWheel);
     };
-  }, [adjustVolumeMeter, announceShortcut]);
+  }, [adjustVolumeMeter, announceShortcut, t]);
 
   const activeBg = active.backgroundFilename ? bgFiles[active.backgroundFilename] ?? null : null;
   const activeVideo = active.videoFilename ? videoFiles[active.videoFilename] ?? null : null;
@@ -2645,7 +2645,7 @@ export default function App() {
     async (url: string, fileName: string, target: "visual" | "hitsound") => {
       try {
         const res = await fetch(url);
-        if (!res.ok) throw new Error("Couldn't load that preset skin.");
+        if (!res.ok) throw new Error(t("app.presetSkinFailed"));
         await loadSkin(await res.blob(), fileName, target, false);
       } catch (err) {
         setSkinError(
@@ -2653,7 +2653,7 @@ export default function App() {
         );
       }
     },
-    [loadSkin],
+    [loadSkin, t],
   );
 
   const onUploadCloudSkin = useCallback(
@@ -2808,7 +2808,7 @@ export default function App() {
     importStartedRef.current = true;
     setImportError(null);
     setImportingMap(true);
-    onProgress({ ratio: 0, label: "Reading the archive" });
+    onProgress({ ratio: 0, label: t("app.readingArchive") });
     try {
       const map = await importOsz(file, onProgress);
       setPublicMapUrl(null);
@@ -2855,13 +2855,13 @@ export default function App() {
       );
     } catch (err) {
       setImportError(
-        err instanceof Error ? err.message : "Failed to import .osz file.",
+        err instanceof Error ? err.message : t("app.importOszFailed"),
       );
     } finally {
       setImportingMap(false);
       setImportProgress(null);
     }
-  }, []);
+  }, [t]);
 
   const [publicMapUrl, setPublicMapUrl] = useState<string | null>(null);
 
@@ -2884,10 +2884,10 @@ export default function App() {
 
   const publishCurrentMap = useCallback(async (): Promise<string> => {
     const owner = authUserRef.current;
-    if (!owner) throw new Error("Sign in to publish a map.");
+    if (!owner) throw new Error(t("app.publishSignIn"));
     const projectId = cloudProjectIdRef.current;
     if (!projectId) {
-      throw new Error("Save this map to your account before publishing it.");
+      throw new Error(t("app.publishSaveFirst"));
     }
     const data = {
       meta: metaRef.current,
@@ -2903,7 +2903,7 @@ export default function App() {
       (name) => !audioFilesRef.current[name],
     );
     if (missingAudioName) {
-      throw new Error(`Couldn't publish because ${missingAudioName} isn't loaded.`);
+      throw new Error(t("app.publishMissingAudio", { name: missingAudioName }));
     }
     let sharedAudioFiles = [...referencedAudioNames].flatMap((name) => {
       const file = audioFilesRef.current[name];
@@ -2949,7 +2949,7 @@ export default function App() {
     const url = sharedMapUrl(slug);
     setPublicMapUrl(url);
     return url;
-  }, []);
+  }, [t]);
 
   const openSharedMap = useCallback(
     (file: File) => {
@@ -2990,8 +2990,8 @@ export default function App() {
           setImportingMap(false);
           setImportError(
             error instanceof Error
-              ? `Could not scan the archive: ${error.message}`
-              : "Could not scan the archive.",
+              ? t("app.scanFailedDetail", { detail: error.message })
+              : t("app.scanFailed"),
           );
           return;
         }
@@ -2999,29 +2999,29 @@ export default function App() {
       }
       requestImportMap(file);
     },
-    [requestImportMap],
+    [requestImportMap, t],
   );
 
   const importFromOsu = useCallback(
     async (input: string) => {
       const worker = import.meta.env.VITE_WORKER_URL;
       if (!worker) {
-        throw new Error("Beatmap import isn't configured on this deployment.");
+        throw new Error(t("app.beatmapImportUnconfigured"));
       }
       const parsed = parseOsuBeatmapLink(input);
       if (!parsed) {
-        throw new Error("Paste an osu! beatmap link or a beatmapset ID.");
+        throw new Error(t("app.pasteBeatmapLink"));
       }
       if (
         hasProjectContent &&
         !window.confirm(
-          "Importing replaces your current unsaved map. Continue?",
+          t("app.importReplaceConfirm"),
         )
       ) {
         return;
       }
       setImportingMap(true);
-      setImportProgress({ ratio: 0, label: "Looking up the beatmap" });
+      setImportProgress({ ratio: 0, label: t("app.lookingUpBeatmap") });
       try {
         let setId = parsed.setId;
         if (!setId && parsed.beatmapId) {
@@ -3029,21 +3029,21 @@ export default function App() {
             `${worker}/mirror/beatmap/${parsed.beatmapId}`,
           );
           if (!lookup.ok) {
-            throw new Error("Couldn't find that beatmap on the mirrors.");
+            throw new Error(t("app.beatmapNotFound"));
           }
           const data = (await lookup.json()) as { setId?: number };
           setId = data.setId;
         }
         if (!setId) {
-          throw new Error("Paste an osu! beatmap link or a beatmapset ID.");
+          throw new Error(t("app.pasteBeatmapLink"));
         }
-        setImportProgress({ ratio: 0, label: "Contacting the mirrors" });
+        setImportProgress({ ratio: 0, label: t("app.contactingMirrors") });
         const res = await fetch(`${worker}/mirror/${setId}`);
         if (!res.ok) {
           throw new Error(
             res.status === 404
-              ? "That beatmapset isn't available on the mirrors."
-              : "The beatmap mirrors are unavailable right now - try again in a minute.",
+              ? t("app.beatmapsetUnavailable")
+              : t("app.mirrorsDown"),
           );
         }
         const blob = await readBlobWithProgress(res, (loaded, total) => {
@@ -3052,8 +3052,8 @@ export default function App() {
           setImportProgress({
             ratio: total ? (loaded / total) * 0.35 : 0.1,
             label: total
-              ? `Downloading ${formatBytes(loaded)} of ${formatBytes(total)}`
-              : `Downloading ${formatBytes(loaded)}`,
+              ? t("app.downloadingOf", { loaded: formatBytes(loaded), total: formatBytes(total) })
+              : t("app.downloading", { loaded: formatBytes(loaded) }),
           });
         });
         const file = new File([blob], `${setId}.osz`, {
@@ -3073,7 +3073,7 @@ export default function App() {
         authUserRef.current?.id,
       ).catch(() => {});
     },
-    [hasProjectContent, importMapFile],
+    [hasProjectContent, importMapFile, t],
   );
 
   const importSmFile = useCallback(async (file: File) => {
@@ -3129,12 +3129,12 @@ export default function App() {
       );
     } catch (err) {
       setImportError(
-        err instanceof Error ? err.message : "Failed to import .sm file.",
+        err instanceof Error ? err.message : t("app.importSmFailed"),
       );
     } finally {
       setImportingMap(false);
     }
-  }, []);
+  }, [t]);
 
   const importQuaFile = useCallback(async (file: File) => {
     importStartedRef.current = true;
@@ -3217,12 +3217,12 @@ export default function App() {
       assertTextImportSize(file);
       const text = await file.text();
       if (!isManiaOsu(text)) {
-        throw new Error(`${file.name} isn't an osu!mania (Mode 3) difficulty.`);
+        throw new Error(t("app.notMania", { name: file.name }));
       }
       entries.push({ file, parsed: parseOsuFile(text) });
     }
     return entries;
-  }, []);
+  }, [t]);
 
   const openOsuAsProject = useCallback((entries: OsuEntry[]) => {
     if (!entries.length) return;
@@ -3278,18 +3278,18 @@ export default function App() {
         openOsuAsProject(await readOsuFiles([file]));
       } catch (err) {
         setImportError(
-          err instanceof Error ? err.message : "Failed to import .osu file.",
+          err instanceof Error ? err.message : t("app.importOsuFailed"),
         );
       }
     },
-    [readOsuFiles, openOsuAsProject],
+    [readOsuFiles, openOsuAsProject, t],
   );
 
   const addOsuDifficulties = useCallback(
     (entries: OsuEntry[]) => {
       if (!entries.length) return;
       if (!canEditRef.current) {
-        setImportError("You don't have edit access to this map.");
+        setImportError(t("app.noEditAccess"));
         return;
       }
       const audioFilenames = Object.keys(audioFilesRef.current);
@@ -3344,7 +3344,7 @@ export default function App() {
           : `Added ${added.length} difficulties`,
       );
     },
-    [markStructural, announceAssetChange],
+    [markStructural, announceAssetChange, t],
   );
 
   const openOsuFiles = useCallback(
@@ -3356,7 +3356,7 @@ export default function App() {
         entries = await readOsuFiles(files);
       } catch (err) {
         setImportError(
-          err instanceof Error ? err.message : "Failed to read the .osu file.",
+          err instanceof Error ? err.message : t("app.readOsuFailed"),
         );
         return;
       }
@@ -3370,7 +3370,7 @@ export default function App() {
       }
       setPendingOsuDiffs(entries);
     },
-    [readOsuFiles, openOsuAsProject, addOsuDifficulties],
+    [readOsuFiles, openOsuAsProject, addOsuDifficulties, t],
   );
 
   const importPackSong = useCallback(
@@ -3460,12 +3460,12 @@ export default function App() {
         setModal(null);
         setScannedPackSongs([]);
       } else {
-        setPackError(err instanceof Error ? err.message : "Failed to scan pack.");
+        setPackError(err instanceof Error ? err.message : t("app.scanPackFailed"));
       }
     } finally {
       setScanningPack(false);
     }
-  }, []);
+  }, [t]);
 
   const loadSampleMap = useCallback(
     async (map: SampleMap) => {
@@ -3480,12 +3480,12 @@ export default function App() {
         await importMapFile(file);
       } catch (err) {
         setImportError(
-          err instanceof Error ? err.message : "Failed to load the map.",
+          err instanceof Error ? err.message : t("app.loadMapFailed"),
         );
         setImportingMap(false);
       }
     },
-    [importMapFile],
+    [importMapFile, t],
   );
 
   const patchDifficulty = useCallback(
@@ -3987,7 +3987,7 @@ export default function App() {
         const copy: Difficulty = {
           ...src,
           id: uid("diff"),
-          name: `${src.name} (copy)`,
+          name: t("app.copyName", { name: src.name }),
           // Unsubmitted copy: reusing the source's id would collide with it.
           beatmapId: undefined,
           timingPoints: src.timingPoints.map((p) => ({ ...p, id: uid("tp") })),
@@ -3996,7 +3996,7 @@ export default function App() {
         return [...prev, copy];
       });
     },
-    [markStructural],
+    [markStructural, t],
   );
 
   // Copying needs no edit access: a map someone shared read-only is still a
@@ -4559,9 +4559,9 @@ export default function App() {
         .catch((error) => {
           if (cloudProjectIdRef.current !== pid || !canEditRef.current) return;
           pendingDocSyncRef.current = true;
-          const detail = error instanceof Error ? error.message : "Unknown error";
+          const detail = error instanceof Error ? error.message : t("app.unknownError");
           setCloudError(
-            `Live collaboration save failed: ${detail}. Retrying automatically.`,
+            t("app.liveSaveFailed", { detail }),
           );
           if (cloudSyncTimerRef.current !== null) {
             window.clearTimeout(cloudSyncTimerRef.current);
@@ -4579,6 +4579,7 @@ export default function App() {
       }
     };
   }, [
+    t,
     meta,
     timingPoints,
     difficulties,
@@ -4648,11 +4649,11 @@ export default function App() {
     if (modal !== "history" && !historyPanel) return [];
     if (liveEnabled) {
       const names = new Map(difficulties.map(d => [d.id, d.name]));
-      return ["Start of retained history", ...[...opUndoRef.current, ...opRedoRef.current.slice().reverse()].map(op => describeNoteOp(op, names))];
+      return [t("app.historyStart"), ...[...opUndoRef.current, ...opRedoRef.current.slice().reverse()].map(op => describeNoteOp(op, names))];
     }
     const states = [...undoStackRef.current, presentRef.current ?? snapshot, ...redoStackRef.current.slice().reverse()];
-    return states.map((s, i) => i === 0 ? "Start of retained history" : describeSnapshotChange(states[i - 1], s));
-  }, [modal, historyPanel, liveEnabled, difficulties, snapshot, historyRevision]);
+    return states.map((s, i) => i === 0 ? t("app.historyStart") : describeSnapshotChange(states[i - 1], s));
+  }, [modal, historyPanel, liveEnabled, difficulties, snapshot, historyRevision, t]);
 
   const jumpHistory = useCallback((index: number) => {
     if (!canEditRef.current) return;
@@ -5081,21 +5082,21 @@ export default function App() {
       blurActiveControl();
       if (isTab)
         setZenMode((z) => {
-          announceShortcut(`Zen mode: ${z ? "Off" : "On"}`);
+          announceShortcut(z ? t("shortcut.zenOff") : t("shortcut.zenOn"));
           return !z;
         });
       else if (isPreviousBookmark) {
         seekBookmark("previous");
-        announceShortcut("Previous bookmark");
+        announceShortcut(t("shortcut.previousBookmark"));
       }
       else if (isNextBookmark) {
         seekBookmark("next");
-        announceShortcut("Next bookmark");
+        announceShortcut(t("shortcut.nextBookmark"));
       }
       else if (isBookmark) {
         if (!e.repeat) {
           addBookmark(Math.round(currentTimeRef.current));
-          announceShortcut("Bookmark added");
+          announceShortcut(t("shortcut.bookmarkAdded"));
         }
       } else if (isSpace) {
         if (!e.repeat) toggleAudio();
@@ -5104,7 +5105,7 @@ export default function App() {
         if (slowHeldRef.current || e.repeat) return;
         slowHeldRef.current = true;
         setAudioPlaybackRate(0.25);
-        announceShortcut("Playback rate: 25%");
+        announceShortcut(t("shortcut.playbackRate", { percent: 25 }));
       }
       else if (isUp || isDown) {
         const volume = Math.max(
@@ -5116,7 +5117,7 @@ export default function App() {
       }
       else if (snapDivisor !== null) {
         setView((v) => ({ ...v, snapDivisor }));
-        announceShortcut(`Snap: 1/${snapDivisor}`);
+        announceShortcut(t("shortcut.snap", { divisor: snapDivisor }));
       }
       else if (isTimelineZoomOut || isTimelineZoomIn) {
         setView((v) => {
@@ -5127,7 +5128,7 @@ export default function App() {
               v.scrollSpeed + (isTimelineZoomIn ? 1 : -1),
             ),
           );
-          announceShortcut(`Timeline zoom: ${scrollSpeed}`);
+          announceShortcut(t("shortcut.timelineZoom", { zoom: scrollSpeed }));
           return { ...v, scrollSpeed };
         });
       } else if (isZoomIn || isZoomOut) {
@@ -5138,7 +5139,7 @@ export default function App() {
               Math.min(2.5, s.playfieldScale + (isZoomIn ? 0.1 : -0.1)),
             ) * 100,
           ) / 100;
-          announceShortcut(`Playfield size: ${Math.round(playfieldScale * 100)}%`);
+          announceShortcut(t("shortcut.playfieldSize", { percent: Math.round(playfieldScale * 100) }));
           return { ...s, playfieldScale };
         });
       }
@@ -5152,7 +5153,7 @@ export default function App() {
       slowHeldRef.current = false;
       e.preventDefault();
       setAudioPlaybackRate(1);
-      announceShortcut("Playback rate: 100%");
+      announceShortcut(t("shortcut.playbackRate", { percent: 100 }));
     };
     const onBlur = () => {
       if (!slowHeldRef.current) return;
@@ -5168,6 +5169,7 @@ export default function App() {
       window.removeEventListener("blur", onBlur);
     };
   }, [
+    t,
     addBookmark,
     announceShortcut,
     askBgScope,
@@ -5357,7 +5359,7 @@ export default function App() {
               return;
             }
           } catch {
-            setImportError("Failed to read the dropped folder.");
+            setImportError(t("app.droppedFolderFailed"));
             setImportingMap(false);
             return;
           }
@@ -5367,7 +5369,7 @@ export default function App() {
 
       openFiles(Array.from(e.dataTransfer.files));
     },
-    [openFiles, importPackSong, resetFileDrag],
+    [openFiles, importPackSong, resetFileDrag, t],
   );
 
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
@@ -5451,13 +5453,13 @@ export default function App() {
     } catch (error) {
       setImportError(
         error instanceof Error
-          ? `StepMania export failed: ${error.message}`
-          : "StepMania export failed.",
+          ? t("app.exportFailedDetail", { format: "StepMania", detail: error.message })
+          : t("app.exportFailed", { format: "StepMania" }),
       );
     } finally {
       setExporting(false);
     }
-  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id]);
+  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id, t]);
 
   const doExportQua = useCallback(async (songMeta: SongMeta = meta) => {
     if (!audioFile || (active.keyCount !== 4 && active.keyCount !== 7)) return;
@@ -5476,11 +5478,12 @@ export default function App() {
     } catch (error) {
       setImportError(
         error instanceof Error
-          ? `Quaver export failed: ${error.message}`
-          : "Quaver export failed.",
+          ? t("app.exportFailedDetail", { format: "Quaver", detail: error.message })
+          : t("app.exportFailed", { format: "Quaver" }),
       );
     }
   }, [
+    t,
     audioFile,
     active,
     activeTimingPoints,
@@ -5517,7 +5520,7 @@ export default function App() {
     if (Object.keys(audioFiles).length === 0) return;
     setExporting(true);
     setImportError(null);
-    setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
+    setExportProgress({ ratio: 0, label: t("app.startingEncoder") });
     try {
       const { downloadOsz } = await import("./lib/oszExport");
       await downloadOsz({
@@ -5538,14 +5541,15 @@ export default function App() {
     } catch (error) {
       setImportError(
         error instanceof Error
-          ? `OSZ export failed: ${error.message}`
-          : "OSZ export failed.",
+          ? t("app.exportFailedDetail", { format: "OSZ", detail: error.message })
+          : t("app.exportFailed", { format: "OSZ" }),
       );
     } finally {
       setExporting(false);
       setExportProgress(null);
     }
   }, [
+    t,
     audioFiles,
     difficulties,
     bgFiles,
@@ -5646,7 +5650,7 @@ export default function App() {
     if (!(await ensureOsuFolder())) return;
     setOsuBusy(true);
     setImportError(null);
-    setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
+    setExportProgress({ ratio: 0, label: t("app.startingEncoder") });
     try {
       const { buildOsz } = await import("./lib/oszExport");
       const archive = await buildOsz({
@@ -5700,7 +5704,7 @@ export default function App() {
     if (!(await ensureOsuFolder())) return;
     setOsuBusy(true);
     setImportError(null);
-    setExportProgress({ ratio: 0, label: "Starting up the audio encoder" });
+    setExportProgress({ ratio: 0, label: t("app.startingEncoder") });
     try {
       const { buildOsz } = await import("./lib/oszExport");
       const archive = await buildOsz({
@@ -5830,9 +5834,9 @@ export default function App() {
       await doExportOsz();
       importFile(file);
     } catch {
-      setImportError("Failed to export current project. Import canceled.");
+      setImportError(t("app.exportBeforeImportFailed"));
     }
-  }, [pendingImport, doExportOsz, importFile]);
+  }, [pendingImport, doExportOsz, importFile, t]);
 
   const cancelPendingImport = useCallback(() => {
     setPendingImport(null);
@@ -6431,10 +6435,10 @@ export default function App() {
   const copyPresetToClipboard = useCallback((pattern: PatternNote[]) => {
     pushClip({ kind: "notes", id: uid("clip"), notes: pattern });
     setImportNotice(
-      `Copied ${pattern.length} note${pattern.length === 1 ? "" : "s"} from the preset`,
+      t("app.copiedFromPreset", { count: pattern.length }),
     );
     setModal(null);
-  }, []);
+  }, [t]);
 
   const handleNew = useCallback(async (confirm = true, audioSource: File | null = null) => {
     if (confirm) {
@@ -6451,7 +6455,7 @@ export default function App() {
         loadedAudio = await loadFile(audioSource);
       } catch (error) {
         setImportError(
-          error instanceof Error ? error.message : "Failed to load the audio file.",
+          error instanceof Error ? error.message : t("app.loadAudioFailed"),
         );
         return;
       }
@@ -6502,7 +6506,7 @@ export default function App() {
       setAutoTimeResult(null);
     }
 
-  }, []);
+  }, [t]);
 
   const [jumpToTimeOpen, setJumpToTimeOpen] = useState(false);
 
@@ -6682,65 +6686,65 @@ export default function App() {
     {
       id: "new-map",
       label: t("menu.newMap"),
-      group: "Create",
+      group: t("palette.group.create"),
       keywords: "song beatmap project",
       run: () => setModal("newMap"),
     },
     {
       id: "my-maps",
       label: t("menu.myMaps"),
-      group: "Open",
+      group: t("palette.group.open"),
       keywords: "projects library cloud local",
       run: () => setModal("myProjects"),
     },
     {
       id: "import-map",
       label: t("menu.importMap"),
-      group: "Open",
+      group: t("palette.group.open"),
       keywords: "osz osu sm ssc qua folder",
       run: () => setModal("import"),
     },
     {
       id: "sample-maps",
       label: t("menu.tryMaps"),
-      group: "Open",
+      group: t("palette.group.open"),
       keywords: "examples demo",
       run: () => setModal("sampleMaps"),
     },
     {
       id: "pack-creator",
       label: t("menu.packCreator"),
-      group: "Create",
+      group: t("palette.group.create"),
       keywords: "collection songs",
       run: () => setPackCreatorOpen(true),
     },
     ...(hasProject
       ? [
-          { id: "map-settings", label: t("nav.mapSettings"), group: "Editor", run: () => setModal("mapSettings") },
-          { id: "timing", label: t("nav.timing"), group: "Editor", keywords: "bpm offset", run: () => setModal("timing") },
+          { id: "map-settings", label: t("nav.mapSettings"), group: t("palette.group.editor"), run: () => setModal("mapSettings") },
+          { id: "timing", label: t("nav.timing"), group: t("palette.group.editor"), keywords: "bpm offset", run: () => setModal("timing") },
           ...(featureFlags.sv_tools
-            ? [{ id: "sv", label: t("nav.sv"), group: "Editor", keywords: "scroll velocity", run: () => setModal("sv" as ModalId) }]
+            ? [{ id: "sv", label: t("nav.sv"), group: t("palette.group.editor"), keywords: "scroll velocity", run: () => setModal("sv" as ModalId) }]
             : []),
-          { id: "difficulty", label: t("nav.difficulty"), group: "Editor", keywords: "keys od hp", run: () => setModal("difficulty") },
-          { id: "add-difficulty", label: "Add difficulty", group: "Editor", keywords: "new diff", disabled: !canEdit, run: addDifficulty },
-          { id: "tools", label: t("nav.tools"), group: "Editor", keywords: "ghost notes full ln rice crop", run: () => setModal("tools") },
-          { id: "aimod", label: t("nav.aiMod"), group: "Editor", keywords: "check validation", run: openAiMod },
+          { id: "difficulty", label: t("nav.difficulty"), group: t("palette.group.editor"), keywords: "keys od hp", run: () => setModal("difficulty") },
+          { id: "add-difficulty", label: t("app.addDifficulty"), group: t("palette.group.editor"), keywords: "new diff", disabled: !canEdit, run: addDifficulty },
+          { id: "tools", label: t("nav.tools"), group: t("palette.group.editor"), keywords: "ghost notes full ln rice crop", run: () => setModal("tools") },
+          { id: "aimod", label: t("nav.aiMod"), group: t("palette.group.editor"), keywords: "check validation", run: openAiMod },
           ...(appSettings.showPatternTools
-            ? [{ id: "presets", label: t("nav.presets"), group: "Editor", keywords: "patterns clipboard", run: () => setModal("presets" as ModalId) }]
+            ? [{ id: "presets", label: t("nav.presets"), group: t("palette.group.editor"), keywords: "patterns clipboard", run: () => setModal("presets" as ModalId) }]
             : []),
-          { id: "skin", label: t("nav.skin"), group: "Editor", run: () => setModal("skin") },
-          { id: "history", label: "Undo history", group: "Edit", keywords: "versions changes", run: () => setModal("history") },
-          { id: "undo", label: t("nav.undo"), group: "Edit", hint: "Ctrl Z", disabled: !canUndo, run: undo },
-          { id: "redo", label: t("nav.redo"), group: "Edit", hint: "Ctrl Y", disabled: !canRedo, run: redo },
-          { id: "new-open", label: t("file.newOpen"), group: "File", keywords: "project map welcome", run: () => setModal("welcome") },
-          { id: "save", label: t("file.saveLocally"), group: "File", hint: "Ctrl S", run: () => void handleSave() },
-          { id: "save-cloud", label: t("file.saveToCloud"), group: "File", keywords: "account collaborate", disabled: !authUser || !canEdit, run: () => void handleCloudSave() },
-          { id: "copy-hitsounds-all", label: t("hitsounds.copyToAllCommand"), group: "Edit", keywords: "hitsound whistle finish clap samples apply", disabled: !canEdit || hitsoundTargets.length === 0 || countHitsounds(active.notes) === 0, run: applyCopyHitsoundsToAll },
-          { id: "export-osu", label: t("file.exportOsu"), group: "Export", disabled: !canExport, run: handleExportOsu },
-          { id: "export-osz", label: t("file.exportOsz"), group: "Export", disabled: !canExport || exporting, run: handleExportOsz },
-          { id: "export-sm", label: t("file.exportSm"), group: "Export", disabled: !canExport, run: handleExportSm },
-          { id: "export-qua", label: t("file.exportQua"), group: "Export", disabled: !canExport, run: handleExportQua },
-          { id: "export-mcz", label: t("file.exportMcz"), group: "Export", keywords: "malody mc", disabled: !canExport || exporting || !hasMalodyDifficulty, run: handleExportMcz },
+          { id: "skin", label: t("nav.skin"), group: t("palette.group.editor"), run: () => setModal("skin") },
+          { id: "history", label: t("undoHistory.title"), group: t("palette.group.edit"), keywords: "versions changes", run: () => setModal("history") },
+          { id: "undo", label: t("nav.undo"), group: t("palette.group.edit"), hint: "Ctrl Z", disabled: !canUndo, run: undo },
+          { id: "redo", label: t("nav.redo"), group: t("palette.group.edit"), hint: "Ctrl Y", disabled: !canRedo, run: redo },
+          { id: "new-open", label: t("file.newOpen"), group: t("palette.group.file"), keywords: "project map welcome", run: () => setModal("welcome") },
+          { id: "save", label: t("file.saveLocally"), group: t("palette.group.file"), hint: "Ctrl S", run: () => void handleSave() },
+          { id: "save-cloud", label: t("file.saveToCloud"), group: t("palette.group.file"), keywords: "account collaborate", disabled: !authUser || !canEdit, run: () => void handleCloudSave() },
+          { id: "copy-hitsounds-all", label: t("hitsounds.copyToAllCommand"), group: t("palette.group.edit"), keywords: "hitsound whistle finish clap samples apply", disabled: !canEdit || hitsoundTargets.length === 0 || countHitsounds(active.notes) === 0, run: applyCopyHitsoundsToAll },
+          { id: "export-osu", label: t("file.exportOsu"), group: t("palette.group.export"), disabled: !canExport, run: handleExportOsu },
+          { id: "export-osz", label: t("file.exportOsz"), group: t("palette.group.export"), disabled: !canExport || exporting, run: handleExportOsz },
+          { id: "export-sm", label: t("file.exportSm"), group: t("palette.group.export"), disabled: !canExport, run: handleExportSm },
+          { id: "export-qua", label: t("file.exportQua"), group: t("palette.group.export"), disabled: !canExport, run: handleExportQua },
+          { id: "export-mcz", label: t("file.exportMcz"), group: t("palette.group.export"), keywords: "malody mc", disabled: !canExport || exporting || !hasMalodyDifficulty, run: handleExportMcz },
           ...(osuApp?.supported
             ? [
                 { id: "import-into-osu", label: t("file.importIntoOsu"), group: "osu!", keywords: "send export stable", disabled: !canExport || osuBusy || exporting, run: handleSendToOsu },
@@ -6748,116 +6752,116 @@ export default function App() {
                 { id: "import-from-osu", label: t("file.importFromOsu"), group: "osu!", keywords: "load selected map stable", disabled: osuBusy || importingMap, run: () => void handleLoadFromOsu() },
               ]
             : []),
-          { id: "home", label: t("home.returnTitle"), group: "Cascade", keywords: "main menu start screen close project", run: () => setShowHomeConfirm(true) },
+          { id: "home", label: t("home.returnTitle"), group: t("palette.group.cascade"), keywords: "main menu start screen close project", run: () => setShowHomeConfirm(true) },
           {
             id: "play-pause",
-            label: audio.isPlaying ? "Pause playback" : "Play audio",
-            group: "Playback",
+            label: audio.isPlaying ? t("app.pausePlayback") : t("app.playAudio"),
+            group: t("palette.group.playback"),
             hint: "Space",
             disabled: !audioFile,
             run: toggleAudio,
           },
           {
             id: "playtest",
-            label: playtest.active ? "Exit playtest" : "Start playtest",
-            group: "Playback",
+            label: playtest.active ? t("app.exitPlaytest") : t("app.startPlaytest"),
+            group: t("palette.group.playback"),
             disabled: !audioFile || !featureFlags.playtest,
             run: () => playtest.active ? exitPlaytest() : startPlaytest(getCurrentTime()),
           },
           {
             id: "zen",
-            label: zenMode ? "Leave zen mode" : "Enter zen mode",
-            group: "View",
+            label: zenMode ? t("app.leaveZen") : t("app.enterZen"),
+            group: t("palette.group.view"),
             keywords: "hide interface distraction free",
             run: () => setZenMode((value) => !value),
           },
           {
             id: "waveform",
-            label: `${appSettings.showWaveform ? "Hide" : "Show"} waveform`,
-            group: "View",
+            label: appSettings.showWaveform ? t("app.hideWaveform") : t("app.showWaveform"),
+            group: t("palette.group.view"),
             run: toggleWaveformOverlay,
           },
           {
             id: "ghost-notes",
-            label: `${ghostNotes ? "Hide" : "Show"} ghost-note suggestions`,
-            group: "Editor",
+            label: ghostNotes ? t("app.hideGhostNotes") : t("app.showGhostNotes"),
+            group: t("palette.group.editor"),
             keywords: "assist suggested notes",
             disabled: !waveform?.buffer || !canEdit,
             run: () => setGhostNotes(!ghostNotes),
           },
           {
             id: "auto-time",
-            label: "Detect BPM and offset",
-            group: "Timing",
+            label: t("app.detectBpm"),
+            group: t("palette.group.timing"),
             keywords: "auto time song analysis",
             disabled: !waveform?.buffer,
             run: () => setAutoTimeOpen(true),
           },
           {
             id: "jump-time",
-            label: "Jump to time",
-            group: "Playback",
+            label: t("app.jumpToTime"),
+            group: t("palette.group.playback"),
             keywords: "seek timestamp",
             run: () => setJumpToTimeOpen(true),
           },
           {
             id: "difficulty-panel",
-            label: `${appSettings.difficultyPanelOpen ? "Hide" : "Show"} difficulty panel`,
-            group: "View",
+            label: appSettings.difficultyPanelOpen ? t("app.hideDifficultyPanel") : t("app.showDifficultyPanel"),
+            group: t("palette.group.view"),
             run: () => setAppSettings((value) => ({ ...value, difficultyPanelOpen: !value.difficultyPanelOpen })),
           },
           {
             id: "bottom-timeline",
-            label: `${appSettings.showBottomTimeline ? "Hide" : "Show"} bottom timeline`,
-            group: "View",
+            label: appSettings.showBottomTimeline ? t("app.hideBottomTimeline") : t("app.showBottomTimeline"),
+            group: t("palette.group.view"),
             run: () => setAppSettings((value) => ({ ...value, showBottomTimeline: !value.showBottomTimeline })),
           },
           ...(!zenMode && !playtest.active
             ? [
                 ...eligibleRefs.map((d) => ({
                   id: `reference-${d.id}`,
-                  label: `Reference: ${d.name} (${d.keyCount}K)`,
-                  group: "View",
+                  label: t("app.referenceItem", { name: d.name, keys: d.keyCount }),
+                  group: t("palette.group.view"),
                   keywords: "compare difficulty side by side",
                   run: () => setReferenceId(d.id),
                 })),
                 ...(referenceDiff
-                  ? [{ id: "reference-off", label: "Turn off reference", group: "View", keywords: "compare difficulty", run: () => setReferenceId(null) }]
+                  ? [{ id: "reference-off", label: t("app.referenceOff"), group: t("palette.group.view"), keywords: "compare difficulty", run: () => setReferenceId(null) }]
                   : []),
               ]
             : []),
           ...(cloudProjectId
             ? [
-                { id: "comments", label: t("nav.comments"), group: "Collaboration", run: () => setCommentsOpen((value) => !value) },
-                { id: "share", label: t("nav.shareTitle"), group: "Collaboration", disabled: !authUser, run: () => setModal("share" as ModalId) },
+                { id: "comments", label: t("nav.comments"), group: t("palette.group.collaboration"), run: () => setCommentsOpen((value) => !value) },
+                { id: "share", label: t("nav.shareTitle"), group: t("palette.group.collaboration"), disabled: !authUser, run: () => setModal("share" as ModalId) },
               ]
             : []),
           ...(isDesktopApp()
-            ? [{ id: "version-history", label: t("file.versionHistory"), group: "File", run: () => setModal("versionHistory" as ModalId) }]
+            ? [{ id: "version-history", label: t("file.versionHistory"), group: t("palette.group.file"), run: () => setModal("versionHistory" as ModalId) }]
             : []),
         ] satisfies PaletteCommand[]
       : []),
     {
       id: "feedback",
-      label: "Send feedback",
-      group: "Cascade",
+      label: t("app.sendFeedback"),
+      group: t("palette.group.cascade"),
       keywords: "report bug suggestion",
       run: () => setModal("feedback"),
     },
     ...(canExitDesktop()
-      ? [{ id: "exit", label: t("menu.exit"), group: "Cascade", keywords: "quit close app", run: handleExitApp }]
+      ? [{ id: "exit", label: t("menu.exit"), group: t("palette.group.cascade"), keywords: "quit close app", run: handleExitApp }]
       : []),
     {
       id: "settings",
       label: t("settings.title"),
-      group: "Settings",
+      group: t("palette.group.settings"),
       hint: "Ctrl K",
       run: () => openSettings(),
     },
     ...paletteSettingEntries.map(({ key, tab, keywords }) => ({
       id: `setting-${key}`,
       label: t(key),
-      group: `Setting · ${t(`settings.tab${tab}` as MessageKey)}`,
+      group: t("palette.group.setting", { tab: t(`settings.tab${tab}` as MessageKey) }),
       keywords,
       run: () => openSettings(tab),
     })),
@@ -6932,7 +6936,7 @@ export default function App() {
           </div>
           <div className="loader-content-in flex w-64 flex-col items-center gap-2">
             <p className="text-sm font-medium tracking-wide text-slate-300">
-              Loading map…
+              {t("app.loadingMap")}
             </p>
             <div
               className="h-1 w-full overflow-hidden rounded-full bg-white/10"
@@ -6940,7 +6944,7 @@ export default function App() {
               aria-valuenow={Math.round((importProgress?.ratio ?? 0) * 100)}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label={importProgress?.label ?? "Loading map"}
+              aria-label={importProgress?.label ?? t("app.loadingMapLabel")}
             >
               <div
                 className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
@@ -7096,7 +7100,7 @@ export default function App() {
                       onClick: redo,
                     },
                     {
-                      label: "Undo history",
+                      label: t("undoHistory.title"),
                       disabled: !canUndo && !canRedo,
                       onClick: () => setModal("history"),
                     },
@@ -7241,7 +7245,7 @@ export default function App() {
                       (active.keyCount !== 4 && active.keyCount !== 7),
                     title:
                       active.keyCount !== 4 && active.keyCount !== 7
-                        ? "Quaver supports 4K and 7K maps"
+                        ? t("app.quaverKeys")
                         : undefined,
                     onClick: handleExportQua,
                   },
@@ -7314,13 +7318,13 @@ export default function App() {
                       : "bg-rose-500"
                 }`}
               />
-              <span className="text-slate-300">Live</span>
+              <span className="text-slate-300">{t("app.live")}</span>
             </span>
           )}
           {liveEnabled && collab.peers.length > 0 && (
             <div
               className="flex items-center -space-x-1.5"
-              title="Editing now"
+              title={t("app.editingNow")}
             >
               {collab.peers.slice(0, 5).map((p) => (
                 <span
@@ -7463,7 +7467,7 @@ export default function App() {
             )}
           </div>
           <div className="relative min-h-0 flex-1">
-            {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">Shared audio active: {audio.nativeAudio.fallbackReason} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>Audio setup</button></div>}
+            {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">{t("app.sharedAudio", { reason: audio.nativeAudio.fallbackReason })} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>{t("app.audioSetup")}</button></div>}
             <div className="flex h-full w-full">
             <div className="relative min-w-0 flex-1">
             {hasProject ? (
@@ -7648,7 +7652,7 @@ export default function App() {
                     />
                   </div>
                   <div className="absolute left-2 top-2 z-20 rounded border border-white/10 bg-ink-900/65 px-2 py-0.5 text-[11px] font-medium text-slate-200 shadow backdrop-blur-xl">
-                    Reference · {referenceDiff.name} ({referenceDiff.keyCount}K)
+                    {t("app.referenceBadge", { name: referenceDiff.name, keys: referenceDiff.keyCount })}
                   </div>
                 </>
               )}
@@ -7720,7 +7724,7 @@ export default function App() {
               <div className="absolute left-3 top-[5.5rem] z-30 rounded-lg border border-white/10 bg-ink-900/62 shadow-xl shadow-black/20 backdrop-blur-xl">
                 <Menu
                   label={
-                    referenceDiff ? `Ref: ${referenceDiff.name}` : "Reference"
+                    referenceDiff ? t("app.refShort", { name: referenceDiff.name }) : t("app.reference")
                   }
                   items={[
                     ...eligibleRefs.map((d) => ({
@@ -7731,7 +7735,7 @@ export default function App() {
                       ? [
                           { separator: true as const },
                           {
-                            label: "Turn off reference",
+                            label: t("app.referenceOff"),
                             danger: true,
                             onClick: () => setReferenceId(null),
                           },
@@ -8336,39 +8340,38 @@ export default function App() {
       <Modal
         open={pendingImport !== null}
         onClose={cancelPendingImport}
-        title="Import new map?"
+        title={t("app.importNewTitle")}
         footer={
           <>
             <Button onClick={cancelPendingImport} disabled={importingMap || exporting}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={confirmImportWithoutExport}
               disabled={importingMap || exporting}
             >
-              Don't save and import new
+              {t("app.importDontSave")}
             </Button>
             <Button
               variant="accent"
               onClick={() => void confirmExportAndImport()}
               disabled={importingMap || exporting || !canExport}
             >
-              Export current project and import new
+              {t("app.importExportFirst")}
             </Button>
           </>
         }
       >
         <div className="space-y-3 text-sm text-slate-300">
           <p>
-            You are about to replace the current project with{" "}
+            {t("app.importReplaceBefore")}{" "}
             <span className="font-medium text-slate-100">
               {pendingImport?.name}
             </span>
-            .
+            {t("app.importReplaceAfter")}
           </p>
           <p className="text-xs text-slate-500">
-            Export current project downloads an .osz first. Don't save imports
-            the new map and clears the old local save. Cancel stops the import.
+            {t("app.importReplaceHint")}
           </p>
         </div>
       </Modal>
@@ -8376,20 +8379,20 @@ export default function App() {
       <Modal
         open={pendingOsuDiffs !== null}
         onClose={() => setPendingOsuDiffs(null)}
-        title="Different song"
+        title={t("app.differentSong")}
         footer={
           <>
-            <Button onClick={() => setPendingOsuDiffs(null)}>Cancel</Button>
+            <Button onClick={() => setPendingOsuDiffs(null)}>{t("common.cancel")}</Button>
             {pendingOsuDiffs?.length === 1 && (
-              <Button onClick={openPendingOsuAsMap}>Open as a new map</Button>
+              <Button onClick={openPendingOsuAsMap}>{t("app.openAsNewMap")}</Button>
             )}
             <Button
               variant="accent"
               onClick={() => addOsuDifficulties(pendingOsuDiffs ?? [])}
             >
               {pendingOsuDiffs && pendingOsuDiffs.length > 1
-                ? "Add as difficulties"
-                : "Add as a difficulty"}
+                ? t("app.addAsDifficulties")
+                : t("app.addAsDifficulty")}
             </Button>
           </>
         }
@@ -8397,18 +8400,18 @@ export default function App() {
         <div className="space-y-3 text-sm text-slate-300">
           <p>
             {pendingOsuDiffs && pendingOsuDiffs.length > 1
-              ? "Those .osu files are metadata for another song than the one you have open."
-              : "That .osu file is metadata for another song than the one you have open."}
+              ? t("app.otherSongMany")
+              : t("app.otherSongOne")}
           </p>
           <div className="rounded-lg border border-white/10 bg-ink-700/40 px-3 py-2 text-xs">
             <p className="text-slate-400">
-              Open:{" "}
+              {t("app.openLabel")}{" "}
               <span className="font-medium text-slate-100">
                 {meta.artist} - {meta.title}
               </span>
             </p>
             <p className="mt-1 text-slate-400">
-              File:{" "}
+              {t("app.fileLabel")}{" "}
               <span className="font-medium text-slate-100">
                 {pendingOsuDiffs?.[0]
                   ? `${pendingOsuDiffs[0].parsed.meta.artist} - ${pendingOsuDiffs[0].parsed.meta.title}`
@@ -8417,8 +8420,7 @@ export default function App() {
             </p>
           </div>
           <p className="text-xs text-slate-500">
-            Adding keeps the current project and plays the new difficulty
-            against the audio you already have loaded.
+            {t("app.addingKeeps")}
           </p>
         </div>
       </Modal>
@@ -8616,13 +8618,13 @@ export default function App() {
           progressClassName="bg-accent"
           className="pointer-events-auto flex max-w-full items-center gap-3 rounded-lg border border-white/10 bg-ink-800/95 py-2 pb-3 pl-4 pr-9 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
         >
-          <span>A new version of Cascade is ready.</span>
+          <span>{t("app.newVersion")}</span>
           <button
             type="button"
             onClick={applyPendingUpdate}
             className="shrink-0 rounded-md bg-accent/90 px-2.5 py-1 text-xs font-semibold text-white transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
           >
-            Reload
+            {t("app.reload")}
           </button>
         </TimedNotification>
 
@@ -8650,14 +8652,14 @@ export default function App() {
         >
           <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
           {cloudSaveStatus === "saving" ? (
-            "Saving to your account…"
+            t("app.savingToAccount")
           ) : (
             // Fixed width: the phase labels vary wildly in length ("Compressing
             // the .osz" vs "Encoding audio - very long filename.mp3") and a
             // shrink-to-fit toast would resize on every report.
             <span className="flex w-[17rem] flex-col gap-1">
               <span className="flex items-baseline justify-between gap-3">
-                <span>Exporting map…</span>
+                <span>{t("app.exportingMap")}</span>
                 <span className="shrink-0 font-mono text-[11px] tabular-nums text-slate-300/40">
                   {exportProgress
                     ? `${Math.round(exportProgress.ratio * 100)}%`
@@ -8670,7 +8672,7 @@ export default function App() {
                 aria-valuenow={Math.round((exportProgress?.ratio ?? 0) * 100)}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={exportProgress?.label ?? "Exporting"}
+                aria-label={exportProgress?.label ?? t("app.exporting")}
               >
                 <span
                   className="block h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
@@ -8705,8 +8707,8 @@ export default function App() {
             }`}
           >
             {cloudSaveStatus === "saved"
-              ? "Saved to your account"
-              : cloudError ?? "Couldn't save to your account"}
+              ? t("app.savedToAccount")
+              : cloudError ?? t("app.saveToAccountFailed")}
           </TimedNotification>
         )}
 
@@ -8782,16 +8784,16 @@ export default function App() {
         open={pendingDeleteDiffIds !== null}
         title={
           pendingDeleteDiffIds && pendingDeleteDiffIds.length > 1
-            ? "Delete difficulties?"
-            : "Delete difficulty?"
+            ? t("app.deleteDiffsTitle")
+            : t("app.deleteDiffTitle")
         }
         message={(() => {
           const ids = pendingDeleteDiffIds ?? [];
           if (ids.length > 1)
-            return `${ids.length} difficulties and all their notes will be removed. This can't be undone.`;
+            return t("app.deleteDiffsBody", { count: ids.length });
           const d = difficulties.find((x) => x.id === ids[0]);
-          const name = d?.name?.trim() || "This difficulty";
-          return `“${name}” and all its notes will be removed. This can't be undone.`;
+          const name = d?.name?.trim();
+          return name ? t("app.deleteDiffBody", { name }) : t("app.deleteDiffBodyUnnamed");
         })()}
         onConfirm={() => {
           if (pendingDeleteDiffIds) deleteDifficulties(pendingDeleteDiffIds);
@@ -8802,11 +8804,9 @@ export default function App() {
 
       <HoldConfirmDialog
         open={confirmResnap}
-        title="Resnap objects?"
-        message={`${aiModUnsnapped} object${
-          aiModUnsnapped === 1 ? "" : "s"
-        } in “${active.name || "(unnamed)"}” will be moved onto the nearest valid beat divisor. Undo with Ctrl+Z if it isn't what you wanted.`}
-        confirmLabel="Hold to resnap"
+        title={t("app.resnapTitle")}
+        message={t("app.resnapBody", { count: aiModUnsnapped, name: active.name || t("app.unnamed") })}
+        confirmLabel={t("app.holdToResnap")}
         onConfirm={handleResnap}
         onCancel={() => setConfirmResnap(false)}
       />
