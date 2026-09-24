@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { MOTION } from "../../lib/motion";
+import { useT } from "../../lib/i18n";
 
 export const TOOLTIP_DELAY_MS = MOTION.tooltipDelay;
 
@@ -160,11 +161,12 @@ export function InfoTip({
   content: ReactNode;
   className?: string;
 }) {
+  const t = useT();
   return (
     <Tooltip content={content} underline={false} className={`align-middle ${className}`}>
       <span
         role="img"
-        aria-label="More information"
+        aria-label={t("tooltip.moreInfo")}
         className="inline-flex h-3.5 w-3.5 select-none items-center justify-center rounded-full border border-white/20 text-[9px] font-semibold leading-none text-slate-400 transition-colors hover:border-white/45 hover:text-slate-200"
       >
         i

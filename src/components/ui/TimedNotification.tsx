@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { useT } from "../../lib/i18n";
 
 type Dismiss = (afterExit?: () => void) => void;
 
@@ -38,6 +39,7 @@ export function TimedNotification({
   showClose = false,
   children,
 }: Props) {
+  const t = useT();
   const [mounted, setMounted] = useState(open);
   const [exiting, setExiting] = useState(false);
   const [cycle, setCycle] = useState(0);
@@ -119,7 +121,7 @@ export function TimedNotification({
           type="button"
           onClick={() => dismiss()}
           className="absolute right-2 top-1.5 z-10 grid h-5 w-5 place-items-center rounded text-current opacity-60 transition hover:bg-white/10 hover:opacity-100"
-          aria-label="Dismiss notification"
+          aria-label={t("notification.dismiss")}
         >
           <CloseIcon className="h-3 w-3" />
         </button>

@@ -3,6 +3,7 @@ import { withoutNoteCollisions } from "./noteCollision";
 import { patternToNotes, type PatternNote } from "./patterns";
 import { uniqueDifficultyName } from "./rateChange";
 import { snapTime } from "./timing";
+import { t } from "./i18n/core";
 
 export const NOTE_CLIP_DRAG_TYPE = "application/x-cascade-note-clip";
 
@@ -57,22 +58,24 @@ export function prepareNotePaste(
   const notes = withoutNoteCollisions(inBounds, existing);
   const skipped = [
     candidates.length < pattern.length
-      ? `${pattern.length - candidates.length} outside the current key count`
+      ? t("paste.skippedKeyCount", { count: pattern.length - candidates.length })
       : "",
     inBounds.length < candidates.length
-      ? `${candidates.length - inBounds.length} outside the song or trim`
+      ? t("paste.skippedBounds", { count: candidates.length - inBounds.length })
       : "",
     notes.length < inBounds.length
-      ? `${inBounds.length - notes.length} overlapping existing or pasted notes`
+      ? t("paste.skippedOverlap", { count: inBounds.length - notes.length })
       : "",
   ].filter(Boolean);
   const message = notes.length
-    ? `Pasted ${notes.length} note${notes.length === 1 ? "" : "s"}.`
-    : "Nothing pasted.";
+    ? t("paste.pasted", { count: notes.length })
+    : t("paste.nothing");
   return {
     candidates,
     notes,
-    message: skipped.length ? `${message} Skipped ${skipped.join("; ")}.` : message,
+    message: skipped.length
+      ? `${message} ${t("paste.skipped", { list: skipped.join("; ") })}`
+      : message,
   };
 }
 

@@ -5,6 +5,7 @@ import {
   type SvKeyframe,
 } from "../../lib/sv";
 import { MAX_SV, MIN_SV } from "../../types";
+import { useT } from "../../lib/i18n";
 
 // After Effects style value graph: keyframes carry real SV values, each pair
 // is joined by a cubic bezier, and the selected keyframe exposes its two
@@ -34,6 +35,7 @@ export function CurveEditor({
   onSelect,
   disabled,
 }: Props) {
+  const t = useT();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const dragRef = useRef<DragState>(null);
   const curve = useMemo(() => clampCurveHandles(keyframes), [keyframes]);
@@ -205,7 +207,7 @@ export function CurveEditor({
       }`}
       tabIndex={disabled ? -1 : 0}
       role="application"
-      aria-label="SV curve editor. Drag keyframes, double-click to add, Delete to remove."
+      aria-label={t("curve.label")}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}

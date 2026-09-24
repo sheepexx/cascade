@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "../../lib/i18n";
 
 const OPEN_DELAY_MS = 380;
 
@@ -34,6 +35,7 @@ export function HistoryPopover({
   live: boolean;
   children: ReactNode;
 }) {
+  const t = useT();
   const anchorRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const currentRef = useRef<HTMLButtonElement>(null);
@@ -129,14 +131,14 @@ export function HistoryPopover({
           <div
             ref={panelRef}
             role="group"
-            aria-label="Undo history"
+            aria-label={t("undoHistory.title")}
             style={{ position: "fixed", left: pos.left, top: pos.top }}
             className="tooltip-in z-[200] w-72 rounded-xl border border-white/10 bg-ink-800/90 p-2 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl"
             onMouseEnter={cancel}
             onMouseLeave={() => schedule(false, CLOSE_DELAY_MS)}
           >
             <p className="px-1.5 pb-1.5 text-[10px] uppercase tracking-wide text-slate-500">
-              {live ? "Session history" : "Undo history"}
+              {live ? t("undoHistory.session") : t("undoHistory.title")}
             </p>
             <ol className="flex max-h-72 flex-col gap-0.5 overflow-auto">
               {rows.map(({ label, index }) => (
@@ -168,7 +170,7 @@ export function HistoryPopover({
                     <span className="flex-1 truncate">{label}</span>
                     {index === current && (
                       <span className="shrink-0 text-[9px] uppercase tracking-wide text-teal-200/70">
-                        Now
+                        {t("undoHistory.now")}
                       </span>
                     )}
                   </button>
@@ -177,8 +179,8 @@ export function HistoryPopover({
             </ol>
             <p className="px-1.5 pt-1.5 text-[10px] leading-relaxed text-slate-500">
               {readOnly
-                ? "Editing is unavailable in the current mode."
-                : "Click a step to jump to it."}
+                ? t("undoHistory.readOnly")
+                : t("undoHistory.hint")}
             </p>
           </div>,
           document.body,

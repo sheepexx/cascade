@@ -258,7 +258,7 @@ function ColumnHistogram({
             key={i}
             className="group/bar relative flex-1 rounded-t-sm bg-accent/60 transition hover:bg-accent"
             style={{ height: `${Math.max(4, (count / max) * 100)}%` }}
-            title={`Column ${i + 1}: ${count} note${count === 1 ? "" : "s"}`}
+            title={t("diffSidebar.columnNotes", { column: i + 1, count })}
           />
         ))}
       </div>
@@ -464,10 +464,10 @@ function DiffRow({
             e.stopPropagation();
             onCopy();
           }}
-          title="Copy to the clipboard, to paste into this or any other map"
+          title={t("diffSidebar.copyTitle")}
           className="text-[10px] text-slate-400 transition duration-150 hover:text-slate-200"
         >
-          Copy
+          {t("common.copy")}
         </button>
         <button
           onClick={(e) => {
@@ -476,7 +476,7 @@ function DiffRow({
           }}
           className="text-[10px] text-slate-400 transition duration-150 hover:text-slate-200"
         >
-          Duplicate
+          {t("common.duplicate")}
         </button>
         {canDelete && (
           <button

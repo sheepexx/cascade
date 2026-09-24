@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { MOTION } from "../../lib/motion";
+import { useT, type MessageKey } from "../../lib/i18n";
 
 export type VolumeMeter = "effects" | "master" | "music";
 
-const METERS: { id: VolumeMeter; label: string }[] = [
-  { id: "effects", label: "Effects" },
-  { id: "master", label: "Master" },
-  { id: "music", label: "Music" },
+const METERS: { id: VolumeMeter; label: MessageKey }[] = [
+  { id: "effects", label: "volumeRings.effects" },
+  { id: "master", label: "volumeRings.master" },
+  { id: "music", label: "volumeRings.music" },
 ];
 
 const VISIBLE_MS = 1100;
@@ -88,6 +89,7 @@ export function VolumeRings({
   /** Fires once the HUD has faded out. */
   onHide?: () => void;
 }) {
+  const t = useT();
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -148,9 +150,10 @@ export function VolumeRings({
       ref={containerRef}
       role="status"
       aria-live="polite"
-      aria-label={`${METERS.find((meter) => meter.id === active)?.label ?? "Master"} volume ${Math.round(
-        values[active] * 100,
-      )} percent`}
+      aria-label={t("volumeRings.aria", {
+        meter: t(METERS.find((meter) => meter.id === active)?.label ?? "volumeRings.master"),
+        percent: Math.round(values[active] * 100),
+      })}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       className={`volume-rings fixed right-7 top-1/2 z-[180] flex -translate-y-1/2 flex-col gap-2 ${
@@ -161,7 +164,7 @@ export function VolumeRings({
         <Ring
           key={meter.id}
           id={meter.id}
-          label={meter.label}
+          label={t(meter.label)}
           value={values[meter.id]}
           active={meter.id === active}
           onHover={onActive}

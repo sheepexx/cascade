@@ -3,6 +3,7 @@ import { Button } from "./Controls";
 import { HoldToDelete } from "./HoldToDelete";
 import { useDialog } from "../../hooks/useDialog";
 import { playUiSound } from "../../lib/uiSounds";
+import { useT } from "../../lib/i18n";
 
 const EXIT_MS = 200;
 
@@ -23,6 +24,7 @@ export function HoldConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   const [shown, setShown] = useState({ title, message, confirmLabel });
@@ -94,12 +96,12 @@ export function HoldConfirmDialog({
         <div className="px-5 py-4 text-sm text-slate-300">{shown.message}</div>
         <footer className="flex justify-end gap-2 border-t border-white/10 bg-ink-700 px-5 py-3.5">
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <HoldToDelete
             onConfirm={onConfirm}
             disabled={busy}
-            title="Hold to confirm"
+            title={t("holdConfirm.title")}
             fillClassName="bg-gradient-to-r from-rose-500 via-rose-400 to-rose-300"
             className="rounded-lg border border-rose-700/50 bg-rose-600/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
           >

@@ -14,6 +14,7 @@ import {
 } from "../../lib/commandRecents";
 import { MOTION } from "../../lib/motion";
 import { playUiSound } from "../../lib/uiSounds";
+import { useT } from "../../lib/i18n";
 
 export type PaletteCommand = {
   id: string;
@@ -51,6 +52,7 @@ export function CommandPalette({
   onClose: () => void;
   commands: PaletteCommand[];
 }) {
+  const t = useT();
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   const [query, setQuery] = useState("");
@@ -121,7 +123,7 @@ export function CommandPalette({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={t("palette.title")}
         tabIndex={-1}
         className={`command-palette-panel flex h-fit max-h-[min(68vh,38rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink-800/95 shadow-[0_30px_100px_rgba(0,0,0,0.68)] outline-none ${
           closing ? "is-closing" : ""
@@ -150,13 +152,13 @@ export function CommandPalette({
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search actions and settings…"
-            aria-label="Search actions and settings"
+            placeholder={t("palette.placeholder")}
+            aria-label={t("palette.searchLabel")}
             autoComplete="off"
             spellCheck={false}
             className="h-14 min-w-0 flex-1 bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-500"
           />
-          <kbd className="rounded-md border border-white/10 bg-ink-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">esc</kbd>
+          <kbd className="rounded-md border border-white/10 bg-ink-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">{t("palette.esc")}</kbd>
         </label>
 
         <div role="listbox" className="min-h-0 overflow-y-auto p-2">
@@ -192,13 +194,13 @@ export function CommandPalette({
             ))
           ) : (
             <div className="grid min-h-36 place-items-center px-6 text-center text-sm text-slate-500">
-              No action or setting matches “{query}”.
+              {t("palette.noMatch", { query })}
             </div>
           )}
         </div>
         <div className="flex items-center gap-4 border-t border-white/10 px-4 py-2 text-[10px] text-slate-500">
-          <span><kbd className="font-mono text-slate-400">↑↓</kbd> navigate</span>
-          <span><kbd className="font-mono text-slate-400">enter</kbd> run</span>
+          <span><kbd className="font-mono text-slate-400">↑↓</kbd> {t("palette.navigate")}</span>
+          <span><kbd className="font-mono text-slate-400">{t("palette.enter")}</kbd> {t("palette.run")}</span>
           <span className="ml-auto">Ctrl K</span>
         </div>
       </div>

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
+import { useT } from "../lib/i18n";
 
 export function NowPlaying({ music }: { music: MenuMusic }) {
+  const t = useT();
   const fillRef = useRef<HTMLDivElement | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
   const musicRef = useRef(music);
@@ -76,10 +78,10 @@ export function NowPlaying({ music }: { music: MenuMusic }) {
           )}
           <span className="font-medium text-slate-200">{track.title}</span>
         </span>
-        <MiniButton label={isPlaying ? "Pause (C)" : "Play (C)"} onClick={toggle}>
+        <MiniButton label={isPlaying ? t("nowPlaying.pause") : t("nowPlaying.play")} onClick={toggle}>
           {isPlaying ? "❚❚" : "▶"}
         </MiniButton>
-        <MiniButton label="Next track (V)" onClick={next}>
+        <MiniButton label={t("nowPlaying.next")} onClick={next}>
           ▶❘
         </MiniButton>
       </div>
@@ -87,7 +89,7 @@ export function NowPlaying({ music }: { music: MenuMusic }) {
         ref={barRef}
         role="slider"
         tabIndex={0}
-        aria-label="Seek"
+        aria-label={t("nowPlaying.seek")}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(seekRatio(music) * 100)}

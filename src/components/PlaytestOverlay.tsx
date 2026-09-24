@@ -9,6 +9,7 @@ import type {
   PlaytestState,
 } from "../lib/playtestJudgements";
 import { judgementCount } from "../lib/playtestScoring";
+import { useT } from "../lib/i18n";
 
 const ORDER: ManiaJudgement[] = ["max", "300", "200", "100", "50", "miss"];
 
@@ -56,6 +57,7 @@ export function PlaytestOverlay({
   onRetry: () => void;
   onReturn: () => void;
 }) {
+  const t = useT();
   if (!state.active) return null;
   if (countdownEndsAt !== null && !resuming) {
     return <PlaytestCountdown endsAt={countdownEndsAt} />;
@@ -77,7 +79,7 @@ export function PlaytestOverlay({
         )}
         {(settings.rate ?? 1) !== 1 && (
           <div className="rounded-full border border-accent/40 bg-accent/20 px-2.5 py-0.5 text-xs font-semibold text-accent-soft shadow-lg backdrop-blur">
-            {(settings.rate ?? 1)}× rate
+            {t("playtest.rate", { rate: settings.rate ?? 1 })}
           </div>
         )}
       </div>
@@ -130,9 +132,9 @@ export function PlaytestOverlay({
       {paused && !ended && (
         <div className="pointer-events-auto absolute inset-0 grid place-items-center bg-ink-900/55 backdrop-blur-sm">
           <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-ink-800/92 p-5 text-center shadow-2xl">
-            <h2 className="text-lg font-semibold text-slate-100">Paused</h2>
+            <h2 className="text-lg font-semibold text-slate-100">{t("playtest.paused")}</h2>
             <p className="mt-1 text-xs text-slate-400">
-              {state.accuracy.toFixed(2)}% · {state.maxCombo}x max combo
+              {t("playtest.pausedSummary", { accuracy: state.accuracy.toFixed(2), combo: state.maxCombo })}
             </p>
             <div className="mt-5 flex flex-col gap-2">
               <button
@@ -140,26 +142,25 @@ export function PlaytestOverlay({
                 onClick={onContinue}
                 className="rounded-lg border border-accent-deep/40 bg-accent/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 active:scale-[0.98]"
               >
-                Continue
+                {t("playtest.continue")}
               </button>
               <button
                 type="button"
                 onClick={onRetry}
                 className="rounded-lg border border-white/10 bg-ink-700/70 px-3 py-2 text-sm font-medium text-slate-100 transition duration-150 hover:bg-ink-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
               >
-                Restart
+                {t("playtest.restart")}
               </button>
               <button
                 type="button"
                 onClick={onReturn}
                 className="rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-300 transition duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
               >
-                Go to editor
+                {t("playtest.goToEditor")}
               </button>
             </div>
             <p className="mt-4 text-[11px] text-slate-500">
-              Esc to resume · {keyLabel(settings.quickRestartKey)} to restart · F5
-              to leave
+              {t("playtest.pauseKeys", { key: keyLabel(settings.quickRestartKey) })}
             </p>
           </div>
         </div>
@@ -169,18 +170,18 @@ export function PlaytestOverlay({
         <div className="pointer-events-auto absolute inset-0 grid place-items-center bg-ink-900/45 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-800/92 p-5 text-center shadow-2xl">
             <h2 className="text-lg font-semibold text-slate-100">
-              Results
+              {t("playtest.results")}
               {(settings.rate ?? 1) !== 1 && (
                 <span className="ml-2 align-middle text-xs font-semibold text-accent-soft">
-                  {(settings.rate ?? 1)}× rate
+                  {t("playtest.rate", { rate: settings.rate ?? 1 })}
                 </span>
               )}
             </h2>
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <ResultStat label="Accuracy" value={`${state.accuracy.toFixed(2)}%`} />
-              <ResultStat label="Max combo" value={String(state.maxCombo)} />
-              <ResultStat label="Score" value={state.score.toLocaleString()} />
-              <ResultStat label="Judgements" value={String(judged)} />
+              <ResultStat label={t("playtest.accuracy")} value={`${state.accuracy.toFixed(2)}%`} />
+              <ResultStat label={t("playtest.maxCombo")} value={String(state.maxCombo)} />
+              <ResultStat label={t("playtest.score")} value={state.score.toLocaleString()} />
+              <ResultStat label={t("playtest.judgements")} value={String(judged)} />
             </div>
             <div className="mt-4 grid grid-cols-3 gap-1.5 text-xs">
               {ORDER.map((j) => (
@@ -193,14 +194,14 @@ export function PlaytestOverlay({
                 onClick={onRetry}
                 className="rounded-lg border border-accent-deep/40 bg-accent/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 active:scale-[0.98]"
               >
-                Retry
+                {t("common.retry")}
               </button>
               <button
                 type="button"
                 onClick={onReturn}
                 className="rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-300 transition duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
               >
-                Return to editor
+                {t("playtest.returnToEditor")}
               </button>
             </div>
           </div>
@@ -221,6 +222,7 @@ function PlaytestCountdown({
   endsAt: number;
   resuming?: boolean;
 }) {
+  const t = useT();
   const [remaining, setRemaining] = useState(() =>
     Math.max(0, endsAt - performance.now()),
   );
@@ -243,7 +245,7 @@ function PlaytestCountdown({
     <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-ink-900/28 backdrop-blur-[2px]">
       <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/10 bg-ink-900/76 px-10 py-7 text-center shadow-2xl backdrop-blur-xl">
         <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-300">
-          {resuming ? "Resuming" : "Get ready"}
+          {resuming ? t("playtest.resuming") : t("playtest.getReady")}
         </span>
         <div
           className="grid h-24 w-24 place-items-center rounded-full p-1 shadow-[0_0_32px_rgba(91,192,255,0.2)]"
@@ -256,7 +258,7 @@ function PlaytestCountdown({
           </div>
         </div>
         {!resuming && (
-          <span className="text-xs text-slate-400">Early notes are skipped</span>
+          <span className="text-xs text-slate-400">{t("playtest.earlySkipped")}</span>
         )}
       </div>
     </div>

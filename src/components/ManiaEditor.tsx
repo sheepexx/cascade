@@ -434,7 +434,7 @@ export function ManiaEditor(props: Props) {
     const p = propsRef.current;
     const notes = p.notes.filter(n => selectedNoteIdsRef.current.has(n.id));
     if (notes.length) setPatternImage({ notes, keyCount: p.keyCount, timingPoints: p.timingPoints,
-      title: p.patternTitle ?? "Pattern selection", difficulty: p.difficultyName ?? "", upscroll: p.upscroll });
+      title: p.patternTitle ?? t("editor.patternSelection"), difficulty: p.difficultyName ?? "", upscroll: p.upscroll });
   }, []);
   const dirtyRef = useRef(true);
   dirtyRef.current = true;
@@ -668,7 +668,7 @@ export function ManiaEditor(props: Props) {
     const { notes, timingPoints } = propsRef.current;
     const selected = notes.filter((n) => selectedNoteIdsRef.current.has(n.id));
     if (!selected.length) {
-      setClipboardStatus("Select notes to copy.");
+      setClipboardStatus(t("editor.selectToCopy"));
       return null;
     }
     const timestamp = formatOsuTimestamp(selected, timingPoints) ?? undefined;
@@ -683,7 +683,7 @@ export function ManiaEditor(props: Props) {
     // it, so the selection pastes into a modding post or Discord as a link.
     if (timestamp) void navigator.clipboard?.writeText(timestamp).catch(() => {});
     setClipboardStatus(
-      `Copied ${selected.length} note${selected.length === 1 ? "" : "s"}.`,
+      t("editor.copiedNotes", { count: selected.length }),
     );
     return clip;
   }, []);
@@ -802,7 +802,7 @@ export function ManiaEditor(props: Props) {
     if (propsRef.current.readOnly) return;
     const clip = activeClip(getClipboard());
     if (!clip) {
-      setClipboardStatus("Copy some notes before pasting.");
+      setClipboardStatus(t("editor.copyBeforePaste"));
       return;
     }
     if (clip.kind === "difficulty") {
@@ -836,19 +836,19 @@ export function ManiaEditor(props: Props) {
       const clock = formatOsuClock(stamp.time);
       const named = stamp.notes.length;
       if (!named) {
-        setClipboardStatus(`Jumped to ${clock}.`);
+        setClipboardStatus(t("editor.jumped", { clock }));
         return;
       }
       const found = notesAtOsuTimestamp(stamp, notes, timingPoints);
       setSelection(new Set(found.map((n) => n.id)));
       setClipboardStatus(
         found.length >= named
-          ? `Jumped to ${clock} and selected ${named} note${named === 1 ? "" : "s"}.`
+          ? t("editor.jumpedSelected", { clock, count: named })
           : found.length
-            ? `Jumped to ${clock} and selected ${found.length} of ${named} notes; the rest are not in this difficulty.`
+            ? t("editor.jumpedSomeSelected", { clock, found: found.length, count: named })
             : named === 1
-              ? `Jumped to ${clock}. Its note is not in this difficulty.`
-              : `Jumped to ${clock}. None of its ${named} notes are in this difficulty.`,
+              ? t("editor.jumpedNoteMissing", { clock })
+              : t("editor.jumpedNotesMissing", { clock, count: named }),
       );
     },
     [setSelection],
@@ -3093,7 +3093,7 @@ export function ManiaEditor(props: Props) {
     }
     if (!positionPatternForDrop(clip.notes, 0, propsRef.current.keyCount)) {
       e.preventDefault();
-      setClipboardStatus("This pattern is wider than the current playfield.");
+      setClipboardStatus(t("editor.patternTooWide"));
       return;
     }
     e.stopPropagation();
@@ -3107,7 +3107,7 @@ export function ManiaEditor(props: Props) {
     moveDragRef.current = null;
     selectionDragRef.current = null;
     mouseRef.current.inside = false;
-    setClipboardStatus("Drop onto a lane to paste. Red notes cannot be placed.");
+    setClipboardStatus(t("editor.dropHint"));
     markDirty();
   };
 
@@ -3206,7 +3206,7 @@ export function ManiaEditor(props: Props) {
       <canvas
         ref={canvasRef}
         tabIndex={props.keyboardShortcuts === false ? -1 : 0}
-        aria-label="Note editor"
+        aria-label={t("editor.ariaLabel")}
         className={`block h-full w-full touch-none ${
           props.playtestMode
             ? "cursor-default"
@@ -3244,7 +3244,7 @@ export function ManiaEditor(props: Props) {
               : "-translate-y-2 opacity-0"
           }`}
         >
-          Multi selection active
+          {t("editor.multiSelect")}
         </div>
       )}
 
@@ -3262,11 +3262,11 @@ export function ManiaEditor(props: Props) {
               }`}
               title={
                 mode === "edit"
-                  ? "Draw or replace notes"
-                  : "Click, drag, or box-select notes"
+                  ? t("editor.editModeTitle")
+                  : t("editor.selectModeTitle")
               }
             >
-              {mode}
+              {mode === "edit" ? t("editor.editMode") : t("editor.selectMode")}
             </button>
           ))}
           <span className="self-center px-1 text-[9px] text-slate-600">Q</span>
@@ -3281,70 +3281,70 @@ export function ManiaEditor(props: Props) {
               : "border-slate-400/25 bg-ink-800/70 text-slate-200"
           }`}
         >
-          Receptors {receptorsOn ? "on" : "off"} · press R
+          {receptorsOn ? t("editor.receptorsOn") : t("editor.receptorsOff")}
         </div>
       )}
 
       {selectionCount > 0 && !props.playtestMode && (
         <div className="absolute left-1/2 top-3 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 select-none flex-wrap items-center justify-center gap-1 rounded-lg border border-yellow-300/30 bg-ink-800/92 p-1 text-[11px] text-slate-200 shadow-xl backdrop-blur">
           <span className="font-medium text-yellow-200">
-            {selectionCount} selected
+            {t("editor.selected", { count: selectionCount })}
           </span>
           <span className="mx-0.5 h-4 w-px bg-white/10" />
           <SelectionActionButton
-            label="Copy"
-            title="Copy selection (Ctrl+C)"
+            label={t("common.copy")}
+            title={t("editor.copySelection")}
             onClick={copySelection}
           />
-          <SelectionActionButton label="Image" title="Copy selection as image (Ctrl+Shift+C)" onClick={openPatternImage} />
+          <SelectionActionButton label={t("editor.image")} title={t("editor.copyImage")} onClick={openPatternImage} />
           <SelectionActionButton
             label="←"
-            title="Move one lane left (Left Arrow)"
+            title={t("editor.moveLeft")}
             onClick={() => nudgeSelection("left")}
           />
           <SelectionActionButton
             label="−t"
-            title="Move one snap earlier (Up/Down Arrow follows scroll direction)"
+            title={t("editor.moveEarlier")}
             onClick={() => nudgeSelection("earlier")}
           />
           <SelectionActionButton
             label="+t"
-            title="Move one snap later (Up/Down Arrow follows scroll direction)"
+            title={t("editor.moveLater")}
             onClick={() => nudgeSelection("later")}
           />
           <SelectionActionButton
             label="→"
-            title="Move one lane right (Right Arrow)"
+            title={t("editor.moveRight")}
             onClick={() => nudgeSelection("right")}
           />
           <SelectionActionButton
-            label="Mirror"
-            title="Mirror columns (M)"
+            label={t("editor.mirror")}
+            title={t("editor.mirrorTitle")}
             onClick={mirrorSelection}
           />
           <SelectionActionButton
-            label="Reverse"
-            title="Reverse timing (F)"
+            label={t("editor.reverse")}
+            title={t("editor.reverseTitle")}
             onClick={reverseSelection}
           />
           <SelectionActionButton
-            label="Shuffle"
-            title="Shuffle columns (S)"
+            label={t("editor.shuffle")}
+            title={t("editor.shuffleTitle")}
             onClick={shuffleSelection}
           />
           <SelectionActionButton
             label="½"
-            title="Halve pattern timing ([)"
+            title={t("editor.halveTitle")}
             onClick={() => scaleSelection(0.5)}
           />
           <SelectionActionButton
             label="2×"
-            title="Double pattern timing (])"
+            title={t("editor.doubleTitle")}
             onClick={() => scaleSelection(2)}
           />
           <SelectionActionButton
-            label="Delete"
-            title="Delete selection (Delete)"
+            label={t("common.delete")}
+            title={t("editor.deleteTitle")}
             danger
             onClick={deleteSelection}
           />
@@ -3354,7 +3354,7 @@ export function ManiaEditor(props: Props) {
       {!props.playtestMode && !props.hideClipboard && (clipboard || history.length > 0) && (
         <div className="absolute right-3 top-14 w-44 select-none rounded-lg border border-ink-600 bg-ink-800/90 p-2 text-xs text-slate-300 shadow-xl backdrop-blur">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="font-medium text-slate-200">Clipboard</span>
+            <span className="font-medium text-slate-200">{t("editor.clipboard")}</span>
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -3363,9 +3363,9 @@ export function ManiaEditor(props: Props) {
                   setClipboardStatus("");
                 }}
                 className="rounded px-1 py-0.5 text-[10px] text-slate-500 transition hover:bg-ink-600 hover:text-slate-200"
-                title="Clear the clipboard and pasteboard history"
+                title={t("editor.clearClipboardTitle")}
               >
-                Clear
+                {t("editor.clear")}
               </button>
               <span className="text-[10px] text-slate-500">Ctrl+V</span>
             </div>
@@ -3380,9 +3380,9 @@ export function ManiaEditor(props: Props) {
                 onClick={paste}
                 disabled={props.readOnly || !props.onPasteDifficulty}
                 className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-ink-600 disabled:opacity-40"
-                title="Add this difficulty to the open map (Ctrl+V)"
+                title={t("editor.addDifficultyTitle")}
               >
-                Add to this map
+                {t("editor.addToMap")}
               </button>
             </div>
           ) : clipboard ? (
@@ -3391,27 +3391,26 @@ export function ManiaEditor(props: Props) {
                 draggable={!props.readOnly}
                 onDragStart={(e) => onClipDragStart(e, clipboard)}
                 onDragEnd={clearClipDrag}
-                title="Drag onto the playfield to paste at a time and lane"
+                title={t("editor.dragClipTitle")}
                 className={`flex items-center gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5 ${props.readOnly ? "" : "cursor-grab active:cursor-grabbing"}`}
               >
                 <ClipThumb clip={clipboard} keyCount={props.keyCount} />
                 <span className="min-w-0 text-[10px] text-slate-400">
-                  {clipboard.notes.length} note
-                  {clipboard.notes.length === 1 ? "" : "s"}
+                  {t("editor.noteCount", { count: clipboard.notes.length })}
                 </span>
                 <SnapBadge pattern={clipboard.notes} />
               </div>
               {!props.readOnly && (
-                <span className="text-center text-[10px] text-slate-400">Drag onto the playfield</span>
+                <span className="text-center text-[10px] text-slate-400">{t("editor.dragOntoPlayfield")}</span>
               )}
               <button
                 type="button"
                 onClick={paste}
                 disabled={props.readOnly}
                 className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-ink-600 disabled:opacity-40"
-                title="Paste at the playhead (Ctrl+V)"
+                title={t("editor.pasteAtPlayheadTitle")}
               >
-                Paste at playhead
+                {t("editor.pasteAtPlayhead")}
               </button>
               {props.onPublishPattern && (
                 <button
@@ -3423,20 +3422,20 @@ export function ManiaEditor(props: Props) {
                     )
                   }
                   className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:border-accent/60 hover:bg-ink-600"
-                  title="Publish this copied pattern as a shared preset"
+                  title={t("editor.saveAsPresetTitle")}
                 >
-                  Save as preset…
+                  {t("editor.saveAsPreset")}
                 </button>
               )}
             </div>
           ) : (
-            <p className="text-[11px] text-slate-500">Nothing copied yet</p>
+            <p className="text-[11px] text-slate-500">{t("editor.nothingCopied")}</p>
           )}
 
           {history.length > 1 && (
             <>
               <div className="mb-1 mt-2.5 text-[10px] uppercase tracking-wide text-slate-500">
-                Pasteboard
+                {t("editor.pasteboard")}
               </div>
               <div className="flex flex-col gap-1">
                 {history.map((item) => (
@@ -3450,15 +3449,15 @@ export function ManiaEditor(props: Props) {
                     onDragEnd={clearClipDrag}
                     title={
                       item.kind === "notes"
-                        ? "Select this pattern, or drag it onto the playfield"
-                        : "Select this difficulty to add it to the open map"
+                        ? t("editor.selectPatternTitle")
+                        : t("editor.selectDifficultyTitle")
                     }
                     onClick={() => {
                       selectClip(item.id);
                       setClipboardStatus(
                         item.kind === "notes"
-                          ? `${item.notes.length} notes ready to paste.`
-                          : `${item.difficulty.name || "Difficulty"} ready to add.`,
+                          ? t("editor.notesReady", { count: item.notes.length })
+                          : t("editor.difficultyReady", { name: item.difficulty.name || t("editor.difficulty") }),
                       );
                     }}
                     className={`flex min-h-[30px] items-center gap-2 rounded-md border px-1.5 py-1 text-left transition ${
@@ -3471,8 +3470,7 @@ export function ManiaEditor(props: Props) {
                       <>
                         <ClipThumb clip={item} keyCount={props.keyCount} small />
                         <span className="min-w-0 flex-1 text-[10px] text-slate-400">
-                          {item.notes.length} note
-                          {item.notes.length === 1 ? "" : "s"}
+                          {t("editor.noteCount", { count: item.notes.length })}
                         </span>
                         <SnapBadge pattern={item.notes} />
                       </>

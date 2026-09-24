@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ManiaNote } from "../types";
 import { computeStarRating } from "../lib/starRating";
 import { maniaMaxPP } from "../lib/performance";
+import { useT } from "../lib/i18n";
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
 
@@ -18,6 +19,7 @@ export function PPCounter({
   playbackRate,
   onPlaybackRateChange,
 }: Props) {
+  const t = useT();
   const pp = useMemo(() => {
     const star = computeStarRating(notes, keyCount);
     return maniaMaxPP(star, notes);
@@ -27,7 +29,7 @@ export function PPCounter({
     <div className="absolute bottom-3 right-3 flex select-none items-stretch gap-2 transition-opacity duration-300">
       <div className="flex items-center gap-1.5 rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 shadow-xl shadow-black/25 backdrop-blur-xl">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">
-          Speed
+          {t("pp.speed")}
         </span>
         <div className="flex overflow-hidden rounded-md border border-white/10">
           {PLAYBACK_RATES.map((rate) => (
@@ -55,7 +57,7 @@ export function PPCounter({
             pp
           </span>
         </div>
-        <div className="mt-0.5 text-[10px] text-slate-500">max · SS</div>
+        <div className="mt-0.5 text-[10px] text-slate-500">{t("pp.maxSs")}</div>
       </div>
     </div>
   );

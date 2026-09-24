@@ -22,6 +22,7 @@ import {
   bookmarkLabel,
   type BookmarkLoopRange,
 } from "../lib/bookmarks";
+import { useT } from "../lib/i18n";
 
 const HEIGHT = 96;
 const AVATAR_R = 9;
@@ -186,6 +187,7 @@ export function BottomTimeline({
   onSetFadeOut,
   selectedTimingIds,
 }: Props) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const lowSpec = usePerformanceMode();
@@ -1339,12 +1341,12 @@ export function BottomTimeline({
             <span className="truncate">{tip.author}</span>
             {tip.resolved && (
               <span className="rounded bg-ink-600 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-400">
-                Resolved
+                {t("timeline.resolved")}
               </span>
             )}
           </div>
           <div className="mt-0.5 line-clamp-4 whitespace-pre-wrap break-words text-xs text-slate-300">
-            {tip.body || "(no text)"}
+            {tip.body || t("timeline.noText")}
           </div>
         </div>
       )}
@@ -1360,7 +1362,7 @@ export function BottomTimeline({
           }}
         >
           <span className="font-medium text-amber-300">
-            {bookmarkTip.label || "Bookmark"}
+            {bookmarkTip.label || t("editor.bookmark")}
           </span>{" "}
           <span className="font-mono text-slate-500">
             {formatTimestamp(bookmarkTip.timeMs)}
@@ -1400,7 +1402,7 @@ export function BottomTimeline({
         )}
 
       <div className="pointer-events-none absolute right-2 top-1.5 select-none rounded bg-ink-900/70 px-2 py-0.5 text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
-        waveform {sensitivity.toFixed(1)}× · scroll to adjust
+        {t("timeline.waveformHint", { value: sensitivity.toFixed(1) })}
       </div>
 
       {!!bookmarks?.length && (
@@ -1410,7 +1412,7 @@ export function BottomTimeline({
             onClick={onPreviousBookmark}
             disabled={!onPreviousBookmark}
             className="rounded px-1.5 py-1 text-amber-300 transition duration-150 hover:bg-white/10 disabled:opacity-40"
-            title="Previous bookmark (Page Up)"
+            title={t("timeline.previousBookmark")}
           >
             ‹ ⚑
           </button>
@@ -1419,7 +1421,7 @@ export function BottomTimeline({
             onClick={onNextBookmark}
             disabled={!onNextBookmark}
             className="rounded px-1.5 py-1 text-amber-300 transition duration-150 hover:bg-white/10 disabled:opacity-40"
-            title="Next bookmark (Page Down)"
+            title={t("timeline.nextBookmark")}
           >
             ⚑ ›
           </button>
@@ -1435,13 +1437,13 @@ export function BottomTimeline({
               }`}
               title={
                 loopRange
-                  ? `${loopEnabled ? "Disable" : "Enable"} bookmark loop (${formatTimestamp(
-                      loopRange.startMs,
-                    )}–${formatTimestamp(loopRange.endMs)})`
-                  : "Loop between the bookmarks around the playhead"
+                  ? t(loopEnabled ? "timeline.disableLoop" : "timeline.enableLoop", {
+                      range: `${formatTimestamp(loopRange.startMs)}–${formatTimestamp(loopRange.endMs)}`,
+                    })
+                  : t("timeline.loopHint")
               }
             >
-              ↻ Loop
+              ↻ {t("timeline.loop")}
             </button>
           )}
           {loopRange && onClearLoop && (
@@ -1449,7 +1451,7 @@ export function BottomTimeline({
               type="button"
               onClick={onClearLoop}
               className="grid h-5 w-5 place-items-center rounded text-slate-500 transition hover:bg-white/10 hover:text-slate-200"
-              title="Clear loop range"
+              title={t("timeline.clearLoop")}
             >
               <CloseIcon className="h-3 w-3" />
             </button>
@@ -1485,7 +1487,7 @@ export function BottomTimeline({
                   setMenu(null);
                 }}
               >
-                <span className="text-purple-300">◆</span> Set preview point
+                <span className="text-purple-300">◆</span> {t("timeline.setPreviewPoint")}
               </MenuItem>
             )}
             {((menu.bookmark === null && onAddBookmark) ||
@@ -1493,8 +1495,8 @@ export function BottomTimeline({
                 <div className="border-t border-white/10 px-2 py-2">
                   <label className="mb-1 block text-[10px] text-slate-500">
                     {menu.bookmark === null
-                      ? "Bookmark name (optional)"
-                      : "Bookmark name"}
+                      ? t("timeline.bookmarkNameOptional")
+                      : t("timeline.bookmarkName")}
                   </label>
                   <div className="flex gap-1">
                     <input
@@ -1511,7 +1513,7 @@ export function BottomTimeline({
                         }
                         setMenu(null);
                       }}
-                      placeholder="e.g. chorus"
+                      placeholder={t("timeline.bookmarkPlaceholder")}
                       className="min-w-0 flex-1 rounded border border-ink-500 bg-ink-700 px-2 py-1 text-xs text-slate-100 outline-none focus:border-accent/70"
                     />
                     <button
@@ -1526,7 +1528,7 @@ export function BottomTimeline({
                       }}
                       className="rounded bg-accent px-2 text-[10px] font-medium text-ink-900"
                     >
-                      {menu.bookmark === null ? "Add" : "Save"}
+                      {menu.bookmark === null ? t("common.add") : t("common.save")}
                     </button>
                   </div>
                 </div>
@@ -1540,7 +1542,7 @@ export function BottomTimeline({
                       setMenu(null);
                     }}
                   >
-                    <span className="text-teal-300">[</span> Use as loop start
+                    <span className="text-teal-300">[</span> {t("timeline.useAsLoopStart")}
                   </MenuItem>
                 )}
                 {onSetLoopEnd && (
@@ -1550,7 +1552,7 @@ export function BottomTimeline({
                       setMenu(null);
                     }}
                   >
-                    <span className="text-teal-300">]</span> Use as loop end
+                    <span className="text-teal-300">]</span> {t("timeline.useAsLoopEnd")}
                   </MenuItem>
                 )}
                 {onRemoveBookmark && (
@@ -1560,7 +1562,7 @@ export function BottomTimeline({
                       setMenu(null);
                     }}
                   >
-                    <span className="text-indigo-300">⚑</span> Remove bookmark
+                    <span className="text-indigo-300">⚑</span> {t("timeline.removeBookmark")}
                   </MenuItem>
                 )}
               </>

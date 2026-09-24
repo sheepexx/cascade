@@ -5,6 +5,7 @@ import { CloseIcon } from "./Icons";
 import { MOTION } from "../../lib/motion";
 import { playUiSound } from "../../lib/uiSounds";
 import type { CSSProperties } from "react";
+import { useT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -41,6 +42,7 @@ export function Modal({
   modeless = false,
   accent,
 }: Props) {
+  const t = useT();
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   const titleId = useId();
@@ -204,7 +206,7 @@ export function Modal({
               type="button"
               onClick={onClose}
               className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition duration-[var(--motion-quick)] hover:bg-white/10 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
-              aria-label="Close"
+              aria-label={t("common.close")}
             >
               <CloseIcon className="h-4 w-4" />
             </button>

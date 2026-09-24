@@ -156,7 +156,7 @@ export function TransportBar({
             className="cursor-pointer rounded border border-white/5 bg-ink-900/55 px-2 py-1 text-xs text-slate-400 shadow-inner shadow-black/10 backdrop-blur transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
             title={t("transport.jumpButton")}
           >
-            Go to
+            {t("transport.goTo")}
           </button>
         )}
       </div>
@@ -194,7 +194,7 @@ export function TransportBar({
               })
             }
             className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-700 text-sm text-slate-300 transition duration-150 hover:bg-ink-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
-            aria-label="Zoom out timeline"
+            aria-label={t("transport.zoomOut")}
           >
             −
           </button>
@@ -204,7 +204,7 @@ export function TransportBar({
             max={MAX_SCROLL_SPEED}
             step={1}
             value={view.scrollSpeed}
-            aria-label="Timeline zoom"
+            aria-label={t("transport.zoom")}
             onChange={(value) => onView({ ...view, scrollSpeed: value })}
             className="w-16 uixl:w-24"
           />
@@ -217,7 +217,7 @@ export function TransportBar({
               })
             }
             className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-700 text-sm text-slate-300 transition duration-150 hover:bg-ink-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
-            aria-label="Zoom in timeline"
+            aria-label={t("transport.zoomIn")}
           >
             +
           </button>

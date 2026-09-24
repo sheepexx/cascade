@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ClipAssetKind } from "../../lib/clipboardAssets";
 import type { DifficultyClip } from "../../lib/clipboardStore";
 import { computeStarRating, starColor, starTextOn } from "../../lib/starRating";
+import { useT } from "../../lib/i18n";
 
 const ASSET_LABELS: Record<ClipAssetKind, string> = {
   audio: "Music",
@@ -21,6 +22,7 @@ export function DifficultyClipLabel({
   clip: DifficultyClip;
   detailed?: boolean;
 }) {
+  const t = useT();
   const { difficulty } = clip;
   const star = useMemo(
     () => computeStarRating(difficulty.notes, difficulty.keyCount),
@@ -62,7 +64,7 @@ export function DifficultyClipLabel({
           ★ {star.toFixed(2)}
         </span>
         <span className="truncate text-[10px] text-slate-400">
-          {count} note{count === 1 ? "" : "s"}
+          {t("clipLabel.notes", { count })}
         </span>
       </span>
       {!!clip.assets?.length && (

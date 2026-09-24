@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useT } from "../../lib/i18n";
 
 const SESSION_KEY = "cascade:intro:shown";
 const INTRO_MS = 2100;
@@ -26,6 +27,7 @@ export function SessionIntro({
   musicPlaying: boolean;
   ready: boolean;
 }) {
+  const t = useT();
   const [visible, setVisible] = useState(() => enabled && shouldShow());
   const [leaving, setLeaving] = useState(false);
   const [started, setStarted] = useState(musicPlaying);
@@ -86,7 +88,7 @@ export function SessionIntro({
       } ${
         leaving ? "is-leaving" : ""
       }`}
-      aria-label="Skip Cascade intro"
+      aria-label={t("intro.skipLabel")}
     >
       <span aria-hidden className="session-intro-ring" />
       <span className="session-intro-lockup relative flex flex-col items-center">
@@ -99,7 +101,7 @@ export function SessionIntro({
         <span className="session-intro-word mt-5 text-3xl font-bold tracking-tight">Cascade</span>
         <span className="session-intro-sub mt-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-accent">VSRG Editor</span>
       </span>
-      <span className="absolute bottom-6 text-[10px] uppercase tracking-[0.22em] text-white/30">click or press a key to skip</span>
+      <span className="absolute bottom-6 text-[10px] uppercase tracking-[0.22em] text-white/30">{t("intro.skip")}</span>
     </button>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { useT } from "../../lib/i18n";
 
 const STEP_MS = 90;
 
@@ -30,11 +31,12 @@ function Group({
   className?: string;
   children: ReactNode;
 }) {
+  const t = useT();
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label={label ?? "Loading"}
+      aria-label={label ?? t("common.loading")}
       className={className}
     >
       {children}
