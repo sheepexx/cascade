@@ -11,7 +11,7 @@ import { SLUG as DOWNLOAD_SLUG } from "./download-content.mjs";
 const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-const HOME_UPDATED = "2026-08-12";
+const HOME_UPDATED = "2026-09-24";
 
 const GENERATED = LANDING_PAGES.flatMap((page) =>
   Object.keys(LOCALES).map((locale) => ({
@@ -33,7 +33,7 @@ const LOCALISED_HOMES = Object.keys(LOCALES)
 
 const DOWNLOAD = Object.keys(LOCALES).map((locale) => ({
   path: urlFor(DOWNLOAD_SLUG, locale),
-  updated: "2026-09-08",
+  updated: "2026-09-24",
   priority: locale === "en" ? "0.8" : "0.6",
   changefreq: "weekly",
 }));
@@ -44,31 +44,31 @@ const PAGES = [
   ...DOWNLOAD,
   {
     path: "/how-to-make-an-osu-mania-map",
-    updated: "2026-08-12",
+    updated: "2026-09-24",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
     path: "/osu-to-stepmania",
-    updated: "2026-08-12",
+    updated: "2026-09-24",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
     path: "/osu-mania-map-viewer",
-    updated: "2026-08-12",
+    updated: "2026-09-24",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
     path: "/osu-mania-pack-creator",
-    updated: "2026-08-12",
+    updated: "2026-09-24",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
     path: "/osu-mania-sv-editor",
-    updated: "2026-08-12",
+    updated: "2026-09-24",
     priority: "0.7",
     changefreq: "monthly",
   },
@@ -81,7 +81,7 @@ const PAGES = [
   },
   {
     path: "/terms",
-    updated: "2026-09-10",
+    updated: "2026-09-24",
     priority: "0.3",
     changefreq: "yearly",
   },
