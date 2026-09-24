@@ -180,6 +180,8 @@ type Props = {
   onCurrentSampleSet: (value: number) => void;
   hitsoundSources?: HitsoundSource[];
   onCopyHitsounds?: (sourceId: string) => void;
+  /** Copies this difficulty's hitsounds onto every difficulty on the same audio. */
+  onCopyHitsoundsToAll?: () => void;
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
   /** Adds a difficulty pasted from the clipboard, with its files, to the open map. */
   onPasteDifficulty?: (clip: DifficultyClip) => void;
@@ -3483,7 +3485,7 @@ export function ManiaEditor(props: Props) {
 
       {hitsoundBarMounted && !props.zenMode && (
         <div
-          className={`absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/90 px-2.5 py-1.5 text-xs text-slate-200 shadow-xl backdrop-blur ${
+          className={`absolute bottom-3 left-1/2 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center whitespace-nowrap gap-2 rounded-lg border border-ink-600 bg-ink-800/90 px-2.5 py-1.5 text-xs text-slate-200 shadow-xl backdrop-blur ${
             hitsoundBarClosing ? "hitsound-bar-out" : "hitsound-bar-in"
           }`}
         >
@@ -3536,17 +3538,30 @@ export function ManiaEditor(props: Props) {
             <>
               <span className="text-slate-600">·</span>
               <Menu
-                label="Copy from"
+                label="Copy"
                 className="!rounded !bg-ink-700 !px-2 !py-0.5 !text-xs hover:!bg-ink-600"
-                items={(props.hitsoundSources ?? []).map((s) => ({
-                  label: `${s.name} (${s.hitsoundCount} hitsounded)`,
+                items={[
+                  ...(props.onCopyHitsoundsToAll
+                    ? [
+                        {
+                          label: "Onto every other difficulty",
+                          onClick: props.onCopyHitsoundsToAll,
+                          title:
+                            "Copy this difficulty's hitsounds onto every other difficulty that uses the same song",
+                        },
+                        { separator: true as const },
+                      ]
+                    : []),
+                  ...(props.hitsoundSources ?? []).map((s) => ({
+                  label: `From ${s.name} (${s.hitsoundCount} hitsounded)`,
                   disabled: s.hitsoundCount === 0,
                   onClick: () => props.onCopyHitsounds?.(s.id),
                   title:
                     s.hitsoundCount === 0
                       ? "This difficulty has no hitsounds"
                       : `Copy hitsounds from ${s.name} onto this difficulty`,
-                }))}
+                  })),
+                ]}
               />
             </>
           )}

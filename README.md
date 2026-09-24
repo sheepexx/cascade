@@ -255,7 +255,7 @@ The local project list, search and sorting also work without an account.
 
 ## Sound, skins and languages
 
-- osu! hitsounds per note: sample sets normal, soft and drum, plus whistle, finish and clap. Edit them with the hitsound toolbar or in hitsound mode.
+- osu! hitsounds per note: sample sets normal, soft and drum, plus whistle, finish and clap. Edit them with the hitsound toolbar or in hitsound mode. The Copy menu in hitsound mode copies hitsounds from another difficulty, or onto every other difficulty that uses the same song.
 - Separate volume for master, music and hitsounds. Interface sounds for clicks, confirmations, invitations, cloud saves and exports can be turned off.
 - Upload an `.osk` skin. Cascade reads `skin.ini` and applies the lane colours and note images for each key mode. Anything the skin does not define falls back to the default style. Playtest can use the skin's judgement images and combo font.
 - The desktop app on Windows can also load any skin installed in your osu! folder.

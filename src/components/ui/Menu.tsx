@@ -48,7 +48,10 @@ export function Menu({
   const [closing, setClosing] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, right: 0 });
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number }>({
+    top: 0,
+    right: 0,
+  });
 
   useEffect(() => {
     if (open) {
@@ -69,12 +72,20 @@ export function Menu({
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const width = menuRef.current?.offsetWidth ?? 0;
+    const height = menuRef.current?.offsetHeight ?? 0;
     const maxRight = Math.max(8, window.innerWidth - width - 8);
-    setPos({
-      top: rect.bottom + 4,
-      right: Math.min(Math.max(8, window.innerWidth - rect.right), maxRight),
-    });
-  }, [open]);
+    const right = Math.min(Math.max(8, window.innerWidth - rect.right), maxRight);
+    // A trigger near the bottom of the window, like the hitsound toolbar,
+    // opens its menu upward when there is more room above.
+    const roomBelow = window.innerHeight - rect.bottom - 8;
+    const roomAbove = rect.top - 8;
+    setPos(
+      (height > roomBelow || rect.top > window.innerHeight * 0.75) &&
+        roomAbove > Math.max(roomBelow, height)
+        ? { bottom: window.innerHeight - rect.top + 4, right }
+        : { top: rect.bottom + 4, right },
+    );
+  }, [open, mounted]);
 
   useEffect(() => {
     if (!open) return;
@@ -150,7 +161,7 @@ export function Menu({
         createPortal(
           <div
             ref={menuRef}
-            style={{ position: "fixed", top: pos.top, right: pos.right }}
+            style={{ position: "fixed", top: pos.top, bottom: pos.bottom, right: pos.right }}
             role="menu"
             className={`z-[100] w-52 overflow-hidden rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl ${closing ? "menu-pop-out" : "menu-pop-in"}`}
           >

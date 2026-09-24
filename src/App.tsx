@@ -4345,11 +4345,52 @@ export default function App() {
       const source = diffs.find((d) => d.id === sourceId);
       if (!target || !source) return;
       const { before, after } = copyHitsounds(target.notes, source.notes);
-      if (after.length === 0) return;
+      if (after.length === 0) {
+        announceShortcut(`${source.name || "That difficulty"} has no new hitsounds for these notes`);
+        return;
+      }
       commitNoteOp({ t: "note.update", diffId: did, before, after });
+      announceShortcut(
+        `Copied hitsounds from ${source.name || "(unnamed)"} onto ${after.length} ${after.length === 1 ? "note" : "notes"}`,
+      );
     },
-    [commitNoteOp],
+    [commitNoteOp, announceShortcut],
   );
+
+  // Rate-changed difficulties sit on a stretched copy of the song, so only
+  // difficulties on the same audio line up note for note.
+  const hitsoundTargets = useMemo(
+    () =>
+      difficulties.filter(
+        (d) =>
+          d.id !== activeId &&
+          (d.audioFilename ?? "") === (active.audioFilename ?? ""),
+      ),
+    [difficulties, activeId, active.audioFilename],
+  );
+
+  const applyCopyHitsoundsToAll = useCallback(() => {
+    const did = activeIdRef.current;
+    const diffs = difficultiesRef.current;
+    const source = diffs.find((d) => d.id === did);
+    if (!source) return;
+    let changedNotes = 0;
+    let changedDiffs = 0;
+    for (const target of diffs) {
+      if (target.id === did) continue;
+      if ((target.audioFilename ?? "") !== (source.audioFilename ?? "")) continue;
+      const { before, after } = copyHitsounds(target.notes, source.notes);
+      if (after.length === 0) continue;
+      commitNoteOp({ t: "note.update", diffId: target.id, before, after });
+      changedNotes += after.length;
+      changedDiffs += 1;
+    }
+    announceShortcut(
+      changedNotes
+        ? `Copied hitsounds onto ${changedNotes} ${changedNotes === 1 ? "note" : "notes"} in ${changedDiffs} ${changedDiffs === 1 ? "difficulty" : "difficulties"}`
+        : "The other difficulties already match these hitsounds",
+    );
+  }, [commitNoteOp, announceShortcut]);
 
   const hitsoundSources = useMemo(
     () =>
@@ -6666,6 +6707,7 @@ export default function App() {
           { id: "new-open", label: t("file.newOpen"), group: "File", keywords: "project map welcome", run: () => setModal("welcome") },
           { id: "save", label: t("file.saveLocally"), group: "File", hint: "Ctrl S", run: () => void handleSave() },
           { id: "save-cloud", label: t("file.saveToCloud"), group: "File", keywords: "account collaborate", disabled: !authUser || !canEdit, run: () => void handleCloudSave() },
+          { id: "copy-hitsounds-all", label: "Copy hitsounds to all difficulties", group: "Edit", keywords: "hitsound whistle finish clap samples apply", disabled: !canEdit || hitsoundTargets.length === 0 || countHitsounds(active.notes) === 0, run: applyCopyHitsoundsToAll },
           { id: "export-osu", label: t("file.exportOsu"), group: "Export", disabled: !canExport, run: handleExportOsu },
           { id: "export-osz", label: t("file.exportOsz"), group: "Export", disabled: !canExport || exporting, run: handleExportOsz },
           { id: "export-sm", label: t("file.exportSm"), group: "Export", disabled: !canExport, run: handleExportSm },
@@ -7456,6 +7498,9 @@ export default function App() {
                 onCurrentSampleSet={setCurrentSampleSet}
                 hitsoundSources={hitsoundSources}
                 onCopyHitsounds={applyCopyHitsounds}
+                onCopyHitsoundsToAll={
+                  hitsoundTargets.length ? applyCopyHitsoundsToAll : undefined
+                }
                 onPublishPattern={
                   appSettings.showPatternTools &&
                   authUser &&
