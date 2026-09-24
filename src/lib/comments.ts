@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { t } from "./i18n/core";
 
 export type Comment = {
   id: string;
@@ -61,7 +62,7 @@ export async function resolveComment(
 
 export async function updateComment(id: string, body: string): Promise<void> {
   const text = body.trim();
-  if (!text) throw new Error("Comment cannot be empty.");
+  if (!text) throw new Error(t("lib.commentEmpty"));
   const { error } = await supabase
     .from("comments")
     .update({ body: text })

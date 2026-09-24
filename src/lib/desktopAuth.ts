@@ -1,4 +1,5 @@
 import { isDesktopApp } from "./pwa";
+import { t } from "./i18n/core";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
 
@@ -7,7 +8,7 @@ export const OAUTH_EVENT = "cascade://oauth-session";
 export function desktopLoginUrl(port: number, nonce: string): string {
   if (!WORKER) {
     throw new Error(
-      "This build has no VITE_WORKER_URL, so it cannot reach the account service.",
+      t("lib.noWorker"),
     );
   }
   const query = new URLSearchParams({ client: "desktop", port: String(port), nonce });

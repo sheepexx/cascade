@@ -3,6 +3,7 @@ import type { ManiaNote, TimingPoint } from "../types";
 import { gridLinesInRange, gridLineColor } from "./timing";
 import { nearestSnap } from "./aimod";
 import { FONT_STACK } from "./fontStack";
+import { t } from "./i18n/core";
 
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 630;
@@ -29,7 +30,7 @@ export function renderPatternCard(info: {
   notes: ManiaNote[]; keyCount: number; timingPoints: TimingPoint[];
   title: string; difficulty: string; upscroll?: boolean;
 }): Promise<Blob> {
-  if (!info.notes.length) return Promise.reject(new Error("Select notes first."));
+  if (!info.notes.length) return Promise.reject(new Error(t("lib.selectNotes")));
   const start = info.notes.reduce((time, n) => Math.min(time, n.startTime), Infinity);
   const end = info.notes.reduce((time, n) => Math.max(time, n.endTime ?? n.startTime), -Infinity);
   const span = Math.max(500, end - start);
@@ -38,7 +39,7 @@ export function renderPatternCard(info: {
   canvas.width = Math.max(560, info.keyCount * 66 + 144);
   canvas.height = fieldHeight + 210;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return Promise.reject(new Error("Canvas is unavailable."));
+  if (!ctx) return Promise.reject(new Error(t("lib.noCanvas")));
   const left = 105, top = 140, lane = (canvas.width - left - 35) / info.keyCount;
   const y = (ms: number) => top + 16 + (info.upscroll ? ms - start : span - (ms - start)) / span * (fieldHeight - 32);
   ctx.fillStyle = BG; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -77,7 +78,7 @@ export function renderPatternCard(info: {
   }
   ctx.textAlign = "left"; ctx.fillStyle = MUTED; ctx.font = bodyFont(12);
   ctx.fillText("CASCADE · Pattern selection", 32, canvas.height - 25);
-  return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("PNG export failed.")), "image/png"));
+  return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error(t("lib.pngFailed"))), "image/png"));
 }
 
 // Cards are shared as images, so they carry the same typeface as the app.

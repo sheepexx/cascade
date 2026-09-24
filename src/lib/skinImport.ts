@@ -7,6 +7,7 @@ import {
   type ManiaColumnSkin,
   type ManiaKeymodeSkin,
 } from "../types";
+import { t } from "./i18n/core";
 
 export async function importOsk(
   file: Blob,
@@ -16,7 +17,7 @@ export async function importOsk(
   try {
     zip = await loadSafeZip(file);
   } catch {
-    throw new Error("That file isn't a valid .osk skin archive.");
+    throw new Error(t("lib.invalidOsk"));
   }
 
   const index = new Map<string, JSZip.JSZipObject>();

@@ -4,6 +4,7 @@ import { sanitizePackFilename } from "./packCreator";
 import { makeDifficulty, normalizeTimingPoints, type LoadedFile } from "../types";
 import { loadSafeZip } from "./archiveLimits";
 import { assertFolderEntry, MAX_FOLDER_DEPTH } from "./importLimits";
+import { t } from "./i18n/core";
 
 export type PackSongInfo = {
   title: string;
@@ -166,7 +167,7 @@ export async function scanPackFromPicker(
   let totalBytes = 0;
 
   async function walk(handle: FileSystemDirectoryHandle, path: string, depth = 0) {
-    if (depth > MAX_FOLDER_DEPTH) throw new Error("Folder nesting is too deep.");
+    if (depth > MAX_FOLDER_DEPTH) throw new Error(t("lib.folderDeep"));
     const iter = (handle as unknown as {
       values(): AsyncIterableIterator<FileSystemHandle>;
     }).values();
@@ -195,7 +196,7 @@ export async function scanPackFromDrop(
   const readEntry = (entry: FileSystemEntry, path: string, depth = 0): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (depth > MAX_FOLDER_DEPTH) {
-        reject(new Error("Folder nesting is too deep."));
+        reject(new Error(t("lib.folderDeep")));
         return;
       }
       if (entry.isFile) {

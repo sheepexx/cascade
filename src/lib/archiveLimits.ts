@@ -1,4 +1,5 @@
 import type JSZip from "jszip";
+import { t } from "./i18n/core";
 
 export type ArchiveLimits = {
   maxCompressedBytes: number;
@@ -44,7 +45,7 @@ function entrySizes(
       (expanded as number) < 0 ||
       (compressed as number) < 0
     ) {
-      throw new Error("Archive entry size metadata is invalid.");
+      throw new Error(t("lib.archiveMeta"));
     }
     return { expanded: expanded as number, compressed: compressed as number };
   }
@@ -65,7 +66,7 @@ export function assertArchiveInputSize(
 ): number {
   const bytes = inputBytes(data);
   if (bytes > limits.maxCompressedBytes) {
-    throw new Error("Archive exceeds the compressed size limit.");
+    throw new Error(t("lib.archiveCompressed"));
   }
   return bytes;
 }
@@ -77,7 +78,7 @@ export function assertSafeZip(
 ): void {
   const entries = Object.values(zip.files);
   if (entries.length > limits.maxEntries) {
-    throw new Error("Archive contains too many entries.");
+    throw new Error(t("lib.archiveEntries"));
   }
 
   let expandedBytes = 0;
@@ -87,18 +88,18 @@ export function assertSafeZip(
     if (!sizes) continue;
     const { expanded, compressed } = sizes;
     if (expanded > limits.maxEntryBytes) {
-      throw new Error("Archive entry exceeds the expanded size limit.");
+      throw new Error(t("lib.archiveEntrySize"));
     }
     if (expanded > Math.max(1, compressed) * limits.maxCompressionRatio) {
-      throw new Error("Archive entry exceeds the compression ratio limit.");
+      throw new Error(t("lib.archiveEntryRatio"));
     }
     expandedBytes += expanded;
     if (!Number.isSafeInteger(expandedBytes) || expandedBytes > limits.maxExpandedBytes) {
-      throw new Error("Archive exceeds the total expanded size limit.");
+      throw new Error(t("lib.archiveTotal"));
     }
   }
   if (expandedBytes > Math.max(1, compressedBytes) * limits.maxCompressionRatio) {
-    throw new Error("Archive exceeds the compression ratio limit.");
+    throw new Error(t("lib.archiveRatio"));
   }
 }
 

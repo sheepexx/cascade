@@ -1,3 +1,4 @@
+import { t } from "./i18n/core";
 /**
  * Prepares a picture for the main-menu background.
  *
@@ -57,11 +58,11 @@ export async function prepareMenuBackground(
   file: File,
 ): Promise<PreparedMenuBackground> {
   if (!/^image\//i.test(file.type)) {
-    throw new Error("Choose an image file.");
+    throw new Error(t("lib.chooseImage"));
   }
   if (file.size <= 0 || file.size > MENU_BG_MAX_INPUT_BYTES) {
     throw new Error(
-      `Images must be under ${Math.round(MENU_BG_MAX_INPUT_BYTES / 1024 / 1024)} MB before compression.`,
+      t("lib.imageTooLarge", { mb: Math.round(MENU_BG_MAX_INPUT_BYTES / 1024 / 1024) }),
     );
   }
 
@@ -69,7 +70,7 @@ export async function prepareMenuBackground(
   try {
     bitmap = await createImageBitmap(file);
   } catch {
-    throw new Error("That image could not be read.");
+    throw new Error(t("lib.imageRead"));
   }
 
   try {
@@ -78,7 +79,7 @@ export async function prepareMenuBackground(
       bitmap.height < MENU_BG_MIN_HEIGHT
     ) {
       throw new Error(
-        `That image is ${bitmap.width}×${bitmap.height}. The menu needs at least ${MENU_BG_MIN_WIDTH}×${MENU_BG_MIN_HEIGHT}.`,
+        t("lib.imageSmall", { width: bitmap.width, height: bitmap.height, minWidth: MENU_BG_MIN_WIDTH, minHeight: MENU_BG_MIN_HEIGHT }),
       );
     }
 
@@ -87,7 +88,7 @@ export async function prepareMenuBackground(
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("That image could not be processed.");
+    if (!ctx) throw new Error(t("lib.imageProcess"));
     // JPEG has no alpha, so a transparent PNG would otherwise composite onto
     // black fringes; filling first keeps those areas clean.
     ctx.fillStyle = "#000";
@@ -100,13 +101,13 @@ export async function prepareMenuBackground(
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob((out) => resolve(out), "image/jpeg", quality),
       );
-      if (!blob) throw new Error("That image could not be compressed.");
+      if (!blob) throw new Error(t("lib.imageCompress"));
       if (blob.size <= MENU_BG_MAX_STORED_BYTES) {
         return { blob, width, height };
       }
     }
     throw new Error(
-      "That image is too detailed to compress to a sensible size. Try a smaller one.",
+      t("lib.imageDetailed"),
     );
   } finally {
     bitmap.close();

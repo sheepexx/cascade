@@ -1,5 +1,6 @@
 import { isDesktopApp } from "./pwa";
 import type { SavedProject } from "./persistence";
+import { t } from "./i18n/core";
 
 /**
  * Mirrors projects onto the real filesystem on desktop.
@@ -115,7 +116,7 @@ export async function restoreSnapshot(
   localId: string,
   stamp: string,
 ): Promise<SavedProject> {
-  if (!isDesktopApp()) throw new Error("Snapshots only exist in the Cascade app.");
+  if (!isDesktopApp()) throw new Error(t("lib.snapshotsDesktop"));
   const invoke = await invoker();
   const bytes = await invoke<ArrayBuffer | Uint8Array | number[]>(
     "vault_restore",

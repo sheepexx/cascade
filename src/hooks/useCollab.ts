@@ -7,6 +7,7 @@ import {
   type PresencePeer,
   type TrackedPresence,
 } from "../lib/collabPresence";
+import { t } from "../lib/i18n/core";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -29,7 +30,7 @@ async function restBroadcast(
       messages: [{ topic: `project:${projectId}`, event, payload, private: true }],
     }),
   });
-  if (!response.ok) throw new Error(`Realtime broadcast failed (${response.status}).`);
+  if (!response.ok) throw new Error(t("lib.broadcastFailed", { status: response.status }));
 }
 
 export type Peer = PresencePeer;

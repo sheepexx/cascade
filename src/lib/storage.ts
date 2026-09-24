@@ -1,4 +1,5 @@
 import { sessionAuthHeaders } from "./auth";
+import { t } from "./i18n/core";
 
 const WORKER = (import.meta.env.VITE_WORKER_URL ?? "").replace(/\/+$/, "");
 
@@ -83,7 +84,7 @@ export async function uploadProjectAsset(
     },
   );
   if (result.path !== storagePath || result.bytes !== blob.size) {
-    throw new Error("Asset upload verification failed.");
+    throw new Error(t("lib.assetVerify"));
   }
 }
 
@@ -166,7 +167,7 @@ export async function uploadUserSkin(
     },
   );
   if (result.skin.sha256 !== sha256 || Number(result.skin.bytes) !== blob.size) {
-    throw new Error("Skin upload verification failed.");
+    throw new Error(t("lib.skinVerify"));
   }
   return result.skin;
 }
@@ -214,7 +215,7 @@ export async function uploadUserMenuBackground(
     result.background.sha256 !== sha256 ||
     Number(result.background.bytes) !== blob.size
   ) {
-    throw new Error("Menu background upload verification failed.");
+    throw new Error(t("lib.menuBgVerify"));
   }
   return result.background;
 }
@@ -253,7 +254,7 @@ export async function uploadSharedAsset(
       body: blob,
     },
   );
-  if (result.bytes !== blob.size) throw new Error("Shared asset upload verification failed.");
+  if (result.bytes !== blob.size) throw new Error(t("lib.sharedVerify"));
   return result.path;
 }
 
@@ -279,7 +280,7 @@ export async function deleteSharedUpload(slug: string): Promise<void> {
 function projectRelativePath(projectId: string, storagePath: string): string {
   const prefix = `${projectId}/`;
   if (!storagePath.startsWith(prefix) || storagePath.length === prefix.length) {
-    throw new Error("Invalid project asset path.");
+    throw new Error(t("lib.invalidPath"));
   }
   return storagePath.slice(prefix.length);
 }
@@ -304,5 +305,5 @@ async function responseError(response: Response): Promise<Error> {
     if (typeof payload.error === "string") return new Error(payload.error);
   } catch {
   }
-  return new Error(`Storage request failed (${response.status}).`);
+  return new Error(t("lib.storageFailed", { status: response.status }));
 }

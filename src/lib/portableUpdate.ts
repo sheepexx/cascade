@@ -1,4 +1,5 @@
 import { isDesktopApp } from "./pwa";
+import { t } from "./i18n/core";
 
 const WORKER = (import.meta.env.VITE_WORKER_URL ?? "").replace(/\/+$/, "");
 
@@ -42,7 +43,7 @@ export async function currentPortableApp(): Promise<PortableApp | null> {
 
 export async function installPortableUpdate(version: string): Promise<void> {
   if (!WORKER) {
-    throw new Error("This build cannot reach the download service.");
+    throw new Error(t("lib.noDownloadService"));
   }
   const manifest = await fetch(`${WORKER}/desktop/latest.json`).then((res) =>
     res.ok ? (res.json() as Promise<unknown>) : null,
@@ -50,13 +51,13 @@ export async function installPortableUpdate(version: string): Promise<void> {
   const artifact = portableArtifact(manifest, version);
   if (!artifact) {
     throw new Error(
-      `Cascade ${version} has no portable download yet. Grab it from the website instead.`,
+      t("lib.noPortable", { version }),
     );
   }
   const response = await fetch(portableUrl(version, artifact.name));
   if (!response.ok) {
     throw new Error(
-      `The portable update could not be downloaded (${response.status}).`,
+      t("lib.portableFailed", { status: response.status }),
     );
   }
   const payload = new Uint8Array(await response.arrayBuffer());

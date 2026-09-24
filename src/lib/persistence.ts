@@ -19,6 +19,7 @@ import { kiaiRanges, type KiaiRange } from "./timing";
 import { computeStarRating } from "./starRating";
 // Type-only in the other direction, so this pair does not cycle at runtime.
 import { mirrorProject } from "./projectVault";
+import { t } from "./i18n/core";
 
 const DB_NAME = "mania-editor";
 const STORE = "project";
@@ -251,7 +252,7 @@ function requestDb(): Promise<IDBDatabase> {
       settle(() =>
         reject(
           new Error(
-            "Timed out opening browser storage. Another tab with this editor may be blocking it.",
+            t("lib.storageTimeout"),
           ),
         ),
       );
@@ -263,12 +264,12 @@ function requestDb(): Promise<IDBDatabase> {
     };
     req.onsuccess = () => settle(() => resolve(req.result));
     req.onerror = () =>
-      settle(() => reject(req.error ?? new Error("Could not open browser storage.")));
+      settle(() => reject(req.error ?? new Error(t("lib.storageOpen2"))));
     req.onblocked = () =>
       settle(() =>
         reject(
           new Error(
-            "Browser storage is blocked by another tab with this editor open.",
+            t("lib.storageBlocked"),
           ),
         ),
       );
@@ -336,9 +337,9 @@ async function withStore<T>(
           resolve(value);
         };
         tx.onerror = () =>
-          reject(tx.error ?? new Error("Browser storage write failed."));
+          reject(tx.error ?? new Error(t("lib.storageWrite")));
         tx.onabort = () =>
-          reject(tx.error ?? new Error("Browser storage write was aborted."));
+          reject(tx.error ?? new Error(t("lib.storageAborted")));
         run(tx.objectStore(STORE), (v) => {
           value = v;
           if (settled) resolve(v);

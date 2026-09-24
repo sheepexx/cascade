@@ -392,7 +392,7 @@ export async function importOsz(
   // parts; parsing the .osu text is cheap.
   const progress = new ProgressSplitter([3, 2, 6, 2, 3], onProgress);
 
-  progress.phase("Reading the archive");
+  progress.phase(t("app.readingArchive"));
   const zip = await loadSafeZip(blob);
   progress.advance();
 
@@ -414,7 +414,7 @@ export async function importOsz(
   let malodyError: Error | null = null;
   for (const path of chartPaths) {
     progress.phase(
-      `Reading difficulties (${parsed.length + 1}/${chartPaths.length})`,
+      t("lib.readingDiffs", { index: parsed.length + 1, total: chartPaths.length }),
       parsed.length / chartPaths.length,
     );
     const text = await zip.file(path)!.async("string");
@@ -430,7 +430,7 @@ export async function importOsz(
   }
   if (parsed.length === 0) {
     throw malodyError ??
-      new Error("No osu!mania (Mode 3) difficulties found in the archive.");
+      new Error(t("lib.noMania"));
   }
   progress.advance();
 
@@ -441,7 +441,7 @@ export async function importOsz(
   let audioIndex = 0;
   for (const name of audioNames) {
     progress.phase(
-      name ? `Loading audio - ${name}` : "Loading audio",
+      name ? t("lib.loadingAudioName", { name }) : t("lib.loadingAudio"),
       audioIndex++ / Math.max(1, audioNames.length),
     );
     if (!name || audioFiles[name]) continue;
@@ -451,7 +451,7 @@ export async function importOsz(
   progress.advance();
 
   const backgroundFiles: Record<string, LoadedFile> = {};
-  progress.phase("Loading backgrounds");
+  progress.phase(t("lib.loadingBgs"));
   for (const name of new Set(parsed.map((p) => p.backgroundFilename))) {
     if (!name || backgroundFiles[name]) continue;
     const entry = findEntry(zip, name);
@@ -465,7 +465,7 @@ export async function importOsz(
   let videoIndex = 0;
   for (const name of videoNames) {
     progress.phase(
-      name ? `Loading video - ${name}` : "Finishing up",
+      name ? t("lib.loadingVideo", { name }) : t("lib.finishing"),
       videoIndex++ / Math.max(1, videoNames.length),
     );
     if (!name || videoFiles[name]) continue;
@@ -473,7 +473,7 @@ export async function importOsz(
     const loaded = await toLoadedFile(entry, mimeForVideo(name));
     if (loaded) videoFiles[name] = loaded;
   }
-  progress.done("Opening the map");
+  progress.done(t("lib.opening"));
 
   const difficulties = parsed.map((p) => ({
     ...p.difficulty,

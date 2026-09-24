@@ -20,6 +20,7 @@ import {
   type HitsoundSkinSource,
   type ViewState,
 } from "../types";
+import { t } from "./i18n/core";
 
 export type AccountSettings = {
   version: 1;
@@ -162,10 +163,10 @@ export async function uploadCloudSkin(
   file: File,
 ): Promise<CloudSkin> {
   if (!/\.(osk|zip)$/i.test(file.name)) {
-    throw new Error("Choose an .osk skin file.");
+    throw new Error(t("lib.chooseOsk"));
   }
   if (file.size <= 0 || file.size > 60 * 1024 * 1024) {
-    throw new Error("Cloud skins must be between 1 byte and 60 MB.");
+    throw new Error(t("lib.cloudSkinSize"));
   }
   const sha256 = await sha256Hex(file);
   return cloudSkinFromRow(await uploadUserSkin(slot, sha256, file.name, file));

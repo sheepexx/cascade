@@ -1,5 +1,6 @@
 import { isDesktopApp } from "./pwa";
 import { currentPortableApp, installPortableUpdate } from "./portableUpdate";
+import { t } from "./i18n/core";
 
 export type DesktopUpdate = {
   version: string;
@@ -26,7 +27,7 @@ export async function checkDesktopUpdate(): Promise<DesktopUpdate | null> {
 }
 
 export async function installDesktopUpdate(): Promise<void> {
-  if (!pending) throw new Error("No update is ready to install.");
+  if (!pending) throw new Error(t("lib.noUpdate"));
   if (await currentPortableApp()) {
     await installPortableUpdate(pending.version);
     return;

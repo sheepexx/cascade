@@ -1,4 +1,5 @@
 import { isDesktopApp } from "./pwa";
+import { t } from "./i18n/core";
 
 export type NativeAudioStatus = { session: number; revision: number; positionMs: number; playing: boolean; latencyMs: number; device: string; error: string | null };
 export type NativeControl = { action: "play" | "pause" | "seek" | "configure"; revision: number; positionMs?: number; rate?: number; volume?: number; startMs?: number; endMs?: number; fadeInMs?: number; fadeOutMs?: number; looping?: boolean };
@@ -21,7 +22,7 @@ export function nativeLifecycle<T>(action: () => Promise<T>): Promise<T> {
 }
 
 export function encodeNativePcm(buffer: AudioBuffer, session: number, volume = 1): Uint8Array {
-  if (buffer.length * 8 + 16 > 256 * 1024 * 1024) throw new Error("Audio is too large for exclusive playback (256 MiB decoded limit). Use shared audio for this track.");
+  if (buffer.length * 8 + 16 > 256 * 1024 * 1024) throw new Error(t("lib.exclusiveTooLarge"));
   const bytes = new Uint8Array(16 + buffer.length * 8);
   const header = new DataView(bytes.buffer);
   header.setUint32(0, session, true); header.setUint32(4, buffer.sampleRate, true);

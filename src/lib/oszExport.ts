@@ -28,6 +28,7 @@ import { loadMp3Encoder } from "./lameEncoder";
 import { ProgressSplitter, type ProgressFn } from "./progress";
 import { difficultyRate, formatRate, isNeutralRate } from "./rateChange";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
+import { t } from "./i18n/core";
 
 export type BuildOszArgs = {
   meta: SongMeta;
@@ -57,7 +58,7 @@ export async function buildOsz({
   // .osu text are near-instant by comparison.
   const progress = new ProgressSplitter([1, 2, 10, 6], onProgress);
 
-  progress.phase("Starting up the audio encoder");
+  progress.phase(t("app.startingEncoder"));
   const [, { default: JSZip }] = await Promise.all([
     loadMp3Encoder().catch((err: unknown) => {
       console.error(
@@ -78,7 +79,7 @@ export async function buildOsz({
   let bgIndex = 0;
   for (const difficulty of difficulties) {
     progress.phase(
-      "Bundling images and video",
+      t("lib.bundling"),
       bgIndex++ / Math.max(1, difficulties.length),
     );
     if (difficulty.backgroundFilename && bgFiles?.[difficulty.backgroundFilename]) {
@@ -147,7 +148,7 @@ export async function buildOsz({
     for (const difficulty of difficulties) {
       const within = diffIndex++ / Math.max(1, difficulties.length);
       progress.phase(
-        `Preparing ${difficulty.name || "difficulty"} (${diffIndex}/${difficulties.length})`,
+        t("lib.preparing", { name: difficulty.name || t("lib.difficulty"), index: diffIndex, total: difficulties.length }),
         within,
       );
       const audio =
@@ -186,7 +187,7 @@ export async function buildOsz({
           let bakedName = cutNameByKey.get(key);
           if (!bakedName) {
             progress.phase(
-              `Encoding audio - ${audio.name}`,
+              t("lib.encoding", { name: audio.name }),
               (diffIndex - 0.5) / Math.max(1, difficulties.length),
             );
             // At rate 1 this is exactly the old trim-only render.
@@ -221,7 +222,7 @@ export async function buildOsz({
         let effectiveBlob = audio.blob;
         if (isWav(audio.name)) {
           progress.phase(
-            `Converting audio - ${audio.name}`,
+            t("lib.converting", { name: audio.name }),
             (diffIndex - 0.5) / Math.max(1, difficulties.length),
           );
           const ctx = ensureCtx();
@@ -264,7 +265,7 @@ export async function buildOsz({
   }
 
   progress.advance();
-  progress.phase("Compressing the .osz");
+  progress.phase(t("lib.compressingOsz"));
 
   const blob = await zip.generateAsync(
     {
@@ -275,13 +276,13 @@ export async function buildOsz({
     (update) => {
       progress.phase(
         update.currentFile
-          ? `Compressing ${update.currentFile}`
-          : "Compressing the .osz",
+          ? t("packLib.compressingFile", { file: update.currentFile })
+          : t("lib.compressingOsz"),
         (update.percent ?? 0) / 100,
       );
     },
   );
-  progress.done("Export ready");
+  progress.done(t("lib.exportReady"));
   return blob;
 }
 

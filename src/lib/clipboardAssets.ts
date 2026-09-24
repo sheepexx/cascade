@@ -1,4 +1,5 @@
 import { uniqueFileName } from "./imageConvert";
+import { t } from "./i18n/core";
 
 export type ClipAssetKind = "audio" | "background" | "video";
 
@@ -21,7 +22,7 @@ function openDb(): Promise<IDBDatabase> {
   if (!dbPromise) {
     dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
       if (typeof indexedDB === "undefined") {
-        reject(new Error("Browser storage is unavailable."));
+        reject(new Error(t("lib.storageUnavailable")));
         return;
       }
       const req = indexedDB.open(DB_NAME, 1);
@@ -35,7 +36,7 @@ function openDb(): Promise<IDBDatabase> {
         resolve(db);
       };
       req.onerror = () =>
-        reject(req.error ?? new Error("Couldn't open browser storage."));
+        reject(req.error ?? new Error(t("lib.storageOpen")));
     }).catch((err) => {
       dbPromise = null;
       throw err;
@@ -53,9 +54,9 @@ async function run<T>(
     const tx = db.transaction(STORE, mode);
     const req = body(tx.objectStore(STORE));
     tx.oncomplete = () => resolve(req ? req.result : undefined);
-    tx.onerror = () => reject(tx.error ?? new Error("Browser storage failed."));
+    tx.onerror = () => reject(tx.error ?? new Error(t("lib.storageError")));
     tx.onabort = () =>
-      reject(tx.error ?? new Error("Browser storage write was aborted."));
+      reject(tx.error ?? new Error(t("lib.storageAborted")));
   });
 }
 
