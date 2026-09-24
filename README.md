@@ -4,6 +4,7 @@ Cascade is a beatmap editor for vertical scrolling rhythm games (VSRG) that runs
 
 - Browser editor: https://cascade.sheepex.net
 - Desktop app for Windows, macOS and Linux: https://cascade.sheepex.net/download
+- Map Card, a shareable image of your map's stats and MSD skillsets: https://cascade.sheepex.net/osu-mania-map-card
 
 ![The Cascade main menu with the menu buttons around the logo and a saved project's background behind it](docs/images/start-menu.jpg)
 
@@ -212,7 +213,7 @@ A Map Card is an image of one difficulty for your osu! map description or Discor
 - **Presets**: Default, Minimal, Background Banner, Full Background and Tournament Style, plus your own, saved to your account.
 - **Export**: download a 1600 px wide PNG, copy it straight into Discord, or host it on Cascade. A hosted card gets a direct image link and a ready `[img]` BBCode for osu! descriptions. Updating the card keeps the same link.
 
-Hosting and saved presets need an osu! login. How hosting works is in [docs/MAP_CARDS.md](docs/MAP_CARDS.md).
+Hosting and saved presets need an osu! login. More on the [Map Card page](https://cascade.sheepex.net/osu-mania-map-card). How hosting works is in [docs/MAP_CARDS.md](docs/MAP_CARDS.md).
 
 ## Import, export and Pack Creator
 

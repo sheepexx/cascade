@@ -1,72 +1,68 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png?v=3" />
-    <link rel="canonical" href="https://cascade.sheepex.net/de/osu-mania-bpm-finder" />
-    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-bpm-finder" />
-    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-bpm-finder" />
-    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-bpm-finder" />
-    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-bpm-finder" />
-    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-bpm-finder" />
-    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-bpm-finder" />
+    <link rel="canonical" href="https://cascade.sheepex.net/osu-mania-map-card" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/osu-mania-map-card" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/osu-mania-map-card" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/osu-mania-map-card" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/osu-mania-map-card" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/osu-mania-map-card" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/osu-mania-map-card" />
     <meta name="theme-color" content="#0b0d12" />
     <meta name="robots" content="index, follow" />
-    <title>BPM- und Offset-Finder für osu!mania-Maps | Cascade</title>
-    <meta name="description" content="Finde BPM und Offset jedes Songs im Browser. Cascade erkennt das Tempo aus dem Audio, du tappst zur Bestätigung mit und prüfst es mit einem Metronom." />
-    <meta name="keywords" content="bpm finder, osu mania timing, bpm eines songs finden, offset finden, bpm tappen, osu mania offset, beatmap timing, metronom, bpm zähler online" />
+    <title>osu!mania Map Card Generator with MSD | Cascade</title>
+    <meta name="description" content="Turn an osu!mania difficulty into an image with its stats and every MSD skillset. Download a PNG or get a direct link for [img] in your map description." />
+    <meta name="keywords" content="osu mania map card, osu beatmap description image, osu mania msd, etterna msd calculator, osu map stats image, beatmap card generator, osu mania skillsets, osu description banner, osu bbcode image" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cascade" />
-    <meta property="og:locale" content="de_DE" />
-    <meta property="og:title" content="Finde BPM und Offset jedes Songs im Browser" />
-    <meta property="og:description" content="BPM aus dem Audio erkennen, per Tap bestätigen, Metronom darüberlegen und den Offset feinjustieren." />
-    <meta property="og:url" content="https://cascade.sheepex.net/de/osu-mania-bpm-finder" />
-    <meta property="og:image" content="https://cascade.sheepex.net/og-de.png?v=2" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Turn your osu!mania map into a shareable card" />
+    <meta property="og:description" content="Star rating, BPM, length, note counts and every MSD skillset in one image, with a direct link for your osu! description." />
+    <meta property="og:url" content="https://cascade.sheepex.net/osu-mania-map-card" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og-map-card.jpg?v=1" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Cascade, der osu!mania-Editor im Browser" />
+    <meta property="og:image:alt" content="A Cascade map card for a 4K difficulty, with its MSD skillsets as bars" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Finde BPM und Offset jedes Songs im Browser" />
-    <meta name="twitter:description" content="BPM aus dem Audio erkennen, per Tap bestätigen, Metronom darüberlegen und den Offset feinjustieren." />
-    <meta name="twitter:image" content="https://cascade.sheepex.net/og-de.png?v=2" />
+    <meta name="twitter:title" content="Turn your osu!mania map into a shareable card" />
+    <meta name="twitter:description" content="Star rating, BPM, length, note counts and every MSD skillset in one image, with a direct link for your osu! description." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og-map-card.jpg?v=1" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "HowTo",
-        "name": "So timest du einen Song für eine osu!mania-Map",
-        "description": "BPM aus dem Audio erkennen, per Tap bestätigen, Metronom darüberlegen und den Offset feinjustieren.",
+        "name": "How to add a map card to an osu! beatmap description",
+        "description": "Star rating, BPM, length, note counts and every MSD skillset in one image, with a direct link for your osu! description.",
         "totalTime": "PT2M",
         "tool": {
           "@type": "HowToTool",
           "name": "Cascade"
         },
-        "url": "https://cascade.sheepex.net/de/osu-mania-bpm-finder",
+        "url": "https://cascade.sheepex.net/osu-mania-map-card",
+        "image": "https://cascade.sheepex.net/shots/map-card.webp",
         "step": [
           {
             "@type": "HowToStep",
-            "name": "Audio laden",
-            "text": "Ziehe eine Audiodatei in Cascade, um eine Map zu starten."
+            "name": "Open your map",
+            "text": "Load the map in Cascade, or import its .osz."
           },
           {
             "@type": "HowToStep",
-            "name": "BPM erkennen",
-            "text": "Cascade analysiert die Wellenform und schlägt ein Tempo vor."
+            "name": "Open the Map Card",
+            "text": "Pick Map Card in Tools, or Create Map Card in the File menu."
           },
           {
             "@type": "HowToStep",
-            "name": "Zur Bestätigung tappen",
-            "text": "Tappe zum Song mit und vergleiche dein Tempo mit dem erkannten."
+            "name": "Pick a look",
+            "text": "Choose a preset, a background style and the stats to show. The preview is the exact image you get."
           },
           {
             "@type": "HowToStep",
-            "name": "Offset setzen",
-            "text": "Setze die Abspielposition auf den ersten Beat, übernimm den Offset und justiere in kleinen Schritten."
-          },
-          {
-            "@type": "HowToStep",
-            "name": "Mit Metronom prüfen",
-            "text": "Spiele den Song mit eingeschaltetem Metronom, bis der Klick genau auf dem Beat liegt."
+            "name": "Get the link",
+            "text": "Upload the card, copy the BBCode and paste it into your beatmap description."
           }
         ]
       }
@@ -85,8 +81,8 @@
           {
             "@type": "ListItem",
             "position": 2,
-            "name": "BPM und Offset finden",
-            "item": "https://cascade.sheepex.net/de/osu-mania-bpm-finder"
+            "name": "Make a map card for your description",
+            "item": "https://cascade.sheepex.net/osu-mania-map-card"
           }
         ]
       }
@@ -234,63 +230,83 @@
         <a href="/">Cascade</a>
       </header>
 
-      <h1>Finde BPM und Offset jedes Songs</h1>
+      <h1>A card for your map, with every skillset on it</h1>
       <p>
-        Timing ist der Teil des Mappings, ohne den nichts anderes überlebt.
-        Stimmt die BPM um ein Hundertstel nicht oder der Offset um ein paar
-        Millisekunden, ist jede gesnappte Note falsch, und kein gutes Patterning
-        rettet das. Cascade bietet dir drei Wege zum richtigen Wert und ein
-        Metronom als Beweis.
+        A good description tells players what a map is before they download
+        it. Cascade's <strong>Map Card</strong> puts the numbers people look
+        for into one image: star rating, BPM, length, note and long note
+        counts, and the MSD rating of every skillset, so a stream map reads as
+        a stream map at a glance.
       </p>
-      <a class="cta" href="/">Editor öffnen und timen</a>
+      <a class="cta" href="/">Open the editor and make a card</a>
 
-      <h2>Aus dem Audio erkannt</h2>
-      <p>
-        Zieh einen Song hinein und Cascade analysiert die Wellenform und
-        schlägt ein Tempo vor, bevor du überhaupt getappt hast. Bei einem Track
-        mit gleichmäßigem Beat ist das meist schon die Antwort oder nah genug,
-        dass eine kleine Korrektur reicht.
-      </p>
+      <figure>
+        <img src="/shots/map-card.webp" width="1600" height="1032" alt="A map card for a 4K difficulty with the background as a banner, the overall MSD, seven skillset bars and a row of map stats" />
+        <figcaption>A 4K card with the background as a banner and the skillsets as bars.</figcaption>
+      </figure>
 
-      <h2>Selbst tappen</h2>
+      <h2>Built from the map, not typed in</h2>
       <p>
-        Tap-Tempo bleibt die verlässlichste Kontrolle für alles, was die
-        Erkennung nicht eindeutig findet, etwa Songs mit starkem Offbeat oder
-        langsamem Intro. Tappe ein paar Takte mit, und Cascade mittelt daraus
-        BPM und Offset, die du direkt übernehmen kannst. Stimmen getapptes und
-        erkanntes Tempo überein, bist du fertig.
+        Title, artist, mapper and difficulty name come from the map's metadata.
+        Star rating, BPM, length, note counts, notes per second, OD and HP are
+        the same numbers the editor shows while you map, so the card never
+        disagrees with the chart.
       </p>
 
-      <h2>Den Offset treffen</h2>
+      <h2>Every MSD skillset</h2>
       <p>
-        Setze die Abspielposition auf den ersten Beat, übernimm den Offset und
-        justiere dann in kleinen Schritten, während der Song läuft. Schalte das
-        Metronom ein: Der Klick liegt entweder genau auf dem Klang oder nicht,
-        und das ist deutlich schneller geprüft als am Wellenbild.
+        For 4K, 6K and 7K difficulties the card runs Etterna's MinaCalc and
+        shows the overall MSD next to stream, jumpstream, handstream, stamina,
+        jackspeed, chordjack and technical, as bars, tiles or compact pills.
+        Other key counts get the star rating and the map stats.
       </p>
 
-      <h2>Tempowechsel und Gimmicks</h2>
+      <figure>
+        <img src="/shots/map-card-tiles.webp" width="1600" height="802" alt="A map card for a 7K difficulty on a blurred full background, with the skillsets as tiles and an amber accent" />
+        <figcaption>A 7K card with a blurred full background, tiles and an amber accent.</figcaption>
+      </figure>
+
+      <h2>Make it yours</h2>
+      <ul>
+        <li><strong>Background</strong>: the map's background as a banner, blurred behind the whole card, or the plain Cascade style.</li>
+        <li><strong>Layout</strong>: a detailed card for the description, or a compact strip for Discord.</li>
+        <li><strong>Accent</strong>: Cascade red, a few calm colours, or the colour of the difficulty's star rating.</li>
+        <li><strong>Stats</strong>: turn any line on or off.</li>
+        <li><strong>Presets</strong>: five built-in looks, plus your own, saved to your account.</li>
+      </ul>
+
+      <h2>One link that stays up to date</h2>
       <p>
-        Songs, die schneller oder langsamer werden, bekommen mehr rote Linien
-        mit eigenem Tempo, und das Raster folgt. Sobald das Timing stimmt,
-        bedeutet der Snap-Teiler wirklich etwas, und du kannst die Map darauf
-        aufbauen.
+        Download a PNG, copy the image straight into Discord, or host it on
+        Cascade. A hosted card gets a direct image link, so it works inside
+        <code>[img]</code> tags:
+      </p>
+      <p><code>[img]https://cascade.sheepex.net/card/your-card.png[/img]</code></p>
+      <p>
+        Update the card after a change and the link stays the same, so the
+        description you already posted shows the new version. Cascade can also
+        offer a card right after you export a map.
       </p>
 
       <p class="note">
-        Erst timen, dann mappen. Eine fertige Map neu zu timen heißt, jede Note
-        darin neu zu snappen.
+        Hosting needs an osu! login. Everything else, including the PNG
+        download, works without an account.
       </p>
-      <p class="langs">Diese Seite auf: <a href="/osu-mania-bpm-finder" hreflang="en">English</a> · <a href="/ru/osu-mania-bpm-finder" hreflang="ru">Русский</a> · <a href="/zh-cn/osu-mania-bpm-finder" hreflang="zh-CN">简体中文</a> · <a href="/pt-br/osu-mania-bpm-finder" hreflang="pt-BR">Português</a></p>
+      <p class="langs">Read this in: <a href="/de/osu-mania-map-card" hreflang="de">Deutsch</a> · <a href="/ru/osu-mania-map-card" hreflang="ru">Русский</a> · <a href="/zh-cn/osu-mania-map-card" hreflang="zh-CN">简体中文</a> · <a href="/pt-br/osu-mania-map-card" hreflang="pt-BR">Português</a></p>
 
       <footer>
         <p>
-          Mehr: <a href="/">Cascade, der osu!mania-Editor im Browser</a> ·
-          <a href="/de/osu-mania-playtest">osu!mania-Maps testspielen</a> ·
-          <a href="/de/osu-mania-collab">Gemeinsam in Echtzeit mappen</a> ·
-          <a href="/de/osu-mania-aimod">Map vor dem Upload prüfen</a> ·
-          <a href="/de/osu-mania-map-card">Map Card für die Beschreibung erstellen</a> ·
-          <a href="/de/download">Herunterladen</a>
+          More: <a href="/">Cascade, the online osu!mania editor</a> ·
+          <a href="/osu-mania-playtest">Playtest osu!mania maps</a> ·
+          <a href="/osu-mania-collab">Map together in real time</a> ·
+          <a href="/osu-mania-aimod">Check a map before upload</a> ·
+          <a href="/osu-mania-bpm-finder">Find BPM and offset</a> ·
+          <a href="/how-to-make-an-osu-mania-map">How to make an osu!mania map</a> ·
+          <a href="/osu-mania-sv-editor">Edit scroll velocity</a> ·
+          <a href="/osu-to-stepmania">Convert to StepMania, Quaver or Malody</a> ·
+          <a href="/osu-mania-map-viewer">Preview maps online</a> ·
+          <a href="/osu-mania-pack-creator">Combine maps into one pack</a> ·
+          <a href="/download">Download</a>
         </p>
       </footer>
     </main>

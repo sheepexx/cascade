@@ -11,7 +11,7 @@ const DROP_FILES = [
   "sw.js.map",
   "registerSW.js",
 ];
-const DROP_PATTERNS = [/^og.*\.png$/, /^workbox-.*\.js$/, /\.html$/];
+const DROP_PATTERNS = [/^og.*\.(png|jpg)$/, /^workbox-.*\.js$/, /\.html$/];
 
 const KEEP_HTML = new Set(["index.html"]);
 

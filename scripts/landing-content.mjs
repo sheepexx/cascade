@@ -1268,4 +1268,460 @@ const timing = {
   },
 };
 
-export const PAGES = [playtest, collab, aimod, timing];
+const mapCardFigure = (src, width, height, alt, caption) => `      <figure>
+        <img src="${src}" width="${width}" height="${height}" alt="${alt}" />
+        <figcaption>${caption}</figcaption>
+      </figure>`;
+
+const mapCard = {
+  slug: "osu-mania-map-card",
+  updated: "2026-09-24",
+  ogImage: { path: "/og-map-card.jpg?v=1", width: 1200, height: 630 },
+  structured: (c, url) => ({
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: c.howToName,
+    description: c.ogDescription,
+    totalTime: "PT2M",
+    tool: { "@type": "HowToTool", name: "Cascade" },
+    url,
+    image: "https://cascade.sheepex.net/shots/map-card.webp",
+    step: c.steps.map((s) => ({
+      "@type": "HowToStep",
+      name: s.name,
+      text: s.text,
+    })),
+  }),
+  content: {
+    en: {
+      navLabel: "Make a map card for your description",
+      title: "osu!mania Map Card Generator with MSD | Cascade",
+      description:
+        "Turn an osu!mania difficulty into an image with its stats and every MSD skillset. Download a PNG or get a direct link for [img] in your map description.",
+      keywords:
+        "osu mania map card, osu beatmap description image, osu mania msd, etterna msd calculator, osu map stats image, beatmap card generator, osu mania skillsets, osu description banner, osu bbcode image",
+      ogTitle: "Turn your osu!mania map into a shareable card",
+      ogDescription:
+        "Star rating, BPM, length, note counts and every MSD skillset in one image, with a direct link for your osu! description.",
+      ogImageAlt: "A Cascade map card for a 4K difficulty, with its MSD skillsets as bars",
+      howToName: "How to add a map card to an osu! beatmap description",
+      steps: [
+        { name: "Open your map", text: "Load the map in Cascade, or import its .osz." },
+        { name: "Open the Map Card", text: "Pick Map Card in Tools, or Create Map Card in the File menu." },
+        { name: "Pick a look", text: "Choose a preset, a background style and the stats to show. The preview is the exact image you get." },
+        { name: "Get the link", text: "Upload the card, copy the BBCode and paste it into your beatmap description." },
+      ],
+      h1: "A card for your map, with every skillset on it",
+      lead: `      <p>
+        A good description tells players what a map is before they download
+        it. Cascade's <strong>Map Card</strong> puts the numbers people look
+        for into one image: star rating, BPM, length, note and long note
+        counts, and the MSD rating of every skillset, so a stream map reads as
+        a stream map at a glance.
+      </p>`,
+      cta: "Open the editor and make a card",
+      body: `${mapCardFigure(
+        "/shots/map-card.webp",
+        1600,
+        1032,
+        "A map card for a 4K difficulty with the background as a banner, the overall MSD, seven skillset bars and a row of map stats",
+        "A 4K card with the background as a banner and the skillsets as bars.",
+      )}
+
+      <h2>Built from the map, not typed in</h2>
+      <p>
+        Title, artist, mapper and difficulty name come from the map's metadata.
+        Star rating, BPM, length, note counts, notes per second, OD and HP are
+        the same numbers the editor shows while you map, so the card never
+        disagrees with the chart.
+      </p>
+
+      <h2>Every MSD skillset</h2>
+      <p>
+        For 4K, 6K and 7K difficulties the card runs Etterna's MinaCalc and
+        shows the overall MSD next to stream, jumpstream, handstream, stamina,
+        jackspeed, chordjack and technical, as bars, tiles or compact pills.
+        Other key counts get the star rating and the map stats.
+      </p>
+
+${mapCardFigure(
+  "/shots/map-card-tiles.webp",
+  1600,
+  802,
+  "A map card for a 7K difficulty on a blurred full background, with the skillsets as tiles and an amber accent",
+  "A 7K card with a blurred full background, tiles and an amber accent.",
+)}
+
+      <h2>Make it yours</h2>
+      <ul>
+        <li><strong>Background</strong>: the map's background as a banner, blurred behind the whole card, or the plain Cascade style.</li>
+        <li><strong>Layout</strong>: a detailed card for the description, or a compact strip for Discord.</li>
+        <li><strong>Accent</strong>: Cascade red, a few calm colours, or the colour of the difficulty's star rating.</li>
+        <li><strong>Stats</strong>: turn any line on or off.</li>
+        <li><strong>Presets</strong>: five built-in looks, plus your own, saved to your account.</li>
+      </ul>
+
+      <h2>One link that stays up to date</h2>
+      <p>
+        Download a PNG, copy the image straight into Discord, or host it on
+        Cascade. A hosted card gets a direct image link, so it works inside
+        <code>[img]</code> tags:
+      </p>
+      <p><code>[img]https://cascade.sheepex.net/card/your-card.png[/img]</code></p>
+      <p>
+        Update the card after a change and the link stays the same, so the
+        description you already posted shows the new version. Cascade can also
+        offer a card right after you export a map.
+      </p>
+
+      <p class="note">
+        Hosting needs an osu! login. Everything else, including the PNG
+        download, works without an account.
+      </p>`,
+    },
+    de: {
+      navLabel: "Map Card für die Beschreibung erstellen",
+      title: "osu!mania Map Card mit MSD erstellen | Cascade",
+      description:
+        "Mach aus einer osu!mania-Schwierigkeit ein Bild mit Werten und allen MSD-Skillsets. Als PNG oder mit direktem Link für [img] in deiner Beschreibung.",
+      keywords:
+        "osu mania map card, osu beatmap beschreibung bild, osu mania msd, etterna msd rechner, osu map statistik bild, beatmap karte erstellen, osu mania skillsets, osu bbcode bild",
+      ogTitle: "Mach aus deiner osu!mania-Map eine teilbare Karte",
+      ogDescription:
+        "Sternebewertung, BPM, Länge, Notenzahlen und jedes MSD-Skillset in einem Bild, mit direktem Link für deine osu!-Beschreibung.",
+      ogImageAlt: "Eine Map Card von Cascade für eine 4K-Schwierigkeit, mit ihren MSD-Skillsets als Balken",
+      howToName: "So fügst du eine Map Card in eine osu!-Beatmap-Beschreibung ein",
+      steps: [
+        { name: "Map öffnen", text: "Lade die Map in Cascade oder importiere ihre .osz." },
+        { name: "Map Card öffnen", text: "Wähle unter Werkzeuge die Map Card oder im Menü Datei „Map Card erstellen“." },
+        { name: "Aussehen wählen", text: "Wähle ein Preset, einen Hintergrundstil und die Werte, die angezeigt werden. Die Vorschau ist genau das Bild, das du bekommst." },
+        { name: "Link holen", text: "Lade die Karte hoch, kopiere den BBCode und füge ihn in deine Beatmap-Beschreibung ein." },
+      ],
+      h1: "Eine Karte für deine Map, mit jedem Skillset darauf",
+      lead: `      <p>
+        Eine gute Beschreibung zeigt Spielern, was eine Map ist, bevor sie sie
+        herunterladen. Die <strong>Map Card</strong> von Cascade bringt die
+        Zahlen, nach denen alle suchen, in ein Bild: Sternebewertung, BPM,
+        Länge, Noten und Long Notes sowie die MSD-Bewertung jedes Skillsets.
+        So erkennt man eine Stream-Map auf einen Blick als Stream-Map.
+      </p>`,
+      cta: "Editor öffnen und Karte erstellen",
+      body: `${mapCardFigure(
+        "/shots/map-card.webp",
+        1600,
+        1032,
+        "Eine Map Card für eine 4K-Schwierigkeit mit dem Hintergrund als Banner, dem Gesamt-MSD, sieben Skillset-Balken und einer Zeile mit Map-Werten",
+        "Eine 4K-Karte mit dem Hintergrund als Banner und den Skillsets als Balken.",
+      )}
+
+      <h2>Aus der Map, nicht abgetippt</h2>
+      <p>
+        Titel, Künstler, Mapper und Name der Schwierigkeit kommen aus den
+        Metadaten der Map. Sternebewertung, BPM, Länge, Notenzahlen, Noten pro
+        Sekunde, OD und HP sind dieselben Werte, die der Editor beim Mappen
+        zeigt. Die Karte widerspricht dem Chart also nie.
+      </p>
+
+      <h2>Jedes MSD-Skillset</h2>
+      <p>
+        Für 4K-, 6K- und 7K-Schwierigkeiten nutzt die Karte Etternas MinaCalc
+        und zeigt das Gesamt-MSD neben Stream, Jumpstream, Handstream,
+        Stamina, Jackspeed, Chordjack und Technical, als Balken, Kacheln oder
+        kompakte Chips. Andere Keymodes bekommen die Sternebewertung und die
+        Map-Werte.
+      </p>
+
+${mapCardFigure(
+  "/shots/map-card-tiles.webp",
+  1600,
+  802,
+  "Eine Map Card für eine 7K-Schwierigkeit auf weichgezeichnetem Vollbild-Hintergrund, mit den Skillsets als Kacheln und einem Akzent in Bernstein",
+  "Eine 7K-Karte mit weichgezeichnetem Vollbild-Hintergrund, Kacheln und Bernstein-Akzent.",
+)}
+
+      <h2>Mach sie zu deiner</h2>
+      <ul>
+        <li><strong>Hintergrund</strong>: der Hintergrund der Map als Banner, weichgezeichnet hinter der ganzen Karte oder der schlichte Cascade-Stil.</li>
+        <li><strong>Layout</strong>: eine ausführliche Karte für die Beschreibung oder ein kompakter Streifen für Discord.</li>
+        <li><strong>Akzent</strong>: Cascade-Rot, ein paar ruhige Farben oder die Farbe der Sternebewertung.</li>
+        <li><strong>Werte</strong>: jede Zeile lässt sich ein- und ausschalten.</li>
+        <li><strong>Presets</strong>: fünf eingebaute Looks und deine eigenen, gespeichert in deinem Konto.</li>
+      </ul>
+
+      <h2>Ein Link, der aktuell bleibt</h2>
+      <p>
+        Lade ein PNG herunter, kopiere das Bild direkt in Discord oder hoste es
+        auf Cascade. Eine gehostete Karte bekommt einen direkten Bildlink und
+        funktioniert damit in <code>[img]</code>-Tags:
+      </p>
+      <p><code>[img]https://cascade.sheepex.net/card/your-card.png[/img]</code></p>
+      <p>
+        Aktualisierst du die Karte nach einer Änderung, bleibt der Link gleich.
+        Die Beschreibung, die du schon gepostet hast, zeigt dann die neue
+        Version. Nach einem Export kann Cascade dir auch direkt eine Karte
+        anbieten.
+      </p>
+
+      <p class="note">
+        Zum Hosten brauchst du einen osu!-Login. Alles andere, auch der
+        PNG-Download, funktioniert ohne Konto.
+      </p>`,
+    },
+    ru: {
+      navLabel: "Сделать карточку для описания",
+      title: "Map Card для osu!mania со скиллсетами MSD | Cascade",
+      description:
+        "Превратите сложность osu!mania в изображение со статистикой и всеми скиллсетами MSD. Скачайте PNG или получите прямую ссылку для [img] в описании.",
+      keywords:
+        "osu mania map card, картинка для описания карты osu, osu mania msd, калькулятор msd etterna, статистика карты osu картинка, карточка карты osu, скиллсеты osu mania, bbcode картинка osu",
+      ogTitle: "Превратите карту osu!mania в карточку, которой можно поделиться",
+      ogDescription:
+        "Звёздный рейтинг, BPM, длина, количество нот и все скиллсеты MSD в одном изображении, с прямой ссылкой для описания в osu!.",
+      ogImageAlt: "Карточка Map Card из Cascade для сложности 4K со скиллсетами MSD в виде полос",
+      howToName: "Как добавить карточку карты в описание beatmap в osu!",
+      steps: [
+        { name: "Откройте карту", text: "Загрузите карту в Cascade или импортируйте её .osz." },
+        { name: "Откройте Map Card", text: "Выберите Map Card в «Инструментах» или «Создать Map Card» в меню «Файл»." },
+        { name: "Выберите вид", text: "Выберите пресет, стиль фона и нужную статистику. Предпросмотр в точности совпадает с итоговым изображением." },
+        { name: "Получите ссылку", text: "Загрузите карточку, скопируйте BBCode и вставьте его в описание beatmap." },
+      ],
+      h1: "Карточка для вашей карты, со всеми скиллсетами",
+      lead: `      <p>
+        Хорошее описание сразу говорит игрокам, что это за карта, ещё до
+        загрузки. <strong>Map Card</strong> в Cascade собирает в одно
+        изображение то, что все ищут: звёздный рейтинг, BPM, длину, количество
+        нот и длинных нот и рейтинг MSD по каждому скиллсету. Стрим-карту
+        сразу видно как стрим-карту.
+      </p>`,
+      cta: "Открыть редактор и сделать карточку",
+      body: `${mapCardFigure(
+        "/shots/map-card.webp",
+        1600,
+        1032,
+        "Карточка для сложности 4K с фоном в виде баннера, общим MSD, семью полосами скиллсетов и строкой статистики карты",
+        "Карточка 4K с фоном в виде баннера и скиллсетами в виде полос.",
+      )}
+
+      <h2>Из самой карты, а не вручную</h2>
+      <p>
+        Название, исполнитель, маппер и название сложности берутся из
+        метаданных карты. Звёздный рейтинг, BPM, длина, количество нот, ноты в
+        секунду, OD и HP совпадают с тем, что редактор показывает во время
+        маппинга, поэтому карточка никогда не расходится с чартом.
+      </p>
+
+      <h2>Все скиллсеты MSD</h2>
+      <p>
+        Для сложностей 4K, 6K и 7K карточка использует MinaCalc из Etterna и
+        показывает общий MSD рядом со stream, jumpstream, handstream, stamina,
+        jackspeed, chordjack и technical: полосами, плитками или компактными
+        метками. Для других раскладок показываются звёздный рейтинг и
+        статистика карты.
+      </p>
+
+${mapCardFigure(
+  "/shots/map-card-tiles.webp",
+  1600,
+  802,
+  "Карточка для сложности 7K на размытом фоне во всю карточку, со скиллсетами в виде плиток и янтарным акцентом",
+  "Карточка 7K с размытым фоном во всю карточку, плитками и янтарным акцентом.",
+)}
+
+      <h2>Настройте под себя</h2>
+      <ul>
+        <li><strong>Фон</strong>: фон карты как баннер, размытый за всей карточкой или простой стиль Cascade.</li>
+        <li><strong>Макет</strong>: подробная карточка для описания или компактная полоса для Discord.</li>
+        <li><strong>Акцент</strong>: красный Cascade, несколько спокойных цветов или цвет звёздного рейтинга сложности.</li>
+        <li><strong>Статистика</strong>: любую строку можно включить или выключить.</li>
+        <li><strong>Пресеты</strong>: пять встроенных вариантов и ваши собственные, сохранённые в аккаунте.</li>
+      </ul>
+
+      <h2>Одна ссылка, которая остаётся актуальной</h2>
+      <p>
+        Скачайте PNG, скопируйте изображение прямо в Discord или разместите
+        его на Cascade. Размещённая карточка получает прямую ссылку на
+        изображение, поэтому работает в тегах <code>[img]</code>:
+      </p>
+      <p><code>[img]https://cascade.sheepex.net/card/your-card.png[/img]</code></p>
+      <p>
+        Обновите карточку после изменений, и ссылка останется прежней: уже
+        опубликованное описание покажет новую версию. После экспорта карты
+        Cascade также может сразу предложить сделать карточку.
+      </p>
+
+      <p class="note">
+        Для размещения нужен вход через osu!. Всё остальное, включая
+        скачивание PNG, работает без аккаунта.
+      </p>`,
+    },
+    "zh-CN": {
+      navLabel: "为谱面简介生成卡片",
+      title: "osu!mania 谱面卡片生成器（含 MSD）| Cascade",
+      description:
+        "把 osu!mania 难度做成一张包含统计数据和全部 MSD 技能的图片。可下载 PNG，或获取用于谱面简介 [img] 标签的直链。",
+      keywords:
+        "osu mania 谱面卡片, osu 谱面简介图片, osu mania msd, etterna msd 计算, osu 谱面数据图片, 谱面卡片生成器, osu mania 技能, osu bbcode 图片",
+      ogTitle: "把你的 osu!mania 谱面做成可分享的卡片",
+      ogDescription:
+        "星级、BPM、时长、音符数量和全部 MSD 技能汇总在一张图片里，并附带用于 osu! 简介的直链。",
+      ogImageAlt: "一张 Cascade 谱面卡片，显示一个 4K 难度及其 MSD 技能条形图",
+      howToName: "如何在 osu! 谱面简介中加入谱面卡片",
+      steps: [
+        { name: "打开谱面", text: "在 Cascade 中加载谱面，或导入它的 .osz。" },
+        { name: "打开 Map Card", text: "在“工具”中选择 Map Card，或在“文件”菜单中选择“生成 Map Card”。" },
+        { name: "选择样式", text: "选择预设、背景样式和要显示的数据。预览就是最终得到的图片。" },
+        { name: "获取链接", text: "上传卡片，复制 BBCode 并粘贴到谱面简介中。" },
+      ],
+      h1: "为你的谱面做一张卡片，所有技能一目了然",
+      lead: `      <p>
+        好的简介能让玩家在下载前就知道这是一张什么样的谱面。Cascade 的
+        <strong>Map Card</strong> 把大家最关心的数据放进一张图片：星级、BPM、
+        时长、音符和长条数量，以及每项技能的 MSD 评分。一张 stream 图一眼就能看出是
+        stream 图。
+      </p>`,
+      cta: "打开编辑器生成卡片",
+      body: `${mapCardFigure(
+        "/shots/map-card.webp",
+        1600,
+        1032,
+        "一张 4K 难度的谱面卡片，背景作为横幅，包含总 MSD、七项技能条形图和一行谱面数据",
+        "一张 4K 卡片，背景作为横幅，技能以条形显示。",
+      )}
+
+      <h2>数据来自谱面本身，无需手动填写</h2>
+      <p>
+        标题、艺术家、谱师和难度名取自谱面元数据。星级、BPM、时长、音符数量、每秒音符数、OD
+        和 HP 与你制谱时编辑器显示的数值相同，因此卡片永远与谱面一致。
+      </p>
+
+      <h2>全部 MSD 技能</h2>
+      <p>
+        对于 4K、6K 和 7K 难度，卡片使用 Etterna 的 MinaCalc，在总 MSD 旁显示
+        stream、jumpstream、handstream、stamina、jackspeed、chordjack 和
+        technical，可显示为条形、方块或紧凑标签。其他键数则显示星级和谱面统计。
+      </p>
+
+${mapCardFigure(
+  "/shots/map-card-tiles.webp",
+  1600,
+  802,
+  "一张 7K 难度的谱面卡片，使用模糊的全幅背景，技能以方块显示，强调色为琥珀色",
+  "一张 7K 卡片，使用模糊的全幅背景、方块和琥珀色强调色。",
+)}
+
+      <h2>按你的喜好定制</h2>
+      <ul>
+        <li><strong>背景</strong>：谱面背景作为横幅、模糊铺满整张卡片，或使用简洁的 Cascade 风格。</li>
+        <li><strong>布局</strong>：详细卡片适合简介，紧凑长条适合 Discord。</li>
+        <li><strong>强调色</strong>：Cascade 红、几种柔和的颜色，或难度星级的颜色。</li>
+        <li><strong>数据</strong>：每一行都可以单独开关。</li>
+        <li><strong>预设</strong>：五种内置样式，以及保存在你账号中的自定义预设。</li>
+      </ul>
+
+      <h2>一个始终保持最新的链接</h2>
+      <p>
+        下载 PNG、直接复制图片到 Discord，或托管在 Cascade 上。托管的卡片会获得一个图片直链，因此可用于
+        <code>[img]</code> 标签：
+      </p>
+      <p><code>[img]https://cascade.sheepex.net/card/your-card.png[/img]</code></p>
+      <p>
+        修改后更新卡片，链接保持不变，已发布的简介会显示新版本。导出谱面后，Cascade
+        也可以直接提示你生成卡片。
+      </p>
+
+      <p class="note">
+        托管需要登录 osu!。其余功能，包括下载 PNG，都无需账号。
+      </p>`,
+    },
+    "pt-BR": {
+      navLabel: "Criar um card para a descrição",
+      title: "Gerador de Map Card para osu!mania com MSD | Cascade",
+      description:
+        "Transforme uma dificuldade de osu!mania em uma imagem com as estatísticas e todos os skillsets de MSD. Baixe um PNG ou pegue um link direto para [img].",
+      keywords:
+        "osu mania map card, imagem descrição beatmap osu, osu mania msd, calculadora msd etterna, imagem estatísticas mapa osu, gerador de card osu, skillsets osu mania, imagem bbcode osu",
+      ogTitle: "Transforme seu mapa de osu!mania em um card compartilhável",
+      ogDescription:
+        "Classificação em estrelas, BPM, duração, notas e todos os skillsets de MSD em uma imagem, com link direto para a descrição no osu!.",
+      ogImageAlt: "Um Map Card do Cascade para uma dificuldade 4K, com os skillsets de MSD em barras",
+      howToName: "Como colocar um map card na descrição de um beatmap do osu!",
+      steps: [
+        { name: "Abra seu mapa", text: "Carregue o mapa no Cascade ou importe o .osz." },
+        { name: "Abra o Map Card", text: "Escolha Map Card em Ferramentas, ou Criar Map Card no menu Arquivo." },
+        { name: "Escolha o visual", text: "Escolha um preset, um estilo de fundo e as estatísticas. A prévia é exatamente a imagem que você recebe." },
+        { name: "Pegue o link", text: "Envie o card, copie o BBCode e cole na descrição do beatmap." },
+      ],
+      h1: "Um card para o seu mapa, com todos os skillsets",
+      lead: `      <p>
+        Uma boa descrição mostra aos jogadores o que é o mapa antes do
+        download. O <strong>Map Card</strong> do Cascade reúne numa imagem os
+        números que todo mundo procura: classificação em estrelas, BPM,
+        duração, contagem de notas e notas longas e o rating de MSD de cada
+        skillset, para um mapa de stream ser reconhecido como stream de
+        relance.
+      </p>`,
+      cta: "Abrir o editor e criar um card",
+      body: `${mapCardFigure(
+        "/shots/map-card.webp",
+        1600,
+        1032,
+        "Um map card de uma dificuldade 4K com o fundo como banner, o MSD geral, sete barras de skillset e uma linha de estatísticas do mapa",
+        "Um card 4K com o fundo como banner e os skillsets em barras.",
+      )}
+
+      <h2>Feito a partir do mapa, não digitado</h2>
+      <p>
+        Título, artista, mapper e nome da dificuldade vêm dos metadados do
+        mapa. Classificação em estrelas, BPM, duração, contagem de notas, notas
+        por segundo, OD e HP são os mesmos números que o editor mostra enquanto
+        você mapeia, então o card nunca discorda do chart.
+      </p>
+
+      <h2>Todos os skillsets de MSD</h2>
+      <p>
+        Para dificuldades 4K, 6K e 7K, o card usa o MinaCalc do Etterna e
+        mostra o MSD geral ao lado de stream, jumpstream, handstream, stamina,
+        jackspeed, chordjack e technical, em barras, blocos ou etiquetas
+        compactas. Outros keymodes recebem a classificação em estrelas e as
+        estatísticas do mapa.
+      </p>
+
+${mapCardFigure(
+  "/shots/map-card-tiles.webp",
+  1600,
+  802,
+  "Um map card de uma dificuldade 7K sobre um fundo inteiro desfocado, com os skillsets em blocos e destaque âmbar",
+  "Um card 7K com fundo inteiro desfocado, blocos e destaque âmbar.",
+)}
+
+      <h2>Deixe do seu jeito</h2>
+      <ul>
+        <li><strong>Fundo</strong>: o fundo do mapa como banner, desfocado atrás do card inteiro ou o estilo simples do Cascade.</li>
+        <li><strong>Layout</strong>: um card detalhado para a descrição ou uma faixa compacta para o Discord.</li>
+        <li><strong>Destaque</strong>: vermelho Cascade, algumas cores discretas ou a cor da classificação em estrelas da dificuldade.</li>
+        <li><strong>Estatísticas</strong>: ligue ou desligue qualquer linha.</li>
+        <li><strong>Presets</strong>: cinco visuais incluídos e os seus, salvos na sua conta.</li>
+      </ul>
+
+      <h2>Um link que se mantém atualizado</h2>
+      <p>
+        Baixe um PNG, copie a imagem direto para o Discord ou hospede no
+        Cascade. Um card hospedado ganha um link direto de imagem, então
+        funciona em tags <code>[img]</code>:
+      </p>
+      <p><code>[img]https://cascade.sheepex.net/card/your-card.png[/img]</code></p>
+      <p>
+        Atualize o card depois de uma mudança e o link continua o mesmo, então
+        a descrição que você já publicou mostra a nova versão. Depois de
+        exportar um mapa, o Cascade também pode oferecer um card na hora.
+      </p>
+
+      <p class="note">
+        Hospedar exige login com o osu!. Todo o resto, incluindo o download do
+        PNG, funciona sem conta.
+      </p>`,
+    },
+  },
+};
+
+export const PAGES = [playtest, collab, aimod, timing, mapCard];

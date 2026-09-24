@@ -30,9 +30,14 @@ function alternates(slug) {
   return links.join("\n");
 }
 
-function ogImage(locale) {
+function ogImage(page, locale) {
+  if (page.ogImage) return page.ogImage;
   const prefix = LOCALES[locale].prefix;
-  return `${SITE}/og${prefix ? `-${prefix}` : ""}.png?v=2`;
+  return {
+    path: `/og${prefix ? `-${prefix}` : ""}.png?v=2`,
+    width: 1200,
+    height: 630,
+  };
 }
 
 function breadcrumb(slug, locale, label) {
@@ -88,6 +93,9 @@ const STYLE = `      :root { color-scheme: dark; }
         border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
         color: #e8d9a8; font-size: 0.9rem;
       }
+      figure { margin: 22px 0 18px; }
+      figure img { display: block; width: 100%; height: auto; border-radius: 16px; }
+      figcaption { margin-top: 8px; font-size: 0.85rem; color: #767c8a; }
       .langs { margin: 26px 0 0; font-size: 0.85rem; }
       .langs a { color: #9aa0ad; }
       footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
@@ -121,6 +129,8 @@ function render(page, locale) {
   const loc = LOCALES[locale];
   const url = `${SITE}${urlFor(page.slug, locale)}`;
   const structured = page.structured?.(c, url);
+  const og = ogImage(page, locale);
+  const ogAlt = c.ogImageAlt ?? UI[locale].ogImageAlt;
 
   return `<!doctype html>
 <html lang="${loc.htmlLang}">
@@ -141,14 +151,14 @@ ${alternates(page.slug)}
     <meta property="og:title" content="${c.ogTitle}" />
     <meta property="og:description" content="${c.ogDescription}" />
     <meta property="og:url" content="${url}" />
-    <meta property="og:image" content="${ogImage(locale)}" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="${UI[locale].ogImageAlt}" />
+    <meta property="og:image" content="${SITE}${og.path}" />
+    <meta property="og:image:width" content="${og.width}" />
+    <meta property="og:image:height" content="${og.height}" />
+    <meta property="og:image:alt" content="${ogAlt}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${c.ogTitle}" />
     <meta name="twitter:description" content="${c.ogDescription}" />
-    <meta name="twitter:image" content="${ogImage(locale)}" />
+    <meta name="twitter:image" content="${SITE}${og.path}" />
 ${
   structured
     ? `    <script type="application/ld+json">\n${ld(structured)}\n    </script>\n`
