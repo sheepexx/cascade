@@ -2,6 +2,7 @@ import type { BpmDetection } from "../lib/bpmDetect";
 import { Button } from "./ui/Controls";
 import { TimedNotification } from "./ui/TimedNotification";
 import { formatUiNumber } from "../lib/formatUiNumber";
+import { useT } from "../lib/i18n";
 
 export type AutoTimeStatus = "idle" | "detecting" | "done" | "failed";
 
@@ -27,14 +28,15 @@ export function AutoTimePrompt({
   onRun,
   onDismiss,
 }: Props) {
+  const t = useT();
   const confidenceLabel =
     result === null
       ? ""
       : result.confidence >= 0.5
-        ? "confident"
+        ? t("timing.confident")
         : result.confidence >= 0.3
-          ? "plausible"
-          : "uncertain";
+          ? t("timing.plausible")
+          : t("timing.uncertain");
 
   return (
     <TimedNotification
@@ -84,26 +86,25 @@ export function AutoTimePrompt({
         {status === "done" && result !== null ? (
           <div className="min-w-0">
             <div className="text-sm font-semibold text-emerald-300">
-              ✓ Timed at {formatUiNumber(result.bpm)} BPM
+              ✓ {t("autoTime.timedAt", { bpm: formatUiNumber(result.bpm) })}
             </div>
             <div className="mt-0.5 text-xs text-slate-400">
-              offset {formatUiNumber(result.offsetMs)} ms · {confidenceLabel} · fine-tune in
-              the Timing menu
+              {t("autoTime.doneDetail", { ms: formatUiNumber(result.offsetMs), confidence: confidenceLabel })}
             </div>
           </div>
         ) : status === "failed" ? (
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-200">
-              Couldn't find a steady beat
+              {t("autoTime.failed")}
             </div>
             <div className="mt-0.5 text-xs text-slate-400">
-              You can still tap it out in the Timing menu.
+              {t("autoTime.failedHint")}
             </div>
           </div>
         ) : (
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-100">
-              Auto-time this song?
+              {t("autoTime.question")}
             </div>
             <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
               {fileName && (
@@ -113,7 +114,7 @@ export function AutoTimePrompt({
                 </>
               )}
               <span className="whitespace-nowrap">
-                detects BPM and offset from the audio
+                {t("autoTime.detects")}
               </span>
             </div>
           </div>
@@ -128,18 +129,18 @@ export function AutoTimePrompt({
                 disabled={!ready || status === "detecting"}
               >
                 {status === "detecting"
-                  ? "Listening..."
+                  ? t("timing.listening")
                   : ready
-                    ? "Auto-time"
-                    : "Decoding..."}
+                    ? t("autoTime.run")
+                    : t("autoTime.decoding")}
               </Button>
               <Button onClick={() => dismiss()} disabled={status === "detecting"}>
-                Not now
+                {t("autoTime.notNow")}
               </Button>
             </>
           )}
           {(status === "done" || status === "failed") && (
-            <Button onClick={() => dismiss()}>Close</Button>
+            <Button onClick={() => dismiss()}>{t("common.close")}</Button>
           )}
         </div>
         </>

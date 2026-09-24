@@ -23,6 +23,7 @@ import {
 } from "../ui/Controls";
 import { formatUiNumber } from "../../lib/formatUiNumber";
 import { InfoTip } from "../ui/Tooltip";
+import { useT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -73,6 +74,7 @@ export const TimingModal = memo(function TimingModal({
   onShiftMarkers,
   onSelectionChange,
 }: Props) {
+  const t = useT();
   const { tap, reset, bpm, offset, count } = useTapTempo(getCurrentTime);
   const [pane, setPane] = useState<Pane>("points");
   const [metronomeOn, setMetronomeOn] = useState(true);
@@ -307,7 +309,7 @@ export const TimingModal = memo(function TimingModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Timing"
+      title={t("nav.timing")}
       width="max-w-2xl"
       height="h-[36rem]"
       modeless
@@ -315,11 +317,11 @@ export const TimingModal = memo(function TimingModal({
         pane === "points" ? (
           <>
             <span className="mr-auto self-center text-[11px] text-slate-500">
-              Added at the playhead.
+              {t("timing.addedAtPlayhead")}
             </span>
-            <Button onClick={addRed}>+ Uninherited</Button>
+            <Button onClick={addRed}>{t("timing.addUninherited")}</Button>
             <Button variant="accent" onClick={addGreen}>
-              + Inherited
+              {t("timing.addInherited")}
             </Button>
           </>
         ) : undefined
@@ -341,8 +343,8 @@ export const TimingModal = memo(function TimingModal({
           value={pane}
           onChange={setPane}
           options={[
-            { value: "points", label: `Points · ${points.length}` },
-            { value: "bpm", label: "Find BPM" },
+            { value: "points", label: t("timing.pointsTab", { count: points.length }) },
+            { value: "bpm", label: t("timing.findBpm") },
           ]}
         />
 
@@ -350,7 +352,7 @@ export const TimingModal = memo(function TimingModal({
           <>
             <section className={CARD}>
               <div className="flex items-baseline justify-between gap-3">
-                <span className={LABEL}>Offset</span>
+                <span className={LABEL}>{t("timing.offset")}</span>
                 <span className="font-mono text-xs text-slate-300">
                   {firstRed
                     ? `${firstRed.time} ms · ${formatTime(firstRed.time)}`
@@ -358,18 +360,18 @@ export const TimingModal = memo(function TimingModal({
                 </span>
               </div>
               <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                The first uninherited point, where the beat grid starts.
+                {t("timing.offsetHint")}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Button onClick={setOffset} variant="primary">
-                  Set to playhead
+                  {t("timing.setToPlayhead")}
                 </Button>
                 <Nudges onNudge={nudgeOffset} />
               </div>
 
               {onShiftMarkers && (
                 <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-white/10 pt-4">
-                  <Field label="Shift everything (ms)">
+                  <Field label={t("timing.shiftEverything")}>
                     <NumberInput
                       value={markerShift}
                       step={1}
@@ -384,7 +386,7 @@ export const TimingModal = memo(function TimingModal({
                       setMarkerShift(0);
                     }}
                   >
-                    Shift points, preview and bookmarks
+                    {t("timing.shiftAll")}
                   </Button>
                 </div>
               )}
@@ -394,29 +396,29 @@ export const TimingModal = memo(function TimingModal({
               <section className={CARD}>
                 <div className="flex items-baseline justify-between gap-3">
                   <span className={LABEL}>
-                    <span className="text-purple-300">◆</span> Preview point
+                    <span className="text-purple-300">◆</span> {t("timing.previewPoint")}
                   </span>
                   <span className="font-mono text-xs text-slate-300">
                     {previewTime >= 0
                       ? `${Math.round(previewTime)} ms · ${formatTime(previewTime)}`
-                      : "Not set"}
+                      : t("timing.notSet")}
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                  Where the song starts playing in song select.
+                  {t("timing.previewHint")}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Button
                     variant="primary"
                     onClick={() => onPreviewTime(getCurrentTime())}
                   >
-                    Set preview point
+                    {t("timing.setPreview")}
                   </Button>
                   <Button
                     disabled={previewTime < 0}
                     onClick={() => onPreviewTime(-1)}
                   >
-                    Clear
+                    {t("timing.clear")}
                   </Button>
                 </div>
               </section>
@@ -429,24 +431,24 @@ export const TimingModal = memo(function TimingModal({
                 setExpandedPointId(null);
               }}
               options={[
-                { value: "red", label: `Uninherited · ${reds.length}` },
+                { value: "red", label: t("timing.uninheritedTab", { count: reds.length }) },
                 {
                   value: "green",
-                  label: `Inherited · ${points.length - reds.length}`,
+                  label: t("timing.inheritedTab", { count: points.length - reds.length }),
                 },
               ]}
             />
 
             <p className="text-[11px] leading-snug text-slate-500">
               {pointTab === "red"
-                ? "Uninherited points set BPM, meter and the beat grid. They show in red on the timeline."
-                : "Inherited points set scroll velocity, volume and kiai. They show in green on the timeline."}
+                ? t("timing.uninheritedHint")
+                : t("timing.inheritedHint")}
             </p>
 
             {selectedPointIds.size > 0 && (
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-accent/25 bg-accent/5 px-3 py-2 text-xs text-slate-300">
                 <span className="font-medium">
-                  {selectedPointIds.size} selected
+                  {t("editor.selected", { count: selectedPointIds.size })}
                 </span>
                 <Nudges onNudge={shiftSelectedPoints} />
                 <NumberInput
@@ -456,7 +458,7 @@ export const TimingModal = memo(function TimingModal({
                     setSelectedPointShift(Number(event.target.value) || 0)
                   }
                   className="w-20 py-1"
-                  aria-label="Selected timing point shift in milliseconds"
+                  aria-label={t("timing.selectedShiftLabel")}
                 />
                 <Button
                   className="px-2 py-1 text-xs"
@@ -465,14 +467,14 @@ export const TimingModal = memo(function TimingModal({
                     setSelectedPointShift(0);
                   }}
                 >
-                  Shift
+                  {t("timing.shift")}
                 </Button>
                 <button
                   type="button"
                   onClick={() => setSelectedPointIds(new Set())}
                   className="ml-auto text-[11px] text-slate-500 transition duration-[var(--motion-quick)] hover:text-slate-300"
                 >
-                  Clear
+                  {t("timing.clear")}
                 </button>
               </div>
             )}
@@ -480,8 +482,7 @@ export const TimingModal = memo(function TimingModal({
             <div className="flex flex-col gap-2">
               {visiblePoints.length === 0 ? (
                 <p className="rounded-xl border border-white/10 bg-ink-700/40 px-3 py-6 text-center text-xs text-slate-500">
-                  No {pointTab === "red" ? "uninherited" : "inherited"} points
-                  yet.
+                  {pointTab === "red" ? t("timing.noUninherited") : t("timing.noInherited")}
                 </p>
               ) : (
                 visiblePoints.map((p, i) => (
@@ -509,18 +510,15 @@ export const TimingModal = memo(function TimingModal({
           <>
             <section className={CARD}>
               <div className="flex items-center gap-1.5">
-                <span className={LABEL}>Tap the beat</span>
+                <span className={LABEL}>{t("timing.tapTitle")}</span>
                 <InfoTip
                   content={
                     <>
                       <p className="m-0">
-                        Play the song, then tap every beat: click the pad or
-                        press T.
+                        {t("timing.tapHint1")}
                       </p>
                       <p className="mt-2">
-                        The BPM and offset are fit from your taps and lock in
-                        automatically once you stop. The more beats in a row,
-                        the more accurate.
+                        {t("timing.tapHint2")}
                       </p>
                     </>
                   }
@@ -540,7 +538,7 @@ export const TimingModal = memo(function TimingModal({
                       className="tap-ring pointer-events-none absolute inset-0 rounded-full border-2 border-accent"
                     />
                   )}
-                  TAP
+                  {t("timing.tap")}
                 </button>
 
                 <div className="min-w-0 flex-1">
@@ -549,20 +547,20 @@ export const TimingModal = memo(function TimingModal({
                     <span className="ml-1.5 text-sm text-slate-500">BPM</span>
                   </div>
                   <div className="mt-2 text-xs text-slate-500">
-                    {count} tap{count === 1 ? "" : "s"}
-                    {offset !== null && <> · offset ≈ {Math.round(offset)} ms</>}
+                    {t("timing.tapCount", { count })}
+                    {offset !== null && <> · {t("timing.offsetApprox", { ms: Math.round(offset) })}</>}
                     {count > 0 && count < TAP_MIN && (
-                      <> · {TAP_MIN - count} more to lock in</>
+                      <> · {t("timing.moreToLock", { count: TAP_MIN - count })}</>
                     )}
                   </div>
                   {tapApplied && (
                     <div className="mt-1 text-xs font-medium text-emerald-400">
-                      ✓ Applied to timing
+                      ✓ {t("timing.appliedToTiming")}
                     </div>
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button onClick={resetTaps} disabled={count === 0}>
-                      Reset
+                      {t("common.reset")}
                     </Button>
                     <Button
                       variant="accent"
@@ -574,7 +572,7 @@ export const TimingModal = memo(function TimingModal({
                       }}
                       disabled={bpm === null}
                     >
-                      Apply now
+                      {t("timing.applyNow")}
                     </Button>
                   </div>
                 </div>
@@ -583,13 +581,13 @@ export const TimingModal = memo(function TimingModal({
 
             <section className={CARD}>
               <div className="flex items-center gap-1.5">
-                <span className={LABEL}>Detect from audio</span>
-                <InfoTip content="Scans the song for a steady beat and estimates BPM and offset. Works best on music with a clear rhythm; double-check the result against the metronome." />
+                <span className={LABEL}>{t("timing.detectTitle")}</span>
+                <InfoTip content={t("timing.detectInfo")} />
               </div>
               <p className="mt-1 text-[11px] leading-snug text-slate-500">
                 {!audioBuffer
-                  ? "Load an audio file first."
-                  : "Reads the whole file, then fills in BPM and offset for you."}
+                  ? t("timing.loadAudioFirst")
+                  : t("timing.detectHint")}
               </p>
 
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -598,26 +596,25 @@ export const TimingModal = memo(function TimingModal({
                   onClick={runDetect}
                   disabled={!audioBuffer || detecting}
                 >
-                  {detecting ? "Listening..." : "Detect BPM"}
+                  {detecting ? t("timing.listening") : t("timing.detectBpm")}
                 </Button>
                 {detection === "failed" && (
                   <span className="text-xs text-rose-300">
-                    Couldn&apos;t find a steady beat in this audio.
+                    {t("timing.noSteadyBeat")}
                   </span>
                 )}
                 {detection !== null && detection !== "failed" && (
                   <>
                     <span className="font-mono text-sm text-slate-100">
-                      {formatUiNumber(detection.bpm)} BPM · offset{" "}
-                      {formatUiNumber(detection.offsetMs)} ms
+                      {t("timing.detectResult", { bpm: formatUiNumber(detection.bpm), ms: formatUiNumber(detection.offsetMs) })}
                     </span>
                     <Confidence value={detection.confidence} />
                     <Button variant="primary" onClick={applyDetection}>
-                      Apply
+                      {t("common.apply")}
                     </Button>
                     {detectApplied && (
                       <span className="text-xs font-medium text-emerald-400">
-                        ✓ Applied
+                        ✓ {t("timing.applied")}
                       </span>
                     )}
                   </>
@@ -652,18 +649,19 @@ function Transport({
   meter: number;
   beatIndex: number | null;
 }) {
+  const t = useT();
   return (
     <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-white/10 bg-ink-700/40 px-3 py-2.5">
       <button
         type="button"
         onClick={onToggle}
-        title="Space"
+        title={t("timing.spaceKey")}
         className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-ink-600/70 px-3 py-1.5 text-xs font-medium text-slate-200 transition duration-[var(--motion-quick)] hover:bg-ink-500/80 active:scale-[0.98]"
       >
         <span className="inline-flex w-14 justify-center">
-          {isPlaying ? "❚❚ Pause" : "▶ Play"}
+          {isPlaying ? `❚❚ ${t("nowPlaying.pause")}` : `▶ ${t("nowPlaying.play")}`}
         </span>
-        <span className="text-[10px] text-slate-500">Space</span>
+        <span className="text-[10px] text-slate-500">{t("timing.spaceKey")}</span>
       </button>
 
       <div className="flex items-center gap-1.5">
@@ -692,9 +690,9 @@ function Transport({
           size="sm"
           checked={metronomeOn}
           onChange={onMetronome}
-          aria-label="Metronome"
+          aria-label={t("timing.metronome")}
         />
-        Metronome
+        {t("timing.metronome")}
       </label>
 
       <div className="ml-auto flex items-center gap-1.5" aria-hidden>
@@ -737,12 +735,13 @@ function Nudges({ onNudge }: { onNudge: (delta: number) => void }) {
 }
 
 function Confidence({ value }: { value: number }) {
+  const t = useT();
   const [label, tone] =
     value >= 0.5
-      ? ["confident", "text-emerald-400"]
+      ? [t("timing.confident"), "text-emerald-400"]
       : value >= 0.3
-        ? ["plausible", "text-amber-300"]
-        : ["uncertain", "text-rose-300"];
+        ? [t("timing.plausible"), "text-amber-300"]
+        : [t("timing.uncertain"), "text-rose-300"];
   return <span className={`text-[11px] ${tone}`}>{label}</span>;
 }
 
@@ -771,6 +770,7 @@ function PointRow({
   onDuplicate: () => void;
   onMove: () => void;
 }) {
+  const t = useT();
   const red = p.uninherited;
   return (
     <div
@@ -797,7 +797,7 @@ function PointRow({
           type="checkbox"
           checked={selected}
           onChange={onSelect}
-          aria-label={`Select point ${index}`}
+          aria-label={t("timing.selectPoint", { index })}
           className="h-3.5 w-3.5 accent-accent"
         />
         <span
@@ -818,7 +818,7 @@ function PointRow({
             ? `${formatUiNumber(p.bpm)} BPM · ${p.meter}/4`
             : `${formatUiNumber(p.sv)}× SV`}
         </span>
-        <span className="text-[10px] text-slate-500">Vol {p.volume}</span>
+        <span className="text-[10px] text-slate-500">{t("timing.volShort", { volume: p.volume })}</span>
         {p.kiai && (
           <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-200">
             Kiai
@@ -830,14 +830,14 @@ function PointRow({
           aria-expanded={expanded}
           className="ml-auto shrink-0 rounded-md px-2 py-1 text-[10px] text-slate-400 transition duration-[var(--motion-quick)] hover:bg-white/10 hover:text-slate-200"
         >
-          {expanded ? "Close" : "Edit"}
+          {expanded ? t("common.close") : t("common.edit")}
         </button>
       </div>
 
       {expanded && (
         <div className="flex flex-col gap-3 border-t border-white/10 bg-ink-800/40 px-3 py-3">
           <div className="flex flex-wrap items-end gap-2">
-            <Field label="Time (ms)">
+            <Field label={t("timing.timeMs")}>
               <NumberInput
                 value={p.time}
                 step={0.001}
@@ -859,7 +859,7 @@ function PointRow({
                     className="w-24 py-1.5"
                   />
                 </Field>
-                <Field label="Meter">
+                <Field label={t("timing.meter")}>
                   <NumberInput
                     value={p.meter}
                     step={1}
@@ -886,7 +886,7 @@ function PointRow({
                     className="w-20 py-1.5"
                   />
                 </Field>
-                <Field label="Presets">
+                <Field label={t("nav.presets")}>
                   <div className="flex gap-1">
                     {SV_PRESETS.map((sv) => (
                       <button
@@ -903,7 +903,7 @@ function PointRow({
               </>
             )}
 
-            <Field label="Volume">
+            <Field label={t("settings.volume")}>
               <NumberInput
                 value={p.volume}
                 step={1}
@@ -941,17 +941,17 @@ function PointRow({
                 size="sm"
                 checked={p.omitFirstBarline}
                 onChange={(v) => onUpdate({ omitFirstBarline: v })}
-                aria-label="Omit barline"
+                aria-label={t("timing.omitBarline")}
               />
-              Omit barline
+              {t("timing.omitBarline")}
             </label>
 
             <div className="ml-auto flex items-center gap-1.5">
               <Button className="px-2 py-1 text-xs" onClick={onMove}>
-                Move here
+                {t("timing.moveHere")}
               </Button>
               <Button className="px-2 py-1 text-xs" onClick={onDuplicate}>
-                Duplicate
+                {t("common.duplicate")}
               </Button>
               <button
                 type="button"
@@ -959,8 +959,8 @@ function PointRow({
                 disabled={!canDelete}
                 title={
                   canDelete
-                    ? "Delete timing point"
-                    : "The last uninherited point cannot be deleted"
+                    ? t("timing.deletePoint")
+                    : t("timing.cannotDeleteLast")
                 }
                 className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition duration-[var(--motion-quick)] hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
               >
