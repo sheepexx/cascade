@@ -445,6 +445,8 @@ export type AppSettings = {
   simplifyBottomTimeline: boolean;
   showPpCounter: boolean;
   showPatternTools: boolean;
+  /** Default-skin notes use a palette that stays distinct for colour blindness. */
+  colourblindLanes: boolean;
   upscroll: boolean;
   svPreviewPlayback: boolean;
   bpmAffectsScroll: boolean;
@@ -532,6 +534,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   simplifyBottomTimeline: false,
   showPpCounter: true,
   showPatternTools: true,
+  colourblindLanes: false,
   upscroll: false,
   svPreviewPlayback: false,
   bpmAffectsScroll: false,

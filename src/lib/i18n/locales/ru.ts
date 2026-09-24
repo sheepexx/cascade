@@ -86,6 +86,8 @@ export const ru: PartialCatalog = {
   "settings.altWheelPlayfield": "Размер игрового поля",
   "settings.altWheelVolume": "Громкость",
 
+  "settings.colourblindLanes": "Цвета линий для дальтоников",
+  "settings.colourblindLanesHint": "Ноты стандартного скина окрашены в белый, оранжевый и голубой — они различимы при любом распространённом типе дальтонизма. Импортированные скины сохраняют свои цвета.",
   "settings.playfield": "Игровое поле",
   "settings.simplifyBottomTimeline": "Упростить нижнюю шкалу",
   "settings.simplifyBottomTimelineHint":

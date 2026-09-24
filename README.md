@@ -49,6 +49,7 @@ Mapping needs a keyboard and a mouse. On a phone, Cascade shows an overview page
 - Receptors (R), zen mode (Tab) to hide every panel, and a hitsound edit mode (H).
 - A reference view that shows another difficulty next to the one you are editing.
 - Upscroll or downscroll, background dim, note height, long note body width, interface scale and a performance mode for slower machines. These only change what you see in the editor.
+- Colourblind-friendly lane colours in Settings → Editor. The default skin switches to white, orange and sky blue, which stay distinct with the common kinds of colour blindness.
 
 ### Difficulties and stats
 

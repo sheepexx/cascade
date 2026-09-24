@@ -86,6 +86,8 @@ export const ptBR: PartialCatalog = {
   "settings.altWheelPlayfield": "Tamanho da área de jogo",
   "settings.altWheelVolume": "Volume",
 
+  "settings.colourblindLanes": "Cores de coluna para daltônicos",
+  "settings.colourblindLanesHint": "As notas da skin padrão usam branco, laranja e azul-celeste, que continuam distintas em qualquer tipo comum de daltonismo. Skins importadas mantêm as próprias cores.",
   "settings.playfield": "Área de jogo",
   "settings.simplifyBottomTimeline": "Simplificar linha do tempo inferior",
   "settings.simplifyBottomTimelineHint":

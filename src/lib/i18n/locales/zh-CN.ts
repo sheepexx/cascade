@@ -83,6 +83,8 @@ export const zhCN: PartialCatalog = {
   "settings.altWheelPlayfield": "游戏区域大小",
   "settings.altWheelVolume": "音量",
 
+  "settings.colourblindLanes": "色盲友好的轨道颜色",
+  "settings.colourblindLanesHint": "默认皮肤的音符使用白色、橙色和天蓝色，在常见的各类色盲下都能区分。导入的皮肤保留自身颜色。",
   "settings.playfield": "游戏区域",
   "settings.simplifyBottomTimeline": "简化底部时间轴",
   "settings.simplifyBottomTimelineHint":

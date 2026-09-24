@@ -90,6 +90,8 @@ export const en = {
   "settings.showPatternTools": "Pattern preset tools",
   "settings.layoutHint":
     "Hide panels you do not use. Settings stays available in the editor header so you can restore them at any time.",
+  "settings.colourblindLanes": "Colourblind-friendly lane colours",
+  "settings.colourblindLanesHint": "Default-skin notes use white, orange and sky blue, which stay distinct with any common kind of colour blindness. Imported skins keep their own colours.",
 
   "settings.playfield": "Playfield",
   "settings.backgroundDim": "Background dim",

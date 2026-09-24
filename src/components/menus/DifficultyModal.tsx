@@ -3,7 +3,7 @@ import { MAX_KEYS, MIN_KEYS, type Difficulty } from "../../types";
 import { Modal } from "../ui/Modal";
 import { Slider, TextInput } from "../ui/Controls";
 import { maniaJudgementWindows } from "../../lib/playtestJudgements";
-import { defaultLaneColour } from "../../lib/laneColours";
+import { defaultLaneColour, laneColourSet } from "../../lib/laneColours";
 
 type Props = {
   open: boolean;
@@ -239,7 +239,8 @@ function LaneMeter({
 function laneColor(lane: number, keys: number): string {
   if (keys % 2 === 1) return defaultLaneColour(lane, keys);
   const fromEdge = Math.min(lane, keys - 1 - lane);
-  return fromEdge % 2 === 0 ? "#e9e9f0" : "#5bc0ff";
+  const { white, accent } = laneColourSet();
+  return fromEdge % 2 === 0 ? white : accent;
 }
 
 function StatCard({

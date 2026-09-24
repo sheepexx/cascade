@@ -61,7 +61,7 @@ import {
   type DifficultyClip,
   type NoteClip,
 } from "../lib/clipboardStore";
-import { defaultLaneColour } from "../lib/laneColours";
+import { defaultLaneColour, type LaneColourScheme } from "../lib/laneColours";
 import type { Waveform } from "../hooks/useWaveform";
 import {
   consumeLocalSeekSignal,
@@ -180,6 +180,8 @@ type Props = {
   onCurrentSampleSet: (value: number) => void;
   hitsoundSources?: HitsoundSource[];
   onCopyHitsounds?: (sourceId: string) => void;
+  /** Default-skin note colours: the usual set or the colourblind one. */
+  laneColourScheme?: LaneColourScheme;
   /** Copies this difficulty's hitsounds onto every difficulty on the same audio. */
   onCopyHitsoundsToAll?: () => void;
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
@@ -1364,9 +1366,11 @@ export function ManiaEditor(props: Props) {
     [laneGeometry],
   );
 
+  const laneColourScheme = props.laneColourScheme ?? "default";
   const laneColor = useCallback(
-    (col: number) => defaultLaneColour(col, propsRef.current.keyCount),
-    [],
+    (col: number) =>
+      defaultLaneColour(col, propsRef.current.keyCount, laneColourScheme),
+    [laneColourScheme],
   );
 
   const noteColor = useCallback(

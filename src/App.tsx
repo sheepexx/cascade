@@ -389,6 +389,7 @@ import {
   type ParsedOsu,
 } from "./lib/osuImport";
 import { MALODY_MAX_KEYS } from "./lib/malody";
+import { setLaneColourScheme } from "./lib/laneColours";
 import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
 import { parseSmFile } from "./lib/smImport";
 import type { PackSong } from "./lib/smPackImport";
@@ -841,6 +842,8 @@ export default function App() {
   }));
   const appSettingsRef = useRef(appSettings);
   appSettingsRef.current = appSettings;
+  // Set before the children render so every playfield drawing picks it up.
+  setLaneColourScheme(appSettings.colourblindLanes ? "colourblind" : "default");
   const announceShortcut = useCallback((text: string) => {
     if (!appSettingsRef.current.shortcutNoticesEnabled) return;
     setShortcutNotice({ id: Date.now() + Math.random(), text });
@@ -6596,6 +6599,7 @@ export default function App() {
     { key: "settings.simplifyBottomTimeline", tab: "Editor" },
     { key: "settings.showPpCounter", tab: "Editor", keywords: "speed" },
     { key: "settings.showPatternTools", tab: "Editor", keywords: "presets" },
+    { key: "settings.colourblindLanes", tab: "Editor", keywords: "colorblind color blind colours lanes notes accessibility" },
     { key: "settings.backgroundDim", tab: "Editor" },
     { key: "settings.backgroundBlur", tab: "Editor", keywords: "blur background" },
     { key: "settings.sizeZoom", tab: "Editor", keywords: "playfield" },
@@ -7440,6 +7444,7 @@ export default function App() {
             <div className="relative min-w-0 flex-1">
             {hasProject ? (
               <MemoizedManiaEditor
+                laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
                 key={active.id}
                 audioBuffer={waveform?.buffer ?? null}
                 patternTitle={`${meta.artist} – ${meta.title}`}
@@ -7570,6 +7575,7 @@ export default function App() {
                 <>
                   <div className="pointer-events-none h-full w-full opacity-60">
                     <MemoizedManiaEditor
+                      laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
                       notes={referenceDiff.notes}
                       keyCount={referenceDiff.keyCount}
                       timingPoints={referenceTimingPoints}
@@ -8003,6 +8009,10 @@ export default function App() {
           simplifyBottomTimeline={appSettings.simplifyBottomTimeline}
           onSimplifyBottomTimeline={(v) =>
             setAppSettings((s) => ({ ...s, simplifyBottomTimeline: v }))
+          }
+          colourblindLanes={appSettings.colourblindLanes}
+          onColourblindLanes={(v) =>
+            setAppSettings((s) => ({ ...s, colourblindLanes: v }))
           }
           showPpCounter={appSettings.showPpCounter}
           onShowPpCounter={(v) =>

@@ -86,6 +86,8 @@ export const de: PartialCatalog = {
   "settings.altWheelPlayfield": "Spielfeldgröße",
   "settings.altWheelVolume": "Lautstärke",
 
+  "settings.colourblindLanes": "Farbenblind-freundliche Spurfarben",
+  "settings.colourblindLanesHint": "Noten des Standard-Skins nutzen Weiß, Orange und Himmelblau, die bei jeder häufigen Form von Farbenblindheit unterscheidbar bleiben. Importierte Skins behalten ihre eigenen Farben.",
   "settings.playfield": "Spielfeld",
   "settings.simplifyBottomTimeline": "Untere Zeitleiste vereinfachen",
   "settings.simplifyBottomTimelineHint":

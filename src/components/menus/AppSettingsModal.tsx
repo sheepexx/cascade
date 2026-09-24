@@ -86,6 +86,8 @@ type Props = {
   onDiscordPresence: (mode: DiscordPresenceMode) => void;
   onSimplifyBottomTimeline: (value: boolean) => void;
   showPpCounter: boolean;
+  colourblindLanes: boolean;
+  onColourblindLanes: (value: boolean) => void;
   onShowPpCounter: (value: boolean) => void;
   showPatternTools: boolean;
   onShowPatternTools: (value: boolean) => void;
@@ -215,6 +217,8 @@ export function AppSettingsModal({
   discordPresence,
   onDiscordPresence,
   showPpCounter,
+  colourblindLanes,
+  onColourblindLanes,
   onShowPpCounter,
   showPatternTools,
   onShowPatternTools,
@@ -770,6 +774,12 @@ export function AppSettingsModal({
                 {t("settings.playfield")}
               </h3>
               <div className="flex flex-col gap-4">
+                <SettingToggle
+                  label={t("settings.colourblindLanes")}
+                  tip={t("settings.colourblindLanesHint")}
+                  checked={colourblindLanes}
+                  onChange={onColourblindLanes}
+                />
                 <SliderRow
                   label={t("settings.backgroundDim")}
                   tip={t("settings.playfieldHint")}
