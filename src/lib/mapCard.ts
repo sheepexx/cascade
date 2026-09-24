@@ -219,6 +219,13 @@ export function mapCardConfigsEqual(a: MapCardConfig, b: MapCardConfig): boolean
   );
 }
 
+export function mapCardNeedsMorph(previous: MapCardConfig, next: MapCardConfig): boolean {
+  return !mapCardConfigsEqual(
+    { ...previous, blur: next.blur, overlayOpacity: next.overlayOpacity },
+    next,
+  );
+}
+
 export function cleanPresetName(name: string): string {
   return name.replace(/\s+/g, " ").trim().slice(0, MAP_CARD_PRESET_NAME_MAX);
 }

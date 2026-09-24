@@ -11,6 +11,7 @@ import {
   mapCardFilename,
   mapCardKey,
   mapCardMsdStatus,
+  mapCardNeedsMorph,
   normalizeMapCardConfig,
   type MapCardConfig,
   type MapCardData,
@@ -129,6 +130,19 @@ describe("map card config", () => {
     const original = BUILT_IN_MAP_CARD_PRESETS[4].config;
     const restored = normalizeMapCardConfig(JSON.parse(JSON.stringify(original)));
     expect(mapCardConfigsEqual(restored, original)).toBe(true);
+  });
+
+  it("morphs design changes but not blur or darkness drags", () => {
+    const base = DEFAULT_MAP_CARD_CONFIG;
+    expect(mapCardNeedsMorph(base, { ...base, blur: 12, overlayOpacity: 0.7 })).toBe(false);
+    expect(mapCardNeedsMorph(base, { ...base, layout: "compact" })).toBe(true);
+    expect(mapCardNeedsMorph(base, { ...base, accent: "teal", blur: 4 })).toBe(true);
+    expect(
+      mapCardNeedsMorph(base, {
+        ...base,
+        visibleStats: { ...base.visibleStats, nps: false },
+      }),
+    ).toBe(true);
   });
 
   it("cleans preset names", () => {
