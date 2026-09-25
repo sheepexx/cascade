@@ -8,12 +8,9 @@ import {
   Toggle,
 } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
-import { CheckIcon } from "../ui/Icons";
 import {
-  MAX_HIT_POSITION,
   MAX_OFFSET_MS,
   MAX_PLAYTEST_SCROLL_SPEED,
-  MIN_HIT_POSITION,
   MIN_PLAYTEST_SCROLL_SPEED,
 } from "../../lib/playtestClock";
 import { MAX_PLAYTEST_RATE, MIN_PLAYTEST_RATE } from "../../lib/playtestJudgements";
@@ -135,6 +132,7 @@ type Props = {
   onBpmAffectsScroll: (value: boolean) => void;
   playtest: PlaytestSettings;
   onPlaytest: (value: PlaytestSettings) => void;
+  onOpenHudEditor?: () => void;
   /** File names of the imported skins playtest can use. */
   savedSkinNames: string[];
   localAutosaveEnabled: boolean;
@@ -272,6 +270,7 @@ export function AppSettingsModal({
   onBpmAffectsScroll,
   playtest,
   onPlaytest,
+  onOpenHudEditor,
   savedSkinNames,
   localAutosaveEnabled,
   onLocalAutosaveEnabled,
@@ -1062,16 +1061,6 @@ export function AppSettingsModal({
                     </button>
                   </div>
                 )}
-                <NumberRow
-                  label={t("settings.hitPosition")}
-                  tip={t("settings.hitPositionHint")}
-                  value={playtest.hitPosition}
-                  min={MIN_HIT_POSITION}
-                  max={MAX_HIT_POSITION}
-                  step={1}
-                  unit="px"
-                  onChange={(hitPosition) => patchPlaytest({ hitPosition })}
-                />
                 <details className="group rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
                   <summary className="cursor-pointer select-none text-xs font-medium text-slate-400 transition hover:text-slate-200">
                     {t("settings.advanced")}
@@ -1137,41 +1126,17 @@ export function AppSettingsModal({
                     )}
                   </Select>
                 </div>
-                <SliderRow
-                  label={t("settings.zoom")}
-                  tip={t("settings.zoomHint")}
-                  display={`${Math.round(playtest.zoom * 100)}%`}
-                  min={0.5}
-                  max={3}
-                  step={0.05}
-                  value={playtest.zoom}
-                  onChange={(zoom) => patchPlaytest({ zoom })}
-                />
-                <SliderRow
-                  label={t("settings.backgroundDim")}
-                  diagram="backgroundDim"
-                  diagramValue={playtest.backgroundDim}
-                  display={`${Math.round(playtest.backgroundDim)}%`}
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={playtest.backgroundDim}
-                  onChange={(backgroundDim) => patchPlaytest({ backgroundDim })}
-                />
-                <div className="flex flex-col gap-2">
-                  <span className="text-[12px] font-medium text-slate-400">
-                    <Tip diagram="hud">{t("settings.hud")}</Tip>
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <HudChip label={t("settings.showJudgements")} checked={playtest.showJudgements} onChange={(v) => patchPlaytest({ showJudgements: v })} />
-                    <HudChip label={t("settings.showCombo")} checked={playtest.showCombo} onChange={(v) => patchPlaytest({ showCombo: v })} />
-                    <HudChip label={t("settings.showAccuracy")} checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
-                    <HudChip label={t("settings.showErrorBar")} checked={playtest.showErrorBar} onChange={(v) => patchPlaytest({ showErrorBar: v })} />
-                    <HudChip label={t("settings.showHitError")} checked={playtest.showHitError} onChange={(v) => patchPlaytest({ showHitError: v })} />
-                    <HudChip label={t("settings.showNpsGraph")} tip={t("settings.showNpsGraphHint")} checked={playtest.showNpsGraph} onChange={(v) => patchPlaytest({ showNpsGraph: v })} />
-                    <HudChip label={t("settings.showRunStats")} tip={t("settings.showRunStatsHint")} checked={playtest.showRunStats} onChange={(v) => patchPlaytest({ showRunStats: v })} />
-                    <HudChip label={t("settings.skinComboFont")} checked={playtest.useSkinComboFont} onChange={(v) => patchPlaytest({ useSkinComboFont: v })} />
-                    <HudChip label={t("settings.skinJudgements")} checked={playtest.useSkinJudgements} onChange={(v) => patchPlaytest({ useSkinJudgements: v })} />
+                <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                  <div aria-hidden="true" className="w-28 shrink-0">
+                    <SettingDiagram name="hud" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-slate-100">{t("settings.hudEditorTitle")}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("settings.hudEditorDesc")}</p>
+                    <Button variant="accent" className="mt-3" disabled={!onOpenHudEditor} onClick={onOpenHudEditor}>
+                      {t("settings.hudEditorOpen")}
+                    </Button>
+                    {!onOpenHudEditor && <p className="mt-2 text-[11px] text-slate-500">{t("settings.hudEditorNeedsMap")}</p>}
                   </div>
                 </div>
               </div>
@@ -1847,43 +1812,6 @@ function NumberRow({
       </div>
       {hint && <p className="text-[11px] leading-snug text-slate-500">{hint}</p>}
     </div>
-  );
-}
-
-function HudChip({
-  label,
-  tip,
-  checked,
-  onChange,
-}: {
-  label: string;
-  tip?: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      title={tip}
-      onClick={() => onChange(!checked)}
-      className={`flex min-h-[2rem] items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[12px] leading-tight transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${
-        checked
-          ? "border-accent/35 bg-accent/10 text-slate-100"
-          : "border-white/[0.08] bg-white/[0.02] text-slate-500 hover:border-white/20 hover:text-slate-300"
-      }`}
-    >
-      <span
-        aria-hidden
-        className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-[4px] border ${
-          checked ? "border-accent bg-accent text-white" : "border-white/25"
-        }`}
-      >
-        {checked && <CheckIcon className="h-2.5 w-2.5" />}
-      </span>
-      <span className="min-w-0">{label}</span>
-    </button>
   );
 }
 

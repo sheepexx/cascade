@@ -183,6 +183,13 @@ describe("lazy catalogs", () => {
 });
 
 describe("catalogs", () => {
+  it.each(TRANSLATIONS)("%s translates the HUD editor", (_, catalog) => {
+    const keys = (Object.keys(en) as Array<keyof typeof en>).filter((key) =>
+      key.startsWith("hud.") || key.startsWith("settings.hudEditor"),
+    );
+    expect(keys.filter((key) => !catalog[key])).toEqual([]);
+  });
+
   it("declares every locale in LOCALES", () => {
     expect(LOCALES.map((l) => l.code).sort()).toEqual(
       ["de", "en", "pt-BR", "ru", "zh-CN"].sort(),

@@ -16,6 +16,8 @@ import {
 import {
   DEFAULT_HUD_PLACEMENT,
   HUD_VISIBILITY,
+  HUD_PANEL_WIDTH,
+  type PlayfieldBounds,
   MAX_HUD_SCALE,
   MIN_HUD_SCALE,
   hudPlacement,
@@ -30,9 +32,6 @@ import { Slider, Toggle } from "./ui/Controls";
 // the HUD can be clicked, dragged and tuned from a panel on the left.
 
 export type HudTarget = HudElementId | "receptor" | "playfield";
-
-/** Width of the editor's panel; the playfield makes room for it. */
-export const HUD_PANEL_WIDTH = 320;
 
 const SNAP_PX = 8;
 
@@ -91,6 +90,7 @@ export function HudItem({
 
   const down = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!editing || e.button !== 0) return;
+    e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     drag.current = { x: e.clientX, y: e.clientY, from: placement, moved: false };
@@ -120,6 +120,17 @@ export function HudItem({
   return (
     <div className={`pointer-events-none absolute ${className}`} style={style}>
       <div
+        data-hud-element={id}
+        role={editing ? "button" : undefined}
+        tabIndex={editing ? 0 : undefined}
+        aria-label={editing ? t(META[id].name) : undefined}
+        aria-pressed={editing ? selected : undefined}
+        onKeyDown={(e) => {
+          if (editing && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            onSelect?.(id);
+          }
+        }}
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
@@ -130,7 +141,7 @@ export function HudItem({
                 selected
                   ? "outline outline-2 outline-accent"
                   : "outline outline-1 outline-transparent hover:outline-white/40"
-              } ${visible ? "" : "opacity-35 [outline-style:dashed] outline-white/30"}`
+              } ${visible ? "" : "opacity-[0.35] [outline-style:dashed] outline-white/30"}`
             : ""
         }`}
         style={{
@@ -150,8 +161,6 @@ export function HudItem({
   );
 }
 
-type Bounds = { left: number; width: number; hitY: number; height: number };
-
 /**
  * Click areas over the playfield and its judgement line. Dragging the line
  * moves the hit position live, so the receptors follow the pointer.
@@ -164,7 +173,7 @@ export function PlayfieldHandles({
   onSelect,
   onHitPosition,
 }: {
-  boundsRef: { current: Bounds | null };
+  boundsRef: { current: PlayfieldBounds | null };
   hitPosition: number;
   upscroll: boolean;
   selected: HudTarget | null;
@@ -172,7 +181,7 @@ export function PlayfieldHandles({
   onHitPosition: (value: number) => void;
 }) {
   const t = useT();
-  const [bounds, setBounds] = useState<Bounds | null>(null);
+  const [bounds, setBounds] = useState<PlayfieldBounds | null>(null);
   const drag = useRef<{ y: number; from: number } | null>(null);
   const [dragging, setDragging] = useState(false);
 

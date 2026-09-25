@@ -125,6 +125,7 @@ Gameplay follows osu!lazer's mania ruleset, taken from its source rather than ap
 Around that:
 
 - Combo, accuracy, judgement text with the hit offset in ms, judgement counts, unstable rate and mean hit error. Each part of the HUD can be turned off.
+- Open **Settings → Playtest → HUD editor** with a map loaded to arrange the HUD over a looping autoplay preview. Drag elements to move them, adjust their size and visibility in the sidebar, and drag the judgement line to move the receptors. **Done** or **Esc** saves the layout and returns to Playtest settings.
 - Hit error bar, key overlay, and a density graph with live and peak NPS and a marker for your position.
 - Practice at rates from 0.75x to 2x. Hit windows scale with the rate, so the timing precision you need stays the same as at 1x.
 - Rebindable lane keys, a quick restart key, and settings reachable from the pause menu.

@@ -1,5 +1,7 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import type { LoadedSkin, PlaytestSettings } from "../types";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import type { HudElementId, HudPlacement, LoadedSkin, PlaytestSettings } from "../types";
+import { HUD_VISIBILITY, hudPlacement, withPlacement, type PlayfieldBounds } from "../lib/hudLayout";
+import { HudEditorPanel, HudItem, PlayfieldHandles, type HudTarget } from "./HudEditor";
 import { keyLabel } from "../lib/playtestKeybinds";
 import type {
   HitResult,
@@ -51,6 +53,11 @@ export function PlaytestOverlay({
   onRetry,
   onReturn,
   onSettings,
+  editing = false,
+  onPatch,
+  playfieldBoundsRef,
+  npsGraph,
+  runStats,
 }: {
   store: PlaytestScoreStore;
   ended: boolean;
@@ -70,70 +77,108 @@ export function PlaytestOverlay({
   onRetry: () => void;
   onReturn: () => void;
   onSettings?: () => void;
+  editing?: boolean;
+  onPatch: (patch: Partial<PlaytestSettings>) => void;
+  playfieldBoundsRef: { current: PlayfieldBounds | null };
+  npsGraph: ReactNode;
+  runStats: ReactNode;
 }) {
   const t = useT();
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const held = useSyncExternalStore(heldKeys.subscribe, heldKeys.getSnapshot);
+  const [selected, setSelected] = useState<HudTarget | null>(null);
   if (!state.active) return null;
-  const latest = state.hitResults[state.hitResults.length - 1] ?? null;
+  const latest = state.hitResults[state.hitResults.length - 1] ?? (editing ? {
+    noteId: "preview", column: 0, time: 0, hitError: 0, judgement: "max", part: "rice",
+  } satisfies HitResult : null);
   const judged = state.judgedCount ?? judgementCount(state.judgements);
   const keys = settings.keybinds[keyCount] ?? [];
   const edge = upscroll ? "top" : "bottom";
+  const item = (id: HudElementId) => ({
+    id,
+    placement: hudPlacement(settings.hud, id),
+    visible: settings[HUD_VISIBILITY[id]] === true,
+    editing,
+    selected: selected === id,
+    onSelect: setSelected,
+    onPlace: (target: HudElementId, placement: HudPlacement) =>
+      onPatch({ hud: withPlacement(settings.hud, target, placement) }),
+  });
 
   return (
     <div className="pointer-events-none absolute inset-0 z-30">
-      {settings.showCombo && state.combo > 0 && (
-        <div
-          className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
+      {editing && (
+        <PlayfieldHandles
+          boundsRef={playfieldBoundsRef}
+          hitPosition={settings.hitPosition}
+          upscroll={upscroll}
+          selected={selected}
+          onSelect={setSelected}
+          onHitPosition={(hitPosition) => onPatch({ hitPosition })}
+        />
+      )}
+      {(editing || state.combo > 0) && (
+        <HudItem
+          {...item("combo")}
+          className="left-1/2 -translate-x-1/2 -translate-y-1/2"
           style={{ top: `${COMBO_FROM_TOP * 100}%` }}
         >
           <Combo value={state.combo} skin={skin} enabled={settings.useSkinComboFont} />
-        </div>
+        </HudItem>
       )}
 
-      {settings.showJudgements && latest && (
-        <div
-          className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-1"
+      {latest && (
+        <HudItem
+          {...item("judgement")}
+          className="left-1/2 -translate-x-1/2"
           style={{
             [edge]: `calc(${hitLineFromEdge}px + ${JUDGEMENT_ABOVE_HIT * 100}%)`,
           }}
         >
-          <div
-            key={`${latest.noteId}:${latest.part}:${judged}`}
-            className={latest.judgement === "miss" ? "pt-judge-miss" : "pt-judge-hit"}
-          >
-            <Judgement result={latest} skin={skin} enabled={settings.useSkinJudgements} />
-          </div>
-          {settings.showHitError && latest.judgement !== "miss" && (
+          <div className="flex flex-col items-center gap-1">
             <div
-              key={`err:${judged}`}
-              className="playtest-hit-error rounded bg-ink-900/60 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-200 backdrop-blur"
+              key={`${latest.noteId}:${latest.part}:${judged}`}
+              className={editing ? "" : latest.judgement === "miss" ? "pt-judge-miss" : "pt-judge-hit"}
             >
-              {latest.hitError > 0 ? "+" : ""}
-              {Math.round(latest.hitError)} ms
+              <Judgement result={latest} skin={skin} enabled={settings.useSkinJudgements} />
             </div>
-          )}
-        </div>
+            {settings.showHitError && latest.judgement !== "miss" && (
+              <div
+                key={`err:${judged}`}
+                className={`${editing ? "" : "playtest-hit-error "}rounded bg-ink-900/60 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-200 backdrop-blur`}
+              >
+                {latest.hitError > 0 ? "+" : ""}
+                {Math.round(latest.hitError)} ms
+              </div>
+            )}
+          </div>
+        </HudItem>
       )}
 
-      <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
-        {settings.showAccuracy && (
+      <HudItem {...item("accuracy")} className="right-4 top-4">
+        <div className="flex flex-col items-end gap-2">
           <div className="text-3xl font-bold tabular-nums leading-none text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
             {state.accuracy.toFixed(2)}%
           </div>
-        )}
-        {(settings.rate ?? 1) !== 1 && (
-          <div className="rounded-full border border-accent/40 bg-accent/20 px-2.5 py-0.5 text-xs font-semibold text-accent-soft shadow-lg backdrop-blur">
-            {t("playtest.rate", { rate: settings.rate ?? 1 })}
-          </div>
-        )}
+          {(settings.rate ?? 1) !== 1 && (
+            <div className="rounded-full border border-accent/40 bg-accent/20 px-2.5 py-0.5 text-xs font-semibold text-accent-soft shadow-lg backdrop-blur">
+              {t("playtest.rate", { rate: settings.rate ?? 1 })}
+            </div>
+          )}
+        </div>
+      </HudItem>
+      <HudItem
+        {...item("counts")}
+        className="right-4"
+        style={{ top: (settings.rate ?? 1) !== 1 ? "5.25rem" : "3.375rem" }}
+      >
         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 rounded-xl border border-white/10 bg-ink-900/55 px-3 py-2 text-[11px] text-slate-300 shadow-xl backdrop-blur">
           <Counts counts={state.judgements} />
         </div>
-      </div>
+      </HudItem>
 
-      {settings.showErrorBar && (
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1">
+      <HudItem {...item("errorBar")} className="bottom-3 left-1/2 -translate-x-1/2">
+        <div className="flex flex-col items-center gap-1">
           <div className="text-[10px] font-semibold tracking-wide text-slate-300/90 drop-shadow">
             {state.unstableRate.toFixed(1)} UR
           </div>
@@ -143,24 +188,33 @@ export function PlaytestOverlay({
             getCurrentTime={getCurrentTime}
           />
         </div>
-      )}
+      </HudItem>
 
-      <div className="absolute bottom-4 right-4 flex gap-1">
-        {keys.map((code, i) => (
-          <div
-            key={`${code}:${i}`}
-            className={`grid min-h-7 min-w-8 place-items-center rounded-md border px-1.5 text-[11px] font-semibold shadow-lg backdrop-blur transition-colors duration-75 ${
-              held.has(code)
-                ? "border-accent/80 bg-accent/80 text-white"
-                : "border-white/10 bg-ink-900/55 text-slate-400"
-            }`}
-          >
-            {keyLabel(code)}
-          </div>
-        ))}
-      </div>
+      <HudItem {...item("keys")} className="bottom-4 right-4">
+        <div className="flex gap-1">
+          {keys.map((code, i) => (
+            <div
+              key={`${code}:${i}`}
+              className={`grid min-h-7 min-w-8 place-items-center rounded-md border px-1.5 text-[11px] font-semibold shadow-lg backdrop-blur transition-colors duration-75 ${
+                held.has(code)
+                  ? "border-accent/80 bg-accent/80 text-white"
+                  : "border-white/10 bg-ink-900/55 text-slate-400"
+              }`}
+            >
+              {keyLabel(code)}
+            </div>
+          ))}
+        </div>
+      </HudItem>
 
-      {paused && !ended && (
+      <HudItem {...item("npsGraph")} className="bottom-28 left-3 top-52" fill>
+        {npsGraph}
+      </HudItem>
+      <HudItem {...item("runStats")} className="left-3 top-3">
+        {runStats}
+      </HudItem>
+
+      {!editing && paused && !ended && (
         <div className="pointer-events-auto absolute inset-0 grid place-items-center bg-ink-900/55 backdrop-blur-sm">
           <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-ink-800/92 p-5 text-center shadow-2xl">
             <h2 className="text-lg font-semibold text-slate-100">{t("playtest.paused")}</h2>
@@ -206,7 +260,7 @@ export function PlaytestOverlay({
         </div>
       )}
 
-      {ended && (
+      {!editing && ended && (
         <div className="pointer-events-auto absolute inset-0 grid place-items-center bg-ink-900/45 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-800/92 p-5 text-center shadow-2xl">
             <h2 className="text-lg font-semibold text-slate-100">
@@ -248,8 +302,11 @@ export function PlaytestOverlay({
         </div>
       )}
 
-      {countdownEndsAt !== null && (
+      {!editing && countdownEndsAt !== null && (
         <PlaytestCountdown endsAt={countdownEndsAt} resuming />
+      )}
+      {editing && (
+        <HudEditorPanel settings={settings} selected={selected} onSelect={setSelected} onPatch={onPatch} onDone={onReturn} />
       )}
     </div>
   );

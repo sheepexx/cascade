@@ -424,7 +424,7 @@ import {
   type PlaytestNoteIndex,
 } from "./lib/playtestIndex";
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
-import { normalizeHudLayout } from "./lib/hudLayout";
+import { HUD_PANEL_WIDTH, normalizeHudLayout, type PlayfieldBounds } from "./lib/hudLayout";
 import { normalizePlaytestSkin } from "./lib/playtestSkin";
 import { PRESET_SKINS } from "./lib/presetSkins";
 import {
@@ -630,6 +630,7 @@ function describeSaveError(err: unknown): string | null {
  */
 type PlaytestRuntimeState = {
   active: boolean;
+  hudEditing: boolean;
   /** Where the run's notes start: the playhead it was started from. */
   startTime: number;
   ended: boolean;
@@ -644,6 +645,7 @@ type PlaytestRuntimeState = {
 function initialPlaytestState(): PlaytestRuntimeState {
   return {
     active: false,
+    hudEditing: false,
     startTime: 0,
     ended: false,
     paused: false,
@@ -1019,6 +1021,8 @@ export default function App() {
   );
   const playtestRef = useRef(playtest);
   playtestRef.current = playtest;
+  const playfieldBoundsRef = useRef<PlayfieldBounds | null>(null);
+  const autoplayBeforeHudRef = useRef(false);
   const playtestEngineRef = useRef<PlaytestEngine | null>(null);
   /** The notes the engine was built from, to notice edits during a run. */
   const playtestEngineNotesRef = useRef<ManiaNote[] | null>(null);
@@ -2066,11 +2070,14 @@ export default function App() {
   );
 
   const exitPlaytest = useCallback(() => {
+    const wasEditing = playtestRef.current.hudEditing;
     clearPlaytestPreRoll();
     pauseAudio();
     setPlaytest((prev) => ({
       ...prev,
       active: false,
+      hudEditing: false,
+      autoplay: wasEditing ? autoplayBeforeHudRef.current : prev.autoplay,
       ended: false,
       paused: false,
       countdownEndsAt: null,
@@ -2078,15 +2085,19 @@ export default function App() {
     }));
     playtestEngineRef.current = null;
     playtestEngineNotesRef.current = null;
-  }, [clearPlaytestPreRoll, pauseAudio]);
+    if (wasEditing) openSettings("Playtest");
+  }, [clearPlaytestPreRoll, openSettings, pauseAudio]);
 
   // Starts a run at `startTime` like osu!'s editor test play: notes before it
   // are left out, and play goes on from there. The music starts right away,
   // backed up when needed so the first note has the lead-in, and before the
   // song's start the run counts in over silence.
   const startPlaytest = useCallback(
-    (startTime = getCurrentTime()) => {
+    (startTime = getCurrentTime(), { hudEditing = false }: { hudEditing?: boolean } = {}) => {
       if (!audioFile || !projectStarted) return;
+      if (hudEditing && !playtestRef.current.hudEditing) {
+        autoplayBeforeHudRef.current = playtestRef.current.autoplay;
+      }
       const clamped = Math.max(0, Math.min(startTime, audio.duration || startTime));
       setModal(null);
       setCommentsOpen(false);
@@ -2104,8 +2115,9 @@ export default function App() {
       setPlaytest((prev) => ({
         ...initialPlaytestState(),
         active: true,
+        hudEditing,
         startTime: clamped,
-        autoplay: prev.autoplay,
+        autoplay: hudEditing || prev.autoplay,
         runKey: prev.runKey + 1,
       }));
       if (from >= 0) {
@@ -2141,8 +2153,15 @@ export default function App() {
   );
 
   const restartPlaytest = useCallback(() => {
-    startPlaytest(playtestRef.current.startTime ?? 0);
+    const current = playtestRef.current;
+    startPlaytest(current.startTime, { hudEditing: current.hudEditing });
   }, [startPlaytest]);
+
+  useEffect(() => {
+    if (playtest.active && playtest.hudEditing && playtest.ended) {
+      startPlaytest(0, { hudEditing: true });
+    }
+  }, [playtest.active, playtest.hudEditing, playtest.ended, startPlaytest]);
 
   // Resuming counts down (osu!mania's DelayedResumeOverlay) and then plays on.
   useEffect(() => {
@@ -2278,7 +2297,7 @@ export default function App() {
   );
   const { heldKeys: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef } =
     usePlaytestInput({
-      active: playtest.active && playtest.countdownEndsAt === null,
+      active: playtest.active && !playtest.hudEditing && playtest.countdownEndsAt === null,
       paused: playtest.paused,
       keyCount: active.keyCount,
       keybinds: playtestSettings.keybinds,
@@ -2384,6 +2403,12 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (playtestRef.current.hudEditing && e.code === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        exitPlaytest();
+        return;
+      }
       if (!matchesBind(e.code, editorKeybindsRef.current.playtestToggle))
         return;
       e.preventDefault();
@@ -7599,7 +7624,10 @@ export default function App() {
               />
             )}
           </div>
-          <div className="relative min-h-0 flex-1">
+          <div
+            className="relative min-h-0 flex-1 transition-[margin-left] duration-300 motion-reduce:transition-none"
+            style={{ marginLeft: playtest.hudEditing ? HUD_PANEL_WIDTH : 0 }}
+          >
             {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">{t("app.sharedAudio", { reason: audio.nativeAudio.fallbackReason })} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>{t("app.audioSetup")}</button></div>}
             <div className="flex h-full w-full">
             <div className="relative min-w-0 flex-1">
@@ -7679,6 +7707,7 @@ export default function App() {
                 onPasteDifficulty={pasteDifficulty}
                 readOnly={!canEdit}
                 playtestMode={playtest.active}
+                playfieldBoundsRef={playfieldBoundsRef}
                 heldLnIdsRef={playtestHoldingView}
                 consumedIdsRef={playtestHiddenView}
                 droppedIdsRef={playtestDroppedView}
@@ -7795,40 +7824,38 @@ export default function App() {
               )}
             </div>
             </div>
-            {hasProject && playtest.active && playtestSettings.showNpsGraph && (
-              <MemoizedPlaytestNpsGraph
-                notes={playtestRunNotes}
-                durationMs={audio.duration}
-                getCurrentTime={getEditorCurrentTime}
-                active={playtest.active}
-                running={
-                  !playtest.paused &&
-                  !playtest.ended &&
-                  playtest.countdownEndsAt === null
-                }
-                label={t("runStats.nps")}
-                peakLabel={t("runStats.peakShort")}
-              />
-            )}
-            {hasProject &&
-              playtest.active &&
-              (playtest.countdownEndsAt === null || playtest.resuming) &&
-              playtestSettings.showRunStats && (
-                <PlaytestRunStats
-                  store={playtestScore}
-                  notes={playtestRunNotes}
-                  durationMs={audio.duration}
-                  getCurrentTime={getEditorCurrentTime}
-                  autoplay={playtest.autoplay}
-                  autoplaySummary={autoplaySummary}
-                  humanized={playtestSettings.humanize.enabled}
-                  showNps={!playtestSettings.showNpsGraph}
-                  skillProfile={skillProfile}
-                  skillEnabled
-                />
-              )}
             {hasProject && playtest.active && (
               <PlaytestOverlay
+                editing={playtest.hudEditing}
+                onPatch={(patch) => setAppSettings((s) => ({ ...s, playtest: { ...s.playtest, ...patch } }))}
+                playfieldBoundsRef={playfieldBoundsRef}
+                npsGraph={
+                  <MemoizedPlaytestNpsGraph
+                    embedded
+                    notes={playtestRunNotes}
+                    durationMs={audio.duration}
+                    getCurrentTime={getEditorCurrentTime}
+                    active={playtest.active}
+                    running={!playtest.paused && !playtest.ended && playtest.countdownEndsAt === null}
+                    label={t("runStats.nps")}
+                    peakLabel={t("runStats.peakShort")}
+                  />
+                }
+                runStats={
+                  <PlaytestRunStats
+                    embedded
+                    store={playtestScore}
+                    notes={playtestRunNotes}
+                    durationMs={audio.duration}
+                    getCurrentTime={getEditorCurrentTime}
+                    autoplay={playtest.autoplay}
+                    autoplaySummary={autoplaySummary}
+                    humanized={playtestSettings.humanize.enabled}
+                    showNps={!playtestSettings.showNpsGraph}
+                    skillProfile={skillProfile}
+                    skillEnabled
+                  />
+                }
                 store={playtestScore}
                 ended={playtest.ended}
                 paused={playtest.paused}
@@ -8277,6 +8304,7 @@ export default function App() {
           }
           playtest={appSettings.playtest}
           onPlaytest={(v) => setAppSettings((s) => ({ ...s, playtest: v }))}
+          onOpenHudEditor={hasProject && audioFile ? () => startPlaytest(0, { hudEditing: true }) : undefined}
           savedSkinNames={skinLibrary.map((saved) => saved.name)}
           localAutosaveEnabled={appSettings.localAutosaveEnabled}
           onLocalAutosaveEnabled={(v) =>

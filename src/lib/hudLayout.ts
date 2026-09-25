@@ -6,6 +6,8 @@ import {
 } from "../types";
 
 export const DEFAULT_HUD_PLACEMENT: HudPlacement = { x: 0, y: 0, scale: 1 };
+export const HUD_PANEL_WIDTH = 320;
+export type PlayfieldBounds = { left: number; width: number; hitY: number; height: number };
 export const MIN_HUD_SCALE = 0.5;
 export const MAX_HUD_SCALE = 2;
 const MAX_HUD_OFFSET = 4000;

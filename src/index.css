@@ -663,6 +663,22 @@ img {
   animation: hitsound-bar-out 200ms var(--ease-exit) forwards;
 }
 
+@keyframes hud-panel-in {
+  from { opacity: 0; transform: translateX(-100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes hud-page-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes hud-tag-in {
+  from { opacity: 0; translate: 0 4px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.hud-panel-in { animation: hud-panel-in 300ms var(--ease-emphasized); }
+.hud-page-in { animation: hud-page-in 180ms var(--ease-emphasized); }
+.hud-tag-in { animation: hud-tag-in 150ms var(--ease-emphasized); }
+
 @keyframes rate-panel-in {
   from {
     opacity: 0;
@@ -1270,6 +1286,9 @@ canvas[data-pointer-focus]:focus-visible {
   .float-player-tip-card,
   .notification-shell,
   .rate-panel-in,
+  .hud-panel-in,
+  .hud-page-in,
+  .hud-tag-in,
   .rate-panel-out,
   .tap-ring,
   .loader-fade-in,
