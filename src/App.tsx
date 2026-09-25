@@ -6641,6 +6641,11 @@ export default function App() {
     return { rice, holds: holdCount };
   }, [active.notes, selectionRange]);
 
+  const [laneFlash, setLaneFlash] = useState<{ column: number; at: number } | null>(null);
+  const flashColumn = useCallback(
+    (column: number) => setLaneFlash({ column, at: performance.now() }),
+    [],
+  );
   const [ghostNotesFor, setGhostNotesFor] = useState<string | null>(null);
   const ghostNotes = ghostNotesFor === active.id;
   const setGhostNotes = useCallback(
@@ -7478,6 +7483,7 @@ export default function App() {
                   timingPoints={activeTimingPoints}
                   songDurationMs={audio.duration > 0 ? audio.duration : null}
                   peers={liveEnabled ? collab.peers : undefined}
+                  onFlashColumn={flashColumn}
                 />
               )}
             </div>
@@ -7548,6 +7554,7 @@ export default function App() {
               <MemoizedManiaEditor
                 laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
                 snapColours={appSettings.snapColouredNotes}
+                laneFlash={laneFlash}
                 key={active.id}
                 audioBuffer={waveform?.buffer ?? null}
                 patternTitle={`${meta.artist} – ${meta.title}`}

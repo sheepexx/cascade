@@ -38,6 +38,8 @@ type Props = {
   timingPoints: TimingPoint[];
   songDurationMs: number | null;
   peers?: PeerLite[];
+  /** Lights a lane up in the editor, from the column chart. */
+  onFlashColumn?: (column: number) => void;
 };
 
 export function DifficultySidebar({
@@ -54,6 +56,7 @@ export function DifficultySidebar({
   timingPoints,
   songDurationMs,
   peers,
+  onFlashColumn,
 }: Props) {
   const t = useT();
   const [rateOpen, setRateOpen] = useState(false);
@@ -206,6 +209,7 @@ export function DifficultySidebar({
           <ColumnHistogram
             counts={stats.columnCounts}
             handBalance={stats.handBalance}
+            onFlashColumn={onFlashColumn}
           />
         </div>
       )}
@@ -234,9 +238,11 @@ function RateIcon() {
 function ColumnHistogram({
   counts,
   handBalance,
+  onFlashColumn,
 }: {
   counts: number[];
   handBalance: number;
+  onFlashColumn?: (column: number) => void;
 }) {
   const t = useT();
   const max = Math.max(...counts, 1);
@@ -253,14 +259,21 @@ function ColumnHistogram({
         </span>
       </div>
       <div className="flex h-9 items-end gap-1">
-        {counts.map((count, i) => (
-          <div
-            key={i}
-            className="group/bar relative flex-1 rounded-t-sm bg-accent/60 transition hover:bg-accent"
-            style={{ height: `${Math.max(4, (count / max) * 100)}%` }}
-            title={t("diffSidebar.columnNotes", { column: i + 1, count })}
-          />
-        ))}
+        {counts.map((count, i) => {
+          const label = t("diffSidebar.columnNotes", { column: i + 1, count });
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onFlashColumn?.(i)}
+              disabled={!onFlashColumn}
+              aria-label={label}
+              title={label}
+              className="group/bar relative flex-1 rounded-t-sm bg-accent/60 transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:brightness-125 disabled:cursor-default"
+              style={{ height: `${Math.max(4, (count / max) * 100)}%` }}
+            />
+          );
+        })}
       </div>
       <div className="mt-0.5 flex gap-1">
         {counts.map((count, i) => (

@@ -186,6 +186,8 @@ type Props = {
   laneColourScheme?: LaneColourScheme;
   /** Notes take the colour of their beat divisor instead of their lane's. */
   snapColours?: boolean;
+  /** A lane to light up briefly; `at` is a performance.now() timestamp. */
+  laneFlash?: { column: number; at: number } | null;
   /** Copies this difficulty's hitsounds onto every difficulty on the same audio. */
   onCopyHitsoundsToAll?: () => void;
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
@@ -1643,6 +1645,22 @@ export function ManiaEditor(props: Props) {
       ctx.stroke();
     }
 
+    const flash = propsRef.current.laneFlash;
+    if (flash && flash.column >= 0 && flash.column < keyCount) {
+      const strength = laneFlashStrength(performance.now() - flash.at, reduceMotion());
+      if (strength > 0) {
+        const x = originX + flash.column * laneWidth;
+        ctx.save();
+        ctx.fillStyle = noteColor(flash.column);
+        ctx.globalAlpha = 0.34 * strength;
+        ctx.fillRect(x, 0, laneWidth, height);
+        ctx.globalAlpha = 0.9 * strength;
+        ctx.fillRect(x, 0, 2, height);
+        ctx.fillRect(x + laneWidth - 2, 0, 2, height);
+        ctx.restore();
+      }
+    }
+
     const overlay = overlayPeaksRef.current;
     if (overlay) {
       const inPlaytest = !!propsRef.current.playtestMode;
@@ -2344,6 +2362,7 @@ export function ManiaEditor(props: Props) {
     const animating = () => {
       const p = propsRef.current;
       if (p.isPlaying) return true;
+      if (p.laneFlash && performance.now() - p.laneFlash.at < LANE_FLASH_MS) return true;
       const video = videoRef.current;
       if (video && !video.paused && video.readyState >= 2) return true;
       const fadeStart = bgFadeStartRef.current;
@@ -3881,6 +3900,19 @@ function drawReceptor(
     return;
   }
   ctx.drawImage(img, x, dy, laneWidth, img.height * s);
+}
+
+const LANE_FLASH_MS = 800;
+
+/**
+ * How lit a flashed lane is, 0 to 1: bright at once, dark, bright again a
+ * little softer, then out. With reduced motion it simply fades.
+ */
+function laneFlashStrength(elapsed: number, reduced: boolean): number {
+  if (elapsed < 0 || elapsed >= LANE_FLASH_MS) return 0;
+  const p = elapsed / LANE_FLASH_MS;
+  if (reduced) return 1 - p;
+  return Math.cos(1.5 * Math.PI * p) ** 2 * (1 - 0.4 * p);
 }
 
 function drawReceptorGlow(
