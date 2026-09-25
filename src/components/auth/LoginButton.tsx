@@ -4,8 +4,8 @@ import { sessionAuthHeaders, useAuth } from "../../lib/auth";
 import { useT } from "../../lib/i18n";
 import { Button } from "../ui/Controls";
 import { Skeleton } from "../ui/Skeleton";
-import { ChevronDownIcon } from "../ui/Icons";
-import { siteUrl } from "../../lib/siteAssets";
+import { ChevronDownIcon, DiscordIcon } from "../ui/Icons";
+import { DISCORD_INVITE, siteUrl } from "../../lib/siteAssets";
 import { MOTION } from "../../lib/motion";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
@@ -253,6 +253,16 @@ export function AccountControl({
             <MenuItem onClick={() => choose(onOpenFeedback)}>
               {t("account.feedback")}
             </MenuItem>
+            <a
+              href={DISCORD_INVITE}
+              target="_blank"
+              rel="noreferrer"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-slate-200 transition hover:bg-ink-600"
+              onClick={() => setOpen(false)}
+            >
+              <DiscordIcon className="h-4 w-4 text-[#5865F2]" />
+              Discord
+            </a>
             {isAdmin && (
               <MenuItem onClick={() => choose(onOpenAdmin)}>
                 {t("account.admin")}
