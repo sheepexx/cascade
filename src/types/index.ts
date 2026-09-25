@@ -256,8 +256,6 @@ export const HITSOUND_SETS: HitsoundSet[] = ["normal", "soft", "drum"];
 
 export type HitsoundSkinSource = "visual" | "default" | "selected";
 
-export type PlaytestOffsetMode = "visual" | "audio";
-
 export type HumanizeSettings = {
   enabled: boolean;
   biasMs: number;
@@ -384,9 +382,15 @@ export type PlaytestSettings = {
   zoom: number;
   rate: number;
   backgroundDim: number;
-  offsetMode: PlaytestOffsetMode;
-  offsetMs: number;
-  hitPositionOffset: number;
+  /**
+   * Real ms the whole gameplay clock is moved against the music, notes and
+   * judging together. Negative when the music is heard late.
+   */
+  audioOffsetMs: number;
+  /** Real ms added to presses and releases only, for a lagging input path. */
+  inputOffsetMs: number;
+  /** Pixels the judgement line sits further from the screen edge than usual. */
+  hitPosition: number;
   showJudgements: boolean;
   showCombo: boolean;
   showAccuracy: boolean;
@@ -575,9 +579,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     zoom: 1.5,
     rate: 1,
     backgroundDim: 82,
-    offsetMode: "visual",
-    offsetMs: 0,
-    hitPositionOffset: 0,
+    audioOffsetMs: 0,
+    inputOffsetMs: 0,
+    hitPosition: 0,
     showJudgements: true,
     showCombo: true,
     showAccuracy: true,

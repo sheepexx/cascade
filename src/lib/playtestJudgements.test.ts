@@ -10,16 +10,29 @@ import {
 } from "./playtestJudgements";
 
 describe("maniaJudgementWindows", () => {
-  it("matches the osu!mania stable formula at OD 8", () => {
+  it("matches osu!lazer's ManiaHitWindows at OD 8", () => {
     const w = maniaJudgementWindows(8);
     expect(w).toEqual({
       max: 16.5,
-      hit300: 64 - 24,
-      hit200: 97 - 24,
-      hit100: 127 - 24,
-      hit50: 151 - 24,
-      miss: 188 - 24,
+      hit300: 40.5,
+      hit200: 73.5,
+      hit100: 103.5,
+      hit50: 127.5,
+      miss: 164.5,
     });
+  });
+
+  it("narrows MAX with OD, as lazer does", () => {
+    expect(maniaJudgementWindows(0).max).toBe(22.5);
+    expect(maniaJudgementWindows(5).max).toBe(19.5);
+    expect(maniaJudgementWindows(10).max).toBe(13.5);
+  });
+
+  it("widens the song-time windows with the playback rate before flooring", () => {
+    const w = maniaJudgementWindows(8, 1.5);
+    expect(w.hit300).toBe(60.5);
+    expect(w.miss).toBe(Math.floor(164 * 1.5) + 0.5);
+    expect(maniaJudgementWindows(8, 0.75).hit300).toBe(30.5);
   });
 
   it("clamps OD into 0..10", () => {

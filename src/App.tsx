@@ -410,25 +410,17 @@ import { parseSmFile } from "./lib/smImport";
 import type { PackSong } from "./lib/smPackImport";
 import { assertTextImportSize } from "./lib/importLimits";
 import {
-  emptyJudgementCounts,
-  judgeHitError,
   maniaJudgementWindows,
   maniaReleaseWindows,
-  scaleWindows,
   clampPlaytestRate,
-  type HitResult,
-  type PlaytestState,
 } from "./lib/playtestJudgements";
-import {
-  accuracyFromCounts,
-  addJudgement,
-  scoreFromCounts,
-} from "./lib/playtestScoring";
+import { createPlaytestEngine, type PlaytestEngine } from "./lib/playtestEngine";
+import { createPlaytestScoreStore } from "./lib/playtestScoreStore";
+import { PLAYHEAD_FROM_EDGE as PLAYTEST_HIT_LINE_FROM_EDGE } from "./lib/playfieldGeometry";
 import {
   buildPlaytestNoteIndex,
   firstNoteAtOrAfter,
   nearestPlayableNote,
-  playtestStartWindow,
   type PlaytestNoteIndex,
 } from "./lib/playtestIndex";
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
@@ -497,6 +489,15 @@ import {
 } from "./lib/editorKeybinds";
 import { MAX_UI_SCALE, MIN_UI_SCALE, clampUiScale, uiScaleFromWheel } from "./lib/uiScale";
 import { OnScreenDisplay } from "./components/ui/OnScreenDisplay";
+import {
+  MAX_PLAYTEST_SCROLL_SPEED,
+  MIN_PLAYTEST_SCROLL_SPEED,
+  gameplayTime,
+  inputTime,
+  normalizePlaytestTiming,
+  runStartTime,
+  type PlaytestTiming,
+} from "./lib/playtestClock";
 import { osdRange, osdToggle, type OsdNotice } from "./lib/osd";
 import {
   clearUiBreakpointAttributes,
@@ -607,7 +608,8 @@ async function loadFile(file: File): Promise<LoadedFile> {
 }
 
 const LOCAL_AUTOSAVE_MS = 60000;
-const PLAYTEST_COUNTDOWN_MS = 2000;
+/** osu!mania's DelayedResumeOverlay counts 3 over two seconds. */
+const PLAYTEST_RESUME_COUNTDOWN_MS = 2000;
 
 function describeSaveError(err: unknown): string | null {
   if (!(err instanceof Error)) return null;
@@ -620,7 +622,15 @@ function describeSaveError(err: unknown): string | null {
   return err.message || err.name || null;
 }
 
-type PlaytestRuntimeState = PlaytestState & {
+/**
+ * Where a playtest run is, not how it is going: the score lives in a store
+ * the HUD reads (see playtestScoreStore), so judgements do not re-render the
+ * editor.
+ */
+type PlaytestRuntimeState = {
+  active: boolean;
+  /** Where the run's notes start: the playhead it was started from. */
+  startTime: number;
   ended: boolean;
   paused: boolean;
   autoplay: boolean;
@@ -628,31 +638,18 @@ type PlaytestRuntimeState = PlaytestState & {
   countdownEndsAt: number | null;
   /** The countdown is bringing a paused run back rather than starting one. */
   resuming: boolean;
-  skipBeforeTime: number;
 };
-
-const MAX_RECENT_PLAYTEST_RESULTS = 64;
 
 function initialPlaytestState(): PlaytestRuntimeState {
   return {
     active: false,
+    startTime: 0,
     ended: false,
     paused: false,
     autoplay: false,
     runKey: 0,
     countdownEndsAt: null,
     resuming: false,
-    skipBeforeTime: 0,
-    startTime: 0,
-    score: 0,
-    combo: 0,
-    maxCombo: 0,
-    accuracy: 100,
-    unstableRate: 0,
-    judgements: emptyJudgementCounts(),
-    hitResults: [],
-    judgedCount: 0,
-    meanError: 0,
   };
 }
 
@@ -698,8 +695,10 @@ function normalizeAppSettings(
       ? prefs.altWheelAction
       : DEFAULT_APP_SETTINGS.altWheelAction,
     playtest: {
-      ...DEFAULT_APP_SETTINGS.playtest,
-      ...(playtestPrefs ?? {}),
+      ...normalizePlaytestTiming(
+        { ...DEFAULT_APP_SETTINGS.playtest, ...(playtestPrefs ?? {}) },
+        DEFAULT_APP_SETTINGS.playtest,
+      ),
       keybinds: normalizePlaytestKeybinds(playtestPrefs?.keybinds),
       skin: normalizePlaytestSkin(playtestPrefs?.skin),
       humanize: normalizeHumanize(playtestPrefs?.humanize),
@@ -1018,14 +1017,32 @@ export default function App() {
   );
   const playtestRef = useRef(playtest);
   playtestRef.current = playtest;
-  const playtestConsumedRef = useRef<Set<string>>(new Set());
-  const playtestHeadJudgedRef = useRef<Set<string>>(new Set());
-  const playtestTailJudgedRef = useRef<Set<string>>(new Set());
-  const playtestHeldLnRef = useRef<Map<string, ManiaNote>>(new Map());
-  const playtestErrStatsRef = useRef({ n: 0, sum: 0, sumSq: 0 });
+  const playtestEngineRef = useRef<PlaytestEngine | null>(null);
+  /** The notes the engine was built from, to notice edits during a run. */
+  const playtestEngineNotesRef = useRef<ManiaNote[] | null>(null);
+  const [playtestScore] = useState(createPlaytestScoreStore);
   const playtestNoteIndexRef = useRef<PlaytestNoteIndex | null>(null);
-  const playtestMissCursorRef = useRef(0);
   const playtestEndArmedRef = useRef(false);
+  /** A run counting in over silence before the song's start. */
+  const playtestPreRollRef = useRef<{
+    from: number;
+    startedAt: number;
+    pausedAt: number | null;
+    timer: number;
+  } | null>(null);
+  // The playfield reads the engine's note states through these.
+  const playtestHiddenView = useMemo(
+    () => ({ current: { has: (id: string) => playtestEngineRef.current?.hidden.has(id) ?? false } }),
+    [],
+  );
+  const playtestHoldingView = useMemo(
+    () => ({ current: { has: (id: string) => playtestEngineRef.current?.holding.has(id) ?? false } }),
+    [],
+  );
+  const playtestDroppedView = useMemo(
+    () => ({ current: { has: (id: string) => playtestEngineRef.current?.dropped.has(id) ?? false } }),
+    [],
+  );
   const difficultiesRef = useRef(difficulties);
   difficultiesRef.current = difficulties;
   const audioFilesRef = useRef(audioFiles);
@@ -1895,23 +1912,30 @@ export default function App() {
   const activeSkin = playtestLook?.keymodes[active.keyCount] ?? null;
   const playtestRate = clampPlaytestRate(playtestSettings.rate);
   const playtestWindows = useMemo(
-    () => scaleWindows(maniaJudgementWindows(active.overallDifficulty), playtestRate),
+    () => maniaJudgementWindows(active.overallDifficulty, playtestRate),
     [active.overallDifficulty, playtestRate],
   );
   const playtestReleaseWindows = useMemo(
-    () => scaleWindows(maniaReleaseWindows(active.overallDifficulty), playtestRate),
+    () => maniaReleaseWindows(active.overallDifficulty, playtestRate),
     [active.overallDifficulty, playtestRate],
   );
-  // Refs so the input handlers pick up rate/OD changes without re-binding.
   const playtestWindowsRef = useRef(playtestWindows);
   playtestWindowsRef.current = playtestWindows;
-  const playtestReleaseWindowsRef = useRef(playtestReleaseWindows);
-  playtestReleaseWindowsRef.current = playtestReleaseWindows;
+  const playtestTiming = useMemo<PlaytestTiming>(
+    () => ({
+      rate: playtestRate,
+      audioOffsetMs: playtestSettings.audioOffsetMs,
+      inputOffsetMs: playtestSettings.inputOffsetMs,
+    }),
+    [playtestRate, playtestSettings.audioOffsetMs, playtestSettings.inputOffsetMs],
+  );
+  const playtestTimingRef = useRef(playtestTiming);
+  playtestTimingRef.current = playtestTiming;
 
   const ensurePlaytestNoteIndex = useCallback(
     (notes: ManiaNote[], keyCount: number): PlaytestNoteIndex => {
       const existing = playtestNoteIndexRef.current;
-      if (existing?.source === notes && existing.keyCount === keyCount) {
+      if (existing && existing.source === notes && existing.keyCount === keyCount) {
         return existing;
       }
       const next = buildPlaytestNoteIndex(notes, keyCount);
@@ -1921,199 +1945,126 @@ export default function App() {
     [],
   );
 
-  const resetPlaytestRuntime = useCallback(
-    (startTime: number, countdownEndsAt: number) => {
-      const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
-      const { first, firstPlayable, skipBeforeTime } = playtestStartWindow(
-        index.sorted,
-        startTime,
-        PLAYTEST_COUNTDOWN_MS,
-      );
-      const headJudged = new Set<string>();
-      const tailJudged = new Set<string>();
-      const consumed = new Set<string>();
-      for (let i = 0; i < firstPlayable; i++) {
-        const id = index.sorted[i].id;
-        headJudged.add(id);
-        tailJudged.add(id);
-        if (i >= first) consumed.add(id);
+  /** The music's time, or the count-in's while a run starts before zero. */
+  const playtestAudioTime = useCallback(
+    (now = performance.now()) => {
+      const preRoll = playtestPreRollRef.current;
+      if (preRoll) {
+        const at = preRoll.pausedAt ?? now;
+        const time =
+          preRoll.from + (at - preRoll.startedAt) * playtestTimingRef.current.rate;
+        if (time < 0) return time;
       }
-      playtestHeadJudgedRef.current = headJudged;
-      playtestTailJudgedRef.current = tailJudged;
-      playtestHeldLnRef.current = new Map();
-      playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
-      playtestConsumedRef.current = consumed;
-      playtestMissCursorRef.current = firstPlayable;
-      playtestEndArmedRef.current = false;
-      setPlaytest((prev) => ({
-        ...initialPlaytestState(),
-        active: true,
-        startTime,
-        autoplay: prev.autoplay,
-        runKey: prev.runKey + 1,
-        countdownEndsAt,
-        skipBeforeTime,
-      }));
+      return getCurrentTime();
     },
-    [active.keyCount, active.notes, ensurePlaytestNoteIndex],
+    [getCurrentTime],
   );
 
-  const registerPlaytestResult = useCallback((result: HitResult) => {
-    if (result.judgement !== "miss") {
-      const s = playtestErrStatsRef.current;
-      s.n += 1;
-      s.sum += result.hitError;
-      s.sumSq += result.hitError * result.hitError;
-    }
-    const { n, sum, sumSq } = playtestErrStatsRef.current;
-    const mean = n ? sum / n : 0;
-    const unstableRate = n ? Math.sqrt(Math.max(0, sumSq / n - mean * mean)) * 10 : 0;
-    setPlaytest((prev) => {
-      if (!prev.active) return prev;
-      const judgements = addJudgement(prev.judgements, result.judgement);
-      const hitResults = [
-        ...prev.hitResults.slice(-(MAX_RECENT_PLAYTEST_RESULTS - 1)),
-        result,
-      ];
-      const combo =
-        result.judgement === "miss" ? 0 : Math.min(prev.combo + 1, 99999);
-      const maxCombo = Math.max(prev.maxCombo, combo);
-      return {
-        ...prev,
-        combo,
-        maxCombo,
-        judgements,
-        hitResults,
-        accuracy: accuracyFromCounts(judgements),
-        score: scoreFromCounts(judgements),
-        unstableRate,
-        judgedCount: (prev.judgedCount ?? 0) + 1,
-        meanError: mean,
-      };
-    });
-  }, []);
+  /** The time the playfield shows, which is also where misses are judged. */
+  const playtestGameplayTime = useCallback(
+    () => gameplayTime(playtestAudioTime(), playtestTimingRef.current),
+    [playtestAudioTime],
+  );
 
-  const consumePlaytestNote = useCallback((id: string) => {
-    if (playtestConsumedRef.current.has(id)) return;
-    playtestConsumedRef.current.add(id);
-  }, []);
-
-  const playtestInputTime = useCallback(() => {
-    const raw = getCurrentTime();
-    return playtestSettings.offsetMode === "audio"
-      ? raw + playtestSettings.offsetMs
-      : raw;
-  }, [getCurrentTime, playtestSettings.offsetMode, playtestSettings.offsetMs]);
-
-  const missPlaytestPart = useCallback(
-    (
-      note: ManiaNote,
-      time: number,
-      part: HitResult["part"],
-      targetTime: number,
-    ) => {
-      registerPlaytestResult({
-        noteId: note.id,
-        column: note.column,
-        time,
-        hitError: time - targetTime,
-        judgement: "miss",
-        part,
-      });
+  /** The time a key press or release with this event stamp lands on. */
+  const playtestInputTime = useCallback(
+    (stamp?: number) => {
+      const now = performance.now();
+      return inputTime(playtestAudioTime(now), now, stamp, playtestTimingRef.current);
     },
-    [registerPlaytestResult],
+    [playtestAudioTime],
+  );
+
+  const clearPlaytestPreRoll = useCallback(() => {
+    const preRoll = playtestPreRollRef.current;
+    if (preRoll?.timer) window.clearTimeout(preRoll.timer);
+    playtestPreRollRef.current = null;
+  }, []);
+
+  /** Starts the song once the count-in before zero has run out. */
+  const armPlaytestPreRoll = useCallback(() => {
+    const preRoll = playtestPreRollRef.current;
+    if (!preRoll) return;
+    if (preRoll.timer) window.clearTimeout(preRoll.timer);
+    const remaining =
+      -preRoll.from / playtestTimingRef.current.rate -
+      (performance.now() - preRoll.startedAt);
+    preRoll.timer = window.setTimeout(() => {
+      preRoll.timer = 0;
+      playAudio();
+    }, Math.max(0, remaining));
+  }, [playAudio]);
+
+  const playtestNoteById = useMemo(
+    () => new Map(active.notes.map((note) => [note.id, note])),
+    [active.notes],
+  );
+
+  const resetPlaytestRuntime = useCallback(
+    (startTime: number) => {
+      playtestEngineRef.current = createPlaytestEngine({
+        notes: active.notes,
+        keyCount: active.keyCount,
+        windows: playtestWindowsRef.current,
+        startTime,
+      });
+      playtestEngineNotesRef.current = active.notes;
+      playtestScore.reset(startTime);
+      playtestEndArmedRef.current = false;
+    },
+    [active.keyCount, active.notes, playtestScore],
   );
 
   const handlePlaytestPress = useCallback(
-    (column: number, atMs?: number, targetId?: string) => {
+    (column: number, atMs?: number, targetId?: string, stamp?: number) => {
       const pt = playtestRef.current;
-      if (!pt.active || pt.ended || pt.paused || pt.countdownEndsAt !== null)
+      const engine = playtestEngineRef.current;
+      if (!engine || !pt.active || pt.ended || pt.paused || pt.countdownEndsAt !== null) {
         return;
-      const time = atMs ?? playtestInputTime();
-      const windows = playtestWindowsRef.current;
-      const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
-      const unavailable = (note: ManiaNote) =>
-        playtestConsumedRef.current.has(note.id) ||
-        playtestHeadJudgedRef.current.has(note.id);
-      let candidate: ManiaNote | null = null;
-      if (targetId) {
-        const targeted = index.byId.get(targetId);
-        if (targeted && targeted.column === column && !unavailable(targeted)) {
-          candidate = targeted;
-        }
-      } else {
-        candidate = nearestPlayableNote(
-          index.byColumn[column] ?? [],
-          time,
-          windows.miss,
-          unavailable,
-        );
       }
-      if (!candidate) return;
-
-      const hitError = time - candidate.startTime;
-      const judgement = judgeHitError(hitError, windows);
-      if (!judgement) return;
-
-      playtestHeadJudgedRef.current.add(candidate.id);
-      const part: HitResult["part"] =
-        candidate.endTime !== undefined ? "ln-head" : "rice";
-      registerPlaytestResult({
-        noteId: candidate.id,
-        column,
-        time,
-        hitError,
-        judgement,
-        part,
-      });
-      playtestHitsound(candidate);
-
-      if (candidate.endTime !== undefined && judgement !== "miss") {
-        playtestHeldLnRef.current.set(candidate.id, candidate);
-      } else {
-        if (candidate.endTime !== undefined) {
-          playtestTailJudgedRef.current.add(candidate.id);
-        }
-        consumePlaytestNote(candidate.id);
-      }
+      const time = atMs ?? playtestInputTime(stamp);
+      const events = engine.press(column, time, targetId);
+      playtestScore.apply(events);
+      // osu!mania sounds every key press: the note it hit, or else the
+      // nearest note in that column.
+      const hit = events[0]?.kind === "judgement" ? events[0].result.noteId : null;
+      const note = hit
+        ? playtestNoteById.get(hit)
+        : nearestPlayableNote(
+            ensurePlaytestNoteIndex(active.notes, active.keyCount).byColumn[column] ?? [],
+            time,
+            Infinity,
+            () => false,
+          );
+      if (note) playtestHitsound(note);
     },
     [
-      active.notes,
       active.keyCount,
-      consumePlaytestNote,
+      active.notes,
       ensurePlaytestNoteIndex,
       playtestHitsound,
       playtestInputTime,
-      registerPlaytestResult,
+      playtestNoteById,
+      playtestScore,
     ],
   );
 
   const handlePlaytestRelease = useCallback(
-    (column: number, atMs?: number, targetId?: string) => {
+    (column: number, atMs?: number, targetId?: string, stamp?: number) => {
       const pt = playtestRef.current;
-      if (!pt.active || pt.ended || pt.paused || pt.countdownEndsAt !== null)
+      const engine = playtestEngineRef.current;
+      if (!engine || !pt.active || pt.ended || pt.paused || pt.countdownEndsAt !== null) {
         return;
-      const time = atMs ?? playtestInputTime();
-      const held = targetId
-        ? playtestHeldLnRef.current.get(targetId)
-        : [...playtestHeldLnRef.current.values()].find(
-            (note) => note.column === column,
-          );
-      if (!held || held.endTime === undefined) return;
-      const releaseWindows = playtestReleaseWindowsRef.current;
-      const droppedEarly = time < held.endTime - releaseWindows.miss;
-      playtestHeldLnRef.current.delete(held.id);
-      playtestTailJudgedRef.current.add(held.id);
-      if (droppedEarly) {
-        setPlaytest((prev) => (prev.active ? { ...prev, combo: 0 } : prev));
-      } else {
-        consumePlaytestNote(held.id);
       }
+      playtestScore.apply(
+        engine.release(column, atMs ?? playtestInputTime(stamp), targetId),
+      );
     },
-    [consumePlaytestNote, playtestInputTime],
+    [playtestInputTime, playtestScore],
   );
 
   const exitPlaytest = useCallback(() => {
+    clearPlaytestPreRoll();
     pauseAudio();
     setPlaytest((prev) => ({
       ...prev,
@@ -2121,16 +2072,16 @@ export default function App() {
       ended: false,
       paused: false,
       countdownEndsAt: null,
-      skipBeforeTime: 0,
+      resuming: false,
     }));
-    playtestHeadJudgedRef.current = new Set();
-    playtestTailJudgedRef.current = new Set();
-    playtestHeldLnRef.current = new Map();
-    playtestErrStatsRef.current = { n: 0, sum: 0, sumSq: 0 };
-    playtestConsumedRef.current = new Set();
-    playtestMissCursorRef.current = 0;
-  }, [pauseAudio]);
+    playtestEngineRef.current = null;
+    playtestEngineNotesRef.current = null;
+  }, [clearPlaytestPreRoll, pauseAudio]);
 
+  // Starts a run at `startTime` like osu!'s editor test play: notes before it
+  // are left out, and play goes on from there. The music starts right away,
+  // backed up when needed so the first note has the lead-in, and before the
+  // song's start the run counts in over silence.
   const startPlaytest = useCallback(
     (startTime = getCurrentTime()) => {
       if (!audioFile || !projectStarted) return;
@@ -2140,16 +2091,46 @@ export default function App() {
       void logAnalyticsEvent("playtest_started", authUserRef.current?.id).catch(
         () => {},
       );
+      clearPlaytestPreRoll();
       pauseAudio();
-      setAudioPlaybackRate(clampPlaytestRate(playtestSettingsRef.current.rate));
-      seekAudio(clamped);
-      resetPlaytestRuntime(clamped, performance.now() + PLAYTEST_COUNTDOWN_MS);
+      const rate = clampPlaytestRate(playtestSettingsRef.current.rate);
+      setAudioPlaybackRate(rate, 0);
+      const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
+      const first = index.sorted[firstNoteAtOrAfter(index.sorted, clamped)];
+      const from = runStartTime(clamped, first?.startTime ?? null, rate);
+      resetPlaytestRuntime(clamped);
+      setPlaytest((prev) => ({
+        ...initialPlaytestState(),
+        active: true,
+        startTime: clamped,
+        autoplay: prev.autoplay,
+        runKey: prev.runKey + 1,
+      }));
+      if (from >= 0) {
+        seekAudio(from);
+        playAudio();
+      } else {
+        seekAudio(0);
+        playtestPreRollRef.current = {
+          from,
+          startedAt: performance.now(),
+          pausedAt: null,
+          timer: 0,
+        };
+        armPlaytestPreRoll();
+      }
     },
     [
+      active.keyCount,
+      active.notes,
+      armPlaytestPreRoll,
       audio.duration,
       audioFile,
+      clearPlaytestPreRoll,
+      ensurePlaytestNoteIndex,
       getCurrentTime,
       pauseAudio,
+      playAudio,
       projectStarted,
       resetPlaytestRuntime,
       seekAudio,
@@ -2161,6 +2142,7 @@ export default function App() {
     startPlaytest(playtestRef.current.startTime ?? 0);
   }, [startPlaytest]);
 
+  // Resuming counts down (osu!mania's DelayedResumeOverlay) and then plays on.
   useEffect(() => {
     const countdownEndsAt = playtest.countdownEndsAt;
     if (!playtest.active || playtest.ended || countdownEndsAt === null) return;
@@ -2172,6 +2154,17 @@ export default function App() {
           ? { ...prev, countdownEndsAt: null, resuming: false }
           : prev,
       );
+      // The rate may have been changed from the pause menu.
+      setAudioPlaybackRate(playtestTimingRef.current.rate, 0);
+      const preRoll = playtestPreRollRef.current;
+      if (preRoll && preRoll.pausedAt !== null) {
+        preRoll.startedAt += performance.now() - preRoll.pausedAt;
+        preRoll.pausedAt = null;
+        if (playtestAudioTime() < 0) {
+          armPlaytestPreRoll();
+          return;
+        }
+      }
       playAudio();
     };
     const remaining = countdownEndsAt - performance.now();
@@ -2181,9 +2174,23 @@ export default function App() {
     }
     const timer = window.setTimeout(start, remaining);
     return () => window.clearTimeout(timer);
-  }, [playAudio, playtest.active, playtest.countdownEndsAt, playtest.ended]);
+  }, [
+    armPlaytestPreRoll,
+    playAudio,
+    playtest.active,
+    playtest.countdownEndsAt,
+    playtest.ended,
+    playtestAudioTime,
+    setAudioPlaybackRate,
+  ]);
 
   const pausePlaytest = useCallback(() => {
+    const preRoll = playtestPreRollRef.current;
+    if (preRoll && preRoll.pausedAt === null) {
+      if (preRoll.timer) window.clearTimeout(preRoll.timer);
+      preRoll.timer = 0;
+      preRoll.pausedAt = performance.now();
+    }
     setPlaytest((prev) =>
       prev.active && !prev.ended && !prev.paused
         ? { ...prev, paused: true }
@@ -2192,8 +2199,6 @@ export default function App() {
     pauseAudio();
   }, [pauseAudio]);
 
-  // Continuing counts down like the start of a run, so the notes after the
-  // pause are not sprung on the player; the countdown effect restarts audio.
   const resumePlaytest = useCallback(() => {
     setPlaytest((prev) =>
       prev.active && !prev.ended && prev.paused
@@ -2201,7 +2206,7 @@ export default function App() {
             ...prev,
             paused: false,
             resuming: true,
-            countdownEndsAt: performance.now() + PLAYTEST_COUNTDOWN_MS,
+            countdownEndsAt: performance.now() + PLAYTEST_RESUME_COUNTDOWN_MS,
           }
         : prev,
     );
@@ -2221,51 +2226,75 @@ export default function App() {
   }, []);
 
   const handleHumanPress = useCallback(
-    (column: number) => {
+    (column: number, stamp: number) => {
       if (playtestRef.current.autoplay) return;
-      handlePlaytestPress(column);
+      handlePlaytestPress(column, undefined, undefined, stamp);
     },
     [handlePlaytestPress],
   );
 
   const handleHumanRelease = useCallback(
-    (column: number) => {
+    (column: number, stamp: number) => {
       if (playtestRef.current.autoplay) return;
-      handlePlaytestRelease(column);
+      handlePlaytestRelease(column, undefined, undefined, stamp);
     },
     [handlePlaytestRelease],
   );
 
-  const { heldCodes: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef } =
+  // In-game scroll speed, on osu!'s keys.
+  const adjustPlaytestScrollSpeed = useCallback(
+    (direction: 1 | -1) => {
+      setAppSettings((s) => {
+        const scrollSpeed = Math.round(
+          Math.min(
+            MAX_PLAYTEST_SCROLL_SPEED,
+            Math.max(MIN_PLAYTEST_SCROLL_SPEED, s.playtest.scrollSpeed + direction),
+          ),
+        );
+        announceShortcut(
+          osdRange(
+            t("osd.scrollSpeed"),
+            String(scrollSpeed),
+            scrollSpeed,
+            MIN_PLAYTEST_SCROLL_SPEED,
+            MAX_PLAYTEST_SCROLL_SPEED,
+            [
+              editorKeyLabel(editorKeybindsRef.current.zoomOut),
+              editorKeyLabel(editorKeybindsRef.current.zoomIn),
+            ],
+          ),
+        );
+        return { ...s, playtest: { ...s.playtest, scrollSpeed } };
+      });
+    },
+    [announceShortcut, t],
+  );
+
+  const playtestSpeedKeys = useMemo(
+    () => normalizeEditorKeybinds(appSettings.editorKeybinds),
+    [appSettings.editorKeybinds],
+  );
+  const { heldKeys: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef } =
     usePlaytestInput({
       active: playtest.active && playtest.countdownEndsAt === null,
       paused: playtest.paused,
       keyCount: active.keyCount,
       keybinds: playtestSettings.keybinds,
       quickRestartCode: playtestSettings.quickRestartKey,
+      scrollSpeedDownCode: playtestSpeedKeys.zoomOut,
+      scrollSpeedUpCode: playtestSpeedKeys.zoomIn,
       onPress: handleHumanPress,
       onRelease: handleHumanRelease,
       onPause: togglePlaytestPause,
       onRestart: restartPlaytest,
       onToggleAutoplay: toggleAutoplay,
+      onScrollSpeed: adjustPlaytestScrollSpeed,
     });
 
   const playtestRunNotes = useMemo(() => {
-    if (
-      !playtest.active ||
-      playtest.skipBeforeTime <= (playtest.startTime ?? 0)
-    ) {
-      return active.notes;
-    }
-    return active.notes.filter(
-      (note) => note.startTime >= playtest.skipBeforeTime,
-    );
-  }, [
-    active.notes,
-    playtest.active,
-    playtest.skipBeforeTime,
-    playtest.startTime,
-  ]);
+    if (!playtest.active) return active.notes;
+    return active.notes.filter((note) => note.startTime >= playtest.startTime);
+  }, [active.notes, playtest.active, playtest.startTime]);
 
   const { summary: autoplaySummary, profile: skillProfile } = usePlaytestAutoplay({
     enabled: playtest.autoplay,
@@ -2288,20 +2317,18 @@ export default function App() {
   const playtestTickRef = useRef({
     audio,
     active,
-    ensurePlaytestNoteIndex,
     playtestInputTime,
-    missPlaytestPart,
-    consumePlaytestNote,
+    playtestScore,
   });
   playtestTickRef.current = {
     audio,
     active,
-    ensurePlaytestNoteIndex,
     playtestInputTime,
-    missPlaytestPart,
-    consumePlaytestNote,
+    playtestScore,
   };
 
+  // Once a frame while running: misses for whatever time has passed, and the
+  // end of the song.
   useEffect(() => {
     if (
       !playtest.active ||
@@ -2313,54 +2340,22 @@ export default function App() {
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      const {
-        audio,
-        active,
-        ensurePlaytestNoteIndex,
-        playtestInputTime,
-        missPlaytestPart,
-        consumePlaytestNote,
-      } = playtestTickRef.current;
+      const { audio, active, playtestInputTime, playtestScore } = playtestTickRef.current;
       const time = playtestInputTime();
-      const windows = playtestWindowsRef.current;
-      const releaseWindows = playtestReleaseWindowsRef.current;
-      const previousIndex = playtestNoteIndexRef.current;
-      const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
-      if (previousIndex?.source !== active.notes) {
-        playtestMissCursorRef.current = firstNoteAtOrAfter(
-          index.sorted,
-          playtestRef.current.skipBeforeTime,
-        );
+      if (playtestEngineNotesRef.current !== active.notes) {
+        // The map changed under the run (a collaborator's edit): judge the new
+        // notes from here on.
+        playtestEngineRef.current = createPlaytestEngine({
+          notes: active.notes,
+          keyCount: active.keyCount,
+          windows: playtestWindowsRef.current,
+          startTime: time,
+        });
+        playtestEngineNotesRef.current = active.notes;
       }
-      while (playtestMissCursorRef.current < index.sorted.length) {
-        const note = index.sorted[playtestMissCursorRef.current];
-        if (time <= note.startTime + windows.miss) break;
-        playtestMissCursorRef.current += 1;
-        if (
-          !playtestConsumedRef.current.has(note.id) &&
-          !playtestHeadJudgedRef.current.has(note.id)
-        ) {
-          playtestHeadJudgedRef.current.add(note.id);
-          playtestTailJudgedRef.current.add(note.id);
-          playtestHeldLnRef.current.delete(note.id);
-          missPlaytestPart(
-            note,
-            time,
-            note.endTime === undefined ? "rice" : "ln-head",
-            note.startTime,
-          );
-        }
-      }
-      for (const note of playtestHeldLnRef.current.values()) {
-        if (
-          note.endTime !== undefined &&
-          time > note.endTime + releaseWindows.miss
-        ) {
-          playtestTailJudgedRef.current.add(note.id);
-          playtestHeldLnRef.current.delete(note.id);
-          consumePlaytestNote(note.id);
-        }
-      }
+      const engine = playtestEngineRef.current;
+      if (engine) playtestScore.apply(engine.update(time));
+      if (playtestPreRollRef.current && time < 0) return;
       const now = audio.getCurrentTime();
       if (!playtestEndArmedRef.current) {
         const runStart = playtestRef.current.startTime ?? 0;
@@ -2472,25 +2467,26 @@ export default function App() {
   const diffPanelShown = showChrome && diffPanelOpen;
   const showChromeRef = useRef(showChrome);
   showChromeRef.current = showChrome;
-  const playtestVisualOffset =
-    playtest.active && playtestSettings.offsetMode === "visual"
-      ? playtestSettings.offsetMs
-      : 0;
+  // During a run the playfield draws on the gameplay clock, the same one the
+  // judge uses, so a note is on the line exactly when it is on time.
+  const playtestActive = playtest.active;
   const getEditorCurrentTime = useCallback(
-    () => getCurrentTime() + playtestVisualOffset,
-    [getCurrentTime, playtestVisualOffset],
+    () => (playtestActive ? playtestGameplayTime() : getCurrentTime()),
+    [getCurrentTime, playtestActive, playtestGameplayTime],
   );
   const getEditorVisualCurrentTime = useCallback(
     (frameNow?: number) =>
-      getVisualCurrentTime(frameNow) + playtestVisualOffset,
-    [getVisualCurrentTime, playtestVisualOffset],
+      playtestActive ? playtestGameplayTime() : getVisualCurrentTime(frameNow),
+    [getVisualCurrentTime, playtestActive, playtestGameplayTime],
   );
+  // Scroll speed is how fast notes move in real time, so a faster rate does
+  // not make them race (osu! multiplies its time range by the rate).
   const editorView = useMemo(
     () =>
       playtest.active
-        ? { ...view, scrollSpeed: playtestSettings.scrollSpeed }
+        ? { ...view, scrollSpeed: playtestSettings.scrollSpeed / playtestRate }
         : view,
-    [playtest.active, playtestSettings.scrollSpeed, view],
+    [playtest.active, playtestRate, playtestSettings.scrollSpeed, view],
   );
   const editorDimBackground = playtest.active
     ? playtestSettings.backgroundDim
@@ -2831,8 +2827,12 @@ export default function App() {
   // header — and with it sign-in, the account menu and the admin panel —
   // would be unreachable on mobile. The shared-map page draws its own
   // Cascade header, so the floating one would collide with it there.
+  // A playtest run shows only the playfield and its HUD, as a game would;
+  // Esc opens the pause menu for everything else.
   const showHeader =
-    !zenMode && (hasProject || menuOpen || (phoneViewport && !sharedSlug));
+    !zenMode &&
+    !playtest.active &&
+    (hasProject || menuOpen || (phoneViewport && !sharedSlug));
 
   const importMapFile = useCallback(async (
     file: File,
@@ -6762,12 +6762,14 @@ export default function App() {
     { key: "settings.bpmAffectsScroll", tab: "Editor" },
     { key: "settings.scrollDirection", tab: "Editor", keywords: "upscroll downscroll" },
     { key: "settings.bodyWidth", tab: "Editor", keywords: "long notes ln" },
-    { key: "settings.scrollSpeed", tab: "Playtest" },
-    { key: "settings.rate", tab: "Playtest", keywords: "playback speed" },
-    { key: "settings.zoom", tab: "Playtest" },
-    { key: "settings.offsetMode", tab: "Playtest" },
-    { key: "settings.offsetMs", tab: "Playtest" },
-    { key: "settings.hitPositionOffset", tab: "Playtest" },
+    { key: "settings.scrollSpeed", tab: "Playtest", keywords: "note speed scroll f3 f4" },
+    { key: "settings.rate", tab: "Playtest", keywords: "playback speed dt ht" },
+    { key: "settings.zoom", tab: "Playtest", keywords: "playfield size" },
+    { key: "settings.audioOffset", tab: "Playtest", keywords: "offset latency sync calibrate universal" },
+    { key: "settings.inputOffset", tab: "Playtest", keywords: "offset latency keyboard" },
+    { key: "settings.hitPosition", tab: "Playtest", keywords: "judgement line receptor" },
+    { key: "settings.quickRestartKey", tab: "Playtest", keywords: "retry" },
+    { key: "settings.keybinds", tab: "Playtest", keywords: "keys lanes controls" },
     { key: "settings.showJudgements", tab: "Playtest" },
     { key: "settings.showCombo", tab: "Playtest" },
     { key: "settings.showAccuracy", tab: "Playtest" },
@@ -7675,14 +7677,15 @@ export default function App() {
                 onPasteDifficulty={pasteDifficulty}
                 readOnly={!canEdit}
                 playtestMode={playtest.active}
-                heldLnIdsRef={playtestHeldLnRef}
-                consumedIdsRef={playtestConsumedRef}
+                heldLnIdsRef={playtestHoldingView}
+                consumedIdsRef={playtestHiddenView}
+                droppedIdsRef={playtestDroppedView}
                 pressedColumnsRef={playtestPressedColumnsRef}
-                hitPositionOffset={playtestSettings.hitPositionOffset}
+                hitPosition={playtestSettings.hitPosition}
                 waveformOverlay={appSettings.showWaveform ? waveform : null}
                 waveformTransparency={appSettings.waveformTransparency}
                 onToggleWaveformOverlay={toggleWaveformOverlay}
-                missWindowMs={playtestWindows.miss}
+                missWindowMs={playtestWindows.hit50}
                 hideHints={playtest.active}
                 songEndMs={audio.duration}
                 trimStartMs={active.trimStartMs}
@@ -7810,7 +7813,7 @@ export default function App() {
               (playtest.countdownEndsAt === null || playtest.resuming) &&
               playtestSettings.showRunStats && (
                 <PlaytestRunStats
-                  state={playtest}
+                  store={playtestScore}
                   notes={playtestRunNotes}
                   durationMs={audio.duration}
                   getCurrentTime={getEditorCurrentTime}
@@ -7824,20 +7827,22 @@ export default function App() {
               )}
             {hasProject && playtest.active && (
               <PlaytestOverlay
-                state={playtest}
+                store={playtestScore}
                 ended={playtest.ended}
                 paused={playtest.paused}
                 countdownEndsAt={playtest.countdownEndsAt}
-                resuming={playtest.resuming}
                 settings={playtestSettings}
                 windows={playtestWindows}
-                currentTimeMs={audio.currentTime}
+                getCurrentTime={playtestGameplayTime}
+                hitLineFromEdge={PLAYTEST_HIT_LINE_FROM_EDGE + playtestSettings.hitPosition}
+                upscroll={appSettings.upscroll}
                 skin={playtestLook}
                 keyCount={active.keyCount}
-                heldCodes={heldPlaytestKeys}
+                heldKeys={heldPlaytestKeys}
                 onContinue={resumePlaytest}
                 onRetry={restartPlaytest}
                 onReturn={exitPlaytest}
+                onSettings={() => openSettings("Playtest")}
               />
             )}
             {audioFile &&
@@ -8463,7 +8468,7 @@ export default function App() {
         />
       )}
       {modal === "history" && <HistoryModal open onClose={close} entries={historyEntries} current={historyCurrent} onJump={jumpHistory} readOnly={!canEdit} live={liveEnabled} />}
-      {modal === "audioSetup" && <AudioSetupModal exclusive={exclusiveAudio} onExclusive={changeExclusiveAudio} currentOffset={playtestSettings.offsetMs} onApplyOffset={offsetMs => setAppSettings(s => ({ ...s, playtest: { ...s.playtest, offsetMode: "audio", offsetMs } }))} onClose={close} />}
+      {modal === "audioSetup" && <AudioSetupModal exclusive={exclusiveAudio} onExclusive={changeExclusiveAudio} currentOffset={playtestSettings.audioOffsetMs} onApplyOffset={audioOffsetMs => setAppSettings(s => ({ ...s, playtest: { ...s.playtest, audioOffsetMs } }))} onClose={close} />}
       {modalMounted("sv") && featureFlags.sv_tools && (
         <SvModal
           open={modal === "sv" && featureFlags.sv_tools}

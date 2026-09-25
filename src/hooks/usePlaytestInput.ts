@@ -1,4 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+
+/**
+ * The keys held down, for the key overlay. Kept out of React state so a key
+ * press does not re-render the editor that owns this hook; the overlay
+ * subscribes on its own.
+ */
+export type HeldKeysStore = {
+  subscribe(listener: () => void): () => void;
+  getSnapshot(): ReadonlySet<string>;
+};
+
+function createHeldKeysStore(): HeldKeysStore & { set(next: ReadonlySet<string>): void } {
+  let held: ReadonlySet<string> = new Set();
+  const listeners = new Set<() => void>();
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    getSnapshot: () => held,
+    set(next) {
+      if (next.size === 0 && held.size === 0) return;
+      held = next;
+      for (const listener of listeners) listener();
+    },
+  };
+}
 import type { PlaytestKeybinds } from "../lib/playtestKeybinds";
 
 export function isPlaytestTypingTarget(target: EventTarget | null): boolean {
@@ -18,24 +45,35 @@ export function usePlaytestInput({
   keyCount,
   keybinds,
   quickRestartCode,
+  scrollSpeedDownCode = "",
+  scrollSpeedUpCode = "",
   onPress,
   onRelease,
   onPause,
   onRestart,
   onToggleAutoplay,
+  onScrollSpeed,
 }: {
   active: boolean;
   paused: boolean;
   keyCount: number;
   keybinds: PlaytestKeybinds;
   quickRestartCode: string;
-  onPress: (column: number) => void;
-  onRelease: (column: number) => void;
+  /** osu!'s in-game scroll speed keys (F3 and F4 by default). */
+  scrollSpeedDownCode?: string;
+  scrollSpeedUpCode?: string;
+  /**
+   * `stamp` is the event's timeStamp: when the browser saw the key, which can
+   * be a frame or more before this handler gets to run.
+   */
+  onPress: (column: number, stamp: number) => void;
+  onRelease: (column: number, stamp: number) => void;
   onPause: () => void;
   onRestart: () => void;
   onToggleAutoplay: () => void;
+  onScrollSpeed?: (direction: 1 | -1) => void;
 }) {
-  const [heldCodes, setHeldCodes] = useState<Set<string>>(() => new Set());
+  const [heldKeys] = useState(createHeldKeysStore);
   const heldRef = useRef<Set<string>>(new Set());
   const pressedColumnsRef = useRef<Set<number>>(new Set());
 
@@ -54,6 +92,7 @@ export function usePlaytestInput({
     onPause,
     onRestart,
     onToggleAutoplay,
+    onScrollSpeed,
     paused,
   });
   handlers.current = {
@@ -62,17 +101,17 @@ export function usePlaytestInput({
     onPause,
     onRestart,
     onToggleAutoplay,
+    onScrollSpeed,
     paused,
   };
 
-  const syncHeld = () => setHeldCodes(new Set(heldRef.current));
 
   useEffect(() => {
     if (!active) {
       if (heldRef.current.size) {
         heldRef.current = new Set();
         pressedColumnsRef.current = new Set();
-        setHeldCodes((prev) => (prev.size ? new Set() : prev));
+        heldKeys.set(new Set());
       }
       return;
     }
@@ -100,14 +139,28 @@ export function usePlaytestInput({
       }
 
       const column = codeToColumn.get(e.code);
+      const speed =
+        column !== undefined
+          ? 0
+          : e.code === scrollSpeedUpCode
+            ? 1
+            : e.code === scrollSpeedDownCode
+              ? -1
+              : 0;
+      if (speed !== 0 && h.onScrollSpeed) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        h.onScrollSpeed(speed);
+        return;
+      }
       if (column === undefined) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       if (h.paused || e.repeat || heldRef.current.has(e.code)) return;
       heldRef.current.add(e.code);
       pressedColumnsRef.current.add(column);
-      syncHeld();
-      h.onPress(column);
+      h.onPress(column, e.timeStamp);
+      heldKeys.set(new Set(heldRef.current));
     };
 
     const up = (e: KeyboardEvent) => {
@@ -132,15 +185,15 @@ export function usePlaytestInput({
         }
       }
       if (!stillHeld) pressedColumnsRef.current.delete(column);
-      syncHeld();
-      if (!h.paused) h.onRelease(column);
+      if (!h.paused) h.onRelease(column, e.timeStamp);
+      heldKeys.set(new Set(heldRef.current));
     };
 
     const blur = () => {
       if (!heldRef.current.size) return;
       heldRef.current = new Set();
       pressedColumnsRef.current = new Set();
-      setHeldCodes(new Set());
+      heldKeys.set(new Set());
     };
 
     window.addEventListener("keydown", down, true);
@@ -151,7 +204,7 @@ export function usePlaytestInput({
       window.removeEventListener("keyup", up, true);
       window.removeEventListener("blur", blur);
     };
-  }, [active, codeToColumn, quickRestartCode]);
+  }, [active, codeToColumn, heldKeys, quickRestartCode, scrollSpeedDownCode, scrollSpeedUpCode]);
 
-  return { heldCodes, pressedColumnsRef };
+  return { heldKeys: heldKeys as HeldKeysStore, pressedColumnsRef };
 }

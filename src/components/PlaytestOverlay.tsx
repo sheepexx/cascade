@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { LoadedSkin, PlaytestSettings } from "../types";
 import { keyLabel } from "../lib/playtestKeybinds";
 import type {
@@ -6,9 +6,10 @@ import type {
   JudgementCounts,
   JudgementWindows,
   ManiaJudgement,
-  PlaytestState,
 } from "../lib/playtestJudgements";
 import { judgementCount } from "../lib/playtestScoring";
+import type { PlaytestScoreStore } from "../lib/playtestScoreStore";
+import type { HeldKeysStore } from "../hooks/usePlaytestInput";
 import { useT } from "../lib/i18n";
 
 const ORDER: ManiaJudgement[] = ["max", "300", "200", "100", "50", "miss"];
@@ -19,6 +20,14 @@ const ERROR_TICK_HEIGHT = 15;
 const ERROR_TICK_FADE_MS = 2400;
 const ERROR_MAX_TICKS = 56;
 
+/**
+ * Where osu!mania puts things on its 768-high stage: judgements 180 above the
+ * hit position (DefaultManiaJudgementPiece), combo 200 down from the top
+ * (ManiaArgonSkinTransformer).
+ */
+const JUDGEMENT_ABOVE_HIT = 180 / 768;
+const COMBO_FROM_TOP = 200 / 768;
+
 function errorColor(judgement: ManiaJudgement): string {
   if (judgement === "max" || judgement === "300") return "#5bc0ff";
   if (judgement === "200" || judgement === "100") return "#6fcf5f";
@@ -26,54 +35,90 @@ function errorColor(judgement: ManiaJudgement): string {
 }
 
 export function PlaytestOverlay({
-  state,
+  store,
   ended,
   paused,
   countdownEndsAt,
-  resuming,
   settings,
   windows,
-  currentTimeMs,
+  getCurrentTime,
+  hitLineFromEdge,
+  upscroll,
   skin,
   keyCount,
-  heldCodes,
+  heldKeys,
   onContinue,
   onRetry,
   onReturn,
+  onSettings,
 }: {
-  state: PlaytestState;
+  store: PlaytestScoreStore;
   ended: boolean;
   paused: boolean;
   countdownEndsAt: number | null;
-  /** The countdown is bringing a paused run back, so the HUD stays up. */
-  resuming: boolean;
   settings: PlaytestSettings;
   windows: JudgementWindows;
-  currentTimeMs: number;
+  /** Gameplay time, for fading the error bar's ticks. */
+  getCurrentTime: () => number;
+  /** Pixels from the scroll edge of the playfield to the judgement line. */
+  hitLineFromEdge: number;
+  upscroll: boolean;
   skin: LoadedSkin | null;
   keyCount: number;
-  heldCodes: Set<string>;
+  heldKeys: HeldKeysStore;
   onContinue: () => void;
   onRetry: () => void;
   onReturn: () => void;
+  onSettings?: () => void;
 }) {
   const t = useT();
+  const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const held = useSyncExternalStore(heldKeys.subscribe, heldKeys.getSnapshot);
   if (!state.active) return null;
-  if (countdownEndsAt !== null && !resuming) {
-    return <PlaytestCountdown endsAt={countdownEndsAt} />;
-  }
   const latest = state.hitResults[state.hitResults.length - 1] ?? null;
   const judged = state.judgedCount ?? judgementCount(state.judgements);
   const keys = settings.keybinds[keyCount] ?? [];
+  const edge = upscroll ? "top" : "bottom";
 
   return (
     <div className="pointer-events-none absolute inset-0 z-30">
-      <div className="absolute left-1/2 top-8 flex -translate-x-1/2 flex-col items-center gap-2 text-center">
-        {settings.showCombo && (
+      {settings.showCombo && state.combo > 0 && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ top: `${COMBO_FROM_TOP * 100}%` }}
+        >
           <Combo value={state.combo} skin={skin} enabled={settings.useSkinComboFont} />
-        )}
+        </div>
+      )}
+
+      {settings.showJudgements && latest && (
+        <div
+          className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-1"
+          style={{
+            [edge]: `calc(${hitLineFromEdge}px + ${JUDGEMENT_ABOVE_HIT * 100}%)`,
+          }}
+        >
+          <div
+            key={`${latest.noteId}:${latest.part}:${judged}`}
+            className={latest.judgement === "miss" ? "pt-judge-miss" : "pt-judge-hit"}
+          >
+            <Judgement result={latest} skin={skin} enabled={settings.useSkinJudgements} />
+          </div>
+          {settings.showHitError && latest.judgement !== "miss" && (
+            <div
+              key={`err:${judged}`}
+              className="playtest-hit-error rounded bg-ink-900/60 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-200 backdrop-blur"
+            >
+              {latest.hitError > 0 ? "+" : ""}
+              {Math.round(latest.hitError)} ms
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
         {settings.showAccuracy && (
-          <div className="rounded-full border border-white/10 bg-ink-900/42 px-3 py-1 text-sm font-semibold text-slate-100 shadow-lg backdrop-blur">
+          <div className="text-3xl font-bold tabular-nums leading-none text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
             {state.accuracy.toFixed(2)}%
           </div>
         )}
@@ -82,51 +127,37 @@ export function PlaytestOverlay({
             {t("playtest.rate", { rate: settings.rate ?? 1 })}
           </div>
         )}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 rounded-xl border border-white/10 bg-ink-900/55 px-3 py-2 text-[11px] text-slate-300 shadow-xl backdrop-blur">
+          <Counts counts={state.judgements} />
+        </div>
       </div>
 
-      {settings.showJudgements && latest && (
-        <div key={`${latest.noteId}:${latest.part}:${judged}`} className="playtest-judgement absolute left-1/2 top-[42%] -translate-x-1/2">
-          <Judgement result={latest} skin={skin} enabled={settings.useSkinJudgements} />
-        </div>
-      )}
-
-      {settings.showHitError && latest && latest.judgement !== "miss" && (
-        <div key={`err:${judged}`} className="playtest-hit-error absolute left-1/2 top-[50%] -translate-x-1/2 rounded bg-ink-900/60 px-2 py-1 text-xs font-medium text-slate-200 backdrop-blur">
-          {latest.hitError > 0 ? "+" : ""}
-          {Math.round(latest.hitError)} ms
-        </div>
-      )}
-
       {settings.showErrorBar && (
-        <div className="absolute bottom-[4.5rem] left-1/2 flex -translate-x-1/2 flex-col items-center gap-1">
+        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1">
           <div className="text-[10px] font-semibold tracking-wide text-slate-300/90 drop-shadow">
             {state.unstableRate.toFixed(1)} UR
           </div>
           <ErrorBar
             windows={windows}
             results={state.hitResults}
-            currentTimeMs={currentTimeMs}
+            getCurrentTime={getCurrentTime}
           />
         </div>
       )}
 
-      <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-1.5">
+      <div className="absolute bottom-4 right-4 flex gap-1">
         {keys.map((code, i) => (
           <div
             key={`${code}:${i}`}
-            className={`grid min-h-8 min-w-10 place-items-center rounded-lg border px-2 text-xs font-semibold shadow-lg backdrop-blur ${
-              heldCodes.has(code)
+            className={`grid min-h-7 min-w-8 place-items-center rounded-md border px-1.5 text-[11px] font-semibold shadow-lg backdrop-blur transition-colors duration-75 ${
+              held.has(code)
                 ? "border-accent/80 bg-accent/80 text-white"
-                : "border-white/10 bg-ink-900/55 text-slate-300"
+                : "border-white/10 bg-ink-900/55 text-slate-400"
             }`}
           >
             {keyLabel(code)}
           </div>
         ))}
-      </div>
-
-      <div className="absolute right-4 top-4 grid grid-cols-2 gap-x-3 gap-y-1 rounded-xl border border-white/10 bg-ink-900/55 p-3 text-xs text-slate-300 shadow-xl backdrop-blur">
-        <Counts counts={state.judgements} />
       </div>
 
       {paused && !ended && (
@@ -151,6 +182,15 @@ export function PlaytestOverlay({
               >
                 {t("playtest.restart")}
               </button>
+              {onSettings && (
+                <button
+                  type="button"
+                  onClick={onSettings}
+                  className="rounded-lg border border-white/10 bg-ink-700/70 px-3 py-2 text-sm font-medium text-slate-100 transition duration-150 hover:bg-ink-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
+                >
+                  {t("playtest.settings")}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onReturn}
@@ -257,9 +297,6 @@ function PlaytestCountdown({
             {seconds}
           </div>
         </div>
-        {!resuming && (
-          <span className="text-xs text-slate-400">{t("playtest.earlySkipped")}</span>
-        )}
       </div>
     </div>
   );
@@ -338,12 +375,18 @@ function ResultStat({ label, value }: { label: string; value: string }) {
 function ErrorBar({
   windows,
   results,
-  currentTimeMs,
+  getCurrentTime,
 }: {
   windows: JudgementWindows;
   results: HitResult[];
-  currentTimeMs: number;
+  getCurrentTime: () => number;
 }) {
+  // Ticks fade on their own clock; the HUD otherwise only redraws per hit.
+  const [currentTimeMs, setCurrentTimeMs] = useState(getCurrentTime);
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTimeMs(getCurrentTime()), 100);
+    return () => window.clearInterval(timer);
+  }, [getCurrentTime]);
   const half = ERROR_BAR_WIDTH / 2;
   const extent = Math.max(1, windows.hit50);
   const toX = (err: number) =>

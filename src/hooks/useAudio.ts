@@ -835,12 +835,13 @@ export function useAudio(
     [positionAtCtxTime, rampElementRate, rateAtCtxTime],
   );
 
+  /** `rampSeconds` 0 switches at once, as a playtest run needs from its first note. */
   const setPlaybackRate = useCallback(
-    (rate: number) => {
+    (rate: number, rampSeconds = RATE_RAMP_SECONDS) => {
       const clamped = Math.max(0.1, Math.min(4, rate));
       retargetRate(
         clampEffectiveRate(clamped * timeScaleRef.current),
-        RATE_RAMP_SECONDS,
+        rampSeconds,
       );
       playbackRateRef.current = clamped;
       setPlaybackRateState(clamped);

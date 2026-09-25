@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ManiaNote } from "../types";
 import { computeNpsSeries, rollingNpsAt } from "../lib/nps";
 import type { AutoplayPlanSummary } from "../lib/autoplay";
 import { STRAIN_THRESHOLD, type SkillProfile } from "../lib/playerSkill";
-import type { PlaytestState } from "../lib/playtestJudgements";
+import type { PlaytestScoreStore } from "../lib/playtestScoreStore";
 import { useT } from "../lib/i18n";
 import { judgementCount } from "../lib/playtestScoring";
 
 const LIVE_REFRESH_MS = 120;
 
 export function PlaytestRunStats({
-  state,
+  store,
   notes,
   durationMs,
   getCurrentTime,
@@ -21,7 +21,7 @@ export function PlaytestRunStats({
   skillProfile,
   skillEnabled,
 }: {
-  state: PlaytestState;
+  store: PlaytestScoreStore;
   notes: ManiaNote[];
   durationMs: number;
   getCurrentTime: () => number;
@@ -32,6 +32,7 @@ export function PlaytestRunStats({
   skillProfile: SkillProfile | null;
   skillEnabled: boolean;
 }) {
+  const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const t = useT();
   const [liveNps, setLiveNps] = useState(0);
 

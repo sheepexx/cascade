@@ -1225,6 +1225,31 @@ canvas[data-pointer-focus]:focus-visible {
   outline: none;
 }
 
+/* osu!mania's DefaultManiaJudgementPiece: a hit pops from 0.8 and is gone in
+   300 ms; a miss drops 100 px and tips 40 degrees over 800 ms. */
+.pt-judge-hit { animation: pt-judge-hit 300ms linear both; }
+@keyframes pt-judge-hit {
+  0% { transform: scale(0.8); opacity: 1; animation-timing-function: cubic-bezier(0.2, 1.6, 0.4, 1); }
+  17% { transform: scale(1.03); opacity: 1; animation-timing-function: ease-out; }
+  83% { opacity: 0; }
+  100% { transform: scale(0.75); opacity: 0; }
+}
+.pt-judge-miss { animation: pt-judge-miss 800ms linear both; }
+@keyframes pt-judge-miss {
+  0% { transform: translateY(0) rotate(0deg) scale(1.6); opacity: 1; animation-timing-function: ease-in; }
+  12.5% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06); }
+  100% { transform: translateY(100px) rotate(40deg) scale(1); opacity: 0; }
+}
+
+@keyframes pt-judge-fade {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pt-judge-hit,
+  .pt-judge-miss { animation: pt-judge-fade 500ms linear both; }
+}
+
 .osd-pop { animation: osd-pop 200ms var(--ease-emphasized) both; }
 @keyframes osd-pop {
   from { transform: scale(1.07); opacity: 0.75; }

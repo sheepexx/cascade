@@ -1,3 +1,4 @@
+import { PLAYHEAD_FROM_EDGE } from "../lib/playfieldGeometry";
 import {
   memo,
   useCallback,
@@ -107,7 +108,7 @@ export type HitsoundSource = {
 };
 
 const MANIA_MAX_TIME_RANGE = 11485;
-const PLAYHEAD_FROM_BOTTOM = 96;
+const PLAYHEAD_FROM_BOTTOM = PLAYHEAD_FROM_EDGE;
 const NOTE_HEIGHT = 16;
 const SELECT_AUTOSCROLL_TOP_ZONE = 64;
 const SELECT_EDGE_INSET = 12;
@@ -201,7 +202,13 @@ type Props = {
   heldLnIdsRef?: { readonly current: { has(id: string): boolean } };
   consumedIdsRef?: { readonly current: { has(id: string): boolean } };
   pressedColumnsRef?: { readonly current: { has(column: number): boolean } };
-  hitPositionOffset?: number;
+  /**
+   * Playtest only: pixels the judgement line sits further from the screen
+   * edge. Receptors, notes and judging all use that line.
+   */
+  hitPosition?: number;
+  /** Long notes let go or missed, drawn dimmed as they scroll by. */
+  droppedIdsRef?: { readonly current: { has(id: string): boolean } };
   waveformOverlay?: Waveform | null;
   onToggleWaveformOverlay?: () => void;
   missWindowMs?: number;
@@ -473,6 +480,12 @@ export function ManiaEditor(props: Props) {
   const locallyFlushedSeekRef = useRef<AudioSeekRequest[]>([]);
   const liveCurrentTime = useCallback(() => renderTimeRef.current, []);
   const smoothScrollSpeedRef = useRef(props.view.scrollSpeed);
+  // A run starts at its own scroll speed instead of easing into it.
+  const scrollModeRef = useRef(props.playtestMode);
+  if (scrollModeRef.current !== props.playtestMode) {
+    scrollModeRef.current = props.playtestMode;
+    smoothScrollSpeedRef.current = props.view.scrollSpeed;
+  }
   const smoothScaleRef = useRef(props.playfieldScale || 1);
   const lastMotionFrameRef = useRef(
     typeof performance !== "undefined" ? performance.now() : 0,
@@ -1297,13 +1310,12 @@ export function ManiaEditor(props: Props) {
     return (visibleHeight * scrollSpeed) / MANIA_MAX_TIME_RANGE;
   }, []);
 
-  const playheadY = useCallback(
-    () =>
-      propsRef.current.upscroll
-        ? PLAYHEAD_FROM_BOTTOM
-        : sizeRef.current.height - PLAYHEAD_FROM_BOTTOM,
-    [],
-  );
+  const playheadY = useCallback(() => {
+    const p = propsRef.current;
+    const fromEdge =
+      PLAYHEAD_FROM_BOTTOM + (p.playtestMode ? p.hitPosition ?? 0 : 0);
+    return p.upscroll ? fromEdge : sizeRef.current.height - fromEdge;
+  }, []);
 
   const scrollDir = useCallback(() => (propsRef.current.upscroll ? -1 : 1), []);
 
@@ -1663,13 +1675,9 @@ export function ManiaEditor(props: Props) {
 
     const overlay = overlayPeaksRef.current;
     if (overlay) {
-      const inPlaytest = !!propsRef.current.playtestMode;
-      const overlayShift = inPlaytest
-        ? propsRef.current.hitPositionOffset ?? 0
-        : 0;
       const half = playfieldWidth / 2;
       const cx = originX + half;
-      const pad = Math.abs(overlayShift) + 4;
+      const pad = 4;
       // Buckets are measured in audio time; the lane is drawn in map time.
       const bucketMs = overlay.bucketMs / (propsRef.current.timeScale ?? 1);
       const stride = Math.max(1, Math.round(3 / (bucketMs * ppms())));
@@ -1683,7 +1691,6 @@ export function ManiaEditor(props: Props) {
       );
       if (hi > lo) {
         ctx.save();
-        if (overlayShift) ctx.translate(0, overlayShift);
         const ys: number[] = [];
         const widths: number[] = [];
         for (let i = lo; i <= hi; i++) {
@@ -2019,10 +2026,17 @@ export function ManiaEditor(props: Props) {
       }
       let alpha = 1;
       if (playtest && !held) {
-        const sinceMiss = liveCurrentTime() - note.startTime - missWindowMs;
+        // A long note can be grabbed again until its tail's window, so it
+        // only fades from there.
+        const lastChance = (isLN ? note.endTime! : note.startTime) + missWindowMs;
+        const sinceMiss = liveCurrentTime() - lastChance;
         if (sinceMiss > 0) {
           alpha = 1 - sinceMiss / NOTE_FALLTHROUGH_FADE_MS;
           if (alpha <= 0) return;
+        }
+        // Dropped holds grey out as they pass, as in osu!mania.
+        if (isLN && propsRef.current.droppedIdsRef?.current.has(note.id)) {
+          alpha *= 0.45;
         }
       }
       ctx.globalAlpha = alpha;
@@ -2185,11 +2199,6 @@ export function ManiaEditor(props: Props) {
       else ctx.rect(originX, 0, playfieldWidth, phY);
       ctx.clip();
     }
-    const hitPosOffset = playtest ? propsRef.current.hitPositionOffset ?? 0 : 0;
-    if (hitPosOffset) {
-      ctx.save();
-      ctx.translate(0, hitPosOffset);
-    }
     if (move) {
       for (const original of notes) paintNote(original);
     } else {
@@ -2201,7 +2210,6 @@ export function ManiaEditor(props: Props) {
         paintNote(n);
       }
     }
-    if (hitPosOffset) ctx.restore();
     if (clipAtLine) ctx.restore();
 
     const clipPreview = clipDropPreviewRef.current;

@@ -113,12 +113,23 @@ Default bindings. Single-key shortcuts can be rebound in Settings, under Shortcu
 
 Press F5 to play the chart you are editing from the current position. You do not need to export or import anything first. Press F5 again to return to the editor where you stopped.
 
-- Judgement windows follow osu!mania and are calculated from the difficulty's OD: MAX, 300, 200, 100, 50 and miss. Long note releases use wider windows.
-- Combo, accuracy, judgement text with the hit offset in ms, judgement counts, misses, unstable rate and mean hit error. Each part of the HUD can be turned off.
+Gameplay follows osu!lazer's mania ruleset, taken from its source rather than approximated:
+
+- **Judgement windows** come from the difficulty's OD, as lazer's `ManiaHitWindows` computes them (MAX narrows with OD too). A note you have not hit misses once it is later than the 50 window; pressing between the 50 and miss windows early is an early miss.
+- **Note lock**: a press goes to the earliest note in its column that can take it, a note stops being hittable once the next one has started, and hitting a note misses any earlier one still waiting.
+- **Long notes** judge the head on press and the tail on release, with 1.5x windows for the release. Letting go early breaks combo. You can grab the note again, but its tail then scores at most a 50, as it does after a missed head.
+- **One clock** drives the playfield and the judge. The audio offset moves notes and their timing together, and key presses are timed when the browser saw them, not when the page got round to handling them.
+- **Scroll speed** uses osu!mania's scale (1 to 40) and does not change with the rate. F3 and F4 change it during a run. Hit position moves the whole judgement line.
+- A run starts from the playhead with two seconds of lead-in before the first note, counting in over silence at the start of the song. Esc pauses; continuing counts down for two seconds.
+
+Around that:
+
+- Combo, accuracy, judgement text with the hit offset in ms, judgement counts, unstable rate and mean hit error. Each part of the HUD can be turned off.
 - Hit error bar, key overlay, and a density graph with live and peak NPS and a marker for your position.
 - Practice at rates from 0.75x to 2x. Hit windows scale with the rate, so the timing precision you need stays the same as at 1x.
-- Playtest offset (visual or audio) and a hit position offset. These do not change the map's own timing.
-- Rebindable lane keys, a quick restart key and a pause menu on Esc.
+- Rebindable lane keys, a quick restart key, and settings reachable from the pause menu.
+
+Scoring and accuracy are Cascade's own rather than osu!'s ScoreV2: a 300 and a MAX both count as full accuracy.
 
 Playtest is a mapping and practice tool. Results are not submitted anywhere.
 

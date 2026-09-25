@@ -8,6 +8,15 @@ import {
   Toggle,
 } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
+import { CheckIcon } from "../ui/Icons";
+import {
+  MAX_HIT_POSITION,
+  MAX_OFFSET_MS,
+  MAX_PLAYTEST_SCROLL_SPEED,
+  MIN_HIT_POSITION,
+  MIN_PLAYTEST_SCROLL_SPEED,
+} from "../../lib/playtestClock";
+import { MAX_PLAYTEST_RATE, MIN_PLAYTEST_RATE } from "../../lib/playtestJudgements";
 import { formatBytes } from "../../lib/progress";
 import { formatMenuBackgroundRules } from "../../lib/menuBackground";
 import type { CloudMenuBackground } from "../../lib/accountCloud";
@@ -29,7 +38,6 @@ import type {
   DiscordPresenceMode,
   HumanizeSettings,
   PlaytestSettings,
-  SkillSettings,
 } from "../../types";
 import {
   DAN_LADDERS,
@@ -179,8 +187,6 @@ type Props = {
 const TABS = ["General", "Editor", "Playtest", "Audio", "Export", "Shortcuts"] as const;
 export type SettingsTab = (typeof TABS)[number];
 type Tab = SettingsTab;
-const SHOW_MANUAL_SKILL_TUNING = false;
-const ENABLE_MANUAL_SKILL_TUNING = false;
 
 const ALT_WHEEL_OPTIONS: {
   value: AltWheelAction;
@@ -316,7 +322,9 @@ export function AppSettingsModal({
   const { locale, setLocale, t } = useLocale();
   const { user, login } = useAuth();
   const [tab, setTab] = useState<Tab>("General");
-  const [keyMode, setKeyMode] = useState(4);
+  const [keyMode, setKeyMode] = useState(() =>
+    keyCount >= 1 && keyCount <= 18 ? keyCount : 4,
+  );
   // Lanes still waiting for a key; the first one is listening.
   const [captureQueue, setCaptureQueue] = useState<number[]>([]);
   const capturing = captureQueue[0] ?? null;
@@ -368,14 +376,6 @@ export function AppSettingsModal({
             )
           : playtest.skill,
     });
-  };
-
-  const patchSkill = (patch: Partial<SkillSettings>) => {
-    const custom = Object.keys(patch).some((key) => key !== "enabled");
-    const base = custom
-      ? { ...effectiveSkill, lnProfile: undefined, danSelections: {} }
-      : playtest.skill;
-    onPlaytest({ ...playtest, skill: { ...base, ...patch } });
   };
 
   const setDanSkill = (nextRegular: number, nextLn: number) => {
@@ -982,222 +982,208 @@ export function AppSettingsModal({
         )}
 
         {tab === "Playtest" && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-7">
             <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.playback")}
-              </h3>
-              <div className="flex flex-col gap-3">
-              <SliderRow
-                label={t("settings.scrollSpeed")}
-                display={String(playtest.scrollSpeed)}
-                min={10}
-                max={45}
-                step={1}
-                value={playtest.scrollSpeed}
-                onChange={(v) => patchPlaytest({ scrollSpeed: v })}
-              />
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-sm text-slate-200">
-                  <Tip text={t("settings.rateHint")}>{t("settings.rate")}</Tip>
-                  <span className="font-medium text-slate-200">
-                    {(playtest.rate ?? 1).toFixed(2)}×
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {[0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2].map((r) => {
-                    const on = Math.abs((playtest.rate ?? 1) - r) < 0.001;
-                    return (
-                      <button
-                        key={r}
-                        onClick={() => patchPlaytest({ rate: r })}
-                        className={`rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition ${
-                          on
-                            ? "bg-accent text-white"
-                            : "bg-ink-700 text-slate-300 hover:bg-ink-600"
-                        }`}
-                      >
-                        {r}×
-                      </button>
-                    );
+              <SectionTitle>{t("settings.ptGameplay")}</SectionTitle>
+              <div className="flex flex-col gap-4">
+                <NumberRow
+                  label={t("settings.scrollSpeed")}
+                  tip={t("settings.scrollSpeedHint")}
+                  hint={t("settings.scrollSpeedDetail", {
+                    ms: Math.round(11485 / playtest.scrollSpeed),
                   })}
+                  value={playtest.scrollSpeed}
+                  min={MIN_PLAYTEST_SCROLL_SPEED}
+                  max={MAX_PLAYTEST_SCROLL_SPEED}
+                  step={1}
+                  onChange={(scrollSpeed) => patchPlaytest({ scrollSpeed })}
+                />
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3 text-sm text-slate-200">
+                    <Tip text={t("settings.rateHint")}>{t("settings.rate")}</Tip>
+                    <div className="ml-auto flex flex-wrap justify-end gap-1">
+                      {PLAYTEST_RATES.map((r) => {
+                        const on = Math.abs((playtest.rate ?? 1) - r) < 0.001;
+                        return (
+                          <button
+                            key={r}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => patchPlaytest({ rate: r })}
+                            className={`rounded-md px-2 py-1 text-xs font-medium tabular-nums transition duration-[var(--motion-quick)] ${
+                              on
+                                ? "bg-accent text-white shadow-sm"
+                                : "bg-ink-700/70 text-slate-300 hover:bg-ink-600 hover:text-slate-100"
+                            }`}
+                          >
+                            {r}×
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <NumberBox
+                      label={t("settings.rate")}
+                      value={playtest.rate ?? 1}
+                      min={MIN_PLAYTEST_RATE}
+                      max={MAX_PLAYTEST_RATE}
+                      step={0.05}
+                      unit="×"
+                      onChange={(rate) => patchPlaytest({ rate })}
+                    />
+                  </div>
                 </div>
               </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm text-slate-200">
-                  <span>{t("settings.zoom")}</span>
-                  <input
-                    type="number"
-                    min={0.5}
-                    max={3}
-                    step={0.05}
-                    value={playtest.zoom}
-                    onChange={(e) => patchPlaytest({ zoom: Number(e.target.value) })}
-                    className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-slate-200">
-                  <Tip text={t("settings.playfieldHint")} diagram="backgroundDim" value={playtest.backgroundDim}>{t("settings.backgroundDim")}</Tip>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={playtest.backgroundDim}
+            </section>
+
+            <section>
+              <SectionTitle>{t("settings.ptTiming")}</SectionTitle>
+              <div className="flex flex-col gap-4">
+                <NumberRow
+                  label={t("settings.audioOffset")}
+                  tip={t("settings.audioOffsetHint")}
+                  value={playtest.audioOffsetMs}
+                  min={-MAX_OFFSET_MS}
+                  max={MAX_OFFSET_MS}
+                  sliderMin={-150}
+                  sliderMax={150}
+                  step={1}
+                  unit="ms"
+                  onChange={(audioOffsetMs) => patchPlaytest({ audioOffsetMs })}
+                />
+                {onAudioSetup && (
+                  <div className="-mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
+                    <span>{t("settings.audioOffsetDetail")}</span>
+                    <button
+                      type="button"
+                      onClick={onAudioSetup}
+                      className="shrink-0 rounded-md border border-white/10 bg-ink-700/60 px-2.5 py-1 text-xs font-medium text-slate-200 transition hover:border-accent/50 hover:text-white"
+                    >
+                      {t("settings.calibrate")}
+                    </button>
+                  </div>
+                )}
+                <NumberRow
+                  label={t("settings.hitPosition")}
+                  tip={t("settings.hitPositionHint")}
+                  value={playtest.hitPosition}
+                  min={MIN_HIT_POSITION}
+                  max={MAX_HIT_POSITION}
+                  step={1}
+                  unit="px"
+                  onChange={(hitPosition) => patchPlaytest({ hitPosition })}
+                />
+                <details className="group rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                  <summary className="cursor-pointer select-none text-xs font-medium text-slate-400 transition hover:text-slate-200">
+                    {t("settings.advanced")}
+                  </summary>
+                  <div className="mt-3 flex flex-col gap-2 pb-1">
+                    <NumberRow
+                      label={t("settings.inputOffset")}
+                      tip={t("settings.inputOffsetHint")}
+                      value={playtest.inputOffsetMs}
+                      min={-MAX_OFFSET_MS}
+                      max={MAX_OFFSET_MS}
+                      sliderMin={-100}
+                      sliderMax={100}
+                      step={1}
+                      unit="ms"
+                      onChange={(inputOffsetMs) => patchPlaytest({ inputOffsetMs })}
+                    />
+                  </div>
+                </details>
+              </div>
+            </section>
+
+            <section>
+              <SectionTitle>{t("settings.ptAppearance")}</SectionTitle>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-3 text-sm text-slate-200">
+                  <Tip text={t("settings.playtestSkinHint")}>{t("settings.playtestSkin")}</Tip>
+                  <Select
+                    className="ml-auto w-56"
+                    value={playtestSkinValue(playtest.skin)}
                     onChange={(e) =>
-                      patchPlaytest({ backgroundDim: Number(e.target.value) })
+                      patchPlaytest({ skin: parsePlaytestSkinValue(e.target.value) })
                     }
-                    className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
-                  />
-                </label>
+                  >
+                    <option value="">{t("settings.playtestSkinEditor")}</option>
+                    <option value="none">{t("settings.playtestSkinDefault")}</option>
+                    {PRESET_SKINS.length > 0 && (
+                      <optgroup label={t("settings.playtestSkinPresets")}>
+                        {PRESET_SKINS.map((preset) => (
+                          <option
+                            key={preset.fileName}
+                            value={playtestSkinValue({
+                              source: "preset",
+                              fileName: preset.fileName,
+                            })}
+                          >
+                            {preset.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {savedSkinOptions.length > 0 && (
+                      <optgroup label={t("settings.playtestSkinSaved")}>
+                        {savedSkinOptions.map((name) => (
+                          <option
+                            key={name}
+                            value={playtestSkinValue({ source: "saved", fileName: name })}
+                          >
+                            {name.replace(/\.osk$/i, "")}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </Select>
+                </div>
+                <SliderRow
+                  label={t("settings.zoom")}
+                  tip={t("settings.zoomHint")}
+                  display={`${Math.round(playtest.zoom * 100)}%`}
+                  min={0.5}
+                  max={3}
+                  step={0.05}
+                  value={playtest.zoom}
+                  onChange={(zoom) => patchPlaytest({ zoom })}
+                />
+                <SliderRow
+                  label={t("settings.backgroundDim")}
+                  diagram="backgroundDim"
+                  diagramValue={playtest.backgroundDim}
+                  display={`${Math.round(playtest.backgroundDim)}%`}
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={playtest.backgroundDim}
+                  onChange={(backgroundDim) => patchPlaytest({ backgroundDim })}
+                />
+                <div className="flex flex-col gap-2">
+                  <span className="text-[12px] font-medium text-slate-400">
+                    <Tip diagram="hud">{t("settings.hud")}</Tip>
+                  </span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <HudChip label={t("settings.showJudgements")} checked={playtest.showJudgements} onChange={(v) => patchPlaytest({ showJudgements: v })} />
+                    <HudChip label={t("settings.showCombo")} checked={playtest.showCombo} onChange={(v) => patchPlaytest({ showCombo: v })} />
+                    <HudChip label={t("settings.showAccuracy")} checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
+                    <HudChip label={t("settings.showErrorBar")} checked={playtest.showErrorBar} onChange={(v) => patchPlaytest({ showErrorBar: v })} />
+                    <HudChip label={t("settings.showHitError")} checked={playtest.showHitError} onChange={(v) => patchPlaytest({ showHitError: v })} />
+                    <HudChip label={t("settings.showNpsGraph")} tip={t("settings.showNpsGraphHint")} checked={playtest.showNpsGraph} onChange={(v) => patchPlaytest({ showNpsGraph: v })} />
+                    <HudChip label={t("settings.showRunStats")} tip={t("settings.showRunStatsHint")} checked={playtest.showRunStats} onChange={(v) => patchPlaytest({ showRunStats: v })} />
+                    <HudChip label={t("settings.skinComboFont")} checked={playtest.useSkinComboFont} onChange={(v) => patchPlaytest({ useSkinComboFont: v })} />
+                    <HudChip label={t("settings.skinJudgements")} checked={playtest.useSkinJudgements} onChange={(v) => patchPlaytest({ useSkinJudgements: v })} />
+                  </div>
                 </div>
               </div>
             </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.offset")}
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm text-slate-200">
-                <span>{t("settings.offsetMode")}</span>
-                <Select
-                  value={playtest.offsetMode}
-                  onChange={(e) =>
-                    patchPlaytest({
-                      offsetMode: e.target.value === "audio" ? "audio" : "visual",
-                    })
-                  }
-                >
-                  <option value="visual">{t("settings.offsetVisual")}</option>
-                  <option value="audio">{t("settings.offsetAudio")}</option>
-                </Select>
-              </label>
-              <SliderRow
-                label={t("settings.offsetMs")}
-                tip={t("settings.offsetHint")}
-                diagram="offsetMs"
-                display={`${playtest.offsetMs} ms`}
-                min={-200}
-                max={200}
-                step={1}
-                value={playtest.offsetMs}
-                onChange={(v) => patchPlaytest({ offsetMs: v })}
-              />
-              <SliderRow
-                label={t("settings.hitPositionOffset")}
-                tip={t("settings.hitPositionOffsetHint")}
-                diagram="hitPosition"
-                display={`${playtest.hitPositionOffset} px`}
-                min={-100}
-                max={100}
-                step={1}
-                value={playtest.hitPositionOffset}
-                onChange={(v) => patchPlaytest({ hitPositionOffset: v })}
-              />
-              </div>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                <Tip text={t("settings.playtestSkinHint")}>
-                  {t("settings.playtestSkin")}
-                </Tip>
-              </h3>
-              <Select
-                className="w-full sm:w-72"
-                value={playtestSkinValue(playtest.skin)}
-                onChange={(e) =>
-                  patchPlaytest({ skin: parsePlaytestSkinValue(e.target.value) })
-                }
-              >
-                <option value="">{t("settings.playtestSkinEditor")}</option>
-                <option value="none">{t("settings.playtestSkinDefault")}</option>
-                {PRESET_SKINS.length > 0 && (
-                  <optgroup label={t("settings.playtestSkinPresets")}>
-                    {PRESET_SKINS.map((preset) => (
-                      <option
-                        key={preset.fileName}
-                        value={playtestSkinValue({
-                          source: "preset",
-                          fileName: preset.fileName,
-                        })}
-                      >
-                        {preset.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {savedSkinOptions.length > 0 && (
-                  <optgroup label={t("settings.playtestSkinSaved")}>
-                    {savedSkinOptions.map((name) => (
-                      <option
-                        key={name}
-                        value={playtestSkinValue({ source: "saved", fileName: name })}
-                      >
-                        {name.replace(/\.osk$/i, "")}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </Select>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                <Tip diagram="hud">{t("settings.hud")}</Tip>
-              </h3>
-              <div className="grid gap-2 text-sm text-slate-200 sm:grid-cols-2">
-              <SettingToggle label={t("settings.showJudgements")} checked={playtest.showJudgements} onChange={(v) => patchPlaytest({ showJudgements: v })} />
-              <SettingToggle label={t("settings.showCombo")} checked={playtest.showCombo} onChange={(v) => patchPlaytest({ showCombo: v })} />
-              <SettingToggle label={t("settings.showAccuracy")} checked={playtest.showAccuracy} onChange={(v) => patchPlaytest({ showAccuracy: v })} />
-              <SettingToggle label={t("settings.showHitError")} checked={playtest.showHitError} onChange={(v) => patchPlaytest({ showHitError: v })} />
-              <SettingToggle label={t("settings.showErrorBar")} checked={playtest.showErrorBar} onChange={(v) => patchPlaytest({ showErrorBar: v })} />
-              <SettingToggle label={t("settings.skinComboFont")} checked={playtest.useSkinComboFont} onChange={(v) => patchPlaytest({ useSkinComboFont: v })} />
-              <SettingToggle label={t("settings.skinJudgements")} checked={playtest.useSkinJudgements} onChange={(v) => patchPlaytest({ useSkinJudgements: v })} />
-              </div>
-            </section>
 
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 p-3">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  <Tip text={t("settings.quickRestartHint")}>
-                    {t("settings.quickRestartKey")}
-                  </Tip>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCapturingRestart(true)}
-                onKeyDown={(e) => {
-                  if (!capturingRestart) return;
-                  e.preventDefault();
-                  if (e.key === "Escape" || e.key === "F5") setCapturingRestart(false);
-                  else if (e.key === "Backspace" || e.key === "Delete") {
-                    patchPlaytest({ quickRestartKey: "" });
-                    setCapturingRestart(false);
-                  } else {
-                    patchPlaytest({ quickRestartKey: e.code });
-                    setCapturingRestart(false);
-                  }
-                }}
-                className={`min-w-[5rem] shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition ${
-                  capturingRestart
-                    ? "border-accent/80 bg-accent/20 text-slate-100"
-                    : "border-white/10 bg-ink-700/60 text-slate-300 hover:border-accent/50"
-                }`}
-              >
-                {capturingRestart
-                  ? t("settings.pressKey")
-                  : keyLabel(playtest.quickRestartKey)}
-              </button>
-            </div>
-
-            <div className="rounded-xl border border-ink-600 bg-ink-700/30 p-3">
+            <section>
               <div className="mb-3 flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {t("settings.keybinds")}
-                </span>
+                <SectionTitle inline>{t("settings.keybinds")}</SectionTitle>
                 <Select
                   size="sm"
                   value={keyMode}
+                  aria-label={t("settings.keyMode")}
                   onChange={(e) => {
                     setCaptureQueue([]);
                     setKeyMode(Number(e.target.value));
@@ -1210,7 +1196,10 @@ export function AppSettingsModal({
                   ))}
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div
+                className="grid gap-1.5"
+                style={{ gridTemplateColumns: `repeat(${Math.min(keyMode, 9)}, minmax(0, 1fr))` }}
+              >
                 {Array.from({ length: keyMode }, (_, i) => (
                   <button
                     key={i}
@@ -1237,242 +1226,171 @@ export function AppSettingsModal({
                         clearLane(i);
                       } else captureKey(e.code);
                     }}
-                    className={`rounded-lg border px-2 py-2 text-xs transition ${
+                    className={`flex min-h-[3rem] flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-sm font-semibold transition ${
                       capturing === i
                         ? "border-accent/80 bg-accent/20 text-slate-100"
                         : !selectedKeybinds[i]
                           ? "border-amber-400/50 bg-ink-700/60 text-amber-200 hover:border-accent/50"
-                          : "border-white/10 bg-ink-700/60 text-slate-300 hover:border-accent/50"
+                          : "border-white/10 bg-ink-700/60 text-slate-200 hover:border-accent/50"
                     }`}
                   >
-                    <span className="block text-[10px] text-slate-500">
-                      {t("settings.lane", { number: i + 1 })}
+                    <span className="text-[10px] font-medium text-slate-500">{i + 1}</span>
+                    <span className="truncate">
+                      {capturing === i ? "…" : keyLabel(selectedKeybinds[i] || "")}
                     </span>
-                    {capturing === i
-                      ? t("settings.pressKey")
-                      : keyLabel(selectedKeybinds[i] || "")}
                   </button>
                 ))}
               </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                {capturing !== null ? t("settings.keybindsCapturing") : t("settings.keybindsHint")}
+              </p>
               {warnings.length > 0 && (
-                <p className="mt-2 text-[11px] text-amber-300">
-                  {warnings.join(" · ")}
-                </p>
+                <p className="mt-1 text-[11px] text-amber-300">{warnings.join(" · ")}</p>
               )}
-            </div>
+              <div className="mt-4 flex items-center gap-3 text-sm text-slate-200">
+                <Tip text={t("settings.quickRestartHint")}>{t("settings.quickRestartKey")}</Tip>
+                <button
+                  type="button"
+                  onClick={() => setCapturingRestart(true)}
+                  onBlur={() => setCapturingRestart(false)}
+                  onKeyDown={(e) => {
+                    if (!capturingRestart) return;
+                    e.preventDefault();
+                    if (e.key === "Escape" || e.key === "F5") setCapturingRestart(false);
+                    else if (e.key === "Backspace" || e.key === "Delete") {
+                      patchPlaytest({ quickRestartKey: "" });
+                      setCapturingRestart(false);
+                    } else {
+                      patchPlaytest({ quickRestartKey: e.code });
+                      setCapturingRestart(false);
+                    }
+                  }}
+                  className={`ml-auto min-w-[5.5rem] shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    capturingRestart
+                      ? "border-accent/80 bg-accent/20 text-slate-100"
+                      : "border-white/10 bg-ink-700/60 text-slate-200 hover:border-accent/50"
+                  }`}
+                >
+                  {capturingRestart ? t("settings.pressKey") : keyLabel(playtest.quickRestartKey)}
+                </button>
+              </div>
+            </section>
 
-            <section className="rounded-xl border border-ink-600 bg-ink-700/30 p-3">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <section>
+              <SectionTitle>
                 <Tip text={t("settings.autoplayHint")}>{t("settings.autoplay")}</Tip>
-              </h3>
-
-              <div className="flex flex-col gap-3 text-sm text-slate-200">
+              </SectionTitle>
+              <div className="flex flex-col gap-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm text-slate-200">
+                    <Tip
+                      text={t("settings.danHint", {
+                        keys: DAN_LADDERS[ladders.regular].keyCount,
+                      })}
+                    >
+                      {t("settings.danRegular")}
+                    </Tip>
+                    <Select
+                      value={regularLevel}
+                      onChange={(e) => setDanSkill(Number(e.target.value), lnLevel)}
+                    >
+                      {DAN_LADDERS[ladders.regular].levels.map((lvl, i) => (
+                        <option key={lvl.label} value={i}>
+                          {lvl.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-slate-200">
+                    <span>{t("settings.danLn")}</span>
+                    <Select
+                      value={lnLevel}
+                      onChange={(e) => setDanSkill(regularLevel, Number(e.target.value))}
+                    >
+                      {DAN_LADDERS[ladders.ln].levels.map((lvl, i) => (
+                        <option key={lvl.label} value={i}>
+                          {lvl.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                </div>
                 <SettingToggle
-                  label={t("settings.showNpsGraph")} tip={t("settings.showNpsGraphHint")}
-                  checked={playtest.showNpsGraph}
-                  onChange={(v) => patchPlaytest({ showNpsGraph: v })}
-                />
-                <SettingToggle
-                  label={t("settings.showRunStats")} tip={t("settings.showRunStatsHint")}
-                  checked={playtest.showRunStats}
-                  onChange={(v) => patchPlaytest({ showRunStats: v })}
-                />
-                <SettingToggle
-                  label={t("settings.humanize")} tip={t("settings.humanizeHint")}
+                  label={t("settings.humanize")}
+                  tip={t("settings.humanizeHint")}
                   checked={playtest.humanize.enabled}
                   onChange={setHumanizeEnabled}
                 />
-              </div>
-
-              <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-sm text-slate-200">
-                      <Tip
-                        text={t("settings.danHint", {
-                          keys: DAN_LADDERS[ladders.regular].keyCount,
-                        })}
-                      >
-                        {t("settings.danRegular")}
-                      </Tip>
-                      <Select
-                        value={regularLevel}
-                        onChange={(e) =>
-                          setDanSkill(Number(e.target.value), lnLevel)
-                        }
-                      >
-                        {DAN_LADDERS[ladders.regular].levels.map((lvl, i) => (
-                          <option key={lvl.label} value={i}>
-                            {lvl.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm text-slate-200">
-                      <span>{t("settings.danLn")}</span>
-                      <Select
-                        value={lnLevel}
-                        onChange={(e) =>
-                          setDanSkill(regularLevel, Number(e.target.value))
-                        }
-                      >
-                        {DAN_LADDERS[ladders.ln].levels.map((lvl, i) => (
-                          <option key={lvl.label} value={i}>
-                            {lvl.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                  </div>
-
-                  {SHOW_MANUAL_SKILL_TUNING && (
-                    <>
-                      <HumanSlider
-                        label={t("settings.skillJackNps")}
-                        hint={t("settings.skillJackNpsHint")}
-                        value={effectiveSkill.jackNps}
-                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
-                        min={2}
-                        max={24}
-                        step={0.5}
-                        format={(v) => `${v} /s`}
-                        onChange={(v) => patchSkill({ jackNps: v })}
-                      />
-                      <HumanSlider
-                        label={t("settings.skillHandNps")}
-                        hint={t("settings.skillHandNpsHint")}
-                        value={effectiveSkill.handNps}
-                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
-                        min={4}
-                        max={45}
-                        step={1}
-                        format={(v) => `${v} /s`}
-                        onChange={(v) => patchSkill({ handNps: v })}
-                      />
-                      <HumanSlider
-                        label={t("settings.skillChordSize")}
-                        value={effectiveSkill.chordSize}
-                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
-                        min={1}
-                        max={10}
-                        step={1}
-                        format={(v) => `${v}`}
-                        onChange={(v) => patchSkill({ chordSize: v })}
-                      />
-                      <HumanSlider
-                        label={t("settings.skillLn")}
-                        hint={t("settings.skillLnHint")}
-                        value={Math.round(
-                          (effectiveSkill.lnProfile?.lnSkill ??
-                            effectiveSkill.lnSkill) * 100,
-                        )}
-                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
-                        min={0}
-                        max={100}
-                        step={1}
-                        format={(v) => `${v}%`}
-                        onChange={(v) => patchSkill({ lnSkill: v / 100 })}
-                      />
-                      <HumanSlider
-                        label={t("settings.skillStamina")}
-                        hint={t("settings.skillStaminaHint")}
-                        value={effectiveSkill.staminaSec}
-                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
-                        min={5}
-                        max={120}
-                        step={1}
-                        format={(v) => `${v} s`}
-                        onChange={(v) => patchSkill({ staminaSec: v })}
-                      />
-                      <HumanSlider
-                        label={t("settings.skillRecovery")}
-                        value={effectiveSkill.recoverySec}
-                        disabled={!ENABLE_MANUAL_SKILL_TUNING}
-                        min={1}
-                        max={20}
-                        step={0.5}
-                        format={(v) => `${v} s`}
-                        onChange={(v) => patchSkill({ recoverySec: v })}
-                      />
-                    </>
-                  )}
-              </div>
-
-              {playtest.humanize.enabled && (
-                <div className="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4">
-                  <HumanSlider
-                    label={t("settings.humanizeJitter")}
-                    hint={t("settings.humanizeJitterHint")}
-                    value={playtest.humanize.jitterMs}
-                    min={0}
-                    max={60}
-                    step={1}
-                    format={(v) => `${v} ms`}
-                    onChange={(v) => patchHumanize({ jitterMs: v })}
-                  />
-                  <HumanSlider
-                    label={t("settings.humanizeBias")}
-                    hint={t("settings.humanizeBiasHint")}
-                    value={playtest.humanize.biasMs}
-                    min={-40}
-                    max={40}
-                    step={1}
-                    format={(v) => `${v > 0 ? "+" : ""}${v} ms`}
-                    onChange={(v) => patchHumanize({ biasMs: v })}
-                  />
-                  <HumanSlider
-                    label={t("settings.humanizeSlipChance")}
-                    hint={t("settings.humanizeSlipChanceHint")}
-                    value={Math.round(playtest.humanize.slipChance * 1000) / 10}
-                    min={0}
-                    max={35}
-                    step={0.5}
-                    format={(v) => `${v.toFixed(1)}%`}
-                    onChange={(v) => patchHumanize({ slipChance: v / 100 })}
-                  />
-                  <HumanSlider
-                    label={t("settings.humanizeMissChance")}
-                    value={Math.round(playtest.humanize.missChance * 1000) / 10}
-                    min={0}
-                    max={10}
-                    step={0.1}
-                    format={(v) => `${v.toFixed(1)}%`}
-                    onChange={(v) => patchHumanize({ missChance: v / 100 })}
-                  />
-                  <HumanSlider
-                    label={t("settings.humanizeReleaseJitter")}
-                    hint={t("settings.humanizeReleaseJitterHint")}
-                    value={playtest.humanize.releaseJitterMs}
-                    min={0}
-                    max={80}
-                    step={1}
-                    format={(v) => `${v} ms`}
-                    onChange={(v) => patchHumanize({ releaseJitterMs: v })}
-                  />
-                  <label className="flex flex-col gap-1 text-sm text-slate-200">
-                    <div className="flex items-center justify-between">
+                {playtest.humanize.enabled && (
+                  <div className="flex flex-col gap-4 border-l border-white/10 pl-3">
+                    <HumanSlider
+                      label={t("settings.humanizeJitter")}
+                      hint={t("settings.humanizeJitterHint")}
+                      value={playtest.humanize.jitterMs}
+                      min={0}
+                      max={60}
+                      step={1}
+                      format={(v) => `${v} ms`}
+                      onChange={(v) => patchHumanize({ jitterMs: v })}
+                    />
+                    <HumanSlider
+                      label={t("settings.humanizeBias")}
+                      hint={t("settings.humanizeBiasHint")}
+                      value={playtest.humanize.biasMs}
+                      min={-40}
+                      max={40}
+                      step={1}
+                      format={(v) => `${v > 0 ? "+" : ""}${v} ms`}
+                      onChange={(v) => patchHumanize({ biasMs: v })}
+                    />
+                    <HumanSlider
+                      label={t("settings.humanizeSlipChance")}
+                      hint={t("settings.humanizeSlipChanceHint")}
+                      value={Math.round(playtest.humanize.slipChance * 1000) / 10}
+                      min={0}
+                      max={35}
+                      step={0.5}
+                      format={(v) => `${v.toFixed(1)}%`}
+                      onChange={(v) => patchHumanize({ slipChance: v / 100 })}
+                    />
+                    <HumanSlider
+                      label={t("settings.humanizeMissChance")}
+                      value={Math.round(playtest.humanize.missChance * 1000) / 10}
+                      min={0}
+                      max={10}
+                      step={0.1}
+                      format={(v) => `${v.toFixed(1)}%`}
+                      onChange={(v) => patchHumanize({ missChance: v / 100 })}
+                    />
+                    <HumanSlider
+                      label={t("settings.humanizeReleaseJitter")}
+                      hint={t("settings.humanizeReleaseJitterHint")}
+                      value={playtest.humanize.releaseJitterMs}
+                      min={0}
+                      max={80}
+                      step={1}
+                      format={(v) => `${v} ms`}
+                      onChange={(v) => patchHumanize({ releaseJitterMs: v })}
+                    />
+                    <div className="flex items-center gap-3 text-sm text-slate-200">
                       <Tip text={t("settings.humanizeSeedHint")}>{t("settings.humanizeSeed")}</Tip>
                       {playtest.humanize.seed === 0 && (
                         <span className="text-[11px] text-slate-500">
                           {t("settings.humanizeSeedRandom")}
                         </span>
                       )}
+                      <NumberBox
+                        label={t("settings.humanizeSeed")}
+                        value={playtest.humanize.seed}
+                        min={0}
+                        max={999999}
+                        step={1}
+                        onChange={(seed) => patchHumanize({ seed: Math.floor(seed) })}
+                      />
                     </div>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={playtest.humanize.seed}
-                      onChange={(e) => {
-                        const next = Math.max(0, Math.floor(Number(e.target.value)));
-                        patchHumanize({
-                          seed: Number.isFinite(next) ? next : 0,
-                        });
-                      }}
-                      className="rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none"
-                    />
-                  </label>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </section>
           </div>
         )}
@@ -1805,6 +1723,167 @@ function AccountSyncIndicator({
       />
       <span className="truncate">{label}</span>
     </span>
+  );
+}
+
+const PLAYTEST_RATES = [0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2];
+
+function SectionTitle({
+  children,
+  inline = false,
+}: {
+  children: React.ReactNode;
+  inline?: boolean;
+}) {
+  return (
+    <h3
+      className={`${inline ? "" : "mb-3 "}text-xs font-semibold uppercase tracking-wide text-slate-400`}
+    >
+      {children}
+    </h3>
+  );
+}
+
+/**
+ * A number field that lets a value be typed in full (a minus sign, a
+ * half-typed decimal) and only applies it once it parses and fits.
+ */
+function NumberBox({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  unit?: string;
+  onChange: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(Math.round(value * 100) / 100);
+  const commit = (raw: string) => {
+    const next = Number(raw);
+    if (raw.trim() === "" || !Number.isFinite(next)) return;
+    onChange(Math.min(max, Math.max(min, next)));
+  };
+  return (
+    <label className="flex w-24 shrink-0 items-center rounded-lg border border-white/10 bg-ink-700/65 pr-2 transition focus-within:border-accent/60">
+      <input
+        type="number"
+        inputMode="decimal"
+        aria-label={label}
+        min={min}
+        max={max}
+        step={step}
+        value={shown}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          commit(e.target.value);
+        }}
+        onBlur={() => setDraft(null)}
+        className="w-full min-w-0 bg-transparent px-2 py-1.5 text-right text-sm tabular-nums text-slate-100 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      {unit && <span className="text-xs text-slate-500">{unit}</span>}
+    </label>
+  );
+}
+
+/** A setting with a slider for quick changes and a box for exact values. */
+function NumberRow({
+  label,
+  tip,
+  hint,
+  value,
+  min,
+  max,
+  sliderMin,
+  sliderMax,
+  step,
+  unit,
+  onChange,
+}: {
+  label: string;
+  tip?: string;
+  hint?: string;
+  value: number;
+  min: number;
+  max: number;
+  sliderMin?: number;
+  sliderMax?: number;
+  step: number;
+  unit?: string;
+  onChange: (value: number) => void;
+}) {
+  const lo = sliderMin ?? min;
+  const hi = sliderMax ?? max;
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-3 text-sm text-slate-200">
+        <Tip text={tip}>{label}</Tip>
+        <Slider
+          aria-label={label}
+          min={lo}
+          max={hi}
+          step={step}
+          value={Math.min(hi, Math.max(lo, value))}
+          onChange={onChange}
+          className="ml-auto w-32 shrink-0 uimd:w-48"
+        />
+        <NumberBox
+          label={label}
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          unit={unit}
+          onChange={onChange}
+        />
+      </div>
+      {hint && <p className="text-[11px] leading-snug text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
+function HudChip({
+  label,
+  tip,
+  checked,
+  onChange,
+}: {
+  label: string;
+  tip?: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      title={tip}
+      onClick={() => onChange(!checked)}
+      className={`flex min-h-[2rem] items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[12px] leading-tight transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${
+        checked
+          ? "border-accent/35 bg-accent/10 text-slate-100"
+          : "border-white/[0.08] bg-white/[0.02] text-slate-500 hover:border-white/20 hover:text-slate-300"
+      }`}
+    >
+      <span
+        aria-hidden
+        className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-[4px] border ${
+          checked ? "border-accent bg-accent text-white" : "border-white/25"
+        }`}
+      >
+        {checked && <CheckIcon className="h-2.5 w-2.5" />}
+      </span>
+      <span className="min-w-0">{label}</span>
+    </button>
   );
 }
 
