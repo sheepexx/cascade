@@ -35,7 +35,7 @@ export const ru: PartialCatalog = {
   "hud.runStats": "Статистика игры",
   "hud.runStatsDesc": "Комбо, UR, среднее отклонение и промахи.",
   "settings.hudEditorTitle": "Редактор HUD",
-  "settings.hudEditorDesc": "Настрой игровое поле и HUD, пока текущая карта играет автоматически. Перемещай элементы, меняй их размер и видимость.",
+  "settings.hudEditorDesc": "Настрой игровое поле, HUD, скорость прокрутки и оффсеты, пока текущая карта играет автоматически. Перемещай элементы, меняй их размер и видимость.",
   "settings.hudEditorOpen": "Открыть редактор HUD",
   "settings.hudEditorNeedsMap": "Открой карту с аудио, чтобы изменить HUD.",
   "crash.title": "Что-то пошло не так",
@@ -2305,4 +2305,8 @@ export const ru: PartialCatalog = {
   "lib.finishing": "Завершение",
   "lib.opening": "Открытие карты",
   "lib.difficulty": "сложность",
+  "hud.groupGameplay": "Геймплей",
+  "hud.scrollDesc": "Скорость падения нот. F3 и F4 меняют её и во время игры.",
+  "hud.timing": "Тайминг",
+  "hud.timingDesc": "Совместите ноты с музыкой, которую вы слышите.",
 };

@@ -476,6 +476,7 @@ import {
   type SongMeta,
   type TimingPoint,
   type ViewState,
+  DEFAULT_HUMANIZE,
 } from "./types";
 import type { MapCardPresetOption } from "./lib/mapCard";
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
@@ -745,6 +746,9 @@ function hasDraggedFiles(dataTransfer: DataTransfer | null): boolean {
 }
 
 const TRIM_BROADCAST_MS = 90;
+
+/** Autoplay always plays perfectly; it is never humanized. */
+const PERFECT_AUTOPLAY = { ...DEFAULT_HUMANIZE, enabled: false };
 
 export default function App() {
   const {
@@ -2325,7 +2329,7 @@ export default function App() {
     ended: playtest.ended,
     notes: playtestRunNotes,
     keyCount: active.keyCount,
-    humanize: playtestSettings.humanize,
+    humanize: PERFECT_AUTOPLAY,
     skill: playtestSettings.skill,
     windows: playtestWindows,
     releaseWindows: playtestReleaseWindows,
@@ -6790,11 +6794,8 @@ export default function App() {
     { key: "settings.bpmAffectsScroll", tab: "Editor" },
     { key: "settings.scrollDirection", tab: "Editor", keywords: "upscroll downscroll" },
     { key: "settings.bodyWidth", tab: "Editor", keywords: "long notes ln" },
-    { key: "settings.scrollSpeed", tab: "Playtest", keywords: "note speed scroll f3 f4" },
     { key: "settings.rate", tab: "Playtest", keywords: "playback speed dt ht" },
     { key: "settings.zoom", tab: "Playtest", keywords: "playfield size" },
-    { key: "settings.audioOffset", tab: "Playtest", keywords: "offset latency sync calibrate universal" },
-    { key: "settings.inputOffset", tab: "Playtest", keywords: "offset latency keyboard" },
     { key: "settings.hitPosition", tab: "Playtest", keywords: "judgement line receptor" },
     { key: "settings.quickRestartKey", tab: "Playtest", keywords: "retry" },
     { key: "settings.keybinds", tab: "Playtest", keywords: "keys lanes controls" },
@@ -6806,19 +6807,8 @@ export default function App() {
     { key: "settings.skinComboFont", tab: "Playtest", keywords: "hud typography" },
     { key: "settings.skinJudgements", tab: "Playtest", keywords: "hud graphics" },
     { key: "settings.playtestSkin", tab: "Playtest", keywords: "skin look notes osk appearance" },
-    { key: "settings.autoplay", tab: "Playtest" },
     { key: "settings.showNpsGraph", tab: "Playtest", keywords: "density" },
     { key: "settings.showRunStats", tab: "Playtest" },
-    { key: "settings.humanize", tab: "Playtest", keywords: "autoplay timing" },
-    { key: "settings.humanizeJitter", tab: "Playtest", keywords: "autoplay scatter" },
-    { key: "settings.humanizeBias", tab: "Playtest", keywords: "autoplay early late" },
-    { key: "settings.humanizeSlipChance", tab: "Playtest", keywords: "autoplay error" },
-    { key: "settings.humanizeMissChance", tab: "Playtest", keywords: "autoplay error" },
-    { key: "settings.humanizeReleaseJitter", tab: "Playtest", keywords: "autoplay long note ln" },
-    { key: "settings.humanizeSeed", tab: "Playtest", keywords: "autoplay random" },
-    { key: "settings.skill", tab: "Playtest", keywords: "physical limits dan" },
-    { key: "settings.danRegular", tab: "Playtest", keywords: "physical limits skill" },
-    { key: "settings.danLn", tab: "Playtest", keywords: "physical limits long notes skill" },
     { key: "settings.quickRestartKey", tab: "Playtest", keywords: "keybind" },
     { key: "settings.keybinds", tab: "Playtest", keywords: "lanes controls" },
     { key: "settings.audioSetup", tab: "Audio", keywords: "output calibration" },
@@ -7850,7 +7840,7 @@ export default function App() {
                     getCurrentTime={getEditorCurrentTime}
                     autoplay={playtest.autoplay}
                     autoplaySummary={autoplaySummary}
-                    humanized={playtestSettings.humanize.enabled}
+                    humanized={false}
                     showNps={!playtestSettings.showNpsGraph}
                     skillProfile={skillProfile}
                     skillEnabled

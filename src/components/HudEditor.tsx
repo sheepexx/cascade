@@ -14,7 +14,6 @@ import {
   type PlaytestSettings,
 } from "../types";
 import {
-  DEFAULT_HUD_PLACEMENT,
   HUD_VISIBILITY,
   HUD_PANEL_WIDTH,
   type PlayfieldBounds,
@@ -24,20 +23,28 @@ import {
   isDefaultPlacement,
   withPlacement,
 } from "../lib/hudLayout";
-import { MAX_HIT_POSITION, MIN_HIT_POSITION } from "../lib/playtestClock";
+import {
+  MAX_HIT_POSITION,
+  MAX_OFFSET_MS,
+  MAX_PLAYTEST_SCROLL_SPEED,
+  MIN_HIT_POSITION,
+  MIN_PLAYTEST_SCROLL_SPEED,
+} from "../lib/playtestClock";
 import { useT, type MessageKey } from "../lib/i18n";
 import { Slider, Toggle } from "./ui/Controls";
 
 // The playtest's HUD editor: the map plays on autoplay while every part of
 // the HUD can be clicked, dragged and tuned from a panel on the left.
 
-export type HudTarget = HudElementId | "receptor" | "playfield";
+export type HudTarget = HudElementId | "receptor" | "playfield" | "scroll" | "timing";
 
 const SNAP_PX = 8;
 
 type Meta = { name: MessageKey; description: MessageKey; hue: string };
 
 const META: Record<HudTarget, Meta> = {
+  scroll: { name: "settings.scrollSpeed", description: "hud.scrollDesc", hue: "#5bc0ff" },
+  timing: { name: "hud.timing", description: "hud.timingDesc", hue: "#fbbf24" },
   playfield: { name: "settings.zoom", description: "hud.playfieldDesc", hue: "#8b93ff" },
   receptor: { name: "hud.receptor", description: "hud.receptorDesc", hue: "#e86868" },
   combo: { name: "hud.combo", description: "hud.comboDesc", hue: "#f5f7fb" },
@@ -289,6 +296,39 @@ function Illustration({ target }: { target: HudTarget }) {
     </g>
   );
   switch (target) {
+    case "scroll":
+      return (
+        <svg viewBox="0 0 120 64" className="h-full w-full">
+          {lanes}
+          {[
+            [35, 12, "#f2f2f2"],
+            [61, 24, hue],
+            [48, 36, "#f2f2f2"],
+            [74, 18, hue],
+          ].map(([x, y, fill]) => (
+            <g key={`${x}-${y}`}>
+              <rect x={x as number} y={(y as number) - 9} width={11} height={9} rx={1.5} fill={fill as string} opacity={0.16} />
+              <rect x={x as number} y={y as number} width={11} height={4} rx={1.5} fill={fill as string} />
+            </g>
+          ))}
+          <line x1={34} y1={50} x2={86} y2={50} stroke="#e86868" strokeWidth={1.5} />
+          <path d="M100 16 L100 44 M95 38 L100 44 L105 38" stroke="rgba(255,255,255,0.7)" strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "timing":
+      return (
+        <svg viewBox="0 0 120 64" className="h-full w-full">
+          <path
+            d="M14 32 L22 32 L25 20 L28 44 L31 26 L34 38 L37 32 L55 32 L58 14 L61 50 L64 22 L67 42 L70 32 L106 32"
+            stroke="rgba(255,255,255,0.35)"
+            strokeWidth={1.2}
+            fill="none"
+            strokeLinejoin="round"
+          />
+          <line x1={58} y1={8} x2={58} y2={56} stroke={hue} strokeWidth={1.5} />
+          <line x1={66} y1={8} x2={66} y2={56} stroke="#e86868" strokeWidth={1.5} strokeDasharray="3 2" />
+        </svg>
+      );
     case "playfield":
       return (
         <svg viewBox="0 0 120 64" className="h-full w-full">
@@ -412,20 +452,6 @@ function Illustration({ target }: { target: HudTarget }) {
   }
 }
 
-function IconTile({ target, small = false }: { target: HudTarget; small?: boolean }) {
-  return (
-    <span
-      className={`grid shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-ink-900/70 ${
-        small ? "h-9 w-12" : "h-24 w-full"
-      }`}
-    >
-      <span className={small ? "h-full w-full scale-[1.4]" : "h-full w-full p-2"}>
-        <Illustration target={target} />
-      </span>
-    </span>
-  );
-}
-
 function EyeIcon({ open }: { open: boolean }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -438,6 +464,7 @@ function EyeIcon({ open }: { open: boolean }) {
 
 function NumberBox({
   label,
+  ariaLabel,
   value,
   min,
   max,
@@ -445,6 +472,7 @@ function NumberBox({
   onChange,
 }: {
   label: string;
+  ariaLabel?: string;
   value: number;
   min: number;
   max: number;
@@ -454,11 +482,11 @@ function NumberBox({
   const [draft, setDraft] = useState<string | null>(null);
   return (
     <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-white/10 bg-ink-700/60 px-2 transition focus-within:border-accent/60">
-      <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+      {label && <span className="text-[11px] font-semibold text-slate-500">{label}</span>}
       <input
         type="number"
         inputMode="numeric"
-        aria-label={label}
+        aria-label={ariaLabel ?? label}
         value={draft ?? String(value)}
         onChange={(e) => {
           setDraft(e.target.value);
@@ -513,7 +541,82 @@ function SliderRow({
   );
 }
 
-/** The editor's panel on the left: every element, or the one being edited. */
+/** A slider with an exact number box beside it, for values that need both. */
+function SliderInputRow({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  sliderMin = min,
+  sliderMax = max,
+  step,
+  unit,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  min: number;
+  max: number;
+  sliderMin?: number;
+  sliderMax?: number;
+  step: number;
+  unit?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3 text-sm text-slate-200">
+        <span>{label}</span>
+        <span className="w-24">
+          <NumberBox label="" ariaLabel={label} value={value} min={min} max={max} unit={unit} onChange={onChange} />
+        </span>
+      </div>
+      <Slider
+        size="sm"
+        min={sliderMin}
+        max={sliderMax}
+        step={step}
+        value={Math.min(sliderMax, Math.max(sliderMin, value))}
+        onChange={onChange}
+        aria-label={label}
+      />
+      {hint && <p className="text-[11px] leading-snug text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      className={`h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] motion-reduce:transition-none ${
+        open ? "rotate-90" : ""
+      }`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+const GROUPS: { label: MessageKey; targets: HudTarget[] }[] = [
+  { label: "hud.groupGameplay", targets: ["scroll", "timing"] },
+  { label: "hud.groupPlayfield", targets: ["playfield", "receptor"] },
+  { label: "hud.groupHud", targets: [...HUD_ELEMENTS] },
+];
+
+/**
+ * The editor's panel on the left. Every setting is one short row; opening a
+ * row, or clicking its element on screen, unfolds its controls in place so
+ * the rest of the list stays in view.
+ */
 export function HudEditorPanel({
   settings,
   selected,
@@ -528,149 +631,148 @@ export function HudEditorPanel({
   onDone: () => void;
 }) {
   const t = useT();
+  const rows = useRef(new Map<HudTarget, HTMLDivElement>());
   const place = (id: HudElementId, placement: HudPlacement) =>
     onPatch({ hud: withPlacement(settings.hud, id, placement) });
   const visible = (id: HudElementId) => settings[HUD_VISIBILITY[id]] === true;
   const setVisible = (id: HudElementId, value: boolean) =>
     onPatch({ [HUD_VISIBILITY[id]]: value } as Partial<PlaytestSettings>);
   const moved = HUD_ELEMENTS.some((id) => !isDefaultPlacement(hudPlacement(settings.hud, id)));
+  const elementOf = (target: HudTarget): HudElementId | null =>
+    target === "playfield" || target === "receptor" || target === "scroll" || target === "timing"
+      ? null
+      : target;
 
-  const listRow = (target: HudTarget) => {
-    const element = target !== "playfield" && target !== "receptor" ? target : null;
-    const shown = element ? visible(element) : true;
-    return (
-      <div
-        key={target}
-        className="group flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 transition hover:border-white/10 hover:bg-white/[0.04]"
-      >
-        <button
-          type="button"
-          onClick={() => onSelect(target)}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none"
-        >
-          <span className={shown ? "" : "opacity-40"}>
-            <IconTile target={target} small />
-          </span>
-          <span className="min-w-0">
-            <span className={`block truncate text-sm font-medium ${shown ? "text-slate-100" : "text-slate-500"}`}>
-              {t(META[target].name)}
-            </span>
-            <span className="block truncate text-[11px] text-slate-500">
-              {t(META[target].description)}
-            </span>
-          </span>
-        </button>
-        {element && (
-          <button
-            type="button"
-            aria-pressed={shown}
-            aria-label={t("hud.visible")}
-            title={t("hud.visible")}
-            onClick={() => setVisible(element, !shown)}
-            className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition ${
-              shown ? "text-slate-300 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-white/10 hover:text-slate-300"
-            }`}
-          >
-            <EyeIcon open={shown} />
-          </button>
-        )}
-      </div>
-    );
+  // Selecting an element on screen opens its row; keep that row in view.
+  useEffect(() => {
+    if (!selected) return;
+    rows.current.get(selected)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected]);
+
+  const summary = (target: HudTarget): string => {
+    const element = elementOf(target);
+    if (element) {
+      // Untouched elements stay quiet; only changed ones show their size.
+      const placement = hudPlacement(settings.hud, element);
+      return isDefaultPlacement(placement) ? "" : `${Math.round(placement.scale * 100)}%`;
+    }
+    switch (target) {
+      case "scroll":
+        return String(settings.scrollSpeed);
+      case "timing":
+        return `${settings.audioOffsetMs > 0 ? "+" : ""}${settings.audioOffsetMs} ms`;
+      case "playfield":
+        return `${Math.round(settings.zoom * 100)}%`;
+      default:
+        return `${settings.hitPosition} px`;
+    }
   };
 
-  const detail = (target: HudTarget) => {
-    const element = target !== "playfield" && target !== "receptor" ? target : null;
-    const placement = element ? hudPlacement(settings.hud, element) : DEFAULT_HUD_PLACEMENT;
-    return (
-      <div className="flex flex-col gap-5">
-        <button
-          type="button"
-          onClick={() => onSelect(null)}
-          className="flex items-center gap-1.5 self-start rounded-md px-1.5 py-1 text-xs font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-100"
-        >
-          <span aria-hidden>←</span>
-          {t("hud.allElements")}
-        </button>
-        <div className="flex flex-col gap-3">
-          <IconTile target={target} />
-          <div>
-            <h3 className="text-base font-semibold text-slate-50">{t(META[target].name)}</h3>
-            <p className="mt-0.5 text-[12px] leading-snug text-slate-400">{t(META[target].description)}</p>
-          </div>
-        </div>
-
-        {element && (
-          <div className="flex flex-col gap-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
-            <Row label={t("hud.visible")}>
-              <Toggle size="sm" checked={visible(element)} onChange={(v) => setVisible(element, v)} aria-label={t("hud.visible")} />
-            </Row>
-            <SliderRow
-              label={t("hud.size")}
-              value={placement.scale}
-              min={MIN_HUD_SCALE}
-              max={MAX_HUD_SCALE}
-              step={0.05}
-              display={`${Math.round(placement.scale * 100)}%`}
-              onChange={(scale) => place(element, { ...placement, scale })}
-            />
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-sm text-slate-200">
-                <span>{t("hud.position")}</span>
-                <button
-                  type="button"
-                  disabled={placement.x === 0 && placement.y === 0}
-                  onClick={() => place(element, { ...placement, x: 0, y: 0 })}
-                  className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
-                >
-                  {t("hud.resetPosition")}
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <NumberBox label="X" value={placement.x} min={-4000} max={4000} unit="px" onChange={(x) => place(element, { ...placement, x })} />
-                <NumberBox label="Y" value={placement.y} min={-4000} max={4000} unit="px" onChange={(y) => place(element, { ...placement, y })} />
-              </div>
-              <p className="text-[11px] leading-snug text-slate-500">{t("hud.dragHint")}</p>
+  const controls = (target: HudTarget) => {
+    const element = elementOf(target);
+    if (element) {
+      const placement = hudPlacement(settings.hud, element);
+      return (
+        <>
+          <SliderRow
+            label={t("hud.size")}
+            value={placement.scale}
+            min={MIN_HUD_SCALE}
+            max={MAX_HUD_SCALE}
+            step={0.05}
+            display={`${Math.round(placement.scale * 100)}%`}
+            onChange={(scale) => place(element, { ...placement, scale })}
+          />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-sm text-slate-200">
+              <span>{t("hud.position")}</span>
+              <button
+                type="button"
+                disabled={placement.x === 0 && placement.y === 0}
+                onClick={() => place(element, { ...placement, x: 0, y: 0 })}
+                className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                {t("hud.resetPosition")}
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <NumberBox label="X" value={placement.x} min={-4000} max={4000} unit="px" onChange={(x) => place(element, { ...placement, x })} />
+              <NumberBox label="Y" value={placement.y} min={-4000} max={4000} unit="px" onChange={(y) => place(element, { ...placement, y })} />
             </div>
           </div>
-        )}
-
-        {(target === "judgement" || target === "combo") && (
-          <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
-            {target === "judgement" && (
+          {element === "judgement" && (
+            <>
               <Row label={t("settings.showHitError")}>
                 <Toggle size="sm" checked={settings.showHitError} onChange={(v) => onPatch({ showHitError: v })} aria-label={t("settings.showHitError")} />
               </Row>
-            )}
-            {target === "judgement" && (
               <Row label={t("settings.skinJudgements")}>
                 <Toggle size="sm" checked={settings.useSkinJudgements} onChange={(v) => onPatch({ useSkinJudgements: v })} aria-label={t("settings.skinJudgements")} />
               </Row>
-            )}
-            {target === "combo" && (
-              <Row label={t("settings.skinComboFont")}>
-                <Toggle size="sm" checked={settings.useSkinComboFont} onChange={(v) => onPatch({ useSkinComboFont: v })} aria-label={t("settings.skinComboFont")} />
-              </Row>
-            )}
-          </div>
-        )}
-
-        {target === "receptor" && (
-          <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
-            <SliderRow
-              label={t("settings.hitPosition")}
-              value={settings.hitPosition}
-              min={MIN_HIT_POSITION}
-              max={MAX_HIT_POSITION}
+            </>
+          )}
+          {element === "combo" && (
+            <Row label={t("settings.skinComboFont")}>
+              <Toggle size="sm" checked={settings.useSkinComboFont} onChange={(v) => onPatch({ useSkinComboFont: v })} aria-label={t("settings.skinComboFont")} />
+            </Row>
+          )}
+        </>
+      );
+    }
+    switch (target) {
+      case "scroll":
+        return (
+          <SliderInputRow
+            label={t("settings.scrollSpeed")}
+            hint={t("settings.scrollSpeedDetail", { ms: Math.round(11485 / settings.scrollSpeed) })}
+            value={settings.scrollSpeed}
+            min={MIN_PLAYTEST_SCROLL_SPEED}
+            max={MAX_PLAYTEST_SCROLL_SPEED}
+            step={1}
+            onChange={(scrollSpeed) => onPatch({ scrollSpeed })}
+          />
+        );
+      case "timing":
+        return (
+          <>
+            <SliderInputRow
+              label={t("settings.audioOffset")}
+              hint={t("settings.audioOffsetHint")}
+              value={settings.audioOffsetMs}
+              min={-MAX_OFFSET_MS}
+              max={MAX_OFFSET_MS}
+              sliderMin={-150}
+              sliderMax={150}
               step={1}
-              display={`${settings.hitPosition} px`}
-              onChange={(hitPosition) => onPatch({ hitPosition })}
+              unit="ms"
+              onChange={(audioOffsetMs) => onPatch({ audioOffsetMs })}
             />
-            <p className="text-[11px] leading-snug text-slate-500">{t("hud.receptorDrag")}</p>
-          </div>
-        )}
-
-        {target === "playfield" && (
-          <div className="flex flex-col gap-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+            <details className="group rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5">
+              <summary className="flex cursor-pointer select-none list-none items-center gap-1.5 text-xs font-medium text-slate-400 transition hover:text-slate-200 [&::-webkit-details-marker]:hidden">
+                <span className="transition-transform duration-150 group-open:rotate-90">
+                  <Chevron open={false} />
+                </span>
+                {t("settings.advanced")}
+              </summary>
+              <div className="mt-3 pb-1">
+                <SliderInputRow
+                  label={t("settings.inputOffset")}
+                  hint={t("settings.inputOffsetHint")}
+                  value={settings.inputOffsetMs}
+                  min={-MAX_OFFSET_MS}
+                  max={MAX_OFFSET_MS}
+                  sliderMin={-100}
+                  sliderMax={100}
+                  step={1}
+                  unit="ms"
+                  onChange={(inputOffsetMs) => onPatch({ inputOffsetMs })}
+                />
+              </div>
+            </details>
+          </>
+        );
+      case "playfield":
+        return (
+          <>
             <SliderRow
               label={t("settings.zoom")}
               value={settings.zoom}
@@ -689,6 +791,80 @@ export function HudEditorPanel({
               display={`${Math.round(settings.backgroundDim)}%`}
               onChange={(backgroundDim) => onPatch({ backgroundDim })}
             />
+          </>
+        );
+      default:
+        return (
+          <SliderRow
+            label={t("settings.hitPosition")}
+            value={settings.hitPosition}
+            min={MIN_HIT_POSITION}
+            max={MAX_HIT_POSITION}
+            step={1}
+            display={`${settings.hitPosition} px`}
+            onChange={(hitPosition) => onPatch({ hitPosition })}
+          />
+        );
+    }
+  };
+
+  const row = (target: HudTarget) => {
+    const element = elementOf(target);
+    const shown = element ? visible(element) : true;
+    const open = selected === target;
+    return (
+      <div
+        key={target}
+        ref={(el) => {
+          if (el) rows.current.set(target, el);
+          else rows.current.delete(target);
+        }}
+        className={`rounded-xl border transition-colors duration-150 ${
+          open ? "border-white/10 bg-white/[0.04]" : "border-transparent hover:bg-white/[0.03]"
+        }`}
+      >
+        <div className="flex items-center gap-1 pr-1">
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => onSelect(open ? null : target)}
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1.5 pl-2 pr-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
+            <span className={`h-7 w-9 shrink-0 overflow-hidden rounded-md border border-white/10 bg-ink-900/70 transition-opacity ${shown ? "" : "opacity-40"}`}>
+              <span className="block h-full w-full scale-[1.35]">
+                <Illustration target={target} />
+              </span>
+            </span>
+            <span className={`min-w-0 flex-1 truncate text-sm ${shown ? "text-slate-100" : "text-slate-500"} ${open ? "font-semibold" : "font-medium"}`}>
+              {t(META[target].name)}
+            </span>
+            <span className="shrink-0 text-[11px] tabular-nums text-slate-500">{summary(target)}</span>
+            <Chevron open={open} />
+          </button>
+          {element && (
+            <button
+              type="button"
+              aria-pressed={shown}
+              aria-label={t("hud.visible")}
+              title={t("hud.visible")}
+              onClick={() => setVisible(element, !shown)}
+              className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition ${
+                shown ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-white/10 hover:text-slate-300"
+              }`}
+            >
+              <EyeIcon open={shown} />
+            </button>
+          )}
+          {!element && <span aria-hidden className="w-7 shrink-0" />}
+        </div>
+        {open && (
+          <div className="hud-page-in flex flex-col gap-4 px-3 pb-3 pt-1">
+            <p className="text-[11px] leading-snug text-slate-500">
+              {t(META[target].description)}
+              {element && ` ${t("hud.dragHint")}`}
+              {target === "receptor" && ` ${t("hud.receptorDrag")}`}
+            </p>
+            {controls(target)}
           </div>
         )}
       </div>
@@ -702,13 +878,12 @@ export function HudEditorPanel({
       style={{ width: HUD_PANEL_WIDTH }}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-white/[0.07] px-5 pb-4 pt-5">
-        <div>
+      <header className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+        <div className="min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-soft">
             {t("hud.overline")}
           </div>
           <h2 className="mt-0.5 text-lg font-semibold text-slate-50">{t("hud.editor")}</h2>
-          <p className="mt-1 text-[11px] leading-snug text-slate-500">{t("hud.hint")}</p>
         </div>
         <button
           type="button"
@@ -718,35 +893,25 @@ export function HudEditorPanel({
           {t("hud.done")}
         </button>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 [scrollbar-gutter:stable]">
-        <div key={selected ?? "list"} className="hud-page-in">
-          {selected ? (
-            detail(selected)
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                  {t("hud.groupPlayfield")}
-                </span>
-                {listRow("playfield")}
-                {listRow("receptor")}
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                  {t("hud.groupHud")}
-                </span>
-                {HUD_ELEMENTS.map(listRow)}
-              </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [scrollbar-gutter:stable]">
+        <div className="flex flex-col gap-4">
+          {GROUPS.map((group) => (
+            <div key={group.label} className="flex flex-col gap-0.5">
+              <span className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                {t(group.label)}
+              </span>
+              {group.targets.map(row)}
             </div>
-          )}
+          ))}
         </div>
       </div>
-      <footer className="border-t border-white/[0.07] px-5 py-3">
+      <footer className="flex items-center justify-between gap-3 border-t border-white/[0.07] px-5 py-3">
+        <p className="min-w-0 text-[11px] leading-snug text-slate-500">{t("hud.hint")}</p>
         <button
           type="button"
           disabled={!moved}
           onClick={() => onPatch({ hud: {} })}
-          className="w-full rounded-lg px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+          className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
         >
           {t("hud.resetLayout")}
         </button>

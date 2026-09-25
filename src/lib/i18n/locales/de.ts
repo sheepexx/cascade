@@ -35,7 +35,7 @@ export const de: PartialCatalog = {
   "hud.runStats": "Spielstatistik",
   "hud.runStatsDesc": "Combo, UR, mittlere Abweichung und Fehlversuche auf einen Blick.",
   "settings.hudEditorTitle": "HUD-Editor",
-  "settings.hudEditorDesc": "Passe Spielfeld und HUD an, während die aktuelle Map automatisch abgespielt wird. Verschiebe Elemente und ändere ihre Größe und Sichtbarkeit.",
+  "settings.hudEditorDesc": "Passe Spielfeld, HUD, Scrollgeschwindigkeit und Offsets an, während die aktuelle Map automatisch abgespielt wird. Verschiebe Elemente und ändere ihre Größe und Sichtbarkeit.",
   "settings.hudEditorOpen": "HUD-Editor öffnen",
   "settings.hudEditorNeedsMap": "Öffne eine Map mit Audio, um das HUD zu bearbeiten.",
   "crash.title": "Etwas ist schiefgelaufen",
@@ -2174,4 +2174,8 @@ export const de: PartialCatalog = {
   "lib.finishing": "Wird abgeschlossen",
   "lib.opening": "Map wird geöffnet",
   "lib.difficulty": "Schwierigkeit",
+  "hud.groupGameplay": "Gameplay",
+  "hud.scrollDesc": "Wie schnell die Noten fallen. F3 und F4 ändern das auch während eines Durchlaufs.",
+  "hud.timing": "Timing",
+  "hud.timingDesc": "Richte die Noten an der Musik aus, die du hörst.",
 };

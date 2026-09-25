@@ -8,11 +8,6 @@ import {
   Toggle,
 } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
-import {
-  MAX_OFFSET_MS,
-  MAX_PLAYTEST_SCROLL_SPEED,
-  MIN_PLAYTEST_SCROLL_SPEED,
-} from "../../lib/playtestClock";
 import { MAX_PLAYTEST_RATE, MIN_PLAYTEST_RATE } from "../../lib/playtestJudgements";
 import { formatBytes } from "../../lib/progress";
 import { formatMenuBackgroundRules } from "../../lib/menuBackground";
@@ -33,18 +28,8 @@ import {
 import type {
   AltWheelAction,
   DiscordPresenceMode,
-  HumanizeSettings,
   PlaytestSettings,
 } from "../../types";
-import {
-  DAN_LADDERS,
-  combineDans,
-  danSelectionForKeyCount,
-  laddersForKeyCount,
-  lnLevelForSkill,
-  regularLevelForSkill,
-  resolveSkillForKeyCount,
-} from "../../lib/danSkill";
 import {
   assignPlaytestKey,
   keyLabel,
@@ -335,59 +320,6 @@ export function AppSettingsModal({
   useEffect(() => {
     if (open) setTab(initialTab ?? "General");
   }, [initialTab, open]);
-
-  const patchHumanize = (patch: Partial<HumanizeSettings>) => {
-    onPlaytest({ ...playtest, humanize: { ...playtest.humanize, ...patch } });
-  };
-
-  const ladders = laddersForKeyCount(keyCount);
-  const effectiveSkill = resolveSkillForKeyCount(playtest.skill, keyCount);
-  const danSelection = danSelectionForKeyCount(playtest.skill, keyCount);
-  const regularLevel =
-    danSelection?.regularLevel ??
-    regularLevelForSkill(ladders.regular, effectiveSkill);
-  const lnLevel =
-    danSelection?.lnLevel ??
-    lnLevelForSkill(
-      ladders.ln,
-      effectiveSkill.lnProfile?.lnSkill ?? effectiveSkill.lnSkill,
-    );
-
-  const setHumanizeEnabled = (enabled: boolean) => {
-    const humanize = { ...playtest.humanize, enabled };
-    if (!enabled) {
-      onPlaytest({ ...playtest, humanize });
-      return;
-    }
-    const alphaLevel = DAN_LADDERS[ladders.regular].levels.findIndex(
-      (level) => level.label === "Alpha",
-    );
-    onPlaytest({
-      ...playtest,
-      humanize,
-      skill:
-        alphaLevel >= 0
-          ? combineDans(
-              keyCount,
-              alphaLevel,
-              lnLevel,
-              playtest.skill.danSelections,
-            )
-          : playtest.skill,
-    });
-  };
-
-  const setDanSkill = (nextRegular: number, nextLn: number) => {
-    onPlaytest({
-      ...playtest,
-      skill: combineDans(
-        keyCount,
-        nextRegular,
-        nextLn,
-        playtest.skill.danSelections,
-      ),
-    });
-  };
 
   const patchPlaytest = (patch: Partial<PlaytestSettings>) => {
     onPlaytest({ ...playtest, ...patch });
@@ -982,21 +914,22 @@ export function AppSettingsModal({
 
         {tab === "Playtest" && (
           <div className="flex flex-col gap-7">
+            <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <div aria-hidden="true" className="w-28 shrink-0">
+                <SettingDiagram name="hud" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-slate-100">{t("settings.hudEditorTitle")}</h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("settings.hudEditorDesc")}</p>
+                <Button variant="accent" className="mt-3" disabled={!onOpenHudEditor} onClick={onOpenHudEditor}>
+                  {t("settings.hudEditorOpen")}
+                </Button>
+                {!onOpenHudEditor && <p className="mt-2 text-[11px] text-slate-500">{t("settings.hudEditorNeedsMap")}</p>}
+              </div>
+            </div>
             <section>
               <SectionTitle>{t("settings.ptGameplay")}</SectionTitle>
               <div className="flex flex-col gap-4">
-                <NumberRow
-                  label={t("settings.scrollSpeed")}
-                  tip={t("settings.scrollSpeedHint")}
-                  hint={t("settings.scrollSpeedDetail", {
-                    ms: Math.round(11485 / playtest.scrollSpeed),
-                  })}
-                  value={playtest.scrollSpeed}
-                  min={MIN_PLAYTEST_SCROLL_SPEED}
-                  max={MAX_PLAYTEST_SCROLL_SPEED}
-                  step={1}
-                  onChange={(scrollSpeed) => patchPlaytest({ scrollSpeed })}
-                />
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3 text-sm text-slate-200">
                     <Tip text={t("settings.rateHint")}>{t("settings.rate")}</Tip>
@@ -1031,55 +964,6 @@ export function AppSettingsModal({
                     />
                   </div>
                 </div>
-              </div>
-            </section>
-
-            <section>
-              <SectionTitle>{t("settings.ptTiming")}</SectionTitle>
-              <div className="flex flex-col gap-4">
-                <NumberRow
-                  label={t("settings.audioOffset")}
-                  tip={t("settings.audioOffsetHint")}
-                  value={playtest.audioOffsetMs}
-                  min={-MAX_OFFSET_MS}
-                  max={MAX_OFFSET_MS}
-                  sliderMin={-150}
-                  sliderMax={150}
-                  step={1}
-                  unit="ms"
-                  onChange={(audioOffsetMs) => patchPlaytest({ audioOffsetMs })}
-                />
-                {onAudioSetup && (
-                  <div className="-mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
-                    <span>{t("settings.audioOffsetDetail")}</span>
-                    <button
-                      type="button"
-                      onClick={onAudioSetup}
-                      className="shrink-0 rounded-md border border-white/10 bg-ink-700/60 px-2.5 py-1 text-xs font-medium text-slate-200 transition hover:border-accent/50 hover:text-white"
-                    >
-                      {t("settings.calibrate")}
-                    </button>
-                  </div>
-                )}
-                <details className="group rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-                  <summary className="cursor-pointer select-none text-xs font-medium text-slate-400 transition hover:text-slate-200">
-                    {t("settings.advanced")}
-                  </summary>
-                  <div className="mt-3 flex flex-col gap-2 pb-1">
-                    <NumberRow
-                      label={t("settings.inputOffset")}
-                      tip={t("settings.inputOffsetHint")}
-                      value={playtest.inputOffsetMs}
-                      min={-MAX_OFFSET_MS}
-                      max={MAX_OFFSET_MS}
-                      sliderMin={-100}
-                      sliderMax={100}
-                      step={1}
-                      unit="ms"
-                      onChange={(inputOffsetMs) => patchPlaytest({ inputOffsetMs })}
-                    />
-                  </div>
-                </details>
               </div>
             </section>
 
@@ -1125,19 +1009,6 @@ export function AppSettingsModal({
                       </optgroup>
                     )}
                   </Select>
-                </div>
-                <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                  <div aria-hidden="true" className="w-28 shrink-0">
-                    <SettingDiagram name="hud" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-slate-100">{t("settings.hudEditorTitle")}</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("settings.hudEditorDesc")}</p>
-                    <Button variant="accent" className="mt-3" disabled={!onOpenHudEditor} onClick={onOpenHudEditor}>
-                      {t("settings.hudEditorOpen")}
-                    </Button>
-                    {!onOpenHudEditor && <p className="mt-2 text-[11px] text-slate-500">{t("settings.hudEditorNeedsMap")}</p>}
-                  </div>
                 </div>
               </div>
             </section>
@@ -1241,122 +1112,6 @@ export function AppSettingsModal({
               </div>
             </section>
 
-            <section>
-              <SectionTitle>
-                <Tip text={t("settings.autoplayHint")}>{t("settings.autoplay")}</Tip>
-              </SectionTitle>
-              <div className="flex flex-col gap-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1 text-sm text-slate-200">
-                    <Tip
-                      text={t("settings.danHint", {
-                        keys: DAN_LADDERS[ladders.regular].keyCount,
-                      })}
-                    >
-                      {t("settings.danRegular")}
-                    </Tip>
-                    <Select
-                      value={regularLevel}
-                      onChange={(e) => setDanSkill(Number(e.target.value), lnLevel)}
-                    >
-                      {DAN_LADDERS[ladders.regular].levels.map((lvl, i) => (
-                        <option key={lvl.label} value={i}>
-                          {lvl.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                  <label className="flex flex-col gap-1 text-sm text-slate-200">
-                    <span>{t("settings.danLn")}</span>
-                    <Select
-                      value={lnLevel}
-                      onChange={(e) => setDanSkill(regularLevel, Number(e.target.value))}
-                    >
-                      {DAN_LADDERS[ladders.ln].levels.map((lvl, i) => (
-                        <option key={lvl.label} value={i}>
-                          {lvl.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                </div>
-                <SettingToggle
-                  label={t("settings.humanize")}
-                  tip={t("settings.humanizeHint")}
-                  checked={playtest.humanize.enabled}
-                  onChange={setHumanizeEnabled}
-                />
-                {playtest.humanize.enabled && (
-                  <div className="flex flex-col gap-4 border-l border-white/10 pl-3">
-                    <HumanSlider
-                      label={t("settings.humanizeJitter")}
-                      hint={t("settings.humanizeJitterHint")}
-                      value={playtest.humanize.jitterMs}
-                      min={0}
-                      max={60}
-                      step={1}
-                      format={(v) => `${v} ms`}
-                      onChange={(v) => patchHumanize({ jitterMs: v })}
-                    />
-                    <HumanSlider
-                      label={t("settings.humanizeBias")}
-                      hint={t("settings.humanizeBiasHint")}
-                      value={playtest.humanize.biasMs}
-                      min={-40}
-                      max={40}
-                      step={1}
-                      format={(v) => `${v > 0 ? "+" : ""}${v} ms`}
-                      onChange={(v) => patchHumanize({ biasMs: v })}
-                    />
-                    <HumanSlider
-                      label={t("settings.humanizeSlipChance")}
-                      hint={t("settings.humanizeSlipChanceHint")}
-                      value={Math.round(playtest.humanize.slipChance * 1000) / 10}
-                      min={0}
-                      max={35}
-                      step={0.5}
-                      format={(v) => `${v.toFixed(1)}%`}
-                      onChange={(v) => patchHumanize({ slipChance: v / 100 })}
-                    />
-                    <HumanSlider
-                      label={t("settings.humanizeMissChance")}
-                      value={Math.round(playtest.humanize.missChance * 1000) / 10}
-                      min={0}
-                      max={10}
-                      step={0.1}
-                      format={(v) => `${v.toFixed(1)}%`}
-                      onChange={(v) => patchHumanize({ missChance: v / 100 })}
-                    />
-                    <HumanSlider
-                      label={t("settings.humanizeReleaseJitter")}
-                      hint={t("settings.humanizeReleaseJitterHint")}
-                      value={playtest.humanize.releaseJitterMs}
-                      min={0}
-                      max={80}
-                      step={1}
-                      format={(v) => `${v} ms`}
-                      onChange={(v) => patchHumanize({ releaseJitterMs: v })}
-                    />
-                    <div className="flex items-center gap-3 text-sm text-slate-200">
-                      <Tip text={t("settings.humanizeSeedHint")}>{t("settings.humanizeSeed")}</Tip>
-                      {playtest.humanize.seed === 0 && (
-                        <span className="text-[11px] text-slate-500">
-                          {t("settings.humanizeSeedRandom")}
-                        </span>
-                      )}
-                      <NumberBox
-                        label={t("settings.humanizeSeed")}
-                        value={playtest.humanize.seed}
-                        min={0}
-                        max={999999}
-                        step={1}
-                        onChange={(seed) => patchHumanize({ seed: Math.floor(seed) })}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
           </div>
         )}
 
@@ -1760,106 +1515,7 @@ function NumberBox({
 }
 
 /** A setting with a slider for quick changes and a box for exact values. */
-function NumberRow({
-  label,
-  tip,
-  hint,
-  value,
-  min,
-  max,
-  sliderMin,
-  sliderMax,
-  step,
-  unit,
-  onChange,
-}: {
-  label: string;
-  tip?: string;
-  hint?: string;
-  value: number;
-  min: number;
-  max: number;
-  sliderMin?: number;
-  sliderMax?: number;
-  step: number;
-  unit?: string;
-  onChange: (value: number) => void;
-}) {
-  const lo = sliderMin ?? min;
-  const hi = sliderMax ?? max;
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-3 text-sm text-slate-200">
-        <Tip text={tip}>{label}</Tip>
-        <Slider
-          aria-label={label}
-          min={lo}
-          max={hi}
-          step={step}
-          value={Math.min(hi, Math.max(lo, value))}
-          onChange={onChange}
-          className="ml-auto w-32 shrink-0 uimd:w-48"
-        />
-        <NumberBox
-          label={label}
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          unit={unit}
-          onChange={onChange}
-        />
-      </div>
-      {hint && <p className="text-[11px] leading-snug text-slate-500">{hint}</p>}
-    </div>
-  );
-}
 
-function HumanSlider({
-  label,
-  hint,
-  value,
-  disabled = false,
-  min,
-  max,
-  step,
-  format,
-  onChange,
-}: {
-  label: string;
-  hint?: string;
-  value: number;
-  disabled?: boolean;
-  min: number;
-  max: number;
-  step: number;
-  format: (value: number) => string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div
-      aria-disabled={disabled}
-      className={`flex flex-col gap-1.5 ${disabled ? "opacity-50" : ""}`}
-    >
-      <div className="flex items-center justify-between text-sm text-slate-200">
-        <Tip text={hint}>{label}</Tip>
-        <span className="font-medium tabular-nums text-slate-200">
-          {format(value)}
-        </span>
-      </div>
-      <Slider
-        disabled={disabled}
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={onChange}
-        aria-label={label}
-        aria-valuetext={format(value)}
-      />
-    </div>
-  );
-}
 
 function SettingToggle({
   label,

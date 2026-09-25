@@ -35,7 +35,7 @@ export const zhCN: PartialCatalog = {
   "hud.runStats": "试玩统计",
   "hud.runStatsDesc": "一览连击、UR、平均误差和漏击数。",
   "settings.hudEditorTitle": "HUD 编辑器",
-  "settings.hudEditorDesc": "在当前谱面自动播放时调整游戏区域和 HUD，移动元素并更改大小及显示状态。",
+  "settings.hudEditorDesc": "在当前谱面自动播放时调整游戏区域、HUD、滚动速度和偏移，移动元素并更改大小及显示状态。",
   "settings.hudEditorOpen": "打开 HUD 编辑器",
   "settings.hudEditorNeedsMap": "请先打开带有音频的谱面，再编辑 HUD。",
   "crash.title": "出了点问题",
@@ -2063,4 +2063,8 @@ export const zhCN: PartialCatalog = {
   "lib.finishing": "即将完成",
   "lib.opening": "正在打开谱面",
   "lib.difficulty": "难度",
+  "hud.groupGameplay": "游戏",
+  "hud.scrollDesc": "音符下落的速度。游玩中也可用 F3 和 F4 调整。",
+  "hud.timing": "时间校准",
+  "hud.timingDesc": "让音符与你听到的音乐对齐。",
 };

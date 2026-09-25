@@ -992,7 +992,7 @@ export const en = {
   "app.updateFailed": "The update failed to install.",
   "hud.editor": "HUD editor",
   "settings.hudEditorTitle": "HUD editor",
-  "settings.hudEditorDesc": "Adjust the playfield and HUD while the current map plays on autoplay. Move elements and change their size and visibility.",
+  "settings.hudEditorDesc": "Adjust the playfield, HUD, scroll speed and offsets while the current map plays on autoplay. Move elements and change their size and visibility.",
   "settings.hudEditorOpen": "Open HUD editor",
   "settings.hudEditorNeedsMap": "Open a map with audio to edit the HUD.",
   "hud.overline": "Playtest",
@@ -2276,4 +2276,8 @@ export const en = {
   "lib.finishing": "Finishing up",
   "lib.opening": "Opening the map",
   "lib.difficulty": "difficulty",
+  "hud.groupGameplay": "Gameplay",
+  "hud.scrollDesc": "How fast notes fall. F3 and F4 also change it during a run.",
+  "hud.timing": "Timing",
+  "hud.timingDesc": "Line the notes up with the music you hear.",
 } as const;

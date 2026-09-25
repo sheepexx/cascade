@@ -35,7 +35,7 @@ export const ptBR: PartialCatalog = {
   "hud.runStats": "Estatísticas da partida",
   "hud.runStatsDesc": "Combo, UR, desvio médio e erros em um só lugar.",
   "settings.hudEditorTitle": "Editor de HUD",
-  "settings.hudEditorDesc": "Ajuste o campo de jogo e o HUD enquanto o mapa atual toca automaticamente. Mova elementos e altere seu tamanho e visibilidade.",
+  "settings.hudEditorDesc": "Ajuste o campo de jogo, o HUD, a velocidade de rolagem e os offsets enquanto o mapa atual toca automaticamente. Mova elementos e altere seu tamanho e visibilidade.",
   "settings.hudEditorOpen": "Abrir editor de HUD",
   "settings.hudEditorNeedsMap": "Abra um mapa com áudio para editar o HUD.",
   "crash.title": "Algo deu errado",
@@ -2173,4 +2173,8 @@ export const ptBR: PartialCatalog = {
   "lib.finishing": "Finalizando",
   "lib.opening": "Abrindo o mapa",
   "lib.difficulty": "dificuldade",
+  "hud.groupGameplay": "Jogabilidade",
+  "hud.scrollDesc": "A velocidade em que as notas caem. F3 e F4 também a mudam durante uma partida.",
+  "hud.timing": "Timing",
+  "hud.timingDesc": "Alinhe as notas com a música que você ouve.",
 };
