@@ -488,18 +488,23 @@ import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
 import { notesFollowingTiming, sortedPoints } from "./lib/timing";
 import { hasSv } from "./lib/sv";
 import {
+  editorKeyLabel,
   matchesBind,
   normalizeEditorKeybinds,
   snapDivisorForBind,
   timelineZoomDirection,
   type EditorAction,
 } from "./lib/editorKeybinds";
-import { clampUiScale, uiScaleFromWheel } from "./lib/uiScale";
+import { MAX_UI_SCALE, MIN_UI_SCALE, clampUiScale, uiScaleFromWheel } from "./lib/uiScale";
+import { OnScreenDisplay } from "./components/ui/OnScreenDisplay";
+import { osdRange, osdToggle, type OsdNotice } from "./lib/osd";
 import {
   clearUiBreakpointAttributes,
   syncUiBreakpointAttributes,
 } from "./lib/uiBreakpoints";
 import {
+  MAX_PLAYFIELD_SCALE,
+  MIN_PLAYFIELD_SCALE,
   playfieldScaleFromWheel,
   timelineZoomFromWheel,
   volumeFromWheel,
@@ -854,10 +859,9 @@ export default function App() {
   >(null);
   const [projectStarted, setProjectStarted] = useState(false);
   const [zenMode, setZenMode] = useState(false);
-  const [shortcutNotice, setShortcutNotice] = useState<{
-    id: number;
-    text: string;
-  } | null>(null);
+  const [shortcutNotice, setShortcutNotice] = useState<
+    (OsdNotice & { id: number }) | null
+  >(null);
   const [volumeHudKey, setVolumeHudKey] = useState(0);
   const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
     ...normalizeAppSettings(loadPreferences()),
@@ -866,11 +870,14 @@ export default function App() {
   appSettingsRef.current = appSettings;
   // Set before the children render so every playfield drawing picks it up.
   setLaneColourScheme(appSettings.colourblindLanes ? "colourblind" : "default");
-  const announceShortcut = useCallback((text: string) => {
+  /** Shows the on-screen display: a setting with its new value, or a message. */
+  const announceShortcut = useCallback((notice: OsdNotice | string) => {
     if (!appSettingsRef.current.shortcutNoticesEnabled) return;
-    setShortcutNotice({ id: Date.now() + Math.random(), text });
+    const body = typeof notice === "string" ? { label: notice } : notice;
+    setShortcutNotice({ ...body, id: Date.now() + Math.random() });
     playUiSound("notice");
   }, []);
+  const hideShortcutNotice = useCallback(() => setShortcutNotice(null), []);
   const openSettings = useCallback((tab: SettingsTab = "General") => {
     setSettingsTab(tab);
     setModal("settings");
@@ -1473,7 +1480,11 @@ export default function App() {
   const toggleWaveformOverlay = useCallback(() => {
     setAppSettings((settings) => {
       const showWaveform = !settings.showWaveform;
-      announceShortcut(showWaveform ? t("shortcut.waveformOn") : t("shortcut.waveformOff"));
+      announceShortcut(
+        osdToggle(t("osd.waveform"), showWaveform, [
+          editorKeyLabel(editorKeybindsRef.current.waveformOverlay),
+        ]),
+      );
       return { ...settings, showWaveform };
     });
   }, [announceShortcut, t]);
@@ -1740,7 +1751,9 @@ export default function App() {
           if (action === "timelineZoom") {
             setView((current) => {
               const scrollSpeed = timelineZoomFromWheel(current.scrollSpeed, e.deltaY);
-              announceShortcut(t("shortcut.timelineZoom", { zoom: scrollSpeed }));
+              announceShortcut(
+                osdRange(t("osd.timelineZoom"), String(scrollSpeed), scrollSpeed, MIN_SCROLL_SPEED, MAX_SCROLL_SPEED, ["Alt", t("osd.wheel")]),
+              );
               return { ...current, scrollSpeed };
             });
           } else if (action === "playfieldScale") {
@@ -1749,7 +1762,9 @@ export default function App() {
                 settings.playfieldScale,
                 e.deltaY,
               );
-              announceShortcut(t("shortcut.playfieldSize", { percent: Math.round(playfieldScale * 100) }));
+              announceShortcut(
+                osdRange(t("osd.playfieldSize"), `${Math.round(playfieldScale * 100)}%`, playfieldScale, MIN_PLAYFIELD_SCALE, MAX_PLAYFIELD_SCALE, ["Alt", t("osd.wheel")]),
+              );
               return { ...settings, playfieldScale };
             });
           } else if (action === "volume") {
@@ -1757,7 +1772,9 @@ export default function App() {
           } else {
             setAppSettings((settings) => {
               const uiScale = uiScaleFromWheel(settings.uiScale, e.deltaY);
-              announceShortcut(t("shortcut.interfaceSize", { percent: Math.round(uiScale * 100) }));
+              announceShortcut(
+                osdRange(t("osd.interfaceSize"), `${Math.round(uiScale * 100)}%`, uiScale, MIN_UI_SCALE, MAX_UI_SCALE, ["Alt", t("osd.wheel")]),
+              );
               return { ...settings, uiScale };
             });
           }
@@ -5129,21 +5146,33 @@ export default function App() {
       blurActiveControl();
       if (isTab)
         setZenMode((z) => {
-          announceShortcut(z ? t("shortcut.zenOff") : t("shortcut.zenOn"));
+          announceShortcut(osdToggle(t("osd.zenMode"), !z, [editorKeyLabel(binds.zenMode)]));
           return !z;
         });
       else if (isPreviousBookmark) {
         seekBookmark("previous");
-        announceShortcut(t("shortcut.previousBookmark"));
+        announceShortcut({
+          label: t("osd.bookmarks"),
+          value: t("osd.previous"),
+          keys: [editorKeyLabel(binds.prevBookmark)],
+        });
       }
       else if (isNextBookmark) {
         seekBookmark("next");
-        announceShortcut(t("shortcut.nextBookmark"));
+        announceShortcut({
+          label: t("osd.bookmarks"),
+          value: t("osd.next"),
+          keys: [editorKeyLabel(binds.nextBookmark)],
+        });
       }
       else if (isBookmark) {
         if (!e.repeat) {
           addBookmark(Math.round(currentTimeRef.current));
-          announceShortcut(t("shortcut.bookmarkAdded"));
+          announceShortcut({
+            label: t("osd.bookmarks"),
+            value: t("osd.added"),
+            keys: [editorKeyLabel(binds.addBookmark)],
+          });
         }
       } else if (isSpace) {
         if (!e.repeat) toggleAudio();
@@ -5152,7 +5181,9 @@ export default function App() {
         if (slowHeldRef.current || e.repeat) return;
         slowHeldRef.current = true;
         setAudioPlaybackRate(0.25);
-        announceShortcut(t("shortcut.playbackRate", { percent: 25 }));
+        announceShortcut(
+          osdRange(t("osd.playbackRate"), "25%", 0.25, 0, 1, [editorKeyLabel(binds.slowMo)]),
+        );
       }
       else if (isUp || isDown) {
         const volume = Math.max(
@@ -5164,7 +5195,11 @@ export default function App() {
       }
       else if (snapDivisor !== null) {
         setView((v) => ({ ...v, snapDivisor }));
-        announceShortcut(t("shortcut.snap", { divisor: snapDivisor }));
+        announceShortcut({
+          label: t("osd.snap"),
+          value: snapDivisor === 0 ? t("transport.snapFree") : `1/${snapDivisor}`,
+          keys: [editorKeyLabel(e.code)],
+        });
       }
       else if (isTimelineZoomOut || isTimelineZoomIn) {
         setView((v) => {
@@ -5175,7 +5210,12 @@ export default function App() {
               v.scrollSpeed + (isTimelineZoomIn ? 1 : -1),
             ),
           );
-          announceShortcut(t("shortcut.timelineZoom", { zoom: scrollSpeed }));
+          announceShortcut(
+            osdRange(t("osd.timelineZoom"), String(scrollSpeed), scrollSpeed, MIN_SCROLL_SPEED, MAX_SCROLL_SPEED, [
+              editorKeyLabel(binds.scrollSpeedDown),
+              editorKeyLabel(binds.scrollSpeedUp),
+            ]),
+          );
           return { ...v, scrollSpeed };
         });
       } else if (isZoomIn || isZoomOut) {
@@ -5186,7 +5226,12 @@ export default function App() {
               Math.min(2.5, s.playfieldScale + (isZoomIn ? 0.1 : -0.1)),
             ) * 100,
           ) / 100;
-          announceShortcut(t("shortcut.playfieldSize", { percent: Math.round(playfieldScale * 100) }));
+          announceShortcut(
+            osdRange(t("osd.playfieldSize"), `${Math.round(playfieldScale * 100)}%`, playfieldScale, MIN_PLAYFIELD_SCALE, MAX_PLAYFIELD_SCALE, [
+              editorKeyLabel(binds.zoomOut),
+              editorKeyLabel(binds.zoomIn),
+            ]),
+          );
           return { ...s, playfieldScale };
         });
       }
@@ -5200,7 +5245,11 @@ export default function App() {
       slowHeldRef.current = false;
       e.preventDefault();
       setAudioPlaybackRate(1);
-      announceShortcut(t("shortcut.playbackRate", { percent: 100 }));
+      announceShortcut(
+        osdRange(t("osd.playbackRate"), "100%", 1, 0, 1, [
+          editorKeyLabel(editorKeybindsRef.current.slowMo),
+        ]),
+      );
     };
     const onBlur = () => {
       if (!slowHeldRef.current) return;
@@ -8650,18 +8699,8 @@ export default function App() {
         onHide={resetVolumeMeter}
       />
 
-      {appSettings.shortcutNoticesEnabled && shortcutNotice && (
-        <TimedNotification
-          durationMs={1800}
-          onDismiss={() => setShortcutNotice(null)}
-          resetKey={shortcutNotice.id}
-          placement="overlay"
-          showProgress={false}
-          className="pointer-events-none fixed left-1/2 top-5 z-[190] flex -translate-x-1/2 items-center gap-2 bg-transparent px-4 py-2 text-sm font-semibold text-cyan-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]"
-        >
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.9)]" />
-          {shortcutNotice.text}
-        </TimedNotification>
+      {appSettings.shortcutNoticesEnabled && (
+        <OnScreenDisplay notice={shortcutNotice} onHidden={hideShortcutNotice} />
       )}
 
       {osuConnectedAt !== null && (

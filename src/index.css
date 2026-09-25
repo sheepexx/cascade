@@ -1225,7 +1225,14 @@ canvas[data-pointer-focus]:focus-visible {
   outline: none;
 }
 
+.osd-pop { animation: osd-pop 200ms var(--ease-emphasized) both; }
+@keyframes osd-pop {
+  from { transform: scale(1.07); opacity: 0.75; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .osd-pop,
   .modal-backdrop-in,
   .modal-backdrop-out,
   .modal-panel-in,
