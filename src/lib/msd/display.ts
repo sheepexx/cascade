@@ -13,7 +13,7 @@ const SKILLSET_LABELS: Record<(typeof MSD_SKILLSET_KEYS)[number], string> = {
 
 const GENERIC_LABELS: Partial<typeof SKILLSET_LABELS> = {
   jumpstream: "Chordstream",
-  handstream: "Bracketing",
+  handstream: "Brackets",
 };
 
 export function msdSkillsetLabel(
