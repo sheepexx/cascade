@@ -23,6 +23,7 @@ import {
 } from "../../lib/mapCard";
 import { prepareMapCardFonts, renderMapCardPng } from "../../lib/mapCardRender";
 import { useLoadedImage } from "../../hooks/useLoadedImage";
+import { siteAsset } from "../../lib/siteAssets";
 import { useHostedMapCard } from "../../hooks/useHostedMapCard";
 import { useMapCardPresets } from "../../hooks/useMapCardPresets";
 import { MapCardPreview } from "../mapCard/MapCardPreview";
@@ -147,7 +148,11 @@ export function MapCardModal({
 
   const bgFile = backgroundFileFor(difficulty, difficulties, bgFiles);
   const background = useLoadedImage(open ? bgFile?.url ?? null : null);
-  const images = useMemo(() => ({ background: background.image }), [background.image]);
+  const logo = useLoadedImage(open ? siteAsset("logo.png?v=3") : null);
+  const images = useMemo(
+    () => ({ background: background.image, logo: logo.image }),
+    [background.image, logo.image],
+  );
 
   useEffect(() => {
     if (!open) return;

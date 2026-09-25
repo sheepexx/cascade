@@ -30,6 +30,8 @@ type Rgb = [number, number, number];
 
 export type MapCardImages = {
   background: HTMLImageElement | null;
+  /** The Cascade logo for the footer; accent dots stand in until it loads. */
+  logo?: HTMLImageElement | null;
 };
 
 type Density = {
@@ -926,15 +928,33 @@ function drawStats(ctx: Ctx, plan: MapCardPlan, block: Block): void {
   });
 }
 
-function drawFooter(ctx: Ctx, plan: MapCardPlan, block: Block, accent: string): void {
+function drawFooter(
+  ctx: Ctx,
+  plan: MapCardPlan,
+  block: Block,
+  accent: string,
+  logo: HTMLImageElement | null,
+): void {
   const d = plan.density;
   const x = d.pad;
   const right = plan.width - d.pad;
   const base = block.y + block.h - Math.round(d.pad * 0.72);
-  for (let i = 0; i < 4; i++) {
-    roundRect(ctx, x + i * 4.2, base - 11 + i * 2.4, 3.4, 3.4, 1);
-    ctx.fillStyle = rgba(accent, 1 - i * 0.2);
-    ctx.fill();
+  if (logo && logo.naturalWidth > 0) {
+    // The logo is square art shown as a circle, as on the main menu.
+    const size = 17;
+    const cy = base - 4.5;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x + size / 2, cy, size / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(logo, x, cy - size / 2, size, size);
+    ctx.restore();
+  } else {
+    for (let i = 0; i < 4; i++) {
+      roundRect(ctx, x + i * 4.2, base - 11 + i * 2.4, 3.4, 3.4, 1);
+      ctx.fillStyle = rgba(accent, 1 - i * 0.2);
+      ctx.fill();
+    }
   }
   ctx.font = font(12, 600);
   ctx.fillStyle = MUTED;
@@ -975,7 +995,7 @@ export function drawMapCard(
   drawHeader(ctx, plan, data, config, accent);
   if (plan.skills) drawSkills(ctx, plan, plan.skills, data, config, accent);
   if (plan.stats) drawStats(ctx, plan, plan.stats);
-  if (plan.footer) drawFooter(ctx, plan, plan.footer, accent);
+  if (plan.footer) drawFooter(ctx, plan, plan.footer, accent, images.logo ?? null);
   ctx.restore();
 
   roundRect(ctx, 0.5, 0.5, plan.width - 1, plan.height - 1, RADIUS - 0.5);
