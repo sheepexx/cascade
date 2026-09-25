@@ -12,6 +12,7 @@ import {
   mapCardKey,
   mapCardMsdStatus,
   mapCardNeedsMorph,
+  accentFromPixels,
   normalizeMapCardConfig,
   type MapCardConfig,
   type MapCardData,
@@ -302,5 +303,62 @@ describe("map card layout", () => {
   it("keeps a readable accent when the star colour turns black", () => {
     expect(mapCardAccent(config({ accent: "difficulty" }), data({ starRating: 12 }))).toBe("#f2c14e");
     expect(mapCardAccent(config({ accent: "blue" }), data())).toBe("#5bc0ff");
+  });
+});
+
+describe("accentFromPixels", () => {
+  const image = (...regions: [number, [number, number, number, number?]][]) => {
+    const pixels: number[] = [];
+    for (const [count, [r, g, b, a = 255]] of regions) {
+      for (let i = 0; i < count; i++) pixels.push(r, g, b, a);
+    }
+    return pixels;
+  };
+  const hue = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d = max - min;
+    const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return h * 60;
+  };
+  const lightness = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return (Math.max(...c) + Math.min(...c)) / 2 / 255;
+  };
+
+  it("picks the hue most of the vivid pixels share", () => {
+    const accent = accentFromPixels(
+      image([600, [30, 90, 220]], [300, [220, 40, 40]], [800, [20, 20, 24]]),
+    );
+    expect(accent).not.toBeNull();
+    expect(hue(accent!)).toBeGreaterThan(200);
+    expect(hue(accent!)).toBeLessThan(240);
+  });
+
+  it("lifts a dark colour to a lightness that reads on the card", () => {
+    const accent = accentFromPixels(image([1000, [60, 10, 90]]));
+    expect(lightness(accent!)).toBeGreaterThanOrEqual(0.57);
+    expect(lightness(accent!)).toBeLessThanOrEqual(0.73);
+  });
+
+  it("gives up on a picture with hardly any colour", () => {
+    expect(accentFromPixels(image([1000, [128, 128, 130]], [5, [200, 30, 30]]))).toBeNull();
+    expect(accentFromPixels(image([1000, [200, 30, 30, 0]]))).toBeNull();
+    expect(accentFromPixels([])).toBeNull();
+  });
+
+  it("falls back to Cascade red for Auto without a background", () => {
+    expect(mapCardAccent(config({ accent: "auto" }), data(), { background: null })).toBe(
+      "#e86868",
+    );
+  });
+
+  it("keeps Auto when a preset is loaded back", () => {
+    expect(normalizeMapCardConfig({ ...DEFAULT_MAP_CARD_CONFIG, accent: "auto" }).accent).toBe(
+      "auto",
+    );
   });
 });

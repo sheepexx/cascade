@@ -1324,6 +1324,13 @@ export const ptBR: PartialCatalog = {
     "Envie o card para ter um link direto de PNG que funciona em tags [img] e no Discord.",
   "mapCard.uploading": "Enviando…",
   "mapCard.upload": "Enviar e gerar link",
+  "mapCard.accentAuto": "Auto",
+  "mapCard.accentAutoHint": "Auto escolhe uma cor do fundo do mapa.",
+  "mapCard.accentAutoFallback": "Auto escolhe uma cor do fundo do mapa. Este mapa não tem um fundo colorido o bastante, então usa o vermelho do Cascade.",
+  "mapCard.layout": "Layout",
+  "mapCard.statsShown": "{shown} de {total}",
+  "mapCard.export": "Exportar",
+  "mapCard.hostedLink": "Link hospedado",
   "mapCard.errSession": "Sua sessão expirou. Entre de novo para hospedar o card.",
   "mapCard.errLimit":
     "Você atingiu o limite de cards hospedados. Remova um antigo primeiro.",

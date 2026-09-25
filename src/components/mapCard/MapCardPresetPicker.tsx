@@ -12,7 +12,7 @@ import {
 import { useT } from "../../lib/i18n";
 import type { useMapCardPresets } from "../../hooks/useMapCardPresets";
 import { mapCardPresetOptions } from "../../lib/mapCardCloud";
-import { CardSection, Notice, Spinner } from "./controls";
+import { Notice, PanelSection, Spinner } from "./controls";
 
 const CUSTOM = "custom";
 
@@ -80,7 +80,7 @@ export function MapCardPresetPicker({
     );
 
   return (
-    <CardSection
+    <PanelSection
       title={t("mapCard.preset")}
       aside={
         presets.status === "loading" ? (
@@ -194,6 +194,6 @@ export function MapCardPresetPicker({
           )}
         </Notice>
       )}
-    </CardSection>
+    </PanelSection>
   );
 }

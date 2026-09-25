@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Difficulty, LoadedFile, SongMeta, TimingPoint } from "../../types";
 import { Modal } from "../ui/Modal";
-import { Button } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
 import { useAuth } from "../../lib/auth";
 import { useT } from "../../lib/i18n";
@@ -21,7 +20,12 @@ import {
   type MapCardConfig,
   type MapCardPresetOption,
 } from "../../lib/mapCard";
-import { prepareMapCardFonts, renderMapCardPng } from "../../lib/mapCardRender";
+import {
+  imageAccent,
+  mapCardAccent,
+  prepareMapCardFonts,
+  renderMapCardPng,
+} from "../../lib/mapCardRender";
 import { useLoadedImage } from "../../hooks/useLoadedImage";
 import { siteAsset } from "../../lib/siteAssets";
 import { useHostedMapCard } from "../../hooks/useHostedMapCard";
@@ -32,7 +36,8 @@ import { MapCardPresetPicker } from "../mapCard/MapCardPresetPicker";
 import { MapCardBackgroundControls } from "../mapCard/MapCardBackgroundControls";
 import { MapCardStyleControls } from "../mapCard/MapCardStyleControls";
 import { MapCardStatToggles } from "../mapCard/MapCardStatToggles";
-import { CardSection, Notice, Spinner } from "../mapCard/controls";
+import { MapCardExport } from "../mapCard/MapCardExport";
+import { Notice, PanelSection } from "../mapCard/controls";
 
 type Props = {
   open: boolean;
@@ -199,8 +204,10 @@ export function MapCardModal({
   );
 
   const waitingForMsd = config.visibleStats.msd && msdStatus === "loading";
+  // Auto takes its colour from the background even when the card hides it.
   const waitingForImage =
-    config.backgroundMode !== "none" && background.status === "loading";
+    (config.backgroundMode !== "none" || config.accent === "auto") &&
+    background.status === "loading";
   const ready = !waitingForMsd && !waitingForImage;
   const busy = action !== null || hosted.status === "uploading";
 
@@ -257,60 +264,28 @@ export function MapCardModal({
     !!hosted.card && uploadedSignature !== null && uploadedSignature !== signature;
 
   const skillsetsShown = config.visibleStats.msd && msdStatus === "ready";
+  const accent = mapCardAccent(config, data, images);
+  const autoAccent = useMemo(
+    () => (background.image ? imageAccent(background.image) : null),
+    [background.image],
+  );
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={t("mapCard.title")}
-      width="max-w-5xl"
+      width="max-w-6xl"
       center={false}
-      footer={
-        <>
-          <span
-            role="status"
-            className={`mr-auto flex min-w-0 items-center gap-2 self-center truncate text-xs ${
-              status?.tone === "error" ? "text-red-300" : status ? "text-emerald-300" : "text-slate-500"
-            }`}
-          >
-            {status ? (
-              status.text
-            ) : waitingForMsd ? (
-              <>
-                <Spinner />
-                {t("mapCard.calculatingMsd")}
-              </>
-            ) : waitingForImage ? (
-              <>
-                <Spinner />
-                {t("mapCard.loadingBackground")}
-              </>
-            ) : null}
-          </span>
-          <Button
-            variant="primary"
-            onClick={() => void copyImage()}
-            disabled={!ready || busy}
-          >
-            {action === "copy" ? t("mapCard.copying") : t("mapCard.copyImage")}
-          </Button>
-          <Button
-            variant="accent"
-            onClick={() => void download()}
-            disabled={!ready || busy}
-          >
-            {action === "download" ? t("mapCard.rendering") : t("mapCard.downloadPng")}
-          </Button>
-        </>
-      }
     >
-      <div className="flex flex-col gap-4 uimd:flex-row uimd:items-start">
+      <div className="flex flex-col gap-5 uimd:flex-row uimd:items-start">
         <div className="flex min-w-0 flex-col gap-3 uimd:sticky uimd:top-0 uimd:order-2 uimd:flex-1">
           <MapCardPreview
             data={data}
             config={config}
             images={images}
             revision={fontsRevision}
+            accent={accent}
             label={t("mapCard.previewLabel", {
               title: data.title,
               difficulty: data.difficultyName,
@@ -319,12 +294,6 @@ export function MapCardModal({
 
           {difficulty.notes.length === 0 && (
             <Notice tone="warn">{t("mapCard.noNotes")}</Notice>
-          )}
-          {config.visibleStats.msd && msdStatus === "loading" && (
-            <Notice>
-              <Spinner />
-              {t("mapCard.msdLoading")}
-            </Notice>
           )}
           {config.visibleStats.msd && msdStatus === "unsupported" && (
             <Notice>
@@ -338,27 +307,43 @@ export function MapCardModal({
             <Notice tone="warn">{t("mapCard.msdFailed")}</Notice>
           )}
 
-          <MapCardHosting
-            hosted={hosted}
-            signedIn={!!user}
-            authLoading={authLoading}
-            ready={ready && action === null}
-            stale={stale}
-            onLogin={login}
-            onUpload={() => void upload()}
-          />
+          <MapCardExport
+            ready={ready}
+            busy={busy}
+            action={action}
+            status={status}
+            waiting={
+              waitingForMsd
+                ? t("mapCard.calculatingMsd")
+                : waitingForImage
+                  ? t("mapCard.loadingBackground")
+                  : null
+            }
+            onCopy={() => void copyImage()}
+            onDownload={() => void download()}
+          >
+            <MapCardHosting
+              hosted={hosted}
+              signedIn={!!user}
+              authLoading={authLoading}
+              ready={ready && action === null}
+              stale={stale}
+              onLogin={login}
+              onUpload={() => void upload()}
+            />
+          </MapCardExport>
         </div>
 
-        <div className="flex flex-col gap-3 uimd:order-1 uimd:w-72 uimd:shrink-0">
+        <div className="flex flex-col divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-ink-700/25 uimd:order-1 uimd:w-80 uimd:shrink-0">
           {difficulties.length > 1 && (
-            <CardSection title={t("mapCard.difficulty")}>
+            <PanelSection title={t("mapCard.difficulty")}>
               <Dropdown
                 value={difficulty.id}
                 options={difficultyOptions}
                 onChange={setDifficultyId}
                 aria-label={t("mapCard.difficulty")}
               />
-            </CardSection>
+            </PanelSection>
           )}
           <MapCardPresetPicker
             config={config}
@@ -374,11 +359,14 @@ export function MapCardModal({
           <MapCardBackgroundControls
             config={config}
             background={background.status}
+            imageUrl={background.status === "ready" ? bgFile?.url ?? null : null}
+            accent={accent}
             onChange={patch}
           />
           <MapCardStyleControls
             config={config}
             skillsetsShown={skillsetsShown}
+            autoAccent={autoAccent}
             onChange={patch}
           />
           <MapCardStatToggles config={config} onChange={patch} />

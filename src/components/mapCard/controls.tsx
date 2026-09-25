@@ -30,6 +30,35 @@ export function CardSection({
   );
 }
 
+/** A group inside the Map Card sidebar, which draws the dividers between them. */
+export function PanelSection({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-label={title}
+      style={SECTION_SURFACE}
+      className="flex flex-col gap-3 px-4 py-4"
+    >
+      <div className="flex min-h-[1.25rem] items-center justify-between gap-2">
+        <h3 className={CARD_LABEL}>{title}</h3>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function FieldLabel({ children }: { children: ReactNode }) {
+  return <span className="text-[12px] font-medium text-slate-400">{children}</span>;
+}
+
 export function SliderField({
   label,
   value,
@@ -54,8 +83,8 @@ export function SliderField({
       aria-disabled={disabled || undefined}
       className={`flex flex-col gap-1.5 ${disabled ? "opacity-45" : ""}`}
     >
-      <div className="flex items-center justify-between text-sm text-slate-200">
-        <span>{label}</span>
+      <div className="flex items-center justify-between gap-2 text-[13px] text-slate-200">
+        <span className="min-w-0 truncate">{label}</span>
         <span className="font-medium tabular-nums text-slate-300">
           {format(value)}
         </span>

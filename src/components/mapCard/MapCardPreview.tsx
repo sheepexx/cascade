@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { drawMapCard, type MapCardImages } from "../../lib/mapCardRender";
+import { drawMapCard, mapCardRgba, type MapCardImages } from "../../lib/mapCardRender";
 import {
   mapCardNeedsMorph,
   type MapCardConfig,
@@ -47,12 +47,15 @@ export function MapCardPreview({
   images,
   revision,
   label,
+  accent,
 }: {
   data: MapCardData;
   config: MapCardConfig;
   images: MapCardImages;
   revision: number;
   label: string;
+  /** The card's accent, which tints the stage behind it. */
+  accent: string;
 }) {
   const t = useT();
   const boxRef = useRef<HTMLDivElement>(null);
@@ -107,7 +110,12 @@ export function MapCardPreview({
 
   return (
     <figure className="flex flex-col gap-2">
-      <div className="rounded-xl border border-white/10 bg-ink-900/70 p-3 uimd:p-4">
+      <div
+        className="rounded-2xl border border-white/10 bg-ink-900/80 p-3 transition-[background] duration-500 uimd:px-6 uimd:py-7"
+        style={{
+          backgroundImage: `radial-gradient(90% 70% at 50% 0%, ${mapCardRgba(accent, 0.13)}, transparent 70%)`,
+        }}
+      >
         <div
           ref={boxRef}
           className="relative mx-auto w-full max-w-[800px] overflow-hidden"

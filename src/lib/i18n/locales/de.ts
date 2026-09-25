@@ -1324,6 +1324,13 @@ export const de: PartialCatalog = {
     "Lade die Karte hoch, um einen direkten PNG-Link zu bekommen, der in [img]-Tags und auf Discord funktioniert.",
   "mapCard.uploading": "Wird hochgeladen…",
   "mapCard.upload": "Hochladen und Link holen",
+  "mapCard.accentAuto": "Auto",
+  "mapCard.accentAutoHint": "Auto wählt eine Farbe aus dem Hintergrund der Map.",
+  "mapCard.accentAutoFallback": "Auto wählt eine Farbe aus dem Hintergrund der Map. Diese Map hat keinen ausreichend farbigen, daher wird Cascade-Rot verwendet.",
+  "mapCard.layout": "Layout",
+  "mapCard.statsShown": "{shown} von {total}",
+  "mapCard.export": "Export",
+  "mapCard.hostedLink": "Gehosteter Link",
   "mapCard.errSession":
     "Deine Sitzung ist abgelaufen. Melde dich erneut an, um die Karte zu hosten.",
   "mapCard.errLimit":

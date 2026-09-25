@@ -30,10 +30,111 @@ export const MAP_CARD_ACCENT_COLORS = {
 } as const;
 
 export const MAP_CARD_ACCENTS = [
+  "auto",
   ...(Object.keys(MAP_CARD_ACCENT_COLORS) as (keyof typeof MAP_CARD_ACCENT_COLORS)[]),
   "difficulty",
 ] as const;
 export type MapCardAccent = (typeof MAP_CARD_ACCENTS)[number];
+
+const HUE_BINS = 24;
+
+/**
+ * An accent picked from a picture's RGBA pixels: the hue that most of its
+ * vivid pixels share, averaged, then brought into the saturation and
+ * lightness the card's other accents use so it reads on the dark card. Greys,
+ * near-blacks and see-through pixels do not vote. Returns null when too little
+ * of the picture has any colour to go on.
+ */
+export function accentFromPixels(pixels: ArrayLike<number>): string | null {
+  const weight = new Array<number>(HUE_BINS).fill(0);
+  const sums = Array.from({ length: HUE_BINS }, () => [0, 0, 0]);
+  let counted = 0;
+  for (let i = 0; i + 3 < pixels.length; i += 4) {
+    if (pixels[i + 3] < 128) continue;
+    counted++;
+    const r = pixels[i] / 255;
+    const g = pixels[i + 1] / 255;
+    const b = pixels[i + 2] / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const chroma = max - min;
+    const saturation = max === 0 ? 0 : chroma / max;
+    if (saturation < 0.25 || max < 0.2) continue;
+    const hue =
+      max === r
+        ? ((g - b) / chroma + 6) % 6
+        : max === g
+          ? (b - r) / chroma + 2
+          : (r - g) / chroma + 4;
+    const bin = Math.floor((hue / 6) * HUE_BINS) % HUE_BINS;
+    // Vivid, bright pixels count for more than muddy ones.
+    const w = saturation * saturation * max;
+    weight[bin] += w;
+    sums[bin][0] += r * w;
+    sums[bin][1] += g * w;
+    sums[bin][2] += b * w;
+  }
+  if (counted === 0) return null;
+
+  // A hue can straddle two bins, so each bin is judged with its neighbours.
+  const around = (bin: number) => [
+    (bin + HUE_BINS - 1) % HUE_BINS,
+    bin,
+    (bin + 1) % HUE_BINS,
+  ];
+  let best = -1;
+  let bestScore = 0;
+  for (let bin = 0; bin < HUE_BINS; bin++) {
+    const [prev, , next] = around(bin);
+    const score = weight[prev] * 0.5 + weight[bin] + weight[next] * 0.5;
+    if (score > bestScore) {
+      bestScore = score;
+      best = bin;
+    }
+  }
+  if (best < 0 || bestScore < counted * 0.02) return null;
+
+  let total = 0;
+  const rgb = [0, 0, 0];
+  for (const bin of around(best)) {
+    total += weight[bin];
+    for (let c = 0; c < 3; c++) rgb[c] += sums[bin][c];
+  }
+  const [h, s, l] = rgbToHsl(rgb[0] / total, rgb[1] / total, rgb[2] / total);
+  return hslToHex(
+    h,
+    Math.min(0.9, Math.max(0.55, s)),
+    Math.min(0.72, Math.max(0.58, l)),
+  );
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h =
+    max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] =
+    h < 60 ? [c, x, 0]
+    : h < 120 ? [x, c, 0]
+    : h < 180 ? [0, c, x]
+    : h < 240 ? [0, x, c]
+    : h < 300 ? [x, 0, c]
+    : [c, 0, x];
+  const hex = (v: number) =>
+    Math.round((v + m) * 255).toString(16).padStart(2, "0");
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
+}
 
 export const MAP_CARD_STATS = [
   "starRating",

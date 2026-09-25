@@ -7,6 +7,7 @@ import { formatUiNumber } from "./formatUiNumber";
 import { t } from "./i18n/core";
 import {
   MAP_CARD_ACCENT_COLORS,
+  accentFromPixels,
   formatCardBpm,
   formatCardCount,
   type MapCardBackground,
@@ -136,6 +137,11 @@ function rgba(color: string | Rgb, alpha: number): string {
   return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
 }
 
+/** A card colour at some opacity, for UI drawn around the card. */
+export function mapCardRgba(color: string, alpha: number): string {
+  return rgba(color, alpha);
+}
+
 function mix(a: string, b: string, t: number): Rgb {
   const ca = parseColor(a) ?? [0, 0, 0];
   const cb = parseColor(b) ?? [0, 0, 0];
@@ -152,7 +158,43 @@ function inkOn(color: string): string {
   return c && luminance(c) > 0.6 ? "#15151c" : "#ffffff";
 }
 
-export function mapCardAccent(config: MapCardConfig, data: MapCardData): string {
+const imageAccents = new WeakMap<HTMLImageElement, string | null>();
+
+/**
+ * The accent the "Auto" option takes from a background, worked out once per
+ * image from a small copy of it. Null when the picture has too little colour,
+ * or when the browser will not let the canvas read it back.
+ */
+export function imageAccent(image: HTMLImageElement): string | null {
+  const cached = imageAccents.get(image);
+  if (cached !== undefined) return cached;
+  let accent: string | null = null;
+  try {
+    const size = 48;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (ctx && image.naturalWidth > 0) {
+      ctx.drawImage(image, 0, 0, size, size);
+      accent = accentFromPixels(ctx.getImageData(0, 0, size, size).data);
+    }
+  } catch {
+    accent = null;
+  }
+  imageAccents.set(image, accent);
+  return accent;
+}
+
+export function mapCardAccent(
+  config: MapCardConfig,
+  data: MapCardData,
+  images?: MapCardImages,
+): string {
+  if (config.accent === "auto") {
+    const picked = images?.background ? imageAccent(images.background) : null;
+    return picked ?? MAP_CARD_ACCENT_COLORS.cascade;
+  }
   if (config.accent !== "difficulty") return MAP_CARD_ACCENT_COLORS[config.accent];
   const color = starColor(data.starRating);
   const parsed = parseColor(color);
@@ -986,7 +1028,7 @@ export function drawMapCard(
   ctx.textBaseline = "alphabetic";
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  const accent = mapCardAccent(config, data);
+  const accent = mapCardAccent(config, data, images);
 
   ctx.save();
   roundRect(ctx, 0, 0, plan.width, plan.height, RADIUS);

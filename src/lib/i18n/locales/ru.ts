@@ -1394,6 +1394,13 @@ export const ru: PartialCatalog = {
     "Загрузите карточку, чтобы получить прямую ссылку на PNG, которая работает в тегах [img] и в Discord.",
   "mapCard.uploading": "Загрузка…",
   "mapCard.upload": "Загрузить и получить ссылку",
+  "mapCard.accentAuto": "Авто",
+  "mapCard.accentAutoHint": "Авто берёт цвет из фона карты.",
+  "mapCard.accentAutoFallback": "Авто берёт цвет из фона карты. У этой карты нет достаточно яркого фона, поэтому используется красный Cascade.",
+  "mapCard.layout": "Макет",
+  "mapCard.statsShown": "{shown} из {total}",
+  "mapCard.export": "Экспорт",
+  "mapCard.hostedLink": "Ссылка на изображение",
   "mapCard.errSession": "Сессия истекла. Войдите снова, чтобы разместить карточку.",
   "mapCard.errLimit":
     "Достигнут лимит размещённых карточек. Сначала уберите одну из старых.",

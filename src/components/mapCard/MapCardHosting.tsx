@@ -1,20 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/Controls";
 import { HoldToDelete } from "../ui/HoldToDelete";
+import { CheckIcon, CopyIcon, LinkIcon } from "../ui/Icons";
 import { mapCardBbcode } from "../../lib/mapCard";
 import { useLocale } from "../../lib/i18n";
 import type { useHostedMapCard } from "../../hooks/useHostedMapCard";
-import { CARD_LABEL, CardSection, Notice, Spinner } from "./controls";
+import { CARD_LABEL, Notice, Spinner } from "./controls";
 
-function CopyField({
-  label,
-  value,
-  button,
-}: {
-  label: string;
-  value: string;
-  button: string;
-}) {
+function CopyField({ label, value }: { label: string; value: string }) {
   const { t } = useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<"idle" | "copied" | "manual">("idle");
@@ -39,22 +32,27 @@ function CopyField({
 
   return (
     <div className="flex flex-col gap-1">
-      <span className={CARD_LABEL}>{label}</span>
-      <div className="flex gap-2">
+      <span className="text-[11px] font-medium text-slate-500">{label}</span>
+      <div className="flex gap-1.5">
         <input
           ref={inputRef}
           readOnly
           value={value}
           aria-label={label}
           onFocus={(event) => event.currentTarget.select()}
-          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-700/65 px-3 py-1.5 font-mono text-xs text-slate-100 shadow-inner shadow-black/10 outline-none transition duration-[var(--motion-quick)] focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-900/60 px-2.5 py-1.5 font-mono text-[11px] text-slate-200 outline-none transition duration-[var(--motion-quick)] focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
         />
         <Button
-          variant={state === "copied" ? "primary" : "accent"}
+          variant={state === "copied" ? "primary" : "ghost"}
           onClick={() => void copy()}
-          className="shrink-0 whitespace-nowrap py-1.5"
+          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap border border-white/10 py-1.5 text-xs"
         >
-          {state === "copied" ? t("common.copied") : button}
+          {state === "copied" ? (
+            <CheckIcon className="h-3.5 w-3.5 text-emerald-300" />
+          ) : (
+            <CopyIcon className="h-3.5 w-3.5" />
+          )}
+          {state === "copied" ? t("common.copied") : t("common.copy")}
         </Button>
       </div>
       {state === "manual" && (
@@ -80,6 +78,7 @@ function formatWhen(iso: string, locale: string): string {
   }
 }
 
+/** The hosted link part of the Export section. */
 export function MapCardHosting({
   hosted,
   signedIn,
@@ -103,16 +102,19 @@ export function MapCardHosting({
   const deleting = status === "deleting";
 
   return (
-    <CardSection
-      title={t("mapCard.hostedImage")}
-      aside={
-        card ? (
-          <span className="text-[11px] tabular-nums text-slate-500">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5">
+          <LinkIcon className="h-3.5 w-3.5 text-slate-500" />
+          <span className={CARD_LABEL}>{t("mapCard.hostedLink")}</span>
+        </span>
+        {card && (
+          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] tabular-nums text-slate-400">
             {t("mapCard.version", { version: card.version })}
           </span>
-        ) : null
-      }
-    >
+        )}
+      </div>
+
       {authLoading ? (
         <p className="flex items-center gap-2 text-[12px] text-slate-400">
           <Spinner />
@@ -123,7 +125,7 @@ export function MapCardHosting({
           <p className="min-w-0 flex-1 text-[12px] leading-snug text-slate-400">
             {t("mapCard.hostSignedOut")}
           </p>
-          <Button variant="accent" onClick={onLogin} className="shrink-0">
+          <Button variant="primary" onClick={onLogin} className="shrink-0">
             {t("mapCard.signInOsu")}
           </Button>
         </div>
@@ -134,24 +136,10 @@ export function MapCardHosting({
         </p>
       ) : card ? (
         <>
-          <CopyField
-            label={t("mapCard.imageUrl")}
-            value={card.url}
-            button={t("mapCard.copyUrl")}
-          />
-          <CopyField
-            label={t("mapCard.bbcode")}
-            value={mapCardBbcode(card.url)}
-            button={t("mapCard.copyBbcode")}
-          />
-          <p className="text-[11px] tabular-nums text-slate-500">
-            {t("mapCard.hostedMeta", {
-              when: formatWhen(card.updatedAt, locale),
-              width: String(card.width),
-              height: String(card.height),
-              size: formatBytes(card.bytes),
-            })}
-          </p>
+          <div className="grid gap-2.5 uilg:grid-cols-2">
+            <CopyField label={t("mapCard.imageUrl")} value={card.url} />
+            <CopyField label={t("mapCard.bbcode")} value={mapCardBbcode(card.url)} />
+          </div>
           {stale && <Notice tone="warn">{t("mapCard.stale")}</Notice>}
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -171,19 +159,29 @@ export function MapCardHosting({
             >
               {deleting ? t("mapCard.removing") : t("mapCard.holdToRemove")}
             </HoldToDelete>
+            <span className="ml-auto text-[11px] tabular-nums text-slate-500">
+              {t("mapCard.hostedMeta", {
+                when: formatWhen(card.updatedAt, locale),
+                width: String(card.width),
+                height: String(card.height),
+                size: formatBytes(card.bytes),
+              })}
+            </span>
           </div>
           <p className="text-[11px] leading-snug text-slate-500">{t("mapCard.keepsLink")}</p>
         </>
       ) : (
-        <div className="flex flex-col gap-2">
-          <p className="text-[12px] leading-snug text-slate-400">{t("mapCard.uploadIntro")}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="min-w-0 flex-1 text-[12px] leading-snug text-slate-400">
+            {t("mapCard.uploadIntro")}
+          </p>
           <Button
-            variant="accent"
+            variant="primary"
             onClick={onUpload}
             disabled={!ready || uploading}
-            className="flex items-center justify-center gap-2 self-start"
+            className="flex shrink-0 items-center justify-center gap-2"
           >
-            {uploading && <Spinner className="border-white/40 border-t-white" />}
+            {uploading ? <Spinner /> : <LinkIcon className="h-4 w-4" />}
             {uploading ? t("mapCard.uploading") : t("mapCard.upload")}
           </Button>
         </div>
@@ -203,6 +201,6 @@ export function MapCardHosting({
           )}
         </Notice>
       )}
-    </CardSection>
+    </div>
   );
 }
