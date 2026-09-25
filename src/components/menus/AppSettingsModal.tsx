@@ -32,6 +32,7 @@ import type {
 } from "../../types";
 import {
   assignPlaytestKey,
+  settlePlaytestKeys,
   keyLabel,
   keybindWarnings,
 } from "../../lib/playtestKeybinds";
@@ -310,8 +311,17 @@ export function AppSettingsModal({
     keyCount >= 1 && keyCount <= 18 ? keyCount : 4,
   );
   // Lanes still waiting for a key; the first one is listening.
-  const [captureQueue, setCaptureQueue] = useState<number[]>([]);
+  const [captureQueue, setCaptureQueueState] = useState<number[]>([]);
   const capturing = captureQueue[0] ?? null;
+  // Mirrors of the pass for handlers that run before a re-render (a blur fired
+  // by moving focus to the next lane), plus the lanes set so far in the pass.
+  const captureQueueRef = useRef<number[]>([]);
+  const typedLanesRef = useRef<number[]>([]);
+  const setCaptureQueue = (queue: number[]) => {
+    captureQueueRef.current = queue;
+    if (!queue.length) typedLanesRef.current = [];
+    setCaptureQueueState(queue);
+  };
   const laneButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [capturingRestart, setCapturingRestart] = useState(false);
   const selectedKeybinds = playtest.keybinds[keyMode] ?? [];
@@ -333,10 +343,24 @@ export function AppSettingsModal({
   // Binding a lane moves straight on to the next one, and a lane that loses
   // its key to another is asked for a new one before capture ends.
   const captureKey = (code: string) => {
-    const { keys, queue } = assignPlaytestKey(laneKeys(), captureQueue, code);
+    const { keys, queue, typed } = assignPlaytestKey(
+      laneKeys(),
+      captureQueueRef.current,
+      code,
+      typedLanesRef.current,
+    );
     saveLaneKeys(keys);
     setCaptureQueue(queue);
+    typedLanesRef.current = queue.length ? typed : [];
     if (queue.length) laneButtonRefs.current[queue[0]]?.focus();
+  };
+
+  // Stopping a pass early still settles clashes the typed lanes left behind.
+  const stopCapture = () => {
+    if (typedLanesRef.current.length) {
+      saveLaneKeys(settlePlaytestKeys(laneKeys(), typedLanesRef.current).keys);
+    }
+    setCaptureQueue([]);
   };
 
   const clearLane = (column: number) => {
@@ -1021,7 +1045,7 @@ export function AppSettingsModal({
                   value={keyMode}
                   aria-label={t("settings.keyMode")}
                   onChange={(e) => {
-                    setCaptureQueue([]);
+                    stopCapture();
                     setKeyMode(Number(e.target.value));
                   }}
                 >
@@ -1051,13 +1075,13 @@ export function AppSettingsModal({
                         Array.from({ length: keyMode - i }, (_, offset) => i + offset),
                       );
                     }}
-                    onBlur={() =>
-                      setCaptureQueue((queue) => (queue[0] === i ? [] : queue))
-                    }
+                    onBlur={() => {
+                      if (captureQueueRef.current[0] === i) stopCapture();
+                    }}
                     onKeyDown={(e) => {
                       if (capturing !== i) return;
                       e.preventDefault();
-                      if (e.key === "Escape") setCaptureQueue([]);
+                      if (e.key === "Escape") stopCapture();
                       else if (e.key === "Backspace" || e.key === "Delete") {
                         clearLane(i);
                       } else captureKey(e.code);

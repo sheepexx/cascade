@@ -58,22 +58,51 @@ export function normalizePlaytestKeybinds(
 
 /**
  * Binds `code` to the lane at the front of `queue`, the lanes still waiting
- * for a key. A key drives one lane only, so a lane already using it is
- * cleared and joins the end of the queue to get a new one.
+ * for a key, the way osu!stable does: keys go in lane by lane as they are
+ * typed, even when a later lane still holds one of them. `typed` lists the
+ * lanes already set in this pass; retyping one of their keys moves it.
+ * Clashes with lanes outside the pass are settled once the queue runs out.
  */
 export function assignPlaytestKey(
   keys: string[],
   queue: number[],
   code: string,
-): { keys: string[]; queue: number[] } {
+  typed: number[] = [],
+): { keys: string[]; queue: number[]; typed: number[] } {
   const [column, ...rest] = queue;
-  if (column === undefined) return { keys, queue: [] };
+  if (column === undefined) return { keys, queue: [], typed };
   const next = [...keys];
-  const stolen = next.findIndex((existing, i) => i !== column && existing === code);
-  if (stolen !== -1) next[stolen] = "";
+  const retyped = typed.find((lane) => lane !== column && next[lane] === code);
+  if (retyped !== undefined) {
+    next[retyped] = "";
+    if (!rest.includes(retyped)) rest.push(retyped);
+  }
   next[column] = code;
-  if (stolen !== -1 && !rest.includes(stolen)) rest.push(stolen);
-  return { keys: next, queue: rest };
+  const nextTyped = [...typed.filter((lane) => lane !== column), column];
+  if (rest.length) return { keys: next, queue: rest, typed: nextTyped };
+  const settled = settlePlaytestKeys(next, nextTyped);
+  return { keys: settled.keys, queue: settled.cleared, typed: nextTyped };
+}
+
+/**
+ * Ends a binding pass: a lane outside `typed` that shares a key with a lane
+ * set in the pass gives it up. The cleared lanes are returned so they can be
+ * asked for a new key.
+ */
+export function settlePlaytestKeys(
+  keys: string[],
+  typed: number[],
+): { keys: string[]; cleared: number[] } {
+  const taken = new Set(typed.map((lane) => keys[lane]).filter(Boolean));
+  const next = [...keys];
+  const cleared: number[] = [];
+  next.forEach((key, lane) => {
+    if (key && !typed.includes(lane) && taken.has(key)) {
+      next[lane] = "";
+      cleared.push(lane);
+    }
+  });
+  return { keys: next, cleared };
 }
 
 export function keyLabel(code: string): string {

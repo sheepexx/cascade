@@ -3259,6 +3259,7 @@ export function ManiaEditor(props: Props) {
     >
       <canvas
         ref={canvasRef}
+        data-playfield-canvas={props.playfieldBoundsRef ? "" : undefined}
         tabIndex={props.keyboardShortcuts === false ? -1 : 0}
         aria-label={t("editor.ariaLabel")}
         className={`block h-full w-full touch-none ${

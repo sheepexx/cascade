@@ -1027,6 +1027,19 @@ export default function App() {
   const playtestRef = useRef(playtest);
   playtestRef.current = playtest;
   const playfieldBoundsRef = useRef<PlayfieldBounds | null>(null);
+  // Centres the on-screen display over the playfield, near its top.
+  const osdAnchor = useCallback(() => {
+    const bounds = playfieldBoundsRef.current;
+    const canvas = document.querySelector<HTMLCanvasElement>("[data-playfield-canvas]");
+    if (!bounds || !canvas || !canvas.clientWidth) return null;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const scale = rect.width / canvas.clientWidth;
+    return {
+      x: rect.left + (bounds.left + bounds.width / 2) * scale,
+      y: rect.top + rect.height * 0.18,
+    };
+  }, []);
   const autoplayBeforeHudRef = useRef(false);
   const playtestEngineRef = useRef<PlaytestEngine | null>(null);
   /** The notes the engine was built from, to notice edits during a run. */
@@ -8726,7 +8739,7 @@ export default function App() {
       />
 
       {appSettings.shortcutNoticesEnabled && (
-        <OnScreenDisplay notice={shortcutNotice} onHidden={hideShortcutNotice} />
+        <OnScreenDisplay notice={shortcutNotice} onHidden={hideShortcutNotice} anchor={osdAnchor} />
       )}
 
       {osuConnectedAt !== null && (

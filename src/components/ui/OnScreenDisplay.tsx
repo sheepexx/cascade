@@ -31,11 +31,15 @@ const PHASE_STYLE: Record<Phase, CSSProperties> = {
 export function OnScreenDisplay({
   notice,
   onHidden,
+  anchor,
 }: {
   notice: (OsdNotice & { id: number }) | null;
   onHidden: () => void;
+  /** Where to centre the panel, in page pixels; the window centre if null. */
+  anchor?: () => { x: number; y: number } | null;
 }) {
   const [shown, setShown] = useState(notice);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [phase, setPhase] = useState<Phase>("enter");
   const [pulse, setPulse] = useState(0);
   const visibleRef = useRef(false);
@@ -46,6 +50,7 @@ export function OnScreenDisplay({
     const sameSetting = visibleRef.current && labelRef.current === notice.label;
     labelRef.current = notice.label;
     setShown(notice);
+    setPosition(anchor?.() ?? null);
     if (sameSetting) setPulse((value) => value + 1);
     let frame = 0;
     if (visibleRef.current) {
@@ -62,6 +67,7 @@ export function OnScreenDisplay({
       cancelAnimationFrame(frame);
       window.clearTimeout(hide);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notice]);
 
   useEffect(() => {
@@ -84,11 +90,13 @@ export function OnScreenDisplay({
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed left-1/2 top-[18%] z-[190] w-[15rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-ink-900/85 px-5 pb-4 pt-3.5 text-center shadow-[0_20px_50px_-14px_rgba(0,0,0,0.85)] backdrop-blur-md"
-      style={PHASE_STYLE[phase]}
+      className={`pointer-events-none fixed z-[190] w-[11rem] max-w-[calc(100vw-2rem)] rounded-xl border border-white/10 bg-ink-900/85 px-3.5 pb-3 pt-2.5 text-center shadow-[0_16px_40px_-14px_rgba(0,0,0,0.85)] backdrop-blur-md ${
+        position ? "" : "left-1/2 top-[18%]"
+      }`}
+      style={{ ...PHASE_STYLE[phase], ...(position ? { left: position.x, top: position.y } : null) }}
     >
       {value !== undefined && (
-        <div className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+        <div className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
           {label}
         </div>
       )}
@@ -96,24 +104,24 @@ export function OnScreenDisplay({
         key={pulse}
         className={`osd-pop ${
           value !== undefined
-            ? "mt-0.5 truncate text-[26px] font-semibold leading-tight tabular-nums text-white"
-            : "text-sm font-medium leading-snug text-slate-100"
+            ? "truncate text-xl font-semibold leading-tight tabular-nums text-white"
+            : "text-xs font-medium leading-snug text-slate-100"
         }`}
       >
         {headline}
       </div>
       {indicator && (
-        <div className="mt-3">
+        <div className="mt-2">
           {indicator.kind === "toggle" ? (
             <div
-              className={`mx-auto h-1.5 w-16 rounded-full transition-[background-color,box-shadow] duration-200 ${
+              className={`mx-auto h-1 w-12 rounded-full transition-[background-color,box-shadow] duration-200 ${
                 indicator.on
                   ? "bg-accent shadow-[0_0_12px_rgba(232,104,104,0.8)]"
                   : "bg-white/10"
               }`}
             />
           ) : (
-            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div className="h-1 overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full bg-accent shadow-[0_0_10px_rgba(232,104,104,0.7)] transition-[width] duration-150 ease-out"
                 style={{
@@ -125,11 +133,11 @@ export function OnScreenDisplay({
         </div>
       )}
       {keys && keys.length > 0 && (
-        <div className="mt-3 flex items-center justify-center gap-1">
+        <div className="mt-2 flex items-center justify-center gap-1">
           {keys.map((key, i) => (
             <kbd
               key={`${key}-${i}`}
-              className="rounded-md border border-white/15 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] leading-none text-slate-300"
+              className="rounded-md border border-white/15 bg-white/[0.06] px-1 py-0.5 font-mono text-[9px] leading-none text-slate-300"
             >
               {key}
             </kbd>
