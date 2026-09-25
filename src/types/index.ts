@@ -451,6 +451,10 @@ export type AppSettings = {
   skillsetGraphCollapsed: boolean;
   /** Default-skin notes use a palette that stays distinct for colour blindness. */
   colourblindLanes: boolean;
+  /** Editor notes take the colour of the beat divisor they sit on. */
+  snapColouredNotes: boolean;
+  /** Changing a red line's time or BPM carries the notes under it along. */
+  moveNotesWithTiming: boolean;
   upscroll: boolean;
   svPreviewPlayback: boolean;
   bpmAffectsScroll: boolean;
@@ -542,6 +546,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showSkillsetGraph: true,
   skillsetGraphCollapsed: true,
   colourblindLanes: false,
+  snapColouredNotes: false,
+  moveNotesWithTiming: false,
   upscroll: false,
   svPreviewPlayback: false,
   bpmAffectsScroll: false,

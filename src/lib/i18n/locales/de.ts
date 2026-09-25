@@ -88,6 +88,10 @@ export const de: PartialCatalog = {
 
   "settings.colourblindLanes": "Farbenblind-freundliche Spurfarben",
   "settings.colourblindLanesHint": "Noten des Standard-Skins nutzen Weiß, Orange und Himmelblau, die bei jeder häufigen Form von Farbenblindheit unterscheidbar bleiben. Importierte Skins behalten ihre eigenen Farben.",
+  "settings.snapColouredNotes": "Noten nach Snap einfärben",
+  "settings.snapColouredNotesHint": "Noten nehmen die Farbe der Beat-Linie an, auf der sie liegen: Weiß für 1/1, Rot für 1/2, Lila für 1/3 und 1/6, Blau für 1/4, Gelb für 1/8, Hellgrau für 1/12 und 1/16. Noten auf keiner davon werden dunkelgrau. Das gilt nur im Editor, der dann einfache Noten statt deines Skins zeichnet. Der Playtest bleibt unverändert.",
+  "settings.moveNotesWithTiming": "Noten bei Timing-Änderungen mitverschieben",
+  "settings.moveNotesWithTimingHint": "Wenn du Zeit oder BPM eines ungeerbten Punkts änderst, wandern die Noten dahinter mit und bleiben auf demselben Beat. „Alles verschieben“ im Timing-Fenster verschiebt die Noten ebenfalls.",
   "settings.showSkillsetGraph": "Skillset-Graph",
   "settings.showSkillsetGraphHint": "Zeigt über der unteren Zeitleiste, welches Skillset jeden Teil des Songs schwer macht. Nutzt Etternas MinaCalc und bewertet daher 4K-, 6K- und 7K-Maps.",
   "settings.playfield": "Spielfeld",
@@ -1008,6 +1012,7 @@ export const de: PartialCatalog = {
   "timing.setToPlayhead": "Auf Abspielkopf setzen",
   "timing.shiftEverything": "Alles verschieben (ms)",
   "timing.shiftAll": "Punkte, Vorschau und Lesezeichen verschieben",
+  "timing.shiftAllWithNotes": "Noten, Punkte, Vorschau und Lesezeichen verschieben",
   "timing.previewPoint": "Vorschaupunkt",
   "timing.notSet": "Nicht gesetzt",
   "timing.previewHint": "Hier beginnt der Song in der Songauswahl zu spielen.",

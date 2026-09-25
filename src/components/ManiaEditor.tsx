@@ -26,6 +26,8 @@ import {
   gridLinesInRange,
   greenPoints,
   kiaiAt,
+  noteSnapColour,
+  noteSnapDivisor,
   redPoints,
   snapTime,
   stepToSnap,
@@ -182,6 +184,8 @@ type Props = {
   onCopyHitsounds?: (sourceId: string) => void;
   /** Default-skin note colours: the usual set or the colourblind one. */
   laneColourScheme?: LaneColourScheme;
+  /** Notes take the colour of their beat divisor instead of their lane's. */
+  snapColours?: boolean;
   /** Copies this difficulty's hitsounds onto every difficulty on the same audio. */
   onCopyHitsoundsToAll?: () => void;
   onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
@@ -1502,7 +1506,7 @@ export function ManiaEditor(props: Props) {
     if (canvas.width !== bw) canvas.width = bw;
     if (canvas.height !== bh) canvas.height = bh;
 
-    const { notes, timingPoints, previewTime, view, keyCount } =
+    const { notes, timingPoints, previewTime, view, keyCount, snapColours } =
       propsRef.current;
     const { laneWidth, playfieldWidth, originX } = laneGeometry();
     const phY = playheadY();
@@ -2005,11 +2009,14 @@ export function ManiaEditor(props: Props) {
       }
       ctx.globalAlpha = alpha;
       const x = originX + note.column * laneWidth;
-      const cr = skinCols[note.column];
-      const skinColour = skinCols[note.column]?.colour ?? null;
-      const noteInKiai = kiaiAt(note.startTime, timingPoints);
-      const color =
-        noteInKiai && !skinColour
+      // Snap colours draw plain notes, since a skin's sprites carry their own.
+      const bySnap = snapColours && !playtest;
+      const cr = bySnap ? undefined : skinCols[note.column];
+      const skinColour = bySnap ? null : skinCols[note.column]?.colour ?? null;
+      const noteInKiai = !bySnap && kiaiAt(note.startTime, timingPoints);
+      const color = bySnap
+        ? noteSnapColour(noteSnapDivisor(note.startTime, timingPoints))
+        : noteInKiai && !skinColour
           ? "#5bc0ff"
           : skinColour ?? laneColor(note.column);
 
@@ -2104,7 +2111,11 @@ export function ManiaEditor(props: Props) {
             if (cr?.tail) {
               drawSprite(ctx, cr.tail, x, yEnd, laneWidth, up);
             } else {
-              ctx.fillStyle = kiaiDefault ? "#5bc0ff" : "#9aa0ad";
+              ctx.fillStyle = bySnap
+                ? noteSnapColour(noteSnapDivisor(note.endTime, timingPoints))
+                : kiaiDefault
+                  ? "#5bc0ff"
+                  : "#9aa0ad";
               roundRect(ctx, x + 3, up ? yEnd : yEnd - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
               ctx.fill();
             }

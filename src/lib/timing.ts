@@ -1,4 +1,9 @@
-import { FREE_SNAP, type SnapDivisor, type TimingPoint } from "../types";
+import {
+  FREE_SNAP,
+  type ManiaNote,
+  type SnapDivisor,
+  type TimingPoint,
+} from "../types";
 
 export function beatLength(bpm: number): number {
   return 60000 / bpm;
@@ -352,6 +357,136 @@ export function gridLineColor(idxInBeat: number, divisor: number): string {
     default:
       return "rgba(255,255,255,0.3)";
   }
+}
+
+/** Divisors that get their own colour when notes are coloured by snap. */
+const COLOURED_SNAP_DIVISORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16] as const;
+
+const noteSnapCache = new WeakMap<TimingPoint[], Map<number, number>>();
+
+/**
+ * The coarsest beat divisor a note sits on, for colouring notes by snap, or 0
+ * when it sits on none of them. Ticks count where osu! stable stores them,
+ * floored to the millisecond; a second pass allows a millisecond either side,
+ * so notes an older version rounded instead of floored keep their colour.
+ */
+export function noteSnapDivisor(time: number, points: TimingPoint[]): number {
+  let cache = noteSnapCache.get(points);
+  if (!cache) {
+    cache = new Map();
+    noteSnapCache.set(points, cache);
+  }
+  const hit = cache.get(time);
+  if (hit !== undefined) return hit;
+  const divisor = findNoteSnapDivisor(time, points);
+  cache.set(time, divisor);
+  return divisor;
+}
+
+function findNoteSnapDivisor(time: number, points: TimingPoint[]): number {
+  const reds = redPoints(points);
+  if (reds.length === 0) return 0;
+  const t = Math.round(time);
+  const index = Math.max(0, lastPointAtOrBefore(reds, t));
+  const tp = reds[index];
+  const beat = beatLength(tp.bpm);
+  if (!(beat > 0) || !Number.isFinite(beat)) return 0;
+  const next = reds[index + 1];
+  for (const tolerance of [0, 1]) {
+    if (next && Math.abs(t - stableTickMs(next.time)) <= tolerance) return 1;
+    for (const d of COLOURED_SNAP_DIVISORS) {
+      const interval = beat / d;
+      const k = Math.round((t - tp.time) / interval);
+      if (Math.abs(t - stableTickMs(tp.time + k * interval)) <= tolerance) {
+        return d;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Fill for a note coloured by its snap: the colour of the grid line it sits
+ * on (see gridLineColor), and a dim grey for a note on none of them.
+ */
+export function noteSnapColour(divisor: number): string {
+  switch (divisor) {
+    case 1:
+      return "#f2f2f2";
+    case 2:
+      return "rgb(255,105,105)";
+    case 3:
+    case 6:
+      return "rgb(200,130,255)";
+    case 4:
+      return "rgb(115,175,255)";
+    case 5:
+    case 7:
+    case 8:
+    case 9:
+      return "rgb(255,230,90)";
+    case 12:
+    case 16:
+      return "rgb(195,200,210)";
+    default:
+      return "rgb(96,100,112)";
+  }
+}
+
+/**
+ * Notes carried along by a change to the red lines, so each keeps its place in
+ * the beat: it stays the same number of beats after the red line it was under,
+ * wherever that line now sits and whatever its BPM. Notes under a red line
+ * that was removed or left alone stay put. Returns `notes` itself when nothing
+ * moves.
+ *
+ * The Timing window applies BPM and time fields on every keystroke, so this
+ * runs once per intermediate value. Keeping beat positions relative to the
+ * same red line makes those steps compose, and landing on stable's ticks
+ * stops rounding from adding up along the way.
+ */
+export function notesFollowingTiming(
+  notes: ManiaNote[],
+  before: TimingPoint[],
+  after: TimingPoint[],
+): ManiaNote[] {
+  const oldReds = redPoints(before);
+  if (oldReds.length === 0 || notes.length === 0) return notes;
+  const newById = new Map(redPoints(after).map((p) => [p.id, p]));
+  const moves = (from: TimingPoint, to: TimingPoint | undefined) =>
+    !!to && (to.time !== from.time || to.bpm !== from.bpm);
+  if (!oldReds.some((p) => moves(p, newById.get(p.id)))) return notes;
+
+  const follow = (time: number): number => {
+    // A note on a red line with a fractional time sits on the millisecond
+    // below it, and still belongs to that line.
+    const from = oldReds[Math.max(0, lastPointAtOrBefore(oldReds, time + 0.999))];
+    const to = newById.get(from.id);
+    if (!to || !moves(from, to)) return time;
+    const oldBeat = beatLength(from.bpm);
+    const newBeat = beatLength(to.bpm);
+    if (!(oldBeat > 0 && newBeat > 0)) return time;
+    if (!Number.isFinite(oldBeat) || !Number.isFinite(newBeat)) return time;
+    return toStableTick(to.time + ((time - from.time) / oldBeat) * newBeat, after);
+  };
+
+  let moved = false;
+  const result = notes.map((note) => {
+    const startTime = follow(note.startTime);
+    if (note.endTime === undefined) {
+      if (startTime === note.startTime) return note;
+      moved = true;
+      return { ...note, startTime };
+    }
+    let endTime = follow(note.endTime);
+    // A tail under a later red line than its head can be pulled in front of
+    // it; that hold keeps its length instead.
+    if (endTime <= startTime) endTime = startTime + (note.endTime - note.startTime);
+    if (startTime === note.startTime && endTime === note.endTime) return note;
+    moved = true;
+    return { ...note, startTime, endTime };
+  });
+  return moved ? result : notes;
 }
 
 function gcd(a: number, b: number): number {

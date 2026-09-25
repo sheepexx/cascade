@@ -90,6 +90,10 @@ type Props = {
   onShowSkillsetGraph: (value: boolean) => void;
   colourblindLanes: boolean;
   onColourblindLanes: (value: boolean) => void;
+  snapColouredNotes: boolean;
+  onSnapColouredNotes: (value: boolean) => void;
+  moveNotesWithTiming: boolean;
+  onMoveNotesWithTiming: (value: boolean) => void;
   onShowPpCounter: (value: boolean) => void;
   showPatternTools: boolean;
   onShowPatternTools: (value: boolean) => void;
@@ -225,6 +229,10 @@ export function AppSettingsModal({
   onShowSkillsetGraph,
   colourblindLanes,
   onColourblindLanes,
+  snapColouredNotes,
+  onSnapColouredNotes,
+  moveNotesWithTiming,
+  onMoveNotesWithTiming,
   onShowPpCounter,
   showPatternTools,
   onShowPatternTools,
@@ -795,6 +803,12 @@ export function AppSettingsModal({
                   checked={colourblindLanes}
                   onChange={onColourblindLanes}
                 />
+                <SettingToggle
+                  label={t("settings.snapColouredNotes")}
+                  tip={t("settings.snapColouredNotesHint")}
+                  checked={snapColouredNotes}
+                  onChange={onSnapColouredNotes}
+                />
                 <SliderRow
                   label={t("settings.backgroundDim")}
                   tip={t("settings.playfieldHint")}
@@ -930,6 +944,19 @@ export function AppSettingsModal({
                     </span>
                   </span>
                 </button>
+              </div>
+            </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("nav.timing")}
+              </h3>
+              <div className="flex flex-col gap-4">
+                <SettingToggle
+                  label={t("settings.moveNotesWithTiming")}
+                  tip={t("settings.moveNotesWithTimingHint")}
+                  checked={moveNotesWithTiming}
+                  onChange={onMoveNotesWithTiming}
+                />
               </div>
             </section>
             <section>

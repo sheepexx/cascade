@@ -43,6 +43,10 @@ type Props = {
   /** Omitted for viewers, who cannot change the map. */
   onPreviewTime?: (ms: number) => void;
   onShiftMarkers?: (deltaMs: number) => void;
+  /** Whether timing edits carry the notes along with them. */
+  moveNotes?: boolean;
+  /** Omitted for viewers, who cannot change the map. */
+  onMoveNotes?: (value: boolean) => void;
   /** Reports the selected rows so the bottom timeline can highlight them. */
   onSelectionChange?: (ids: ReadonlySet<string>) => void;
 };
@@ -72,6 +76,8 @@ export const TimingModal = memo(function TimingModal({
   previewTime,
   onPreviewTime,
   onShiftMarkers,
+  moveNotes = false,
+  onMoveNotes,
   onSelectionChange,
 }: Props) {
   const t = useT();
@@ -368,6 +374,20 @@ export const TimingModal = memo(function TimingModal({
                 </Button>
                 <Nudges onNudge={nudgeOffset} />
               </div>
+              {onMoveNotes && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-slate-300">
+                  <label className="flex items-center gap-2">
+                    <Toggle
+                      size="sm"
+                      checked={moveNotes}
+                      onChange={onMoveNotes}
+                      aria-label={t("settings.moveNotesWithTiming")}
+                    />
+                    {t("settings.moveNotesWithTiming")}
+                  </label>
+                  <InfoTip content={t("settings.moveNotesWithTimingHint")} />
+                </div>
+              )}
 
               {onShiftMarkers && (
                 <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-white/10 pt-4">
@@ -386,7 +406,7 @@ export const TimingModal = memo(function TimingModal({
                       setMarkerShift(0);
                     }}
                   >
-                    {t("timing.shiftAll")}
+                    {moveNotes ? t("timing.shiftAllWithNotes") : t("timing.shiftAll")}
                   </Button>
                 </div>
               )}

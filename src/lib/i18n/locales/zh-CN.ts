@@ -85,6 +85,10 @@ export const zhCN: PartialCatalog = {
 
   "settings.colourblindLanes": "色盲友好的轨道颜色",
   "settings.colourblindLanesHint": "默认皮肤的音符使用白色、橙色和天蓝色，在常见的各类色盲下都能区分。导入的皮肤保留自身颜色。",
+  "settings.snapColouredNotes": "按吸附为音符着色",
+  "settings.snapColouredNotesHint": "音符使用其所在节拍线的颜色：1/1 为白色，1/2 为红色，1/3 和 1/6 为紫色，1/4 为蓝色，1/8 为黄色，1/12 和 1/16 为浅灰色。不在这些节拍上的音符显示为深灰色。只影响编辑器，编辑器会绘制普通音符而不是皮肤的音符。试玩保持不变。",
+  "settings.moveNotesWithTiming": "修改时间点时移动音符",
+  "settings.moveNotesWithTimingHint": "修改非继承时间点的时间或 BPM 时，其后的音符会一起移动并保持在原来的节拍上。时间点窗口中的「整体平移」也会移动音符。",
   "settings.showSkillsetGraph": "技能分布图",
   "settings.showSkillsetGraphHint": "在底部时间轴上方显示歌曲每一段主要难在哪种技能。使用 Etterna 的 MinaCalc，因此支持 4K、6K 和 7K 谱面。",
   "settings.playfield": "游戏区域",
@@ -955,6 +959,7 @@ export const zhCN: PartialCatalog = {
   "timing.setToPlayhead": "设为播放头位置",
   "timing.shiftEverything": "整体平移（毫秒）",
   "timing.shiftAll": "平移时间点、预览点和书签",
+  "timing.shiftAllWithNotes": "平移音符、时间点、预览点和书签",
   "timing.previewPoint": "预览点",
   "timing.notSet": "未设置",
   "timing.previewHint": "选歌界面中歌曲开始播放的位置。",

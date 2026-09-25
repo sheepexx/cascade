@@ -52,6 +52,7 @@ Mapping needs a keyboard and a mouse. On a phone, Cascade shows an overview page
 - A reference view that shows another difficulty next to the one you are editing.
 - Upscroll or downscroll, background dim, note height, long note body width, interface scale and a performance mode for slower machines. These only change what you see in the editor.
 - Colourblind-friendly lane colours in Settings → Editor. The default skin switches to white, orange and sky blue, which stay distinct with the common kinds of colour blindness.
+- Colour notes by snap, also in Settings → Editor. Each note takes the colour of the beat line it sits on (1/2 red, 1/4 blue, 1/3 purple and so on), and notes off the grid turn dark grey, so a stray snap stands out without running AiMod. It only changes the editor; playtest keeps your skin.
 
 ### Difficulties and stats
 
@@ -138,6 +139,7 @@ The optional settings below are models, not measurements of real players. They a
 
 - Red (uninherited) points set BPM, meter and offset. Green (inherited) points set SV and volume. Kiai sections are marked on the timeline.
 - Set the offset to the playhead, nudge it by 1, 5 or 10 ms, or shift every timing point, the preview point and all bookmarks by a fixed amount.
+- **Move notes with timing changes** (off by default, in the Timing window or Settings → Editor): changing a red point's time or BPM carries the notes under it along, so they stay on the same beat instead of falling off the grid. Shifting everything moves the notes too.
 - A metronome plays while the Timing window is open.
 - **Tap tempo:** play the song and press T or the pad on every beat. BPM and offset are calculated from your taps.
 - **Detect BPM:** scans the song for a steady beat and suggests a BPM and offset. It works best on music with a clear rhythm, so check the result against the metronome.

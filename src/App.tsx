@@ -485,7 +485,7 @@ import {
 } from "./types";
 import type { MapCardPresetOption } from "./lib/mapCard";
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
-import { sortedPoints } from "./lib/timing";
+import { notesFollowingTiming, sortedPoints } from "./lib/timing";
 import { hasSv } from "./lib/sv";
 import {
   matchesBind,
@@ -3526,8 +3526,31 @@ export default function App() {
   );
 
   const applyTimingPoints = useCallback(
-    (points: TimingPoint[]) => patchDifficulty(activeIdRef.current, { timingPoints: points }),
-    [patchDifficulty],
+    (points: TimingPoint[]) => {
+      if (!appSettingsRef.current.moveNotesWithTiming) {
+        patchDifficulty(activeIdRef.current, { timingPoints: points });
+        return;
+      }
+      if (!canEditRef.current) return;
+      const id = activeIdRef.current;
+      markStructural();
+      setDifficulties((prev) =>
+        prev.map((d) =>
+          d.id === id
+            ? {
+                ...d,
+                timingPoints: points,
+                notes: notesFollowingTiming(
+                  d.notes,
+                  d.timingPoints?.length ? d.timingPoints : timingPointsRef.current,
+                  points,
+                ),
+              }
+            : d,
+        ),
+      );
+    },
+    [patchDifficulty, markStructural],
   );
 
   const applyBatch = useCallback((request: BatchRequest) => {
@@ -3541,18 +3564,23 @@ export default function App() {
     (deltaMs: number) => {
       if (!deltaMs || !canEditRef.current) return;
       const id = activeIdRef.current;
+      const moveNotes = appSettingsRef.current.moveNotesWithTiming;
       markStructural();
       setDifficulties((previous) =>
         previous.map((difficulty) => {
           if (difficulty.id !== id) return difficulty;
           const mapTime = (time: number) => Math.max(0, time + deltaMs);
           const bookmarks = difficulty.bookmarks?.map(mapTime);
+          const timingPoints = difficulty.timingPoints.map((point) => ({
+            ...point,
+            time: point.time + deltaMs,
+          }));
           return {
             ...difficulty,
-            timingPoints: difficulty.timingPoints.map((point) => ({
-              ...point,
-              time: point.time + deltaMs,
-            })),
+            timingPoints,
+            notes: moveNotes
+              ? notesFollowingTiming(difficulty.notes, difficulty.timingPoints, timingPoints)
+              : difficulty.notes,
             previewTime:
               difficulty.previewTime >= 0
                 ? mapTime(difficulty.previewTime)
@@ -6666,6 +6694,8 @@ export default function App() {
     { key: "settings.showPatternTools", tab: "Editor", keywords: "presets" },
     { key: "settings.showSkillsetGraph", tab: "Editor", keywords: "msd minacalc etterna stream jack chordjack difficulty graph" },
     { key: "settings.colourblindLanes", tab: "Editor", keywords: "colorblind color blind colours lanes notes accessibility" },
+    { key: "settings.snapColouredNotes", tab: "Editor", keywords: "color snap divisor beat colours notes unsnapped rhythm" },
+    { key: "settings.moveNotesWithTiming", tab: "Editor", keywords: "offset bpm red point timing shift follow resnap" },
     { key: "settings.backgroundDim", tab: "Editor" },
     { key: "settings.backgroundBlur", tab: "Editor", keywords: "blur background" },
     { key: "settings.sizeZoom", tab: "Editor", keywords: "playfield" },
@@ -7517,6 +7547,7 @@ export default function App() {
             {hasProject ? (
               <MemoizedManiaEditor
                 laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
+                snapColours={appSettings.snapColouredNotes}
                 key={active.id}
                 audioBuffer={waveform?.buffer ?? null}
                 patternTitle={`${meta.artist} – ${meta.title}`}
@@ -7648,6 +7679,7 @@ export default function App() {
                   <div className="pointer-events-none h-full w-full opacity-60">
                     <MemoizedManiaEditor
                       laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
+                      snapColours={appSettings.snapColouredNotes}
                       notes={referenceDiff.notes}
                       keyCount={referenceDiff.keyCount}
                       timingPoints={referenceTimingPoints}
@@ -8106,6 +8138,14 @@ export default function App() {
           onColourblindLanes={(v) =>
             setAppSettings((s) => ({ ...s, colourblindLanes: v }))
           }
+          snapColouredNotes={appSettings.snapColouredNotes}
+          onSnapColouredNotes={(v) =>
+            setAppSettings((s) => ({ ...s, snapColouredNotes: v }))
+          }
+          moveNotesWithTiming={appSettings.moveNotesWithTiming}
+          onMoveNotesWithTiming={(v) =>
+            setAppSettings((s) => ({ ...s, moveNotesWithTiming: v }))
+          }
           showPpCounter={appSettings.showPpCounter}
           onShowPpCounter={(v) =>
             setAppSettings((s) => ({ ...s, showPpCounter: v }))
@@ -8355,6 +8395,12 @@ export default function App() {
           audioBuffer={waveform?.buffer ?? null}
           timeScale={activeRate}
           onShiftMarkers={shiftTimingMarkers}
+          moveNotes={appSettings.moveNotesWithTiming}
+          onMoveNotes={
+            canEdit
+              ? (v) => setAppSettings((s) => ({ ...s, moveNotesWithTiming: v }))
+              : undefined
+          }
           onSelectionChange={setTimingSelection}
           previewTime={active.previewTime}
           onPreviewTime={canEdit ? setPreviewPoint : undefined}

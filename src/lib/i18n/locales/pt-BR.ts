@@ -88,6 +88,10 @@ export const ptBR: PartialCatalog = {
 
   "settings.colourblindLanes": "Cores de coluna para daltônicos",
   "settings.colourblindLanesHint": "As notas da skin padrão usam branco, laranja e azul-celeste, que continuam distintas em qualquer tipo comum de daltonismo. Skins importadas mantêm as próprias cores.",
+  "settings.snapColouredNotes": "Colorir notas pelo snap",
+  "settings.snapColouredNotesHint": "As notas ficam com a cor da linha de batida em que estão: branco para 1/1, vermelho para 1/2, roxo para 1/3 e 1/6, azul para 1/4, amarelo para 1/8, cinza-claro para 1/12 e 1/16. Notas fora dessas batidas ficam cinza-escuro. Só o editor muda, e ele desenha notas simples em vez das da sua skin. O playtest continua igual.",
+  "settings.moveNotesWithTiming": "Mover notas com o timing",
+  "settings.moveNotesWithTimingHint": "Quando você muda o tempo ou o BPM de um ponto não herdado, as notas depois dele se movem junto e continuam na mesma batida. \"Deslocar tudo\" na janela de Timing também move as notas.",
   "settings.showSkillsetGraph": "Gráfico de skillsets",
   "settings.showSkillsetGraphHint": "Mostra acima da linha do tempo inferior qual skillset deixa cada parte da música difícil. Usa o MinaCalc do Etterna, então avalia mapas 4K, 6K e 7K.",
   "settings.playfield": "Área de jogo",
@@ -1008,6 +1012,7 @@ export const ptBR: PartialCatalog = {
   "timing.setToPlayhead": "Definir na posição atual",
   "timing.shiftEverything": "Deslocar tudo (ms)",
   "timing.shiftAll": "Deslocar pontos, prévia e marcadores",
+  "timing.shiftAllWithNotes": "Deslocar notas, pontos, prévia e marcadores",
   "timing.previewPoint": "Ponto de prévia",
   "timing.notSet": "Não definido",
   "timing.previewHint": "Onde a música começa a tocar na seleção de músicas.",

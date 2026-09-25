@@ -23,7 +23,10 @@ import {
   gridLinesInRange,
   formatTime,
   parseTimestamp,
+  noteSnapDivisor,
+  notesFollowingTiming,
 } from "./timing";
+import type { ManiaNote } from "../types";
 
 describe("beatLength", () => {
   it("converts BPM to ms per beat", () => {
@@ -315,5 +318,126 @@ describe("parseTimestamp", () => {
     expect(parseTimestamp("hello")).toBeNull();
     expect(parseTimestamp("1:75")).toBeNull();
     expect(parseTimestamp("1:23:456:7")).toBeNull();
+  });
+});
+
+describe("noteSnapDivisor", () => {
+  const points = [makeRedPoint(0, 120)];
+
+  it("finds the coarsest divisor a note sits on", () => {
+    expect(noteSnapDivisor(1000, points)).toBe(1);
+    expect(noteSnapDivisor(250, points)).toBe(2);
+    expect(noteSnapDivisor(125, points)).toBe(4);
+    expect(noteSnapDivisor(1125, points)).toBe(4);
+    expect(noteSnapDivisor(62, points)).toBe(8);
+    expect(noteSnapDivisor(31, points)).toBe(16);
+    expect(noteSnapDivisor(100, points)).toBe(5);
+  });
+
+  it("reads triplets at the millisecond stable floors them to", () => {
+    expect(noteSnapDivisor(166, points)).toBe(3);
+    expect(noteSnapDivisor(83, points)).toBe(6);
+    expect(noteSnapDivisor(41, points)).toBe(12);
+  });
+
+  it("accepts a note an older version rounded a millisecond late", () => {
+    expect(noteSnapDivisor(167, points)).toBe(3);
+  });
+
+  it("returns 0 for notes off every coloured divisor", () => {
+    expect(noteSnapDivisor(10, points)).toBe(0);
+    expect(noteSnapDivisor(500, [])).toBe(0);
+  });
+
+  it("counts a note on the next red line as on the beat", () => {
+    const two = [makeRedPoint(0, 120), makeRedPoint(1100.4, 200)];
+    expect(noteSnapDivisor(1100, two)).toBe(1);
+  });
+});
+
+describe("notesFollowingTiming", () => {
+  const note = (startTime: number, endTime?: number): ManiaNote =>
+    endTime === undefined
+      ? { id: `n${startTime}`, column: 0, startTime }
+      : { id: `n${startTime}`, column: 0, startTime, endTime };
+  const times = (notes: ManiaNote[]) =>
+    notes.map((n) => (n.endTime === undefined ? n.startTime : [n.startTime, n.endTime]));
+  const retime = (points: TimingPoint[], id: string, patch: Partial<TimingPoint>) =>
+    points.map((p) => (p.id === id ? { ...p, ...patch } : p));
+
+  it("moves notes with an offset change", () => {
+    const before = [makeRedPoint(1000, 120)];
+    const after = retime(before, before[0].id, { time: 1015 });
+    const notes = [note(1000), note(1500), note(2000, 2500)];
+    expect(times(notesFollowingTiming(notes, before, after))).toEqual([
+      1015,
+      1515,
+      [2015, 2515],
+    ]);
+  });
+
+  it("keeps notes on the same beat when the BPM changes", () => {
+    const before = [makeRedPoint(0, 120)];
+    const after = retime(before, before[0].id, { bpm: 240 });
+    const notes = [note(1000), note(1000, 2000), note(166)];
+    expect(times(notesFollowingTiming(notes, before, after))).toEqual([
+      500,
+      [500, 1000],
+      83,
+    ]);
+  });
+
+  it("only moves notes under the red line that changed", () => {
+    const before = [makeRedPoint(0, 120), makeRedPoint(4000, 120)];
+    const after = retime(before, before[1].id, { bpm: 240 });
+    const notes = [note(3500), note(4000), note(5000)];
+    expect(times(notesFollowingTiming(notes, before, after))).toEqual([
+      3500,
+      4000,
+      4500,
+    ]);
+  });
+
+  it("moves a note on a red line with a fractional time along with it", () => {
+    const before = [makeRedPoint(0, 120), makeRedPoint(4000.6, 120)];
+    const after = retime(before, before[1].id, { time: 4010.6 });
+    const notes = [note(4000), note(4500)];
+    expect(times(notesFollowingTiming(notes, before, after))).toEqual([
+      4010,
+      4510,
+    ]);
+  });
+
+  it("leaves notes alone when their red line is removed or only SV changes", () => {
+    const red = makeRedPoint(0, 120);
+    const second = makeRedPoint(2000, 180);
+    const notes = [note(1000), note(2500)];
+    expect(notesFollowingTiming(notes, [red, second], [red])).toBe(notes);
+    const green = makeGreenPoint(500, 1);
+    expect(
+      notesFollowingTiming(notes, [red, green], [red, { ...green, sv: 2 }]),
+    ).toBe(notes);
+  });
+
+  it("ends up where one direct edit would after typing a BPM digit by digit", () => {
+    const start = [makeRedPoint(250, 180)];
+    const id = start[0].id;
+    const notes = [note(250), note(361), note(583), note(1250, 1916), note(10250)];
+    const direct = notesFollowingTiming(notes, start, retime(start, id, { bpm: 200 }));
+    let points = start;
+    let stepped = notes;
+    for (const bpm of [18, 1, 2, 20, 200]) {
+      const next = retime(points, id, { bpm });
+      stepped = notesFollowingTiming(stepped, points, next);
+      points = next;
+    }
+    expect(times(stepped)).toEqual(times(direct));
+  });
+
+  it("keeps a hold's length when its tail would land in front of its head", () => {
+    const before = [makeRedPoint(0, 120), makeRedPoint(2000, 120)];
+    const after = retime(before, before[1].id, { time: 1000 });
+    const moved = notesFollowingTiming([note(1500, 2500)], before, after);
+    expect(times(moved)).toEqual([[1500, 2500]]);
   });
 });

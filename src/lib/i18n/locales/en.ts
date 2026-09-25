@@ -94,6 +94,10 @@ export const en = {
   "settings.showSkillsetGraphHint": "Shows which skillset makes each part of the song hard, above the bottom timeline. Uses Etterna's MinaCalc, so it rates 4K, 6K and 7K maps.",
   "settings.colourblindLanes": "Colourblind-friendly lane colours",
   "settings.colourblindLanesHint": "Default-skin notes use white, orange and sky blue, which stay distinct with any common kind of colour blindness. Imported skins keep their own colours.",
+  "settings.snapColouredNotes": "Colour notes by snap",
+  "settings.snapColouredNotesHint": "Notes take the colour of the beat line they sit on: white for 1/1, red for 1/2, purple for 1/3 and 1/6, blue for 1/4, yellow for 1/8, light grey for 1/12 and 1/16. Notes on none of these turn dark grey. Only the editor changes, and it draws plain notes instead of your skin's. Playtest stays as it is.",
+  "settings.moveNotesWithTiming": "Move notes with timing changes",
+  "settings.moveNotesWithTimingHint": "When you change the time or BPM of an uninherited point, the notes under it move too and stay on the same beat. Shifting everything in the Timing window moves the notes as well.",
 
   "settings.playfield": "Playfield",
   "settings.backgroundDim": "Background dim",
@@ -1116,6 +1120,7 @@ export const en = {
   "timing.setToPlayhead": "Set to playhead",
   "timing.shiftEverything": "Shift everything (ms)",
   "timing.shiftAll": "Shift points, preview and bookmarks",
+  "timing.shiftAllWithNotes": "Shift notes, points, preview and bookmarks",
   "timing.previewPoint": "Preview point",
   "timing.notSet": "Not set",
   "timing.previewHint": "Where the song starts playing in song select.",
