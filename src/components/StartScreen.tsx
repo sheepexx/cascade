@@ -718,7 +718,14 @@ export function StartScreen({
           data-menu-guard=""
           className="menu-legible absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-300"
         >
-          <span>Cascade · v{__APP_VERSION__}</span>
+          <a
+            href="https://github.com/sheepexx/cascade"
+            target="_blank"
+            rel="noreferrer"
+            className="transition hover:text-white"
+          >
+            Cascade · v{__APP_VERSION__}
+          </a>
           <span aria-hidden>·</span>
           <a
             href={DISCORD_INVITE}
