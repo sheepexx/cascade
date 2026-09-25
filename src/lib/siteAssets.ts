@@ -4,6 +4,8 @@ const REMOTE_ORIGIN = "https://cascade.sheepex.net/";
 
 const REMOTE_ONLY = /^maps\//;
 
+export const DISCORD_INVITE = "https://discord.gg/zczMegSvgG";
+
 /** Absolute address of a page on the website, such as the terms or a shared
  *  map. The desktop app's own origin is tauri.localhost, so there (and
  *  anywhere without a location) it points at the live site. */

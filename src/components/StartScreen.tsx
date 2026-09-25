@@ -28,7 +28,8 @@ import {
 import { MENU_ACCENTS } from "../lib/menuTheme";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import { isDesktopApp } from "../lib/pwa";
-import { siteUrl } from "../lib/siteAssets";
+import { DISCORD_INVITE, siteUrl } from "../lib/siteAssets";
+import { DiscordIcon } from "./ui/Icons";
 import {
   DEFAULT_EDITOR_KEYBINDS,
   editorKeyLabel,
@@ -718,6 +719,17 @@ export function StartScreen({
           className="menu-legible absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-300"
         >
           <span>Cascade · v{__APP_VERSION__}</span>
+          <span aria-hidden>·</span>
+          <a
+            href={DISCORD_INVITE}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={t("startModal.joinDiscord")}
+            title={t("startModal.joinDiscord")}
+            className="transition hover:text-[#5865F2]"
+          >
+            <DiscordIcon className="block h-3.5 w-3.5" />
+          </a>
           <span aria-hidden>·</span>
           <a
             href={siteUrl("terms")}
