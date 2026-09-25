@@ -1651,8 +1651,8 @@ export function ManiaEditor(props: Props) {
       if (strength > 0) {
         const x = originX + flash.column * laneWidth;
         ctx.save();
-        ctx.fillStyle = noteColor(flash.column);
-        ctx.globalAlpha = 0.34 * strength;
+        ctx.fillStyle = "#ffffff";
+        ctx.globalAlpha = 0.36 * strength;
         ctx.fillRect(x, 0, laneWidth, height);
         ctx.globalAlpha = 0.9 * strength;
         ctx.fillRect(x, 0, 2, height);
