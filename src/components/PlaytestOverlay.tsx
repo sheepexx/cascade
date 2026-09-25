@@ -42,6 +42,9 @@ export function PlaytestOverlay({
   paused,
   countdownEndsAt,
   settings,
+  savedSkinNames,
+  hitLight,
+  onHitLight,
   windows,
   getCurrentTime,
   hitLineFromEdge,
@@ -65,6 +68,9 @@ export function PlaytestOverlay({
   paused: boolean;
   countdownEndsAt: number | null;
   settings: PlaytestSettings;
+  savedSkinNames: string[];
+  hitLight: boolean;
+  onHitLight: (value: boolean) => void;
   windows: JudgementWindows;
   /** Gameplay time, for fading the error bar's ticks. */
   getCurrentTime: () => number;
@@ -117,7 +123,7 @@ export function PlaytestOverlay({
           hitPosition={settings.hitPosition}
           upscroll={upscroll}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={(target) => setSelected(target as HudTarget)}
           onHitPosition={(hitPosition) => onPatch({ hitPosition })}
         />
       )}
@@ -310,7 +316,7 @@ export function PlaytestOverlay({
         <PlaytestCountdown endsAt={countdownEndsAt} resuming />
       )}
       {editing && (
-        <HudEditorPanel settings={settings} selected={selected} onSelect={setSelected} onPatch={onPatch} onDone={onReturn} />
+        <HudEditorPanel settings={settings} savedSkinNames={savedSkinNames} hitLight={hitLight} onHitLight={onHitLight} selected={selected} onSelect={setSelected} onPatch={onPatch} onDone={onReturn} />
       )}
     </div>
   );

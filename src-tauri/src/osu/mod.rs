@@ -340,7 +340,7 @@ pub fn osu_read_skin(app: tauri::AppHandle, name: String) -> Result<Response, St
         if !install::within(&skins, &dir) {
             return Err("That skin is outside your osu! Skins folder.".to_string());
         }
-        Ok(Response::new(pack::pack_folder(&dir, None)?))
+        Ok(Response::new(pack::pack_skin(&dir)?))
     }
     #[cfg(not(windows))]
     {

@@ -919,6 +919,19 @@ export async function loadSkinLibrary(): Promise<SavedSkinBlob[]> {
   });
 }
 
+export async function deleteSkinFromLibrary(name: string): Promise<void> {
+  await withStore<void>("readwrite", (store) => {
+    const req = store.get(SKIN_LIBRARY_KEY);
+    req.onsuccess = () => {
+      const existing = (req.result as SavedSkinBlob[] | undefined) ?? [];
+      store.put(
+        existing.filter((item) => item.name !== name),
+        SKIN_LIBRARY_KEY,
+      );
+    };
+  });
+}
+
 export function saveHitsoundSkinSource(source: HitsoundSkinSource): void {
   try {
     localStorage.setItem(HITSOUND_SKIN_SOURCE_KEY, source);

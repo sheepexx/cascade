@@ -17,6 +17,7 @@ import {
   SAMPLE_SET_NAMES,
   type ManiaKeymodeSkin,
   type ManiaNote,
+  type ManiaStagePiece,
   type TimingPoint,
   type ViewState,
 } from "../types";
@@ -207,6 +208,8 @@ type Props = {
    * edge. Receptors, notes and judging all use that line.
    */
   hitPosition?: number;
+  /** Draw the glow under a column as a note is hit. */
+  hitLight?: boolean;
   /**
    * Filled with where the playfield and its judgement line are, in CSS pixels
    * of the canvas, every frame; the HUD editor lays its handles over them.
@@ -364,12 +367,57 @@ type CanvasRect = {
   h: number;
 };
 
+/**
+ * A stage piece worth drawing. Skins routinely ship a 1x1 pixel to switch an
+ * element off rather than deleting the file, and stretching that across the
+ * playfield would paint a bar the author meant to be invisible.
+ */
+function usableStagePiece(
+  piece: StagePieceRender | null | undefined,
+): StagePieceRender | null {
+  return piece && piece.img.width > 2 && piece.img.height > 2 ? piece : null;
+}
+
+type StagePieceRender = { img: HTMLImageElement; scale: number };
+
+type StageRender = {
+  left: StagePieceRender | null;
+  right: StagePieceRender | null;
+  bottom: StagePieceRender | null;
+  hint: StagePieceRender | null;
+};
+
+/**
+ * The strip osu! stretches a hold body over, in the units `ColumnWidth` is
+ * measured in. `LegacyBodyPiece` scales the sprite by `32800 / DrawHeight`.
+ */
+const LEGACY_BODY_STRIP = 32800;
+/** `DEFAULT_COLUMN_SIZE`: 30 in skin.ini, times the 480-to-768 factor of 1.6. */
+const DEFAULT_COLUMN_UNITS = 48;
+
+/** A column's width in osu!'s units, guarding the skins that declare it zero. */
+function columnUnits(col: ColumnRender | undefined): number {
+  const width = col?.columnWidth ?? 0;
+  return width > 0 ? width : DEFAULT_COLUMN_UNITS;
+}
+
+/**
+ * Editor pixels per osu! unit: a lane stands in for what the skin calls a
+ * column, so art the skin sizes for itself is measured against that. One scale
+ * for the whole stage keeps the frame in proportion with the notes.
+ */
+function skinUnit(laneWidth: number, col: ColumnRender | undefined): number {
+  return laneWidth / columnUnits(col);
+}
+
 type ColumnRender = {
-  colour: string | null;
+  background: string;
+  bodyStretch: boolean;
+  columnWidth: number;
+  noteHeightScale: number;
   note: HTMLImageElement | null;
   head: HTMLImageElement | null;
   body: HTMLImageElement | null;
-  bodyCapPx: number | null;
   tail: HTMLImageElement | null;
   key: HTMLImageElement | null;
   keyDown: HTMLImageElement | null;
@@ -433,6 +481,7 @@ export function ManiaEditor(props: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const videoSeekTargetRef = useRef<number | null>(null);
   const skinColsRef = useRef<ColumnRender[]>([]);
+  const skinStageRef = useRef<StageRender | null>(null);
   const shiftActiveRef = useRef(false);
   const selectedNoteIdsRef = useRef<Set<string>>(new Set());
   const propsRef = useRef(props);
@@ -1189,14 +1238,19 @@ export function ManiaEditor(props: Props) {
     const skin = props.skin;
     if (!skin) {
       skinColsRef.current = [];
+      skinStageRef.current = null;
       return;
     }
+    const stage: StageRender = { left: null, right: null, bottom: null, hint: null };
+    skinStageRef.current = stage;
     const cols: ColumnRender[] = skin.columns.map((c) => ({
-      colour: c.colour,
+      background: c.columnBackground,
+      bodyStretch: c.bodyStretch,
+      columnWidth: c.columnWidth,
+      noteHeightScale: c.noteHeightScale,
       note: null,
       head: null,
       body: null,
-      bodyCapPx: c.holdBodyCapPx,
       tail: null,
       key: null,
       keyDown: null,
@@ -1222,6 +1276,17 @@ export function ManiaEditor(props: Props) {
       load(c.keyUrl, (img) => (cols[i].key = img));
       load(c.keyDownUrl, (img) => (cols[i].keyDown = img));
     });
+    const loadPiece = (
+      piece: ManiaStagePiece | null,
+      assign: (rendered: StagePieceRender) => void,
+    ) => {
+      if (!piece) return;
+      load(piece.url, (img) => assign({ img, scale: piece.scale }));
+    };
+    loadPiece(skin.stage.left, (p) => (stage.left = p));
+    loadPiece(skin.stage.right, (p) => (stage.right = p));
+    loadPiece(skin.stage.bottom, (p) => (stage.bottom = p));
+    loadPiece(skin.stage.hint, (p) => (stage.hint = p));
     return () => {
       cancelled = true;
     };
@@ -1311,18 +1376,26 @@ export function ManiaEditor(props: Props) {
     return true;
   }, [svMap]);
 
+  // osu! puts the judgement line at HitPosition 402 of its 480-unit stage, a
+  // sixth of the way up. The editor's fixed 96px matches that in a full-height
+  // pane but sits a third of the way up a short one, so a small pane follows
+  // the ratio instead and a skin's receptors land where they belong.
+  const hitLineInset = useCallback(
+    () => Math.min(PLAYHEAD_FROM_BOTTOM, sizeRef.current.height * 0.16),
+    [],
+  );
+
   const ppms = useCallback(() => {
     const scrollSpeed = smoothScrollSpeedRef.current;
-    const visibleHeight = Math.max(1, sizeRef.current.height - PLAYHEAD_FROM_BOTTOM);
+    const visibleHeight = Math.max(1, sizeRef.current.height - hitLineInset());
     return (visibleHeight * scrollSpeed) / MANIA_MAX_TIME_RANGE;
-  }, []);
+  }, [hitLineInset]);
 
   const playheadY = useCallback(() => {
     const p = propsRef.current;
-    const fromEdge =
-      PLAYHEAD_FROM_BOTTOM + (p.playtestMode ? p.hitPosition ?? 0 : 0);
+    const fromEdge = hitLineInset() + (p.hitPosition ?? 0);
     return p.upscroll ? fromEdge : sizeRef.current.height - fromEdge;
-  }, []);
+  }, [hitLineInset]);
 
   const scrollDir = useCallback(() => (propsRef.current.upscroll ? -1 : 1), []);
 
@@ -1398,10 +1471,9 @@ export function ManiaEditor(props: Props) {
     [laneColourScheme],
   );
 
-  const noteColor = useCallback(
-    (col: number) => skinColsRef.current[col]?.colour ?? laneColor(col),
-    [laneColor],
-  );
+  // A skin has no note-tint setting: it colours notes by shipping images. When
+  // it ships none for a column, the editor's own lane colours take over.
+  const noteColor = laneColor;
 
   const noteBounds = useCallback(
     (
@@ -1417,7 +1489,7 @@ export function ManiaEditor(props: Props) {
         NOTE_HEIGHT * (propsRef.current.noteHeightScale || 1);
       const spriteHeight = (img: HTMLImageElement | null | undefined) =>
         img && img.width > 0
-          ? (laneWidth - 6) * (img.height / img.width)
+          ? (laneWidth - 6) * (img.height / img.width) * (cr?.noteHeightScale ?? 1)
           : defaultNoteHeight;
 
       const up = propsRef.current.upscroll === true;
@@ -1646,16 +1718,49 @@ export function ManiaEditor(props: Props) {
     ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.fillRect(originX, 0, playfieldWidth, height);
 
+    // osu! paints each column with a solid box of the skin's `ColourN`,
+    // defaulting to opaque black, and skins draw against that. Tinting it
+    // instead left every piece of art with opaque black padding — which hold
+    // bodies almost always have — reading as a black box over the background.
     const skinCols = skinColsRef.current;
     if (skinCols.length) {
-      ctx.globalAlpha = 0.16;
       for (let c = 0; c < keyCount; c++) {
-        const colour = skinCols[c]?.colour;
+        const colour = skinCols[c]?.background;
         if (!colour) continue;
         ctx.fillStyle = colour;
         ctx.fillRect(originX + c * laneWidth, 0, laneWidth, height);
       }
-      ctx.globalAlpha = 1;
+    }
+
+    // The skin's stage frame, behind everything on the playfield. The side
+    // rails run the full height and the hint sits on the judgement line; the
+    // bottom piece covers the notes instead, so it is drawn after them.
+    const stageArt = skinStageRef.current;
+    if (stageArt) {
+      const phYNow = playheadY();
+      const left = usableStagePiece(stageArt.left);
+      const right = usableStagePiece(stageArt.right);
+      const hint = usableStagePiece(stageArt.hint);
+      // osu! stretches only the rails' height — `Scale = (1, DrawHeight /
+      // Height)` — and leaves their width at their own pixels, so they are
+      // measured in the units `ColumnWidth` is, not in lanes. Some are wide:
+      // a 533-unit side panel against a 108-unit column is five lanes of
+      // decoration, which is how that skin looks in osu!.
+      const unit = skinUnit(laneWidth, skinCols[0]);
+      const railWidth = (piece: StagePieceRender) =>
+        Math.max(2, piece.img.width * piece.scale * unit);
+      if (left) {
+        const w = railWidth(left);
+        ctx.drawImage(left.img, originX - w, 0, w, height);
+      }
+      if (right) {
+        const w = railWidth(right);
+        ctx.drawImage(right.img, originX + playfieldWidth, 0, w, height);
+      }
+      if (hint) {
+        const h = playfieldWidth * (hint.img.height / hint.img.width);
+        ctx.drawImage(hint.img, originX, phYNow - h / 2, playfieldWidth, h);
+      }
     }
 
     ctx.strokeStyle = "rgba(255,255,255,0.08)";
@@ -1930,6 +2035,7 @@ export function ManiaEditor(props: Props) {
     }
 
     if (receptorsOnRef.current) {
+      const glowOn = propsRef.current.hitLight !== false;
       const currentTime = liveCurrentTime();
       const intensities = new Array<number>(keyCount).fill(0);
       const pressed = propsRef.current.playtestMode
@@ -1975,16 +2081,17 @@ export function ManiaEditor(props: Props) {
           if (noteImg && noteImg.width > 0) {
             const nb = opaqueBounds(noteImg);
             const ns = (laneWidth - 6) / noteImg.width;
+            const nhs = cr?.noteHeightScale ?? 1;
             noteBox = {
               w: (nb.right - nb.left) * ns,
-              h: (nb.bottom - nb.top) * ns,
+              h: (nb.bottom - nb.top) * ns * nhs,
             };
           }
           drawReceptor(ctx, sprite, x, phY, laneWidth, up, noteBox);
-          if (intensity > 0) {
+          if (intensity > 0 && glowOn) {
             drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c), intensity, up);
           }
-        } else if (intensity > 0) {
+        } else if (intensity > 0 && glowOn) {
           drawReceptorGlow(ctx, x, phY, laneWidth, height, noteColor(c), intensity, up);
         }
       }
@@ -2055,13 +2162,12 @@ export function ManiaEditor(props: Props) {
       // Snap colours draw plain notes, since a skin's sprites carry their own.
       const bySnap = snapColours && !playtest;
       const cr = bySnap ? undefined : skinCols[note.column];
-      const skinColour = bySnap ? null : skinCols[note.column]?.colour ?? null;
       const noteInKiai = !bySnap && kiaiAt(note.startTime, timingPoints);
       const color = bySnap
         ? noteSnapColour(noteSnapDivisor(note.startTime, timingPoints))
-        : noteInKiai && !skinColour
+        : noteInKiai
           ? "#5bc0ff"
-          : skinColour ?? laneColor(note.column);
+          : laneColor(note.column);
 
       if (selected) {
         const bounds = noteBounds(note, laneWidth, originX);
@@ -2106,38 +2212,25 @@ export function ManiaEditor(props: Props) {
         const headSprite = cr?.head ?? cr?.note ?? null;
         const headH =
           headSprite && headSprite.width > 0
-            ? (laneWidth - 6) * (headSprite.height / headSprite.width)
+            ? (laneWidth - 6) * (headSprite.height / headSprite.width) * (cr?.noteHeightScale ?? 1)
             : defaultNoteHeight;
         const top = up ? headY + headH / 2 : Math.min(yEnd, headY);
         const bottom = up ? Math.max(yEnd, headY) : headY - headH / 2;
         if (bottom > top) {
           if (cr?.body) {
             const span = Math.max(bottom - top, 1);
-            const dispW = laneWidth - 8;
             ctx.save();
+            // osu! pins the top of the body texture to the tail and grows it
+            // towards the head, mirroring the whole thing when the scroll
+            // direction flips.
             if (up) {
               ctx.translate(0, top + bottom);
               ctx.scale(1, -1);
             }
-            if (cr.bodyCapPx && cr.body.width > 0) {
-              const scale = dispW / cr.body.width;
-              const capH = Math.min(cr.bodyCapPx * scale, span);
-              ctx.drawImage(cr.body, 0, 0, cr.body.width, cr.bodyCapPx, x + 4, top, dispW, capH);
-              const fillH = span - capH;
-              if (fillH > 0) {
-                const fillSrcH = Math.max(cr.body.height - cr.bodyCapPx, 1);
-                ctx.drawImage(
-                  cr.body,
-                  0, cr.bodyCapPx, cr.body.width, fillSrcH,
-                  x + 4, top + capH, dispW, fillH,
-                );
-              }
-            } else {
-              ctx.drawImage(cr.body, x + 4, top, dispW, span);
-            }
+            drawHoldBody(ctx, cr.body, cr.bodyStretch, x, top, laneWidth, span, columnUnits(cr));
             ctx.restore();
           } else {
-            const kiaiDefault = noteInKiai && !skinColour;
+            const kiaiDefault = noteInKiai;
             const bodyW = (laneWidth - 8) * (propsRef.current.longNoteBodyScale || 1);
             ctx.fillStyle = kiaiDefault
               ? "rgba(91,192,255,0.68)"
@@ -2151,21 +2244,27 @@ export function ManiaEditor(props: Props) {
               5,
             );
             ctx.fill();
-            if (cr?.tail) {
-              drawSprite(ctx, cr.tail, x, yEnd, laneWidth, up);
-            } else {
-              ctx.fillStyle = bySnap
-                ? noteSnapColour(noteSnapDivisor(note.endTime, timingPoints))
-                : kiaiDefault
-                  ? "#5bc0ff"
-                  : "#9aa0ad";
-              roundRect(ctx, x + 3, up ? yEnd : yEnd - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
-              ctx.fill();
-            }
+          }
+          // The tail caps the far end of the body, so it is drawn for every
+          // body — image or default. It used to live inside the default-body
+          // branch, which left every skin that ships mania-noteNL without one.
+          if (cr?.tail) {
+            // osu! inverts the scroll direction for the tail: it is the head
+            // mirrored, anchored at the end of the hold rather than growing
+            // back towards it.
+            drawSprite(ctx, cr.tail, x, yEnd, laneWidth, !up, cr.noteHeightScale);
+          } else if (!cr?.body) {
+            ctx.fillStyle = bySnap
+              ? noteSnapColour(noteSnapDivisor(note.endTime, timingPoints))
+              : noteInKiai
+                ? "#5bc0ff"
+                : "#9aa0ad";
+            roundRect(ctx, x + 3, up ? yEnd : yEnd - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
+            ctx.fill();
           }
         }
         if (headSprite) {
-          drawSprite(ctx, headSprite, x, headY, laneWidth, up);
+          drawSprite(ctx, headSprite, x, headY, laneWidth, up, cr?.noteHeightScale ?? 1);
         } else {
           ctx.fillStyle = color;
           roundRect(ctx, x + 3, up ? headY : headY - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
@@ -2184,7 +2283,7 @@ export function ManiaEditor(props: Props) {
       } else {
         const y = timeToY(note.startTime);
         if (cr?.note) {
-          drawSprite(ctx, cr.note, x, y, laneWidth, up);
+          drawSprite(ctx, cr.note, x, y, laneWidth, up, cr.noteHeightScale);
         } else {
           ctx.fillStyle = color;
           roundRect(ctx, x + 3, up ? y : y - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
@@ -2222,6 +2321,35 @@ export function ManiaEditor(props: Props) {
       }
     }
     if (clipAtLine) ctx.restore();
+
+    // Stage bottom sits over the notes — in osu! that cover is what hides a
+    // note's last stretch of travel, so it has to come after the note pass. It
+    // only appears with receptors on, where notes already stop at the line:
+    // with them off the editor is showing what it has passed, and a skin's
+    // cover would hide exactly that.
+    const stageBottom = receptorsOnRef.current
+      ? usableStagePiece(skinStageRef.current?.bottom)
+      : null;
+    if (stageBottom) {
+      // "This will not be stretched to fit" — osu! draws the bottom piece from
+      // its own pixels, centred on the stage, in the units the columns are
+      // measured in. Sizing it off the pane instead left it out of proportion
+      // with the notes, which follow the lane.
+      const stageScale =
+        skinUnit(laneWidth, skinColsRef.current[0]) * stageBottom.scale;
+      const w = stageBottom.img.width * stageScale;
+      const h = stageBottom.img.height * stageScale;
+      const bx = originX + (playfieldWidth - w) / 2;
+      ctx.save();
+      if (up) {
+        ctx.translate(0, phY * 2);
+        ctx.scale(1, -1);
+        ctx.drawImage(stageBottom.img, bx, phY * 2 - (phY + h), w, h);
+      } else {
+        ctx.drawImage(stageBottom.img, bx, phY, w, h);
+      }
+      ctx.restore();
+    }
 
     const clipPreview = clipDropPreviewRef.current;
     if (clipPreview && !propsRef.current.readOnly && !playtest) {
@@ -3303,7 +3431,9 @@ export function ManiaEditor(props: Props) {
         </div>
       )}
 
-      {!props.playtestMode && (
+      {/* A read-only editor is an embedded view — a reference difficulty, or
+          the skin dialog's preview — where there is nothing to switch between. */}
+      {!props.playtestMode && !props.readOnly && (
         <div className="absolute left-3 top-12 z-20 flex select-none rounded-lg border border-white/10 bg-ink-800/90 p-1 text-[11px] shadow-lg backdrop-blur">
           {(["edit", "select"] as const).map((mode) => (
             <button
@@ -3808,6 +3938,77 @@ function roundRect(
   ctx.closePath();
 }
 
+/**
+ * A hold note's body, filling `span` between the tail and the head.
+ *
+ * osu! does something odd here that the whole look depends on. The body is not
+ * fitted to the note at all: `LegacyBodyPiece` sizes the sprite to the hold,
+ * then scales it vertically by `max(1, 32800 / DrawHeight)` — so whatever the
+ * hold's length, the texture is stretched over a fixed strip 32800 units tall,
+ * pinned at the tail end, and only the part overlapping the note is seen.
+ *
+ * That constant is why skins ship bodies like 104x32767, 148x20000 and
+ * 128x40000: against a 32800-unit strip those land at roughly one texture pixel
+ * per unit, so the art plays out at the scale it was drawn, running off the far
+ * end of all but the longest holds. It also fixes the vertical scale
+ * independently of the horizontal one, which is set by the column — a body
+ * drawn 148 wide for a 108-unit column is squashed to 73% across while staying
+ * 164% tall. Scaling both axes together, the obvious reading, flattens exactly
+ * the tapered caps those tall bodies exist to show.
+ *
+ * Measured in the editor's pixels the strip is `32800 * width / columnWidth`,
+ * since `width` pixels span `columnWidth` units. `NoteBodyStyle: 0` opts out
+ * and stretches one copy over the note instead.
+ */
+function drawHoldBody(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  stretch: boolean,
+  x: number,
+  top: number,
+  width: number,
+  span: number,
+  columnWidth: number,
+) {
+  if (img.width <= 0 || img.height <= 0 || span <= 0 || width <= 0) return;
+  if (stretch) {
+    ctx.drawImage(img, x, top, width, span);
+    return;
+  }
+
+  const strip = (LEGACY_BODY_STRIP * width) / columnWidth;
+  if (strip <= 0) return;
+
+  if (strip >= span) {
+    // The usual case by a wide margin: the strip is thousands of pixels tall,
+    // so the note shows the first slice of the texture and nothing more.
+    // Floored at a whole row: a body a few dozen pixels tall covers so little
+    // of the strip that the slice comes to a fraction of one, and a sub-pixel
+    // source rectangle is not something every browser samples the same way.
+    const srcH = Math.min(img.height, Math.max(1, (span / strip) * img.height));
+    ctx.drawImage(img, 0, 0, img.width, srcH, x, top, width, span);
+    return;
+  }
+
+  // A column wide enough to make the strip shorter than the note is far-fetched,
+  // but osu! loads the body with `WrapMode.Repeat`, so it would tile.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, top, width, span);
+  ctx.clip();
+  // Snapped to whole pixels and sharing each boundary, because tiles landing on
+  // fractions leave hairline gaps that read as seams across the whole note.
+  const bottom = top + span;
+  for (let edge = top; edge < bottom; edge += strip) {
+    const lo = Math.floor(edge);
+    ctx.drawImage(img, x, lo, width, Math.ceil(edge + strip) - lo);
+  }
+  ctx.restore();
+}
+// osu! draws note art across the full column — `LegacyNotePiece` is
+// `RelativeSizeAxes = Axes.X` inside it — so skin sprites get the whole lane,
+// not the gutter the editor's own notes are drawn with. Keeping the gutter left
+// heads a different width from the body they cap.
 function drawSprite(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -3815,18 +4016,19 @@ function drawSprite(
   bottomY: number,
   laneWidth: number,
   flip = false,
+  heightScale = 1,
 ) {
-  const w = laneWidth - 6;
-  const h = img.width > 0 ? img.height * (w / img.width) : NOTE_HEIGHT;
+  const h =
+    img.width > 0 ? img.height * (laneWidth / img.width) * heightScale : NOTE_HEIGHT;
   if (flip) {
     ctx.save();
     ctx.translate(0, bottomY + h);
     ctx.scale(1, -1);
-    ctx.drawImage(img, x + 3, 0, w, h);
+    ctx.drawImage(img, x, 0, laneWidth, h);
     ctx.restore();
     return;
   }
-  ctx.drawImage(img, x + 3, bottomY - h, w, h);
+  ctx.drawImage(img, x, bottomY - h, laneWidth, h);
 }
 
 type OpaqueBounds = { left: number; top: number; right: number; bottom: number };

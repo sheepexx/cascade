@@ -3,6 +3,11 @@ import type { PartialCatalog } from "../core";
 export const de: PartialCatalog = {
   "hud.editor": "HUD-Editor",
   "hud.overline": "Testspiel",
+  "hud.hitLight": "Trefferlicht",
+  "hud.hitLightDesc": "Das Leuchten unter einer Spalte beim Treffen. Für Skins mit eigenem Effekt ausschalten.",
+  "layout.editor": "Playfield-Layout",
+  "layout.overline": "Editor",
+  "layout.open": "Playfield-Layout bearbeiten",
   "hud.hint": "Klicke ein Element an, um es zu bearbeiten. Ziehe es, um es zu verschieben.",
   "hud.done": "Fertig",
   "hud.resetLayout": "Layout zurücksetzen",

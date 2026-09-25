@@ -416,7 +416,10 @@ import {
 } from "./lib/playtestJudgements";
 import { createPlaytestEngine, type PlaytestEngine } from "./lib/playtestEngine";
 import { createPlaytestScoreStore } from "./lib/playtestScoreStore";
-import { PLAYHEAD_FROM_EDGE as PLAYTEST_HIT_LINE_FROM_EDGE } from "./lib/playfieldGeometry";
+import {
+  PLAYHEAD_FROM_EDGE as PLAYTEST_HIT_LINE_FROM_EDGE,
+  resolvePlayfieldLayout,
+} from "./lib/playfieldGeometry";
 import {
   buildPlaytestNoteIndex,
   firstNoteAtOrAfter,
@@ -426,6 +429,7 @@ import {
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
 import { normalizeHudLayout, type PlayfieldBounds } from "./lib/hudLayout";
 import { HudPreviewViewport } from "./components/HudPreviewViewport";
+import { EditorLayoutOverlay } from "./components/EditorLayoutOverlay";
 import { normalizePlaytestSkin } from "./lib/playtestSkin";
 import { PRESET_SKINS } from "./lib/presetSkins";
 import {
@@ -441,6 +445,7 @@ import {
   loadHitsoundSkinBlob,
   saveSkinToLibrary,
   loadSkinLibrary,
+  deleteSkinFromLibrary,
   saveHitsoundSkinSource,
   loadHitsoundSkinSource,
   saveVolume,
@@ -476,7 +481,6 @@ import {
   type SongMeta,
   type TimingPoint,
   type ViewState,
-  DEFAULT_HUMANIZE,
 } from "./types";
 import type { MapCardPresetOption } from "./lib/mapCard";
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
@@ -535,6 +539,9 @@ import {
   remapBookmarkLabels,
   sortedBookmarks,
 } from "./lib/bookmarks";
+
+/** Lane width for the skin dialog's playfield, independent of the user's own. */
+const SKIN_PREVIEW_SCALE = 0.7;
 
 const MemoizedManiaEditor = memo(ManiaEditor);
 const MemoizedBottomTimeline = memo(BottomTimeline);
@@ -746,9 +753,6 @@ function hasDraggedFiles(dataTransfer: DataTransfer | null): boolean {
 }
 
 const TRIM_BROADCAST_MS = 90;
-
-/** Autoplay always plays perfectly; it is never humanized. */
-const PERFECT_AUTOPLAY = { ...DEFAULT_HUMANIZE, enabled: false };
 
 export default function App() {
   const {
@@ -1027,6 +1031,8 @@ export default function App() {
   const playtestRef = useRef(playtest);
   playtestRef.current = playtest;
   const playfieldBoundsRef = useRef<PlayfieldBounds | null>(null);
+  // The editor's layout editor. Playtest has its own, driven by playtest.hudEditing.
+  const [layoutEditing, setLayoutEditing] = useState(false);
   // Centres the on-screen display over the playfield, near its top.
   const osdAnchor = useCallback(() => {
     const bounds = playfieldBoundsRef.current;
@@ -1551,8 +1557,12 @@ export default function App() {
   durationRef.current = audio.duration;
   const sourceDurationRef = useRef(0);
   sourceDurationRef.current = audio.duration * audio.timeScale;
+  // The skin dialog joins timing and sv in skipping the blur-and-duck
+  // atmosphere: all three are watched while the song runs, and the skin one
+  // previews the playfield itself, so dimming what it is showing — and
+  // flipping that dim every time Space pauses — defeats the point.
   const modalAtmosphereOpen =
-    (modal !== null && modal !== "timing" && modal !== "sv") ||
+    (modal !== null && modal !== "timing" && modal !== "sv" && modal !== "skin") ||
     askBgScope ||
     pendingImport !== null ||
     exportCheck !== null ||
@@ -2342,7 +2352,7 @@ export default function App() {
     ended: playtest.ended,
     notes: playtestRunNotes,
     keyCount: active.keyCount,
-    humanize: PERFECT_AUTOPLAY,
+    humanize: playtestSettings.humanize,
     skill: playtestSettings.skill,
     windows: playtestWindows,
     releaseWindows: playtestReleaseWindows,
@@ -2524,21 +2534,21 @@ export default function App() {
       playtestActive ? playtestGameplayTime() : getVisualCurrentTime(frameNow),
     [getVisualCurrentTime, playtestActive, playtestGameplayTime],
   );
-  // Scroll speed is how fast notes move in real time, so a faster rate does
-  // not make them race (osu! multiplies its time range by the rate).
-  const editorView = useMemo(
+  const playfieldLayout = useMemo(
     () =>
-      playtest.active
-        ? { ...view, scrollSpeed: playtestSettings.scrollSpeed / playtestRate }
-        : view,
-    [playtest.active, playtestRate, playtestSettings.scrollSpeed, view],
+      resolvePlayfieldLayout({
+        settings: appSettings,
+        view,
+        playtest: playtestSettings,
+        playtestActive: playtest.active,
+        rate: playtestRate,
+      }),
+    [appSettings, view, playtestSettings, playtest.active, playtestRate],
   );
-  const editorDimBackground = playtest.active
-    ? playtestSettings.backgroundDim
-    : appSettings.dimBackground;
-  const editorPlayfieldScale = playtest.active
-    ? playtestSettings.zoom
-    : appSettings.playfieldScale;
+  const editorView = useMemo(
+    () => ({ ...view, scrollSpeed: playfieldLayout.scrollSpeed }),
+    [view, playfieldLayout.scrollSpeed],
+  );
 
   const onAudioFile = useCallback(
     (file: File) => {
@@ -2705,17 +2715,33 @@ export default function App() {
   );
 
   const onSkinFile = useCallback(
-    (file: File, target: "visual" | "hitsound") => {
-      void loadSkin(file, file.name, target, true);
-    },
+    (file: File, target: "visual" | "hitsound") =>
+      loadSkin(file, file.name, target, true),
     [loadSkin],
   );
 
   const onApplyLocalSkin = useCallback(
-    (saved: SavedSkinBlob, target: "visual" | "hitsound") => {
-      void loadSkin(saved.blob, saved.name, target, false);
-    },
+    (saved: SavedSkinBlob, target: "visual" | "hitsound") =>
+      loadSkin(saved.blob, saved.name, target, false),
     [loadSkin],
+  );
+
+  const onDeleteLocalSkin = useCallback(
+    async (saved: SavedSkinBlob) => {
+      setSkinError(null);
+      try {
+        await deleteSkinFromLibrary(saved.name);
+        await refreshSkinLibrary();
+      } catch (error) {
+        setSkinError(
+          error instanceof Error
+            ? error.message
+            : "Couldn't remove that saved skin.",
+        );
+        throw error;
+      }
+    },
+    [refreshSkinLibrary],
   );
 
   const onApplyPresetSkin = useCallback(
@@ -2863,6 +2889,11 @@ export default function App() {
     setSkinError(null);
     setHitsoundSkinSource("visual");
   }, []);
+
+  const onUseSelectedHitsounds = useCallback(() => {
+    setSkinError(null);
+    if (hitsoundSkin) setHitsoundSkinSource("selected");
+  }, [hitsoundSkin]);
 
   const [sharedSlug, setSharedSlug] = useState<string | null>(() =>
     typeof location === "undefined" ? null : slugFromPath(location.pathname),
@@ -5124,6 +5155,28 @@ export default function App() {
   hasAudioRef.current = !!audioFile;
   const modalRef = useRef<ModalId>(null);
   modalRef.current = modal;
+  const isPlayingRef = useRef(false);
+  isPlayingRef.current = audio.isPlaying;
+
+  // The skin dialog previews against the running song, so opening it starts
+  // playback and closing it hands the transport back the way it was found.
+  // Space still toggles while it is open (see shouldIgnoreHotkey). Only the
+  // dialog's own stage moves: the editor behind it is frozen for as long as
+  // the dialog is up, so nothing scrolls past under the dialog.
+  const resumeAfterSkinRef = useRef(false);
+  useEffect(() => {
+    if (modal !== "skin" || !hasAudioRef.current) return;
+    resumeAfterSkinRef.current = isPlayingRef.current;
+    if (!isPlayingRef.current) playAudio();
+    return () => {
+      if (!resumeAfterSkinRef.current) pauseAudio();
+    };
+    // Deliberately keyed on the dialog alone: audio.isPlaying changes as the
+    // song is toggled, and re-running then would fight the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal]);
+  const skinPreviewOpen = modal === "skin";
+  const editorCanvasPlaying = audio.isPlaying && !skinPreviewOpen;
   const editorKeybinds = useMemo(
     () => normalizeEditorKeybinds(appSettings.editorKeybinds),
     [appSettings.editorKeybinds],
@@ -5134,10 +5187,16 @@ export default function App() {
   projectStartedRef.current = projectStarted;
   const slowHeldRef = useRef(false);
   useEffect(() => {
-    const shouldIgnoreHotkey = (e: KeyboardEvent) => {
+    const shouldIgnoreHotkey = (e: KeyboardEvent, allowInSkinModal = false) => {
       if (playtestRef.current.active) return true;
       if (!projectStartedRef.current) return true;
-      if (modalRef.current || askBgScope || dialogIsOpen()) return true;
+      // Play/pause is the one hotkey the skin dialog wants, so its preview can
+      // be started and stopped without leaving the dialog. dialogIsOpen() is
+      // true for the skin dialog itself, so it has to be exempted as well.
+      const skinPreview = allowInSkinModal && modalRef.current === "skin";
+      if (!skinPreview && (modalRef.current || askBgScope || dialogIsOpen())) {
+        return true;
+      }
       if (!isTypingTarget(e.target)) return false;
       return (e.target as HTMLInputElement).type !== "range";
     };
@@ -5176,9 +5235,14 @@ export default function App() {
         snapDivisor === null
       )
         return;
-      if (shouldIgnoreHotkey(e)) return;
+      if (shouldIgnoreHotkey(e, isSpace)) return;
+      // Space in the skin dialog is swallowed even with no audio to play: left
+      // to the browser it would press whatever button has focus, and the first
+      // one is Close.
+      const skinPreviewSpace = isSpace && modalRef.current === "skin";
       if (
         !hasAudioRef.current &&
+        !skinPreviewSpace &&
         !isTab &&
         !isTimelineZoomOut &&
         !isTimelineZoomIn &&
@@ -5220,7 +5284,9 @@ export default function App() {
           });
         }
       } else if (isSpace) {
-        if (!e.repeat) toggleAudio();
+        // hasAudio is re-checked because the skin dialog lets Space through
+        // even without it, purely to keep it off the focused button.
+        if (!e.repeat && hasAudioRef.current) toggleAudio();
       }
       else if (isSlow) {
         if (slowHeldRef.current || e.repeat) return;
@@ -6768,6 +6834,8 @@ export default function App() {
     key: MessageKey;
     tab: SettingsTab;
     keywords?: string;
+    /** Its control lives in the HUD editor, so send the user there instead. */
+    hud?: boolean;
   }> = [
     { key: "settings.language", tab: "General" },
     { key: "settings.uiScale", tab: "General", keywords: "interface size zoom" },
@@ -6808,20 +6876,30 @@ export default function App() {
     { key: "settings.scrollDirection", tab: "Editor", keywords: "upscroll downscroll" },
     { key: "settings.bodyWidth", tab: "Editor", keywords: "long notes ln" },
     { key: "settings.rate", tab: "Playtest", keywords: "playback speed dt ht" },
-    { key: "settings.zoom", tab: "Playtest", keywords: "playfield size" },
-    { key: "settings.hitPosition", tab: "Playtest", keywords: "judgement line receptor" },
+    { key: "settings.zoom", tab: "Playtest", keywords: "playfield size", hud: true },
+    { key: "settings.hitPosition", tab: "Playtest", keywords: "judgement line receptor", hud: true },
     { key: "settings.quickRestartKey", tab: "Playtest", keywords: "retry" },
     { key: "settings.keybinds", tab: "Playtest", keywords: "keys lanes controls" },
-    { key: "settings.showJudgements", tab: "Playtest" },
-    { key: "settings.showCombo", tab: "Playtest" },
-    { key: "settings.showAccuracy", tab: "Playtest" },
-    { key: "settings.showHitError", tab: "Playtest" },
-    { key: "settings.showErrorBar", tab: "Playtest", keywords: "unstable rate ur" },
-    { key: "settings.skinComboFont", tab: "Playtest", keywords: "hud typography" },
-    { key: "settings.skinJudgements", tab: "Playtest", keywords: "hud graphics" },
+    { key: "settings.showJudgements", tab: "Playtest", hud: true },
+    { key: "settings.showCombo", tab: "Playtest", hud: true },
+    { key: "settings.showAccuracy", tab: "Playtest", hud: true },
+    { key: "settings.showHitError", tab: "Playtest", hud: true },
+    { key: "settings.showErrorBar", tab: "Playtest", keywords: "unstable rate ur", hud: true },
+    { key: "settings.skinComboFont", tab: "Playtest", keywords: "hud typography", hud: true },
+    { key: "settings.skinJudgements", tab: "Playtest", keywords: "hud graphics", hud: true },
     { key: "settings.playtestSkin", tab: "Playtest", keywords: "skin look notes osk appearance" },
-    { key: "settings.showNpsGraph", tab: "Playtest", keywords: "density" },
-    { key: "settings.showRunStats", tab: "Playtest" },
+    { key: "settings.showNpsGraph", tab: "Playtest", keywords: "density", hud: true },
+    { key: "settings.showRunStats", tab: "Playtest", hud: true },
+    { key: "settings.hudEditorTitle", tab: "Playtest", keywords: "hud layout move resize overlay" },
+    { key: "settings.danRegular", tab: "Playtest", keywords: "autoplay skill dan ladder" },
+    { key: "settings.danLn", tab: "Playtest", keywords: "autoplay skill dan long note ln" },
+    { key: "settings.humanize", tab: "Playtest", keywords: "autoplay timing" },
+    { key: "settings.humanizeJitter", tab: "Playtest", keywords: "autoplay scatter" },
+    { key: "settings.humanizeBias", tab: "Playtest", keywords: "autoplay early late" },
+    { key: "settings.humanizeSlipChance", tab: "Playtest", keywords: "autoplay error" },
+    { key: "settings.humanizeMissChance", tab: "Playtest", keywords: "autoplay error" },
+    { key: "settings.humanizeReleaseJitter", tab: "Playtest", keywords: "autoplay long note ln" },
+    { key: "settings.humanizeSeed", tab: "Playtest", keywords: "autoplay random" },
     { key: "settings.quickRestartKey", tab: "Playtest", keywords: "keybind" },
     { key: "settings.keybinds", tab: "Playtest", keywords: "lanes controls" },
     { key: "settings.audioSetup", tab: "Audio", keywords: "output calibration" },
@@ -6834,6 +6912,7 @@ export default function App() {
     { key: "settings.convertPng", tab: "Export", keywords: "background jpeg" },
     { key: "settings.jpegQuality", tab: "Export", keywords: "background image" },
     { key: "settings.cascadeTag", tab: "Export", keywords: "tags metadata credit" },
+    { key: "settings.mapCardPrompt", tab: "Export", keywords: "map card share image" },
     { key: "settings.tabShortcuts", tab: "Shortcuts", keywords: "keyboard commands hotkeys" },
   ];
 
@@ -6972,6 +7051,12 @@ export default function App() {
             group: t("palette.group.view"),
             run: () => setAppSettings((value) => ({ ...value, showBottomTimeline: !value.showBottomTimeline })),
           },
+          {
+            id: "playfield-layout",
+            label: t("layout.open"),
+            group: t("palette.group.view"),
+            run: () => setLayoutEditing(true),
+          },
           ...(!zenMode && !playtest.active
             ? [
                 ...eligibleRefs.map((d) => ({
@@ -7014,12 +7099,15 @@ export default function App() {
       hint: "Ctrl K",
       run: () => openSettings(),
     },
-    ...paletteSettingEntries.map(({ key, tab, keywords }) => ({
+    ...paletteSettingEntries.map(({ key, tab, keywords, hud }) => ({
       id: `setting-${key}`,
       label: t(key),
       group: t("palette.group.setting", { tab: t(`settings.tab${tab}` as MessageKey) }),
       keywords,
-      run: () => openSettings(tab),
+      run: () =>
+        hud && hasProject && audioFile
+          ? startPlaytest(0, { hudEditing: true })
+          : openSettings(tab),
     })),
   ];
 
@@ -7651,7 +7739,7 @@ export default function App() {
                 getCurrentTime={getEditorCurrentTime}
                 getVisualCurrentTime={getEditorVisualCurrentTime}
                 isVisualSeekActive={isVisualSeekActive}
-                isPlaying={audio.isPlaying}
+                isPlaying={editorCanvasPlaying}
                 seekSignal={audio.seekSignal}
                 backgroundUrl={activeBg?.url ?? null}
                 backgroundKey={
@@ -7663,12 +7751,12 @@ export default function App() {
                 videoOffsetMs={active.videoOffsetMs ?? 0}
                 playbackRate={audio.playbackRate}
                 timeScale={activeRate}
-                dimBackground={editorDimBackground}
+                dimBackground={playfieldLayout.backgroundDim}
                 backgroundBlur={appSettings.backgroundBlur}
                 skin={activeSkin}
-                playfieldScale={editorPlayfieldScale}
-                noteHeightScale={appSettings.noteHeightScale}
-                longNoteBodyScale={appSettings.longNoteBodyScale}
+                playfieldScale={playfieldLayout.scale}
+                noteHeightScale={playfieldLayout.noteHeightScale}
+                longNoteBodyScale={playfieldLayout.longNoteBodyScale}
                 smoothScrolling={appSettings.smoothScrolling}
                 showTimingLines={appSettings.showTimingLines}
                 upscroll={appSettings.upscroll}
@@ -7714,7 +7802,8 @@ export default function App() {
                 consumedIdsRef={playtestHiddenView}
                 droppedIdsRef={playtestDroppedView}
                 pressedColumnsRef={playtestPressedColumnsRef}
-                hitPosition={playtestSettings.hitPosition}
+                hitPosition={playfieldLayout.hitPosition}
+                hitLight={appSettings.hitLight}
                 waveformOverlay={appSettings.showWaveform ? waveform : null}
                 waveformTransparency={appSettings.waveformTransparency}
                 onToggleWaveformOverlay={toggleWaveformOverlay}
@@ -7759,6 +7848,18 @@ export default function App() {
                 <LandingCopy />
               </StartScreen>
             )}
+            {hasProject && layoutEditing && !playtest.active && (
+              <EditorLayoutOverlay
+                settings={appSettings}
+                scrollSpeed={view.scrollSpeed}
+                playfieldBoundsRef={playfieldBoundsRef}
+                onPatch={(patch) => setAppSettings((value) => ({ ...value, ...patch }))}
+                onScrollSpeed={(scrollSpeed) =>
+                  setView((value) => ({ ...value, scrollSpeed }))
+                }
+                onDone={() => setLayoutEditing(false)}
+              />
+            )}
             </div>
             <div
               className={`relative h-full shrink-0 overflow-hidden border-l border-ink-700 transition-[width] duration-300 ease-out ${
@@ -7780,7 +7881,7 @@ export default function App() {
                       getCurrentTime={getCurrentTime}
                       getVisualCurrentTime={getVisualCurrentTime}
                       isVisualSeekActive={isVisualSeekActive}
-                      isPlaying={audio.isPlaying}
+                      isPlaying={editorCanvasPlaying}
                       seekSignal={audio.seekSignal}
                       backgroundUrl={null}
                       videoUrl={null}
@@ -7830,6 +7931,9 @@ export default function App() {
               <PlaytestOverlay
                 editing={playtest.hudEditing}
                 previewScale={previewScale}
+                savedSkinNames={skinLibrary.map((saved) => saved.name)}
+                hitLight={appSettings.hitLight}
+                onHitLight={(hitLight) => setAppSettings((s) => ({ ...s, hitLight }))}
                 onPatch={(patch) => setAppSettings((s) => ({ ...s, playtest: { ...s.playtest, ...patch } }))}
                 playfieldBoundsRef={playfieldBoundsRef}
                 npsGraph={
@@ -7853,7 +7957,7 @@ export default function App() {
                     getCurrentTime={getEditorCurrentTime}
                     autoplay={playtest.autoplay}
                     autoplaySummary={autoplaySummary}
-                    humanized={false}
+                    humanized={playtestSettings.humanize.enabled}
                     showNps={!playtestSettings.showNpsGraph}
                     skillProfile={skillProfile}
                     skillEnabled
@@ -7866,7 +7970,7 @@ export default function App() {
                 settings={playtestSettings}
                 windows={playtestWindows}
                 getCurrentTime={playtestGameplayTime}
-                hitLineFromEdge={PLAYTEST_HIT_LINE_FROM_EDGE + playtestSettings.hitPosition}
+                hitLineFromEdge={PLAYTEST_HIT_LINE_FROM_EDGE + playfieldLayout.hitPosition}
                 upscroll={appSettings.upscroll}
                 skin={playtestLook}
                 keyCount={active.keyCount}
@@ -8397,15 +8501,73 @@ export default function App() {
           cloudAvailable={!!authUser}
           cloudLoading={cloudSkinsLoading}
           activeKeyCount={active.keyCount}
+          // The preview is the editor itself, read-only, so a skin looks in
+          // the dialog exactly as it will on the playfield — same geometry,
+          // same song, same playhead.
+          preview={
+            hasProject ? (
+              <MemoizedManiaEditor
+                notes={active.notes}
+                keyCount={active.keyCount}
+                timingPoints={activeTimingPoints}
+                previewTime={active.previewTime}
+                view={editorView}
+                getCurrentTime={getEditorCurrentTime}
+                getVisualCurrentTime={getEditorVisualCurrentTime}
+                isVisualSeekActive={isVisualSeekActive}
+                isPlaying={audio.isPlaying}
+                seekSignal={audio.seekSignal}
+                backgroundUrl={activeBg?.url ?? null}
+                backgroundKey={
+                  activeBg ? `${activeBg.blob.size}:${activeBg.blob.type}` : null
+                }
+                videoUrl={null}
+                dimBackground={appSettings.dimBackground}
+                backgroundBlur={appSettings.backgroundBlur}
+                skin={skin?.keymodes[active.keyCount] ?? null}
+                // The dialog's stage is roughly a third the height of the real
+                // one, and lane width does not shrink with it, so the editor's
+                // own scale would fill the frame with two notes. This keeps the
+                // proportions the playfield actually has.
+                playfieldScale={SKIN_PREVIEW_SCALE}
+                noteHeightScale={appSettings.noteHeightScale}
+                longNoteBodyScale={appSettings.longNoteBodyScale}
+                smoothScrolling={appSettings.smoothScrolling}
+                showTimingLines={appSettings.showTimingLines}
+                upscroll={appSettings.upscroll}
+                svBpmScroll={appSettings.bpmAffectsScroll}
+                zenMode
+                onPlaceNote={noop}
+                onDeleteNote={noop}
+                onAddNotes={noop}
+                onDeleteNotes={noop}
+                onMoveNotes={noop}
+                onView={noop}
+                onSeek={noop}
+                currentHitSound={0}
+                currentSampleSet={0}
+                onCurrentHitSound={noop}
+                onCurrentSampleSet={noop}
+                readOnly
+                keyboardShortcuts={false}
+                hideHints
+                hideClipboard
+              />
+            ) : null
+          }
+          hitLight={appSettings.hitLight}
+          onHitLight={(hitLight) => setAppSettings((s) => ({ ...s, hitLight }))}
           onApplyPreset={onApplyPresetSkin}
           onApplySavedSkin={onApplyLocalSkin}
           onSkinFile={onSkinFile}
+          onDeleteSavedSkin={onDeleteLocalSkin}
           onUploadCloudSkin={onUploadCloudSkin}
           onDownloadCloudSkin={onDownloadCloudSkin}
           onDeleteCloudSkin={onDeleteCloudSkin}
           onClearSkin={onClearSkin}
           onUseDefaultHitsounds={onUseDefaultHitsounds}
           onUseVisualHitsounds={onUseVisualHitsounds}
+          onUseSelectedHitsounds={onUseSelectedHitsounds}
           error={skinError}
         />
       )}

@@ -447,6 +447,12 @@ export type AppSettings = {
   uiScale: number;
   altWheelAction: AltWheelAction;
   playfieldScale: number;
+  /**
+   * Pixels the editor's judgement line sits further from the scroll edge than
+   * usual. Playtest keeps its own under PlaytestSettings.hitPosition, so the
+   * two modes can put the line in different places.
+   */
+  playfieldHitPosition: number;
   noteHeightScale: number;
   longNoteBodyScale: number;
   hitsoundsEnabled: boolean;
@@ -474,6 +480,8 @@ export type AppSettings = {
   /** The graph is folded to its header row until the user opens it. */
   skillsetGraphCollapsed: boolean;
   /** Default-skin notes use a palette that stays distinct for colour blindness. */
+  /** The glow under a column as a note is hit. Some skins draw their own. */
+  hitLight: boolean;
   colourblindLanes: boolean;
   /** Editor notes take the colour of the beat divisor they sit on. */
   snapColouredNotes: boolean;
@@ -511,19 +519,89 @@ export type AppSettings = {
 };
 
 export type ManiaColumnSkin = {
-  colour: string | null;
+  /**
+   * skin.ini's `ColourN`, which osu! paints behind the column as a solid box
+   * — not a note tint. Skins overwhelmingly set it to black so the stage
+   * reads dark, so using it to colour notes would hide them. Notes a skin
+   * gives no image for fall back to the editor's own lane colours instead.
+   *
+   * Never null once a skin is loaded: osu! falls back to opaque black, and a
+   * lot of skin art counts on that. Hold bodies in particular are routinely
+   * drawn on opaque black padding, which reads as a black box over anything
+   * but a black column.
+   */
+  columnBackground: string;
+  /**
+   * `ColumnWidth` for this column in osu!'s own units — skin.ini's value
+   * times the 1.6 that maps stable's 480-tall space onto lazer's 768-tall
+   * one. The editor sizes lanes itself, so this is only a scale reference: it
+   * says how wide the art was drawn to sit, which is what turns osu!'s
+   * unit-space hold body into pixels.
+   */
+  columnWidth: number;
   noteUrl: string | null;
   holdHeadUrl: string | null;
   holdBodyUrl: string | null;
-  holdBodyCapPx: number | null;
   holdTailUrl: string | null;
   keyUrl: string | null;
   keyDownUrl: string | null;
+  /**
+   * Whether skin.ini's `NoteBodyStyle` is 0, the one value that stretches a
+   * single copy of the body over the whole hold.
+   *
+   * It is a boolean because osu! treats it as one. `LegacyNoteBodyStyle` has
+   * no `Repeat = 1` member at all — the wiki lists one, the source does not
+   * — so 1 parses to an undefined enum value, and `LegacyBodyPiece` switches
+   * on `Stretch` alone, leaving 1, 2, 3, 4 and unset to share the default
+   * branch.
+   */
+  bodyStretch: boolean;
+  /**
+   * Multiplier on the aspect-preserved note height. osu! sizes note height
+   * from `WidthForNoteHeightScale`, or from the narrowest column when the skin
+   * does not say, so a skin with wide columns keeps its notes squat instead of
+   * scaling them up with the lane.
+   */
+  noteHeightScale: number;
+};
+
+/**
+ * The frame osu! draws around the columns. Plenty of skins put all their
+ * character here and leave the notes to osu!'s defaults, so a skin that looks
+ * distinctive in osu! reads as plain without it.
+ */
+/**
+ * One piece of stage art, with how many of osu!'s units a pixel of it covers.
+ *
+ * Stage pieces are the only skin art osu! draws at its own size rather than
+ * fitting to something, so the `@2x` convention matters here: a doubled image
+ * is the same size on the stage, drawn at twice the detail, which is a scale
+ * of 0.5. Everywhere else the art is scaled to a column and the distinction
+ * cancels out.
+ */
+export type ManiaStagePiece = {
+  url: string;
+  scale: number;
+};
+
+export type ManiaStageSkin = {
+  left: ManiaStagePiece | null;
+  right: ManiaStagePiece | null;
+  bottom: ManiaStagePiece | null;
+  hint: ManiaStagePiece | null;
 };
 
 export type ManiaKeymodeSkin = {
   keys: number;
   columns: ManiaColumnSkin[];
+  stage: ManiaStageSkin;
+  /**
+   * Whether skin.ini has a [Mania] block for this key count. osu! draws an
+   * undeclared keymode from the skin's shared mania-note art all the same, so
+   * the editor builds those too — but only a declared one is a layout the
+   * author actually designed, which is what the skin picker lists.
+   */
+  declared: boolean;
 };
 
 export type SkinJudgementAsset = "max" | "300" | "200" | "100" | "50" | "miss";
@@ -549,6 +627,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   uiScale: 1,
   altWheelAction: "interfaceScale",
   playfieldScale: 1.5,
+  playfieldHitPosition: 0,
   noteHeightScale: 1.35,
   longNoteBodyScale: 0.75,
   hitsoundsEnabled: true,
@@ -569,6 +648,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showPatternTools: true,
   showSkillsetGraph: true,
   skillsetGraphCollapsed: true,
+  hitLight: true,
   colourblindLanes: false,
   snapColouredNotes: false,
   moveNotesWithTiming: false,

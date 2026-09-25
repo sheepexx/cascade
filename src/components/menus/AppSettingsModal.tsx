@@ -28,6 +28,7 @@ import {
 import type {
   AltWheelAction,
   DiscordPresenceMode,
+  HumanizeSettings,
   PlaytestSettings,
 } from "../../types";
 import {
@@ -36,6 +37,15 @@ import {
   keyLabel,
   keybindWarnings,
 } from "../../lib/playtestKeybinds";
+import {
+  DAN_LADDERS,
+  combineDans,
+  danSelectionForKeyCount,
+  laddersForKeyCount,
+  lnLevelForSkill,
+  regularLevelForSkill,
+  resolveSkillForKeyCount,
+} from "../../lib/danSkill";
 import { PRESET_SKINS } from "../../lib/presetSkins";
 import {
   parsePlaytestSkinValue,
@@ -333,6 +343,57 @@ export function AppSettingsModal({
 
   const patchPlaytest = (patch: Partial<PlaytestSettings>) => {
     onPlaytest({ ...playtest, ...patch });
+  };
+
+  const patchHumanize = (patch: Partial<HumanizeSettings>) => {
+    onPlaytest({ ...playtest, humanize: { ...playtest.humanize, ...patch } });
+  };
+
+  const ladders = laddersForKeyCount(keyCount);
+  const effectiveSkill = resolveSkillForKeyCount(playtest.skill, keyCount);
+  const danSelection = danSelectionForKeyCount(playtest.skill, keyCount);
+  const regularLevel =
+    danSelection?.regularLevel ??
+    regularLevelForSkill(ladders.regular, effectiveSkill);
+  const lnLevel =
+    danSelection?.lnLevel ??
+    lnLevelForSkill(
+      ladders.ln,
+      effectiveSkill.lnProfile?.lnSkill ?? effectiveSkill.lnSkill,
+    );
+
+  // Turning humanizing on starts the autoplayer at Alpha, the rung the dan
+  // ladder treats as a competent player, rather than whatever the skill was
+  // last left at.
+  const setHumanizeEnabled = (enabled: boolean) => {
+    const humanize = { ...playtest.humanize, enabled };
+    if (!enabled) {
+      onPlaytest({ ...playtest, humanize });
+      return;
+    }
+    const alphaLevel = DAN_LADDERS[ladders.regular].levels.findIndex(
+      (level) => level.label === "Alpha",
+    );
+    onPlaytest({
+      ...playtest,
+      humanize,
+      skill:
+        alphaLevel >= 0
+          ? combineDans(keyCount, alphaLevel, lnLevel, playtest.skill.danSelections)
+          : playtest.skill,
+    });
+  };
+
+  const setDanSkill = (nextRegular: number, nextLn: number) => {
+    onPlaytest({
+      ...playtest,
+      skill: combineDans(
+        keyCount,
+        nextRegular,
+        nextLn,
+        playtest.skill.danSelections,
+      ),
+    });
   };
 
   const laneKeys = () =>
@@ -988,6 +1049,123 @@ export function AppSettingsModal({
                     />
                   </div>
                 </div>
+              </div>
+            </section>
+
+            <section>
+              <SectionTitle>
+                <Tip text={t("settings.autoplayHint")}>{t("settings.autoplay")}</Tip>
+              </SectionTitle>
+              <div className="flex flex-col gap-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm text-slate-200">
+                    <Tip
+                      text={t("settings.danHint", {
+                        keys: DAN_LADDERS[ladders.regular].keyCount,
+                      })}
+                    >
+                      {t("settings.danRegular")}
+                    </Tip>
+                    <Select
+                      value={regularLevel}
+                      onChange={(e) => setDanSkill(Number(e.target.value), lnLevel)}
+                    >
+                      {DAN_LADDERS[ladders.regular].levels.map((lvl, i) => (
+                        <option key={lvl.label} value={i}>
+                          {lvl.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-slate-200">
+                    <span>{t("settings.danLn")}</span>
+                    <Select
+                      value={lnLevel}
+                      onChange={(e) => setDanSkill(regularLevel, Number(e.target.value))}
+                    >
+                      {DAN_LADDERS[ladders.ln].levels.map((lvl, i) => (
+                        <option key={lvl.label} value={i}>
+                          {lvl.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                </div>
+                <SettingToggle
+                  label={t("settings.humanize")}
+                  tip={t("settings.humanizeHint")}
+                  checked={playtest.humanize.enabled}
+                  onChange={setHumanizeEnabled}
+                />
+                {playtest.humanize.enabled && (
+                  <div className="flex flex-col gap-4 border-l border-white/10 pl-3">
+                    <SliderRow
+                      label={t("settings.humanizeJitter")}
+                      tip={t("settings.humanizeJitterHint")}
+                      value={playtest.humanize.jitterMs}
+                      min={0}
+                      max={60}
+                      step={1}
+                      display={(v) => `${v} ms`}
+                      onChange={(jitterMs) => patchHumanize({ jitterMs })}
+                    />
+                    <SliderRow
+                      label={t("settings.humanizeBias")}
+                      tip={t("settings.humanizeBiasHint")}
+                      value={playtest.humanize.biasMs}
+                      min={-40}
+                      max={40}
+                      step={1}
+                      display={(v) => `${v > 0 ? "+" : ""}${v} ms`}
+                      onChange={(biasMs) => patchHumanize({ biasMs })}
+                    />
+                    <SliderRow
+                      label={t("settings.humanizeSlipChance")}
+                      tip={t("settings.humanizeSlipChanceHint")}
+                      value={Math.round(playtest.humanize.slipChance * 1000) / 10}
+                      min={0}
+                      max={35}
+                      step={0.5}
+                      display={(v) => `${v.toFixed(1)}%`}
+                      onChange={(v) => patchHumanize({ slipChance: v / 100 })}
+                    />
+                    <SliderRow
+                      label={t("settings.humanizeMissChance")}
+                      value={Math.round(playtest.humanize.missChance * 1000) / 10}
+                      min={0}
+                      max={10}
+                      step={0.1}
+                      display={(v) => `${v.toFixed(1)}%`}
+                      onChange={(v) => patchHumanize({ missChance: v / 100 })}
+                    />
+                    <SliderRow
+                      label={t("settings.humanizeReleaseJitter")}
+                      tip={t("settings.humanizeReleaseJitterHint")}
+                      value={playtest.humanize.releaseJitterMs}
+                      min={0}
+                      max={80}
+                      step={1}
+                      display={(v) => `${v} ms`}
+                      onChange={(releaseJitterMs) => patchHumanize({ releaseJitterMs })}
+                    />
+                    <div className="flex items-center gap-3 text-sm text-slate-200">
+                      <Tip text={t("settings.humanizeSeedHint")}>{t("settings.humanizeSeed")}</Tip>
+                      {playtest.humanize.seed === 0 && (
+                        <span className="text-[11px] text-slate-500">
+                          {t("settings.humanizeSeedRandom")}
+                        </span>
+                      )}
+                      <NumberBox
+                        label={t("settings.humanizeSeed")}
+                        value={playtest.humanize.seed}
+                        min={0}
+                        max={999999}
+                        step={1}
+                        onChange={(seed) => patchHumanize({ seed: Math.floor(seed) })}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 

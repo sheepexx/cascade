@@ -345,11 +345,14 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   className = "",
+  accent,
 }: {
   options: { value: T; label: ReactNode }[];
   value: T;
   onChange: (value: T) => void;
   className?: string;
+  /** Matches the pill to the surface's accent. Defaults to the app accent. */
+  accent?: string;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
@@ -383,13 +386,14 @@ export function SegmentedControl<T extends string>({
       ref={listRef}
       role="tablist"
       className={`relative flex gap-1 rounded-xl border border-white/10 bg-ink-700/40 p-1 ${className}`}
+      style={accent ? ({ "--segment-accent": accent } as CSSProperties) : undefined}
     >
       {pill && (
         <span
           aria-hidden
-          className={`segmented-pill absolute inset-y-1 rounded-lg bg-accent/90 shadow-sm ${
-            settled ? "" : "!transition-none"
-          }`}
+          className={`segmented-pill absolute inset-y-1 rounded-lg shadow-sm ${
+            accent ? "bg-[var(--segment-accent)]" : "bg-accent/90"
+          } ${settled ? "" : "!transition-none"}`}
           style={{ left: pill.left, width: pill.width }}
         />
       )}
@@ -459,17 +463,26 @@ export function FileButton({
   label,
   accept,
   onFile,
+  disabled = false,
 }: {
   label: string;
   accept: string;
   onFile: (file: File) => void;
+  disabled?: boolean;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition duration-[var(--motion-quick)] hover:bg-ink-500/85 focus-within:ring-2 focus-within:ring-accent/60 active:scale-[0.98]">
+    <label
+      className={`inline-flex items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-3 py-2 text-sm font-medium text-slate-200 shadow-sm backdrop-blur-sm transition duration-[var(--motion-quick)] focus-within:ring-2 focus-within:ring-accent/60 ${
+        disabled
+          ? "cursor-not-allowed opacity-40"
+          : "cursor-pointer hover:bg-ink-500/85 active:scale-[0.98]"
+      }`}
+    >
       {label}
       <input
         type="file"
         accept={accept}
+        disabled={disabled}
         className="sr-only"
         onChange={(e) => {
           const f = e.target.files?.[0];

@@ -32,11 +32,24 @@ import {
 } from "../lib/playtestClock";
 import { useT, type MessageKey } from "../lib/i18n";
 import { Slider, Toggle } from "./ui/Controls";
+import { Dropdown } from "./ui/Dropdown";
+import { PRESET_SKINS } from "../lib/presetSkins";
+import {
+  parsePlaytestSkinValue,
+  playtestSkinValue,
+} from "../lib/playtestSkin";
 
 // The playtest's HUD editor: the map plays on autoplay while every part of
 // the HUD can be clicked, dragged and tuned from a panel on the left.
 
-export type HudTarget = HudElementId | "receptor" | "playfield" | "scroll" | "timing";
+export type HudTarget =
+  | HudElementId
+  | "receptor"
+  | "playfield"
+  | "scroll"
+  | "timing"
+  | "skin"
+  | "hitLight";
 
 const SNAP_PX = 8;
 
@@ -46,6 +59,8 @@ const META: Record<HudTarget, Meta> = {
   scroll: { name: "settings.scrollSpeed", description: "hud.scrollDesc", hue: "#5bc0ff" },
   timing: { name: "hud.timing", description: "hud.timingDesc", hue: "#fbbf24" },
   playfield: { name: "settings.zoom", description: "hud.playfieldDesc", hue: "#8b93ff" },
+  skin: { name: "nav.skin", description: "settings.playtestSkinHint", hue: "#f0a5d8" },
+  hitLight: { name: "hud.hitLight", description: "hud.hitLightDesc", hue: "#ffd479" },
   receptor: { name: "hud.receptor", description: "hud.receptorDesc", hue: "#e86868" },
   combo: { name: "hud.combo", description: "hud.comboDesc", hue: "#f5f7fb" },
   judgement: { name: "hud.judgement", description: "hud.judgementDesc", hue: "#5bc0ff" },
@@ -188,8 +203,8 @@ export function PlayfieldHandles({
   previewScale?: number;
   hitPosition: number;
   upscroll: boolean;
-  selected: HudTarget | null;
-  onSelect: (target: HudTarget) => void;
+  selected: string | null;
+  onSelect: (target: string) => void;
   onHitPosition: (value: number) => void;
 }) {
   const t = useT();
@@ -339,6 +354,32 @@ function Illustration({ target }: { target: HudTarget }) {
           <rect x={48} y={36} width={11} height={4} rx={1.5} fill="#f2f2f2" />
           <rect x={74} y={20} width={11} height={4} rx={1.5} fill={hue} />
           <line x1={34} y1={50} x2={86} y2={50} stroke="#e86868" strokeWidth={1.5} />
+        </svg>
+      );
+    case "skin":
+      return (
+        <svg viewBox="0 0 120 64" className="h-full w-full">
+          <rect x={34} y={4} width={52} height={56} rx={3} fill="rgba(255,255,255,0.04)" />
+          {lanes}
+          <rect x={35} y={18} width={11} height={5} rx={1.5} fill={hue} />
+          <rect x={48} y={30} width={11} height={5} rx={1.5} fill="#5bc0ff" />
+          <rect x={61} y={22} width={11} height={5} rx={1.5} fill="#fbbf24" />
+          <rect x={74} y={34} width={11} height={5} rx={1.5} fill={hue} />
+          <line x1={34} y1={50} x2={86} y2={50} stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} />
+        </svg>
+      );
+    case "hitLight":
+      return (
+        <svg viewBox="0 0 120 64" className="h-full w-full">
+          {lanes}
+          <defs>
+            <linearGradient id="hudHitLight" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor={hue} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={hue} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <rect x={47} y={18} width={13} height={26} fill="url(#hudHitLight)" />
+          <line x1={30} y1={44} x2={90} y2={44} stroke="rgba(255,255,255,0.5)" strokeWidth={2} />
         </svg>
       );
     case "receptor":
@@ -513,7 +554,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function SliderRow({
+export function SliderRow({
   label,
   value,
   min,
@@ -608,7 +649,7 @@ function Chevron({ open }: { open: boolean }) {
 
 const GROUPS: { label: MessageKey; targets: HudTarget[] }[] = [
   { label: "hud.groupGameplay", targets: ["scroll", "timing"] },
-  { label: "hud.groupPlayfield", targets: ["playfield", "receptor"] },
+  { label: "hud.groupPlayfield", targets: ["playfield", "receptor", "skin", "hitLight"] },
   { label: "hud.groupHud", targets: [...HUD_ELEMENTS] },
 ];
 
@@ -619,35 +660,53 @@ const GROUPS: { label: MessageKey; targets: HudTarget[] }[] = [
  */
 export function HudEditorPanel({
   settings,
+  savedSkinNames,
+  hitLight,
+  onHitLight,
   selected,
   onSelect,
   onPatch,
   onDone,
 }: {
   settings: PlaytestSettings;
+  savedSkinNames: string[];
+  /** App-level, so the editor and playtest agree about it. */
+  hitLight: boolean;
+  onHitLight: (value: boolean) => void;
   selected: HudTarget | null;
   onSelect: (target: HudTarget | null) => void;
   onPatch: (patch: Partial<PlaytestSettings>) => void;
   onDone: () => void;
 }) {
   const t = useT();
-  const rows = useRef(new Map<HudTarget, HTMLDivElement>());
   const place = (id: HudElementId, placement: HudPlacement) =>
     onPatch({ hud: withPlacement(settings.hud, id, placement) });
   const visible = (id: HudElementId) => settings[HUD_VISIBILITY[id]] === true;
   const setVisible = (id: HudElementId, value: boolean) =>
     onPatch({ [HUD_VISIBILITY[id]]: value } as Partial<PlaytestSettings>);
   const moved = HUD_ELEMENTS.some((id) => !isDefaultPlacement(hudPlacement(settings.hud, id)));
-  const elementOf = (target: HudTarget): HudElementId | null =>
-    target === "playfield" || target === "receptor" || target === "scroll" || target === "timing"
-      ? null
-      : target;
+  // A skin picked earlier and since removed stays listed, so the select can
+  // still show what is stored rather than silently falling back.
+  const skinOptions =
+    settings.skin?.source === "saved" &&
+    !savedSkinNames.includes(settings.skin.fileName)
+      ? [...savedSkinNames, settings.skin.fileName]
+      : savedSkinNames;
+  const skinName = (fileName: string) => fileName.replace(/\.osk$/i, "");
+  const skinChoice = settings.skin;
+  const skinSummary = !skinChoice
+    ? t("settings.playtestSkinEditor")
+    : skinChoice.source === "none"
+      ? t("settings.playtestSkinDefault")
+      : skinName(
+          PRESET_SKINS.find((p) => p.fileName === skinChoice.fileName)?.name ??
+            skinChoice.fileName,
+        );
 
-  // Selecting an element on screen opens its row; keep that row in view.
-  useEffect(() => {
-    if (!selected) return;
-    rows.current.get(selected)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [selected]);
+  const elementOf = (target: HudTarget): HudElementId | null =>
+    (HUD_ELEMENTS as readonly string[]).includes(target)
+      ? (target as HudElementId)
+      : null;
 
   const summary = (target: HudTarget): string => {
     const element = elementOf(target);
@@ -663,6 +722,10 @@ export function HudEditorPanel({
         return `${settings.audioOffsetMs > 0 ? "+" : ""}${settings.audioOffsetMs} ms`;
       case "playfield":
         return `${Math.round(settings.zoom * 100)}%`;
+      case "skin":
+        return skinSummary;
+      case "hitLight":
+        return hitLight ? t("diagram.on") : t("diagram.off");
       default:
         return `${settings.hitPosition} px`;
     }
@@ -770,6 +833,39 @@ export function HudEditorPanel({
             </details>
           </>
         );
+      case "hitLight":
+        return (
+          <Row label={t("hud.hitLight")}>
+            <Toggle
+              size="sm"
+              checked={hitLight}
+              onChange={onHitLight}
+              aria-label={t("hud.hitLight")}
+            />
+          </Row>
+        );
+      case "skin":
+        return (
+          <Dropdown
+            aria-label={t("nav.skin")}
+            value={playtestSkinValue(settings.skin)}
+            onChange={(value) => onPatch({ skin: parsePlaytestSkinValue(value) })}
+            options={[
+              { value: "", label: t("settings.playtestSkinEditor") },
+              { value: "none", label: t("settings.playtestSkinDefault") },
+              ...PRESET_SKINS.map((preset) => ({
+                value: playtestSkinValue({ source: "preset", fileName: preset.fileName }),
+                label: preset.name,
+                hint: t("settings.playtestSkinPresets"),
+              })),
+              ...skinOptions.map((name) => ({
+                value: playtestSkinValue({ source: "saved", fileName: name }),
+                label: skinName(name),
+                hint: t("settings.playtestSkinSaved"),
+              })),
+            ]}
+          />
+        );
       case "playfield":
         return (
           <>
@@ -808,63 +904,161 @@ export function HudEditorPanel({
     }
   };
 
-  const row = (target: HudTarget) => {
-    const element = elementOf(target);
-    const shown = element ? visible(element) : true;
-    const open = selected === target;
+  const groups: LayoutGroup[] = GROUPS.map((group) => ({
+    label: t(group.label),
+    targets: group.targets.map((target) => {
+      const element = elementOf(target);
+      return {
+        id: target,
+        name: t(META[target].name),
+        description: t(META[target].description),
+        illustration: <Illustration target={target} />,
+        summary: summary(target),
+        dragHint: element
+          ? t("hud.dragHint")
+          : target === "receptor"
+            ? t("hud.receptorDrag")
+            : undefined,
+        visibility: element
+          ? {
+              shown: visible(element),
+              onChange: (shown: boolean) => setVisible(element, shown),
+            }
+          : undefined,
+        controls: () => controls(target),
+      };
+    }),
+  }));
+
+  return (
+    <LayoutPanel
+      title={t("hud.editor")}
+      overline={t("hud.overline")}
+      groups={groups}
+      selected={selected}
+      onSelect={(id) => onSelect(id as HudTarget | null)}
+      onDone={onDone}
+      hint={t("hud.hint")}
+      reset={{
+        label: t("hud.resetLayout"),
+        disabled: !moved,
+        onReset: () => onPatch({ hud: {} }),
+      }}
+    />
+  );
+}
+
+/** One row of the layout panel: what it is, and the controls it unfolds. */
+export type LayoutTarget = {
+  id: string;
+  name: string;
+  description: string;
+  illustration: ReactNode;
+  /** Short value shown on the right of the collapsed row. */
+  summary?: string;
+  /** Added to the description for a target that can be dragged on screen. */
+  dragHint?: string;
+  /** Present only on targets that can be hidden. */
+  visibility?: { shown: boolean; onChange: (shown: boolean) => void };
+  controls: () => ReactNode;
+};
+
+export type LayoutGroup = { label: string; targets: LayoutTarget[] };
+
+/**
+ * The panel down the left of the layout editor.
+ *
+ * It knows how to list targets and unfold one in place; what those targets
+ * are, and which store their values come from, is the caller's business. That
+ * is what lets the same panel drive playtest's HUD and the editor's own
+ * playfield without either knowing about the other's settings.
+ */
+export function LayoutPanel({
+  title,
+  overline,
+  groups,
+  selected,
+  onSelect,
+  onDone,
+  hint,
+  reset,
+}: {
+  title: string;
+  overline: string;
+  groups: LayoutGroup[];
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+  onDone: () => void;
+  hint: string;
+  reset?: { label: string; disabled: boolean; onReset: () => void };
+}) {
+  const t = useT();
+  const rows = useRef(new Map<string, HTMLDivElement>());
+
+  // Selecting an element on screen opens its row; keep that row in view.
+  useEffect(() => {
+    if (!selected) return;
+    rows.current.get(selected)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected]);
+
+  const row = (target: LayoutTarget) => {
+    const shown = target.visibility?.shown ?? true;
+    const open = selected === target.id;
     return (
       <div
-        key={target}
+        key={target.id}
         ref={(el) => {
-          if (el) rows.current.set(target, el);
-          else rows.current.delete(target);
+          if (el) rows.current.set(target.id, el);
+          else rows.current.delete(target.id);
         }}
-        className={`rounded-xl border transition-colors duration-150 ${
-          open ? "border-white/10 bg-white/[0.04]" : "border-transparent hover:bg-white/[0.03]"
-        }`}
+        className={`rounded-xl border transition-colors duration-150 ${open ? "border-white/10 bg-white/[0.04]" : "border-transparent hover:bg-white/[0.03]"}`}
       >
         <div className="flex items-center gap-1 pr-1">
           <button
             type="button"
             aria-expanded={open}
-            onClick={() => onSelect(open ? null : target)}
+            onClick={() => onSelect(open ? null : target.id)}
             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1.5 pl-2 pr-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           >
             <span className={`h-7 w-9 shrink-0 overflow-hidden rounded-md border border-white/10 bg-ink-900/70 transition-opacity ${shown ? "" : "opacity-40"}`}>
-              <span className="block h-full w-full scale-[1.35]">
-                <Illustration target={target} />
-              </span>
+              <span className="block h-full w-full scale-[1.35]">{target.illustration}</span>
             </span>
-            <span className={`min-w-0 flex-1 truncate text-sm ${shown ? "text-slate-100" : "text-slate-500"} ${open ? "font-semibold" : "font-medium"}`}>
-              {t(META[target].name)}
+            <span
+              title={target.name}
+              className={`min-w-0 flex-1 truncate text-sm ${shown ? "text-slate-100" : "text-slate-500"} ${open ? "font-semibold" : "font-medium"}`}
+            >
+              {target.name}
             </span>
-            <span className="shrink-0 text-[11px] tabular-nums text-slate-500">{summary(target)}</span>
+            <span
+              title={target.summary}
+              className="min-w-0 max-w-[45%] shrink truncate text-right text-[11px] tabular-nums text-slate-500"
+            >
+              {target.summary}
+            </span>
             <Chevron open={open} />
           </button>
-          {element && (
+          {target.visibility ? (
             <button
               type="button"
               aria-pressed={shown}
               aria-label={t("hud.visible")}
               title={t("hud.visible")}
-              onClick={() => setVisible(element, !shown)}
-              className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition ${
-                shown ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-white/10 hover:text-slate-300"
-              }`}
+              onClick={() => target.visibility?.onChange(!shown)}
+              className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition ${shown ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-white/10 hover:text-slate-300"}`}
             >
               <EyeIcon open={shown} />
             </button>
+          ) : (
+            <span aria-hidden className="w-7 shrink-0" />
           )}
-          {!element && <span aria-hidden className="w-7 shrink-0" />}
         </div>
         {open && (
           <div className="hud-page-in flex flex-col gap-4 px-3 pb-3 pt-1">
             <p className="text-[11px] leading-snug text-slate-500">
-              {t(META[target].description)}
-              {element && ` ${t("hud.dragHint")}`}
-              {target === "receptor" && ` ${t("hud.receptorDrag")}`}
+              {target.description}
+              {target.dragHint && ` ${target.dragHint}`}
             </p>
-            {controls(target)}
+            {target.controls()}
           </div>
         )}
       </div>
@@ -873,7 +1067,7 @@ export function HudEditorPanel({
 
   return createPortal(
     <aside
-      aria-label={t("hud.editor")}
+      aria-label={title}
       className="hud-panel-in fixed inset-y-0 left-0 z-[120] flex flex-col border-r border-white/10 bg-ink-900/95 shadow-[12px_0_40px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl"
       style={{ width: HUD_PANEL_WIDTH }}
       onKeyDown={(e) => e.stopPropagation()}
@@ -881,9 +1075,9 @@ export function HudEditorPanel({
       <header className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-soft">
-            {t("hud.overline")}
+            {overline}
           </div>
-          <h2 className="mt-0.5 text-lg font-semibold text-slate-50">{t("hud.editor")}</h2>
+          <h2 className="mt-0.5 text-lg font-semibold text-slate-50">{title}</h2>
         </div>
         <button
           type="button"
@@ -895,10 +1089,10 @@ export function HudEditorPanel({
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [scrollbar-gutter:stable]">
         <div className="flex flex-col gap-4">
-          {GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.label} className="flex flex-col gap-0.5">
               <span className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                {t(group.label)}
+                {group.label}
               </span>
               {group.targets.map(row)}
             </div>
@@ -906,15 +1100,17 @@ export function HudEditorPanel({
         </div>
       </div>
       <footer className="flex items-center justify-between gap-3 border-t border-white/[0.07] px-5 py-3">
-        <p className="min-w-0 text-[11px] leading-snug text-slate-500">{t("hud.hint")}</p>
-        <button
-          type="button"
-          disabled={!moved}
-          onClick={() => onPatch({ hud: {} })}
-          className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
-        >
-          {t("hud.resetLayout")}
-        </button>
+        <p className="min-w-0 text-[11px] leading-snug text-slate-500">{hint}</p>
+        {reset && (
+          <button
+            type="button"
+            disabled={reset.disabled}
+            onClick={reset.onReset}
+            className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+          >
+            {reset.label}
+          </button>
+        )}
       </footer>
     </aside>,
     document.body,

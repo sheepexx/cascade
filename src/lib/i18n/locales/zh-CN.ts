@@ -3,6 +3,11 @@ import type { PartialCatalog } from "../core";
 export const zhCN: PartialCatalog = {
   "hud.editor": "HUD 编辑器",
   "hud.overline": "试玩",
+  "hud.hitLight": "打击光效",
+  "hud.hitLightDesc": "打击时列下方的光晕。皮肤自带光效时可关闭。",
+  "layout.editor": "游玩区布局",
+  "layout.overline": "编辑器",
+  "layout.open": "编辑游玩区布局",
   "hud.hint": "点击元素进行编辑，拖动即可移动。",
   "hud.done": "完成",
   "hud.resetLayout": "重置布局",

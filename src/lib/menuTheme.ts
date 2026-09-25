@@ -6,4 +6,5 @@ export const MENU_ACCENTS = {
   newMap: "#e86868",
   packCreator: "#e0972f",
   sampleMaps: "#7fb03a",
+  skin: "#c2559b",
 } as const;

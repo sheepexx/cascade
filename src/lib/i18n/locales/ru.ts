@@ -3,6 +3,11 @@ import type { PartialCatalog } from "../core";
 export const ru: PartialCatalog = {
   "hud.editor": "Редактор HUD",
   "hud.overline": "Тестовая игра",
+  "hud.hitLight": "Подсветка нажатия",
+  "hud.hitLightDesc": "Свечение под колонкой при нажатии. Отключите, если скин рисует своё.",
+  "layout.editor": "Макет игрового поля",
+  "layout.overline": "Редактор",
+  "layout.open": "Настроить макет поля",
   "hud.hint": "Нажми на элемент, чтобы изменить его. Перетащи, чтобы переместить.",
   "hud.done": "Готово",
   "hud.resetLayout": "Сбросить расположение",

@@ -3,6 +3,11 @@ import type { PartialCatalog } from "../core";
 export const ptBR: PartialCatalog = {
   "hud.editor": "Editor de HUD",
   "hud.overline": "Teste de jogo",
+  "hud.hitLight": "Luz de acerto",
+  "hud.hitLightDesc": "O brilho sob a coluna ao acertar. Desligue para skins que desenham o seu próprio.",
+  "layout.editor": "Layout do playfield",
+  "layout.overline": "Editor",
+  "layout.open": "Editar layout do playfield",
   "hud.hint": "Clique em um elemento para editá-lo. Arraste para movê-lo.",
   "hud.done": "Concluir",
   "hud.resetLayout": "Redefinir layout",

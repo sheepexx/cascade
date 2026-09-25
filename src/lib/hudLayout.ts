@@ -6,7 +6,7 @@ import {
 } from "../types";
 
 export const DEFAULT_HUD_PLACEMENT: HudPlacement = { x: 0, y: 0, scale: 1 };
-export const HUD_PANEL_WIDTH = 320;
+export const HUD_PANEL_WIDTH = 380;
 /** Fit the whole gameplay viewport beside the panel without reflowing it. */
 export function hudPreviewGeometry(width: number, height: number) {
   const stageWidth = Math.max(1, width);
