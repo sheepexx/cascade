@@ -2452,11 +2452,13 @@ export function ManiaEditor(props: Props) {
     const wrap = wrapRef.current;
     if (!wrap) return;
 
-    const resize = () => {
-      const rect = wrap.getBoundingClientRect();
+    const resize = (entries?: ResizeObserverEntry[]) => {
+      // Layout dimensions stay in gameplay pixels when the HUD preview (or
+      // a modal transition) scales the canvas visually.
+      const rect = entries?.[0]?.contentRect;
       sizeRef.current = {
-        width: rect.width,
-        height: rect.height,
+        width: rect?.width ?? wrap.clientWidth,
+        height: rect?.height ?? wrap.clientHeight,
         dpr: renderScale(),
       };
       markDirty();
@@ -2496,7 +2498,10 @@ export function ManiaEditor(props: Props) {
 
   const localPoint = (e: React.MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    return {
+      x: (e.clientX - rect.left) * sizeRef.current.width / Math.max(1, rect.width),
+      y: (e.clientY - rect.top) * sizeRef.current.height / Math.max(1, rect.height),
+    };
   };
 
 

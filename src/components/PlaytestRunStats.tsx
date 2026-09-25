@@ -61,7 +61,7 @@ export function PlaytestRunStats({
 
   return (
     <div className={`pointer-events-none ${embedded ? "" : "absolute left-3 top-3 z-30 "}w-[13.5rem] rounded-xl border border-white/10 bg-ink-900/55 p-2.5 text-[11px] shadow-xl shadow-black/25 backdrop-blur-xl`}>
-      <div className="mb-1.5 flex items-center justify-between">
+      <div className="mb-1.5 flex min-h-[18px] items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
           {t("runStats.title")}
         </span>

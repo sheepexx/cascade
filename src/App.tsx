@@ -424,7 +424,8 @@ import {
   type PlaytestNoteIndex,
 } from "./lib/playtestIndex";
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
-import { HUD_PANEL_WIDTH, normalizeHudLayout, type PlayfieldBounds } from "./lib/hudLayout";
+import { normalizeHudLayout, type PlayfieldBounds } from "./lib/hudLayout";
+import { HudPreviewViewport } from "./components/HudPreviewViewport";
 import { normalizePlaytestSkin } from "./lib/playtestSkin";
 import { PRESET_SKINS } from "./lib/presetSkins";
 import {
@@ -7624,10 +7625,8 @@ export default function App() {
               />
             )}
           </div>
-          <div
-            className="relative min-h-0 flex-1 transition-[margin-left] duration-300 motion-reduce:transition-none"
-            style={{ marginLeft: playtest.hudEditing ? HUD_PANEL_WIDTH : 0 }}
-          >
+          <HudPreviewViewport editing={playtest.hudEditing}>
+            {(previewScale) => <>
             {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">{t("app.sharedAudio", { reason: audio.nativeAudio.fallbackReason })} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>{t("app.audioSetup")}</button></div>}
             <div className="flex h-full w-full">
             <div className="relative min-w-0 flex-1">
@@ -7827,6 +7826,7 @@ export default function App() {
             {hasProject && playtest.active && (
               <PlaytestOverlay
                 editing={playtest.hudEditing}
+                previewScale={previewScale}
                 onPatch={(patch) => setAppSettings((s) => ({ ...s, playtest: { ...s.playtest, ...patch } }))}
                 playfieldBoundsRef={playfieldBoundsRef}
                 npsGraph={
@@ -7946,7 +7946,8 @@ export default function App() {
                 onUnreadCountChange={setCommentUnreadCount}
               />
             )}
-          </div>
+            </>}
+          </HudPreviewViewport>
 
           <div
             className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${

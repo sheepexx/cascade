@@ -54,6 +54,7 @@ export function PlaytestOverlay({
   onReturn,
   onSettings,
   editing = false,
+  previewScale = 1,
   onPatch,
   playfieldBoundsRef,
   npsGraph,
@@ -78,6 +79,7 @@ export function PlaytestOverlay({
   onReturn: () => void;
   onSettings?: () => void;
   editing?: boolean;
+  previewScale?: number;
   onPatch: (patch: Partial<PlaytestSettings>) => void;
   playfieldBoundsRef: { current: PlayfieldBounds | null };
   npsGraph: ReactNode;
@@ -99,6 +101,7 @@ export function PlaytestOverlay({
     placement: hudPlacement(settings.hud, id),
     visible: settings[HUD_VISIBILITY[id]] === true,
     editing,
+    previewScale,
     selected: selected === id,
     onSelect: setSelected,
     onPlace: (target: HudElementId, placement: HudPlacement) =>
@@ -109,6 +112,7 @@ export function PlaytestOverlay({
     <div className="pointer-events-none absolute inset-0 z-30">
       {editing && (
         <PlayfieldHandles
+          previewScale={previewScale}
           boundsRef={playfieldBoundsRef}
           hitPosition={settings.hitPosition}
           upscroll={upscroll}

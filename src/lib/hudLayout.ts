@@ -7,6 +7,21 @@ import {
 
 export const DEFAULT_HUD_PLACEMENT: HudPlacement = { x: 0, y: 0, scale: 1 };
 export const HUD_PANEL_WIDTH = 320;
+/** Fit the whole gameplay viewport beside the panel without reflowing it. */
+export function hudPreviewGeometry(width: number, height: number) {
+  const stageWidth = Math.max(1, width);
+  const stageHeight = Math.max(1, height);
+  const left = Math.min(HUD_PANEL_WIDTH, stageWidth - 1);
+  const scale = (stageWidth - left) / stageWidth;
+  return {
+    width: stageWidth,
+    height: stageHeight,
+    left,
+    top: (stageHeight * (1 - scale)) / 2,
+    scale,
+  };
+}
+
 export type PlayfieldBounds = { left: number; width: number; hitY: number; height: number };
 export const MIN_HUD_SCALE = 0.5;
 export const MAX_HUD_SCALE = 2;

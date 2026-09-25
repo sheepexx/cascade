@@ -62,6 +62,7 @@ export function HudItem({
   placement,
   visible,
   editing,
+  previewScale = 1,
   selected,
   onSelect,
   onPlace,
@@ -75,6 +76,8 @@ export function HudItem({
   placement: HudPlacement;
   visible: boolean;
   editing: boolean;
+  /** Display pixels per gameplay pixel in the scaled preview. */
+  previewScale?: number;
   selected: boolean;
   onSelect?: (id: HudElementId) => void;
   onPlace?: (id: HudElementId, placement: HudPlacement) => void;
@@ -99,8 +102,8 @@ export function HudItem({
   const move = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d) return;
-    const dx = e.clientX - d.x;
-    const dy = e.clientY - d.y;
+    const dx = (e.clientX - d.x) / previewScale;
+    const dy = (e.clientY - d.y) / previewScale;
     if (!d.moved && Math.hypot(dx, dy) < 3) return;
     d.moved = true;
     let x = Math.round(d.from.x + dx);
@@ -167,6 +170,7 @@ export function HudItem({
  */
 export function PlayfieldHandles({
   boundsRef,
+  previewScale = 1,
   hitPosition,
   upscroll,
   selected,
@@ -174,6 +178,7 @@ export function PlayfieldHandles({
   onHitPosition,
 }: {
   boundsRef: { current: PlayfieldBounds | null };
+  previewScale?: number;
   hitPosition: number;
   upscroll: boolean;
   selected: HudTarget | null;
@@ -234,7 +239,7 @@ export function PlayfieldHandles({
         onPointerMove={(e) => {
           const d = drag.current;
           if (!d) return;
-          const dy = e.clientY - d.y;
+          const dy = (e.clientY - d.y) / previewScale;
           const next = Math.round(d.from + (upscroll ? dy : -dy));
           onHitPosition(Math.min(MAX_HIT_POSITION, Math.max(MIN_HIT_POSITION, next)));
         }}
