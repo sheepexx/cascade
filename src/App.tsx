@@ -424,6 +424,7 @@ import {
   type PlaytestNoteIndex,
 } from "./lib/playtestIndex";
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
+import { normalizeHudLayout } from "./lib/hudLayout";
 import { normalizePlaytestSkin } from "./lib/playtestSkin";
 import { PRESET_SKINS } from "./lib/presetSkins";
 import {
@@ -700,6 +701,7 @@ function normalizeAppSettings(
         DEFAULT_APP_SETTINGS.playtest,
       ),
       keybinds: normalizePlaytestKeybinds(playtestPrefs?.keybinds),
+      hud: normalizeHudLayout(playtestPrefs?.hud),
       skin: normalizePlaytestSkin(playtestPrefs?.skin),
       humanize: normalizeHumanize(playtestPrefs?.humanize),
       skill: {

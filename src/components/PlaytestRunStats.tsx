@@ -20,6 +20,7 @@ export function PlaytestRunStats({
   showNps,
   skillProfile,
   skillEnabled,
+  embedded = false,
 }: {
   store: PlaytestScoreStore;
   notes: ManiaNote[];
@@ -31,6 +32,8 @@ export function PlaytestRunStats({
   showNps: boolean;
   skillProfile: SkillProfile | null;
   skillEnabled: boolean;
+  /** Placed by the HUD rather than pinned to the corner itself. */
+  embedded?: boolean;
 }) {
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const t = useT();
@@ -57,7 +60,7 @@ export function PlaytestRunStats({
   }, [state.hitResults, state.meanError]);
 
   return (
-    <div className="pointer-events-none absolute left-3 top-3 z-30 w-[13.5rem] rounded-xl border border-white/10 bg-ink-900/55 p-2.5 text-[11px] shadow-xl shadow-black/25 backdrop-blur-xl">
+    <div className={`pointer-events-none ${embedded ? "" : "absolute left-3 top-3 z-30 "}w-[13.5rem] rounded-xl border border-white/10 bg-ink-900/55 p-2.5 text-[11px] shadow-xl shadow-black/25 backdrop-blur-xl`}>
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
           {t("runStats.title")}

@@ -25,6 +25,7 @@ export function PlaytestNpsGraph({
   running = active,
   label,
   peakLabel,
+  embedded = false,
 }: {
   notes: ManiaNote[];
   durationMs: number;
@@ -33,6 +34,8 @@ export function PlaytestNpsGraph({
   running?: boolean;
   label: string;
   peakLabel: string;
+  /** Placed by the HUD rather than pinned to the left edge itself. */
+  embedded?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const staticRef = useRef<HTMLCanvasElement | null>(null);
@@ -175,7 +178,13 @@ export function PlaytestNpsGraph({
   if (!active) return null;
 
   return (
-    <div className="pointer-events-none absolute bottom-28 left-3 top-52 z-30">
+    <div
+      className={
+        embedded
+          ? "pointer-events-none h-full"
+          : "pointer-events-none absolute bottom-28 left-3 top-52 z-30"
+      }
+    >
       <div className="h-full rounded-xl border border-white/10 bg-ink-900/55 shadow-xl shadow-black/25 backdrop-blur-xl">
         <canvas ref={canvasRef} className="block" />
       </div>

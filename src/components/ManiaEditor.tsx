@@ -207,6 +207,13 @@ type Props = {
    * edge. Receptors, notes and judging all use that line.
    */
   hitPosition?: number;
+  /**
+   * Filled with where the playfield and its judgement line are, in CSS pixels
+   * of the canvas, every frame; the HUD editor lays its handles over them.
+   */
+  playfieldBoundsRef?: {
+    current: { left: number; width: number; hitY: number; height: number } | null;
+  };
   /** Long notes let go or missed, drawn dimmed as they scroll by. */
   droppedIdsRef?: { readonly current: { has(id: string): boolean } };
   waveformOverlay?: Waveform | null;
@@ -1525,6 +1532,10 @@ export function ManiaEditor(props: Props) {
     const { laneWidth, playfieldWidth, originX } = laneGeometry();
     const phY = playheadY();
     const up = propsRef.current.upscroll === true;
+    const boundsRef = propsRef.current.playfieldBoundsRef;
+    if (boundsRef) {
+      boundsRef.current = { left: originX, width: playfieldWidth, hitY: phY, height };
+    }
 
     ctx.save();
     ctx.scale(dpr, dpr);

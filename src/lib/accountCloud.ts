@@ -2,6 +2,7 @@ import type { Locale } from "./i18n";
 import { isLocale } from "./i18n/core";
 import { supabase } from "./supabase";
 import { normalizePlaytestTiming } from "./playtestClock";
+import { normalizeHudLayout } from "./hudLayout";
 import {
   deleteUserMenuBackground,
   deleteUserSkin,
@@ -111,6 +112,7 @@ export function normalizeAccountSettings(
             { ...DEFAULT_APP_SETTINGS.playtest, ...rawPlaytest },
             DEFAULT_APP_SETTINGS.playtest,
           ),
+          hud: normalizeHudLayout(rawPlaytest?.hud),
           keybinds: stringArrayRecord(rawPlaytest?.keybinds)
             ? rawPlaytest.keybinds
             : DEFAULT_APP_SETTINGS.playtest.keybinds,

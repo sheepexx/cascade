@@ -375,6 +375,22 @@ export type PlaytestSkinChoice =
   | { source: "none" }
   | { source: "preset" | "saved"; fileName: string };
 
+/** The parts of the playtest HUD that can be moved and resized. */
+export const HUD_ELEMENTS = [
+  "combo",
+  "judgement",
+  "accuracy",
+  "counts",
+  "errorBar",
+  "keys",
+  "npsGraph",
+  "runStats",
+] as const;
+export type HudElementId = (typeof HUD_ELEMENTS)[number];
+
+/** Where a HUD element sits: pixels from its default spot, and its size. */
+export type HudPlacement = { x: number; y: number; scale: number };
+
 export type PlaytestSettings = {
   /** null keeps whatever skin the editor is using. */
   skin: PlaytestSkinChoice | null;
@@ -402,6 +418,10 @@ export type PlaytestSettings = {
   quickRestartKey: string;
   showNpsGraph: boolean;
   showRunStats: boolean;
+  showCounts: boolean;
+  showKeys: boolean;
+  /** Moved or resized HUD elements; the rest keep their default place. */
+  hud: Partial<Record<HudElementId, HudPlacement>>;
   humanize: HumanizeSettings;
   skill: SkillSettings;
 };
@@ -593,6 +613,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     quickRestartKey: "Backquote",
     showNpsGraph: true,
     showRunStats: true,
+    showCounts: true,
+    showKeys: true,
+    hud: {},
     humanize: DEFAULT_HUMANIZE,
     skill: DEFAULT_SKILL,
   },
