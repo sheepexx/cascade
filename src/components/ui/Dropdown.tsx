@@ -191,7 +191,7 @@ export function Dropdown<T extends string | number>({
               left: pos.left,
               minWidth: pos.width,
             }}
-            className={`z-[100] max-h-[min(18rem,60vh)] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl ${
+            className={`z-[200] max-h-[min(18rem,60vh)] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl ${
               closing ? "menu-pop-out" : "menu-pop-in"
             }`}
           >
