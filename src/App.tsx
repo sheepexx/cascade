@@ -416,6 +416,7 @@ import {
 } from "./lib/playtestJudgements";
 import { createPlaytestEngine, type PlaytestEngine } from "./lib/playtestEngine";
 import { createPlaytestScoreStore } from "./lib/playtestScoreStore";
+import { findUnplayableNotes } from "./lib/autoplay";
 import {
   PLAYHEAD_FROM_EDGE as PLAYTEST_HIT_LINE_FROM_EDGE,
   resolvePlayfieldLayout,
@@ -429,6 +430,7 @@ import {
 import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
 import { normalizeHudLayout, type PlayfieldBounds } from "./lib/hudLayout";
 import { HudPreviewViewport } from "./components/HudPreviewViewport";
+import { HudScrubber } from "./components/HudScrubber";
 import { EditorLayoutOverlay } from "./components/EditorLayoutOverlay";
 import { normalizePlaytestSkin } from "./lib/playtestSkin";
 import { PRESET_SKINS } from "./lib/presetSkins";
@@ -481,6 +483,7 @@ import {
   type SongMeta,
   type TimingPoint,
   type ViewState,
+  DEFAULT_HUMANIZE,
 } from "./types";
 import type { MapCardPresetOption } from "./lib/mapCard";
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
@@ -753,6 +756,14 @@ function hasDraggedFiles(dataTransfer: DataTransfer | null): boolean {
 }
 
 const TRIM_BROADCAST_MS = 90;
+
+/**
+ * The HUD editor plays the map only so the HUD has live numbers to sit against.
+ * Scattered timing and the odd miss would make those numbers jump about while
+ * something is being placed, so its run is always the perfect autoplay however
+ * humanizing is set for a real playtest.
+ */
+const PERFECT_AUTOPLAY = { ...DEFAULT_HUMANIZE, enabled: false };
 
 export default function App() {
   const {
@@ -2342,8 +2353,24 @@ export default function App() {
 
   const playtestRunNotes = useMemo(() => {
     if (!playtest.active) return active.notes;
-    return active.notes.filter((note) => note.startTime >= playtest.startTime);
-  }, [active.notes, playtest.active, playtest.startTime]);
+    // A run is a test from where it was started, so it leaves out what is
+    // behind. The HUD editor is scrubbed rather than played, and keeps the
+    // whole chart the way the editor always has it: seeking there moves the
+    // playhead without throwing away everything before it, which otherwise
+    // empties the density graph and moves the note count as it is dragged.
+    const from = playtest.hudEditing
+      ? active.notes
+      : active.notes.filter((note) => note.startTime >= playtest.startTime);
+    if (!playtest.hudEditing) return from;
+    // The HUD editor's run is only a backdrop to place the HUD against, so the
+    // notes autoplay cannot reach — a stack in one column, or a note starting
+    // inside a hold — are left out rather than missed. Otherwise the combo and
+    // accuracy being positioned jump about on their own.
+    const unplayable = findUnplayableNotes(from);
+    return unplayable.size > 0
+      ? from.filter((note) => !unplayable.has(note.id))
+      : from;
+  }, [active.notes, playtest.active, playtest.startTime, playtest.hudEditing]);
 
   const { summary: autoplaySummary, profile: skillProfile } = usePlaytestAutoplay({
     enabled: playtest.autoplay,
@@ -2352,7 +2379,7 @@ export default function App() {
     ended: playtest.ended,
     notes: playtestRunNotes,
     keyCount: active.keyCount,
-    humanize: playtestSettings.humanize,
+    humanize: playtest.hudEditing ? PERFECT_AUTOPLAY : playtestSettings.humanize,
     skill: playtestSettings.skill,
     windows: playtestWindows,
     releaseWindows: playtestReleaseWindows,
@@ -7716,7 +7743,18 @@ export default function App() {
               />
             )}
           </div>
-          <HudPreviewViewport editing={playtest.hudEditing}>
+          <HudPreviewViewport
+            editing={playtest.hudEditing}
+            footer={
+              playtest.hudEditing ? (
+                <HudScrubber
+                  getCurrentTime={playtestGameplayTime}
+                  duration={audio.duration}
+                  onSeek={(ms) => startPlaytest(ms, { hudEditing: true })}
+                />
+              ) : undefined
+            }
+          >
             {(previewScale) => <>
             {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">{t("app.sharedAudio", { reason: audio.nativeAudio.fallbackReason })} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>{t("app.audioSetup")}</button></div>}
             <div className="flex h-full w-full">
@@ -7957,7 +7995,7 @@ export default function App() {
                     getCurrentTime={getEditorCurrentTime}
                     autoplay={playtest.autoplay}
                     autoplaySummary={autoplaySummary}
-                    humanized={playtestSettings.humanize.enabled}
+                    humanized={!playtest.hudEditing && playtestSettings.humanize.enabled}
                     showNps={!playtestSettings.showNpsGraph}
                     skillProfile={skillProfile}
                     skillEnabled

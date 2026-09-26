@@ -4,9 +4,12 @@ import { hudPreviewGeometry } from "../lib/hudLayout";
 /** Keep the canvas and HUD in gameplay coordinates, scaling only their preview. */
 export function HudPreviewViewport({
   editing,
+  footer,
   children,
 }: {
   editing: boolean;
+  /** Fills the strip left under the scaled stage while editing. */
+  footer?: ReactNode;
   children: (previewScale: number) => ReactNode;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -45,6 +48,14 @@ export function HudPreviewViewport({
       >
         {children(preview?.scale ?? 1)}
       </div>
+      {preview && footer && (
+        <div
+          className="absolute bottom-0 right-0"
+          style={{ height: preview.top, left: preview.left }}
+        >
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
