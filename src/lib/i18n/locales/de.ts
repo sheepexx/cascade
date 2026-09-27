@@ -668,6 +668,11 @@ export const de: PartialCatalog = {
     "Füge zuerst einen Song hinzu, um zu mappen. Zieh eine Audiodatei hinein oder wähle eine in den Map-Einstellungen.",
 
   "home.returnTitle": "Zum Startbildschirm zurückkehren",
+  "exit.confirmTitle": "Cascade schließen?",
+  "exit.confirmBody":
+    "Deine Projekte liegen auf diesem Rechner und warten hier, wenn du wiederkommst.",
+  "exit.confirmButton": "Cascade schließen",
+
   "home.confirmTitle": "Zum Startbildschirm zurückkehren?",
   "home.returnButton": "Zum Start",
   "home.confirmBody":

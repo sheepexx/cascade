@@ -734,6 +734,11 @@ export const en = {
     "Add a song first to start mapping. Drop an audio file anywhere, or pick one in Map Settings.",
 
   "home.returnTitle": "Return to home screen",
+  "exit.confirmTitle": "Close Cascade?",
+  "exit.confirmBody":
+    "Your projects are saved on this computer and will be waiting when you come back.",
+  "exit.confirmButton": "Close Cascade",
+
   "home.confirmTitle": "Return to home screen?",
   "home.returnButton": "Return to home",
   "home.confirmBody":

@@ -636,6 +636,10 @@ export const zhCN: PartialCatalog = {
     "请先添加一首歌曲才能开始制谱。将音频文件拖入任意位置，或在谱面设置中选择一个。",
 
   "home.returnTitle": "返回主界面",
+  "exit.confirmTitle": "关闭 Cascade？",
+  "exit.confirmBody": "你的项目保存在这台电脑上，下次回来时还在。",
+  "exit.confirmButton": "关闭 Cascade",
+
   "home.confirmTitle": "返回主界面？",
   "home.returnButton": "返回主界面",
   "home.confirmBody":

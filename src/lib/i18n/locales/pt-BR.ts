@@ -668,6 +668,11 @@ export const ptBR: PartialCatalog = {
     "Adicione uma música primeiro para começar a mapear. Solte um arquivo de áudio em qualquer lugar ou escolha um nas Configurações do mapa.",
 
   "home.returnTitle": "Voltar para a tela inicial",
+  "exit.confirmTitle": "Fechar o Cascade?",
+  "exit.confirmBody":
+    "Seus projetos ficam salvos neste computador e estarão aqui quando você voltar.",
+  "exit.confirmButton": "Fechar o Cascade",
+
   "home.confirmTitle": "Voltar para a tela inicial?",
   "home.returnButton": "Ir para o início",
   "home.confirmBody":

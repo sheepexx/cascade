@@ -684,6 +684,11 @@ export const ru: PartialCatalog = {
     "Сначала добавьте песню, чтобы начать маппинг. Перетащите аудиофайл в окно или выберите его в настройках карты.",
 
   "home.returnTitle": "Вернуться на главный экран",
+  "exit.confirmTitle": "Закрыть Cascade?",
+  "exit.confirmBody":
+    "Проекты сохранены на этом компьютере и будут ждать вас, когда вы вернётесь.",
+  "exit.confirmButton": "Закрыть Cascade",
+
   "home.confirmTitle": "Вернуться на главный экран?",
   "home.returnButton": "На главную",
   "home.confirmBody":

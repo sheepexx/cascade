@@ -884,6 +884,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const phoneViewport = usePhoneViewport();
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
+  const [exitConfirm, setExitConfirm] = useState(false);
   const [pendingDeleteDiffIds, setPendingDeleteDiffIds] = useState<
     string[] | null
   >(null);
@@ -5126,9 +5127,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (exportCheck || pendingImport || showHomeConfirm)
+    if (exportCheck || pendingImport || showHomeConfirm || exitConfirm)
       playUiSound("areYouSure");
-  }, [exportCheck, pendingImport, showHomeConfirm]);
+  }, [exportCheck, pendingImport, showHomeConfirm, exitConfirm]);
 
   useEffect(() => {
     const id = window.setTimeout(() => saveViewPreferences(view), 200);
@@ -7130,7 +7131,7 @@ export default function App() {
       run: () => setModal("feedback"),
     },
     ...(canExitDesktop()
-      ? [{ id: "exit", label: t("menu.exit"), group: t("palette.group.cascade"), keywords: "quit close app", run: handleExitApp }]
+      ? [{ id: "exit", label: t("menu.exit"), group: t("palette.group.cascade"), keywords: "quit close app", run: () => setExitConfirm(true) }]
       : []),
     {
       id: "settings",
@@ -7886,7 +7887,9 @@ export default function App() {
                 onTryMaps={() => setModal("sampleMaps")}
                 onImport={() => setModal("import")}
                 onSettings={() => openSettings()}
-                onExit={canExitDesktop() ? handleExitApp : undefined}
+                onExit={
+                  canExitDesktop() ? () => setExitConfirm(true) : undefined
+                }
                 osuBanner={osuBanner}
                 logoHitsoundVolume={
                   appSettings.hitsoundsEnabled
@@ -9194,6 +9197,31 @@ export default function App() {
         onJoin={joinInvite}
         onIgnore={ignoreInvite}
       />
+
+      <Modal
+        open={exitConfirm}
+        onClose={() => setExitConfirm(false)}
+        center
+        title={t("exit.confirmTitle")}
+        footer={
+          <>
+            <Button onClick={() => setExitConfirm(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="accent"
+              onClick={() => {
+                setExitConfirm(false);
+                handleExitApp();
+              }}
+            >
+              {t("exit.confirmButton")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-300">{t("exit.confirmBody")}</p>
+      </Modal>
 
       <Modal
         open={showHomeConfirm}
