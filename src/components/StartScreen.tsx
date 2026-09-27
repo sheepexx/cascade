@@ -57,6 +57,7 @@ import {
   usePerformanceMode,
   useReducedMotion,
 } from "../lib/performanceMode";
+import { parallaxScale } from "../lib/interfaceFeel";
 import {
   ImportIcon,
   LibraryIcon,
@@ -1126,8 +1127,9 @@ function MenuBackground({
     const move = (e: PointerEvent) => {
       const w = window.innerWidth || 1;
       const h = window.innerHeight || 1;
-      targetX = (e.clientX / w - 0.5) * 2 * PARALLAX_PX;
-      targetY = (e.clientY / h - 0.5) * 2 * PARALLAX_PX;
+      const scale = parallaxScale();
+      targetX = (e.clientX / w - 0.5) * 2 * PARALLAX_PX * scale;
+      targetY = (e.clientY / h - 0.5) * 2 * PARALLAX_PX * scale;
       if (!raf) {
         last = 0;
         raf = requestAnimationFrame(frame);

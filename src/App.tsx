@@ -278,6 +278,13 @@ import {
   type OsuStatus,
 } from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
+import { displaySong } from "./lib/metadataDisplay";
+import {
+  clampHoldConfirmMs,
+  clampParallaxStrength,
+  setHoldConfirmMs,
+  setParallaxStrength,
+} from "./lib/interfaceFeel";
 import { updatePresence } from "./lib/discordPresence";
 import {
   checkDesktopUpdate,
@@ -891,8 +898,13 @@ export default function App() {
   }));
   const appSettingsRef = useRef(appSettings);
   appSettingsRef.current = appSettings;
+  /** Which of a song's two names every display in the editor reaches for. */
+  const preferOriginalMetadata = appSettings.preferOriginalMetadata;
   // Set before the children render so every playfield drawing picks it up.
   setLaneColourScheme(appSettings.colourblindLanes ? "colourblind" : "default");
+  // Read from pointer handlers and dialogs that never see these props.
+  setHoldConfirmMs(appSettings.holdConfirmMs);
+  setParallaxStrength(appSettings.parallaxStrength);
   /** Shows the on-screen display: a setting with its new value, or a message. */
   const announceShortcut = useCallback((notice: OsdNotice | string) => {
     if (!appSettingsRef.current.shortcutNoticesEnabled) return;
@@ -1122,7 +1134,7 @@ export default function App() {
       void updatePresence({
         mode: appSettings.discordPresence,
         projectOpen: projectStarted,
-        song: projectStarted ? `${meta.artist} - ${meta.title}`.trim() : null,
+        song: projectStarted ? displaySong(meta, preferOriginalMetadata) : null,
         difficulty: active?.name ?? null,
         keyCount: active?.keyCount ?? null,
         playtesting: playtest.active,
@@ -1132,8 +1144,9 @@ export default function App() {
   }, [
     appSettings.discordPresence,
     projectStarted,
-    meta.artist,
-    meta.title,
+    meta,
+    preferOriginalMetadata,
+
     active?.name,
     active?.keyCount,
     playtest.active,
@@ -7622,7 +7635,10 @@ export default function App() {
               ))}
             </div>
           )}
-          {!hasProject && !sharedSlug && <NowPlaying music={menuMusic} />}
+          {!hasProject && !sharedSlug && <NowPlaying
+              music={menuMusic}
+              preferOriginalMetadata={preferOriginalMetadata}
+            />}
           {!hasProject && featureFlags.desktop_download && (
             <DesktopDownloadLink
               active={showHeader && modal === null && !packCreatorOpen}
@@ -7766,7 +7782,7 @@ export default function App() {
                 laneFlash={laneFlash}
                 key={active.id}
                 audioBuffer={waveform?.buffer ?? null}
-                patternTitle={`${meta.artist} – ${meta.title}`}
+                patternTitle={displaySong(meta, preferOriginalMetadata, " – ")}
                 difficultyName={active.name}
                 notes={active.notes}
                 keyCount={active.keyCount}
@@ -8193,6 +8209,7 @@ export default function App() {
             setPackCreatorOpen(true);
           }}
           onOpenLocalProject={(id) => void loadLocalProject(id)}
+          preferOriginalMetadata={preferOriginalMetadata}
           onOpenCloudProject={(id) => void loadCloudProject(id)}
         />
       )}
@@ -8213,6 +8230,7 @@ export default function App() {
           onNewMap={() => setModal("newMap")}
           onTryMaps={() => setModal("sampleMaps")}
           onOpenLocalProject={(id) => void loadLocalProject(id)}
+          preferOriginalMetadata={preferOriginalMetadata}
           onOpenCloudProject={(id) => void loadCloudProject(id)}
         />
       )}
@@ -8517,6 +8535,21 @@ export default function App() {
             setAppSettings((s) => ({ ...s, shortcutNoticesEnabled: v }));
             if (!v) setShortcutNotice(null);
           }}
+          preferOriginalMetadata={appSettings.preferOriginalMetadata}
+          onPreferOriginalMetadata={(v) =>
+            setAppSettings((s) => ({ ...s, preferOriginalMetadata: v }))
+          }
+          holdConfirmMs={appSettings.holdConfirmMs}
+          onHoldConfirmMs={(v) =>
+            setAppSettings((s) => ({ ...s, holdConfirmMs: clampHoldConfirmMs(v) }))
+          }
+          parallaxStrength={appSettings.parallaxStrength}
+          onParallaxStrength={(v) =>
+            setAppSettings((s) => ({
+              ...s,
+              parallaxStrength: clampParallaxStrength(v),
+            }))
+          }
           performanceMode={appSettings.performanceMode}
           onPerformanceMode={(v) =>
             setAppSettings((s) => ({ ...s, performanceMode: v }))
@@ -8825,14 +8858,14 @@ export default function App() {
             <p className="text-slate-400">
               {t("app.openLabel")}{" "}
               <span className="font-medium text-slate-100">
-                {meta.artist} - {meta.title}
+                {displaySong(meta, preferOriginalMetadata)}
               </span>
             </p>
             <p className="mt-1 text-slate-400">
               {t("app.fileLabel")}{" "}
               <span className="font-medium text-slate-100">
                 {pendingOsuDiffs?.[0]
-                  ? `${pendingOsuDiffs[0].parsed.meta.artist} - ${pendingOsuDiffs[0].parsed.meta.title}`
+                  ? displaySong(pendingOsuDiffs[0].parsed.meta, preferOriginalMetadata)
                   : ""}
               </span>
             </p>

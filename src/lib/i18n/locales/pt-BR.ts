@@ -177,6 +177,16 @@ export const ptBR: PartialCatalog = {
   "settings.bodyWidthHint":
     "Largura do corpo padrão da nota longa (a parte cinza), em relação à lane. Só se aplica quando nenhum sprite de skin é usado.",
 
+  "settings.preferOriginalMetadata": "Preferir metadados no idioma original",
+  "settings.preferOriginalMetadataHint":
+    "Mostra o título e o artista na escrita original, quando o mapa tem uma. Muda só o que você vê — as duas versões continuam no mapa.",
+  "settings.holdConfirm": "Segurar para confirmar",
+  "settings.holdConfirmHint":
+    "Por quanto tempo um botão de excluir precisa ser segurado até valer.",
+  "settings.parallaxStrength": "Força do parallax",
+  "settings.parallaxStrengthHint":
+    "O quanto os fundos do menu e do editor acompanham o ponteiro. 0% deixa tudo parado.",
+
   "settings.mainMenu": "Menu principal",
   "settings.menuBackground": "Fundo",
   "settings.menuBackgroundHint":

@@ -174,6 +174,15 @@ export const zhCN: PartialCatalog = {
   "settings.bodyWidthHint":
     "默认长条主体（灰色部分）相对于轨道的宽度。仅在未使用皮肤主体贴图时生效。",
 
+  "settings.preferOriginalMetadata": "优先显示原语言元数据",
+  "settings.preferOriginalMetadataHint":
+    "在谱面提供的情况下，用曲名和艺术家的原文显示。只影响显示，两种写法都会留在谱面里。",
+  "settings.holdConfirm": "长按确认时长",
+  "settings.holdConfirmHint": "删除按钮需要按住多久才会生效。",
+  "settings.parallaxStrength": "视差强度",
+  "settings.parallaxStrengthHint":
+    "菜单和编辑器背景跟随指针移动的幅度。0% 表示完全不动。",
+
   "settings.mainMenu": "主菜单",
   "settings.menuBackground": "背景",
   "settings.menuBackgroundHint":

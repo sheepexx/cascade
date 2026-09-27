@@ -84,6 +84,8 @@ export type LocalProjectDifficulty = {
 export type LocalProjectSummary = {
   id: string;
   title: string;
+  titleUnicode?: string;
+  artistUnicode?: string;
   artist: string;
   creator: string;
   tags?: string;
@@ -104,6 +106,9 @@ export type SavedSkinBlob = {
 export type LocalTrack = {
   id: string;
   title: string;
+  /** The original-script names, when the map carries them. */
+  titleUnicode?: string;
+  artistUnicode?: string;
   artist: string;
   audioBlob: Blob;
   backgroundBlob?: Blob;
@@ -476,6 +481,8 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
             rows.push({
               id,
               title: full.meta.title,
+              titleUnicode: full.meta.titleUnicode,
+              artistUnicode: full.meta.artistUnicode,
               artist: full.meta.artist,
               creator: full.meta.creator,
               tags: full.meta.tags,
@@ -581,6 +588,8 @@ function localTrackSummary(
   return {
     id,
     title: project.meta.title,
+    titleUnicode: project.meta.titleUnicode,
+    artistUnicode: project.meta.artistUnicode,
     artist: project.meta.artist,
     previewTime: trackPreviewTime(project),
     ...trackBeat(project),

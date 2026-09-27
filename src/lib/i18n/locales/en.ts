@@ -144,6 +144,16 @@ export const en = {
   "settings.bodyWidthHint":
     "Width of the default long-note body (the gray part), relative to the lane. Only applies when no skin body sprite is used.",
 
+  "settings.preferOriginalMetadata": "Prefer metadata in original language",
+  "settings.preferOriginalMetadataHint":
+    "Show a song's title and artist in the script they were written in, where the map has one. Only changes what you see — both versions stay in the map.",
+  "settings.holdConfirm": "Hold to confirm",
+  "settings.holdConfirmHint":
+    "How long a delete button has to be held down before it goes through.",
+  "settings.parallaxStrength": "Parallax strength",
+  "settings.parallaxStrengthHint":
+    "How far the menu and editor backgrounds drift with the pointer. 0% holds them still.",
+
   "settings.mainMenu": "Main menu",
   "settings.menuBackground": "Background",
   "settings.menuBackgroundHint":

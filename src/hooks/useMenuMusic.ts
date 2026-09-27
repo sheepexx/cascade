@@ -22,6 +22,9 @@ export type MenuTrack = {
   id: string;
   title: string;
   artist: string;
+  /** The original-script names, when the map carries them. */
+  titleUnicode?: string;
+  artistUnicode?: string;
   audioUrl: string;
   backgroundUrl: string | null;
   previewTime: number;
@@ -99,6 +102,8 @@ function toMenuTrack(row: LocalTrack): MenuTrack {
     id: row.id,
     title: row.title.trim() || "Untitled",
     artist: row.artist.trim(),
+    titleUnicode: row.titleUnicode,
+    artistUnicode: row.artistUnicode,
     audioUrl: URL.createObjectURL(row.audioBlob),
     backgroundUrl: row.backgroundBlob
       ? URL.createObjectURL(row.backgroundBlob)

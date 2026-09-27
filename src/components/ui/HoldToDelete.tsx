@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { holdConfirmDuration } from "../../lib/interfaceFeel";
 
 type Props = {
   onConfirm: () => void;
@@ -15,12 +16,13 @@ export function HoldToDelete({
   onConfirm,
   className = "",
   fillClassName = "bg-rose-500/45",
-  durationMs = 750,
+  durationMs,
   disabled,
   title = "Hold to delete",
   "aria-label": ariaLabel,
   children,
 }: Props) {
+  const hold = durationMs ?? holdConfirmDuration();
   const [progress, setProgress] = useState(0);
   const [holding, setHolding] = useState(false);
   const rafRef = useRef<number | null>(null);
@@ -41,7 +43,7 @@ export function HoldToDelete({
     setHolding(true);
     startedRef.current = performance.now();
     const tick = (now: number) => {
-      const t = Math.min(1, (now - startedRef.current) / durationMs);
+      const t = Math.min(1, (now - startedRef.current) / hold);
       setProgress(t);
       if (t >= 1) {
         rafRef.current = null;
@@ -57,7 +59,7 @@ export function HoldToDelete({
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
-  }, [disabled, durationMs, onConfirm]);
+  }, [disabled, hold, onConfirm]);
 
   useEffect(
     () => () => {

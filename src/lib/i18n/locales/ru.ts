@@ -178,6 +178,16 @@ export const ru: PartialCatalog = {
   "settings.bodyWidthHint":
     "Ширина стандартного тела длинной ноты (серая часть) относительно дорожки. Действует, только если не используется спрайт из скина.",
 
+  "settings.preferOriginalMetadata": "Метаданные на языке оригинала",
+  "settings.preferOriginalMetadataHint":
+    "Показывать название и исполнителя тем письмом, которым они записаны, если карта его содержит. Меняется только отображение — в карте остаются обе записи.",
+  "settings.holdConfirm": "Удержание для подтверждения",
+  "settings.holdConfirmHint":
+    "Сколько нужно держать кнопку удаления, прежде чем она сработает.",
+  "settings.parallaxStrength": "Сила параллакса",
+  "settings.parallaxStrengthHint":
+    "Насколько фон меню и редактора смещается за курсором. 0 % — фон неподвижен.",
+
   "settings.mainMenu": "Главное меню",
   "settings.menuBackground": "Фон",
   "settings.menuBackgroundHint":

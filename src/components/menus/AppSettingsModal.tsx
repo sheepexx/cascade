@@ -11,6 +11,11 @@ import { Dropdown } from "../ui/Dropdown";
 import { MAX_PLAYTEST_RATE, MIN_PLAYTEST_RATE } from "../../lib/playtestJudgements";
 import { formatBytes } from "../../lib/progress";
 import { formatMenuBackgroundRules } from "../../lib/menuBackground";
+import {
+  MAX_HOLD_CONFIRM_MS,
+  MAX_PARALLAX_STRENGTH,
+  MIN_HOLD_CONFIRM_MS,
+} from "../../lib/interfaceFeel";
 import type { CloudMenuBackground } from "../../lib/accountCloud";
 import type { MenuBackgroundMode } from "../../types";
 import { Tooltip } from "../ui/Tooltip";
@@ -168,6 +173,12 @@ type Props = {
   introEnabled: boolean;
   onIntroEnabled: (value: boolean) => void;
   shortcutNoticesEnabled: boolean;
+  preferOriginalMetadata: boolean;
+  onPreferOriginalMetadata: (value: boolean) => void;
+  holdConfirmMs: number;
+  onHoldConfirmMs: (value: number) => void;
+  parallaxStrength: number;
+  onParallaxStrength: (value: number) => void;
   onShortcutNoticesEnabled: (value: boolean) => void;
   performanceMode: boolean;
   onPerformanceMode: (value: boolean) => void;
@@ -303,6 +314,12 @@ export function AppSettingsModal({
   introEnabled,
   onIntroEnabled,
   shortcutNoticesEnabled,
+  preferOriginalMetadata,
+  onPreferOriginalMetadata,
+  holdConfirmMs,
+  onHoldConfirmMs,
+  parallaxStrength,
+  onParallaxStrength,
   onShortcutNoticesEnabled,
   performanceMode,
   onPerformanceMode,
@@ -527,6 +544,36 @@ export function AppSettingsModal({
                   onChange={onShortcutNoticesEnabled}
                 />
               </div>
+              <div className="mt-3">
+                <SettingToggle
+                  label={t("settings.preferOriginalMetadata")}
+                  tip={t("settings.preferOriginalMetadataHint")}
+                  checked={preferOriginalMetadata}
+                  onChange={onPreferOriginalMetadata}
+                />
+              </div>
+              <SliderRow
+                label={t("settings.holdConfirm")}
+                tip={t("settings.holdConfirmHint")}
+                display={(v) => `${Math.round(v)} ms`}
+                min={MIN_HOLD_CONFIRM_MS}
+                max={MAX_HOLD_CONFIRM_MS}
+                step={50}
+                value={holdConfirmMs}
+                commitOnRelease
+                onChange={onHoldConfirmMs}
+              />
+              <SliderRow
+                label={t("settings.parallaxStrength")}
+                tip={t("settings.parallaxStrengthHint")}
+                display={(v) => `${Math.round(v * 100)}%`}
+                min={0}
+                max={MAX_PARALLAX_STRENGTH}
+                step={0.05}
+                value={parallaxStrength}
+                commitOnRelease
+                onChange={onParallaxStrength}
+              />
             </section>
             <section>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">

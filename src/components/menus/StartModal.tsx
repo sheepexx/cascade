@@ -25,6 +25,7 @@ import {
   type LocalProjectSummary,
 } from "../../lib/persistence";
 import { formatBytes } from "../../lib/progress";
+import { displayArtist, displayTitle } from "../../lib/metadataDisplay";
 import {
   BROWSE_SORTS,
   browse,
@@ -133,6 +134,7 @@ export function WelcomeModal({
   onPackCreator,
   onOpenCloudProject,
   onOpenLocalProject,
+  preferOriginalMetadata = false,
   accountsEnabled = true,
   onImportFromOsu,
   projectsOnly = false,
@@ -145,6 +147,7 @@ export function WelcomeModal({
   onPackCreator?: () => void;
   onOpenCloudProject: (id: string) => void;
   onOpenLocalProject: (id: string) => void;
+  preferOriginalMetadata?: boolean;
   /** Feature flag: hides the osu! login prompt when accounts are killed. */
   accountsEnabled?: boolean;
   /** Present when beatmap import is enabled and a worker is configured. */
@@ -625,8 +628,8 @@ export function WelcomeModal({
             {visibleLocal.map((p) => (
               <ProjectCard
                 key={p.id}
-                title={p.title || t("common.untitled")}
-                subtitle={subtitleOf(p.artist, p.creator)}
+                title={displayTitle(p, preferOriginalMetadata) || t("common.untitled")}
+                subtitle={subtitleOf(displayArtist(p, preferOriginalMetadata), p.creator)}
                 note={t("startModal.projectNote", {
                   count: p.difficultyCount,
                   date: new Date(p.updatedAt).toLocaleDateString(locale),

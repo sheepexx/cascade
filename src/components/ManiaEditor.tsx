@@ -96,6 +96,7 @@ import {
   renderScale,
   usePerformanceMode,
 } from "../lib/performanceMode";
+import { parallaxScale } from "../lib/interfaceFeel";
 import { useGhostNotes } from "../hooks/useGhostNotes";
 import { GhostNotesPanel } from "./GhostNotesPanel";
 import { PatternImageModal } from "./menus/PatternImageModal";
@@ -2602,14 +2603,14 @@ export function ManiaEditor(props: Props) {
     if (!wrap) return;
     if (reduceMotion()) return;
 
-    const clamp = (v: number) =>
-      Math.max(-PARALLAX_PX, Math.min(PARALLAX_PX, v));
     const move = (e: PointerEvent) => {
       const rect = wrap.getBoundingClientRect();
       if (rect.width < 1 || rect.height < 1) return;
+      const reach = PARALLAX_PX * parallaxScale();
+      const clamp = (v: number) => Math.max(-reach, Math.min(reach, v));
       const par = parallaxRef.current;
-      par.tx = clamp(((e.clientX - rect.left) / rect.width - 0.5) * 2 * PARALLAX_PX);
-      par.ty = clamp(((e.clientY - rect.top) / rect.height - 0.5) * 2 * PARALLAX_PX);
+      par.tx = clamp(((e.clientX - rect.left) / rect.width - 0.5) * 2 * reach);
+      par.ty = clamp(((e.clientY - rect.top) / rect.height - 0.5) * 2 * reach);
     };
     const leave = () => {
       const par = parallaxRef.current;

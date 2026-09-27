@@ -177,6 +177,16 @@ export const de: PartialCatalog = {
   "settings.bodyWidthHint":
     "Breite des Standard-Long-Note-Körpers (der graue Teil), relativ zur Spur. Gilt nur, wenn kein Skin-Sprite verwendet wird.",
 
+  "settings.preferOriginalMetadata": "Metadaten in Originalsprache bevorzugen",
+  "settings.preferOriginalMetadataHint":
+    "Zeigt Titel und Künstler in der Schrift, in der sie geschrieben wurden, sofern die Map das hergibt. Ändert nur die Anzeige — beide Fassungen bleiben in der Map.",
+  "settings.holdConfirm": "Zum Bestätigen halten",
+  "settings.holdConfirmHint":
+    "Wie lange ein Löschen-Knopf gedrückt gehalten werden muss, bis er auslöst.",
+  "settings.parallaxStrength": "Parallax-Stärke",
+  "settings.parallaxStrengthHint":
+    "Wie weit die Hintergründe von Menü und Editor dem Zeiger folgen. 0 % hält sie still.",
+
   "settings.mainMenu": "Hauptmenü",
   "settings.menuBackground": "Hintergrund",
   "settings.menuBackgroundHint":

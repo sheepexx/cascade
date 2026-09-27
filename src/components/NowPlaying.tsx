@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
 import { useT } from "../lib/i18n";
+import { displayArtist, displayTitle } from "../lib/metadataDisplay";
 
-export function NowPlaying({ music }: { music: MenuMusic }) {
+export function NowPlaying({
+  music,
+  preferOriginalMetadata = false,
+}: {
+  music: MenuMusic;
+  preferOriginalMetadata?: boolean;
+}) {
   const t = useT();
   const fillRef = useRef<HTMLDivElement | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
@@ -74,9 +81,13 @@ export function NowPlaying({ music }: { music: MenuMusic }) {
           className="track-fade-in min-w-0 flex-1 truncate text-[11px] leading-none"
         >
           {track.artist && (
-            <span className="text-slate-500">{track.artist} · </span>
+            <span className="text-slate-500">
+              {displayArtist(track, preferOriginalMetadata)} ·{" "}
+            </span>
           )}
-          <span className="font-medium text-slate-200">{track.title}</span>
+          <span className="font-medium text-slate-200">
+            {displayTitle(track, preferOriginalMetadata)}
+          </span>
         </span>
         <MiniButton label={isPlaying ? t("nowPlaying.pause") : t("nowPlaying.play")} onClick={toggle}>
           {isPlaying ? "❚❚" : "▶"}

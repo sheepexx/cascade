@@ -1,3 +1,8 @@
+import {
+  DEFAULT_HOLD_CONFIRM_MS,
+  DEFAULT_PARALLAX_STRENGTH,
+} from "../lib/interfaceFeel";
+
 export type ManiaNote = {
   id: string;
   column: number;
@@ -499,6 +504,15 @@ export type AppSettings = {
   discordPresence: DiscordPresenceMode;
   uiSoundsEnabled: boolean;
   uiSoundVolume: number;
+  /**
+   * Show a song's title and artist in the script they were written in, where
+   * the map carries one, rather than the romanised fields.
+   */
+  preferOriginalMetadata: boolean;
+  /** How long a destructive button must be held before it fires. */
+  holdConfirmMs: number;
+  /** How far backgrounds drift with the pointer; 1 is the old behaviour. */
+  parallaxStrength: number;
   showMenuPlayers: boolean;
   hideStatus: boolean;
   menuMusicEnabled: boolean;
@@ -663,6 +677,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   offerMapCardAfterExport: true,
   uiSoundsEnabled: true,
   uiSoundVolume: 1,
+  preferOriginalMetadata: false,
+  holdConfirmMs: DEFAULT_HOLD_CONFIRM_MS,
+  parallaxStrength: DEFAULT_PARALLAX_STRENGTH,
   showMenuPlayers: true,
   hideStatus: false,
   menuMusicEnabled: true,
