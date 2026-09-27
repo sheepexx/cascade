@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
-import { Button, Select, TextInput } from "../ui/Controls";
+import { Button, TextInput } from "../ui/Controls";
+import { Dropdown } from "../ui/Dropdown";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { SkeletonRows } from "../ui/Skeleton";
 import { useT } from "../../lib/i18n";
@@ -112,13 +113,15 @@ export function ShareModal({
                 placeholder={t("share.usernamePlaceholder")}
               />
             </label>
-            <Select
+            <Dropdown
+              aria-label={t("share.roleEditor")}
               value={role}
-              onChange={(e) => setRole(e.target.value as CollabRole)}
-            >
-              <option value="editor">{t("share.roleEditor")}</option>
-              <option value="viewer">{t("share.roleViewer")}</option>
-            </Select>
+              options={[
+                { value: "editor", label: t("share.roleEditor") },
+                { value: "viewer", label: t("share.roleViewer") },
+              ]}
+              onChange={(next: CollabRole) => setRole(next)}
+            />
             <Button variant="accent" onClick={() => void invite()} disabled={busy}>
               {busy ? "…" : t("share.invite")}
             </Button>
@@ -204,16 +207,16 @@ export function ShareModal({
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-200">
                       {c.username ?? c.user_id.slice(0, 8)}
                     </span>
-                    <Select
+                    <Dropdown
                       size="sm"
+                      aria-label={t("share.roleEditor")}
                       value={c.role}
-                      onChange={(e) =>
-                        changeRole(c, e.target.value as CollabRole)
-                      }
-                    >
-                      <option value="editor">{t("share.roleEditor")}</option>
-                      <option value="viewer">{t("share.roleViewer")}</option>
-                    </Select>
+                      options={[
+                        { value: "editor", label: t("share.roleEditor") },
+                        { value: "viewer", label: t("share.roleViewer") },
+                      ]}
+                      onChange={(next: CollabRole) => changeRole(c, next)}
+                    />
                     <Button
                       onClick={() => setConfirmUser(c)}
                       title={t("share.removeTitle", {

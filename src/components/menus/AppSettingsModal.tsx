@@ -3,7 +3,6 @@ import { Modal } from "../ui/Modal";
 import {
   Button,
   SegmentedControl,
-  Select,
   Slider,
   Toggle,
 } from "../ui/Controls";
@@ -770,23 +769,17 @@ export function AppSettingsModal({
                 <div className="mt-4">
                   <div className="flex items-center justify-between gap-3 text-sm text-slate-200">
                     <Tip text={t("settings.discordPresenceHint")}>{t("settings.discordPresence")}</Tip>
-                    <Select
-                      value={discordPresence}
-                      onChange={(e) =>
-                        onDiscordPresence(
-                          e.target.value as DiscordPresenceMode,
-                        )
-                      }
+                    <Dropdown
                       className="w-40"
-                    >
-                      <option value="detailed">
-                        {t("settings.discordDetailed")}
-                      </option>
-                      <option value="minimal">
-                        {t("settings.discordMinimal")}
-                      </option>
-                      <option value="off">{t("settings.discordOff")}</option>
-                    </Select>
+                      aria-label={t("settings.discordPresence")}
+                      value={discordPresence}
+                      options={[
+                        { value: "detailed", label: t("settings.discordDetailed") },
+                        { value: "minimal", label: t("settings.discordMinimal") },
+                        { value: "off", label: t("settings.discordOff") },
+                      ]}
+                      onChange={onDiscordPresence}
+                    />
                   </div>
                 </div>
               )}
@@ -1105,7 +1098,7 @@ export function AppSettingsModal({
               </SectionTitle>
               <div className="flex flex-col gap-4">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1 text-sm text-slate-200">
+                  <div className="flex flex-col gap-1 text-sm text-slate-200">
                     <Tip
                       text={t("settings.danHint", {
                         keys: DAN_LADDERS[ladders.regular].keyCount,
@@ -1113,30 +1106,29 @@ export function AppSettingsModal({
                     >
                       {t("settings.danRegular")}
                     </Tip>
-                    <Select
+                    <Dropdown
+                      className="w-full"
+                      aria-label={t("settings.danRegular")}
                       value={regularLevel}
-                      onChange={(e) => setDanSkill(Number(e.target.value), lnLevel)}
-                    >
-                      {DAN_LADDERS[ladders.regular].levels.map((lvl, i) => (
-                        <option key={lvl.label} value={i}>
-                          {lvl.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                  <label className="flex flex-col gap-1 text-sm text-slate-200">
+                      options={DAN_LADDERS[ladders.regular].levels.map(
+                        (lvl, i) => ({ value: i, label: lvl.label }),
+                      )}
+                      onChange={(level) => setDanSkill(level, lnLevel)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 text-sm text-slate-200">
                     <span>{t("settings.danLn")}</span>
-                    <Select
+                    <Dropdown
+                      className="w-full"
+                      aria-label={t("settings.danLn")}
                       value={lnLevel}
-                      onChange={(e) => setDanSkill(regularLevel, Number(e.target.value))}
-                    >
-                      {DAN_LADDERS[ladders.ln].levels.map((lvl, i) => (
-                        <option key={lvl.label} value={i}>
-                          {lvl.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
+                      options={DAN_LADDERS[ladders.ln].levels.map((lvl, i) => ({
+                        value: i,
+                        label: lvl.label,
+                      }))}
+                      onChange={(level) => setDanSkill(regularLevel, level)}
+                    />
+                  </div>
                 </div>
                 <SettingToggle
                   label={t("settings.humanize")}
@@ -1221,43 +1213,34 @@ export function AppSettingsModal({
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-3 text-sm text-slate-200">
                   <Tip text={t("settings.playtestSkinHint")}>{t("settings.playtestSkin")}</Tip>
-                  <Select
+                  <Dropdown
                     className="ml-auto w-56"
+                    aria-label={t("settings.playtestSkin")}
                     value={playtestSkinValue(playtest.skin)}
-                    onChange={(e) =>
-                      patchPlaytest({ skin: parsePlaytestSkinValue(e.target.value) })
+                    options={[
+                      { value: "", label: t("settings.playtestSkinEditor") },
+                      { value: "none", label: t("settings.playtestSkinDefault") },
+                      ...PRESET_SKINS.map((preset) => ({
+                        value: playtestSkinValue({
+                          source: "preset" as const,
+                          fileName: preset.fileName,
+                        }),
+                        label: preset.name,
+                        group: t("settings.playtestSkinPresets"),
+                      })),
+                      ...savedSkinOptions.map((name) => ({
+                        value: playtestSkinValue({
+                          source: "saved" as const,
+                          fileName: name,
+                        }),
+                        label: name.replace(/\.osk$/i, ""),
+                        group: t("settings.playtestSkinSaved"),
+                      })),
+                    ]}
+                    onChange={(value) =>
+                      patchPlaytest({ skin: parsePlaytestSkinValue(value) })
                     }
-                  >
-                    <option value="">{t("settings.playtestSkinEditor")}</option>
-                    <option value="none">{t("settings.playtestSkinDefault")}</option>
-                    {PRESET_SKINS.length > 0 && (
-                      <optgroup label={t("settings.playtestSkinPresets")}>
-                        {PRESET_SKINS.map((preset) => (
-                          <option
-                            key={preset.fileName}
-                            value={playtestSkinValue({
-                              source: "preset",
-                              fileName: preset.fileName,
-                            })}
-                          >
-                            {preset.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {savedSkinOptions.length > 0 && (
-                      <optgroup label={t("settings.playtestSkinSaved")}>
-                        {savedSkinOptions.map((name) => (
-                          <option
-                            key={name}
-                            value={playtestSkinValue({ source: "saved", fileName: name })}
-                          >
-                            {name.replace(/\.osk$/i, "")}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </Select>
+                  />
                 </div>
               </div>
             </section>
@@ -1265,21 +1248,19 @@ export function AppSettingsModal({
             <section>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <SectionTitle inline>{t("settings.keybinds")}</SectionTitle>
-                <Select
+                <Dropdown
                   size="sm"
                   value={keyMode}
                   aria-label={t("settings.keyMode")}
-                  onChange={(e) => {
+                  options={Array.from({ length: 18 }, (_, i) => ({
+                    value: i + 1,
+                    label: `${i + 1}K`,
+                  }))}
+                  onChange={(keys) => {
                     stopCapture();
-                    setKeyMode(Number(e.target.value));
+                    setKeyMode(keys);
                   }}
-                >
-                  {Array.from({ length: 18 }, (_, i) => i + 1).map((keys) => (
-                    <option key={keys} value={keys}>
-                      {keys}K
-                    </option>
-                  ))}
-                </Select>
+                />
               </div>
               <div
                 className="grid gap-1.5"

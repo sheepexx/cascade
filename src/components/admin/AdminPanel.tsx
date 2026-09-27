@@ -5,7 +5,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Button, Select, TextInput } from "../ui/Controls";
+import { Button, TextInput } from "../ui/Controls";
+import { Dropdown } from "../ui/Dropdown";
 import { PatternPreview } from "../ui/PatternPreview";
 import {
   SkeletonMediaCards,
@@ -1399,20 +1400,22 @@ function ProjectsTab() {
               {formatBytes(totalBytes)}
             </span>
           </div>
-          <label className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-slate-400">
             Sort
-            <Select
+            <Dropdown
               size="sm"
+              aria-label="Sort"
               value={sort}
-              onChange={(e) => setSort(e.target.value as ProjectSort)}
-            >
-              <option value="last_activity">Last activity</option>
-              <option value="updated">Last saved</option>
-              <option value="storage">Storage</option>
-              <option value="participants">People</option>
-              <option value="title">Title</option>
-            </Select>
-          </label>
+              options={[
+                { value: "last_activity", label: "Last activity" },
+                { value: "updated", label: "Last saved" },
+                { value: "storage", label: "Storage" },
+                { value: "participants", label: "People" },
+                { value: "title", label: "Title" },
+              ]}
+              onChange={(next: ProjectSort) => setSort(next)}
+            />
+          </div>
         </div>
       )}
       {sorted && sorted.length > 0 && (

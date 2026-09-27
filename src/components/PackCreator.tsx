@@ -27,7 +27,8 @@ import {
   scanPackFromZip,
 } from "../lib/smPackImport";
 import { MAX_KEYS, MIN_KEYS } from "../types";
-import { Button, Field, Select, TextInput, Toggle } from "./ui/Controls";
+import { Button, Field, TextInput, Toggle } from "./ui/Controls";
+import { Dropdown } from "./ui/Dropdown";
 import { CloseIcon } from "./ui/Icons";
 import { PackCreatorItem } from "./PackCreatorItem";
 import { PackCreatorValidation } from "./PackCreatorValidation";
@@ -625,25 +626,26 @@ export function PackCreator({
                     label={t("pack.artistMode")}
                     hint={t("pack.artistModeHint")}
                   >
-                    <Select
+                    <Dropdown
                       className="w-full"
+                      aria-label={t("pack.artistMode")}
                       value={metadata.artistMode}
-                      onChange={(e) => {
-                        setMetadata((m) => ({
-                          ...m,
-                          artistMode: e.target.value as PackArtistMode,
-                        }));
+                      options={[
+                        { value: "various", label: t("pack.artistVarious") },
+                        {
+                          value: "original-per-map",
+                          label: t("pack.artistOriginal"),
+                        },
+                        {
+                          value: "custom-shared",
+                          label: t("pack.artistCustom"),
+                        },
+                      ]}
+                      onChange={(artistMode: PackArtistMode) => {
+                        setMetadata((m) => ({ ...m, artistMode }));
                         setValidation(null);
                       }}
-                    >
-                      <option value="various">
-                        {t("pack.artistVarious")}
-                      </option>
-                      <option value="original-per-map">
-                        {t("pack.artistOriginal")}
-                      </option>
-                      <option value="custom-shared">{t("pack.artistCustom")}</option>
-                    </Select>
+                    />
                   </Field>
                   {metadata.artistMode === "custom-shared" && (
                     <Field label={t("pack.artistCustom")}>
@@ -668,28 +670,23 @@ export function PackCreator({
                     label={t("pack.creatorMode")}
                     hint={t("pack.creatorModeHint")}
                   >
-                    <Select
+                    <Dropdown
                       className="w-full"
+                      aria-label={t("pack.creatorMode")}
                       value={settings.creatorFieldMode}
-                      onChange={(e) => {
-                        setSettings((s) => ({
-                          ...s,
-                          creatorFieldMode: e.target
-                            .value as PackCreatorFieldMode,
-                        }));
+                      options={[
+                        {
+                          value: "pack-append-mapper",
+                          label: t("pack.creatorAppend"),
+                        },
+                        { value: "pack", label: t("pack.creatorPack") },
+                        { value: "original", label: t("pack.creatorOriginal") },
+                      ]}
+                      onChange={(creatorFieldMode: PackCreatorFieldMode) => {
+                        setSettings((s) => ({ ...s, creatorFieldMode }));
                         setValidation(null);
                       }}
-                    >
-                      <option value="pack-append-mapper">
-                        {t("pack.creatorAppend")}
-                      </option>
-                      <option value="pack">
-                        {t("pack.creatorPack")}
-                      </option>
-                      <option value="original">
-                        {t("pack.creatorOriginal")}
-                      </option>
-                    </Select>
+                    />
                   </Field>
                   {settings.creatorFieldMode === "original" && (
                     <p className="rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
@@ -754,24 +751,24 @@ export function PackCreator({
               {settings.placeholderEnabled ? (
                 <div className="flex flex-col gap-2.5">
                   <Field label={t("pack.audioSource")}>
-                    <Select
+                    <Dropdown
                       className="w-full"
+                      aria-label={t("pack.audioSource")}
                       value={settings.placeholderAudioItemId ?? ""}
-                      onChange={(e) =>
+                      options={[
+                        { value: "", label: t("pack.selectSong") },
+                        ...items.map((it) => ({
+                          value: it.id,
+                          label: `${it.songDisplayName || it.originalTitle} · ${it.originalAudioFilename}`,
+                        })),
+                      ]}
+                      onChange={(id) =>
                         setSettings((s) => ({
                           ...s,
-                          placeholderAudioItemId: e.target.value || null,
+                          placeholderAudioItemId: id || null,
                         }))
                       }
-                    >
-                      <option value="">{t("pack.selectSong")}</option>
-                      {items.map((it) => (
-                        <option key={it.id} value={it.id}>
-                          {it.songDisplayName || it.originalTitle} ·{" "}
-                          {it.originalAudioFilename}
-                        </option>
-                      ))}
-                    </Select>
+                    />
                   </Field>
                   <Field label={t("pack.keyCount", { min: MIN_KEYS, max: MAX_KEYS })}>
                     <TextInput

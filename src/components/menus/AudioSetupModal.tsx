@@ -3,7 +3,8 @@ import { useAudio } from "../../hooks/useAudio";
 import { supportsExclusiveAudio } from "../../lib/nativeAudio";
 import { CALIBRATION_DURATION_MS, CALIBRATION_FIRST_MS, CALIBRATION_BEAT_MS, calibrationResult, calibrationTap, createCalibrationBuffer } from "../../lib/audioCalibration";
 import { Modal } from "../ui/Modal";
-import { Button, Select } from "../ui/Controls";
+import { Button } from "../ui/Controls";
+import { Dropdown } from "../ui/Dropdown";
 import { InfoTip } from "../ui/Tooltip";
 import { useT } from "../../lib/i18n";
 
@@ -44,9 +45,20 @@ export function AudioSetupModal({ exclusive, onExclusive, currentOffset, onApply
   const beat = Math.floor((audio.currentTime - CALIBRATION_FIRST_MS) / CALIBRATION_BEAT_MS);
   const loading = audio.nativeAudio.selected && !audio.nativeAudio.ready;
   return <Modal open onClose={onClose} title={t("audioSetup.title")} width="max-w-xl" footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}>
-    <label className="flex flex-col gap-2 text-xs text-slate-300">{t("audioSetup.outputMode")}<Select disabled={phase === "running"} value={exclusive ? "exclusive" : "shared"} onChange={e => { audio.pause(); setPhase("intro"); setTaps({}); onExclusive(e.target.value === "exclusive"); }}>
-      <option value="shared">{t("audioSetup.sharedOption")}</option><option value="exclusive" disabled={!supportsExclusiveAudio()}>{t("audioSetup.exclusiveOption")}</option>
-    </Select></label>
+    <div className="flex flex-col gap-2 text-xs text-slate-300">{t("audioSetup.outputMode")}<Dropdown
+      disabled={phase === "running"}
+      aria-label={t("audioSetup.outputMode")}
+      value={exclusive ? "exclusive" : "shared"}
+      options={[
+        { value: "shared", label: t("audioSetup.sharedOption") },
+        {
+          value: "exclusive",
+          label: t("audioSetup.exclusiveOption"),
+          disabled: !supportsExclusiveAudio(),
+        },
+      ]}
+      onChange={(mode: string) => { audio.pause(); setPhase("intro"); setTaps({}); onExclusive(mode === "exclusive"); }}
+    /></div>
     <p className="mt-2 text-[11px] text-slate-400">{t("audioSetup.exclusiveHint")}</p>
     <p role="status" className="mt-3 text-xs text-teal-200">{loading ? t("audioSetup.opening") : audio.nativeAudio.selected ? t("audioSetup.deviceBuffer", { device: audio.nativeAudio.device ?? "", ms: audio.nativeAudio.latencyMs?.toFixed(1) ?? "" }) : t("audioSetup.sharedStatus")}</p>
     {audio.nativeAudio.fallbackReason && <p role="alert" className="mt-2 rounded-lg bg-amber-300/10 p-3 text-xs text-amber-200">{audio.nativeAudio.fallbackReason} {t("audioSetup.sharedActive")}</p>}

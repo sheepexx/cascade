@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Button, Select, TextInput } from "../ui/Controls";
+import { Button, TextInput } from "../ui/Controls";
+import { Dropdown } from "../ui/Dropdown";
 import { SkeletonRows } from "../ui/Skeleton";
 import { sharedMapUrl } from "../../lib/sharedMap";
 import {
@@ -397,30 +398,34 @@ export function LinksTab() {
               placeholder="Search map, owner, slug or key"
               className="w-64"
             />
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
               Show
-              <Select
+              <Dropdown
                 size="sm"
+                aria-label="Show"
                 value={view}
-                onChange={(event) => setView(event.target.value as LinkView)}
-              >
-                <option value="users">By user</option>
-                <option value="list">One list</option>
-              </Select>
-            </label>
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+                options={[
+                  { value: "users", label: "By user" },
+                  { value: "list", label: "One list" },
+                ]}
+                onChange={(next: LinkView) => setView(next)}
+              />
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
               Sort
-              <Select
+              <Dropdown
                 size="sm"
+                aria-label="Sort"
                 value={sort}
-                onChange={(event) => setSort(event.target.value as LinkSort)}
-              >
-                <option value="recent">Latest activity</option>
-                <option value="created">Newest</option>
-                <option value="storage">Storage</option>
-                <option value="owner">Owner</option>
-              </Select>
-            </label>
+                options={[
+                  { value: "recent", label: "Latest activity" },
+                  { value: "created", label: "Newest" },
+                  { value: "storage", label: "Storage" },
+                  { value: "owner", label: "Owner" },
+                ]}
+                onChange={(next: LinkSort) => setSort(next)}
+              />
+            </div>
           </div>
         </div>
       )}

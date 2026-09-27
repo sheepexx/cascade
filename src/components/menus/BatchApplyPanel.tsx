@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Difficulty } from "../../types";
 import type { BatchOptions, BatchRequest } from "../../lib/batchApply";
-import { Button, Field, Select } from "../ui/Controls";
+import { Button, Field } from "../ui/Controls";
+import { Dropdown } from "../ui/Dropdown";
 import { useT } from "../../lib/i18n";
 
 export function BatchApplyPanel({ source, difficulties, onApply, readOnly, live }: {
@@ -21,9 +22,17 @@ export function BatchApplyPanel({ source, difficulties, onApply, readOnly, live 
     <p className="text-sm text-slate-300">{t("batch.copyFrom")} <strong>{source.name}</strong>{t("batch.copyFromAfter")}</p>
     <div className="grid gap-5 sm:grid-cols-2">
       <div className="flex flex-col gap-3">
-        <Field label={t("nav.timing")}><Select value={options.timing} onChange={e => patchOptions({ timing: e.target.value as BatchOptions["timing"] })}>
-          <option value="none">{t("batch.timingNone")}</option><option value="red">{t("batch.timingRed")}</option><option value="all">{t("batch.timingAll")}</option>
-        </Select></Field>
+        <Field label={t("nav.timing")}><Dropdown
+          className="w-full"
+          aria-label={t("nav.timing")}
+          value={options.timing}
+          options={[
+            { value: "none", label: t("batch.timingNone") },
+            { value: "red", label: t("batch.timingRed") },
+            { value: "all", label: t("batch.timingAll") },
+          ]}
+          onChange={(timing: BatchOptions["timing"]) => patchOptions({ timing })}
+        /></Field>
         <label className="flex gap-2 text-xs"><input type="checkbox" checked={options.preview} onChange={e => patchOptions({ preview: e.target.checked })} />{t("timing.previewPoint")}</label>
         <label className="flex gap-2 text-xs"><input type="checkbox" checked={options.difficultySettings} onChange={e => patchOptions({ difficultySettings: e.target.checked })} />{t("batch.difficultySettings")}</label>
       </div>

@@ -12,7 +12,7 @@ import {
   type SharedMap,
 } from "../lib/sharedMap";
 import type { LoadedFile } from "../types";
-import { Select } from "./ui/Controls";
+import { Dropdown } from "./ui/Dropdown";
 
 async function fetchAsset(
   url: string | null,
@@ -337,23 +337,21 @@ export function SharedMapPage({
           </div>
 
           {previewOptions.length > 1 && preview && (
-            <label className="mx-auto mt-8 grid w-full max-w-[260px] gap-1.5">
+            <div className="mx-auto mt-8 grid w-full max-w-[260px] gap-1.5">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("shared.difficulty")}
               </span>
-              <Select
+              <Dropdown
                 className="w-full"
+                aria-label={t("shared.difficulty")}
                 value={preview.id}
-                onChange={(event) => setPreviewDifficultyId(event.target.value)}
-              >
-                {previewOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label || t("common.untitled")} · {option.keyCount}K ·
-                    ★ {option.starRating.toFixed(2)}
-                  </option>
-                ))}
-              </Select>
-            </label>
+                options={previewOptions.map((option) => ({
+                  value: option.id,
+                  label: `${option.label || t("common.untitled")} · ${option.keyCount}K · ★ ${option.starRating.toFixed(2)}`,
+                }))}
+                onChange={setPreviewDifficultyId}
+              />
+            </div>
           )}
 
           {preview && (

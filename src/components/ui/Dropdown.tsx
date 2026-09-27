@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  Fragment,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -14,6 +15,10 @@ export type DropdownOption<T extends string | number> = {
   label: ReactNode;
   /** Shown dimmed on the right of the row, like the File menu's shortcuts. */
   hint?: string;
+  /** Greyed out and not selectable, like a disabled <option>. */
+  disabled?: boolean;
+  /** Rows sharing a group are listed under one heading, in list order. */
+  group?: string;
 };
 
 const DIMS = {
@@ -195,22 +200,37 @@ export function Dropdown<T extends string | number>({
               closing ? "menu-pop-out" : "menu-pop-in"
             }`}
           >
-            {options.map((option) => {
+            {options.map((option, index) => {
               const active = option.value === value;
+              // A heading wherever the group changes, which is what the
+              // <optgroup> of the selects this replaced used to draw.
+              const heading =
+                option.group && option.group !== options[index - 1]?.group ? (
+                  <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    {option.group}
+                  </div>
+                ) : null;
               return (
+                <Fragment key={option.value}>
+                {heading}
                 <button
-                  key={option.value}
                   type="button"
                   role="option"
                   aria-selected={active}
                   data-selected={active || undefined}
+                  disabled={option.disabled}
                   onClick={() => {
+                    if (option.disabled) return;
                     onChange(option.value);
                     setOpen(false);
                     triggerRef.current?.focus();
                   }}
-                  className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-sm transition duration-[var(--motion-quick)] hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none active:bg-white/15 ${
-                    active ? "text-accent" : "text-slate-200"
+                  className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-sm transition duration-[var(--motion-quick)] focus-visible:outline-none ${
+                    option.disabled
+                      ? "cursor-not-allowed text-slate-600"
+                      : `hover:bg-white/10 focus-visible:bg-white/10 active:bg-white/15 ${
+                          active ? "text-accent" : "text-slate-200"
+                        }`
                   }`}
                 >
                   <span className="min-w-0 truncate">{option.label}</span>
@@ -226,6 +246,7 @@ export function Dropdown<T extends string | number>({
                     )
                   )}
                 </button>
+                </Fragment>
               );
             })}
           </div>,
