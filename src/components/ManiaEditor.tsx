@@ -80,6 +80,7 @@ import {
   placementFor,
   withoutNoteCollisions,
 } from "../lib/noteCollision";
+import { NoteInspector } from "./NoteInspector";
 import {
   mirrorColumns,
   reverseTime,
@@ -446,6 +447,9 @@ export function ManiaEditor(props: Props) {
   const [hitsoundBarMounted, setHitsoundBarMounted] = useState(false);
   const [hitsoundBarClosing, setHitsoundBarClosing] = useState(false);
   const [selectionCount, setSelectionCount] = useState(0);
+  // Selection lives in a ref; this re-renders what reads it even when a new
+  // selection happens to be the same size as the last one.
+  const [, setSelectionVersion] = useState(0);
   // One clipboard for the whole app, so a copy survives switching difficulty
   // or project.
   const clipboardState = useClipboard();
@@ -695,6 +699,7 @@ export function ManiaEditor(props: Props) {
   const setSelection = useCallback((ids: Set<string>) => {
     selectedNoteIdsRef.current = ids;
     setSelectionCount(ids.size);
+    setSelectionVersion((v) => v + 1);
     markDirty();
     const report = propsRef.current.onSelectionRange;
     if (!report) return;
@@ -3404,6 +3409,15 @@ export function ManiaEditor(props: Props) {
     selectionCount > 0
       ? props.notes.filter((n) => selectedNoteIdsRef.current.has(n.id))
       : [];
+  /** Moves a note to times typed in the inspector, under the same rules as dragging. */
+  const retimeNote = (updated: ManiaNote): boolean => {
+    if (propsRef.current.readOnly) return false;
+    if (!inBounds(updated.startTime, updated.endTime ?? updated.startTime)) return false;
+    const others = propsRef.current.notes.filter((n) => n.id !== updated.id);
+    if (!withoutNoteCollisions([updated], others).length) return false;
+    propsRef.current.onMoveNotes([updated]);
+    return true;
+  };
   const toolbarHasAddition = (bit: number) =>
     selectedNotes.length > 0
       ? selectedNotes.every((n) => ((n.hitSound ?? 0) & bit) !== 0)
@@ -3572,6 +3586,15 @@ export function ManiaEditor(props: Props) {
             onClick={deleteSelection}
           />
         </div>
+      )}
+
+      {!props.playtestMode && !props.hideClipboard && selectedNotes.length > 0 && (
+        <NoteInspector
+          selected={selectedNotes}
+          notes={props.notes}
+          readOnly={!!props.readOnly}
+          onRetime={retimeNote}
+        />
       )}
 
       {!props.playtestMode && !props.hideClipboard && (clipboard || history.length > 0) && (
