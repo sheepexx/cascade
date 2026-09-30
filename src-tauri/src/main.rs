@@ -5,6 +5,7 @@ use std::net::{Ipv4Addr, TcpListener, TcpStream};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod archive;
+mod external_edit;
 mod launch;
 mod osu;
 mod portable;
@@ -228,7 +229,11 @@ fn main() {
             vault::vault_save,
             vault::vault_history,
             vault::vault_restore,
-            vault::vault_reveal
+            vault::vault_reveal,
+            external_edit::external_edit_start,
+            external_edit::external_edit_show,
+            external_edit::external_edit_read,
+            external_edit::external_edit_finish
         ])
         .setup(|app| {
             if let Ok(dir) = app.path().app_log_dir() {

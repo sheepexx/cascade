@@ -403,7 +403,17 @@ import {
   withoutNoteCollisions,
   placementFor,
 } from "./lib/noteCollision";
-import { downloadOsu, setFilename } from "./lib/osuExport";
+import { buildOsuFile, downloadOsu, setFilename } from "./lib/osuExport";
+import {
+  applyExternalOsu,
+  canEditExternally,
+  finishExternalEdit,
+  readExternalEdit,
+  showExternalEdit,
+  startExternalEdit,
+} from "./lib/externalEdit";
+import { uniqueDifficultyName } from "./lib/rateChange";
+import { ExternalEditModal } from "./components/menus/ExternalEditModal";
 import {
   adoptOsuDifficulty,
   importOsz,
@@ -3704,6 +3714,100 @@ export default function App() {
     },
     [patchDifficulty, markStructural],
   );
+
+  const [externalEdit, setExternalEdit] = useState<{
+    path: string;
+    diffId: string;
+    name: string;
+  } | null>(null);
+  const [externalEditBusy, setExternalEditBusy] = useState(false);
+  const [externalEditError, setExternalEditError] = useState<string | null>(null);
+
+  const beginExternalEdit = useCallback(async () => {
+    if (!canEditRef.current || !canEditExternally()) return;
+    const d = difficultiesRef.current.find((x) => x.id === activeIdRef.current);
+    if (!d) return;
+    const text = buildOsuFile({
+      meta: metaRef.current,
+      difficulty: d,
+      timingPoints: d.timingPoints.length ? d.timingPoints : timingPointsRef.current,
+      audioFilename:
+        d.audioFilename ?? Object.keys(audioFilesRef.current)[0] ?? "audio.mp3",
+      backgroundFilename: d.backgroundFilename,
+      videoFilename: d.videoFilename,
+      videoOffsetMs: d.videoOffsetMs,
+      // The file comes back in, so it must not pick up the export watermark.
+      cascadeTag: false,
+    });
+    setExternalEditError(null);
+    let path: string;
+    try {
+      path = await startExternalEdit(d.name, text);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    setExternalEdit({ path, diffId: d.id, name: d.name });
+    try {
+      await showExternalEdit(path, false);
+    } catch (err) {
+      setExternalEditError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  const showExternalFile = useCallback(
+    async (inFolder: boolean) => {
+      if (!externalEdit) return;
+      setExternalEditError(null);
+      try {
+        await showExternalEdit(externalEdit.path, inFolder);
+      } catch (err) {
+        setExternalEditError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [externalEdit],
+  );
+
+  const applyExternalEdit = useCallback(async () => {
+    const session = externalEdit;
+    if (!session) return;
+    setExternalEditBusy(true);
+    setExternalEditError(null);
+    try {
+      if (!canEditRef.current) throw new Error(t("app.noEditAccess"));
+      const text = await readExternalEdit(session.path);
+      const current = difficultiesRef.current.find((d) => d.id === session.diffId);
+      if (!current) throw new Error(t("externalEdit.diffGone"));
+      const result = applyExternalOsu(current, metaRef.current, timingPointsRef.current, text, {
+        audio: Object.keys(audioFilesRef.current),
+        backgrounds: Object.keys(bgFilesRef.current),
+        videos: Object.keys(videoFilesRef.current),
+      });
+      const otherNames = difficultiesRef.current
+        .filter((d) => d.id !== current.id)
+        .map((d) => d.name);
+      const difficulty = {
+        ...result.difficulty,
+        name: uniqueDifficultyName(result.difficulty.name, otherNames),
+      };
+      markStructural();
+      setMeta(result.meta);
+      setDifficulties((prev) => prev.map((d) => (d.id === current.id ? difficulty : d)));
+      void finishExternalEdit(session.path);
+      setExternalEdit(null);
+      setImportNotice(t("externalEdit.applied", { name: difficulty.name }));
+    } catch (err) {
+      setExternalEditError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setExternalEditBusy(false);
+    }
+  }, [externalEdit, markStructural, t]);
+
+  const discardExternalEdit = useCallback(() => {
+    if (externalEdit) void finishExternalEdit(externalEdit.path);
+    setExternalEdit(null);
+    setExternalEditError(null);
+  }, [externalEdit]);
 
   const applyBatch = useCallback((request: BatchRequest) => {
     if (!canEditRef.current) return;
@@ -7185,7 +7289,10 @@ export default function App() {
               ]
             : []),
           ...(isDesktopApp()
-            ? [{ id: "version-history", label: t("file.versionHistory"), group: t("palette.group.file"), run: () => setModal("versionHistory" as ModalId) }]
+            ? [
+                { id: "version-history", label: t("file.versionHistory"), group: t("palette.group.file"), run: () => setModal("versionHistory" as ModalId) },
+                { id: "edit-externally", label: t("file.editExternally"), group: t("palette.group.file"), keywords: "text editor osu file notepad", disabled: !canEdit, run: () => void beginExternalEdit() },
+              ]
             : []),
         ] satisfies PaletteCommand[]
       : []),
@@ -7620,6 +7727,12 @@ export default function App() {
                           label: t("file.versionHistory"),
                           disabled: !hasProject,
                           onClick: () => setModal("versionHistory"),
+                        },
+                        {
+                          label: t("file.editExternally"),
+                          title: t("file.editExternallyHint"),
+                          disabled: !hasProject || !canEdit,
+                          onClick: () => void beginExternalEdit(),
                         },
                       ]
                     : []),
@@ -9339,6 +9452,18 @@ export default function App() {
           setPendingDeleteDiffIds(null);
         }}
         onCancel={() => setPendingDeleteDiffIds(null)}
+      />
+
+      <ExternalEditModal
+        open={externalEdit !== null}
+        difficultyName={externalEdit?.name ?? ""}
+        path={externalEdit?.path ?? ""}
+        busy={externalEditBusy}
+        error={externalEditError}
+        onOpenEditor={() => void showExternalFile(false)}
+        onShowInFolder={() => void showExternalFile(true)}
+        onApply={() => void applyExternalEdit()}
+        onCancel={discardExternalEdit}
       />
 
       <HoldConfirmDialog
