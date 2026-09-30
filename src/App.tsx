@@ -212,6 +212,7 @@ import {
 } from "./lib/rateChange";
 import type { Comment } from "./lib/comments";
 import { collectAiModFileFacts, type AiModFileFacts } from "./lib/aimodFiles";
+import type { SampleFile } from "./lib/mapSamples";
 import {
   closestDivisor,
   isSnapPresetId,
@@ -829,6 +830,9 @@ export default function App() {
   const [audioFiles, setAudioFiles] = useState<Record<string, LoadedFile>>({});
   const [bgFiles, setBgFiles] = useState<Record<string, LoadedFile>>({});
   const [videoFiles, setVideoFiles] = useState<Record<string, LoadedFile>>({});
+  // The mapset's own hitsound samples, from an .osz; they play in place of
+  // the skin's where osu! would.
+  const [sampleFiles, setSampleFiles] = useState<Record<string, SampleFile>>({});
   const [pendingBgName, setPendingBgName] = useState<string | null>(null);
   const [skin, setSkin] = useState<LoadedSkin | null>(null);
   const [hitsoundSkin, setHitsoundSkin] = useState<LoadedSkin | null>(null);
@@ -1147,6 +1151,8 @@ export default function App() {
   bgFilesRef.current = bgFiles;
   const videoFilesRef = useRef(videoFiles);
   videoFilesRef.current = videoFiles;
+  const sampleFilesRef = useRef(sampleFiles);
+  sampleFilesRef.current = sampleFiles;
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const metaRef = useRef(meta);
@@ -1655,6 +1661,7 @@ export default function App() {
     modalAtmosphereActive,
     effectiveHitsounds,
     audio.duration > 0,
+    sampleFiles,
   );
 
   useEffect(() => {
@@ -1793,7 +1800,11 @@ export default function App() {
             blob: a.blob,
           };
           if (a.kind === "audio") newAudio[a.name] = lf;
-          else newBg[a.name] = lf;
+          else if (a.kind === "bg") newBg[a.name] = lf;
+          else {
+            URL.revokeObjectURL(lf.url);
+            continue;
+          }
           publishedAssetBlobsRef.current.set(`${a.kind}:${a.name}`, a.blob);
           forcedAssetReloadsRef.current.delete(a.name);
           attempts.delete(a.name);
@@ -3024,6 +3035,7 @@ export default function App() {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
         return map.videoFiles;
       });
+      setSampleFiles(map.sampleFiles ?? {});
       setMeta(map.meta);
       setTimingPoints(
         map.timingPoints.length
@@ -3298,6 +3310,7 @@ export default function App() {
         Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
         return {};
       });
+      setSampleFiles({});
       setProjectStarted(true);
       setMeta(map.meta);
       setTimingPoints(
@@ -3354,6 +3367,7 @@ export default function App() {
         Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
         return {};
       });
+      setSampleFiles({});
       setCloudProjectId(null);
       setCloudOwnerId(null);
       setMyRole(null);
@@ -3435,6 +3449,7 @@ export default function App() {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
       return {};
     });
+    setSampleFiles({});
     setPublicMapUrl(null);
     setCloudProjectId(null);
     setCloudOwnerId(null);
@@ -3595,6 +3610,7 @@ export default function App() {
           Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
           return {};
         });
+        setSampleFiles({});
         setCloudProjectId(null);
         setCloudOwnerId(null);
         setMyRole(null);
@@ -5134,6 +5150,11 @@ export default function App() {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
       return restoredVideoFiles;
     });
+    setSampleFiles(
+      Object.fromEntries(
+        (saved.sampleFiles ?? []).map((sample) => [sample.name, sample]),
+      ),
+    );
     setZenMode(false);
     setReferenceId(null);
     setCloudProjectId(null);
@@ -5999,6 +6020,7 @@ export default function App() {
         audioFiles,
         bgFiles,
         videoFiles,
+        sampleFiles,
         jpegQuality: appSettings.exportPngBackgroundsAsJpeg
           ? appSettings.exportJpegQuality
           : undefined,
@@ -6024,6 +6046,7 @@ export default function App() {
     difficulties,
     bgFiles,
     videoFiles,
+    sampleFiles,
     meta,
     timingPoints,
     authUser?.id,
@@ -6131,6 +6154,7 @@ export default function App() {
         audioFiles,
         bgFiles,
         videoFiles,
+        sampleFiles,
         jpegQuality: appSettings.exportPngBackgroundsAsJpeg
           ? appSettings.exportJpegQuality
           : undefined,
@@ -6156,6 +6180,7 @@ export default function App() {
     difficulties,
     bgFiles,
     videoFiles,
+    sampleFiles,
     meta,
     timingPoints,
     appSettings.exportPngBackgroundsAsJpeg,
@@ -6185,6 +6210,7 @@ export default function App() {
         audioFiles,
         bgFiles,
         videoFiles,
+        sampleFiles,
         jpegQuality: appSettings.exportPngBackgroundsAsJpeg
           ? appSettings.exportJpegQuality
           : undefined,
@@ -6213,6 +6239,7 @@ export default function App() {
     difficulties,
     bgFiles,
     videoFiles,
+    sampleFiles,
     meta,
     timingPoints,
     appSettings.exportPngBackgroundsAsJpeg,
@@ -6364,6 +6391,7 @@ export default function App() {
       name: f.name,
       blob: f.blob,
     })),
+    sampleFiles: Object.values(sampleFiles),
     background: null,
     skin: skin ? { name: skin.fileName, blob: skin.blob } : null,
   }), [
@@ -6377,6 +6405,7 @@ export default function App() {
     audioFiles,
     bgFiles,
     videoFiles,
+    sampleFiles,
     skin,
   ]);
 
@@ -6511,6 +6540,7 @@ export default function App() {
           name: f.name,
           blob: f.blob,
         })),
+        sampleFiles: Object.values(sampleFiles),
         mutationId,
       });
       publishedAssetBlobsRef.current = new Map([
@@ -6576,6 +6606,7 @@ export default function App() {
     bgScope,
     audioFiles,
     bgFiles,
+    sampleFiles,
   ]);
 
   const loadCloudProject = useCallback(async (id: string) => {
@@ -6630,6 +6661,9 @@ export default function App() {
         Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
         return {};
       });
+      setSampleFiles(
+        Object.fromEntries(proj.samples.map((sample) => [sample.name, sample])),
+      );
 
       const d = proj.data;
       setMeta(d.meta);
@@ -6962,6 +6996,7 @@ export default function App() {
       Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
       return {};
     });
+    setSampleFiles({});
 
     const fresh = makeDifficulty("Normal", 4);
     if (loadedAudio) fresh.audioFilename = loadedAudio.name;

@@ -24,6 +24,12 @@ export type CloudProjectData = {
 };
 
 export type CloudAsset = { name: string; blob: Blob };
+/** "sample" is the mapset's own hitsound samples. */
+export type CloudAssetKind = "audio" | "bg" | "sample";
+
+function assetKind(value: unknown): CloudAssetKind | null {
+  return value === "audio" || value === "bg" || value === "sample" ? value : null;
+}
 
 export type CloudSyncStamp = {
   revision: number | null;
@@ -56,17 +62,32 @@ type SaveParams = {
   data: CloudProjectData;
   audioFiles: CloudAsset[];
   bgFiles: CloudAsset[];
+  sampleFiles?: CloudAsset[];
   mutationId?: string;
 };
 
 export async function saveProjectCloud(params: SaveParams): Promise<string> {
-  const { ownerId, projectId, audioFiles, bgFiles } = params;
+  try {
+    return await saveProjectCloudOnce(params);
+  } catch (err) {
+    // Rolling-deploy compatibility: a database without migration 0036 turns
+    // down sample rows. Save the map without its samples rather than not at
+    // all; they stay in the local copy and go up once the database allows.
+    const message = err instanceof Error ? err.message : "";
+    if (!params.sampleFiles?.length || !/invalid project asset/i.test(message)) throw err;
+    return await saveProjectCloudOnce({ ...params, sampleFiles: [] });
+  }
+}
+
+async function saveProjectCloudOnce(params: SaveParams): Promise<string> {
+  const { ownerId, projectId, audioFiles, bgFiles, sampleFiles = [] } = params;
   const data = cloudSafeProjectData(params.data);
   const mutationId = params.mutationId ?? crypto.randomUUID();
 
   const assets = [
     ...audioFiles.map((a) => ({ ...a, kind: "audio" as const })),
     ...bgFiles.map((a) => ({ ...a, kind: "bg" as const })),
+    ...sampleFiles.map((a) => ({ ...a, kind: "sample" as const })),
   ];
   const totalBytes = assets.reduce((sum, a) => sum + a.blob.size, 0);
   if (totalBytes > PROJECT_BYTE_LIMIT) {
@@ -77,7 +98,7 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
   }
 
   const prepared: {
-    kind: "audio" | "bg";
+    kind: CloudAssetKind;
     name: string;
     blob: Blob;
     sha: string;
@@ -119,7 +140,7 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
   try {
     const assetRows: {
       project_id: string;
-      kind: "audio" | "bg";
+      kind: CloudAssetKind;
       filename: string;
       storage_path: string;
       sha256: string;
@@ -396,6 +417,7 @@ export type LoadedCloudProject = {
   data: CloudProjectData;
   audio: CloudAsset[];
   bg: CloudAsset[];
+  samples: CloudAsset[];
 };
 
 export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> {
@@ -414,6 +436,7 @@ export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> 
 
   const audio: CloudAsset[] = [];
   const bg: CloudAsset[] = [];
+  const samples: CloudAsset[] = [];
   const rows = assets ?? [];
   let nextAsset = 0;
   await Promise.all(
@@ -424,8 +447,10 @@ export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> 
         if (!asset) return;
         const blob = await downloadProjectAsset(id, asset.storage_path as string);
         const entry = { name: asset.filename as string, blob };
-        if (asset.kind === "audio") audio.push(entry);
-        else bg.push(entry);
+        const kind = assetKind(asset.kind);
+        if (kind === "audio") audio.push(entry);
+        else if (kind === "sample") samples.push(entry);
+        else if (kind === "bg") bg.push(entry);
       }
     }),
   );
@@ -436,12 +461,13 @@ export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> 
     data: cloudSafeProjectData(project.data as CloudProjectData),
     audio,
     bg,
+    samples,
   };
 }
 
 export async function publishProjectAsset(
   projectId: string,
-  kind: "audio" | "bg",
+  kind: CloudAssetKind,
   asset: CloudAsset,
 ): Promise<void> {
   const sha = await sha256Hex(asset.blob);
@@ -468,7 +494,7 @@ export async function publishProjectAsset(
 export async function loadProjectAssets(
   projectId: string,
   filenames: string[],
-): Promise<(CloudAsset & { kind: "audio" | "bg" })[]> {
+): Promise<(CloudAsset & { kind: CloudAssetKind })[]> {
   if (!filenames.length) return [];
   const { data: rows, error } = await supabase
     .from("project_assets")
@@ -477,14 +503,15 @@ export async function loadProjectAssets(
     .in("filename", filenames);
   if (error) throw new Error(error.message);
 
-  const out: (CloudAsset & { kind: "audio" | "bg" })[] = [];
+  const out: (CloudAsset & { kind: CloudAssetKind })[] = [];
   for (const a of rows ?? []) {
     const blob = await downloadProjectAsset(
       projectId,
       a.storage_path as string,
     ).catch(() => null);
-    if (!blob) continue;
-    out.push({ name: a.filename as string, blob, kind: a.kind as "audio" | "bg" });
+    const kind = assetKind(a.kind);
+    if (!blob || !kind) continue;
+    out.push({ name: a.filename as string, blob, kind });
   }
   return out;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { LoadedSkin, ManiaNote, TimingPoint } from "../types";
 import {
   HITSOUND_CLAP,
@@ -13,6 +13,19 @@ import {
 } from "../lib/audioAtmosphere";
 import { activeTimingAt } from "../lib/timing";
 import { playNativeEffect } from "../lib/nativeAudio";
+import {
+  indexSamples,
+  mapSampleFor,
+  namedSampleFor,
+  sampleKey,
+  type SampleFile,
+} from "../lib/mapSamples";
+
+type SampleSource = { key: string; load: () => Promise<ArrayBuffer> };
+
+function mapSource(file: SampleFile): SampleSource {
+  return { key: `map:${sampleKey(file.name)}`, load: () => file.blob.arrayBuffer() };
+}
 
 const SET_PREFIX: Record<number, string> = { 1: "normal", 2: "soft", 3: "drum" };
 const HIT_SOUNDS = ["normal", "whistle", "finish", "clap"] as const;
@@ -34,7 +47,10 @@ export function useHitsounds(
   ducked: boolean,
   skinHitsounds: LoadedSkin["hitsounds"] | null,
   ready: boolean,
+  /** The mapset's own samples, played where osu! would use them over the skin's. */
+  mapSamples: Record<string, SampleFile> | null = null,
 ) {
+  const mapIndex = useMemo(() => indexSamples(mapSamples), [mapSamples]);
   const ctxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const filterRef = useRef<BiquadFilterNode | null>(null);
@@ -50,6 +66,7 @@ export function useHitsounds(
     enabled,
     ducked,
     skinHitsounds,
+    mapIndex,
   });
   stateRef.current = {
     isPlaying,
@@ -58,6 +75,7 @@ export function useHitsounds(
     enabled,
     ducked,
     skinHitsounds,
+    mapIndex,
   };
 
   const currentMixPower = useCallback((): number => {
@@ -136,7 +154,7 @@ export function useHitsounds(
   useEffect(() => {
     buffersRef.current.clear();
     loadingRef.current.clear();
-  }, [skinHitsounds]);
+  }, [skinHitsounds, mapIndex]);
 
   const sourceFor = useCallback(
     (
@@ -162,9 +180,8 @@ export function useHitsounds(
     [],
   );
 
-  const getBuffer = useCallback(
-    (ctx: AudioContext, base: string): AudioBuffer | null => {
-      const source = sourceFor(base);
+  const bufferFor = useCallback(
+    (ctx: AudioContext, source: SampleSource | null): AudioBuffer | null => {
       if (!source) return null;
       const { key } = source;
       const existing = buffersRef.current.get(key);
@@ -181,7 +198,28 @@ export function useHitsounds(
       }
       return null;
     },
-    [sourceFor],
+    [],
+  );
+
+  const getBuffer = useCallback(
+    (ctx: AudioContext, base: string): AudioBuffer | null => bufferFor(ctx, sourceFor(base)),
+    [bufferFor, sourceFor],
+  );
+
+  const playBuffer = useCallback(
+    (ctx: AudioContext, buffer: AudioBuffer | null, gainValue: number) => {
+      if (!buffer || gainValue <= 0) return;
+      if (playNativeEffect(buffer, gainValue * currentMixPower())) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = gainValue;
+      src.connect(gain).connect(
+        filterRef.current ?? masterGainRef.current ?? ctx.destination,
+      );
+      src.start();
+    },
+    [currentMixPower],
   );
 
   const playSample = useCallback(
@@ -194,19 +232,13 @@ export function useHitsounds(
     ) => {
       if (gainValue <= 0) return;
       const indexSuffix = sampleIndex > 1 ? String(sampleIndex) : "";
-      const buffer = getBuffer(ctx, `${setPrefix}-hit${sound}${indexSuffix}`);
-      if (!buffer) return;
-      if (playNativeEffect(buffer, gainValue * currentMixPower())) return;
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      const gain = ctx.createGain();
-      gain.gain.value = gainValue;
-      src.connect(gain).connect(
-        filterRef.current ?? masterGainRef.current ?? ctx.destination,
-      );
-      src.start();
+      const mapFile = mapSampleFor(stateRef.current.mapIndex, `${setPrefix}-hit${sound}`, sampleIndex);
+      const buffer = mapFile
+        ? bufferFor(ctx, mapSource(mapFile))
+        : getBuffer(ctx, `${setPrefix}-hit${sound}${indexSuffix}`);
+      playBuffer(ctx, buffer, gainValue);
     },
-    [getBuffer, currentMixPower],
+    [bufferFor, getBuffer, playBuffer],
   );
 
   const playNote = useCallback(
@@ -224,7 +256,11 @@ export function useHitsounds(
       const gainValue = volPct / 100;
       if (gainValue <= 0) return;
 
-      playSample(ctx, normalPrefix, "normal", sampleIndex, gainValue);
+      // A note naming its own file plays it in place of the normal sound; the
+      // additions still come from the bank. A missing file falls back.
+      const named = namedSampleFor(s.mapIndex, note.sampleFile);
+      if (named) playBuffer(ctx, bufferFor(ctx, mapSource(named)), gainValue);
+      else playSample(ctx, normalPrefix, "normal", sampleIndex, gainValue);
       const adds = note.hitSound ?? 0;
       if (adds & HITSOUND_WHISTLE)
         playSample(ctx, additionPrefix, "whistle", sampleIndex, gainValue);
@@ -233,7 +269,7 @@ export function useHitsounds(
       if (adds & HITSOUND_CLAP)
         playSample(ctx, additionPrefix, "clap", sampleIndex, gainValue);
     },
-    [ensureCtx, playSample],
+    [ensureCtx, playSample, playBuffer, bufferFor],
   );
 
   useEffect(() => {
@@ -260,6 +296,15 @@ export function useHitsounds(
       ...Object.keys(stateRef.current.skinHitsounds ?? {}),
     ];
     const bases = [...new Set(prioritized)];
+    // The map's own samples first: they replace the skin's where they apply.
+    const warmups: ((ctx: AudioContext) => void)[] = [
+      ...[...mapIndex.values()].map((file) => (ctx: AudioContext) => {
+        bufferFor(ctx, mapSource(file));
+      }),
+      ...bases.map((base) => (ctx: AudioContext) => {
+        getBuffer(ctx, base);
+      }),
+    ];
     let index = 0;
 
     const schedule = (callback: () => void) => {
@@ -271,14 +316,14 @@ export function useHitsounds(
     };
     const warmNext = () => {
       idleId = null;
-      if (cancelled || index >= bases.length) return;
+      if (cancelled || index >= warmups.length) return;
       if (stateRef.current.isPlaying) {
         timer = window.setTimeout(() => schedule(warmNext), 250);
         return;
       }
       const ctx = ensureCtx(false);
       if (!ctx) return;
-      getBuffer(ctx, bases[index++]);
+      warmups[index++](ctx);
       applyOutputMix(0.01);
       schedule(warmNext);
     };
@@ -289,7 +334,7 @@ export function useHitsounds(
       window.clearTimeout(timer);
       if (idleId !== null && cancelIdle) cancelIdle.call(window, idleId);
     };
-  }, [enabled, ready, skinHitsounds, ensureCtx, getBuffer, applyOutputMix]);
+  }, [enabled, ready, skinHitsounds, mapIndex, ensureCtx, bufferFor, getBuffer, applyOutputMix]);
 
   useEffect(() => {
     if (!enabled || !ready || !isPlaying) {

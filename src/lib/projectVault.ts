@@ -27,6 +27,7 @@ const MEDIA_FIELDS = [
   "audio",
   "backgroundFiles",
   "videoFiles",
+  "sampleFiles",
   "background",
   "skin",
 ] as const;

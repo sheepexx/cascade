@@ -71,6 +71,8 @@ export type SavedProject = {
   audio?: { name: string; blob: Blob } | null;
   backgroundFiles?: { name: string; blob: Blob }[];
   videoFiles?: { name: string; blob: Blob }[];
+  /** The mapset's own hitsound samples. */
+  sampleFiles?: { name: string; blob: Blob }[];
   background?: { name: string; blob: Blob } | null;
   skin?: { name: string; blob: Blob } | null;
 };
@@ -128,7 +130,13 @@ export type LocalTrackSummary = Omit<
 
 type MediaPayload = Pick<
   SavedProject,
-  "audioFiles" | "audio" | "backgroundFiles" | "videoFiles" | "background" | "skin"
+  | "audioFiles"
+  | "audio"
+  | "backgroundFiles"
+  | "videoFiles"
+  | "sampleFiles"
+  | "background"
+  | "skin"
 >;
 
 type MediaRecord = MediaPayload & { signature: string };
@@ -138,6 +146,7 @@ const MEDIA_FIELDS: (keyof MediaPayload)[] = [
   "audio",
   "backgroundFiles",
   "videoFiles",
+  "sampleFiles",
   "background",
   "skin",
 ];

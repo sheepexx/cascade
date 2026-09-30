@@ -3,7 +3,7 @@ import JSZip from "jszip";
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta } from "../types";
 import { makeDifficulty, makeRedPoint, makeGreenPoint } from "../types";
 import { buildOsz } from "./oszExport";
-import { parseOsuFile } from "./osuImport";
+import { importOsz, parseOsuFile } from "./osuImport";
 
 class ArrayBufferFileReader {
   result: ArrayBuffer | null = null;
@@ -185,5 +185,33 @@ describe("buildOsz asset references", () => {
     );
     expect(parsed.timingPoints.map((t) => t.time)).toEqual([250]);
     expect(parsed.timingPoints[0].bpm).toBeCloseTo(200, 5);
+  });
+
+  it("carries the set's own samples out and back in", async () => {
+    const blob = await buildOsz({
+      meta,
+      difficulties: [
+        diff("Easy", {
+          notes: [{ id: "k", column: 0, startTime: 0, sampleFile: "kick.wav" }, ...notes.slice(1)],
+        }),
+      ],
+      timingPoints,
+      audioFiles: { "audio.mp3": loaded("audio.mp3", "song") },
+      sampleFiles: {
+        "soft-hitclap2.wav": { name: "soft-hitclap2.wav", blob: new Blob(["clap"]) },
+        "kick.wav": { name: "kick.wav", blob: new Blob(["kick"]) },
+        // A sample may never replace the song it sits beside.
+        "Audio.mp3": { name: "Audio.mp3", blob: new Blob(["impostor"]) },
+      },
+    });
+    const files = await entries(blob);
+    expect(files.has("soft-hitclap2.wav")).toBe(true);
+    expect(files.has("kick.wav")).toBe(true);
+    expect(await files.get("audio.mp3")!.async("string")).not.toBe("impostor");
+    expect(files.has("Audio.mp3")).toBe(false);
+
+    const back = await importOsz(blob);
+    expect(Object.keys(back.sampleFiles ?? {}).sort()).toEqual(["kick.wav", "soft-hitclap2.wav"]);
+    expect(await back.sampleFiles!["kick.wav"].blob.text()).toBe("kick");
   });
 });

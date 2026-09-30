@@ -19,6 +19,13 @@ import {
 import { t } from "./i18n/core";
 import { parseMalodyChart } from "./malody";
 import { xToColumn } from "./osuExport";
+import {
+  chooseSamplePaths,
+  isHitsoundSampleName,
+  mimeForSample,
+  sampleKey,
+  type SampleFile,
+} from "./mapSamples";
 import { uniqueDifficultyName } from "./rateChange";
 
 export type ParsedOsu = {
@@ -38,6 +45,8 @@ export type ImportedMap = {
   audioFiles: Record<string, LoadedFile>;
   backgroundFiles: Record<string, LoadedFile>;
   videoFiles: Record<string, LoadedFile>;
+  /** The set's own hitsound samples, keyed by file name. */
+  sampleFiles?: Record<string, SampleFile>;
 };
 
 function splitSections(text: string): Record<string, string[]> {
@@ -473,6 +482,11 @@ export async function importOsz(
     const loaded = await toLoadedFile(entry, mimeForVideo(name));
     if (loaded) videoFiles[name] = loaded;
   }
+  const sampleFiles = await readSampleFiles(
+    zip,
+    parsed.flatMap((p) => p.difficulty.notes.flatMap((n) => (n.sampleFile ? [n.sampleFile] : []))),
+    audioNames.filter((name): name is string => !!name),
+  );
   progress.done(t("lib.opening"));
 
   const difficulties = parsed.map((p) => ({
@@ -496,5 +510,35 @@ export async function importOsz(
     audioFiles,
     backgroundFiles,
     videoFiles,
+    sampleFiles,
   };
+}
+
+/** The set's own hitsound samples; see chooseSamplePaths for which files count. */
+async function readSampleFiles(
+  zip: JSZip,
+  referenced: string[],
+  songAudio: string[],
+): Promise<Record<string, SampleFile>> {
+  const candidates: { path: string; file: JSZip.JSZipObject }[] = [];
+  const wanted = new Set(referenced.map(sampleKey));
+  zip.forEach((path, file) => {
+    if (file.dir || path.includes("/")) return;
+    if (isHitsoundSampleName(path) || wanted.has(sampleKey(path))) candidates.push({ path, file });
+  });
+  const loaded: { path: string; blob: Blob }[] = [];
+  for (const { path, file } of candidates) {
+    const raw = await file.async("blob");
+    loaded.push({ path, blob: new Blob([raw], { type: mimeForSample(path) }) });
+  }
+  const keep = new Set(
+    chooseSamplePaths(
+      loaded.map(({ path, blob }) => ({ path, bytes: blob.size })),
+      referenced,
+      songAudio,
+    ),
+  );
+  const samples: Record<string, SampleFile> = {};
+  for (const { path, blob } of loaded) if (keep.has(path)) samples[path] = { name: path, blob };
+  return samples;
 }

@@ -28,6 +28,7 @@ import { loadMp3Encoder } from "./lameEncoder";
 import { ProgressSplitter, type ProgressFn } from "./progress";
 import { difficultyRate, formatRate, isNeutralRate } from "./rateChange";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
+import type { SampleFile } from "./mapSamples";
 import { t } from "./i18n/core";
 
 export type BuildOszArgs = {
@@ -37,6 +38,8 @@ export type BuildOszArgs = {
   audioFiles: Record<string, LoadedFile>;
   bgFiles?: Record<string, LoadedFile>;
   videoFiles?: Record<string, LoadedFile>;
+  /** The mapset's own hitsound samples, written beside the song. */
+  sampleFiles?: Record<string, SampleFile>;
   jpegQuality?: number;
   /** Adds "Cascade" to every difficulty's tags; defaults to on. */
   cascadeTag?: boolean;
@@ -50,6 +53,7 @@ export async function buildOsz({
   audioFiles,
   bgFiles,
   videoFiles,
+  sampleFiles,
   jpegQuality,
   cascadeTag,
   onProgress,
@@ -262,6 +266,17 @@ export async function buildOsz({
     }
   } finally {
     ctxHolder.ctx?.close().catch(() => {});
+  }
+
+  // Samples go in last and never over a file already written: the song,
+  // backgrounds and the .osu files keep their names.
+  const written = new Set<string>();
+  zip.forEach((path) => written.add(path.toLowerCase()));
+  for (const sample of Object.values(sampleFiles ?? {})) {
+    const key = sample.name.toLowerCase();
+    if (written.has(key)) continue;
+    zip.file(sample.name, sample.blob);
+    written.add(key);
   }
 
   progress.advance();
