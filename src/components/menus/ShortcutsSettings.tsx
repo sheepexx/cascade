@@ -83,6 +83,7 @@ export function ShortcutsSettings({
 
         <ShortcutSection title={t("shortcuts.section.editing")}>
           <ShortcutRow keys="Q" text={t("shortcuts.q.text")} />
+          <ShortcutRow keys="Esc" text={t("shortcuts.esc.text")} />
           <ShortcutRow keys={t("shortcuts.edit_click.keys")} text={t("shortcuts.edit_click.text")} />
           <ShortcutRow keys={t("shortcuts.edit_drag.keys")} text={t("shortcuts.edit_drag.text")} />
           <ShortcutRow keys={t("shortcuts.select_click.keys")} text={t("shortcuts.select_click.text")} />

@@ -1016,6 +1016,37 @@ export function ManiaEditor(props: Props) {
       const binds =
         propsRef.current.editorKeybinds ?? DEFAULT_EDITOR_KEYBINDS;
       const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
+      // Esc steps back one level per press, like osu!lazer: a drag in
+      // progress, then the selection, then the placement tool. Only when the
+      // playfield itself has focus, so a menu's own Esc isn't doubled up.
+      if (
+        e.key === "Escape" &&
+        noMod &&
+        !e.shiftKey &&
+        !isTyping(e.target) &&
+        (e.target === canvasRef.current || e.target === document.body)
+      ) {
+        if (dragRef.current || moveDragRef.current || selectionDragRef.current) {
+          e.preventDefault();
+          dragRef.current = null;
+          moveDragRef.current = null;
+          selectionDragRef.current = null;
+          selectionAutoscrollTimeRef.current = null;
+          setTailHover(false);
+          markDirty();
+          return;
+        }
+        if (selectedNoteIdsRef.current.size) {
+          e.preventDefault();
+          setSelection(new Set());
+          return;
+        }
+        if (interactionModeRef.current === "edit" && !propsRef.current.readOnly) {
+          e.preventDefault();
+          setInteractionMode("select");
+          return;
+        }
+      }
       if (e.code === "KeyQ" && noMod && !isTyping(e.target)) {
         e.preventDefault();
         setInteractionMode((mode) => (mode === "edit" ? "select" : "edit"));

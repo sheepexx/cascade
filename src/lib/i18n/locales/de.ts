@@ -1761,6 +1761,7 @@ export const de: PartialCatalog = {
   "shortcuts.speed_buttons.keys": "Tempo-Buttons",
   "shortcuts.speed_buttons.text": "Wiedergabegeschwindigkeit auf 25 %, 50 %, 75 % oder 100 % setzen.",
   "shortcuts.q.text": "Zwischen Bearbeiten- und Auswählen-Modus wechseln.",
+  "shortcuts.esc.text": "Eine Stufe zurück: erst ein Ziehen abbrechen, dann die Auswahl aufheben, dann vom Bearbeiten- in den Auswählen-Modus wechseln.",
   "shortcuts.edit_click.keys": "Bearbeiten: Klick",
   "shortcuts.edit_click.text": "Eine eingerastete Note setzen oder eine vorhandene ersetzen.",
   "shortcuts.edit_drag.keys": "Bearbeiten: Ziehen",

@@ -1760,6 +1760,7 @@ export const ptBR: PartialCatalog = {
   "shortcuts.speed_buttons.keys": "Botões de velocidade",
   "shortcuts.speed_buttons.text": "Definir a velocidade para 25%, 50%, 75% ou 100%.",
   "shortcuts.q.text": "Alternar entre os modos Editar e Selecionar.",
+  "shortcuts.esc.text": "Volta um nível: cancela um arrasto, depois limpa a seleção, depois troca o modo Editar por Selecionar.",
   "shortcuts.edit_click.keys": "Editar: clique",
   "shortcuts.edit_click.text": "Colocar uma nota ajustada ou substituir uma existente.",
   "shortcuts.edit_drag.keys": "Editar: arrastar",

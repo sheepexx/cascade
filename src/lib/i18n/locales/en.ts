@@ -1863,6 +1863,7 @@ export const en = {
   "shortcuts.speed_buttons.keys": "Speed buttons",
   "shortcuts.speed_buttons.text": "Set playback rate to 25%, 50%, 75% or 100%.",
   "shortcuts.q.text": "Switch between Edit and Select modes.",
+  "shortcuts.esc.text": "Step back one level: cancel a drag, then clear the selection, then leave Edit mode for Select.",
   "shortcuts.edit_click.keys": "Edit: click",
   "shortcuts.edit_click.text": "Place a snapped note or replace an existing note.",
   "shortcuts.edit_drag.keys": "Edit: drag",

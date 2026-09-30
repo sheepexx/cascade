@@ -1878,6 +1878,7 @@ export const ru: PartialCatalog = {
   "shortcuts.speed_buttons.keys": "Кнопки скорости",
   "shortcuts.speed_buttons.text": "Установить скорость 25%, 50%, 75% или 100%.",
   "shortcuts.q.text": "Переключение между режимами правки и выделения.",
+  "shortcuts.esc.text": "Шаг назад: сначала отменяет перетаскивание, затем снимает выделение, затем переключает правку на выделение.",
   "shortcuts.edit_click.keys": "Правка: щелчок",
   "shortcuts.edit_click.text": "Поставить привязанную ноту или заменить существующую.",
   "shortcuts.edit_drag.keys": "Правка: перетаскивание",

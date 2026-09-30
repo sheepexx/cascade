@@ -1655,6 +1655,7 @@ export const zhCN: PartialCatalog = {
   "shortcuts.speed_buttons.keys": "速度按钮",
   "shortcuts.speed_buttons.text": "将播放速度设为 25%、50%、75% 或 100%。",
   "shortcuts.q.text": "在编辑和选择模式之间切换。",
+  "shortcuts.esc.text": "逐级后退：先取消拖动，再清除选择，最后从编辑模式切换到选择模式。",
   "shortcuts.edit_click.keys": "编辑：点击",
   "shortcuts.edit_click.text": "放置吸附的音符或替换已有音符。",
   "shortcuts.edit_drag.keys": "编辑：拖动",
