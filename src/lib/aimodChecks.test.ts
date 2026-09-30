@@ -37,6 +37,7 @@ function facts(over: {
     backgrounds: {
       "bg.jpg": { blob: background, bytes: over.bgBytes ?? 1000, width: over.width ?? 1920, height: over.height ?? 1080 },
     },
+    samples: {},
   };
 }
 
@@ -154,5 +155,41 @@ describe("unused audio at the end", () => {
   it("stays quiet when the map runs close to the end", () => {
     const found = messages({ difficulties: [diff("Hard", 85_000)], audioDurationMs: 100_000 });
     expect(found.some((m) => /unmapped/.test(m))).toBe(false);
+  });
+});
+
+describe("sample checks", () => {
+  const clap = new Blob(["clap"]);
+  const sampleFiles = { "soft-hitclap.wav": { name: "soft-hitclap.wav", blob: clap } };
+  const withSample = (facts: Partial<AiModFileFacts["samples"][string]>) => ({
+    ...facts,
+    audio: {},
+    backgrounds: {},
+    samples: {
+      "soft-hitclap.wav": { blob: clap, bytes: 4, durationMs: 120, delay: { silentMs: 0, delayMs: 0 }, ...facts },
+    },
+  });
+  const found = (files: AiModFileFacts) => messages({ files, sampleFiles }).filter((m) => m.includes("soft-hitclap"));
+
+  it("passes a sample that is long enough and hits on time", () => {
+    expect(found(withSample({}))).toEqual([]);
+  });
+
+  it("flags a sample too short to play everywhere", () => {
+    expect(found(withSample({ durationMs: 12 }))).toEqual([
+      '"soft-hitclap.wav" is only 12 ms long; some sound cards skip audio under 25 ms.',
+    ]);
+  });
+
+  it("flags leading silence as a problem and a slow attack as a warning", () => {
+    expect(found(withSample({ delay: { silentMs: 8, delayMs: 8 } }))[0]).toMatch(/8 ms of complete silence/);
+    expect(found(withSample({ delay: { silentMs: 0, delayMs: 6 } }))[0]).toMatch(/about 6 ms/);
+    expect(found(withSample({ delay: { silentMs: 2, delayMs: 3 } }))[0]).toMatch(/about 3 ms/);
+    expect(found(withSample({ delay: { silentMs: 1, delayMs: 2 } }))).toEqual([]);
+  });
+
+  it("flags an empty sample and ignores one since replaced", () => {
+    expect(found(withSample({ bytes: 0 }))).toEqual(['"soft-hitclap.wav" is an empty file.']);
+    expect(found(withSample({ blob: new Blob(["old"]), durationMs: 5 }))).toEqual([]);
   });
 });

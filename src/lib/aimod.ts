@@ -13,6 +13,7 @@ import { compareToCorpus, formatCorpusValue, type CorpusComparison } from "./pat
 import { checkRankingCriteria, difficultyTier, type Tier } from "./rankingCriteria";
 import { t } from "./i18n/core";
 import type { AiModFileFacts } from "./aimodFiles";
+import type { SampleFile } from "./mapSamples";
 
 // osu! only recognises objects snapped to one of these beat divisors. Notes on a
 // 1/5, 1/7, 1/9 or finer grid (or drifted off-grid by float rounding) are shown
@@ -157,6 +158,8 @@ export type AiModArgs = {
    * are skipped until it arrives.
    */
   files?: AiModFileFacts;
+  /** The mapset's own samples, so facts about a replaced one are ignored. */
+  sampleFiles?: Record<string, SampleFile>;
 };
 
 // Ranking Criteria limits, the same ones osu!lazer's verify checks use.
@@ -170,6 +173,10 @@ export const AIMOD_BG_LOW = { width: 960, height: 540 };
 export const AIMOD_BG_MAX_MB = 2.5;
 /** Share of the song that should be mapped before the outro counts as unused. */
 export const AIMOD_MIN_MAPPED_PERCENT = 80;
+/** Shorter audio doesn't play on some sound cards. */
+export const AIMOD_MIN_AUDIO_MS = 25;
+/** A hitsound this late, in ms, is heard off the beat. */
+export const AIMOD_HITSOUND_DELAY_MS = 5;
 
 const TITLE_MARKERS: { marker: string; pattern: RegExp }[] = [
   { marker: "(TV Size)", pattern: /tv (size|ver)/i },
@@ -261,6 +268,7 @@ export function runAiMod({
   bgFiles,
   audioDurationMs,
   files,
+  sampleFiles,
 }: AiModArgs): AiModReport {
   const issues: AiModIssue[] = [];
   let seq = 0;
@@ -452,6 +460,41 @@ export function runAiMod({
           category: "Mapset",
           severity: "error",
           message: t("aimod.bgFileSize", { file: name, mb: formatMb(facts.bytes), max: formatUiNumber(AIMOD_BG_MAX_MB) }),
+        });
+    }
+  }
+
+  if (files?.samples) {
+    for (const [name, facts] of Object.entries(files.samples)) {
+      if (sampleFiles?.[name]?.blob !== facts.blob) continue;
+      if (facts.bytes === 0) {
+        add({ category: "Mapset", severity: "error", message: t("aimod.emptyFile", { file: name }) });
+        continue;
+      }
+      if (facts.durationMs !== null && facts.durationMs > 0 && facts.durationMs < AIMOD_MIN_AUDIO_MS)
+        add({
+          category: "Mapset",
+          severity: "error",
+          message: t("aimod.sampleTooShort", {
+            file: name,
+            ms: String(Math.round(facts.durationMs)),
+            min: AIMOD_MIN_AUDIO_MS,
+          }),
+        });
+      const delay = facts.delay;
+      if (!delay) continue;
+      if (delay.silentMs >= AIMOD_HITSOUND_DELAY_MS)
+        add({
+          category: "Mapset",
+          severity: "error",
+          message: t("aimod.sampleSilence", { file: name, ms: delay.silentMs }),
+        });
+      // lazer weighs silence twice here; matched so the same files are flagged.
+      else if (delay.silentMs + delay.delayMs >= AIMOD_HITSOUND_DELAY_MS)
+        add({
+          category: "Mapset",
+          severity: "warning",
+          message: t("aimod.sampleDelay", { file: name, ms: delay.delayMs }),
         });
     }
   }

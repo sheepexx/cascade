@@ -3974,6 +3974,7 @@ export default function App() {
           ? Math.round(sourceDurationRef.current)
           : undefined,
         files: aiModFiles,
+        sampleFiles: sampleFilesRef.current,
       }),
     );
   }, [audioFiles, bgFiles, aiModFiles]);
@@ -3983,7 +3984,7 @@ export default function App() {
   useEffect(() => {
     if (modal !== "aimod") return;
     let cancelled = false;
-    collectAiModFileFacts(audioFiles, bgFiles)
+    collectAiModFileFacts(audioFiles, bgFiles, sampleFiles)
       .then((facts) => {
         if (!cancelled) setAiModFiles(facts);
       })
@@ -3991,7 +3992,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [modal, audioFiles, bgFiles]);
+  }, [modal, audioFiles, bgFiles, sampleFiles]);
 
   useEffect(() => {
     if (aiModFiles && modal === "aimod") runAiModCheck();
@@ -4043,6 +4044,7 @@ export default function App() {
             ? Math.round(sourceDurationRef.current)
             : undefined,
           files: aiModFiles,
+          sampleFiles: sampleFilesRef.current,
         }),
       );
     }

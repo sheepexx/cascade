@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { averageBitrateKbps, detectAudioFormat, id3v2TagBytes } from "./aimodFiles";
+import {
+  averageBitrateKbps,
+  detectAudioFormat,
+  id3v2TagBytes,
+  isHitsoundFile,
+  millisecondPoints,
+  sampleDelay,
+} from "./aimodFiles";
 
 const bytes = (...values: (number | string)[]) =>
   new Uint8Array(
@@ -47,5 +54,51 @@ describe("averageBitrateKbps", () => {
   it("has no answer without a length or any audio", () => {
     expect(averageBitrateKbps(240_000, 0)).toBeNull();
     expect(averageBitrateKbps(0, 10)).toBeNull();
+  });
+});
+
+describe("millisecondPoints", () => {
+  it("takes each millisecond's loudest excursion, averaged across channels", () => {
+    const left = new Float32Array(3000);
+    const right = new Float32Array(3000);
+    left[1500] = -0.8;
+    right[1600] = 0.4;
+    const points = millisecondPoints([left, right], 1_000_000);
+    expect(points).toHaveLength(3);
+    expect(Array.from(points).map((v) => Math.round(v * 100) / 100)).toEqual([0, 0.6, 0]);
+  });
+});
+
+describe("sampleDelay", () => {
+  const points = (values: number[]) => new Float32Array(values);
+
+  it("is instant for a sample that hits straight away", () => {
+    expect(sampleDelay(points([1, 0.5, 0.2]))).toEqual({ silentMs: 0, delayMs: 0 });
+  });
+
+  it("counts leading silence the way lazer does", () => {
+    // Silence counts toward the scan's bound twice, so with 20 ms of it the
+    // scan ends after 11 steps, before the hit; lazer reports the same.
+    const silence = new Array(20).fill(0);
+    expect(sampleDelay(points([...silence, 1, 0.3]))).toEqual({ silentMs: 11, delayMs: 11 });
+    expect(sampleDelay(points([0, 0, 1]))).toEqual({ silentMs: 2, delayMs: 2 });
+  });
+
+  it("counts a slow swell into the hit", () => {
+    expect(sampleDelay(points([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1]))).toEqual({ silentMs: 0, delayMs: 6 });
+  });
+
+  it("skips a silent sample", () => {
+    expect(sampleDelay(points([0, 0, 0]))).toBeNull();
+    expect(sampleDelay(points([]))).toBeNull();
+  });
+});
+
+describe("isHitsoundFile", () => {
+  it("matches the hit sounds osu! plays, not slider sounds or other audio", () => {
+    expect(isHitsoundFile("soft-hitclap.wav")).toBe(true);
+    expect(isHitsoundFile("Drum-HitNormal3.ogg")).toBe(true);
+    expect(isHitsoundFile("normal-sliderslide.wav")).toBe(false);
+    expect(isHitsoundFile("kick.wav")).toBe(false);
   });
 });

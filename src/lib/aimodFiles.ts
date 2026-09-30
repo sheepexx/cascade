@@ -1,4 +1,5 @@
 import type { LoadedFile } from "../types";
+import type { SampleFile } from "./mapSamples";
 
 /**
  * Facts about the mapset's audio and background files that AiMod checks need
@@ -24,10 +25,91 @@ export type ImageFileFacts = {
   height: number | null;
 };
 
+export type SampleFileFacts = {
+  blob: Blob;
+  bytes: number;
+  /** Decoded length; null when the file couldn't be decoded. */
+  durationMs: number | null;
+  /** How late the sound lands, for hitsound files; null when not measured. */
+  delay: SampleDelay | null;
+};
+
 export type AiModFileFacts = {
   audio: Record<string, AudioFileFacts>;
   backgrounds: Record<string, ImageFileFacts>;
+  samples: Record<string, SampleFileFacts>;
 };
+
+/**
+ * osu!lazer's waveform points: one per millisecond, the loudest excursion in
+ * it averaged across the channels.
+ */
+export function millisecondPoints(channels: Float32Array[], sampleRate: number): Float32Array {
+  if (!channels.length || !(sampleRate > 0)) return new Float32Array(0);
+  const perPoint = sampleRate / 1000;
+  const count = Math.ceil(channels[0].length / perPoint);
+  const points = new Float32Array(count);
+  for (let p = 0; p < count; p++) {
+    const from = Math.floor(p * perPoint);
+    const to = Math.min(channels[0].length, Math.floor((p + 1) * perPoint));
+    let sum = 0;
+    for (const channel of channels) {
+      let peak = 0;
+      for (let i = from; i < to; i++) peak = Math.max(peak, Math.abs(channel[i]));
+      sum += peak;
+    }
+    points[p] = sum / channels.length;
+  }
+  return points;
+}
+
+export type SampleDelay = {
+  /** Milliseconds of complete silence before the sound starts. */
+  silentMs: number;
+  /** Milliseconds, silence included, before it reaches its peak. */
+  delayMs: number;
+};
+
+const SILENCE = 0.001;
+const FALLOFF = 0.95;
+
+/**
+ * osu!lazer's delayed-hitsound measure, step for step: amplitude builds up
+ * millisecond by millisecond, decaying as it goes, until it reaches the
+ * sample's peak. Null for a silent sample.
+ *
+ * Kept exactly as lazer has it, quirks included, so Cascade flags the same
+ * files it does: silent milliseconds count toward both totals, which also
+ * ends the scan early on a long silence.
+ */
+export function sampleDelay(points: Float32Array): SampleDelay | null {
+  let total = 0;
+  let max = 0;
+  for (const point of points) {
+    total += point;
+    if (point > max) max = point;
+  }
+  if (!points.length || total <= SILENCE) return null;
+  let silent = 0;
+  let delay = 0;
+  let amplitude = 0;
+  while (delay + silent < points.length) {
+    amplitude += points[delay];
+    if (amplitude >= max) break;
+    amplitude *= FALLOFF;
+    if (amplitude < SILENCE) {
+      amplitude = 0;
+      silent++;
+    }
+    delay++;
+  }
+  return { silentMs: silent, delayMs: delay };
+}
+
+/** "normal-hitclap2.wav" and the like: the files osu! plays as hitsounds. */
+export function isHitsoundFile(name: string): boolean {
+  return /^(normal|soft|drum)-hit(normal|whistle|finish|clap)\d*\.(wav|ogg|mp3)$/i.test(name);
+}
 
 function ascii(bytes: Uint8Array, offset: number, length: number): string {
   let out = "";
@@ -130,10 +212,28 @@ async function readImageFacts(blob: Blob): Promise<ImageFileFacts> {
   }
 }
 
+async function readSampleFacts(blob: Blob, name: string): Promise<SampleFileFacts> {
+  if (blob.size === 0) return { blob, bytes: 0, durationMs: null, delay: null };
+  try {
+    const context = new OfflineAudioContext(1, 1, 44100);
+    const decoded = await context.decodeAudioData(await blob.arrayBuffer());
+    const channels = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i));
+    return {
+      blob,
+      bytes: blob.size,
+      durationMs: decoded.duration * 1000,
+      delay: isHitsoundFile(name) ? sampleDelay(millisecondPoints(channels, decoded.sampleRate)) : null,
+    };
+  } catch {
+    return { blob, bytes: blob.size, durationMs: null, delay: null };
+  }
+}
+
 // Reading a file is keyed on the blob itself, so reopening AiMod on an
 // unchanged mapset costs nothing and a replaced file is read afresh.
 const audioCache = new WeakMap<Blob, Promise<AudioFileFacts>>();
 const imageCache = new WeakMap<Blob, Promise<ImageFileFacts>>();
+const sampleCache = new WeakMap<Blob, Promise<SampleFileFacts>>();
 
 function cached<T>(cache: WeakMap<Blob, Promise<T>>, blob: Blob, read: (b: Blob) => Promise<T>): Promise<T> {
   let pending = cache.get(blob);
@@ -147,6 +247,7 @@ function cached<T>(cache: WeakMap<Blob, Promise<T>>, blob: Blob, read: (b: Blob)
 export async function collectAiModFileFacts(
   audioFiles: Record<string, LoadedFile>,
   bgFiles: Record<string, LoadedFile>,
+  sampleFiles: Record<string, SampleFile> = {},
 ): Promise<AiModFileFacts> {
   const audioEntries = await Promise.all(
     Object.entries(audioFiles).map(
@@ -158,8 +259,15 @@ export async function collectAiModFileFacts(
       async ([name, file]) => [name, await cached(imageCache, file.blob, readImageFacts)] as const,
     ),
   );
+  const sampleEntries = await Promise.all(
+    Object.entries(sampleFiles).map(
+      async ([name, file]) =>
+        [name, await cached(sampleCache, file.blob, (blob) => readSampleFacts(blob, file.name))] as const,
+    ),
+  );
   return {
     audio: Object.fromEntries(audioEntries),
     backgrounds: Object.fromEntries(imageEntries),
+    samples: Object.fromEntries(sampleEntries),
   };
 }
