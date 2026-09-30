@@ -1,3 +1,4 @@
+import type { SnapPresetId } from "../lib/snapPresets";
 import {
   DEFAULT_HOLD_CONFIRM_MS,
   DEFAULT_PARALLAX_STRENGTH,
@@ -467,6 +468,10 @@ export type AppSettings = {
   masterVolume: number;
   /** Share of the volume kept while another window or tab is in front, 0..1. */
   unfocusedVolume: number;
+  /** The beat divisor preset the step keys move through. */
+  snapPreset: SnapPresetId;
+  /** The mapper's own divisor preset; empty leaves it out of the cycle. */
+  customSnapDivisors: number[];
   /** Playback under 100% keeps the song's pitch instead of dropping it. */
   keepPitchWhenSlowed: boolean;
   dimBackground: number;
@@ -651,6 +656,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundVolume: 0.18,
   masterVolume: 1,
   unfocusedVolume: 0.3,
+  snapPreset: "common",
+  customSnapDivisors: [],
   keepPitchWhenSlowed: true,
   dimBackground: 82,
   backgroundBlur: 0,

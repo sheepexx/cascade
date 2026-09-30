@@ -153,6 +153,8 @@ type Props = {
   onUiSoundVolume: (value: number) => void;
   editorKeybinds: EditorKeybinds;
   onEditorKeybinds: (value: EditorKeybinds) => void;
+  customSnapDivisors: number[];
+  onCustomSnapDivisors: (value: number[]) => void;
   showMenuPlayers: boolean;
   onShowMenuPlayers: (value: boolean) => void;
   hideStatus: boolean;
@@ -298,6 +300,8 @@ export function AppSettingsModal({
   onUiSoundVolume,
   editorKeybinds,
   onEditorKeybinds,
+  customSnapDivisors,
+  onCustomSnapDivisors,
   showMenuPlayers,
   onShowMenuPlayers,
   menuMusicEnabled,
@@ -1521,6 +1525,8 @@ export function AppSettingsModal({
             keybinds={editorKeybinds}
             onKeybinds={onEditorKeybinds}
             altWheelAction={altWheelAction}
+            customSnapDivisors={customSnapDivisors}
+            onCustomSnapDivisors={onCustomSnapDivisors}
           />
         )}
       </div>

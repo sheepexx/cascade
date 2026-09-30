@@ -213,6 +213,14 @@ import {
 import type { Comment } from "./lib/comments";
 import { collectAiModFileFacts, type AiModFileFacts } from "./lib/aimodFiles";
 import {
+  closestDivisor,
+  isSnapPresetId,
+  nextSnapPreset,
+  normalizeCustomDivisors,
+  presetDivisors,
+  stepDivisor,
+} from "./lib/snapPresets";
+import {
   saveProjectCloud,
   findDuplicateProjectsCloud,
   type DuplicateProjectMatch,
@@ -733,6 +741,10 @@ function normalizeAppSettings(
       Number.isFinite(prefs.unfocusedVolume)
         ? Math.max(0, Math.min(1, prefs.unfocusedVolume))
         : DEFAULT_APP_SETTINGS.unfocusedVolume,
+    snapPreset: isSnapPresetId(prefs?.snapPreset)
+      ? prefs.snapPreset
+      : DEFAULT_APP_SETTINGS.snapPreset,
+    customSnapDivisors: normalizeCustomDivisors(prefs?.customSnapDivisors),
     altWheelAction: isAltWheelAction(prefs?.altWheelAction)
       ? prefs.altWheelAction
       : DEFAULT_APP_SETTINGS.altWheelAction,
@@ -811,6 +823,8 @@ export default function App() {
   const [view, setView] = useState<ViewState>(
     () => loadViewPreferences() ?? DEFAULT_VIEW,
   );
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
   const [audioFiles, setAudioFiles] = useState<Record<string, LoadedFile>>({});
   const [bgFiles, setBgFiles] = useState<Record<string, LoadedFile>>({});
@@ -5418,6 +5432,8 @@ export default function App() {
       const isSlow = noMod && is("slowMo");
       const isBookmark = noMod && is("addBookmark");
       const snapDivisor = noMod ? snapDivisorForBind(e.code, binds) : null;
+      const snapStep = !noMod ? 0 : is("snapNext") ? 1 : is("snapPrevious") ? -1 : 0;
+      const isSnapPreset = noMod && is("snapPreset");
       if (
         !isSpace &&
         !isTab &&
@@ -5431,7 +5447,9 @@ export default function App() {
         !isZoomOut &&
         !isSlow &&
         !isBookmark &&
-        snapDivisor === null
+        snapDivisor === null &&
+        snapStep === 0 &&
+        !isSnapPreset
       )
         return;
       if (shouldIgnoreHotkey(e, isSpace)) return;
@@ -5447,7 +5465,9 @@ export default function App() {
         !isTimelineZoomIn &&
         !isZoomIn &&
         !isZoomOut &&
-        snapDivisor === null
+        snapDivisor === null &&
+        snapStep === 0 &&
+        !isSnapPreset
       )
         return;
       e.preventDefault();
@@ -5502,6 +5522,32 @@ export default function App() {
         );
         setAudioVolume(volume);
         setVolumeHudKey((value) => value + 1);
+      }
+      else if (snapStep !== 0 || isSnapPreset) {
+        const settings = appSettingsRef.current;
+        const custom = settings.customSnapDivisors;
+        let preset = presetDivisors(settings.snapPreset, custom).length
+          ? settings.snapPreset
+          : "common";
+        if (isSnapPreset) {
+          if (e.repeat) return;
+          preset = nextSnapPreset(preset, custom);
+          const chosen = preset;
+          setAppSettings((s) => ({ ...s, snapPreset: chosen }));
+        }
+        const divisors = presetDivisors(preset, custom);
+        const current = viewRef.current.snapDivisor;
+        const next = snapStep !== 0
+          ? stepDivisor(divisors, current, snapStep)
+          : closestDivisor(divisors, current);
+        setView((v) => ({ ...v, snapDivisor: next }));
+        announceShortcut({
+          label: isSnapPreset ? t("osd.snapPreset") : t("osd.snap"),
+          value: isSnapPreset
+            ? `${t(`snapPreset.${preset}`)} · 1/${next}`
+            : `1/${next}`,
+          keys: [editorKeyLabel(e.code)],
+        });
       }
       else if (snapDivisor !== null) {
         setView((v) => ({ ...v, snapDivisor }));
@@ -8694,6 +8740,15 @@ export default function App() {
           editorKeybinds={editorKeybinds}
           onEditorKeybinds={(value) =>
             setAppSettings((s) => ({ ...s, editorKeybinds: value }))
+          }
+          customSnapDivisors={appSettings.customSnapDivisors}
+          onCustomSnapDivisors={(value) =>
+            setAppSettings((s) => ({
+              ...s,
+              customSnapDivisors: value,
+              // An emptied custom list can't stay the active preset.
+              snapPreset: s.snapPreset === "custom" && !value.length ? "common" : s.snapPreset,
+            }))
           }
           accountSyncStatus={authUser ? accountSyncStatus : null}
           accountSyncError={accountSyncError}

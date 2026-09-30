@@ -1,4 +1,5 @@
 import type { Locale } from "./i18n";
+import { isSnapPresetId, normalizeCustomDivisors } from "./snapPresets";
 import { isLocale } from "./i18n/core";
 import { supabase } from "./supabase";
 import { normalizePlaytestTiming } from "./playtestClock";
@@ -107,6 +108,14 @@ export function normalizeAccountSettings(
         editorKeybinds: stringRecord(rawApp.editorKeybinds)
           ? rawApp.editorKeybinds
           : DEFAULT_APP_SETTINGS.editorKeybinds,
+        unfocusedVolume:
+          typeof rawApp.unfocusedVolume === "number" && Number.isFinite(rawApp.unfocusedVolume)
+            ? Math.max(0, Math.min(1, rawApp.unfocusedVolume))
+            : DEFAULT_APP_SETTINGS.unfocusedVolume,
+        snapPreset: isSnapPresetId(rawApp.snapPreset)
+          ? rawApp.snapPreset
+          : DEFAULT_APP_SETTINGS.snapPreset,
+        customSnapDivisors: normalizeCustomDivisors(rawApp.customSnapDivisors),
         playtest: {
           ...normalizePlaytestTiming(
             { ...DEFAULT_APP_SETTINGS.playtest, ...rawPlaytest },

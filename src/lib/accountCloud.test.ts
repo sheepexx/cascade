@@ -20,6 +20,22 @@ describe("normalizeAccountSettings", () => {
     expect(normalizeAccountSettings([], fallback)).toBe(fallback);
   });
 
+  it("tidies synced volume and snap preset settings", () => {
+    const normalized = normalizeAccountSettings(
+      {
+        appSettings: {
+          unfocusedVolume: 4,
+          snapPreset: "sextuplets",
+          customSnapDivisors: [10, 5, 5, 0, 99],
+        },
+      },
+      fallback,
+    );
+    expect(normalized.appSettings.unfocusedVolume).toBe(1);
+    expect(normalized.appSettings.snapPreset).toBe("common");
+    expect(normalized.appSettings.customSnapDivisors).toEqual([5, 10]);
+  });
+
   it("clamps scalar preferences and ignores unknown options", () => {
     const normalized = normalizeAccountSettings(
       {

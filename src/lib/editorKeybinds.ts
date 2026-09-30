@@ -38,6 +38,9 @@ export type EditorAction =
   | "toggleReceptors"
   | "hitsoundMode"
   | "waveformOverlay"
+  | "snapPrevious"
+  | "snapNext"
+  | "snapPreset"
   | EditorSnapAction
   // Only with a selection.
   | "mirrorSelection"
@@ -69,6 +72,9 @@ export const DEFAULT_EDITOR_KEYBINDS: EditorKeybinds = {
   toggleReceptors: "KeyR",
   hitsoundMode: "KeyH",
   waveformOverlay: "KeyW",
+  snapPrevious: "Comma",
+  snapNext: "Period",
+  snapPreset: "Slash",
   snapFree: "Digit0",
   snap1: "Digit1",
   snap2: "Digit2",
@@ -118,6 +124,9 @@ const CONFLICT_GROUPS: EditorAction[][] = [
     "toggleReceptors",
     "hitsoundMode",
     "waveformOverlay",
+    "snapPrevious",
+    "snapNext",
+    "snapPreset",
     ...EDITOR_SNAP_ACTIONS.map(({ action }) => action),
   ],
   [

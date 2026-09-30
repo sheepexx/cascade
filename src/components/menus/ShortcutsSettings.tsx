@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   DEFAULT_EDITOR_KEYBINDS,
   EDITOR_SNAP_ACTIONS,
@@ -9,16 +9,22 @@ import {
 } from "../../lib/editorKeybinds";
 import type { AltWheelAction } from "../../types";
 import { InfoTip } from "../ui/Tooltip";
+import { TextInput } from "../ui/Controls";
+import { parseCustomDivisors } from "../../lib/snapPresets";
 import { useT } from "../../lib/i18n";
 
 export function ShortcutsSettings({
   keybinds,
   onKeybinds,
   altWheelAction,
+  customSnapDivisors,
+  onCustomSnapDivisors,
 }: {
   keybinds: EditorKeybinds;
   onKeybinds: (keybinds: EditorKeybinds) => void;
   altWheelAction: AltWheelAction;
+  customSnapDivisors: number[];
+  onCustomSnapDivisors: (value: number[]) => void;
 }) {
   const t = useT();
   const [capturing, setCapturing] = useState<EditorAction | null>(null);
@@ -126,6 +132,10 @@ export function ShortcutsSettings({
               divisor === 0 ? t("shortcuts.snapFree") : t("shortcuts.snapTo", { divisor }),
             ),
           )}
+          {row("snapPrevious", t("shortcuts.row.snapPrevious"))}
+          {row("snapNext", t("shortcuts.row.snapNext"))}
+          {row("snapPreset", t("shortcuts.row.snapPreset"))}
+          <CustomDivisorsField value={customSnapDivisors} onChange={onCustomSnapDivisors} />
           {row("scrollSpeedDown", t("shortcuts.row.scrollSpeedDown"))}
           {row("scrollSpeedUp", t("shortcuts.row.scrollSpeedUp"))}
           {row("zoomIn", t("shortcuts.row.zoomIn"))}
@@ -259,5 +269,38 @@ function KeybindRow({
       </button>
       <div className="text-slate-400">{text}</div>
     </div>
+  );
+}
+
+/** The mapper's own divisor preset, typed as a list and tidied on commit. */
+function CustomDivisorsField({
+  value,
+  onChange,
+}: {
+  value: number[];
+  onChange: (value: number[]) => void;
+}) {
+  const t = useT();
+  const [text, setText] = useState(value.join(" "));
+  useEffect(() => setText(value.join(" ")), [value]);
+  const commit = () => {
+    const parsed = parseCustomDivisors(text);
+    setText(parsed.join(" "));
+    if (parsed.join(" ") !== value.join(" ")) onChange(parsed);
+  };
+  return (
+    <label className="flex flex-col gap-1.5 py-1.5 text-xs text-slate-400">
+      <span>{t("shortcuts.customDivisors")}</span>
+      <TextInput
+        value={text}
+        placeholder="1 5 10 20"
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+        }}
+      />
+      <span className="text-[11px] text-slate-500">{t("shortcuts.customDivisorsHint")}</span>
+    </label>
   );
 }
