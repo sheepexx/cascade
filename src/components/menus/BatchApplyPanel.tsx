@@ -12,11 +12,11 @@ export function BatchApplyPanel({ source, difficulties, onApply, readOnly, live 
   const t = useT();
   const eligible = difficulties.filter(d => d.id !== source.id && d.audioFilename === source.audioFilename);
   const [targets, setTargets] = useState(() => new Set(eligible.map(d => d.id)));
-  const [options, setOptions] = useState<BatchOptions>({ timing: "red", preview: false, difficultySettings: false });
+  const [options, setOptions] = useState<BatchOptions>({ timing: "red", preview: false, difficultySettings: false, bookmarks: false });
   const [applied, setApplied] = useState(0);
   const patchOptions = (patch: Partial<BatchOptions>) => { setApplied(0); setOptions(o => ({ ...o, ...patch })); };
   const changeTargets = (next: Set<string>) => { setApplied(0); setTargets(next); };
-  const hasChanges = options.timing !== "none" || options.preview || options.difficultySettings;
+  const hasChanges = options.timing !== "none" || options.preview || options.difficultySettings || !!options.bookmarks;
   const canApply = !readOnly && targets.size > 0 && hasChanges;
   return <div className="flex flex-col gap-5">
     <p className="text-sm text-slate-300">{t("batch.copyFrom")} <strong>{source.name}</strong>{t("batch.copyFromAfter")}</p>
@@ -35,6 +35,7 @@ export function BatchApplyPanel({ source, difficulties, onApply, readOnly, live 
         /></Field>
         <label className="flex gap-2 text-xs"><input type="checkbox" checked={options.preview} onChange={e => patchOptions({ preview: e.target.checked })} />{t("timing.previewPoint")}</label>
         <label className="flex gap-2 text-xs"><input type="checkbox" checked={options.difficultySettings} onChange={e => patchOptions({ difficultySettings: e.target.checked })} />{t("batch.difficultySettings")}</label>
+        <label className="flex gap-2 text-xs"><input type="checkbox" checked={!!options.bookmarks} onChange={e => patchOptions({ bookmarks: e.target.checked })} />{t("batch.bookmarks")}</label>
       </div>
       <div className="rounded-xl border border-white/10 p-3">
         <div className="mb-2 flex justify-between text-xs"><strong>{t("batch.targets")}</strong>{eligible.length > 0 && <button onClick={() => changeTargets(targets.size === eligible.length ? new Set() : new Set(eligible.map(d => d.id)))} className="text-accent">{targets.size === eligible.length ? t("timing.clear") : t("batch.selectAll")}</button>}</div>

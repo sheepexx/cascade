@@ -164,6 +164,21 @@ describe("batch apply", () => {
     const out = batchApplyDifficulties([source, target], { sourceId: source.id, targetIds: [target.id], options: { timing: "all", preview: true, difficultySettings: true } });
     expect(out[1].timingPoints.find(p => !p.uninherited)).toMatchObject({ time: 250, sv: 2 }); expect(out[1].previewTime).toBe(-1);
   });
+  it("copies bookmarks and their labels onto the target's clock", () => {
+    const source = { ...makeDifficulty(), audioRate: 1.5, bookmarks: [3000, 1500], bookmarkLabels: { "1500": "Drop", "9999": "stale" } };
+    const target = { ...makeDifficulty(), audioRate: 1, bookmarks: [100], bookmarkLabels: { "100": "old" } };
+    const out = batchApplyDifficulties([source, target], { sourceId: source.id, targetIds: [target.id], options: { timing: "none", preview: false, difficultySettings: false, bookmarks: true } });
+    expect(out[1].bookmarks).toEqual([2250, 4500]);
+    expect(out[1].bookmarkLabels).toEqual({ "2250": "Drop" });
+    expect(out[1].timingPoints).toBe(target.timingPoints);
+  });
+  it("clears the target's bookmarks when the source has none", () => {
+    const source = makeDifficulty();
+    const target = { ...makeDifficulty(), bookmarks: [100], bookmarkLabels: { "100": "old" } };
+    const out = batchApplyDifficulties([source, target], { sourceId: source.id, targetIds: [target.id], options: { timing: "none", preview: false, difficultySettings: false, bookmarks: true } });
+    expect(out[1].bookmarks).toBeUndefined();
+    expect(out[1].bookmarkLabels).toBeUndefined();
+  });
 });
 
 describe("pattern review", () => {
