@@ -12,6 +12,7 @@ import { analyzePatterns, readinessScore, type CriteriaPenalty, type PatternFeat
 import { compareToCorpus, formatCorpusValue, type CorpusComparison } from "./patternCorpus";
 import { checkRankingCriteria, difficultyTier, type Tier } from "./rankingCriteria";
 import { t } from "./i18n/core";
+import type { AiModFileFacts } from "./aimodFiles";
 
 // osu! only recognises objects snapped to one of these beat divisors. Notes on a
 // 1/5, 1/7, 1/9 or finer grid (or drifted off-grid by float rounding) are shown
@@ -151,7 +152,68 @@ export type AiModArgs = {
    * Enables the length, drain and past-the-end-of-audio checks.
    */
   audioDurationMs?: number;
+  /**
+   * What reading the audio and background files turned up. The file checks
+   * are skipped until it arrives.
+   */
+  files?: AiModFileFacts;
 };
+
+// Ranking Criteria limits, the same ones osu!lazer's verify checks use.
+export const AIMOD_MAX_BITRATE_KBPS = 192;
+export const AIMOD_MAX_BITRATE_OGG_KBPS = 208;
+export const AIMOD_MIN_BITRATE_KBPS = 128;
+export const AIMOD_BG_MAX = { width: 2560, height: 1440 };
+export const AIMOD_BG_MIN = { width: 160, height: 120 };
+/** Below this a sharper copy of the same image can usually be found. */
+export const AIMOD_BG_LOW = { width: 960, height: 540 };
+export const AIMOD_BG_MAX_MB = 2.5;
+/** Share of the song that should be mapped before the outro counts as unused. */
+export const AIMOD_MIN_MAPPED_PERCENT = 80;
+
+const TITLE_MARKERS: { marker: string; pattern: RegExp }[] = [
+  { marker: "(TV Size)", pattern: /tv (size|ver)/i },
+  { marker: "(Game Ver.)", pattern: /game (size|ver)/i },
+  { marker: "(Short Ver.)", pattern: /short (size|ver)/i },
+  { marker: "(Cut Ver.)", pattern: /(?<!& )cut (size|ver)/i },
+  { marker: "(Sped Up Ver.)", pattern: /(?<!& )(sped|speed) ?up ver/i },
+  { marker: "(Nightcore Mix)", pattern: /(?<!& )(nightcore|night core) (ver|mix)/i },
+  { marker: "(Sped Up & Cut Ver.)", pattern: /(sped|speed) ?up (ver)? ?& cut (size|ver)/i },
+  { marker: "(Nightcore & Cut Ver.)", pattern: /(nightcore|night core) (ver|mix)? ?& cut (size|ver)/i },
+];
+
+/** Markers the title spells differently from the form the Ranking Criteria require. */
+export function misformattedTitleMarkers(title: string): string[] {
+  return TITLE_MARKERS.filter(
+    ({ marker, pattern }) => pattern.test(title) && !title.includes(marker),
+  ).map(({ marker }) => marker);
+}
+
+// The website's genre and language filters, as osu!lazer checks tags against them.
+const GENRE_TAGS = ["video game", "anime", "rock", "pop", "other", "novelty", "hip hop", "electronic", "metal", "classical", "folk", "jazz"];
+const LANGUAGE_TAGS = ["english", "japanese", "chinese", "instrumental", "korean", "french", "german", "swedish", "spanish", "italian", "russian", "polish", "other"];
+
+function tagsInclude(tags: string, options: string[]): boolean {
+  const words = new Set(tags.toLowerCase().split(/\s+/).filter(Boolean));
+  return options.some((option) => option.split(" ").every((word) => words.has(word)));
+}
+
+export function hasGenreTag(tags: string): boolean {
+  return tagsInclude(tags, GENRE_TAGS);
+}
+
+export function hasLanguageTag(tags: string): boolean {
+  return tagsInclude(tags, LANGUAGE_TAGS);
+}
+
+/** Export writes a rate-changed or trimmed difficulty its own audio file. */
+function bakesOwnAudio(d: Difficulty): boolean {
+  return difficultyRate(d) !== 1 || (d.trimStartMs ?? 0) > 0.5 || d.trimEndMs !== undefined;
+}
+
+function formatMb(bytes: number): string {
+  return formatUiNumber(Math.round((bytes / (1024 * 1024)) * 100) / 100);
+}
 
 const MIN_MAP_LENGTH_MS = 30_000;
 const RECOMMENDED_MAP_LENGTH_MS = 45_000;
@@ -198,6 +260,7 @@ export function runAiMod({
   audioFiles,
   bgFiles,
   audioDurationMs,
+  files,
 }: AiModArgs): AiModReport {
   const issues: AiModIssue[] = [];
   let seq = 0;
@@ -230,6 +293,21 @@ export function runAiMod({
       severity: "warning",
       message: t("aimod.noTags"),
     });
+
+  const tags = meta.tags ?? "";
+  if (tags.trim()) {
+    if (!hasGenreTag(tags))
+      add({ category: "Meta", severity: "warning", message: t("aimod.noGenreTag") });
+    if (!hasLanguageTag(tags))
+      add({ category: "Meta", severity: "warning", message: t("aimod.noLanguageTag") });
+  }
+
+  for (const marker of misformattedTitleMarkers(meta.title))
+    add({ category: "Meta", severity: "error", message: t("aimod.titleMarker", { marker }) });
+  const unicodeTitle = meta.titleUnicode?.trim();
+  if (unicodeTitle && unicodeTitle !== meta.title.trim())
+    for (const marker of misformattedTitleMarkers(unicodeTitle))
+      add({ category: "Meta", severity: "error", message: t("aimod.unicodeTitleMarker", { marker }) });
 
   // --- Mapset (audio + set-wide) ---
   if (Object.keys(audioFiles).length === 0)
@@ -305,6 +383,107 @@ export function runAiMod({
       severity: "error",
       message: t("aimod.sharedName", { count: n, name: d.name.trim() }),
     });
+  }
+
+  // --- Mapset: what reading the files turned up ---
+  if (files) {
+    for (const [name, file] of Object.entries(audioFiles)) {
+      const facts = files.audio[name];
+      if (!facts || facts.blob !== file.blob) continue;
+      if (facts.bytes === 0) {
+        add({ category: "Mapset", severity: "error", message: t("aimod.emptyFile", { file: name }) });
+        continue;
+      }
+      if (facts.format !== "mp3" && facts.format !== "ogg") {
+        add({ category: "Mapset", severity: "error", message: t("aimod.songFormat", { file: name }) });
+        continue;
+      }
+      const max = facts.format === "ogg" ? AIMOD_MAX_BITRATE_OGG_KBPS : AIMOD_MAX_BITRATE_KBPS;
+      if (facts.bitrateKbps === null) continue;
+      if (facts.bitrateKbps > max)
+        add({
+          category: "Mapset",
+          severity: "error",
+          message: t("aimod.bitrateHigh", { file: name, kbps: facts.bitrateKbps, max }),
+        });
+      else if (facts.bitrateKbps < AIMOD_MIN_BITRATE_KBPS)
+        add({
+          category: "Mapset",
+          severity: "error",
+          message: t("aimod.bitrateLow", { file: name, kbps: facts.bitrateKbps, min: AIMOD_MIN_BITRATE_KBPS }),
+        });
+    }
+
+    const usedBackgrounds = new Set(
+      difficulties.map((d) => d.backgroundFilename).filter((name): name is string => !!name),
+    );
+    for (const name of usedBackgrounds) {
+      const file = bgFiles[name];
+      const facts = files.backgrounds[name];
+      if (!file || !facts || facts.blob !== file.blob) continue;
+      if (facts.bytes === 0) {
+        add({ category: "Mapset", severity: "error", message: t("aimod.emptyFile", { file: name }) });
+        continue;
+      }
+      if (facts.width !== null && facts.height !== null) {
+        // Pixel sizes read as plain digits, without thousands separators.
+        const size = { file: name, width: String(facts.width), height: String(facts.height) };
+        if (facts.width > AIMOD_BG_MAX.width || facts.height > AIMOD_BG_MAX.height)
+          add({
+            category: "Mapset",
+            severity: "error",
+            message: t("aimod.bgTooLarge", { ...size, maxWidth: String(AIMOD_BG_MAX.width), maxHeight: String(AIMOD_BG_MAX.height) }),
+          });
+        if (facts.width < AIMOD_BG_MIN.width || facts.height < AIMOD_BG_MIN.height)
+          add({
+            category: "Mapset",
+            severity: "error",
+            message: t("aimod.bgTooSmall", { ...size, minWidth: String(AIMOD_BG_MIN.width), minHeight: String(AIMOD_BG_MIN.height) }),
+          });
+        else if (facts.width < AIMOD_BG_LOW.width || facts.height < AIMOD_BG_LOW.height)
+          add({
+            category: "Mapset",
+            severity: "warning",
+            message: t("aimod.bgLow", { ...size, minWidth: String(AIMOD_BG_LOW.width), minHeight: String(AIMOD_BG_LOW.height) }),
+          });
+      }
+      if (facts.bytes > AIMOD_BG_MAX_MB * 1024 * 1024)
+        add({
+          category: "Mapset",
+          severity: "error",
+          message: t("aimod.bgFileSize", { file: name, mb: formatMb(facts.bytes), max: formatUiNumber(AIMOD_BG_MAX_MB) }),
+        });
+    }
+  }
+
+  // --- Mapset: settings every difficulty must share ---
+  // Rate-changed and trimmed difficulties are left out: export bakes each its
+  // own audio file, so their file and preview time differ by design.
+  const sameRate = difficulties.filter((d) => !bakesOwnAudio(d));
+  if (sameRate.length > 1) {
+    const reference = sameRate[0];
+    for (const d of sameRate.slice(1)) {
+      if ((d.audioFilename ?? "") !== (reference.audioFilename ?? ""))
+        add({
+          category: "Mapset",
+          severity: "error",
+          message: t("aimod.inconsistentAudio", { name: d.name, reference: reference.name }),
+          diffId: d.id,
+        });
+      if (Math.round(d.previewTime) !== Math.round(reference.previewTime))
+        add({
+          category: "Mapset",
+          severity: "error",
+          message: t("aimod.inconsistentPreview", {
+            name: d.name,
+            reference: reference.name,
+            time: formatAiModTime(d.previewTime),
+            referenceTime: formatAiModTime(reference.previewTime),
+          }),
+          diffId: d.id,
+          time: d.previewTime >= 0 ? d.previewTime : undefined,
+        });
+    }
   }
 
   for (const d of difficulties) {
@@ -564,6 +743,23 @@ export function runAiMod({
       },
       afterAudio,
     );
+
+    // --- Compose: unused audio at the end ---
+    // A trimmed difficulty exports only the part of the song it keeps, so the
+    // full file's length says nothing about its outro.
+    if (audioEnd !== undefined && audioEnd > 0 && sortedNotes.length > 0 && !bakesOwnAudio(d)) {
+      let lastEnd = 0;
+      for (const n of sortedNotes) lastEnd = Math.max(lastEnd, n.endTime ?? n.startTime);
+      const mappedPercent = Math.round((lastEnd / audioEnd) * 100);
+      if (mappedPercent < AIMOD_MIN_MAPPED_PERCENT)
+        add({
+          category: "Compose",
+          severity: "warning",
+          message: `[${d.name}] ${t("aimod.unusedAudioEnd", { percent: 100 - mappedPercent })}`,
+          diffId,
+          time: lastEnd,
+        });
+    }
 
     // --- Compose: empty difficulty / no hitsounds ---
     if (d.notes.length === 0) {

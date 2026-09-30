@@ -211,6 +211,7 @@ import {
   type RateCreateOptions,
 } from "./lib/rateChange";
 import type { Comment } from "./lib/comments";
+import { collectAiModFileFacts, type AiModFileFacts } from "./lib/aimodFiles";
 import {
   saveProjectCloud,
   findDuplicateProjectsCloud,
@@ -3824,6 +3825,7 @@ export default function App() {
   );
 
   const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
+  const [aiModFiles, setAiModFiles] = useState<AiModFileFacts | undefined>();
   const [confirmResnap, setConfirmResnap] = useState(false);
 
   const runAiModCheck = useCallback(() => {
@@ -3836,9 +3838,31 @@ export default function App() {
         audioDurationMs: sourceDurationRef.current
           ? Math.round(sourceDurationRef.current)
           : undefined,
+        files: aiModFiles,
       }),
     );
-  }, [audioFiles, bgFiles]);
+  }, [audioFiles, bgFiles, aiModFiles]);
+
+  // The file checks need the audio and backgrounds read, which only happens
+  // while AiMod is open; the report fills them in once reading finishes.
+  useEffect(() => {
+    if (modal !== "aimod") return;
+    let cancelled = false;
+    collectAiModFileFacts(audioFiles, bgFiles)
+      .then((facts) => {
+        if (!cancelled) setAiModFiles(facts);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [modal, audioFiles, bgFiles]);
+
+  useEffect(() => {
+    if (aiModFiles && modal === "aimod") runAiModCheck();
+    // Only fresh file facts should re-run the check here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiModFiles]);
 
   const openAiMod = useCallback(() => {
     runAiModCheck();
@@ -3883,10 +3907,11 @@ export default function App() {
           audioDurationMs: sourceDurationRef.current
             ? Math.round(sourceDurationRef.current)
             : undefined,
+          files: aiModFiles,
         }),
       );
     }
-  }, [patchDifficulty, audioFiles, bgFiles]);
+  }, [patchDifficulty, audioFiles, bgFiles, aiModFiles]);
 
   const addBookmark = useCallback(
     (ms: number, label?: string) => {
