@@ -26,7 +26,12 @@ pub fn folder_name(raw: &str) -> String {
     if trimmed.is_empty() {
         return "Cascade map".to_string();
     }
-    trimmed.chars().take(120).collect::<String>().trim().to_string()
+    trimmed
+        .chars()
+        .take(120)
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 pub fn entry_name(raw: &str) -> Option<String> {
@@ -96,8 +101,7 @@ pub fn sync_archive(songs: &Path, folder: &str, archive: &[u8]) -> Result<PathBu
         if bytes.len() as u64 != expected {
             return Err(format!("{name} did not match its declared archive size."));
         }
-        fs::write(dir.join(&name), &bytes)
-            .map_err(|err| format!("Cannot write {name}: {err}"))?;
+        fs::write(dir.join(&name), &bytes).map_err(|err| format!("Cannot write {name}: {err}"))?;
         written.insert(name);
     }
 

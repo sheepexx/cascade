@@ -42,7 +42,11 @@ pub fn validate_zip<R: Read + Seek>(
         if expanded > limits.max_entry_bytes {
             return Err("Archive entry exceeds the expanded size limit.".to_string());
         }
-        if expanded > compressed.max(1).saturating_mul(limits.max_compression_ratio) {
+        if expanded
+            > compressed
+                .max(1)
+                .saturating_mul(limits.max_compression_ratio)
+        {
             return Err("Archive entry exceeds the compression ratio limit.".to_string());
         }
         expanded_bytes = expanded_bytes
@@ -77,7 +81,10 @@ mod tests {
         };
         for (name, bytes) in files {
             writer
-                .start_file(*name, SimpleFileOptions::default().compression_method(method))
+                .start_file(
+                    *name,
+                    SimpleFileOptions::default().compression_method(method),
+                )
                 .unwrap();
             writer.write_all(bytes).unwrap();
         }

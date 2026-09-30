@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use base64::Engine;
 use minisign_verify::{PublicKey, Signature};
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 const LEFTOVER: &str = ".cascade-old";
 const HANDOFF_FLAG: &str = "--updated";
@@ -96,7 +96,10 @@ fn hand_off(target: &Path) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn portable_install(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<String, String> {
+pub fn portable_install(
+    app: AppHandle,
+    request: tauri::ipc::Request<'_>,
+) -> Result<String, String> {
     let tauri::ipc::InvokeBody::Raw(payload) = request.body() else {
         return Err("The update did not arrive intact.".to_string());
     };
@@ -153,7 +156,9 @@ pub fn sweep() -> bool {
     let mut cleared = true;
     for entry in entries.flatten() {
         let path = entry.path();
-        let Some(name) = file_name(&path) else { continue };
+        let Some(name) = file_name(&path) else {
+            continue;
+        };
         if !name.to_ascii_lowercase().ends_with(LEFTOVER) {
             continue;
         }

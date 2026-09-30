@@ -419,7 +419,6 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
-
     #[test]
     fn reads_the_paths_a_skin_ini_points_at() {
         let ini = "[Mania]

@@ -66,9 +66,7 @@ pub fn resolve_songs(root: &Path, configured: Option<&str>) -> PathBuf {
 
 pub fn is_user_config(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
-    lower.starts_with("osu!.")
-        && lower.ends_with(".cfg")
-        && !lower.eq_ignore_ascii_case("osu!.cfg")
+    lower.starts_with("osu!.") && lower.ends_with(".cfg") && !lower.eq_ignore_ascii_case("osu!.cfg")
 }
 
 pub fn safe_folder(name: &str) -> Option<&str> {
@@ -314,7 +312,10 @@ mod tests {
 
     #[test]
     fn refuses_folder_names_that_could_escape_the_songs_directory() {
-        assert_eq!(safe_folder("123 Artist - Title"), Some("123 Artist - Title"));
+        assert_eq!(
+            safe_folder("123 Artist - Title"),
+            Some("123 Artist - Title")
+        );
         assert_eq!(safe_folder("..\\..\\Windows"), None);
         assert_eq!(safe_folder("sub/dir"), None);
         assert_eq!(safe_folder("C:\\Windows"), None);

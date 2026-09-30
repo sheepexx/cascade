@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   web-and-worker:
@@ -28,9 +28,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      # The same toolchain the desktop release builds with.
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.77.2
           components: rustfmt, clippy
       - run: |
           sudo apt-get update

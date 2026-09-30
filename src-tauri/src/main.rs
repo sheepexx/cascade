@@ -7,10 +7,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 mod archive;
 mod external_edit;
 mod launch;
+mod native_audio;
 mod osu;
 mod portable;
 mod presence;
-mod native_audio;
 mod vault;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -99,10 +99,11 @@ fn start_oauth_listener(app: AppHandle, nonce: String) -> Result<u16, String> {
     {
         return Err("invalid oauth nonce".to_string());
     }
-    let listener =
-        TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(|err| err.to_string())?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(|err| err.to_string())?;
     let port = listener.local_addr().map_err(|err| err.to_string())?.port();
-    listener.set_nonblocking(true).map_err(|err| err.to_string())?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|err| err.to_string())?;
 
     std::thread::spawn(move || {
         let deadline = std::time::Instant::now() + Duration::from_secs(OAUTH_TIMEOUT_SECS);

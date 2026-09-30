@@ -133,7 +133,8 @@ impl Owned {
     }
 
     fn executable_dir(&self) -> Option<PathBuf> {
-        self.get().and_then(|process| process.executable_dir.clone())
+        self.get()
+            .and_then(|process| process.executable_dir.clone())
     }
 
     /// Collects the memory regions the signature scan searches. `read_regions`

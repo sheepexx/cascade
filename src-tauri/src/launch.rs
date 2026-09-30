@@ -19,7 +19,11 @@ pub fn is_supported(arg: &str) -> bool {
     Path::new(arg)
         .extension()
         .and_then(|ext| ext.to_str())
-        .map(|ext| SUPPORTED.iter().any(|known| ext.eq_ignore_ascii_case(known)))
+        .map(|ext| {
+            SUPPORTED
+                .iter()
+                .any(|known| ext.eq_ignore_ascii_case(known))
+        })
         .unwrap_or(false)
 }
 
@@ -79,8 +83,14 @@ mod tests {
     #[test]
     fn accepts_every_format_the_editor_can_open() {
         for name in [
-            "map.osu", "set.osz", "chart.sm", "chart.ssc", "map.qua", "chart.mc",
-            "set.mcz", "skin.osk",
+            "map.osu",
+            "set.osz",
+            "chart.sm",
+            "chart.ssc",
+            "map.qua",
+            "chart.mc",
+            "set.mcz",
+            "skin.osk",
         ] {
             assert!(is_supported(name), "{name} should be supported");
         }

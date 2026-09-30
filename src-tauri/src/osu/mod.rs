@@ -46,8 +46,7 @@ fn watcher(app: &tauri::AppHandle) -> tauri::State<'_, memory::Watcher> {
 #[cfg(windows)]
 fn locate(app: &tauri::AppHandle) -> Option<(std::path::PathBuf, std::path::PathBuf)> {
     let dir = config_dir(app);
-    let root = install::discover_root(dir.as_deref())
-        .or_else(|| watcher(app).running_root())?;
+    let root = install::discover_root(dir.as_deref()).or_else(|| watcher(app).running_root())?;
     let songs = install::songs_for(&root);
     Some((root, songs))
 }
@@ -107,7 +106,8 @@ pub fn osu_choose_root(app: tauri::AppHandle) -> Result<OsuStatus, String> {
             .into_path()
             .map_err(|err| format!("That folder cannot be used: {err}"))?;
         let root = install::validate_root(&path)?;
-        let dir = config_dir(&app).ok_or_else(|| "Cannot reach the settings folder.".to_string())?;
+        let dir =
+            config_dir(&app).ok_or_else(|| "Cannot reach the settings folder.".to_string())?;
         install::write_override(&dir, &root)?;
         Ok(status_for(&app))
     }
@@ -122,7 +122,8 @@ pub fn osu_choose_root(app: tauri::AppHandle) -> Result<OsuStatus, String> {
 pub fn osu_forget_root(app: tauri::AppHandle) -> Result<OsuStatus, String> {
     #[cfg(windows)]
     {
-        let dir = config_dir(&app).ok_or_else(|| "Cannot reach the settings folder.".to_string())?;
+        let dir =
+            config_dir(&app).ok_or_else(|| "Cannot reach the settings folder.".to_string())?;
         install::clear_override(&dir)?;
         Ok(status_for(&app))
     }
@@ -148,6 +149,7 @@ pub fn osu_selected_map(app: tauri::AppHandle) -> Result<serde_json::Value, Stri
 }
 
 /// Event carrying a changed connection snapshot to the frontend.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const LIVE_EVENT: &str = "cascade://osu-live";
 
 /// Watches osu! in the background and emits [`LIVE_EVENT`] whenever what it can
@@ -252,8 +254,8 @@ pub fn osu_map_background(
             .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
             .map_err(|err| format!("Cannot read that map: {err}"))?;
 
-        let Some(image) = background::background_name(&text)
-            .and_then(|name| background::resolve(&dir, &name))
+        let Some(image) =
+            background::background_name(&text).and_then(|name| background::resolve(&dir, &name))
         else {
             return Ok(Response::new(Vec::new()));
         };
@@ -378,9 +380,7 @@ fn archive_body<'a>(request: &'a Request<'_>) -> Result<&'a [u8], String> {
 
     let bytes = match request.body() {
         InvokeBody::Raw(bytes) => bytes,
-        InvokeBody::Json(_) => {
-            return Err("Cascade sent the map in the wrong format.".to_string())
-        }
+        InvokeBody::Json(_) => return Err("Cascade sent the map in the wrong format.".to_string()),
     };
     if bytes.is_empty() {
         return Err("The exported map came out empty.".to_string());

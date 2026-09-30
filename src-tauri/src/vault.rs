@@ -62,7 +62,12 @@ pub fn folder_name(raw: &str) -> String {
     if trimmed.is_empty() {
         return "Cascade map".to_string();
     }
-    trimmed.chars().take(120).collect::<String>().trim().to_string()
+    trimmed
+        .chars()
+        .take(120)
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 /// Rejects archive entries that would escape the project folder.
@@ -116,7 +121,9 @@ fn find_by_id(root: &Path, id: &str) -> Option<PathBuf> {
         if !dir.is_dir() {
             return None;
         }
-        read_marker(&dir).filter(|marker| marker.id == id).map(|_| dir)
+        read_marker(&dir)
+            .filter(|marker| marker.id == id)
+            .map(|_| dir)
     })
 }
 
@@ -136,8 +143,7 @@ fn unique_dir(root: &Path, preferred: &str, id: &str) -> PathBuf {
 
 /// Resolves this project's folder, renaming it when the map itself was renamed.
 fn resolve_dir(root: &Path, id: &str, preferred: &str) -> Result<PathBuf, String> {
-    fs::create_dir_all(root)
-        .map_err(|err| format!("Cannot create the projects folder: {err}"))?;
+    fs::create_dir_all(root).map_err(|err| format!("Cannot create the projects folder: {err}"))?;
 
     let existing = find_by_id(root, id);
     let Some(current) = existing else {
@@ -147,7 +153,9 @@ fn resolve_dir(root: &Path, id: &str, preferred: &str) -> Result<PathBuf, String
         return Ok(dir);
     };
 
-    let named = read_marker(&current).map(|marker| marker.name).unwrap_or_default();
+    let named = read_marker(&current)
+        .map(|marker| marker.name)
+        .unwrap_or_default();
     if named == preferred {
         return Ok(current);
     }
@@ -232,13 +240,15 @@ pub fn vault_save(app: AppHandle, request: Request<'_>) -> Result<String, String
 
     let root = root_for(&app)?;
     let dir = resolve_dir(&root, &id, &preferred)?;
-    let previous = read_marker(&dir).map(|marker| marker.files).unwrap_or_default();
+    let previous = read_marker(&dir)
+        .map(|marker| marker.files)
+        .unwrap_or_default();
 
     let mut written: BTreeSet<String> = BTreeSet::new();
     let mut chart: Option<Vec<u8>> = None;
 
     for index in 0..zip.len() {
-        let mut entry = zip
+        let entry = zip
             .by_index(index)
             .map_err(|err| format!("Cannot read the project: {err}"))?;
         if entry.is_dir() {
@@ -259,8 +269,7 @@ pub fn vault_save(app: AppHandle, request: Request<'_>) -> Result<String, String
         if name == CHART {
             chart = Some(buffer.clone());
         }
-        fs::write(dir.join(&name), &buffer)
-            .map_err(|err| format!("Cannot write {name}: {err}"))?;
+        fs::write(dir.join(&name), &buffer).map_err(|err| format!("Cannot write {name}: {err}"))?;
         written.insert(name);
     }
 
@@ -320,7 +329,7 @@ pub fn vault_history(app: AppHandle, id: String) -> Result<Vec<Entry>, String> {
         })
         .collect();
 
-    history.sort_by(|a, b| b.saved_at.cmp(&a.saved_at));
+    history.sort_by_key(|entry| std::cmp::Reverse(entry.saved_at));
     Ok(history)
 }
 
@@ -336,8 +345,7 @@ pub fn vault_restore(app: AppHandle, id: String, stamp: String) -> Result<Respon
     let dir = find_by_id(&root, &id)
         .ok_or_else(|| "That project has no folder on disk yet.".to_string())?;
     let path = dir.join(HISTORY).join(format!("{stamp}.json"));
-    let bytes =
-        fs::read(&path).map_err(|err| format!("Cannot read that snapshot: {err}"))?;
+    let bytes = fs::read(&path).map_err(|err| format!("Cannot read that snapshot: {err}"))?;
     Ok(Response::new(bytes))
 }
 
