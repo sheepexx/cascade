@@ -8899,6 +8899,7 @@ export default function App() {
         <TimingModal
           open={modal === "timing"}
           onClose={close}
+          metronomeVolume={outputVolume}
           timingPoints={activeTimingPoints}
           onTimingPoints={applyTimingPoints}
           isPlaying={audio.isPlaying}

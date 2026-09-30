@@ -49,6 +49,8 @@ type Props = {
   onMoveNotes?: (value: boolean) => void;
   /** Reports the selected rows so the bottom timeline can highlight them. */
   onSelectionChange?: (ids: ReadonlySet<string>) => void;
+  /** Master volume as heard right now, so the metronome follows it. */
+  metronomeVolume?: number;
 };
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
@@ -79,6 +81,7 @@ export const TimingModal = memo(function TimingModal({
   moveNotes = false,
   onMoveNotes,
   onSelectionChange,
+  metronomeVolume = 1,
 }: Props) {
   const t = useT();
   const { tap, reset, bpm, offset, count } = useTapTempo(getCurrentTime);
@@ -119,6 +122,7 @@ export const TimingModal = memo(function TimingModal({
       const index = ((b % meter) + meter) % meter;
       setBeat((prev) => ({ index, meter, n: (prev?.n ?? 0) + 1 }));
     },
+    metronomeVolume,
   );
 
   useEffect(() => {

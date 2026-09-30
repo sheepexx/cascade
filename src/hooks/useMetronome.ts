@@ -9,12 +9,14 @@ export function useMetronome(
   timingPoints: TimingPoint[],
   enabled: boolean,
   onBeat?: (info: { beat: number; meter: number; accent: boolean }) => void,
+  /** Master volume as heard right now, unfocused level included, 0..1. */
+  volume = 1,
 ) {
   const ctxRef = useRef<AudioContext | null>(null);
   const lastBeatRef = useRef<number | null>(null);
 
-  const stateRef = useRef({ getCurrentTime, isPlaying, timingPoints, enabled, onBeat });
-  stateRef.current = { getCurrentTime, isPlaying, timingPoints, enabled, onBeat };
+  const stateRef = useRef({ getCurrentTime, isPlaying, timingPoints, enabled, onBeat, volume });
+  stateRef.current = { getCurrentTime, isPlaying, timingPoints, enabled, onBeat, volume };
 
   useEffect(() => {
     if (!enabled) {
@@ -24,7 +26,9 @@ export function useMetronome(
 
     let raf = 0;
     const click = (accent: boolean) => {
-      if (playNativeClick(accent)) return;
+      const volume = Math.max(0, Math.min(1, stateRef.current.volume));
+      if (volume <= 0) return;
+      if (playNativeClick(accent, volume)) return;
       let ctx = ctxRef.current;
       if (!ctx) {
         const Ctor =
@@ -40,7 +44,7 @@ export function useMetronome(
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.frequency.value = accent ? 1760 : 1100;
-      gain.gain.setValueAtTime(accent ? 0.35 : 0.22, now);
+      gain.gain.setValueAtTime((accent ? 0.35 : 0.22) * volume, now);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
       osc.connect(gain).connect(ctx.destination);
       osc.start(now);

@@ -47,7 +47,8 @@ export function playNativeEffect(buffer: AudioBuffer, volume: number): boolean {
 }
 
 let clickBuffers: AudioBuffer[] | null = null;
-export function playNativeClick(accent: boolean): boolean {
+/** `volume` scales the click, 0..1; the output mix is applied by the caller. */
+export function playNativeClick(accent: boolean, volume = 1): boolean {
   if (activeSession === null) return false;
   if (!clickBuffers) clickBuffers = [1100, 1760].map(frequency => {
     const buffer = new AudioBuffer({ length: 2880, sampleRate: 48000, numberOfChannels: 1 });
@@ -55,5 +56,5 @@ export function playNativeClick(accent: boolean): boolean {
     for (let i = 0; i < data.length; i++) data[i] = Math.sin(2 * Math.PI * frequency * i / 48000) * Math.exp(-i / 400);
     return buffer;
   });
-  return playNativeEffect(clickBuffers[accent ? 1 : 0], accent ? 0.35 : 0.22);
+  return playNativeEffect(clickBuffers[accent ? 1 : 0], (accent ? 0.35 : 0.22) * volume);
 }
