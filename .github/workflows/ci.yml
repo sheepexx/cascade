@@ -15,12 +15,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The root test run includes the worker's tests, which need its packages.
+      - run: npm ci
+        working-directory: worker
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
       - run: npm run build
-      - run: npm ci
-        working-directory: worker
       - run: npm run typecheck
         working-directory: worker
 
