@@ -292,6 +292,9 @@ export const zhCN: PartialCatalog = {
   "settings.musicVolume": "音乐",
   "settings.musicVolumeHint": "编辑器中的歌曲和主菜单音乐。",
   "settings.effectsVolume": "音效",
+  "settings.unfocusedVolume": "失去焦点时",
+  "settings.unfocusedVolumeHint":
+    "当其他窗口或标签页在前台时 Cascade 保留的音量，按上方音量的比例计算。100% 保持不变，0% 静音。",
   "settings.interface": "界面",
   "settings.uiSounds": "界面音效",
   "settings.uiSoundsHint": "邀请、云端保存和谱面导出时的点击、确认与提示音。",

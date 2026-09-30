@@ -84,6 +84,13 @@ function rampVolume(
   ms: number,
   onDone?: () => void,
 ): () => void {
+  // Animation frames stop while the page is hidden, which would strand the
+  // fade partway, so a hidden page lands on the target straight away.
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+    el.volume = Math.max(0, Math.min(1, to));
+    onDone?.();
+    return () => {};
+  }
   const from = el.volume;
   const started = performance.now();
   let raf = 0;

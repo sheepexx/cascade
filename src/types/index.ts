@@ -465,6 +465,8 @@ export type AppSettings = {
   hitsoundVolume: number;
   /** Scales every sound Cascade makes: music, hitsounds and interface sounds. */
   masterVolume: number;
+  /** Share of the volume kept while another window or tab is in front, 0..1. */
+  unfocusedVolume: number;
   /** Playback under 100% keeps the song's pitch instead of dropping it. */
   keepPitchWhenSlowed: boolean;
   dimBackground: number;
@@ -648,6 +650,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   hitsoundSet: "normal",
   hitsoundVolume: 0.18,
   masterVolume: 1,
+  unfocusedVolume: 0.3,
   keepPitchWhenSlowed: true,
   dimBackground: 82,
   backgroundBlur: 0,

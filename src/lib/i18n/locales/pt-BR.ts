@@ -299,6 +299,9 @@ export const ptBR: PartialCatalog = {
   "settings.musicVolume": "Música",
   "settings.musicVolumeHint": "A música no editor e a do menu principal.",
   "settings.effectsVolume": "Efeitos",
+  "settings.unfocusedVolume": "Em segundo plano",
+  "settings.unfocusedVolumeHint":
+    "Quão alto o Cascade fica enquanto outra janela ou aba está na frente, como parte dos volumes acima. 100% mantém igual; 0% silencia.",
   "settings.interface": "Interface",
   "settings.uiSounds": "Efeitos sonoros da interface",
   "settings.uiSoundsHint":

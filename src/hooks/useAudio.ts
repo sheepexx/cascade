@@ -223,6 +223,12 @@ export function useAudio(
       cancelAnimationFrame(elementVolumeRafRef.current);
       elementVolumeRafRef.current = null;
     }
+    // Animation frames stop while the page is hidden, so a hidden page lands
+    // on the target straight away instead of stalling partway.
+    if (document.visibilityState === "hidden") {
+      audio.volume = clamp01(target);
+      return;
+    }
     const from = audio.volume;
     const duration = Math.max(1, seconds * 1000);
     const start = performance.now();

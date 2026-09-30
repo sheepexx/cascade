@@ -299,6 +299,9 @@ export const de: PartialCatalog = {
   "settings.musicVolume": "Musik",
   "settings.musicVolumeHint": "Der Song im Editor und die Musik im Hauptmenü.",
   "settings.effectsVolume": "Effekte",
+  "settings.unfocusedVolume": "Im Hintergrund",
+  "settings.unfocusedVolumeHint":
+    "Wie laut Cascade bleibt, während ein anderes Fenster oder ein anderer Tab vorne ist, als Anteil der Lautstärken oben. 100 % lässt sie gleich, 0 % schaltet stumm.",
   "settings.interface": "Oberfläche",
   "settings.uiSounds": "UI-Soundeffekte",
   "settings.uiSoundsHint":

@@ -381,6 +381,7 @@ import {
 } from "./lib/notifications";
 import { logAnalyticsEvent } from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
+import { useWindowActive } from "./hooks/useWindowActive";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
 import { usePlaytestInput } from "./hooks/usePlaytestInput";
@@ -715,6 +716,11 @@ function normalizeAppSettings(
       Number.isFinite(prefs.masterVolume)
         ? Math.max(0, Math.min(1, prefs.masterVolume))
         : DEFAULT_APP_SETTINGS.masterVolume,
+    unfocusedVolume:
+      typeof prefs?.unfocusedVolume === "number" &&
+      Number.isFinite(prefs.unfocusedVolume)
+        ? Math.max(0, Math.min(1, prefs.unfocusedVolume))
+        : DEFAULT_APP_SETTINGS.unfocusedVolume,
     altWheelAction: isAltWheelAction(prefs?.altWheelAction)
       ? prefs.altWheelAction
       : DEFAULT_APP_SETTINGS.altWheelAction,
@@ -900,6 +906,11 @@ export default function App() {
     ...normalizeAppSettings(loadPreferences()),
   }));
   const appSettingsRef = useRef(appSettings);
+  // Like osu!, everything Cascade plays drops to the unfocused level while
+  // another window or tab is in front, playtest included.
+  const windowActive = useWindowActive();
+  const outputVolume =
+    appSettings.masterVolume * (windowActive ? 1 : appSettings.unfocusedVolume);
   appSettingsRef.current = appSettings;
   /** Which of a song's two names every display in the editor reaches for. */
   const preferOriginalMetadata = appSettings.preferOriginalMetadata;
@@ -1519,7 +1530,7 @@ export default function App() {
     activeRate,
     active.preservePitch === true,
     exclusiveAudio && modal !== "audioSetup" && projectStarted,
-    appSettings.masterVolume,
+    outputVolume,
     appSettings.keepPitchWhenSlowed,
   );
   // Alt+wheel runs from a window listener mounted once, so it needs a live
@@ -1613,7 +1624,7 @@ export default function App() {
     audio.isPlaying && !playtest.active,
     active.notes,
     active.timingPoints?.length ? active.timingPoints : timingPoints,
-    appSettings.hitsoundVolume * appSettings.masterVolume,
+    appSettings.hitsoundVolume * outputVolume,
     appSettings.hitsoundsEnabled,
     modalAtmosphereActive,
     effectiveHitsounds,
@@ -3781,7 +3792,7 @@ export default function App() {
   const menuMusic = useMenuMusic(
     menuMusicEnabled,
     osuLive.running,
-    audio.volume * appSettings.masterVolume,
+    audio.volume * outputVolume,
   );
   const toggleMenuMusic = menuMusic.toggle;
   const nextMenuTrack = menuMusic.next;
@@ -5111,8 +5122,8 @@ export default function App() {
     setUiSoundsEnabled(appSettings.uiSoundsEnabled);
   }, [appSettings.uiSoundsEnabled]);
   useEffect(() => {
-    setUiSoundVolume(appSettings.uiSoundVolume * appSettings.masterVolume);
-  }, [appSettings.uiSoundVolume, appSettings.masterVolume]);
+    setUiSoundVolume(appSettings.uiSoundVolume * outputVolume);
+  }, [appSettings.uiSoundVolume, outputVolume]);
 
   useEffect(() => {
     return installUiSoundInteractions();
@@ -6964,6 +6975,7 @@ export default function App() {
     { key: "settings.masterVolume", tab: "Audio", keywords: "volume sound everything" },
     { key: "settings.musicVolume", tab: "Audio", keywords: "volume song menu" },
     { key: "settings.effectsVolume", tab: "Audio", keywords: "volume hitsound" },
+    { key: "settings.unfocusedVolume", tab: "Audio", keywords: "volume background inactive tab window focus alt-tab" },
     { key: "settings.keepPitch", tab: "Audio", keywords: "pitch speed slow rate playback" },
     { key: "settings.uiSounds", tab: "Audio", keywords: "interface hover click" },
     { key: "settings.convertPng", tab: "Export", keywords: "background jpeg" },
@@ -7909,7 +7921,7 @@ export default function App() {
                 osuBanner={osuBanner}
                 logoHitsoundVolume={
                   appSettings.hitsoundsEnabled
-                    ? appSettings.hitsoundVolume * appSettings.masterVolume
+                    ? appSettings.hitsoundVolume * outputVolume
                     : 0
                 }
                 logoSamples={appSettings.logoSkinHitsounds ? "skin" : "menu"}
@@ -8438,6 +8450,10 @@ export default function App() {
           masterVolume={appSettings.masterVolume}
           onMasterVolume={(v) =>
             setAppSettings((s) => ({ ...s, masterVolume: v }))
+          }
+          unfocusedVolume={appSettings.unfocusedVolume}
+          onUnfocusedVolume={(v) =>
+            setAppSettings((s) => ({ ...s, unfocusedVolume: v }))
           }
           musicVolume={audio.volume}
           onMusicVolume={setAudioVolume}

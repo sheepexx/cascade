@@ -293,6 +293,9 @@ export const en = {
   "settings.musicVolume": "Music",
   "settings.musicVolumeHint": "The song in the editor and the main menu music.",
   "settings.effectsVolume": "Effects",
+  "settings.unfocusedVolume": "When unfocused",
+  "settings.unfocusedVolumeHint":
+    "How loud Cascade stays while another window or tab is in front, as a share of the volumes above. 100% keeps it the same; 0% goes silent.",
   "settings.interface": "Interface",
   "settings.interfaceSounds": "Interface sounds",
   "settings.uiSounds": "UI sound effects",

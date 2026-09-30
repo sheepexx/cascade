@@ -108,6 +108,8 @@ type Props = {
   onHitsoundVolume: (value: number) => void;
   masterVolume: number;
   onMasterVolume: (value: number) => void;
+  unfocusedVolume: number;
+  onUnfocusedVolume: (value: number) => void;
   musicVolume: number;
   onMusicVolume: (value: number) => void;
   keepPitchWhenSlowed: boolean;
@@ -252,6 +254,8 @@ export function AppSettingsModal({
   onHitsoundVolume,
   masterVolume,
   onMasterVolume,
+  unfocusedVolume,
+  onUnfocusedVolume,
   musicVolume,
   onMusicVolume,
   keepPitchWhenSlowed,
@@ -1394,6 +1398,16 @@ export function AppSettingsModal({
                   step={0.01}
                   value={hitsoundVolume}
                   onChange={onHitsoundVolume}
+                />
+                <SliderRow
+                  label={t("settings.unfocusedVolume")}
+                  tip={t("settings.unfocusedVolumeHint")}
+                  display={`${Math.round(unfocusedVolume * 100)}%`}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={unfocusedVolume}
+                  onChange={onUnfocusedVolume}
                 />
               </div>
             </section>

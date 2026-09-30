@@ -300,6 +300,9 @@ export const ru: PartialCatalog = {
   "settings.musicVolume": "Музыка",
   "settings.musicVolumeHint": "Песня в редакторе и музыка в главном меню.",
   "settings.effectsVolume": "Эффекты",
+  "settings.unfocusedVolume": "В фоне",
+  "settings.unfocusedVolumeHint":
+    "Насколько громко Cascade звучит, пока впереди другое окно или вкладка, в доле от громкостей выше. 100% — без изменений, 0% — тишина.",
   "settings.interface": "Интерфейс",
   "settings.uiSounds": "Звуки интерфейса",
   "settings.uiSoundsHint":
