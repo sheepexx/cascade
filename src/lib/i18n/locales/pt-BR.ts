@@ -1086,6 +1086,7 @@ export const ptBR: PartialCatalog = {
   "app.duplicateCloudOthers.one": "Mais {count} mapa seu também corresponde.",
   "app.duplicateCloudOthers.other": "Mais {count} mapas seus também correspondem.",
   "app.holdToOverwrite": "Segure para substituir",
+  "app.duplicateCloudSaveNew": "Salvar como novo mapa",
   "timing.confident": "confiável",
   "timing.plausible": "plausível",
   "timing.uncertain": "incerto",

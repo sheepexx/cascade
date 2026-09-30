@@ -1086,6 +1086,7 @@ export const de: PartialCatalog = {
   "app.duplicateCloudOthers.one": "{count} weitere deiner Maps passt ebenfalls.",
   "app.duplicateCloudOthers.other": "{count} weitere deiner Maps passen ebenfalls.",
   "app.holdToOverwrite": "Zum Überschreiben gedrückt halten",
+  "app.duplicateCloudSaveNew": "Als neue Map speichern",
   "timing.confident": "sicher",
   "timing.plausible": "plausibel",
   "timing.uncertain": "unsicher",

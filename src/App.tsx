@@ -6413,7 +6413,10 @@ export default function App() {
     };
   }, [localAutosaveActive, localProjectId]);
 
-  const handleCloudSave = useCallback(async (overwriteId?: string) => {
+  const handleCloudSave = useCallback(async (
+    target: { overwriteId?: string; asNewMap?: boolean } = {},
+  ) => {
+    const { overwriteId, asNewMap = false } = target;
     if (!authUser) return;
     setCloudSaveStatus("saving");
     setCloudError(null);
@@ -6440,7 +6443,7 @@ export default function App() {
       const targetId = cloudProjectId ?? overwriteId ?? null;
       const creatingProject = !targetId;
       const data = { meta, timingPoints, difficulties, activeId, view, bgScope };
-      if (creatingProject) {
+      if (creatingProject && !asNewMap) {
         const matches = await findDuplicateProjectsCloud(data);
         if (matches.length > 0) {
           setDuplicateCloudMatches(matches);
@@ -9494,9 +9497,14 @@ export default function App() {
         onConfirm={() => {
           const match = duplicateCloudMatches?.[0];
           setDuplicateCloudMatches(null);
-          if (match) void handleCloudSave(match.id);
+          if (match) void handleCloudSave({ overwriteId: match.id });
         }}
         onCancel={() => setDuplicateCloudMatches(null)}
+        secondaryLabel={t("app.duplicateCloudSaveNew")}
+        onSecondary={() => {
+          setDuplicateCloudMatches(null);
+          void handleCloudSave({ asNewMap: true });
+        }}
       />
 
       <HoldConfirmDialog

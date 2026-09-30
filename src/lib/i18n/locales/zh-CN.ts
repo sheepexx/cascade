@@ -1030,6 +1030,7 @@ export const zhCN: PartialCatalog = {
   "app.duplicateCloudBodyId": "你的云端谱面“{title}”与当前谱面的谱面 ID 相同。要用当前谱面覆盖它吗？其谱面和文件将对所有参与者替换。",
   "app.duplicateCloudOthers.other": "另有 {count} 个你的谱面也匹配。",
   "app.holdToOverwrite": "长按以覆盖",
+  "app.duplicateCloudSaveNew": "另存为新谱面",
   "timing.confident": "可信",
   "timing.plausible": "较可信",
   "timing.uncertain": "不确定",

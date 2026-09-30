@@ -15,6 +15,8 @@ export function HoldConfirmDialog({
   busy,
   onConfirm,
   onCancel,
+  secondaryLabel,
+  onSecondary,
 }: {
   open: boolean;
   title: string;
@@ -23,6 +25,9 @@ export function HoldConfirmDialog({
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** A second way forward that isn't destructive, shown beside Cancel. */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
 }) {
   const t = useT();
   const [mounted, setMounted] = useState(open);
@@ -98,6 +103,11 @@ export function HoldConfirmDialog({
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
             {t("common.cancel")}
           </Button>
+          {secondaryLabel && onSecondary && (
+            <Button onClick={onSecondary} disabled={busy}>
+              {secondaryLabel}
+            </Button>
+          )}
           <HoldToDelete
             onConfirm={onConfirm}
             disabled={busy}

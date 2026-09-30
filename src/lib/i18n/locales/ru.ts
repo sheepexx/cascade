@@ -1138,6 +1138,7 @@ export const ru: PartialCatalog = {
   "app.duplicateCloudOthers.many": "Совпадают ещё {count} ваших карт.",
   "app.duplicateCloudOthers.other": "Совпадают ещё {count} ваших карты.",
   "app.holdToOverwrite": "Удерживайте для перезаписи",
+  "app.duplicateCloudSaveNew": "Сохранить как новую карту",
   "timing.confident": "уверенно",
   "timing.plausible": "правдоподобно",
   "timing.uncertain": "неуверенно",

@@ -1194,6 +1194,7 @@ export const en = {
   "app.duplicateCloudOthers.one": "{count} more of your maps also matches.",
   "app.duplicateCloudOthers.other": "{count} more of your maps also match.",
   "app.holdToOverwrite": "Hold to overwrite",
+  "app.duplicateCloudSaveNew": "Save as a new map",
   "timing.confident": "confident",
   "timing.plausible": "plausible",
   "timing.uncertain": "uncertain",
