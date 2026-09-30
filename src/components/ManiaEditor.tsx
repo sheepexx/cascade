@@ -77,6 +77,7 @@ import { computeWaveformOverlay } from "../lib/waveform";
 import { dialogIsOpen } from "../hooks/useDialog";
 import {
   hasNoteCollisions,
+  placementFor,
   withoutNoteCollisions,
 } from "../lib/noteCollision";
 import {
@@ -3077,12 +3078,17 @@ export function ManiaEditor(props: Props) {
             ...hs,
           };
     if (!inBounds(start, end)) return;
-    const existing = drag.replace
-      ? propsRef.current.notes.filter((candidate) => candidate.id !== drag.replace?.id)
-      : propsRef.current.notes;
-    if (!withoutNoteCollisions([note], existing).length) return;
-    if (drag.replace) propsRef.current.onMoveNotes([note]);
-    else props.onPlaceNote(note);
+    if (drag.replace) {
+      const others = propsRef.current.notes.filter(
+        (candidate) => candidate.id !== drag.replace?.id,
+      );
+      if (!withoutNoteCollisions([note], others).length) return;
+      propsRef.current.onMoveNotes([note]);
+      return;
+    }
+    // A new note may take the place of one starting at the same moment.
+    if (placementFor(note, propsRef.current.notes).kind === "blocked") return;
+    props.onPlaceNote(note);
   };
 
   const onMouseLeave = () => {

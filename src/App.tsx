@@ -401,6 +401,7 @@ import {
   hasNoteCollisions,
   sameNoteGeometry,
   withoutNoteCollisions,
+  placementFor,
 } from "./lib/noteCollision";
 import { downloadOsu, setFilename } from "./lib/osuExport";
 import {
@@ -4441,9 +4442,21 @@ export default function App() {
       const did = activeIdRef.current;
       const target = difficultiesRef.current.find((d) => d.id === did);
       if (!target) return;
-      const accepted = withoutNoteCollisions([note], target.notes);
-      if (!accepted.length) return;
-      commitNoteOp({ t: "note.add", diffId: did, notes: accepted });
+      const placement = placementFor(note, target.notes);
+      if (placement.kind === "blocked") return;
+      if (placement.kind === "replace") {
+        // Keeping the replaced note's id makes the swap a single edit, so one
+        // undo brings the old note back.
+        const { replaced } = placement;
+        commitNoteOp({
+          t: "note.update",
+          diffId: did,
+          before: [replaced],
+          after: [{ ...note, id: replaced.id }],
+        });
+        return;
+      }
+      commitNoteOp({ t: "note.add", diffId: did, notes: [note] });
     },
     [commitNoteOp],
   );

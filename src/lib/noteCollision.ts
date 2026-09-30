@@ -136,3 +136,21 @@ export function sameNoteGeometry(a: ManiaNote, b: ManiaNote): boolean {
     (a.endTime ?? undefined) === (b.endTime ?? undefined)
   );
 }
+
+export type NotePlacement =
+  | { kind: "add" }
+  | { kind: "replace"; replaced: ManiaNote }
+  | { kind: "blocked" };
+
+/**
+ * How placing `note` lands among `existing`. Like osu!lazer, a note placed at
+ * the very moment another starts in its column replaces that one; anything it
+ * would still overlap after that keeps the placement from happening.
+ */
+export function placementFor(note: ManiaNote, existing: ManiaNote[]): NotePlacement {
+  const collisions = existing.filter((other) => notesCollide(note, other));
+  if (collisions.length === 0) return { kind: "add" };
+  if (collisions.length === 1 && Math.abs(collisions[0].startTime - note.startTime) < 1)
+    return { kind: "replace", replaced: collisions[0] };
+  return { kind: "blocked" };
+}

@@ -6,6 +6,7 @@ import {
   hasNoteCollisions,
   withoutNoteCollisions,
   sameNoteGeometry,
+  placementFor,
 } from "./noteCollision";
 
 function note(
@@ -166,5 +167,25 @@ describe("sameNoteGeometry", () => {
       false,
     );
     expect(sameNoteGeometry(note("a", 0, 100), note("b", 1, 100))).toBe(false);
+  });
+});
+
+describe("placementFor", () => {
+  it("adds a note that touches nothing", () => {
+    expect(placementFor(note("n", 0, 500), [note("e", 0, 0), note("f", 1, 500)])).toEqual({ kind: "add" });
+  });
+
+  it("replaces the note starting at the same moment in the column", () => {
+    const existing = note("e", 0, 500);
+    expect(placementFor(note("n", 0, 500, 900), [existing])).toEqual({ kind: "replace", replaced: existing });
+  });
+
+  it("blocks a note that lands inside another's hold", () => {
+    expect(placementFor(note("n", 0, 600), [note("e", 0, 500, 900)])).toEqual({ kind: "blocked" });
+  });
+
+  it("blocks a hold that would also run over a later note", () => {
+    const placed = note("n", 0, 500, 1200);
+    expect(placementFor(placed, [note("e", 0, 500), note("f", 0, 1000)])).toEqual({ kind: "blocked" });
   });
 });
