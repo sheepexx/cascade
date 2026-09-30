@@ -213,6 +213,8 @@ import {
 import type { Comment } from "./lib/comments";
 import {
   saveProjectCloud,
+  findDuplicateProjectsCloud,
+  type DuplicateProjectMatch,
   saveProjectDataCloud,
   loadProjectCloud,
   loadProjectChartCloud,
@@ -1003,6 +1005,9 @@ export default function App() {
     null | "saving" | "saved" | "error"
   >(null);
   const [cloudError, setCloudError] = useState<string | null>(null);
+  const [duplicateCloudMatches, setDuplicateCloudMatches] = useState<
+    DuplicateProjectMatch[] | null
+  >(null);
   const [cloudSyncRetry, setCloudSyncRetry] = useState(0);
   const [invites, setInvites] = useState<InviteNotice[]>([]);
   const [notifications, setNotifications] = useState<InboxNotification[]>([]);
@@ -6255,7 +6260,7 @@ export default function App() {
     };
   }, [localAutosaveActive, localProjectId]);
 
-  const handleCloudSave = useCallback(async () => {
+  const handleCloudSave = useCallback(async (overwriteId?: string) => {
     if (!authUser) return;
     setCloudSaveStatus("saving");
     setCloudError(null);
@@ -6279,13 +6284,23 @@ export default function App() {
 
     try {
       await cloudSavePromiseRef.current.catch(() => {});
-      const creatingProject = !cloudProjectId;
+      const targetId = cloudProjectId ?? overwriteId ?? null;
+      const creatingProject = !targetId;
+      const data = { meta, timingPoints, difficulties, activeId, view, bgScope };
+      if (creatingProject) {
+        const matches = await findDuplicateProjectsCloud(data);
+        if (matches.length > 0) {
+          setDuplicateCloudMatches(matches);
+          setCloudSaveStatus(null);
+          return;
+        }
+      }
       const mutationId = crypto.randomUUID();
       if (!creatingProject) ownMutationIdsRef.current.add(mutationId);
       const id = await saveProjectCloud({
         ownerId: authUser.id,
-        projectId: cloudProjectId,
-        data: { meta, timingPoints, difficulties, activeId, view, bgScope },
+        projectId: targetId,
+        data,
         audioFiles: Object.values(audioFiles).map((f) => ({
           name: f.name,
           blob: f.blob,
@@ -6305,7 +6320,8 @@ export default function App() {
         ),
       ]);
       setCloudProjectId(id);
-      if (creatingProject) {
+      // A new map and an overwritten duplicate are both the caller's own.
+      if (!cloudProjectId) {
         setCloudOwnerId(authUser.id);
         setMyRole("owner");
       }
@@ -9269,6 +9285,38 @@ export default function App() {
           setPendingDeleteDiffIds(null);
         }}
         onCancel={() => setPendingDeleteDiffIds(null)}
+      />
+
+      <HoldConfirmDialog
+        open={duplicateCloudMatches !== null}
+        title={t("app.duplicateCloudTitle")}
+        message={(() => {
+          const match = duplicateCloudMatches?.[0];
+          if (!match) return null;
+          const title = match.title.trim() || t("app.unnamed");
+          const others = (duplicateCloudMatches?.length ?? 1) - 1;
+          return (
+            <>
+              <p>
+                {match.id_match
+                  ? t("app.duplicateCloudBodyId", { title })
+                  : t("app.duplicateCloudBodyTitle", { title })}
+              </p>
+              {others > 0 && (
+                <p className="mt-2 text-slate-400">
+                  {t("app.duplicateCloudOthers", { count: others })}
+                </p>
+              )}
+            </>
+          );
+        })()}
+        confirmLabel={t("app.holdToOverwrite")}
+        onConfirm={() => {
+          const match = duplicateCloudMatches?.[0];
+          setDuplicateCloudMatches(null);
+          if (match) void handleCloudSave(match.id);
+        }}
+        onCancel={() => setDuplicateCloudMatches(null)}
       />
 
       <HoldConfirmDialog

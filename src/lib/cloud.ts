@@ -293,6 +293,63 @@ export async function listProjectsCloud(): Promise<CloudProjectSummary[]> {
   return (data ?? []) as CloudProjectSummary[];
 }
 
+export type DuplicateProjectMatch = {
+  id: string;
+  title: string;
+  artist: string;
+  creator: string;
+  updated_at: string;
+  title_match: boolean;
+  id_match: boolean;
+};
+
+export type DuplicateProjectQuery = {
+  title: string;
+  setId: number | null;
+  beatmapIds: number[];
+};
+
+/** 0 and -1 mark an unsubmitted map in osu!, so they never identify one. */
+function submittedId(id: number | undefined): number | null {
+  return typeof id === "number" && Number.isInteger(id) && id > 0 ? id : null;
+}
+
+export function duplicateProjectQuery(data: CloudProjectData): DuplicateProjectQuery {
+  const beatmapIds = new Set<number>();
+  for (const d of data.difficulties) {
+    const id = submittedId(d.beatmapId);
+    if (id !== null) beatmapIds.add(id);
+  }
+  return {
+    title: data.meta.title.trim(),
+    setId: submittedId(data.meta.beatmapSetId),
+    beatmapIds: [...beatmapIds],
+  };
+}
+
+/** The caller's own cloud maps sharing this map's title, set ID or a difficulty's ID. */
+export async function findDuplicateProjectsCloud(
+  data: CloudProjectData,
+): Promise<DuplicateProjectMatch[]> {
+  const query = duplicateProjectQuery(data);
+  if (!query.title && query.setId === null && query.beatmapIds.length === 0) return [];
+  const { data: rows, error } = await supabase.rpc("find_duplicate_projects", {
+    p_title: query.title,
+    p_set_id: query.setId,
+    p_beatmap_ids: query.beatmapIds,
+  });
+  if (error) {
+    // Rolling-deploy compatibility: until migration 0035 is applied, save
+    // without the check rather than blocking every first cloud save.
+    const missingRpc =
+      error.code === "PGRST202" ||
+      /could not find (?:the )?function .*find_duplicate_projects/i.test(error.message);
+    if (missingRpc) return [];
+    throw new Error(error.message);
+  }
+  return (rows ?? []) as DuplicateProjectMatch[];
+}
+
 export type ProjectParticipant = {
   user_id: string;
   username: string | null;
