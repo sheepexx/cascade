@@ -23,6 +23,7 @@ import {
 } from "../ui/Controls";
 import { formatUiNumber } from "../../lib/formatUiNumber";
 import { SvPresets } from "../ui/SvPresets";
+import { WaveformComparison } from "../WaveformComparison";
 import { InfoTip } from "../ui/Tooltip";
 import { useT } from "../../lib/i18n";
 
@@ -643,6 +644,21 @@ export const TimingModal = memo(function TimingModal({
                     )}
                   </>
                 )}
+              </div>
+            </section>
+
+            <section className={CARD}>
+              <div className="flex items-center gap-1.5">
+                <span className={LABEL}>{t("waveCompare.title")}</span>
+                <InfoTip content={t("waveCompare.info")} />
+              </div>
+              <div className="mt-2">
+                <WaveformComparison
+                  audioBuffer={audioBuffer}
+                  timeScale={timeScale}
+                  timingPoints={timingPoints}
+                  getCurrentTime={getCurrentTime}
+                />
               </div>
             </section>
           </>
