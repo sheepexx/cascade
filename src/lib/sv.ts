@@ -66,6 +66,9 @@ function svEventOrder(a: TimingPoint, b: TimingPoint): number {
  * and what mappers set their scroll speed against. Gimmick points are filtered
  * out first so a map full of freezes still resolves to its musical tempo.
  */
+/** Common SV values offered as one-click presets. */
+export const SV_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+
 export function dominantBpm(points: TimingPoint[]): number {
   const cached = dominantBpmCache.get(points);
   if (cached !== undefined) return cached;

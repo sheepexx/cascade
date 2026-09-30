@@ -22,6 +22,7 @@ import {
   Toggle,
 } from "../ui/Controls";
 import { formatUiNumber } from "../../lib/formatUiNumber";
+import { SvPresets } from "../ui/SvPresets";
 import { InfoTip } from "../ui/Tooltip";
 import { useT } from "../../lib/i18n";
 
@@ -55,7 +56,6 @@ type Props = {
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
 const OFFSET_NUDGES = [-10, -5, -1, 1, 5, 10] as const;
-const SV_PRESETS = [0.5, 0.75, 1, 1.5, 2] as const;
 const TAP_MIN = 3;
 
 const CARD = "rounded-xl border border-white/10 bg-ink-700/40 p-4";
@@ -911,18 +911,7 @@ function PointRow({
                   />
                 </Field>
                 <Field label={t("nav.presets")}>
-                  <div className="flex gap-1">
-                    {SV_PRESETS.map((sv) => (
-                      <button
-                        key={sv}
-                        type="button"
-                        onClick={() => onUpdate({ sv })}
-                        className="rounded-lg border border-white/10 bg-ink-700/60 px-2 py-1.5 text-[11px] tabular-nums text-slate-300 transition duration-[var(--motion-quick)] hover:bg-ink-600 hover:text-slate-100"
-                      >
-                        {sv}
-                      </button>
-                    ))}
-                  </div>
+                  <SvPresets value={p.sv} onPick={(sv) => onUpdate({ sv })} />
                 </Field>
               </>
             )}

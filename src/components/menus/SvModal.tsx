@@ -27,6 +27,7 @@ import {
   type SvKeyframe,
   type SvMap,
 } from "../../lib/sv";
+import { SvPresets } from "../ui/SvPresets";
 import { CurveEditor } from "../ui/CurveEditor";
 import { Modal } from "../ui/Modal";
 import {
@@ -577,6 +578,15 @@ export function SvModal({
             {tab === "constant" && (
               <div className="grid gap-3 sm:grid-cols-2">
                 {svField("SV ×", sv, setSv)}
+                <Field label={t("nav.presets")}>
+                  <SvPresets
+                    value={sv}
+                    onPick={(value) => {
+                      setSv(value);
+                      setApplied(false);
+                    }}
+                  />
+                </Field>
               </div>
             )}
 
