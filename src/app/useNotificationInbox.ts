@@ -9,6 +9,7 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  markNotificationUnread,
 } from "../lib/notifications";
 import { subscribeSupabase } from "../lib/supabase";
 import { playUiSound } from "../lib/uiSounds";
@@ -197,6 +198,16 @@ export function useNotificationInbox({
     [refreshNotifications],
   );
 
+  const markInboxNotificationUnread = useCallback(
+    (id: string) => {
+      setNotifications((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, read_at: null } : item)),
+      );
+      void markNotificationUnread(id).catch(() => refreshNotifications());
+    },
+    [refreshNotifications],
+  );
+
   const markInboxAllRead = useCallback(() => {
     const readAt = new Date().toISOString();
     setNotifications((prev) =>
@@ -265,6 +276,7 @@ export function useNotificationInbox({
     joinInvite,
     markInboxAllRead,
     markInboxNotificationRead,
+    markInboxNotificationUnread,
     notifications,
     notificationsError,
     notificationsLoading,

@@ -24,6 +24,7 @@ import { defaultTimingPoints, makeDifficulty, normalizeTimingPoints } from "../t
 import type { DocSnapshot, ModalId, OsuEntry } from "./appTypes";
 import { newLocalProjectId } from "./appUtils";
 import { loadOsuImport } from "./lazySurfaces";
+import { describeImportFailure, type SetImportError } from "../lib/importErrors";
 
 /**
  * Opening maps. replaceProject is the one way the open project is swapped
@@ -98,7 +99,7 @@ export function useProjectLoading({
   setCloudOwnerId: Dispatch<SetStateAction<string | null>>;
   setCloudProjectId: Dispatch<SetStateAction<string | null>>;
   setDifficulties: Dispatch<SetStateAction<Difficulty[]>>;
-  setImportError: Dispatch<SetStateAction<string | null>>;
+  setImportError: SetImportError;
   setImportNotice: Dispatch<SetStateAction<string | null>>;
   setImportProgress: Dispatch<SetStateAction<ProgressReport | null>>;
   setImportingMap: Dispatch<SetStateAction<boolean>>;
@@ -218,6 +219,14 @@ export function useProjectLoading({
     );
   }, [authUserRef]);
 
+  const reportImportFailure = useCallback(
+    (error: unknown, fallback: string) => {
+      const problem = describeImportFailure(error, fallback, t);
+      setImportError(problem.message, problem.details);
+    },
+    [setImportError, t],
+  );
+
   const [scannedPackSongs, setScannedPackSongs] = useState<PackSong[]>([]);
   const [scanningPack, setScanningPack] = useState(false);
   const [packError, setPackError] = useState<string | null>(null);
@@ -264,14 +273,12 @@ export function useProjectLoading({
         () => {},
       );
     } catch (err) {
-      setImportError(
-        err instanceof Error ? err.message : t("app.importOszFailed"),
-      );
+      reportImportFailure(err, t("app.importOszFailed"));
     } finally {
       setImportingMap(false);
       setImportProgress(null);
     }
-  }, [logProjectCreated, replaceProject, t, authUserRef, importStartedRef, setImportError, setImportNotice, setImportProgress, setImportingMap]);
+  }, [logProjectCreated, replaceProject, t, authUserRef, importStartedRef, setImportError, setImportNotice, setImportProgress, setImportingMap, reportImportFailure]);
 
   const requestImportMap = useCallback(
     (file: File) => {
@@ -410,13 +417,11 @@ export function useProjectLoading({
       });
       logProjectCreated();
     } catch (err) {
-      setImportError(
-        err instanceof Error ? err.message : t("app.importSmFailed"),
-      );
+      reportImportFailure(err, t("app.importSmFailed"));
     } finally {
       setImportingMap(false);
     }
-  }, [logProjectCreated, replaceProject, t, authUserRef, importStartedRef, setImportError, setImportingMap]);
+  }, [logProjectCreated, replaceProject, t, authUserRef, importStartedRef, setImportError, setImportingMap, reportImportFailure]);
 
   const importQuaFile = useCallback(async (file: File) => {
     importStartedRef.current = true;
@@ -441,13 +446,11 @@ export function useProjectLoading({
       }
       logProjectCreated();
     } catch (error) {
-      setImportError(
-        error instanceof Error ? error.message : t("import.failed", { name: file.name }),
-      );
+      reportImportFailure(error, t("import.failed", { name: file.name }));
     } finally {
       setImportingMap(false);
     }
-  }, [logProjectCreated, replaceProject, t, setAppSettings, importStartedRef, setImportError, setImportingMap]);
+  }, [logProjectCreated, replaceProject, t, setAppSettings, importStartedRef, setImportError, setImportingMap, reportImportFailure]);
 
   const requestImportSm = useCallback(
     (file: File) => {
@@ -512,12 +515,10 @@ export function useProjectLoading({
       try {
         await openOsuAsProject(await readOsuFiles([file]));
       } catch (err) {
-        setImportError(
-          err instanceof Error ? err.message : t("app.importOsuFailed"),
-        );
+        reportImportFailure(err, t("app.importOsuFailed"));
       }
     },
-    [readOsuFiles, openOsuAsProject, t, setImportError],
+    [readOsuFiles, openOsuAsProject, t, setImportError, reportImportFailure],
   );
 
   const addOsuDifficulties = useCallback(
@@ -591,9 +592,7 @@ export function useProjectLoading({
       try {
         entries = await readOsuFiles(files);
       } catch (err) {
-        setImportError(
-          err instanceof Error ? err.message : t("app.readOsuFailed"),
-        );
+        reportImportFailure(err, t("app.readOsuFailed"));
         return;
       }
       if (!projectStartedRef.current) {
@@ -607,7 +606,7 @@ export function useProjectLoading({
       }
       setPendingOsuDiffs(entries);
     },
-    [readOsuFiles, openOsuAsProject, addOsuDifficulties, t, metaRef, projectStartedRef, setImportError, setPendingOsuDiffs],
+    [readOsuFiles, openOsuAsProject, addOsuDifficulties, t, metaRef, projectStartedRef, setImportError, setPendingOsuDiffs, reportImportFailure],
   );
 
   const importPackSong = useCallback(
@@ -689,13 +688,11 @@ export function useProjectLoading({
         const file = new File([blob], name, { type: "application/octet-stream" });
         await importMapFile(file);
       } catch (err) {
-        setImportError(
-          err instanceof Error ? err.message : t("app.loadMapFailed"),
-        );
+        reportImportFailure(err, t("app.loadMapFailed"));
         setImportingMap(false);
       }
     },
-    [importMapFile, t, setImportError, setImportingMap, setModal],
+    [importMapFile, t, setImportingMap, setModal, reportImportFailure],
   );
 
   return {

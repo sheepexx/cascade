@@ -30,6 +30,7 @@ import type {
   SongMeta,
   TimingPoint,
 } from "../types";
+import type { SetImportError } from "../lib/importErrors";
 
 /**
  * Exporting the map: .osu, .osz, .sm, .qua and .mcz downloads, sending a
@@ -89,7 +90,7 @@ export function useMapExport({
   sampleFiles: Record<string, SampleFile>;
   setDifficulties: Dispatch<SetStateAction<Difficulty[]>>;
   setExportCheck: Dispatch<SetStateAction<{ result: ValidationResult; target: string; run: () => void; } | null>>;
-  setImportError: Dispatch<SetStateAction<string | null>>;
+  setImportError: SetImportError;
   setImportNotice: Dispatch<SetStateAction<string | null>>;
   setMapperPrompt: Dispatch<SetStateAction<{ target: string; run: (songMeta: SongMeta) => void; } | null>>;
   setMeta: Dispatch<SetStateAction<SongMeta>>;

@@ -2,6 +2,7 @@ import { useNotificationInbox } from "./app/useNotificationInbox";
 import { useSkins } from "./app/useSkins";
 import { AppHeader } from "./app/AppHeader";
 import { AppToasts } from "./app/AppToasts";
+import type { ImportProblem, SetImportError } from "./lib/importErrors";
 import { buildPaletteCommands } from "./app/paletteCommands";
 import { useEditorHotkeys } from "./app/useEditorHotkeys";
 import { useCloudProject } from "./app/useCloudProject";
@@ -347,7 +348,12 @@ export default function App() {
   const [bgScope, setBgScope] = useState<BackgroundScope>("mapset");
   const [askBgScope, setAskBgScope] = useState(false);
   const [lnTicks, setLnTicks] = useState(1);
-  const [importError, setImportError] = useState<string | null>(null);
+  const [importProblem, setImportProblem] = useState<ImportProblem | null>(null);
+  const importError = importProblem?.message ?? null;
+  const setImportError = useCallback<SetImportError>(
+    (message, details) => setImportProblem(message ? { message, details } : null),
+    [],
+  );
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const {
     live: osuLive,
@@ -502,7 +508,7 @@ export default function App() {
         error instanceof Error ? error.message : t("app.updateFailed"),
       );
     });
-  }, [t]);
+  }, [t, setImportError]);
   const appOpenLoggedRef = useRef(false);
   useEffect(() => {
     if (authLoading || appOpenLoggedRef.current) return;
@@ -1342,7 +1348,7 @@ export default function App() {
     } catch (err) {
       setExternalEditError(err instanceof Error ? err.message : String(err));
     }
-  }, [canEditRef]);
+  }, [canEditRef, setImportError]);
 
   const showExternalFile = useCallback(
     async (inFolder: boolean) => {
@@ -2127,7 +2133,7 @@ export default function App() {
 
       openFiles(Array.from(e.dataTransfer.files));
     },
-    [openFiles, importPackSong, resetFileDrag, t, setScannedPackSongs],
+    [openFiles, importPackSong, resetFileDrag, t, setScannedPackSongs, setImportError],
   );
 
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
@@ -2280,7 +2286,7 @@ export default function App() {
     } catch {
       setImportError(t("app.exportBeforeImportFailed"));
     }
-  }, [pendingImport, doExportOsz, importFile, t]);
+  }, [pendingImport, doExportOsz, importFile, t, setImportError]);
 
   const cancelPendingImport = useCallback(() => {
     setPendingImport(null);
@@ -2401,6 +2407,7 @@ export default function App() {
     joinInvite,
     markInboxAllRead,
     markInboxNotificationRead,
+    markInboxNotificationUnread,
     notifications,
     notificationsError,
     notificationsLoading,
@@ -2470,7 +2477,7 @@ export default function App() {
       setAutoTimeStatus("idle");
       setAutoTimeResult(null);
     }
-  }, [logProjectCreated, replaceProject, t, setSaveStatus]);
+  }, [logProjectCreated, replaceProject, t, setSaveStatus, setImportError]);
 
   const [jumpToTimeOpen, setJumpToTimeOpen] = useState(false);
   useEditorHotkeys({
@@ -2740,6 +2747,7 @@ export default function App() {
         liveEnabled={liveEnabled}
         markInboxAllRead={markInboxAllRead}
         markInboxNotificationRead={markInboxNotificationRead}
+        markInboxNotificationUnread={markInboxNotificationUnread}
         menuMusic={menuMusic}
         modal={modal}
         myRole={myRole}
@@ -4142,11 +4150,14 @@ export default function App() {
         exportProgress={exportProgress}
         exporting={exporting}
         importError={importError}
+        importErrorDetails={importProblem?.details ?? null}
         importNotice={importNotice}
         needsSongHint={needsSongHint}
         pwaUpdateReady={pwaUpdateReady}
         recoveryBusy={recoveryBusy}
         recoveryOffer={recoveryOffer}
+        retryCloudSave={() => void handleCloudSave()}
+        retrySave={() => void handleSave()}
         saveErrorDetail={saveErrorDetail}
         saveStatus={saveStatus}
         setCloudError={setCloudError}

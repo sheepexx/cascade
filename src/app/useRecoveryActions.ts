@@ -22,6 +22,7 @@ import type {
 } from "../types";
 import { makeDifficulty, normalizeTimingPoints } from "../types";
 import type { ModalId } from "./appTypes";
+import type { SetImportError } from "../lib/importErrors";
 
 /**
  * Restoring earlier work: snapshots and backups into the open map, unsaved work
@@ -65,7 +66,7 @@ export function useRecoveryActions({
   setActiveId: Dispatch<SetStateAction<string>>;
   setBgScope: Dispatch<SetStateAction<BackgroundScope>>;
   setDifficulties: Dispatch<SetStateAction<Difficulty[]>>;
-  setImportError: Dispatch<SetStateAction<string | null>>;
+  setImportError: SetImportError;
   setImportNotice: Dispatch<SetStateAction<string | null>>;
   setMeta: Dispatch<SetStateAction<SongMeta>>;
   setModal: Dispatch<SetStateAction<ModalId>>;

@@ -855,7 +855,9 @@ img {
   transform-origin: left center;
   animation: notification-progress-indeterminate 1.25s ease-in-out infinite;
 }
-.notification-shell:hover .notification-progress {
+.notification-shell:hover .notification-progress,
+.notification-shell:focus-within .notification-progress,
+.notification-shell[data-paused] .notification-progress {
   animation-play-state: paused;
 }
 

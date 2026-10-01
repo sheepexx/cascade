@@ -20,6 +20,10 @@ type Props = {
   progressClassName?: string;
   showProgress?: boolean;
   showClose?: boolean;
+  /** Holds the countdown, e.g. while the reader has details open. */
+  paused?: boolean;
+  /** Errors interrupt a screen reader; everything else waits its turn. */
+  live?: "polite" | "assertive";
   children: ReactNode | ((controls: { dismiss: Dismiss }) => ReactNode);
 };
 
@@ -37,6 +41,8 @@ export function TimedNotification({
   progressClassName = "bg-accent",
   showProgress = true,
   showClose = false,
+  paused = false,
+  live = "polite",
   children,
 }: Props) {
   const t = useT();
@@ -73,14 +79,14 @@ export function TimedNotification({
   const timed = typeof durationMs === "number" && durationMs > 0;
 
   useEffect(() => {
-    if (!mounted || exiting || !open || showProgress || !timed) return;
+    if (!mounted || exiting || !open || showProgress || !timed || paused) return;
     const timer = window.setTimeout(() => {
       dismissAfterExitRef.current = true;
       afterExitRef.current = null;
       setExiting(true);
     }, durationMs);
     return () => window.clearTimeout(timer);
-  }, [cycle, durationMs, exiting, mounted, open, showProgress, timed]);
+  }, [cycle, durationMs, exiting, mounted, open, paused, showProgress, timed]);
 
   if (!mounted) return null;
 
@@ -98,11 +104,12 @@ export function TimedNotification({
       key={cycle}
       data-placement={placement}
       data-state={exiting ? "out" : "in"}
+      data-paused={paused || undefined}
       className={`notification-shell ${
         selfPositioned ? "" : "relative"
       } overflow-hidden ${className}`}
-      role="status"
-      aria-live="polite"
+      role={live === "assertive" ? "alert" : "status"}
+      aria-live={live}
       onAnimationEnd={(event) => {
         if (event.target !== event.currentTarget || !exiting) return;
         setMounted(false);
