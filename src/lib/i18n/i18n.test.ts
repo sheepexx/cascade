@@ -8,6 +8,7 @@ import {
   LOCALES,
   detectLocale,
   localeFromPath,
+  localePath,
   registerCatalog,
   resolveLocale,
   translate,
@@ -53,6 +54,15 @@ describe("resolveLocale", () => {
 
 });
 
+describe("localePath", () => {
+  it("puts the language's prefix in front of a site path", () => {
+    expect(localePath("en", "/docs")).toBe("/docs");
+    expect(localePath("de", "/docs")).toBe("/de/docs");
+    expect(localePath("zh-CN", "/download")).toBe("/zh-cn/download");
+    expect(localePath("pt-BR", "/docs")).toBe("/pt-br/docs");
+  });
+});
+
 describe("localeFromPath", () => {
   it("reads the locale prefix of a localised home", () => {
     expect(localeFromPath("/de")).toBe("de");
@@ -62,14 +72,14 @@ describe("localeFromPath", () => {
   });
 
   it("reads the prefix of a localised landing page", () => {
-    expect(localeFromPath("/de/osu-mania-playtest")).toBe("de");
+    expect(localeFromPath("/de/docs/osu-mania-playtest")).toBe("de");
   });
 
   it("ignores the English root and unprefixed pages", () => {
     expect(localeFromPath("/")).toBeNull();
     expect(localeFromPath("")).toBeNull();
-    expect(localeFromPath("/osu-mania-sv-editor")).toBeNull();
-    expect(localeFromPath("/how-to-make-an-osu-mania-map")).toBeNull();
+    expect(localeFromPath("/docs/osu-mania-sv-editor")).toBeNull();
+    expect(localeFromPath("/docs")).toBeNull();
     expect(localeFromPath("/privacy")).toBeNull();
   });
 });

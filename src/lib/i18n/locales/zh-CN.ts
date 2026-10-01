@@ -2212,4 +2212,7 @@ export const zhCN: PartialCatalog = {
   "settings.usageStatsHint": "例如导出了多少谱面、用户一周后是否回来之类的计数。不包含谱面内容，也没有能把一条计数与另一条关联起来的 ID。浏览器发送“请勿跟踪”或“全球隐私控制”信号时始终关闭。",
   "settings.discordActivity": "显示活动，不显示谱面",
   "mapCard.share": "分享…",
+  "landing.docs": "文档",
+  "landing.docsHint": "Cascade 各部分的指南",
+  "landing.docsAll": "全部文档",
 };

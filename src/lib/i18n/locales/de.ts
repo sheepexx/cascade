@@ -2329,4 +2329,7 @@ export const de: PartialCatalog = {
   "settings.usageStatsHint": "Zählungen wie die Anzahl exportierter Maps oder ob Leute nach einer Woche wiederkommen. Keine Map-Inhalte und keine ID, die eine Zählung mit einer anderen verknüpft. Immer aus, wenn dein Browser Do Not Track oder Global Privacy Control sendet.",
   "settings.discordActivity": "Aktivität zeigen, nicht die Map",
   "mapCard.share": "Teilen…",
+  "landing.docs": "Doku",
+  "landing.docsHint": "Anleitungen zu allen Teilen von Cascade",
+  "landing.docsAll": "Alle Anleitungen",
 };

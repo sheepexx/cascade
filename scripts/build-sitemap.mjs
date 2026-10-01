@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import {
   LOCALES,
   PAGES as LANDING_PAGES,
+  docsHubUrl,
+  docsUrl,
   urlFor,
 } from "./landing-content.mjs";
 import { SLUG as DOWNLOAD_SLUG } from "./download-content.mjs";
@@ -15,8 +17,8 @@ const HOME_UPDATED = "2026-09-24";
 
 const GENERATED = LANDING_PAGES.flatMap((page) =>
   Object.keys(LOCALES).map((locale) => ({
-    path: urlFor(page.slug, locale),
-    updated: page.updated,
+    path: docsUrl(page.slug, locale),
+    updated: "2026-10-01",
     priority: locale === "en" ? "0.7" : "0.5",
     changefreq: "monthly",
   })),
@@ -31,6 +33,13 @@ const LOCALISED_HOMES = Object.keys(LOCALES)
     changefreq: "weekly",
   }));
 
+const DOCS_HUBS = Object.keys(LOCALES).map((locale) => ({
+  path: docsHubUrl(locale),
+  updated: "2026-10-01",
+  priority: locale === "en" ? "0.8" : "0.6",
+  changefreq: "monthly",
+}));
+
 const DOWNLOAD = Object.keys(LOCALES).map((locale) => ({
   path: urlFor(DOWNLOAD_SLUG, locale),
   updated: "2026-09-24",
@@ -42,52 +51,47 @@ const PAGES = [
   { path: "/", updated: HOME_UPDATED, priority: "1.0", changefreq: "weekly" },
   ...LOCALISED_HOMES,
   ...DOWNLOAD,
+  ...DOCS_HUBS,
   {
-    path: "/how-to-make-an-osu-mania-map",
-    updated: "2026-09-24",
-    priority: "0.7",
-    changefreq: "monthly",
-  },
-  {
-    path: "/osu-to-stepmania",
-    updated: "2026-09-24",
-    priority: "0.7",
-    changefreq: "monthly",
-  },
-  {
-    path: "/guides",
+    path: "/docs/how-to-make-an-osu-mania-map",
     updated: "2026-10-01",
-    priority: "0.8",
+    priority: "0.7",
     changefreq: "monthly",
   },
   {
-    path: "/arrowvortex-alternative",
+    path: "/docs/osu-to-stepmania",
+    updated: "2026-10-01",
+    priority: "0.7",
+    changefreq: "monthly",
+  },
+  {
+    path: "/docs/arrowvortex-alternative",
     updated: "2026-10-01",
     priority: "0.6",
     changefreq: "monthly",
   },
   {
-    path: "/osu-mania-map-viewer",
+    path: "/docs/osu-mania-map-viewer",
     updated: "2026-10-01",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
-    path: "/osu-mania-pack-creator",
-    updated: "2026-09-24",
+    path: "/docs/osu-mania-pack-creator",
+    updated: "2026-10-01",
     priority: "0.7",
     changefreq: "monthly",
   },
   {
-    path: "/osu-mania-sv-editor",
-    updated: "2026-09-24",
+    path: "/docs/osu-mania-sv-editor",
+    updated: "2026-10-01",
     priority: "0.7",
     changefreq: "monthly",
   },
   ...GENERATED,
   {
     path: "/privacy",
-    updated: "2026-08-07",
+    updated: "2026-10-01",
     priority: "0.3",
     changefreq: "yearly",
   },

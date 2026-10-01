@@ -1,7 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LOCALES, PAGES, UI, urlFor } from "./landing-content.mjs";
+import {
+  DOCS_GROUPS,
+  ENGLISH_DOCS,
+  LOCALES,
+  PAGES,
+  UI,
+  docsHubUrl,
+  docsUrl,
+  urlFor,
+} from "./landing-content.mjs";
 import {
   CONTENT as DOWNLOAD,
   SLUG as DOWNLOAD_SLUG,
@@ -12,20 +21,29 @@ const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const FONT_STYLE = await fontStyles();
 
+/** public/docs/<slug>.html, or public/<prefix>/docs/<slug>.html. */
 function fileFor(slug, locale) {
   const prefix = LOCALES[locale].prefix;
   return prefix
-    ? join(ROOT, "public", prefix, `${slug}.html`)
-    : join(ROOT, "public", `${slug}.html`);
+    ? join(ROOT, "public", prefix, "docs", `${slug}.html`)
+    : join(ROOT, "public", "docs", `${slug}.html`);
 }
 
-function alternates(slug) {
+/** public/docs.html, or public/<prefix>/docs.html. */
+function hubFileFor(locale) {
+  const prefix = LOCALES[locale].prefix;
+  return prefix
+    ? join(ROOT, "public", prefix, "docs.html")
+    : join(ROOT, "public", "docs.html");
+}
+
+function alternates(urlOf) {
   const links = Object.keys(LOCALES).map(
     (code) =>
-      `    <link rel="alternate" hreflang="${LOCALES[code].hreflang}" href="${SITE}${urlFor(slug, code)}" />`,
+      `    <link rel="alternate" hreflang="${LOCALES[code].hreflang}" href="${SITE}${urlOf(code)}" />`,
   );
   links.push(
-    `    <link rel="alternate" hreflang="x-default" href="${SITE}${urlFor(slug, "en")}" />`,
+    `    <link rel="alternate" hreflang="x-default" href="${SITE}${urlOf("en")}" />`,
   );
   return links.join("\n");
 }
@@ -49,8 +67,14 @@ function breadcrumb(slug, locale, label) {
       {
         "@type": "ListItem",
         position: 2,
+        name: UI[locale].docs,
+        item: `${SITE}${docsHubUrl(locale)}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
         name: label,
-        item: `${SITE}${urlFor(slug, locale)}`,
+        item: `${SITE}${docsUrl(slug, locale)}`,
       },
     ],
   };
@@ -106,7 +130,7 @@ function langBar(slug, locale) {
     .filter((code) => code !== locale)
     .map(
       (code) =>
-        `<a href="${urlFor(slug, code)}" hreflang="${LOCALES[code].hreflang}">${LOCALES[code].name}</a>`,
+        `<a href="${slug ? docsUrl(slug, code) : docsHubUrl(code)}" hreflang="${LOCALES[code].hreflang}">${LOCALES[code].name}</a>`,
     )
     .join(" · ");
   return `      <p class="langs">${UI[locale].languages}: ${items}</p>`;
@@ -114,20 +138,21 @@ function langBar(slug, locale) {
 
 function footerLinks(slug, locale) {
   const home = `<a href="/">${UI[locale].home}</a>`;
+  const hub = `<a href="${docsHubUrl(locale)}">${UI[locale].docs}</a>`;
   const others = PAGES.filter((p) => p.slug !== slug).map(
-    (p) => `<a href="${urlFor(p.slug, locale)}">${p.content[locale].navLabel}</a>`,
+    (p) => `<a href="${docsUrl(p.slug, locale)}">${p.content[locale].navLabel}</a>`,
   );
   const legacy = UI[locale].legacy.map(
     (l) => `<a href="${l.href}">${l.label}</a>`,
   );
   const download = `<a href="${urlFor(DOWNLOAD_SLUG, locale)}">${DOWNLOAD[locale].navLabel}</a>`;
-  return [home, ...others, ...legacy, download].join(" ·\n          ");
+  return [home, hub, ...others, ...legacy, download].join(" ·\n          ");
 }
 
 function render(page, locale) {
   const c = page.content[locale];
   const loc = LOCALES[locale];
-  const url = `${SITE}${urlFor(page.slug, locale)}`;
+  const url = `${SITE}${docsUrl(page.slug, locale)}`;
   const structured = page.structured?.(c, url);
   const og = ogImage(page, locale);
   const ogAlt = c.ogImageAlt ?? UI[locale].ogImageAlt;
@@ -139,7 +164,7 @@ function render(page, locale) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png?v=3" />
     <link rel="canonical" href="${url}" />
-${alternates(page.slug)}
+${alternates((code) => docsUrl(page.slug, code))}
     <meta name="theme-color" content="#0b0d12" />
     <meta name="robots" content="index, follow" />
     <title>${c.title}</title>
@@ -196,7 +221,140 @@ ${langBar(page.slug, locale)}
 `;
 }
 
+const HUB_STYLE = `      .group { margin-top: 26px; }
+      .guide { display: block; padding: 12px 14px; margin: 8px 0; border: 1px solid #1d1d27; border-radius: 10px; text-decoration: none; background: #101017; }
+      .guide:hover { border-color: #3a2a30; background: #15131b; }
+      .guide strong { display: block; color: #e6e8ee; font-weight: 600; }
+      .guide span { color: #9aa0ad; font-size: 0.92rem; }
+      .guide em { font-style: normal; color: #767c8a; font-size: 0.8rem; }`;
+
+function escapeHtml(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** One entry of a hub: its link, title, summary and whether it's English only. */
+function hubEntry(item, locale) {
+  if (item.download) {
+    return {
+      href: urlFor(DOWNLOAD_SLUG, locale),
+      title: DOWNLOAD[locale].navLabel,
+      description: DOWNLOAD[locale].ogDescription,
+      english: false,
+    };
+  }
+  if (item.page) {
+    const page = PAGES.find((p) => p.slug === item.page);
+    if (!page) throw new Error(`docs hub: no page ${item.page}`);
+    return {
+      href: docsUrl(page.slug, locale),
+      title: page.content[locale].navLabel,
+      description: page.content[locale].ogDescription,
+      english: false,
+    };
+  }
+  const doc = ENGLISH_DOCS[item.english];
+  if (!doc) throw new Error(`docs hub: no English guide ${item.english}`);
+  return {
+    href: `/docs/${item.english}`,
+    title: doc.title,
+    description: doc.description,
+    english: locale !== "en",
+  };
+}
+
+function renderHub(locale) {
+  const ui = UI[locale];
+  const loc = LOCALES[locale];
+  const url = `${SITE}${docsHubUrl(locale)}`;
+  const og = ogImage({}, locale);
+  const groups = DOCS_GROUPS.map((group) => ({
+    title: ui.docsGroups[group.id],
+    entries: group.items.map((item) => hubEntry(item, locale)),
+  }));
+  const list = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: ui.docsTitle,
+    itemListElement: groups
+      .flatMap((g) => g.entries)
+      .map((e, i) => ({ "@type": "ListItem", position: i + 1, url: `${SITE}${e.href}`, name: e.title })),
+  };
+  const body = groups
+    .map(
+      (g) => `      <section class="group">
+        <h2>${escapeHtml(g.title)}</h2>
+${g.entries
+  .map(
+    (e) =>
+      `        <a class="guide" href="${e.href}"${e.english ? ' hreflang="en"' : ""}><strong>${escapeHtml(e.title)}${
+        e.english ? ` <em>(${escapeHtml(ui.englishOnly)})</em>` : ""
+      }</strong><span>${escapeHtml(e.description)}</span></a>`,
+  )
+  .join("\n")}
+      </section>`,
+    )
+    .join("\n");
+
+  return `<!doctype html>
+<html lang="${loc.htmlLang}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="${url}" />
+${alternates(docsHubUrl)}
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>${escapeHtml(ui.docsTitle)} | Cascade</title>
+    <meta name="description" content="${escapeHtml(ui.docsDescription)}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="${loc.ogLocale}" />
+    <meta property="og:title" content="${escapeHtml(ui.docsTitle)}" />
+    <meta property="og:description" content="${escapeHtml(ui.docsDescription)}" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:image" content="${SITE}${og.path}" />
+    <meta property="og:image:width" content="${og.width}" />
+    <meta property="og:image:height" content="${og.height}" />
+    <meta property="og:image:alt" content="${ui.ogImageAlt}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(ui.docsTitle)}" />
+    <meta name="twitter:description" content="${escapeHtml(ui.docsDescription)}" />
+    <meta name="twitter:image" content="${SITE}${og.path}" />
+    <script type="application/ld+json">
+${ld(list)}
+    </script>
+    <style>
+${FONT_STYLE}
+${STYLE}
+${HUB_STYLE}
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>${escapeHtml(ui.docsHeading)}</h1>
+      <p>${escapeHtml(ui.docsIntro)}</p>
+${body}
+      <a class="cta" href="/">${escapeHtml(ui.docsCta)}</a>
+${langBar(null, locale)}
+    </main>
+  </body>
+</html>
+`;
+}
+
 let written = 0;
+for (const locale of Object.keys(LOCALES)) {
+  const file = hubFileFor(locale);
+  await mkdir(join(file, ".."), { recursive: true });
+  await writeFile(file, renderHub(locale));
+  written += 1;
+}
 for (const page of PAGES) {
   for (const locale of Object.keys(LOCALES)) {
     const file = fileFor(page.slug, locale);

@@ -89,6 +89,21 @@ export function resolveLocale(tag: string | null | undefined): Locale | null {
   return null;
 }
 
+/** The site's path prefix for a language: /de/download, /zh-cn/docs, … */
+const PATH_PREFIX: Record<Locale, string> = {
+  en: "",
+  de: "de",
+  ru: "ru",
+  "zh-CN": "zh-cn",
+  "pt-BR": "pt-br",
+};
+
+/** A site path in a language, e.g. localePath("de", "/docs") is "/de/docs". */
+export function localePath(locale: Locale, path: string): string {
+  const prefix = PATH_PREFIX[locale];
+  return prefix ? `/${prefix}${path}` : path;
+}
+
 export function localeFromPath(
   pathname: string | null | undefined,
 ): Locale | null {

@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/pt-br/docs/osu-mania-map-card" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/docs/osu-mania-map-card" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/docs/osu-mania-map-card" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/docs/osu-mania-map-card" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/docs/osu-mania-map-card" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/docs/osu-mania-map-card" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/docs/osu-mania-map-card" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>Gerador de Map Card para osu!mania com MSD | Cascade</title>
+    <meta name="description" content="Transforme uma dificuldade de osu!mania em uma imagem com as estatísticas e todos os skillsets de MSD. Baixe um PNG ou pegue um link direto para [img]." />
+    <meta name="keywords" content="osu mania map card, imagem descrição beatmap osu, osu mania msd, calculadora msd etterna, imagem estatísticas mapa osu, gerador de card osu, skillsets osu mania, imagem bbcode osu" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="Transforme seu mapa de osu!mania em um card compartilhável" />
+    <meta property="og:description" content="Classificação em estrelas, BPM, duração, notas e todos os skillsets de MSD em uma imagem, com link direto para a descrição no osu!." />
+    <meta property="og:url" content="https://cascade.sheepex.net/pt-br/docs/osu-mania-map-card" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og-map-card.jpg?v=1" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Um Map Card do Cascade para uma dificuldade 4K, com os skillsets de MSD em barras" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Transforme seu mapa de osu!mania em um card compartilhável" />
+    <meta name="twitter:description" content="Classificação em estrelas, BPM, duração, notas e todos os skillsets de MSD em uma imagem, com link direto para a descrição no osu!." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og-map-card.jpg?v=1" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "Como colocar um map card na descrição de um beatmap do osu!",
+        "description": "Classificação em estrelas, BPM, duração, notas e todos os skillsets de MSD em uma imagem, com link direto para a descrição no osu!.",
+        "totalTime": "PT2M",
+        "tool": {
+          "@type": "HowToTool",
+          "name": "Cascade"
+        },
+        "url": "https://cascade.sheepex.net/pt-br/docs/osu-mania-map-card",
+        "image": "https://cascade.sheepex.net/shots/map-card.webp",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Abra seu mapa",
+            "text": "Carregue o mapa no Cascade ou importe o .osz."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Abra o Map Card",
+            "text": "Escolha Map Card em Ferramentas, ou Criar Map Card no menu Arquivo."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Escolha o visual",
+            "text": "Escolha um preset, um estilo de fundo e as estatísticas. A prévia é exatamente a imagem que você recebe."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Pegue o link",
+            "text": "Envie o card, copie o BBCode e cole na descrição do beatmap."
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Docs",
+            "item": "https://cascade.sheepex.net/pt-br/docs"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Criar um card para a descrição",
+            "item": "https://cascade.sheepex.net/pt-br/docs/osu-mania-map-card"
+          }
+        ]
+      }
+    </script>
+    <style>
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/quicksand-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/quicksand-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/quicksand-latin-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/quicksand-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/quicksand-latin-ext-700-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/quicksand-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/inter-cyrillic-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/inter-cyrillic-400-normal.woff2') format('woff2');
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/inter-cyrillic-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/inter-cyrillic-600-normal.woff2') format('woff2');
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/inter-cyrillic-ext-700-normal.woff2') format('woff2');
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/inter-cyrillic-700-normal.woff2') format('woff2');
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Quicksand", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      figure { margin: 22px 0 18px; }
+      figure img { display: block; width: 100%; height: auto; border-radius: 16px; }
+      figcaption { margin-top: 8px; font-size: 0.85rem; color: #767c8a; }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Um card para o seu mapa, com todos os skillsets</h1>
+      <p>
+        Uma boa descrição mostra aos jogadores o que é o mapa antes do
+        download. O <strong>Map Card</strong> do Cascade reúne numa imagem os
+        números que todo mundo procura: classificação em estrelas, BPM,
+        duração, contagem de notas e notas longas e o rating de MSD de cada
+        skillset, para um mapa de stream ser reconhecido como stream de
+        relance.
+      </p>
+      <a class="cta" href="/">Abrir o editor e criar um card</a>
+
+      <figure>
+        <img src="/shots/map-card.webp" width="1600" height="1032" alt="Um map card de uma dificuldade 4K com o fundo como banner, o MSD geral, sete barras de skillset e uma linha de estatísticas do mapa" />
+        <figcaption>Um card 4K com o fundo como banner e os skillsets em barras.</figcaption>
+      </figure>
+
+      <h2>Feito a partir do mapa, não digitado</h2>
+      <p>
+        Título, artista, mapper e nome da dificuldade vêm dos metadados do
+        mapa. Classificação em estrelas, BPM, duração, contagem de notas, notas
+        por segundo, OD e HP são os mesmos números que o editor mostra enquanto
+        você mapeia, então o card nunca discorda do chart.
+      </p>
+
+      <h2>Todos os skillsets de MSD</h2>
+      <p>
+        Para dificuldades 4K, 6K e 7K, o card usa o MinaCalc do Etterna e
+        mostra o MSD geral ao lado de stream, jumpstream, handstream, stamina,
+        jackspeed, chordjack e technical, em barras, blocos ou etiquetas
+        compactas. Outros keymodes recebem a classificação em estrelas e as
+        estatísticas do mapa.
+      </p>
+
+      <figure>
+        <img src="/shots/map-card-tiles.webp" width="1600" height="802" alt="Um map card de uma dificuldade 7K sobre um fundo inteiro desfocado, com os skillsets em blocos e destaque âmbar" />
+        <figcaption>Um card 7K com fundo inteiro desfocado, blocos e destaque âmbar.</figcaption>
+      </figure>
+
+      <h2>Deixe do seu jeito</h2>
+      <ul>
+        <li><strong>Fundo</strong>: o fundo do mapa como banner, desfocado atrás do card inteiro ou o estilo simples do Cascade.</li>
+        <li><strong>Layout</strong>: um card detalhado para a descrição ou uma faixa compacta para o Discord.</li>
+        <li><strong>Destaque</strong>: vermelho Cascade, algumas cores discretas ou a cor da classificação em estrelas da dificuldade.</li>
+        <li><strong>Estatísticas</strong>: ligue ou desligue qualquer linha.</li>
+        <li><strong>Presets</strong>: cinco visuais incluídos e os seus, salvos na sua conta.</li>
+      </ul>
+
+      <h2>Um link que se mantém atualizado</h2>
+      <p>
+        Baixe um PNG, copie a imagem direto para o Discord ou hospede no
+        Cascade. Um card hospedado ganha um link direto de imagem, então
+        funciona em tags <code>[img]</code>:
+      </p>
+      <p><code>[img]https://cascade.sheepex.net/card/your-card.png[/img]</code></p>
+      <p>
+        Atualize o card depois de uma mudança e o link continua o mesmo, então
+        a descrição que você já publicou mostra a nova versão. Depois de
+        exportar um mapa, o Cascade também pode oferecer um card na hora.
+      </p>
+
+      <p class="note">
+        Hospedar exige login com o osu!. Todo o resto, incluindo o download do
+        PNG, funciona sem conta.
+      </p>
+      <p class="langs">Leia em: <a href="/docs/osu-mania-map-card" hreflang="en">English</a> · <a href="/de/docs/osu-mania-map-card" hreflang="de">Deutsch</a> · <a href="/ru/docs/osu-mania-map-card" hreflang="ru">Русский</a> · <a href="/zh-cn/docs/osu-mania-map-card" hreflang="zh-CN">简体中文</a></p>
+
+      <footer>
+        <p>
+          Mais: <a href="/">Cascade, o editor de osu!mania no navegador</a> ·
+          <a href="/pt-br/docs">Docs</a> ·
+          <a href="/pt-br/docs/osu-mania-playtest">Testar mapas de osu!mania</a> ·
+          <a href="/pt-br/docs/osu-mania-collab">Mapear junto em tempo real</a> ·
+          <a href="/pt-br/docs/osu-mania-aimod">Checar o mapa antes de enviar</a> ·
+          <a href="/pt-br/docs/osu-mania-bpm-finder">Achar BPM e offset</a> ·
+          <a href="/pt-br/download">Baixar</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

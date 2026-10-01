@@ -2431,4 +2431,7 @@ export const en = {
   "settings.usageStatsHint": "Counts such as how many maps get exported or whether people come back after a week. No map content and no ID that links one count to another. Always off when your browser sends Do Not Track or Global Privacy Control.",
   "settings.discordActivity": "Show activity, not the map",
   "mapCard.share": "Share…",
+  "landing.docs": "Docs",
+  "landing.docsHint": "Guides for every part of Cascade",
+  "landing.docsAll": "All docs",
 } as const;

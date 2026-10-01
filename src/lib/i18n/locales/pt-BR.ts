@@ -2328,4 +2328,7 @@ export const ptBR: PartialCatalog = {
   "settings.usageStatsHint": "Contagens como quantos mapas são exportados ou se as pessoas voltam depois de uma semana. Sem conteúdo de mapas e sem ID que ligue uma contagem a outra. Sempre desligado quando o navegador envia Do Not Track ou Global Privacy Control.",
   "settings.discordActivity": "Mostrar atividade, não o mapa",
   "mapCard.share": "Compartilhar…",
+  "landing.docs": "Docs",
+  "landing.docsHint": "Guias para cada parte do Cascade",
+  "landing.docsAll": "Todos os docs",
 };

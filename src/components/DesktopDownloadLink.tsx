@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocale } from "../lib/i18n";
-import type { Locale } from "../lib/i18n";
+import { localePath } from "../lib/i18n/core";
 import { useAuth } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
 import {
@@ -14,14 +14,6 @@ import {
 } from "../lib/desktopHint";
 import { isDesktopApp } from "../lib/pwa";
 import { CloseIcon, DesktopIcon } from "./ui/Icons";
-
-const PREFIX: Record<Locale, string> = {
-  en: "",
-  de: "de",
-  ru: "ru",
-  "zh-CN": "zh-cn",
-  "pt-BR": "pt-br",
-};
 
 const WORKER = (import.meta.env.VITE_WORKER_URL ?? "").replace(/\/+$/, "");
 
@@ -129,8 +121,7 @@ export function DesktopDownloadLink({ active = true }: { active?: boolean }) {
 
   const update = status === "update";
   const version = latest ?? "";
-  const prefix = PREFIX[locale];
-  const href = prefix ? `/${prefix}/download` : "/download";
+  const href = localePath(locale, "/download");
 
   return (
     <div className="relative" ref={ref}>

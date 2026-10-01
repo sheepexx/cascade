@@ -11,14 +11,65 @@ export function urlFor(slug, locale) {
   return prefix ? `/${prefix}/${slug}` : `/${slug}`;
 }
 
+/** Where a guide lives: every guide sits under /docs, per language. */
+export function docsUrl(slug, locale) {
+  const prefix = LOCALES[locale].prefix;
+  return prefix ? `/${prefix}/docs/${slug}` : `/docs/${slug}`;
+}
+
+/** The docs hub for a language. */
+export function docsHubUrl(locale) {
+  const prefix = LOCALES[locale].prefix;
+  return prefix ? `/${prefix}/docs` : "/docs";
+}
+
 const LEGACY_EN = [
-  { href: "/guides", label: "All guides" },
-  { href: "/how-to-make-an-osu-mania-map", label: "How to make an osu!mania map" },
-  { href: "/osu-mania-sv-editor", label: "Edit scroll velocity" },
-  { href: "/osu-to-stepmania", label: "Convert to StepMania, Quaver or Malody" },
-  { href: "/osu-mania-map-viewer", label: "Preview maps online" },
-  { href: "/osu-mania-pack-creator", label: "Combine maps into one pack" },
-  { href: "/arrowvortex-alternative", label: "Cascade and ArrowVortex compared" },
+  { href: "/docs/how-to-make-an-osu-mania-map", label: "How to make an osu!mania map" },
+  { href: "/docs/osu-mania-sv-editor", label: "Edit scroll velocity" },
+  { href: "/docs/osu-to-stepmania", label: "Convert to StepMania, Quaver or Malody" },
+  { href: "/docs/osu-mania-map-viewer", label: "Preview maps online" },
+  { href: "/docs/osu-mania-pack-creator", label: "Combine maps into one pack" },
+  { href: "/docs/arrowvortex-alternative", label: "Cascade and ArrowVortex compared" },
+];
+
+/**
+ * Guides that exist in English only, written by hand in public/docs. The
+ * hubs list them with this text, marked as English in other languages.
+ */
+export const ENGLISH_DOCS = {
+  "how-to-make-an-osu-mania-map": {
+    title: "How to make an osu!mania map",
+    description: "Your first map in the browser, step by step: load a song, set BPM and offset, place notes and holds, add hitsounds, export an .osz.",
+  },
+  "osu-mania-map-viewer": {
+    title: "Preview maps online",
+    description: "Drop an .osz to watch it scroll with audio and hitsounds, playtest it, and inspect timing and SV.",
+  },
+  "osu-mania-sv-editor": {
+    title: "Edit scroll velocity",
+    description: "Generate constant, ramp and stutter SV, preview the curve before applying it, and play it live.",
+  },
+  "osu-to-stepmania": {
+    title: "Convert to StepMania, Quaver or Malody",
+    description: "Open .osz, .sm, .qua or .mcz and save it as any of the others.",
+  },
+  "arrowvortex-alternative": {
+    title: "Cascade and ArrowVortex compared",
+    description: "What each editor is built for, how charts move between them, and when to use which.",
+  },
+  "osu-mania-pack-creator": {
+    title: "Combine maps into one pack",
+    description: "Merge several maps into one .osz with shared metadata, per-map credits and safe file names.",
+  },
+};
+
+/** How the hubs group the guides. `page` is translated, `english` isn't. */
+export const DOCS_GROUPS = [
+  { id: "start", items: [{ english: "how-to-make-an-osu-mania-map" }, { english: "osu-mania-map-viewer" }, { page: "osu-mania-playtest" }] },
+  { id: "timing", items: [{ page: "osu-mania-bpm-finder" }, { english: "osu-mania-sv-editor" }] },
+  { id: "share", items: [{ page: "osu-mania-aimod" }, { page: "osu-mania-map-card" }, { page: "osu-mania-collab" }] },
+  { id: "games", items: [{ english: "osu-to-stepmania" }, { english: "arrowvortex-alternative" }, { english: "osu-mania-pack-creator" }] },
+  { id: "desktop", items: [{ download: true }] },
 ];
 
 export const UI = {
@@ -27,6 +78,20 @@ export const UI = {
     home: "Cascade, the online osu!mania editor",
     languages: "Read this in",
     ogImageAlt: "Cascade, the osu!mania editor that runs in your browser",
+    docs: "Docs",
+    docsTitle: "osu!mania mapping guides",
+    docsHeading: "Cascade docs",
+    docsIntro: "Short guides to the things people do in Cascade, from a first map to sharing a finished one.",
+    docsDescription: "Guides for mapping osu!mania in Cascade: making a first map, timing and SV, checking and sharing a map, converting to other games, and the desktop app.",
+    englishOnly: "",
+    docsCta: "Open the editor",
+    docsGroups: {
+      start: "Getting started",
+      timing: "Timing and scroll speed",
+      share: "Checking and sharing",
+      games: "Other games and packs",
+      desktop: "The desktop app",
+    },
     legacy: LEGACY_EN,
   },
   de: {
@@ -34,6 +99,20 @@ export const UI = {
     home: "Cascade, der osu!mania-Editor im Browser",
     languages: "Diese Seite auf",
     ogImageAlt: "Cascade, der osu!mania-Editor im Browser",
+    docs: "Doku",
+    docsTitle: "Anleitungen zum osu!mania-Mapping",
+    docsHeading: "Cascade-Doku",
+    docsIntro: "Kurze Anleitungen für alles, was man in Cascade tut, von der ersten Map bis zum Teilen einer fertigen.",
+    docsDescription: "Anleitungen zum osu!mania-Mapping mit Cascade: die erste Map, Timing und SV, Maps prüfen und teilen, in andere Spiele umwandeln und die Desktop-App.",
+    englishOnly: "auf Englisch",
+    docsCta: "Editor öffnen",
+    docsGroups: {
+      start: "Erste Schritte",
+      timing: "Timing und Scrollgeschwindigkeit",
+      share: "Prüfen und teilen",
+      games: "Andere Spiele und Packs",
+      desktop: "Die Desktop-App",
+    },
     legacy: [],
   },
   ru: {
@@ -41,6 +120,20 @@ export const UI = {
     home: "Cascade, редактор osu!mania в браузере",
     languages: "Эта страница на",
     ogImageAlt: "Cascade, редактор osu!mania в браузере",
+    docs: "Документация",
+    docsTitle: "Руководства по маппингу osu!mania",
+    docsHeading: "Документация Cascade",
+    docsIntro: "Короткие руководства по всему, что делают в Cascade: от первой карты до публикации готовой.",
+    docsDescription: "Руководства по маппингу osu!mania в Cascade: первая карта, тайминг и SV, проверка и публикация карты, конвертация в другие игры и приложение для компьютера.",
+    englishOnly: "на английском",
+    docsCta: "Открыть редактор",
+    docsGroups: {
+      start: "С чего начать",
+      timing: "Тайминг и скорость прокрутки",
+      share: "Проверка и публикация",
+      games: "Другие игры и паки",
+      desktop: "Приложение для компьютера",
+    },
     legacy: [],
   },
   "zh-CN": {
@@ -48,6 +141,20 @@ export const UI = {
     home: "Cascade，浏览器里的 osu!mania 编辑器",
     languages: "其他语言",
     ogImageAlt: "Cascade，浏览器里的 osu!mania 编辑器",
+    docs: "文档",
+    docsTitle: "osu!mania 作图指南",
+    docsHeading: "Cascade 文档",
+    docsIntro: "简短的指南，涵盖在 Cascade 中从做第一张谱面到分享成品的各种操作。",
+    docsDescription: "在 Cascade 中制作 osu!mania 谱面的指南：第一张谱面、Timing 与 SV、检查和分享谱面、转换到其他游戏，以及桌面应用。",
+    englishOnly: "英文",
+    docsCta: "打开编辑器",
+    docsGroups: {
+      start: "入门",
+      timing: "Timing 与滚动速度",
+      share: "检查与分享",
+      games: "其他游戏与曲包",
+      desktop: "桌面应用",
+    },
     legacy: [],
   },
   "pt-BR": {
@@ -55,6 +162,20 @@ export const UI = {
     home: "Cascade, o editor de osu!mania no navegador",
     languages: "Leia em",
     ogImageAlt: "Cascade, o editor de osu!mania no navegador",
+    docs: "Docs",
+    docsTitle: "Guias de mapeamento de osu!mania",
+    docsHeading: "Docs do Cascade",
+    docsIntro: "Guias curtos para o que as pessoas fazem no Cascade, do primeiro mapa até compartilhar um pronto.",
+    docsDescription: "Guias para mapear osu!mania no Cascade: o primeiro mapa, timing e SV, verificar e compartilhar um mapa, converter para outros jogos e o app para computador.",
+    englishOnly: "em inglês",
+    docsCta: "Abrir o editor",
+    docsGroups: {
+      start: "Primeiros passos",
+      timing: "Timing e velocidade de rolagem",
+      share: "Verificar e compartilhar",
+      games: "Outros jogos e packs",
+      desktop: "O app para computador",
+    },
     legacy: [],
   },
 };
@@ -139,8 +260,8 @@ const playtest = {
         Press <code>F5</code> again and you are back in the editor at the same
         point, ready to move the note that just felt wrong. When the chart
         plays the way you want, export a <code>.osu</code> or <code>.osz</code>,
-        or carry on with <a href="/osu-mania-sv-editor">scroll velocity</a> and
-        <a href="/osu-mania-aimod">a full map check</a>.
+        or carry on with <a href="/docs/osu-mania-sv-editor">scroll velocity</a> and
+        <a href="/docs/osu-mania-aimod">a full map check</a>.
       </p>`,
     },
     de: {
@@ -1009,7 +1130,7 @@ const timing = {
         with its own tempo, and the beat grid follows. Once the timing is right,
         the snap divisor actually means something and you can build the chart on
         top of it, then add
-        <a href="/osu-mania-sv-editor">scroll velocity</a> for effects that move
+        <a href="/docs/osu-mania-sv-editor">scroll velocity</a> for effects that move
         the notes without moving them in time.
       </p>
 

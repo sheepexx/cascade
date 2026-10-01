@@ -1,10 +1,12 @@
 import { Fragment } from "react";
-import { useT } from "../lib/i18n";
+import { useLocale } from "../lib/i18n";
+import { localePath } from "../lib/i18n/core";
 
 /**
- * The text under the start screen: who makes Cascade, what it does, the FAQ
- * and the guides. It is real content for visitors and for search engines, so
- * it renders with the start screen rather than behind a click.
+ * The text under the start screen: who makes Cascade, a way into the docs,
+ * what it does, the FAQ and the guides. It is real content for visitors and
+ * for search engines, so it renders with the start screen rather than behind
+ * a click.
  */
 
 const LANDING_DO_KEYS = [
@@ -30,10 +32,10 @@ const LANDING_FAQ_KEYS = [
 ] as const;
 
 const LANDING_GUIDES = [
-  { href: "/how-to-make-an-osu-mania-map", key: "landing.guide1" },
-  { href: "/osu-to-stepmania", key: "landing.guide2" },
-  { href: "/osu-mania-map-viewer", key: "landing.guide3" },
-  { href: "/osu-mania-pack-creator", key: "landing.guide4" },
+  { href: "/docs/how-to-make-an-osu-mania-map", key: "landing.guide1" },
+  { href: "/docs/osu-to-stepmania", key: "landing.guide2" },
+  { href: "/docs/osu-mania-map-viewer", key: "landing.guide3" },
+  { href: "/docs/osu-mania-pack-creator", key: "landing.guide4" },
 ] as const;
 
 function LandingText({ text }: { text: string }) {
@@ -53,7 +55,8 @@ function LandingText({ text }: { text: string }) {
 }
 
 export function LandingCopy() {
-  const t = useT();
+  const { locale, t } = useLocale();
+  const docsHref = localePath(locale, "/docs");
   return (
     <>
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-5 pt-8 text-xs text-slate-500">
@@ -86,6 +89,19 @@ export function LandingCopy() {
           className="font-medium text-slate-400 transition hover:text-accent"
         >
           {t("empty.support")}
+        </a>
+      </div>
+
+      <div className="flex justify-center px-5 pt-6">
+        <a
+          href={docsHref}
+          className="inline-flex items-center gap-2.5 rounded-xl border border-white/10 bg-ink-700/60 px-5 py-2.5 text-sm font-semibold text-slate-100 shadow-lg shadow-black/20 transition hover:border-accent/60 hover:bg-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5Zm16 0A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5Z" />
+          </svg>
+          {t("landing.docs")}
+          <span className="text-xs font-normal text-slate-400">{t("landing.docsHint")}</span>
         </a>
       </div>
 
@@ -138,6 +154,14 @@ export function LandingCopy() {
               </a>
             </li>
           ))}
+          <li>
+            <a
+              href={docsHref}
+              className="font-semibold text-slate-200 underline-offset-2 transition hover:text-accent hover:underline"
+            >
+              {t("landing.docsAll")}
+            </a>
+          </li>
         </ul>
       </section>
     </>

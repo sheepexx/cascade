@@ -2464,4 +2464,7 @@ export const ru: PartialCatalog = {
   "settings.usageStatsHint": "Счётчики вроде числа экспортированных карт или того, возвращаются ли люди через неделю. Без содержимого карт и без ID, связывающего один счётчик с другим. Всегда выключено, если браузер отправляет Do Not Track или Global Privacy Control.",
   "settings.discordActivity": "Показывать занятие, а не карту",
   "mapCard.share": "Поделиться…",
+  "landing.docs": "Документация",
+  "landing.docsHint": "Руководства по всем частям Cascade",
+  "landing.docsAll": "Вся документация",
 };

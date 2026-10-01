@@ -22,7 +22,18 @@
     { "source": "/zh/:path*", "destination": "/zh-cn/:path*", "permanent": true },
     { "source": "/pt", "destination": "/pt-br", "permanent": true },
     { "source": "/pt/:path*", "destination": "/pt-br/:path*", "permanent": true },
-    { "source": "/en", "destination": "/", "permanent": true }
+    { "source": "/en", "destination": "/", "permanent": true },
+    { "source": "/guides", "destination": "/docs", "permanent": true },
+    {
+      "source": "/:slug(how-to-make-an-osu-mania-map|osu-mania-sv-editor|osu-to-stepmania|osu-mania-map-viewer|osu-mania-pack-creator|arrowvortex-alternative|osu-mania-playtest|osu-mania-collab|osu-mania-aimod|osu-mania-bpm-finder|osu-mania-map-card)",
+      "destination": "/docs/:slug",
+      "permanent": true
+    },
+    {
+      "source": "/:locale(de|ru|zh-cn|pt-br)/:slug(osu-mania-playtest|osu-mania-collab|osu-mania-aimod|osu-mania-bpm-finder|osu-mania-map-card)",
+      "destination": "/:locale/docs/:slug",
+      "permanent": true
+    }
   ],
   "headers": [
     {

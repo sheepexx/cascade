@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LOCALES, PAGES, UI, urlFor } from "./landing-content.mjs";
+import { LOCALES, PAGES, UI, docsHubUrl, docsUrl } from "./landing-content.mjs";
 
 const SITE = "https://cascade.sheepex.net";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -119,10 +119,13 @@ function bootSection(locale) {
       `          <dt>${escapeHtml(message(locale, question))}</dt>\n` +
       `          <dd>${rich(message(locale, answer))}</dd>`,
   ).join("\n");
-  const guides = PAGES.map(
-    (page) =>
-      `          <a href="${urlFor(page.slug, locale)}">${escapeHtml(page.content[locale].navLabel)}</a>`,
-  ).join(" ·\n");
+  const guides = [
+    `          <a href="${docsHubUrl(locale)}">${escapeHtml(UI[locale].docs)}</a>`,
+    ...PAGES.map(
+      (page) =>
+        `          <a href="${docsUrl(page.slug, locale)}">${escapeHtml(page.content[locale].navLabel)}</a>`,
+    ),
+  ].join(" ·\n");
   const languages = Object.keys(LOCALES)
     .filter((code) => code !== locale)
     .map(

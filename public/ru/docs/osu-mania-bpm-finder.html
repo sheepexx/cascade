@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/ru/docs/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="en" href="https://cascade.sheepex.net/docs/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="de" href="https://cascade.sheepex.net/de/docs/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="ru" href="https://cascade.sheepex.net/ru/docs/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="zh-CN" href="https://cascade.sheepex.net/zh-cn/docs/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="pt-BR" href="https://cascade.sheepex.net/pt-br/docs/osu-mania-bpm-finder" />
+    <link rel="alternate" hreflang="x-default" href="https://cascade.sheepex.net/docs/osu-mania-bpm-finder" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>Поиск BPM и оффсета для карт osu!mania | Cascade</title>
+    <meta name="description" content="Найдите BPM и оффсет любой песни в браузере. Cascade определяет темп по аудио, даёт подтвердить его отстукиванием и проверить метрономом." />
+    <meta name="keywords" content="поиск bpm, osu mania тайминг, найти bpm песни, поиск оффсета, отстукать bpm, osu mania offset, тайминг карты, метроном, определитель bpm онлайн" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="Найдите BPM и оффсет любой песни в браузере" />
+    <meta property="og:description" content="Определите BPM из аудио, подтвердите отстукиванием, включите метроном и подведите оффсет." />
+    <meta property="og:url" content="https://cascade.sheepex.net/ru/docs/osu-mania-bpm-finder" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og-ru.png?v=2" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Cascade, редактор osu!mania в браузере" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Найдите BPM и оффсет любой песни в браузере" />
+    <meta name="twitter:description" content="Определите BPM из аудио, подтвердите отстукиванием, включите метроном и подведите оффсет." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og-ru.png?v=2" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "Как отайминговать песню для карты osu!mania",
+        "description": "Определите BPM из аудио, подтвердите отстукиванием, включите метроном и подведите оффсет.",
+        "totalTime": "PT2M",
+        "tool": {
+          "@type": "HowToTool",
+          "name": "Cascade"
+        },
+        "url": "https://cascade.sheepex.net/ru/docs/osu-mania-bpm-finder",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Загрузите аудио",
+            "text": "Перетащите аудиофайл в Cascade, чтобы начать карту."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Определите BPM",
+            "text": "Cascade анализирует волновую форму и предлагает темп."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Подтвердите отстукиванием",
+            "text": "Постучите в такт песне и сравните полученный темп с определённым."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Задайте оффсет",
+            "text": "Поставьте позицию воспроизведения на первую долю, возьмите оффсет оттуда и подводите малыми шагами."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Проверьте метрономом",
+            "text": "Играйте песню с включённым метрономом, пока щелчок не ляжет точно на долю."
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Cascade",
+            "item": "https://cascade.sheepex.net/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Документация",
+            "item": "https://cascade.sheepex.net/ru/docs"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Найти BPM и оффсет",
+            "item": "https://cascade.sheepex.net/ru/docs/osu-mania-bpm-finder"
+          }
+        ]
+      }
+    </script>
+    <style>
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/quicksand-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/quicksand-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/quicksand-latin-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/quicksand-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/quicksand-latin-ext-700-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/quicksand-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/inter-cyrillic-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/inter-cyrillic-400-normal.woff2') format('woff2');
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/inter-cyrillic-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/inter-cyrillic-600-normal.woff2') format('woff2');
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/inter-cyrillic-ext-700-normal.woff2') format('woff2');
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/inter-cyrillic-700-normal.woff2') format('woff2');
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Quicksand", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      .note {
+        margin: 14px 0; padding: 10px 14px; border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08);
+        color: #e8d9a8; font-size: 0.9rem;
+      }
+      figure { margin: 22px 0 18px; }
+      figure img { display: block; width: 100%; height: auto; border-radius: 16px; }
+      figcaption { margin-top: 8px; font-size: 0.85rem; color: #767c8a; }
+      .langs { margin: 26px 0 0; font-size: 0.85rem; }
+      .langs a { color: #9aa0ad; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+
+      <h1>Найдите BPM и оффсет любой песни</h1>
+      <p>
+        Тайминг — та часть маппинга, без которой не выживает ничего остальное.
+        Если BPM ошибается на сотую, а оффсет на несколько миллисекунд, то
+        каждая снапнутая нота стоит неправильно, и никакое хорошее паттернинг
+        этого не спасёт. Cascade даёт три способа попасть точно и метроном,
+        чтобы это доказать.
+      </p>
+      <a class="cta" href="/">Открыть редактор и начать тайминг</a>
+
+      <h2>Определение из аудио</h2>
+      <p>
+        Перетащите песню, и Cascade проанализирует волновую форму и предложит
+        темп ещё до того, как вы что-то отстучали. Для трека с ровным битом это
+        обычно и есть ответ или достаточно близко, чтобы небольшая правка
+        закончила дело.
+      </p>
+
+      <h2>Отстучите сами</h2>
+      <p>
+        Отстукивание остаётся самой надёжной проверкой для всего, что
+        определитель считает неоднозначным: песни с сильным офф-битом или
+        медленным вступлением. Постучите несколько тактов, и Cascade усреднит
+        удары в BPM и оффсет, которые можно применить сразу. Если ваш темп и
+        определённый совпали, дело сделано.
+      </p>
+
+      <h2>Точный оффсет</h2>
+      <p>
+        Поставьте позицию воспроизведения на первую долю, возьмите оффсет
+        оттуда и подводите его малыми шагами прямо во время игры. Включите
+        метроном: щелчок либо ложится ровно на звук, либо нет, и это гораздо
+        более быстрый тест, чем разглядывание волновой формы.
+      </p>
+
+      <h2>Смены темпа и гиммики</h2>
+      <p>
+        Песни, которые ускоряются или замедляются, получают больше красных
+        линий со своим темпом, и сетка следует за ними. Как только тайминг
+        верен, делитель снапа начинает что-то значить, и на нём уже можно
+        строить карту.
+      </p>
+
+      <p class="note">
+        Сначала тайминг, потом паттерны. Переделать тайминг готовой карты
+        означает заново снапнуть каждую ноту в ней.
+      </p>
+      <p class="langs">Эта страница на: <a href="/docs/osu-mania-bpm-finder" hreflang="en">English</a> · <a href="/de/docs/osu-mania-bpm-finder" hreflang="de">Deutsch</a> · <a href="/zh-cn/docs/osu-mania-bpm-finder" hreflang="zh-CN">简体中文</a> · <a href="/pt-br/docs/osu-mania-bpm-finder" hreflang="pt-BR">Português</a></p>
+
+      <footer>
+        <p>
+          Ещё: <a href="/">Cascade, редактор osu!mania в браузере</a> ·
+          <a href="/ru/docs">Документация</a> ·
+          <a href="/ru/docs/osu-mania-playtest">Тестировать карты osu!mania</a> ·
+          <a href="/ru/docs/osu-mania-collab">Совместный маппинг в реальном времени</a> ·
+          <a href="/ru/docs/osu-mania-aimod">Проверить карту перед загрузкой</a> ·
+          <a href="/ru/docs/osu-mania-map-card">Сделать карточку для описания</a> ·
+          <a href="/ru/download">Скачать</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
