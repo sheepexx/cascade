@@ -1,5 +1,7 @@
 import { useNotificationInbox } from "./app/useNotificationInbox";
 import { useSkins } from "./app/useSkins";
+import { useProjectLoading } from "./app/useProjectLoading";
+import { useMapExport } from "./app/useMapExport";
 import { useDifficultyActions } from "./app/useDifficultyActions";
 import { useTimelineEdits } from "./app/useTimelineEdits";
 import { useEditHistory } from "./app/useEditHistory";
@@ -27,7 +29,6 @@ import { ExportValidationModal } from "./components/menus/ExportValidationModal"
 import { MapperNameModal } from "./components/menus/MapperNameModal";
 import type { AiModReport, AiModIssue } from "./lib/aimod";
 import { resnapNotes, countUnsnapped } from "./lib/snapCheck";
-import type { SampleMap } from "./components/menus/StartModal";
 import { StartScreen } from "./components/StartScreen";
 import { usePhoneViewport } from "./hooks/usePhoneViewport";
 import { useOnlinePresence } from "./hooks/useOnlinePresence";
@@ -87,7 +88,6 @@ import {
   PackCreator,
   EditorLayoutOverlay,
   AudioSetupModal,
-  loadOsuImport,
   loadExternalEdit,
   BackupsModal,
   AdminPanel,
@@ -147,8 +147,7 @@ import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
 import { getSupabaseToken } from "./lib/supabase";
 import { myAccess, type AccessRole } from "./lib/collab";
-import { chooseMapperName } from "./lib/mapperName";
-import { validateProject, type ValidationResult } from "./lib/validation";
+import { type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
 import { pushClip } from "./lib/clipboardStore";
@@ -167,17 +166,7 @@ import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { AccountControl } from "./components/auth/LoginButton";
 import { LanguagePicker } from "./components/LanguagePicker";
 import { isDesktopApp, setLaunchFileConsumer } from "./lib/pwa";
-import {
-  osuChooseRoot,
-  osuFolderName,
-  osuMapLabel,
-  osuReadMap,
-  osuSelectedMap,
-  osuSendMap,
-  osuStatus,
-  osuSyncMap,
-  type OsuStatus,
-} from "./lib/osuDesktop";
+import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
 import { displaySong } from "./lib/metadataDisplay";
 import { clampHoldConfirmMs, clampParallaxStrength } from "./lib/interfaceFeel";
@@ -187,7 +176,6 @@ import {
   installDesktopUpdate,
   type DesktopUpdate,
 } from "./lib/desktopUpdate";
-import { siteAsset } from "./lib/siteAssets";
 import { usePwa } from "./hooks/usePwa";
 import { DesktopDownloadLink } from "./components/DesktopDownloadLink";
 import { NotificationInbox } from "./components/NotificationInbox";
@@ -202,16 +190,13 @@ import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
 import { countHitsounds } from "./lib/noteTools";
-import { buildOsuFile, downloadOsu, setFilename } from "./lib/osuExport";
+import { buildOsuFile } from "./lib/osuExport";
 import { uniqueDifficultyName } from "./lib/rateChange";
 import { ExternalEditModal } from "./components/menus/ExternalEditModal";
 import { MALODY_MAX_KEYS } from "./lib/formatLimits";
 import { useSkillsetTimeline } from "./lib/msd/useMsd";
 import { msdSupportsKeyCount } from "./lib/msd/minacalc";
 import { SkillsetGraph } from "./components/SkillsetGraph";
-import { snapshotBlobMap } from "./lib/blobSnapshot";
-import type { PackSong } from "./lib/smPackImport";
-import { assertTextImportSize } from "./lib/importLimits";
 import {
   PLAYHEAD_FROM_EDGE as PLAYTEST_HIT_LINE_FROM_EDGE,
   resolvePlayfieldLayout,
@@ -241,7 +226,7 @@ import {
   type RecoveryMedia,
 } from "./lib/recovery";
 import { useProjectRecovery } from "./hooks/useProjectRecovery";
-import { formatIssues, type ChartLike, type RoundTripIssue } from "./lib/roundTrip";
+import { formatIssues } from "./lib/roundTrip";
 import { RecoveryPrompt } from "./components/RecoveryPrompt";
 import {
   DEFAULT_SONG_META,
@@ -282,14 +267,7 @@ import {
   timelineZoomFromWheel,
   volumeFromWheel,
 } from "./lib/altWheel";
-import { parseOsuBeatmapLink } from "./lib/osuLinks";
-import {
-  formatBytes,
-  readBlobWithProgress,
-  scopedProgress,
-  type ProgressFn,
-  type ProgressReport,
-} from "./lib/progress";
+import { type ProgressReport } from "./lib/progress";
 import type { AutoTimeStatus } from "./components/AutoTimePrompt";
 import { useMountedModals } from "./hooks/useMountedModals";
 import { remapBookmarkLabels } from "./lib/bookmarks";
@@ -342,7 +320,6 @@ export default function App() {
   // the skin's where osu! would.
   const [sampleFiles, setSampleFiles] = useState<Record<string, SampleFile>>({});
   const [pendingBgName, setPendingBgName] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
   const [mapCardStart, setMapCardStart] = useState<MapCardPresetOption | null>(null);
   const [mapCardOffer, setMapCardOffer] = useState<{
     target: string;
@@ -438,7 +415,6 @@ export default function App() {
   const [lnTicks, setLnTicks] = useState(1);
   const [importError, setImportError] = useState<string | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
-  const [osuBusy, setOsuBusy] = useState(false);
   const {
     live: osuLive,
     connectedAt: osuConnectedAt,
@@ -451,21 +427,6 @@ export default function App() {
   const [pendingOsuDiffs, setPendingOsuDiffs] = useState<OsuEntry[] | null>(
     null,
   );
-  const [importingMap, setImportingMap] = useState(false);
-  useEffect(() => {
-    if (importingMap) void loadEditorWorkspace();
-  }, [importingMap]);
-  // Long jobs report a 0-1 ratio plus a label so the loader can say what it is
-  // actually doing instead of spinning indefinitely.
-  const [importProgress, setImportProgress] = useState<ProgressReport | null>(
-    null,
-  );
-  const [exportProgress, setExportProgress] = useState<ProgressReport | null>(
-    null,
-  );
-  const [scannedPackSongs, setScannedPackSongs] = useState<PackSong[]>([]);
-  const [scanningPack, setScanningPack] = useState(false);
-  const [packError, setPackError] = useState<string | null>(null);
   const [currentHitSound, setCurrentHitSound] = useState(0);
   const [currentSampleSet, setCurrentSampleSet] = useState(0);
   const [saveStatus, setSaveStatus] = useState<
@@ -1275,84 +1236,6 @@ export default function App() {
     !playtest.active &&
     (hasProject || menuOpen || (phoneViewport && !sharedSlug));
 
-  const importMapFile = useCallback(async (
-    file: File,
-    preferredBeatmapId?: number,
-    // Set when the archive arrived from a download that already used part of
-    // the bar, so unzipping continues rather than restarting at zero.
-    onProgress: ProgressFn = setImportProgress,
-  ) => {
-    importStartedRef.current = true;
-    setImportError(null);
-    setImportingMap(true);
-    onProgress({ ratio: 0, label: t("app.readingArchive") });
-    try {
-      const { importOsz } = await loadOsuImport();
-      const map = await importOsz(file, onProgress);
-      setPublicMapUrl(null);
-      setCloudProjectId(null);
-      setCloudOwnerId(null);
-      setMyRole(null);
-      setReferenceId(null);
-      setProjectStarted(true);
-      setAudioFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return map.audioFiles;
-      });
-      setBgFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return map.backgroundFiles;
-      });
-      setVideoFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return map.videoFiles;
-      });
-      setSampleFiles(map.sampleFiles ?? {});
-      setMeta(map.meta);
-      setTimingPoints(
-        map.timingPoints.length
-          ? normalizeTimingPoints(map.timingPoints)
-          : defaultTimingPoints(),
-      );
-      const diffs = (map.difficulties.length
-        ? map.difficulties
-        : [makeDifficulty()]
-      ).map((d) => ({ ...d, timingPoints: normalizeTimingPoints(d.timingPoints) }));
-      setDifficulties(diffs);
-      const preferred = preferredBeatmapId
-        ? diffs.find((d) => d.beatmapId === preferredBeatmapId)
-        : undefined;
-      setActiveId((preferred ?? diffs[0]).id);
-      setPendingImport(null);
-      setModal(null);
-      setLocalProjectId(newLocalProjectId());
-      if (map.unsupported?.length) {
-        setImportNotice(
-          map.unsupported
-            .map((feature) =>
-              feature === "storyboard"
-                ? t("import.storyboardLeftOut")
-                : t("import.specialStyleLeftOut"),
-            )
-            .join(" "),
-        );
-      }
-      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
-        () => {},
-      );
-      void logAnalyticsEvent("import_osz", authUserRef.current?.id).catch(
-        () => {},
-      );
-    } catch (err) {
-      setImportError(
-        err instanceof Error ? err.message : t("app.importOszFailed"),
-      );
-    } finally {
-      setImportingMap(false);
-      setImportProgress(null);
-    }
-  }, [t]);
-
   const [publicMapUrl, setPublicMapUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1440,551 +1323,14 @@ export default function App() {
     setPublicMapUrl(url);
     return url;
   }, [t, cloudProjectIdRef]);
-
-  const openSharedMap = useCallback(
-    (file: File) => {
-      setSharedSlug(null);
-      if (typeof history !== "undefined") {
-        history.replaceState(null, "", "/");
-      }
-      void importMapFile(file);
-    },
-    [importMapFile],
-  );
-
-  const requestImportMap = useCallback(
-    (file: File) => {
-      if (hasProjectContent) {
-        setPendingImport(file);
-      } else {
-        void importMapFile(file);
-      }
-    },
-    [hasProjectContent, importMapFile],
-  );
-
-  const importArchive = useCallback(
-    async (file: File) => {
-      if (/\.zip$/i.test(file.name)) {
-        setImportingMap(true);
-        try {
-          const { scanPackFromZip } = await import("./lib/smPackImport");
-          const songs = await scanPackFromZip(file);
-          if (songs.length > 0) {
-            setScannedPackSongs(songs);
-            setImportingMap(false);
-            setModal("packBrowser");
-            return;
-          }
-        } catch (error) {
-          setImportingMap(false);
-          setImportError(
-            error instanceof Error
-              ? t("app.scanFailedDetail", { detail: error.message })
-              : t("app.scanFailed"),
-          );
-          return;
-        }
-        setImportingMap(false);
-      }
-      requestImportMap(file);
-    },
-    [requestImportMap, t],
-  );
-
-  const importFromOsu = useCallback(
-    async (input: string) => {
-      const worker = import.meta.env.VITE_WORKER_URL;
-      if (!worker) {
-        throw new Error(t("app.beatmapImportUnconfigured"));
-      }
-      const parsed = parseOsuBeatmapLink(input);
-      if (!parsed) {
-        throw new Error(t("app.pasteBeatmapLink"));
-      }
-      if (
-        hasProjectContent &&
-        !window.confirm(
-          t("app.importReplaceConfirm"),
-        )
-      ) {
-        return;
-      }
-      setImportingMap(true);
-      setImportProgress({ ratio: 0, label: t("app.lookingUpBeatmap") });
-      try {
-        let setId = parsed.setId;
-        if (!setId && parsed.beatmapId) {
-          const lookup = await fetch(
-            `${worker}/mirror/beatmap/${parsed.beatmapId}`,
-          );
-          if (!lookup.ok) {
-            throw new Error(t("app.beatmapNotFound"));
-          }
-          const data = (await lookup.json()) as { setId?: number };
-          setId = data.setId;
-        }
-        if (!setId) {
-          throw new Error(t("app.pasteBeatmapLink"));
-        }
-        setImportProgress({ ratio: 0, label: t("app.contactingMirrors") });
-        const res = await fetch(`${worker}/mirror/${setId}`);
-        if (!res.ok) {
-          throw new Error(
-            res.status === 404
-              ? t("app.beatmapsetUnavailable")
-              : t("app.mirrorsDown"),
-          );
-        }
-        const blob = await readBlobWithProgress(res, (loaded, total) => {
-          // The download is roughly the first third of the wait; unzipping and
-          // decoding assets is the rest, and importOsz reports that itself.
-          setImportProgress({
-            ratio: total ? (loaded / total) * 0.35 : 0.1,
-            label: total
-              ? t("app.downloadingOf", { loaded: formatBytes(loaded), total: formatBytes(total) })
-              : t("app.downloading", { loaded: formatBytes(loaded) }),
-          });
-        });
-        const file = new File([blob], `${setId}.osz`, {
-          type: "application/octet-stream",
-        });
-        await importMapFile(
-          file,
-          parsed.beatmapId,
-          scopedProgress(setImportProgress, 0.35, 1),
-        );
-      } finally {
-        setImportingMap(false);
-        setImportProgress(null);
-      }
-      void logAnalyticsEvent(
-        "beatmap_import_by_id",
-        authUserRef.current?.id,
-      ).catch(() => {});
-    },
-    [hasProjectContent, importMapFile, t],
-  );
-
-  const importSmFile = useCallback(async (file: File) => {
-    importStartedRef.current = true;
-    setImportError(null);
-    setImportingMap(true);
-    try {
-      assertTextImportSize(file);
-      const text = await file.text();
-      const { parseSmFile } = await import("./lib/smImport");
-      const map = parseSmFile(text);
-      void logAnalyticsEvent("import_sm", authUserRef.current?.id).catch(
-        () => {},
-      );
-      setCloudProjectId(null);
-      setCloudOwnerId(null);
-      setMyRole(null);
-      setReferenceId(null);
-      setAudioFiles((previous) => {
-        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
-        return {};
-      });
-      setBgFiles((previous) => {
-        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
-        return {};
-      });
-      setVideoFiles((previous) => {
-        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
-        return {};
-      });
-      setSampleFiles({});
-      setProjectStarted(true);
-      setMeta(map.meta);
-      setTimingPoints(
-        map.timingPoints.length
-          ? normalizeTimingPoints(map.timingPoints)
-          : defaultTimingPoints(),
-      );
-      const smBgFilename = map.backgroundFilename;
-      const diffs = (map.difficulties.length
-        ? map.difficulties
-        : [makeDifficulty()]
-      ).map((d) => ({
-        ...d,
-        backgroundFilename: d.backgroundFilename || smBgFilename || undefined,
-        timingPoints: normalizeTimingPoints(d.timingPoints),
-      }));
-      setDifficulties(diffs);
-      setActiveId(diffs[0].id);
-      setPendingImport(null);
-      setModal(null);
-      setLocalProjectId(newLocalProjectId());
-      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
-        () => {},
-      );
-    } catch (err) {
-      setImportError(
-        err instanceof Error ? err.message : t("app.importSmFailed"),
-      );
-    } finally {
-      setImportingMap(false);
-    }
-  }, [t]);
-
-  const importQuaFile = useCallback(async (file: File) => {
-    importStartedRef.current = true;
-    setImportError(null);
-    setImportingMap(true);
-    try {
-      assertTextImportSize(file);
-      const malody = /\.mc$/i.test(file.name);
-      const source = await file.text();
-      const map = malody
-        ? { ...(await import("./lib/malody")).parseMalodyChart(source), bpmAffectsScroll: null }
-        : (await import("./lib/qua")).parseQuaFile(source);
-      setAudioFiles((previous) => {
-        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
-        return {};
-      });
-      setBgFiles((previous) => {
-        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
-        return {};
-      });
-      setVideoFiles((previous) => {
-        Object.values(previous).forEach((entry) => URL.revokeObjectURL(entry.url));
-        return {};
-      });
-      setSampleFiles({});
-      setCloudProjectId(null);
-      setCloudOwnerId(null);
-      setMyRole(null);
-      setReferenceId(null);
-      setProjectStarted(true);
-      setMeta(map.meta);
-      setTimingPoints(normalizeTimingPoints(map.timingPoints));
-      const difficulty = {
-        ...map.difficulty,
-        timingPoints: normalizeTimingPoints(map.difficulty.timingPoints),
-      };
-      setDifficulties([difficulty]);
-      setActiveId(difficulty.id);
-      const bpmAffectsScroll = map.bpmAffectsScroll;
-      if (bpmAffectsScroll !== null) {
-        setAppSettings((settings) => ({ ...settings, bpmAffectsScroll }));
-      }
-      setNeedsSongHint(true);
-      setPendingImport(null);
-      setModal(null);
-      setLocalProjectId(newLocalProjectId());
-      void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
-        () => {},
-      );
-    } catch (error) {
-      setImportError(
-        error instanceof Error ? error.message : t("import.failed", { name: file.name }),
-      );
-    } finally {
-      setImportingMap(false);
-    }
-  }, [t, setAppSettings]);
-
-  const requestImportSm = useCallback(
-    (file: File) => {
-      if (hasProjectContent) {
-        setPendingImport(file);
-      } else {
-        void importSmFile(file);
-      }
-    },
-    [hasProjectContent, importSmFile],
-  );
-
-  const requestImportQua = useCallback(
-    (file: File) => {
-      if (hasProjectContent) setPendingImport(file);
-      else void importQuaFile(file);
-    },
-    [hasProjectContent, importQuaFile],
-  );
-
-  const readOsuFiles = useCallback(async (files: File[]) => {
-    const { isManiaOsu, parseOsuFile } = await loadOsuImport();
-    const entries: OsuEntry[] = [];
-    for (const file of files) {
-      assertTextImportSize(file);
-      const text = await file.text();
-      if (!isManiaOsu(text)) {
-        throw new Error(t("app.notMania", { name: file.name }));
-      }
-      entries.push({ file, parsed: parseOsuFile(text) });
-    }
-    return entries;
-  }, [t]);
-
-  const openOsuAsProject = useCallback(async (entries: OsuEntry[]) => {
-    if (!entries.length) return;
-    const { adoptOsuDifficulty } = await loadOsuImport();
-    importStartedRef.current = true;
-    setImportError(null);
-    setAudioFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return {};
-    });
-    setBgFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return {};
-    });
-    setVideoFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return {};
-    });
-    setSampleFiles({});
-    setPublicMapUrl(null);
-    setCloudProjectId(null);
-    setCloudOwnerId(null);
-    setMyRole(null);
-    setReferenceId(null);
-    setProjectStarted(true);
-    setMeta(entries[0].parsed.meta);
-    setTimingPoints(normalizeTimingPoints(entries[0].parsed.timingPoints));
-    const names: string[] = [];
-    const diffs = entries.map(({ parsed }) => {
-      const diff = adoptOsuDifficulty(parsed, {
-        audioFilenames: [],
-        backgroundFilenames: [],
-        videoFilenames: [],
-        existingNames: names,
-      });
-      names.push(diff.name);
-      return { ...diff, timingPoints: normalizeTimingPoints(diff.timingPoints) };
-    });
-    setDifficulties(diffs);
-    setActiveId(diffs[0].id);
-    setNeedsSongHint(true);
-    setPendingImport(null);
-    setPendingOsuDiffs(null);
-    setModal(null);
-    setLocalProjectId(newLocalProjectId());
-    void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
-      () => {},
-    );
-  }, []);
-
-  const importOsuProjectFile = useCallback(
-    async (file: File) => {
-      setImportError(null);
-      try {
-        await openOsuAsProject(await readOsuFiles([file]));
-      } catch (err) {
-        setImportError(
-          err instanceof Error ? err.message : t("app.importOsuFailed"),
-        );
-      }
-    },
-    [readOsuFiles, openOsuAsProject, t],
-  );
-
-  const addOsuDifficulties = useCallback(
-    async (entries: OsuEntry[]) => {
-      if (!entries.length) return;
-      const { adoptOsuDifficulty } = await loadOsuImport();
-      if (!canEditRef.current) {
-        setImportError(t("app.noEditAccess"));
-        return;
-      }
-      const audioFilenames = Object.keys(audioFilesRef.current);
-      const backgroundFilenames = Object.keys(bgFilesRef.current);
-      const videoFilenames = Object.keys(videoFilesRef.current);
-      const current = difficultiesRef.current;
-      const base =
-        current.find((d) => d.id === activeIdRef.current) ?? current[0];
-      const inherit = (wanted: string | undefined, pool: string[]) =>
-        wanted && pool.includes(wanted)
-          ? wanted
-          : pool.length === 1
-            ? pool[0]
-            : undefined;
-      const names = current.map((d) => d.name);
-      const takenBeatmapIds = current.flatMap((d) =>
-        d.beatmapId ? [d.beatmapId] : [],
-      );
-      const added = entries.map(({ parsed }) => {
-        const diff = adoptOsuDifficulty(parsed, {
-          audioFilenames,
-          backgroundFilenames,
-          videoFilenames,
-          fallbackAudioFilename: inherit(base?.audioFilename, audioFilenames),
-          fallbackBackgroundFilename: inherit(
-            base?.backgroundFilename,
-            backgroundFilenames,
-          ),
-          existingNames: names,
-          takenBeatmapIds,
-        });
-        names.push(diff.name);
-        if (diff.beatmapId) takenBeatmapIds.push(diff.beatmapId);
-        return {
-          ...diff,
-          timingPoints: normalizeTimingPoints(diff.timingPoints),
-        };
-      });
-      markStructural();
-      setDifficulties((prev) => [...prev, ...added]);
-      setActiveId(added[added.length - 1].id);
-      setPendingOsuDiffs(null);
-      setModal(null);
-      announceAssetChange(
-        added.length === 1
-          ? `added the difficulty ${added[0].name}`
-          : `added ${added.length} difficulties`,
-      );
-      setImportNotice(
-        added.length === 1
-          ? `Added ${added[0].name} as a new difficulty`
-          : `Added ${added.length} difficulties`,
-      );
-    },
-    [markStructural, announceAssetChange, t, canEditRef],
-  );
-
-  const openOsuFiles = useCallback(
-    async (files: File[]) => {
-      if (!files.length) return;
-      setImportError(null);
-      let entries: OsuEntry[];
-      try {
-        entries = await readOsuFiles(files);
-      } catch (err) {
-        setImportError(
-          err instanceof Error ? err.message : t("app.readOsuFailed"),
-        );
-        return;
-      }
-      if (!projectStartedRef.current) {
-        await openOsuAsProject(entries);
-        return;
-      }
-      const { isSameSong } = await loadOsuImport();
-      if (entries.every(({ parsed }) => isSameSong(metaRef.current, parsed.meta))) {
-        await addOsuDifficulties(entries);
-        return;
-      }
-      setPendingOsuDiffs(entries);
-    },
-    [readOsuFiles, openOsuAsProject, addOsuDifficulties, t],
-  );
-
-  const importPackSong = useCallback(
-    (song: PackSong) => {
-      void (async () => {
-        const audioBlobs = await snapshotBlobMap(song.audioBlobs);
-        const bgBlobs = await snapshotBlobMap(song.bgBlobs);
-        setAudioFiles((prev) => {
-          Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-          return Object.fromEntries(
-            Object.entries(audioBlobs).map(([name, blob]) => [
-              name,
-              { name, url: URL.createObjectURL(blob), blob },
-            ]),
-          );
-        });
-        setBgFiles((prev) => {
-          Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-          return Object.fromEntries(
-            Object.entries(bgBlobs).map(([name, blob]) => [
-              name,
-              { name, url: URL.createObjectURL(blob), blob },
-            ]),
-          );
-        });
-        setVideoFiles((prev) => {
-          Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-          return {};
-        });
-        setSampleFiles({});
-        setCloudProjectId(null);
-        setCloudOwnerId(null);
-        setMyRole(null);
-        setReferenceId(null);
-        setProjectStarted(true);
-        setMeta(song.parsed.meta);
-        setTimingPoints(
-          song.parsed.timingPoints.length
-            ? normalizeTimingPoints(song.parsed.timingPoints)
-            : defaultTimingPoints(),
-        );
-        const audioKeys = Object.keys(audioBlobs);
-        const bgKeys = Object.keys(bgBlobs);
-        const smAudioFilename = song.parsed.audioFilename ?? (audioKeys.length > 0 ? audioKeys[0] : undefined);
-        const smBgFilename = song.parsed.backgroundFilename ?? (bgKeys.length > 0 ? bgKeys[0] : undefined);
-        const diffs = (song.parsed.difficulties.length
-          ? song.parsed.difficulties
-          : [makeDifficulty()]
-        ).map((d) => ({
-          ...d,
-          audioFilename: d.audioFilename || smAudioFilename || undefined,
-          backgroundFilename: d.backgroundFilename || smBgFilename || undefined,
-          timingPoints: normalizeTimingPoints(d.timingPoints),
-        }));
-        setDifficulties(diffs);
-        setActiveId(diffs[0].id);
-        setModal(null);
-        setLocalProjectId(newLocalProjectId());
-        void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
-          () => {},
-        );
-      })();
-    },
-    [],
-  );
-
-  const onImportSmPack = useCallback(async () => {
-    if (!("showDirectoryPicker" in window)) {
-      setPackError("Folder picker is not supported in this browser. Please drag & drop the pack folder instead.");
-      setModal("packBrowser");
-      return;
-    }
-    setScanningPack(true);
-    setPackError(null);
-    setModal("packBrowser");
-    try {
-      const dirHandle = await (window as unknown as {
-        showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>;
-      }).showDirectoryPicker();
-      const { scanPackFromPicker } = await import("./lib/smPackImport");
-      const songs = await scanPackFromPicker(dirHandle);
-      setScannedPackSongs(songs);
-      if (songs.length === 0) {
-        setPackError("No .sm / .ssc beatmaps found in the selected folder.");
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setModal(null);
-        setScannedPackSongs([]);
-      } else {
-        setPackError(err instanceof Error ? err.message : t("app.scanPackFailed"));
-      }
-    } finally {
-      setScanningPack(false);
-    }
-  }, [t]);
-
-  const loadSampleMap = useCallback(
-    async (map: SampleMap) => {
-      setModal(null);
-      setImportingMap(true);
-      try {
-        const res = await fetch(siteAsset(map.osz));
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        const name = map.osz.split("/").pop() ?? `${map.id}.osz`;
-        const file = new File([blob], name, { type: "application/octet-stream" });
-        await importMapFile(file);
-      } catch (err) {
-        setImportError(
-          err instanceof Error ? err.message : t("app.loadMapFailed"),
-        );
-        setImportingMap(false);
-      }
-    },
-    [importMapFile, t],
+  const [importingMap, setImportingMap] = useState(false);
+  useEffect(() => {
+    if (importingMap) void loadEditorWorkspace();
+  }, [importingMap]);
+  // Long jobs report a 0-1 ratio plus a label so the loader can say what it is
+  // actually doing instead of spinning indefinitely.
+  const [importProgress, setImportProgress] = useState<ProgressReport | null>(
+    null,
   );
 
   const patchDifficulty = useCallback(
@@ -2494,117 +1840,130 @@ export default function App() {
     t,
     timingPoints,
   });
+  const {
+    addOsuDifficulties,
+    importArchive,
+    importFromOsu,
+    importMapFile,
+    importOsuProjectFile,
+    importPackSong,
+    importQuaFile,
+    importSmFile,
+    loadSampleMap,
+    logProjectCreated,
+    onImportSmPack,
+    openOsuAsProject,
+    openOsuFiles,
+    packError,
+    replaceProject,
+    requestImportQua,
+    requestImportSm,
+    scannedPackSongs,
+    scanningPack,
+    setPackError,
+    setScannedPackSongs,
+  } = useProjectLoading({
+    activeIdRef,
+    announceAssetChange,
+    applyingHistoryRef,
+    audioFilesRef,
+    authUserRef,
+    bgFilesRef,
+    canEditRef,
+    difficultiesRef,
+    hasProjectContent,
+    importStartedRef,
+    markStructural,
+    metaRef,
+    projectStartedRef,
+    redoStackRef,
+    setActiveId,
+    setAppSettings,
+    setAudioFiles,
+    setBgFiles,
+    setCloudOwnerId,
+    setCloudProjectId,
+    setDifficulties,
+    setImportError,
+    setImportNotice,
+    setImportProgress,
+    setImportingMap,
+    setLocalProjectId,
+    setMeta,
+    setModal,
+    setMyRole,
+    setNeedsSongHint,
+    setPendingImport,
+    setPendingOsuDiffs,
+    setProjectStarted,
+    setPublicMapUrl,
+    setReferenceId,
+    setSampleFiles,
+    setTimingPoints,
+    setVideoFiles,
+    setZenMode,
+    t,
+    undoStackRef,
+    videoFilesRef,
+  });
 
-  const applySavedProject = useCallback((saved: SavedProject) => {
-    applyingHistoryRef.current = true;
-    undoStackRef.current = [];
-    redoStackRef.current = [];
-    setProjectStarted(true);
-    setMeta(saved.meta);
-    setTimingPoints(normalizeTimingPoints(saved.timingPoints));
-
-    const restoredAudio: Record<string, LoadedFile> = {};
-    for (const a of saved.audioFiles ?? []) {
-      restoredAudio[a.name] = {
-        name: a.name,
-        url: URL.createObjectURL(a.blob),
-        blob: a.blob,
-      };
-    }
-    const legacyAudio =
-      !saved.audioFiles?.length && saved.audio ? saved.audio : null;
-    if (legacyAudio) {
-      restoredAudio[legacyAudio.name] = {
-        name: legacyAudio.name,
-        url: URL.createObjectURL(legacyAudio.blob),
-        blob: legacyAudio.blob,
-      };
-    }
-    setAudioFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return restoredAudio;
-    });
-
-    const restoredDiffs = (legacyAudio
-      ? saved.difficulties.map((d) =>
-          d.audioFilename ? d : { ...d, audioFilename: legacyAudio.name },
-        )
-      : saved.difficulties
-    ).map((d) => ({
-      ...d,
-      timingPoints: normalizeTimingPoints(d.timingPoints),
-    }));
-    setDifficulties(restoredDiffs);
-    setActiveId(
-      restoredDiffs.some((d) => d.id === saved.activeId)
-        ? saved.activeId
-        : (restoredDiffs[0]?.id ?? saved.activeId),
-    );
-    const isLegacyView = "zoom" in saved.view;
-    setView(loadViewPreferences() ?? {
-      ...DEFAULT_VIEW,
-      snapDivisor: saved.view.snapDivisor,
-      scrollSpeed: isLegacyView
-        ? DEFAULT_VIEW.scrollSpeed
-        : Math.round(
-            Math.min(
-              MAX_SCROLL_SPEED,
-              Math.max(MIN_SCROLL_SPEED, saved.view.scrollSpeed),
-            ),
-          ),
-    });
-    setBgScope(saved.bgScope);
-
-    const restoredBgFiles: Record<string, LoadedFile> = {};
-    if (saved.backgroundFiles?.length) {
-      for (const bg of saved.backgroundFiles) {
-        restoredBgFiles[bg.name] = {
-          name: bg.name,
-          url: URL.createObjectURL(bg.blob),
-          blob: bg.blob,
-        };
+  const openSharedMap = useCallback(
+    (file: File) => {
+      setSharedSlug(null);
+      if (typeof history !== "undefined") {
+        history.replaceState(null, "", "/");
       }
-    } else if (saved.background) {
-      const bg = saved.background;
-      restoredBgFiles[bg.name] = {
-        name: bg.name,
-        url: URL.createObjectURL(bg.blob),
-        blob: bg.blob,
-      };
-      setDifficulties((prev) =>
-        prev.map((d) =>
-          d.backgroundFilename ? d : { ...d, backgroundFilename: bg.name },
-        ),
-      );
-    }
-    setBgFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return restoredBgFiles;
-    });
+      void importMapFile(file);
+    },
+    [importMapFile],
+  );
 
-    const restoredVideoFiles: Record<string, LoadedFile> = {};
-    for (const v of saved.videoFiles ?? []) {
-      restoredVideoFiles[v.name] = {
-        name: v.name,
-        url: URL.createObjectURL(v.blob),
-        blob: v.blob,
-      };
-    }
-    setVideoFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return restoredVideoFiles;
-    });
-    setSampleFiles(
-      Object.fromEntries(
-        (saved.sampleFiles ?? []).map((sample) => [sample.name, sample]),
-      ),
-    );
-    setZenMode(false);
-    setReferenceId(null);
-    setCloudProjectId(null);
-    setCloudOwnerId(null);
-    setMyRole(null);
-  }, [applyingHistoryRef, redoStackRef, undoStackRef]);
+  /** Opens a saved project, from this browser's projects or the recovery store. */
+  const applySavedProject = useCallback(
+    (saved: SavedProject, localProjectId: string) => {
+      const loaded = (files: { name: string; blob: Blob }[] = []) =>
+        Object.fromEntries(
+          files.map((f) => [f.name, { name: f.name, url: URL.createObjectURL(f.blob), blob: f.blob }]),
+        );
+      // Saves from before multi-file support hold one song and one picture,
+      // which every difficulty without its own takes.
+      const legacyAudio = !saved.audioFiles?.length && saved.audio ? saved.audio : null;
+      const legacyBg =
+        !saved.backgroundFiles?.length && saved.background ? saved.background : null;
+      replaceProject({
+        meta: saved.meta,
+        timingPoints: saved.timingPoints,
+        difficulties: saved.difficulties.map((d) => ({
+          ...d,
+          ...(legacyAudio && !d.audioFilename ? { audioFilename: legacyAudio.name } : {}),
+          ...(legacyBg && !d.backgroundFilename ? { backgroundFilename: legacyBg.name } : {}),
+        })),
+        activeId: saved.activeId,
+        audioFiles: loaded(legacyAudio ? [legacyAudio] : saved.audioFiles),
+        backgroundFiles: loaded(legacyBg ? [legacyBg] : saved.backgroundFiles),
+        videoFiles: loaded(saved.videoFiles),
+        sampleFiles: Object.fromEntries(
+          (saved.sampleFiles ?? []).map((sample) => [sample.name, sample]),
+        ),
+        localProjectId,
+      });
+      const isLegacyView = "zoom" in saved.view;
+      setView(loadViewPreferences() ?? {
+        ...DEFAULT_VIEW,
+        snapDivisor: saved.view.snapDivisor,
+        scrollSpeed: isLegacyView
+          ? DEFAULT_VIEW.scrollSpeed
+          : Math.round(
+              Math.min(
+                MAX_SCROLL_SPEED,
+                Math.max(MIN_SCROLL_SPEED, saved.view.scrollSpeed),
+              ),
+            ),
+      });
+      setBgScope(saved.bgScope);
+    },
+    [replaceProject],
+  );
 
   const loadLocalProject = useCallback(
     async (id: string) => {
@@ -2613,9 +1972,7 @@ export default function App() {
       try {
         const saved = await loadProject(id).catch(() => null);
         if (!saved) return;
-        importStartedRef.current = true;
-        applySavedProject(saved);
-        setLocalProjectId(saved.localId ?? id);
+        applySavedProject(saved, saved.localId ?? id);
       } finally {
         setImportingMap(false);
       }
@@ -3111,7 +2468,7 @@ export default function App() {
 
       openFiles(Array.from(e.dataTransfer.files));
     },
-    [openFiles, importPackSong, resetFileDrag, t],
+    [openFiles, importPackSong, resetFileDrag, t, setScannedPackSongs],
   );
 
   const canExport = Object.keys(audioFiles).length > 0 && totalNotes > 0;
@@ -3164,422 +2521,54 @@ export default function App() {
       setMapCardOffer({ target, open: true });
     }
   }, [appSettingsRef]);
-
-  const [exportIssues, setExportIssues] = useState<{
-    target: string;
-    issues: RoundTripIssue[];
-  } | null>(null);
-  /**
-   * Reads an exported set back and compares it with the map that went out.
-   * Runs after the download, so it never holds an export up; a difference
-   * means a bug in Cascade, and the mapper is told before they upload.
-   */
-  const checkExportedSet = useCallback(
-    (archive: Blob, chart: ChartLike, target: string) => {
-      void import("./lib/exportCheck")
-        .then(({ verifyOszArchive }) => verifyOszArchive(archive, chart))
-        .then((issues) => {
-          if (!issues.length) return;
-          console.warn(formatIssues(issues, `Export check (${target})`));
-          setExportIssues({ target, issues });
-        })
-        .catch(() => {});
-    },
-    [],
-  );
-
-  const doExportOsu = useCallback((songMeta: SongMeta = meta) => {
-    if (!audioFile) return;
-    downloadOsu({
-      meta: songMeta,
-      difficulty: active,
-      timingPoints: activeTimingPoints,
-      audioFilename: audioFile.name,
-      backgroundFilename: active.backgroundFilename,
-      videoFilename: active.videoFilename,
-      videoOffsetMs: active.videoOffsetMs,
-      cascadeTag: appSettings.addCascadeTag,
-    });
-    playUiSound("mapExportDone");
-    void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
-    offerMapCard(".osu");
-  }, [
-    audioFile,
+  const {
+    confirmMapperName,
+    doExportOsz,
+    exportIssues,
+    exportProgress,
+    exporting,
+    handleExportMcz,
+    handleExportOsu,
+    handleExportOsz,
+    handleExportQua,
+    handleExportSm,
+    handleLoadFromOsu,
+    handleSendToOsu,
+    handleSyncToOsu,
+    osuBusy,
+    removeDuplicates,
+    setExportIssues,
+  } = useMapExport({
     active,
     activeTimingPoints,
-    meta,
-    authUser?.id,
-    appSettings.addCascadeTag,
-    offerMapCard,
-  ]);
-
-  const doExportSm = useCallback(async (songMeta: SongMeta = meta) => {
-    if (Object.keys(audioFiles).length === 0) return;
-    setExporting(true);
-    setImportError(null);
-    try {
-      const { downloadSmZip } = await import("./lib/smExport");
-      await downloadSmZip({
-        meta: songMeta,
-        difficulties,
-        timingPoints,
-        audioFiles,
-        bgFiles,
-      });
-      playUiSound("mapExportDone");
-      void logAnalyticsEvent("export_sm", authUser?.id).catch(() => {});
-      offerMapCard(".sm");
-    } catch (error) {
-      setImportError(
-        error instanceof Error
-          ? t("app.exportFailedDetail", { format: "StepMania", detail: error.message })
-          : t("app.exportFailed", { format: "StepMania" }),
-      );
-    } finally {
-      setExporting(false);
-    }
-  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id, t, offerMapCard]);
-
-  const doExportQua = useCallback(async (songMeta: SongMeta = meta) => {
-    if (!audioFile || (active.keyCount !== 4 && active.keyCount !== 7)) return;
-    setImportError(null);
-    try {
-      const { downloadQua } = await import("./lib/qua");
-      downloadQua({
-        meta: songMeta,
-        difficulty: active,
-        timingPoints: activeTimingPoints,
-        audioFilename: audioFile.name,
-        backgroundFilename: active.backgroundFilename,
-        bpmAffectsScroll: appSettings.bpmAffectsScroll,
-      });
-      playUiSound("mapExportDone");
-      offerMapCard(".qua");
-    } catch (error) {
-      setImportError(
-        error instanceof Error
-          ? t("app.exportFailedDetail", { format: "Quaver", detail: error.message })
-          : t("app.exportFailed", { format: "Quaver" }),
-      );
-    }
-  }, [
-    t,
+    appSettings,
     audioFile,
-    active,
-    activeTimingPoints,
+    audioFiles,
+    authUser,
+    authUserRef,
+    bgFiles,
+    canEditRef,
+    difficulties,
+    exportCheck,
+    hasProjectContent,
+    importMapFile,
+    mapperPrompt,
+    markStructural,
     meta,
-    appSettings.bpmAffectsScroll,
     offerMapCard,
-  ]);
-
-  const doExportMcz = useCallback(async (songMeta: SongMeta = meta) => {
-    if (Object.keys(audioFiles).length === 0) return;
-    setExporting(true);
-    setImportError(null);
-    try {
-      const { downloadMcz } = await import("./lib/malody");
-      await downloadMcz({
-        meta: songMeta,
-        difficulties,
-        timingPoints,
-        audioFiles,
-        bgFiles,
-      });
-      playUiSound("mapExportDone");
-      offerMapCard(".mcz");
-    } catch (error) {
-      setImportError(
-        t("malody.exportFailed", {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
-    } finally {
-      setExporting(false);
-    }
-  }, [meta, difficulties, timingPoints, audioFiles, bgFiles, t, offerMapCard]);
-
-  const doExportOsz = useCallback(async (songMeta: SongMeta = meta) => {
-    if (Object.keys(audioFiles).length === 0) return;
-    setExporting(true);
-    setImportError(null);
-    setExportProgress({ ratio: 0, label: t("app.startingEncoder") });
-    try {
-      const { downloadOsz } = await import("./lib/oszExport");
-      const archive = await downloadOsz({
-        meta: songMeta,
-        difficulties,
-        timingPoints,
-        audioFiles,
-        bgFiles,
-        videoFiles,
-        sampleFiles,
-        jpegQuality: appSettings.exportPngBackgroundsAsJpeg
-          ? appSettings.exportJpegQuality
-          : undefined,
-        cascadeTag: appSettings.addCascadeTag,
-        onProgress: setExportProgress,
-      });
-      playUiSound("mapExportDone");
-      checkExportedSet(archive, { meta: songMeta, timingPoints, difficulties }, ".osz");
-      void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
-      offerMapCard(".osz");
-    } catch (error) {
-      setImportError(
-        error instanceof Error
-          ? t("app.exportFailedDetail", { format: "OSZ", detail: error.message })
-          : t("app.exportFailed", { format: "OSZ" }),
-      );
-    } finally {
-      setExporting(false);
-      setExportProgress(null);
-    }
-  }, [
-    t,
-    audioFiles,
-    difficulties,
-    bgFiles,
-    videoFiles,
     sampleFiles,
-    meta,
-    timingPoints,
-    authUser?.id,
-    appSettings.exportPngBackgroundsAsJpeg,
-    appSettings.exportJpegQuality,
-    appSettings.addCascadeTag,
-    offerMapCard,
-    checkExportedSet,
-  ]);
-
-  const checkAndExport = useCallback(
-    (
-      target: string,
-      songMeta: SongMeta,
-      run: (songMeta: SongMeta) => void,
-    ) => {
-      const result = validateProject({
-        meta: songMeta,
-        difficulties,
-        audioFiles,
-        bgFiles,
-        target,
-      });
-      if (result.errors.length > 0 || result.warnings.length > 0) {
-        setExportCheck({ result, target, run: () => run(songMeta) });
-      } else {
-        run(songMeta);
-      }
-    },
-    [difficulties, audioFiles, bgFiles],
-  );
-
-  const requestExport = useCallback(
-    (target: string, run: (songMeta: SongMeta) => void) => {
-      const choice = chooseMapperName(meta.creator, authUser?.username);
-      if (choice.kind === "ask") {
-        setMapperPrompt({ target, run });
-        return;
-      }
-      if (choice.kind === "keep") {
-        checkAndExport(target, meta, run);
-        return;
-      }
-      const named = { ...meta, creator: choice.name };
-      setMeta(named);
-      checkAndExport(target, named, run);
-    },
-    [meta, authUser?.username, checkAndExport],
-  );
-
-  const confirmMapperName = useCallback(
-    (name: string) => {
-      if (!mapperPrompt) return;
-      const { target, run } = mapperPrompt;
-      setMapperPrompt(null);
-      const named = { ...meta, creator: name };
-      setMeta(named);
-      checkAndExport(target, named, run);
-    },
-    [mapperPrompt, meta, checkAndExport],
-  );
-
-  const handleExportOsu = useCallback(
-    () => requestExport(".osu", doExportOsu),
-    [requestExport, doExportOsu],
-  );
-  const handleExportOsz = useCallback(
-    () => requestExport(".osz", (songMeta) => void doExportOsz(songMeta)),
-    [requestExport, doExportOsz],
-  );
-  const handleExportSm = useCallback(
-    () => requestExport(".sm", (songMeta) => void doExportSm(songMeta)),
-    [requestExport, doExportSm],
-  );
-  const handleExportQua = useCallback(
-    () => requestExport(".qua", (songMeta) => void doExportQua(songMeta)),
-    [requestExport, doExportQua],
-  );
-
-  const handleExportMcz = useCallback(
-    () => requestExport(".mcz", (songMeta) => void doExportMcz(songMeta)),
-    [requestExport, doExportMcz],
-  );
-
-  const ensureOsuFolder = useCallback(async () => {
-    const current = await osuStatus();
-    setOsuApp(current);
-    if (current.installed) return true;
-    const picked = await osuChooseRoot();
-    setOsuApp(picked);
-    return picked.installed;
-  }, []);
-
-  const doSendToOsu = useCallback(async (songMeta: SongMeta = meta) => {
-    if (Object.keys(audioFiles).length === 0) return;
-    if (!(await ensureOsuFolder())) return;
-    setOsuBusy(true);
-    setImportError(null);
-    setExportProgress({ ratio: 0, label: t("app.startingEncoder") });
-    try {
-      const { buildOsz } = await import("./lib/oszExport");
-      const archive = await buildOsz({
-        meta: songMeta,
-        difficulties,
-        timingPoints,
-        audioFiles,
-        bgFiles,
-        videoFiles,
-        sampleFiles,
-        jpegQuality: appSettings.exportPngBackgroundsAsJpeg
-          ? appSettings.exportJpegQuality
-          : undefined,
-        cascadeTag: appSettings.addCascadeTag,
-        onProgress: setExportProgress,
-      });
-      await osuSendMap(archive, setFilename(songMeta));
-      checkExportedSet(archive, { meta: songMeta, timingPoints, difficulties }, "osu!");
-      playUiSound("mapExportDone");
-      setImportNotice(t("osu.sent"));
-      void logAnalyticsEvent("export_to_osu", authUserRef.current?.id).catch(
-        () => {},
-      );
-    } catch (error) {
-      setImportError(
-        error instanceof Error ? error.message : t("osu.sendFailed"),
-      );
-    } finally {
-      setOsuBusy(false);
-      setExportProgress(null);
-    }
-  }, [
-    audioFiles,
-    difficulties,
-    bgFiles,
-    videoFiles,
-    sampleFiles,
-    meta,
-    timingPoints,
-    appSettings.exportPngBackgroundsAsJpeg,
-    appSettings.exportJpegQuality,
-    appSettings.addCascadeTag,
-    ensureOsuFolder,
-    checkExportedSet,
+    setDifficulties,
+    setExportCheck,
+    setImportError,
+    setImportNotice,
+    setMapperPrompt,
+    setMeta,
+    setOsuApp,
+    setPendingImport,
     t,
-  ]);
-
-  const handleSendToOsu = useCallback(
-    () => requestExport("to osu!", (songMeta) => void doSendToOsu(songMeta)),
-    [requestExport, doSendToOsu],
-  );
-
-  const doSyncToOsu = useCallback(async (songMeta: SongMeta = meta) => {
-    if (Object.keys(audioFiles).length === 0) return;
-    if (!(await ensureOsuFolder())) return;
-    setOsuBusy(true);
-    setImportError(null);
-    setExportProgress({ ratio: 0, label: t("app.startingEncoder") });
-    try {
-      const { buildOsz } = await import("./lib/oszExport");
-      const archive = await buildOsz({
-        meta: songMeta,
-        difficulties,
-        timingPoints,
-        audioFiles,
-        bgFiles,
-        videoFiles,
-        sampleFiles,
-        jpegQuality: appSettings.exportPngBackgroundsAsJpeg
-          ? appSettings.exportJpegQuality
-          : undefined,
-        cascadeTag: appSettings.addCascadeTag,
-        onProgress: setExportProgress,
-      });
-      await osuSyncMap(
-        archive,
-        osuFolderName(songMeta.artist, songMeta.title),
-      );
-      checkExportedSet(archive, { meta: songMeta, timingPoints, difficulties }, "osu!");
-      playUiSound("mapExportDone");
-      setImportNotice(t("osu.synced"));
-      void logAnalyticsEvent("sync_to_osu", authUserRef.current?.id).catch(
-        () => {},
-      );
-    } catch (error) {
-      setImportError(
-        error instanceof Error ? error.message : t("osu.syncFailed"),
-      );
-    } finally {
-      setOsuBusy(false);
-      setExportProgress(null);
-    }
-  }, [
-    audioFiles,
-    difficulties,
-    bgFiles,
-    videoFiles,
-    sampleFiles,
-    meta,
     timingPoints,
-    appSettings.exportPngBackgroundsAsJpeg,
-    appSettings.exportJpegQuality,
-    appSettings.addCascadeTag,
-    ensureOsuFolder,
-    checkExportedSet,
-    t,
-  ]);
-
-  const handleSyncToOsu = useCallback(
-    () =>
-      requestExport("into Songs", (songMeta) => void doSyncToOsu(songMeta)),
-    [requestExport, doSyncToOsu],
-  );
-
-  const handleLoadFromOsu = useCallback(async () => {
-    if (!(await ensureOsuFolder())) return;
-    setOsuBusy(true);
-    setImportError(null);
-    try {
-      const selected = await osuSelectedMap();
-      const archive = await osuReadMap(selected.folder);
-      const file = new File([archive], `${selected.folder}.osz`, {
-        type: "application/x-osu-archive",
-      });
-      if (hasProjectContent) {
-        setPendingImport(file);
-      } else {
-        await importMapFile(file);
-        setImportNotice(t("osu.loaded", { name: osuMapLabel(selected) }));
-      }
-      void logAnalyticsEvent("import_from_osu", authUserRef.current?.id).catch(
-        () => {},
-      );
-    } catch (error) {
-      setImportError(
-        error instanceof Error ? error.message : t("osu.loadFailed"),
-      );
-    } finally {
-      setOsuBusy(false);
-    }
-  }, [ensureOsuFolder, hasProjectContent, importMapFile, t]);
+    videoFiles,
+  });
 
   // Offered wherever the user is about to choose a map from somewhere else, so
   // the one already open in song select is one click away.
@@ -3645,27 +2634,6 @@ export default function App() {
     if (hasProjectContent) setPendingImport(entry.file);
     else void openOsuAsProject([entry]);
   }, [pendingOsuDiffs, hasProjectContent, openOsuAsProject]);
-
-  const removeDuplicates = useCallback(() => {
-    if (!exportCheck || !canEditRef.current) return;
-    const dupMap = exportCheck.result.duplicateNoteIds;
-    const nextDiffs = difficulties.map((d) => {
-      const ids = new Set(dupMap[d.id] ?? []);
-      return ids.size
-        ? { ...d, notes: d.notes.filter((n) => !ids.has(n.id)) }
-        : d;
-    });
-    markStructural();
-    setDifficulties(nextDiffs);
-    const result = validateProject({
-      meta,
-      difficulties: nextDiffs,
-      audioFiles,
-      bgFiles,
-      target: exportCheck.target,
-    });
-    setExportCheck((check) => (check ? { ...check, result } : check));
-  }, [exportCheck, difficulties, meta, audioFiles, bgFiles, markStructural, canEditRef]);
 
   const buildSavedProject = useCallback((): SavedProject => ({
     version: PROJECT_VERSION,
@@ -3786,9 +2754,7 @@ export default function App() {
         () => true,
         () => false,
       );
-      importStartedRef.current = true;
-      applySavedProject(project);
-      setLocalProjectId(projectId);
+      applySavedProject(project, projectId);
       setModal(null);
       if (saved) markRecoverySaved(projectId, token);
       else noteRecoveryEdit(projectId);
@@ -4093,70 +3059,39 @@ export default function App() {
       void logAnalyticsEvent("collab_joined", authUserRef.current?.id).catch(
         () => {},
       );
-      importStartedRef.current = true;
-      applyingHistoryRef.current = true;
-      undoStackRef.current = [];
-      redoStackRef.current = [];
       publishedAssetBlobsRef.current = new Map([
         ...proj.audio.map((a) => [`audio:${a.name}`, a.blob] as const),
         ...proj.bg.map((b) => [`bg:${b.name}`, b.blob] as const),
       ]);
       assetAttemptsRef.current.clear();
-
-      const audioReg: Record<string, LoadedFile> = {};
-      for (const a of proj.audio) {
-        audioReg[a.name] = {
-          name: a.name,
-          url: URL.createObjectURL(a.blob),
-          blob: a.blob,
-        };
+      const loaded = (files: { name: string; blob: Blob }[]) =>
+        Object.fromEntries(
+          files.map((f) => [f.name, { name: f.name, url: URL.createObjectURL(f.blob), blob: f.blob }]),
+        );
+      // Where this map was left the last time it was open here.
+      let remembered: { activeId?: string; playheadMs?: number } = {};
+      try {
+        const raw = localStorage.getItem(`mania:pos:${proj.id}`);
+        if (raw) remembered = JSON.parse(raw) as typeof remembered;
+      } catch {
       }
-      setAudioFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return audioReg;
-      });
-
-      const bgReg: Record<string, LoadedFile> = {};
-      for (const b of proj.bg) {
-        bgReg[b.name] = {
-          name: b.name,
-          url: URL.createObjectURL(b.blob),
-          blob: b.blob,
-        };
-      }
-      setBgFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return bgReg;
-      });
-      setVideoFiles((prev) => {
-        Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-        return {};
-      });
-      setSampleFiles(
-        Object.fromEntries(proj.samples.map((sample) => [sample.name, sample])),
-      );
-
       const d = proj.data;
-      setMeta(d.meta);
-      setTimingPoints(normalizeTimingPoints(d.timingPoints));
-      const diffs = (d.difficulties?.length
-        ? d.difficulties
-        : [makeDifficulty()]
-      ).map((x) => ({
-        ...x,
-        timingPoints: normalizeTimingPoints(x.timingPoints),
-      }));
-      setDifficulties(diffs);
-      setActiveId(
-        diffs.some((x) => x.id === d.activeId) ? d.activeId : diffs[0].id,
-      );
+      const known = (id?: string) => !!id && (d.difficulties ?? []).some((x) => x.id === id);
+      replaceProject({
+        meta: d.meta,
+        timingPoints: d.timingPoints,
+        difficulties: d.difficulties ?? [],
+        activeId: known(remembered.activeId) ? remembered.activeId : d.activeId,
+        audioFiles: loaded(proj.audio),
+        backgroundFiles: loaded(proj.bg),
+        sampleFiles: Object.fromEntries(proj.samples.map((sample) => [sample.name, sample])),
+        localProjectId: `cloud-${proj.id}`,
+      });
       if (d.view) setView({ ...DEFAULT_VIEW, ...d.view });
       setBgScope(d.bgScope ?? "mapset");
-      setProjectStarted(true);
-      setReferenceId(null);
+      // After replaceProject, which clears the cloud link for a plain import.
       setCloudProjectId(proj.id);
       setCloudOwnerId(proj.owner);
-      setLocalProjectId(`cloud-${proj.id}`);
       opUndoRef.current = [];
       opRedoRef.current = [];
       const me = authUserRef.current;
@@ -4167,21 +3102,8 @@ export default function App() {
             .then(setMyRole)
             .catch(() => setMyRole(null));
       }
-      try {
-        const raw = localStorage.getItem(`mania:pos:${proj.id}`);
-        if (raw) {
-          const pos = JSON.parse(raw) as {
-            activeId?: string;
-            playheadMs?: number;
-          };
-          if (pos.activeId && diffs.some((d) => d.id === pos.activeId)) {
-            setActiveId(pos.activeId);
-          }
-          if (typeof pos.playheadMs === "number") {
-            pendingSeekRef.current = pos.playheadMs;
-          }
-        }
-      } catch {
+      if (typeof remembered.playheadMs === "number") {
+        pendingSeekRef.current = remembered.playheadMs;
       }
     } catch (err) {
       setCloudError(
@@ -4190,7 +3112,7 @@ export default function App() {
     } finally {
       setImportingMap(false);
     }
-  }, [assetAttemptsRef, cloudRevisionRef, localEditVersionRef, opRedoRef, opUndoRef, ownMutationIdsRef, pendingDocSyncRef, pendingSeekRef, publishedAssetBlobsRef, applyingHistoryRef, redoStackRef, undoStackRef]);
+  }, [assetAttemptsRef, cloudRevisionRef, localEditVersionRef, opRedoRef, opUndoRef, ownMutationIdsRef, pendingDocSyncRef, pendingSeekRef, publishedAssetBlobsRef, replaceProject]);
   const {
     dismissInboxNotification,
     ignoreInvite,
@@ -4248,53 +3170,26 @@ export default function App() {
       }
     }
 
-    applyingHistoryRef.current = true;
-    undoStackRef.current = [];
-    redoStackRef.current = [];
-
-    setAudioFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return loadedAudio ? { [loadedAudio.name]: loadedAudio } : {};
-    });
-    setBgFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return {};
-    });
-    setVideoFiles((prev) => {
-      Object.values(prev).forEach((f) => URL.revokeObjectURL(f.url));
-      return {};
-    });
-    setSampleFiles({});
-
     const fresh = makeDifficulty("Normal", 4);
     if (loadedAudio) fresh.audioFilename = loadedAudio.name;
-    setProjectStarted(true);
-    setMeta(DEFAULT_SONG_META);
-    setTimingPoints(defaultTimingPoints());
-    setDifficulties([fresh]);
-    setActiveId(fresh.id);
-    setZenMode(false);
+    replaceProject({
+      meta: DEFAULT_SONG_META,
+      timingPoints: defaultTimingPoints(),
+      difficulties: [fresh],
+      audioFiles: loadedAudio ? { [loadedAudio.name]: loadedAudio } : {},
+      needsSongHint: !loadedAudio,
+    });
     setBgScope("mapset");
-    setModal(null);
     setImportError(null);
     setSaveStatus(null);
-    setNeedsSongHint(!loadedAudio);
-    setLocalProjectId(newLocalProjectId());
-    setCloudProjectId(null);
-    setCloudOwnerId(null);
-    setMyRole(null);
-    setReferenceId(null);
-    void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
-      () => {},
-    );
+    logProjectCreated();
 
     if (loadedAudio) {
       setAutoTimeOpen(true);
       setAutoTimeStatus("idle");
       setAutoTimeResult(null);
     }
-
-  }, [t, applyingHistoryRef, redoStackRef, undoStackRef]);
+  }, [logProjectCreated, replaceProject, t]);
 
   const [jumpToTimeOpen, setJumpToTimeOpen] = useState(false);
 
