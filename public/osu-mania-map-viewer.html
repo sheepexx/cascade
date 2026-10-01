@@ -52,6 +52,14 @@
       }
       .cta:hover { background: #f47070; }
       footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      #drop-zone {
+        margin: 22px 0 8px; padding: 30px 20px; border: 2px dashed #34343f; border-radius: 14px;
+        text-align: center; color: #cfd2dc; cursor: pointer; background: #12121a;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      #drop-zone:hover, #drop-zone:focus-visible, #drop-zone.over { border-color: #f45a5a; background: #1a1219; outline: none; }
+      #drop-zone strong { display: block; font-size: 1.05rem; color: #e6e8ee; margin-bottom: 4px; }
+      #drop-note { min-height: 1.4em; font-size: 0.9rem; }
       footer a { color: #9aa0ad; }
     </style>
     <script type="application/ld+json">
@@ -90,11 +98,22 @@
         scrolling playfield with the song, real osu! hitsounds, background
         image or video, and even your own <code>.osk</code> skin.
       </p>
-      <a class="cta" href="/">Open the map viewer</a>
+      <div id="drop-zone" role="button" tabindex="0" aria-describedby="drop-note">
+        <strong>Drop a map here to open it in Cascade</strong>
+        or click to choose an <code>.osz</code>, <code>.osu</code>, <code>.sm</code>,
+        <code>.qua</code> or <code>.mc</code> file
+      </div>
+      <input id="drop-input" type="file" accept=".osz,.osu,.sm,.ssc,.qua,.mc,.mcz" multiple hidden />
+      <p id="drop-note" aria-live="polite"></p>
+      <p>
+        The file goes straight from your computer into the editor in this
+        browser; nothing is uploaded. Or <a href="/">open the editor</a> and
+        drop it there.
+      </p>
 
       <h2>How it works</h2>
       <ol>
-        <li>Open <a href="/">Cascade</a> and drag any <code>.osz</code> file onto the window.</li>
+        <li>Drop any <code>.osz</code> onto this page, or onto the <a href="/">Cascade</a> editor itself.</li>
         <li>Press <code>Space</code> to play. Scrub the timeline, change playback speed (25% to 100%), or jump between bookmarks and kiai sections.</li>
         <li>Switch difficulties in the sidebar to compare charts in the same set.</li>
       </ol>
@@ -133,5 +152,6 @@
         </p>
       </footer>
     </main>
+    <script src="/map-viewer.js" defer></script>
   </body>
 </html>

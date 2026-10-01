@@ -1,3 +1,4 @@
+import { isHandoffUrl, takeHandedOffFiles } from "./fileHandoff";
 import { captureInstallPrompt } from "./installPrompt";
 
 type LaunchParams = { files?: FileSystemFileHandle[] };
@@ -58,6 +59,24 @@ export function setLaunchFileConsumer(fn: (files: File[]) => void): () => void {
   };
 }
 
+/** Opens files as if the system had launched Cascade with them. */
+function deliverLaunchFiles(files: File[]): void {
+  if (!files.length) return;
+  if (fileConsumer) fileConsumer(files);
+  else pendingFiles.push(...files);
+}
+
+/** Files a page on this site handed over, e.g. one dropped on the map viewer page. */
+function collectHandoff(): void {
+  if (!isHandoffUrl(window.location.search)) return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("open");
+  window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  void takeHandedOffFiles()
+    .then(deliverLaunchFiles)
+    .catch((error) => console.warn("[handoff] could not read the handed-over files", error));
+}
+
 function openExternalLinksInBrowser(): void {
   document.addEventListener(
     "click",
@@ -83,15 +102,14 @@ export function initPwa(): void {
   }
 
   captureInstallPrompt();
+  collectHandoff();
 
   const queue = (window as { launchQueue?: LaunchQueue }).launchQueue;
   queue?.setConsumer((params) => {
     void (async () => {
       const handles = params.files ?? [];
       if (!handles.length) return;
-      const files = await Promise.all(handles.map((handle) => handle.getFile()));
-      if (fileConsumer) fileConsumer(files);
-      else pendingFiles.push(...files);
+      deliverLaunchFiles(await Promise.all(handles.map((handle) => handle.getFile())));
     })();
   });
 
