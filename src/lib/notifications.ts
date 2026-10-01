@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 export type NotificationKind = "invite" | "app_update" | "system";
 
@@ -35,6 +35,7 @@ const NOTIFICATION_COLUMNS = [
 export async function listNotifications(
   limit = 50,
 ): Promise<InboxNotification[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("notifications")
     .select(NOTIFICATION_COLUMNS)
@@ -46,6 +47,7 @@ export async function listNotifications(
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
@@ -54,6 +56,7 @@ export async function markNotificationRead(id: string): Promise<void> {
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
@@ -63,6 +66,7 @@ export async function markAllNotificationsRead(): Promise<void> {
 }
 
 export async function dismissNotification(id: string): Promise<void> {
+  const supabase = await getSupabase();
   const now = new Date().toISOString();
   const { error } = await supabase
     .from("notifications")
@@ -77,6 +81,7 @@ export async function publishAppUpdate(input: {
   version?: string;
   actionUrl?: string;
 }): Promise<number> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("publish_app_update", {
     p_title: input.title,
     p_body: input.body,

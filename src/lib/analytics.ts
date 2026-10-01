@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import { isDesktopApp } from "./pwa";
 
 export type AnalyticsEventType =
@@ -41,6 +41,7 @@ export async function logAnalyticsEvent(
   eventType: AnalyticsEventType,
   userId?: string | null,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const info = browserInfo();
   const { error } = await supabase.from("analytics_events").insert({
     user_id: userId ?? null,

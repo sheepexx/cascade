@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabase";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import { getSupabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import {
   aggregatePresencePeers,
@@ -116,8 +116,19 @@ export function useOnlinePresence(
       void ch.track(p);
     };
 
+    let client: SupabaseClient | null = null;
     const connect = () => {
       if (disposed) return;
+      void getSupabase()
+        .then((supabase) => {
+          if (disposed) return;
+          client = supabase;
+          open(supabase);
+        })
+        .catch(() => {});
+    };
+
+    const open = (supabase: SupabaseClient) => {
       const ch = supabase.channel(PRESENCE_CHANNEL, {
         config: { presence: { key: sessionIdRef.current } },
       });
@@ -169,7 +180,7 @@ export function useOnlinePresence(
       currentChannel = null;
       if (ch) {
         void ch.untrack();
-        void supabase.removeChannel(ch);
+        void client?.removeChannel(ch);
       }
     };
   }, [signedIn, user?.id, hideStatus]);

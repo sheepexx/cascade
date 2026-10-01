@@ -15,6 +15,7 @@ import {
 } from "../types";
 import { sortedPoints } from "./timing";
 import { zipEntryOptions } from "./zipEntry";
+import { MALODY_MAX_KEYS } from "./formatLimits";
 
 /**
  * Malody charts (.mc) are JSON. Every position is a beat written as
@@ -25,7 +26,7 @@ import { zipEntryOptions } from "./zipEntry";
  */
 
 /** Malody's Key mode stops at 10 columns. */
-export const MALODY_MAX_KEYS = 10;
+export { MALODY_MAX_KEYS };
 
 type Json = Record<string, unknown>;
 type MalodyBeat = [number, number, number];

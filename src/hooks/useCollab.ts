@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase, getSupabaseToken } from "../lib/supabase";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import { getSupabase, getSupabaseToken } from "../lib/supabase";
 import { isCollabOp, type CollabOp } from "../lib/ops";
 import {
   aggregatePresencePeers,
@@ -204,6 +204,7 @@ export function useCollab(opts: {
       publishPeers();
     };
 
+    let client: SupabaseClient | null = null;
     const scheduleReconnect = () => {
       if (disposed || reconnectTimer !== undefined) return;
       const delay = Math.min(1000 * 2 ** attempt, 15_000);
@@ -217,6 +218,21 @@ export function useCollab(opts: {
 
     const connect = () => {
       if (disposed) return;
+      const supabase = client;
+      if (!supabase) {
+        // The client loads with the first session, and again on a retry if
+        // that load failed.
+        updateStatus("connecting");
+        void getSupabase()
+          .then((loaded) => {
+            if (disposed) return;
+            client = loaded;
+            connect();
+            connectDurableSync();
+          })
+          .catch(() => scheduleReconnect());
+        return;
+      }
       updateStatus("connecting");
       const ch = supabase.channel(`project:${projectId}`, {
         config: {
@@ -283,6 +299,8 @@ export function useCollab(opts: {
     };
 
     const connectDurableSync = () => {
+      const supabase = client;
+      if (disposed || !supabase || syncChannel) return;
       const ch = supabase
         .channel(`project-sync:${projectId}`, {
           config: { private: true },
@@ -361,7 +379,6 @@ export function useCollab(opts: {
     };
 
     connect();
-    connectDurableSync();
     document.addEventListener("visibilitychange", onVisibilityChange);
     const activePeers = peersRef.current;
 
@@ -378,9 +395,9 @@ export function useCollab(opts: {
       channelRef.current = null;
       if (activeChannel) {
         void activeChannel.untrack();
-        void supabase.removeChannel(activeChannel);
+        void client?.removeChannel(activeChannel);
       }
-      if (activeSyncChannel) void supabase.removeChannel(activeSyncChannel);
+      if (activeSyncChannel) void client?.removeChannel(activeSyncChannel);
       activePeers.clear();
       updateStatus("idle");
       setPeers([]);

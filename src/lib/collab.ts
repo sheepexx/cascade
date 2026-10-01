@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 export type CollabRole = "editor" | "viewer";
 
@@ -13,6 +13,7 @@ export type Collaborator = {
 export async function listCollaborators(
   projectId: string,
 ): Promise<Collaborator[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("project_collaborators")
     .select("user_id,role,users:user_id(username,avatar_url,osu_id)")
@@ -41,6 +42,7 @@ export async function addCollaborator(
   username: string,
   role: CollabRole,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.rpc("add_collaborator", {
     p_project: projectId,
     p_username: username,
@@ -54,6 +56,7 @@ export async function setCollaboratorRole(
   userId: string,
   role: CollabRole,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("project_collaborators")
     .update({ role })
@@ -66,6 +69,7 @@ export async function removeCollaborator(
   projectId: string,
   userId: string,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("project_collaborators")
     .delete()
@@ -80,6 +84,7 @@ export async function myAccess(
   projectId: string,
   myUserId: string,
 ): Promise<AccessRole> {
+  const supabase = await getSupabase();
   const { data: proj } = await supabase
     .from("projects")
     .select("owner")

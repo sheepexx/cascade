@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import type { MapCardStorageRow } from "./storage";
 import { siteUrl } from "./siteAssets";
 import { t } from "./i18n/core";
@@ -77,6 +77,7 @@ export function toHostedMapCard(row: MapCardStorageRow): HostedMapCard {
 }
 
 export async function listMapCardPresets(userId: string): Promise<MapCardPreset[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("map_card_presets")
     .select(PRESET_COLUMNS)
@@ -91,6 +92,7 @@ export async function saveMapCardPreset(
   name: string,
   config: MapCardConfig,
 ): Promise<MapCardPreset> {
+  const supabase = await getSupabase();
   const clean = cleanPresetName(name);
   if (!clean) throw new Error(t("mapCard.errPresetName"));
   const { data, error } = await supabase
@@ -111,6 +113,7 @@ export async function saveMapCardPreset(
 }
 
 export async function deleteMapCardPreset(id: string): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.from("map_card_presets").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
@@ -119,6 +122,7 @@ export async function findHostedMapCard(
   userId: string,
   mapKey: string,
 ): Promise<HostedMapCard | null> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("map_cards")
     .select(CARD_COLUMNS)

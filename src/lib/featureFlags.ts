@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 // Admin-controlled kill switches (see migrations/0013). Every path here fails
 // OPEN: unknown flags, fetch errors, or a missing table all resolve to
@@ -58,6 +58,7 @@ function saveCachedFlags(flags: FeatureFlags): void {
 }
 
 export async function fetchFeatureFlags(): Promise<FeatureFlags> {
+  const supabase = await getSupabase();
   try {
     const { data, error } = await supabase
       .from("feature_flags")
@@ -85,6 +86,7 @@ export type FeatureFlagRow = {
 
 /** Full rows for the admin panel (readable by everyone, but only shown there). */
 export async function listFeatureFlags(): Promise<FeatureFlagRow[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("feature_flags")
     .select("key,enabled,description,updated_at")
@@ -97,6 +99,7 @@ export async function setFeatureFlag(
   key: FeatureFlagKey | string,
   enabled: boolean,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.rpc("set_feature_flag", {
     p_key: key,
     p_enabled: enabled,

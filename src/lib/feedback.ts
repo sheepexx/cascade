@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 export type FeedbackStatus = "open" | "reviewed" | "closed";
 
@@ -21,6 +21,7 @@ export async function submitFeedback(input: {
   osuId: number;
   body: string;
 }): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.from("feedback").insert({
     user_id: input.userId,
     author_username: input.username,
@@ -31,6 +32,7 @@ export async function submitFeedback(input: {
 }
 
 export async function listFeedback(): Promise<Feedback[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("feedback")
     .select(COLUMNS)
@@ -43,6 +45,7 @@ export async function setFeedbackStatus(
   id: string,
   status: FeedbackStatus,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("feedback")
     .update({ status })

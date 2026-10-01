@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase, subscribeSupabase } from "./supabase";
 import { t } from "./i18n/core";
 
 export type Comment = {
@@ -16,6 +16,7 @@ export type Comment = {
 };
 
 export async function listComments(projectId: string): Promise<Comment[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("comments")
     .select("*")
@@ -36,6 +37,7 @@ export async function addComment(input: {
   difficultyId: string | null;
   parentId?: string | null;
 }): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.from("comments").insert({
     project_id: input.projectId,
     author: input.authorId,
@@ -53,6 +55,7 @@ export async function resolveComment(
   id: string,
   resolved: boolean,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("comments")
     .update({ resolved })
@@ -61,6 +64,7 @@ export async function resolveComment(
 }
 
 export async function updateComment(id: string, body: string): Promise<void> {
+  const supabase = await getSupabase();
   const text = body.trim();
   if (!text) throw new Error(t("lib.commentEmpty"));
   const { error } = await supabase
@@ -71,6 +75,7 @@ export async function updateComment(id: string, body: string): Promise<void> {
 }
 
 export async function deleteComment(id: string): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.from("comments").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
@@ -79,20 +84,19 @@ export function subscribeComments(
   projectId: string,
   onChange: () => void,
 ): () => void {
-  const channel = supabase
-    .channel(`comments:${projectId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "comments",
-        filter: `project_id=eq.${projectId}`,
-      },
-      () => onChange(),
-    )
-    .subscribe();
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+  return subscribeSupabase((supabase) =>
+    supabase
+      .channel(`comments:${projectId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "comments",
+          filter: `project_id=eq.${projectId}`,
+        },
+        () => onChange(),
+      )
+      .subscribe(),
+  );
 }

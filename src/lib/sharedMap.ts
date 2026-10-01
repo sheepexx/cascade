@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import { siteUrl } from "./siteAssets";
 import { decodeAudioBlob, renderTrimmedAudio } from "./audioTrim";
 import { loadMp3Encoder } from "./lameEncoder";
@@ -183,6 +183,7 @@ export async function makePreviewClip(
 }
 
 export async function publishSharedMap(params: PublishParams): Promise<string> {
+  const supabase = await getSupabase();
   const { ownerId, projectId, data, audioFiles, background, card } = params;
   const previewAudio =
     audioFiles.find((audio) => audio.name === params.previewAudioName) ??
@@ -264,6 +265,7 @@ export async function publishSharedMap(params: PublishParams): Promise<string> {
 }
 
 export async function loadSharedMap(slug: string): Promise<SharedMap | null> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("shared_maps")
     .select(
@@ -297,6 +299,7 @@ export async function loadSharedMap(slug: string): Promise<SharedMap | null> {
 }
 
 export async function listMySharedMaps(ownerId: string): Promise<SharedMap[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("shared_maps")
     .select(
@@ -330,6 +333,7 @@ export async function listMySharedMaps(ownerId: string): Promise<SharedMap[]> {
 export async function findSharedMapForProject(
   projectId: string,
 ): Promise<string | null> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("shared_maps")
     .select("slug")
@@ -346,10 +350,12 @@ export async function unpublishSharedMap(slug: string): Promise<void> {
 }
 
 export async function countSharedView(slug: string): Promise<void> {
+  const supabase = await getSupabase();
   await supabase.rpc("bump_shared_map_view", { p_slug: slug });
 }
 
 export async function requestSharedMapAccess(slug: string): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.rpc("request_shared_map_access", {
     p_slug: slug,
   });

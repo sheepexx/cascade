@@ -1,7 +1,7 @@
 import type { Locale } from "./i18n";
 import { isSnapPresetId, normalizeCustomDivisors } from "./snapPresets";
 import { isLocale } from "./i18n/core";
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import { normalizePlaytestTiming } from "./playtestClock";
 import { normalizeHudLayout } from "./hudLayout";
 import {
@@ -70,6 +70,7 @@ type UserSkinRow = {
 export async function loadAccountSettings(
   userId: string,
 ): Promise<unknown | null> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("user_settings")
     .select("settings")
@@ -83,6 +84,7 @@ export async function saveAccountSettings(
   userId: string,
   settings: AccountSettings,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.from("user_settings").upsert(
     { user_id: userId, settings },
     { onConflict: "user_id" },
@@ -163,6 +165,7 @@ export function normalizeAccountSettings(
 }
 
 export async function listCloudSkins(userId: string): Promise<CloudSkin[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("user_skins")
     .select("id,slot,filename,storage_path,sha256,bytes,updated_at")
@@ -197,6 +200,7 @@ export function removeCloudSkin(slot: 1 | 2): Promise<void> {
 export async function loadCloudMenuBackground(
   userId: string,
 ): Promise<CloudMenuBackground | null> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("user_menu_backgrounds")
     .select("id,filename,storage_path,sha256,bytes,width,height,updated_at")

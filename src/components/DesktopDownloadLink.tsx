@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useLocale } from "../lib/i18n";
 import type { Locale } from "../lib/i18n";
 import { useAuth } from "../lib/auth";
-import { supabase } from "../lib/supabase";
+import { getSupabase } from "../lib/supabase";
 import {
   DESKTOP_HINT_DELAY_MS,
   DESKTOP_HINT_VISIBLE_MS,
@@ -47,6 +47,7 @@ function latestDesktopVersion(): Promise<string | null> {
 /** The newest desktop version this account has opened (migration 0031).
  *  Null when there is none on record or it can't be read. */
 async function myDesktopVersion(): Promise<string | null> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("my_desktop_version");
   return !error && typeof data === "string" ? data : null;
 }

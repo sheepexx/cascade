@@ -12,13 +12,8 @@ import {
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
 import { ExportValidationModal } from "./components/menus/ExportValidationModal";
 import { MapperNameModal } from "./components/menus/MapperNameModal";
-import {
-  runAiMod,
-  resnapNotes,
-  countUnsnapped,
-  type AiModReport,
-  type AiModIssue,
-} from "./lib/aimod";
+import type { AiModReport, AiModIssue } from "./lib/aimod";
+import { resnapNotes, countUnsnapped } from "./lib/snapCheck";
 import type { SampleMap } from "./components/menus/StartModal";
 import { StartScreen } from "./components/StartScreen";
 import { usePhoneViewport } from "./hooks/usePhoneViewport";
@@ -37,7 +32,6 @@ import { renderShareCard } from "./lib/shareCard";
 import { VersionHistoryModal } from "./components/menus/VersionHistoryModal";
 import { batchApplyDifficulties, type BatchRequest } from "./lib/batchApply";
 import { describeNoteOp, describeSnapshotChange, jumpSnapshotHistory } from "./lib/editorHistory";
-import { AudioSetupModal } from "./components/menus/AudioSetupModal";
 import { readExclusivePreference } from "./lib/nativeAudio";
 import { NowPlaying } from "./components/NowPlaying";
 import { ExitCurtain } from "./components/ExitCurtain";
@@ -194,6 +188,20 @@ const AutoTimePrompt = lazyWithPreload(() =>
 const PackCreator = lazyWithPreload(() =>
   import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
 );
+const EditorLayoutOverlay = lazyWithPreload(() =>
+  import("./components/EditorLayoutOverlay").then((m) => ({
+    default: m.EditorLayoutOverlay,
+  })),
+);
+const AudioSetupModal = lazyWithPreload(() =>
+  import("./components/menus/AudioSetupModal").then((m) => ({
+    default: m.AudioSetupModal,
+  })),
+);
+/** The format readers load when a file is opened, not with the app. */
+const loadOsuImport = () => import("./lib/osuImport");
+/** Desktop-only: editing a difficulty's .osu in a text editor. */
+const loadExternalEdit = () => import("./lib/externalEdit");
 const BackupsModal = lazyWithPreload(() =>
   import("./components/menus/BackupsModal").then((m) => ({
     default: m.BackupsModal,
@@ -216,7 +224,7 @@ import {
   type RateCreateOptions,
 } from "./lib/rateChange";
 import type { Comment } from "./lib/comments";
-import { collectAiModFileFacts, type AiModFileFacts } from "./lib/aimodFiles";
+import type { AiModFileFacts } from "./lib/aimodFiles";
 import type { SampleFile } from "./lib/mapSamples";
 import {
   closestDivisor,
@@ -239,7 +247,7 @@ import {
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
-import { supabase, getSupabaseToken } from "./lib/supabase";
+import { getSupabaseToken, subscribeSupabase } from "./lib/supabase";
 import {
   useCollab,
   type AssetChange,
@@ -317,9 +325,20 @@ const AdminPanel = lazyWithPreload(() =>
     default: m.AdminPanel,
   })),
 );
-/** Fetches every split-out editor and menu surface so none suspends on first open. */
+type IdleWindow = Window & {
+  requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+};
+
+/**
+ * Fetches the split-out surfaces so none suspends on first open, in two
+ * waves. The editor and the ways into a map come straight after the first
+ * paint, under the session intro, which waits for them. Everything else
+ * waits for an idle moment, so it does not compete with the start screen's
+ * animations or the first click. The admin panel is left to load when an
+ * admin opens it.
+ */
 function preloadLazyChunks(): Promise<unknown> {
-  return Promise.allSettled(
+  const first = Promise.allSettled(
     [
       BottomTimeline,
       CommentsSidebar,
@@ -330,33 +349,46 @@ function preloadLazyChunks(): Promise<unknown> {
       PlaytestRunStats,
       PPCounter,
       TransportBar,
-      SettingsModal,
-      AppSettingsModal,
-      SkinModal,
-      DifficultyModal,
-      TimingModal,
-      SvModal,
-      ToolsModal,
-      MapCardModal,
-      MapCardPrompt,
-      AiModModal,
       WelcomeModal,
       SampleMapsModal,
       MyMapsModal,
       ImportModal,
       NewMapModal,
-      PresetBrowserModal,
-      PublishPresetModal,
-      FeedbackModal,
-      HistoryModal,
-      ShareModal,
-      PackBrowserModal,
-      AutoTimePrompt,
-      PackCreator,
-      BackupsModal,
-      AdminPanel,
     ].map((component) => component.preload()),
   );
+  void first.then(() => {
+    const later = () => {
+      for (const component of [
+        SettingsModal,
+        AppSettingsModal,
+        SkinModal,
+        DifficultyModal,
+        TimingModal,
+        SvModal,
+        ToolsModal,
+        MapCardModal,
+        MapCardPrompt,
+        AiModModal,
+        PresetBrowserModal,
+        PublishPresetModal,
+        FeedbackModal,
+        HistoryModal,
+        ShareModal,
+        PackBrowserModal,
+        AutoTimePrompt,
+        PackCreator,
+        BackupsModal,
+        EditorLayoutOverlay,
+        AudioSetupModal,
+      ]) {
+        void component.preload().catch(() => {});
+      }
+    };
+    const idle = window as IdleWindow;
+    if (idle.requestIdleCallback) idle.requestIdleCallback(later, { timeout: 5000 });
+    else window.setTimeout(later, 2000);
+  });
+  return first;
 }
 import {
   InviteNotifications,
@@ -419,31 +451,15 @@ import {
   placementFor,
 } from "./lib/noteCollision";
 import { buildOsuFile, downloadOsu, setFilename } from "./lib/osuExport";
-import {
-  applyExternalOsu,
-  canEditExternally,
-  finishExternalEdit,
-  readExternalEdit,
-  showExternalEdit,
-  startExternalEdit,
-} from "./lib/externalEdit";
 import { uniqueDifficultyName } from "./lib/rateChange";
 import { ExternalEditModal } from "./components/menus/ExternalEditModal";
-import {
-  adoptOsuDifficulty,
-  importOsz,
-  isManiaOsu,
-  isSameSong,
-  parseOsuFile,
-  type ParsedOsu,
-} from "./lib/osuImport";
-import { MALODY_MAX_KEYS } from "./lib/malody";
+import type { ParsedOsu } from "./lib/osuImport";
+import { MALODY_MAX_KEYS } from "./lib/formatLimits";
 import { setLaneColourScheme } from "./lib/laneColours";
 import { useSkillsetTimeline } from "./lib/msd/useMsd";
 import { msdSupportsKeyCount } from "./lib/msd/minacalc";
 import { SkillsetGraph } from "./components/SkillsetGraph";
 import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
-import { parseSmFile } from "./lib/smImport";
 import type { PackSong } from "./lib/smPackImport";
 import { assertTextImportSize } from "./lib/importLimits";
 import {
@@ -468,7 +484,6 @@ import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
 import { normalizeHudLayout, type PlayfieldBounds } from "./lib/hudLayout";
 import { HudPreviewViewport } from "./components/HudPreviewViewport";
 import { HudScrubber } from "./components/HudScrubber";
-import { EditorLayoutOverlay } from "./components/EditorLayoutOverlay";
 import { normalizePlaytestSkin } from "./lib/playtestSkin";
 import { PRESET_SKINS } from "./lib/presetSkins";
 import {
@@ -923,17 +938,19 @@ export default function App() {
       });
     };
     refresh();
-    const ch = supabase
-      .channel("feature-flags")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "feature_flags" },
-        refresh,
-      )
-      .subscribe();
+    const unsubscribe = subscribeSupabase((supabase) =>
+      supabase
+        .channel("feature-flags")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "feature_flags" },
+          refresh,
+        )
+        .subscribe(),
+    );
     return () => {
       cancelled = true;
-      void supabase.removeChannel(ch);
+      unsubscribe();
     };
   }, []);
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
@@ -1355,26 +1372,25 @@ export default function App() {
       setMyRole("owner");
       return;
     }
-    const ch = supabase
-      .channel(`collab:${cloudProjectId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "project_collaborators",
-          filter: `project_id=eq.${cloudProjectId}`,
-        },
-        () => {
-          myAccess(cloudProjectId, authUser.id)
-            .then(setMyRole)
-            .catch(() => {});
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(ch);
-    };
+    return subscribeSupabase((supabase) =>
+      supabase
+        .channel(`collab:${cloudProjectId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "project_collaborators",
+            filter: `project_id=eq.${cloudProjectId}`,
+          },
+          () => {
+            myAccess(cloudProjectId, authUser.id)
+              .then(setMyRole)
+              .catch(() => {});
+          },
+        )
+        .subscribe(),
+    );
   }, [cloudProjectId, cloudOwnerId, authUser]);
 
   const applyRemoteOp = useCallback((op: CollabOp) => {
@@ -3080,6 +3096,7 @@ export default function App() {
     setImportingMap(true);
     onProgress({ ratio: 0, label: t("app.readingArchive") });
     try {
+      const { importOsz } = await loadOsuImport();
       const map = await importOsz(file, onProgress);
       setPublicMapUrl(null);
       setCloudProjectId(null);
@@ -3365,6 +3382,7 @@ export default function App() {
     try {
       assertTextImportSize(file);
       const text = await file.text();
+      const { parseSmFile } = await import("./lib/smImport");
       const map = parseSmFile(text);
       void logAnalyticsEvent("import_sm", authUserRef.current?.id).catch(
         () => {},
@@ -3496,6 +3514,7 @@ export default function App() {
   );
 
   const readOsuFiles = useCallback(async (files: File[]) => {
+    const { isManiaOsu, parseOsuFile } = await loadOsuImport();
     const entries: OsuEntry[] = [];
     for (const file of files) {
       assertTextImportSize(file);
@@ -3508,8 +3527,9 @@ export default function App() {
     return entries;
   }, [t]);
 
-  const openOsuAsProject = useCallback((entries: OsuEntry[]) => {
+  const openOsuAsProject = useCallback(async (entries: OsuEntry[]) => {
     if (!entries.length) return;
+    const { adoptOsuDifficulty } = await loadOsuImport();
     importStartedRef.current = true;
     setImportError(null);
     setAudioFiles((prev) => {
@@ -3560,7 +3580,7 @@ export default function App() {
     async (file: File) => {
       setImportError(null);
       try {
-        openOsuAsProject(await readOsuFiles([file]));
+        await openOsuAsProject(await readOsuFiles([file]));
       } catch (err) {
         setImportError(
           err instanceof Error ? err.message : t("app.importOsuFailed"),
@@ -3571,8 +3591,9 @@ export default function App() {
   );
 
   const addOsuDifficulties = useCallback(
-    (entries: OsuEntry[]) => {
+    async (entries: OsuEntry[]) => {
       if (!entries.length) return;
+      const { adoptOsuDifficulty } = await loadOsuImport();
       if (!canEditRef.current) {
         setImportError(t("app.noEditAccess"));
         return;
@@ -3646,11 +3667,12 @@ export default function App() {
         return;
       }
       if (!projectStartedRef.current) {
-        openOsuAsProject(entries);
+        await openOsuAsProject(entries);
         return;
       }
+      const { isSameSong } = await loadOsuImport();
       if (entries.every(({ parsed }) => isSameSong(metaRef.current, parsed.meta))) {
-        addOsuDifficulties(entries);
+        await addOsuDifficulties(entries);
         return;
       }
       setPendingOsuDiffs(entries);
@@ -3829,7 +3851,8 @@ export default function App() {
   const [externalEditError, setExternalEditError] = useState<string | null>(null);
 
   const beginExternalEdit = useCallback(async () => {
-    if (!canEditRef.current || !canEditExternally()) return;
+    if (!canEditRef.current || !isDesktopApp()) return;
+    const { startExternalEdit, showExternalEdit } = await loadExternalEdit();
     const d = difficultiesRef.current.find((x) => x.id === activeIdRef.current);
     if (!d) return;
     const text = buildOsuFile({
@@ -3865,6 +3888,7 @@ export default function App() {
       if (!externalEdit) return;
       setExternalEditError(null);
       try {
+        const { showExternalEdit } = await loadExternalEdit();
         await showExternalEdit(externalEdit.path, inFolder);
       } catch (err) {
         setExternalEditError(err instanceof Error ? err.message : String(err));
@@ -3880,6 +3904,8 @@ export default function App() {
     setExternalEditError(null);
     try {
       if (!canEditRef.current) throw new Error(t("app.noEditAccess"));
+      const { applyExternalOsu, finishExternalEdit, readExternalEdit } =
+        await loadExternalEdit();
       const text = await readExternalEdit(session.path);
       const current = difficultiesRef.current.find((d) => d.id === session.diffId);
       if (!current) throw new Error(t("externalEdit.diffGone"));
@@ -3910,7 +3936,11 @@ export default function App() {
   }, [backupRecovery, externalEdit, markStructural, t]);
 
   const discardExternalEdit = useCallback(() => {
-    if (externalEdit) void finishExternalEdit(externalEdit.path);
+    if (externalEdit) {
+      void loadExternalEdit().then(({ finishExternalEdit }) =>
+        finishExternalEdit(externalEdit.path),
+      );
+    }
     setExternalEdit(null);
     setExternalEditError(null);
   }, [externalEdit]);
@@ -4039,20 +4069,21 @@ export default function App() {
   const [aiModFiles, setAiModFiles] = useState<AiModFileFacts | undefined>();
   const [confirmResnap, setConfirmResnap] = useState(false);
 
+  // The report engine and the ranked-map corpus it compares against load with
+  // the AiMod dialog, not with the app.
   const runAiModCheck = useCallback(() => {
-    setAiModReport(
-      runAiMod({
-        meta: metaRef.current,
-        difficulties: difficultiesRef.current,
-        audioFiles,
-        bgFiles,
-        audioDurationMs: sourceDurationRef.current
-          ? Math.round(sourceDurationRef.current)
-          : undefined,
-        files: aiModFiles,
-        sampleFiles: sampleFilesRef.current,
-      }),
-    );
+    const input = {
+      meta: metaRef.current,
+      difficulties: difficultiesRef.current,
+      audioFiles,
+      bgFiles,
+      audioDurationMs: sourceDurationRef.current
+        ? Math.round(sourceDurationRef.current)
+        : undefined,
+      files: aiModFiles,
+      sampleFiles: sampleFilesRef.current,
+    };
+    void import("./lib/aimod").then(({ runAiMod }) => setAiModReport(runAiMod(input)));
   }, [audioFiles, bgFiles, aiModFiles]);
 
   // The file checks need the audio and backgrounds read, which only happens
@@ -4060,7 +4091,10 @@ export default function App() {
   useEffect(() => {
     if (modal !== "aimod") return;
     let cancelled = false;
-    collectAiModFileFacts(audioFiles, bgFiles, sampleFiles)
+    import("./lib/aimodFiles")
+      .then(({ collectAiModFileFacts }) =>
+        collectAiModFileFacts(audioFiles, bgFiles, sampleFiles),
+      )
       .then((facts) => {
         if (!cancelled) setAiModFiles(facts);
       })
@@ -4112,21 +4146,20 @@ export default function App() {
     if (moved > 0) {
       patchDifficulty(id, { notes });
       // Re-run against the updated notes so the panel reflects the fix.
-      setAiModReport(
-        runAiMod({
-          meta: metaRef.current,
-          difficulties: difficultiesRef.current.map((x) =>
-            x.id === id ? { ...x, notes } : x,
-          ),
-          audioFiles,
-          bgFiles,
-          audioDurationMs: sourceDurationRef.current
-            ? Math.round(sourceDurationRef.current)
-            : undefined,
-          files: aiModFiles,
-          sampleFiles: sampleFilesRef.current,
-        }),
-      );
+      const input = {
+        meta: metaRef.current,
+        difficulties: difficultiesRef.current.map((x) =>
+          x.id === id ? { ...x, notes } : x,
+        ),
+        audioFiles,
+        bgFiles,
+        audioDurationMs: sourceDurationRef.current
+          ? Math.round(sourceDurationRef.current)
+          : undefined,
+        files: aiModFiles,
+        sampleFiles: sampleFilesRef.current,
+      };
+      void import("./lib/aimod").then(({ runAiMod }) => setAiModReport(runAiMod(input)));
     }
   }, [patchDifficulty, audioFiles, bgFiles, aiModFiles]);
 
@@ -6465,7 +6498,7 @@ export default function App() {
     if (!entry) return;
     setPendingOsuDiffs(null);
     if (hasProjectContent) setPendingImport(entry.file);
-    else openOsuAsProject([entry]);
+    else void openOsuAsProject([entry]);
   }, [pendingOsuDiffs, hasProjectContent, openOsuAsProject]);
 
   const removeDuplicates = useCallback(() => {
@@ -7089,25 +7122,24 @@ export default function App() {
       inviteNoticeProjectsRef.current.clear();
       return;
     }
-    const ch = supabase
-      .channel(`invites:${authUser.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "project_collaborators",
-          filter: `user_id=eq.${authUser.id}`,
-        },
-        (payload) => {
-          const pid = (payload.new as { project_id?: string })?.project_id;
-          if (pid) void addInviteNotice(pid);
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(ch);
-    };
+    return subscribeSupabase((supabase) =>
+      supabase
+        .channel(`invites:${authUser.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "project_collaborators",
+            filter: `user_id=eq.${authUser.id}`,
+          },
+          (payload) => {
+            const pid = (payload.new as { project_id?: string })?.project_id;
+            if (pid) void addInviteNotice(pid);
+          },
+        )
+        .subscribe(),
+    );
   }, [authUser, addInviteNotice]);
 
   useEffect(() => {
@@ -7119,30 +7151,32 @@ export default function App() {
     }
 
     void refreshNotifications();
-    const channel = supabase
-      .channel(`notification-inbox:${authUser.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `recipient=eq.${authUser.id}`,
-        },
-        (payload) => {
-          void refreshNotifications();
-          if (payload.eventType !== "INSERT") return;
-          const notification = payload.new as Partial<InboxNotification>;
-          if (
-            notification.kind === "invite" &&
-            notification.project_id &&
-            notification.id
-          ) {
-            void addInviteNotice(notification.project_id, notification.id);
-          }
-        },
-      )
-      .subscribe();
+    const unsubscribe = subscribeSupabase((supabase) =>
+      supabase
+        .channel(`notification-inbox:${authUser.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient=eq.${authUser.id}`,
+          },
+          (payload) => {
+            void refreshNotifications();
+            if (payload.eventType !== "INSERT") return;
+            const notification = payload.new as Partial<InboxNotification>;
+            if (
+              notification.kind === "invite" &&
+              notification.project_id &&
+              notification.id
+            ) {
+              void addInviteNotice(notification.project_id, notification.id);
+            }
+          },
+        )
+        .subscribe(),
+    );
 
     const refreshOnFocus = () => void refreshNotifications();
     const refreshWhenVisible = () => {
@@ -7153,7 +7187,7 @@ export default function App() {
     return () => {
       window.removeEventListener("focus", refreshOnFocus);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
-      void supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [authUser, addInviteNotice, refreshNotifications]);
 
@@ -9409,7 +9443,7 @@ export default function App() {
             )}
             <Button
               variant="accent"
-              onClick={() => addOsuDifficulties(pendingOsuDiffs ?? [])}
+              onClick={() => void addOsuDifficulties(pendingOsuDiffs ?? [])}
             >
               {pendingOsuDiffs && pendingOsuDiffs.length > 1
                 ? t("app.addAsDifficulties")

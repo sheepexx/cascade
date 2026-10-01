@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ManiaNote } from "../types";
-import { formatAiModTime } from "../lib/aimod";
+import { formatAiModTime } from "../lib/snapCheck";
 import { gapBefore } from "../lib/noteGaps";
 import { useT } from "../lib/i18n";
 

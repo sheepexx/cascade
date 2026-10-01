@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import {
   deleteMapCard,
   deleteProjectWithAssets,
@@ -153,6 +153,7 @@ export type AdminSharedMap = {
 };
 
 export async function listUserSummaries(): Promise<AdminUserSummary[]> {
+  const supabase = await getSupabase();
   const [usersResult, previews, cards] = await Promise.all([
     supabase.rpc("admin_user_summaries"),
     listAdminSharedMaps(),
@@ -179,6 +180,7 @@ export async function listUserSummaries(): Promise<AdminUserSummary[]> {
 export async function adminUserEvents(
   userId: string,
 ): Promise<AdminUserEvent[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_user_events", {
     p_user: userId,
   });
@@ -189,6 +191,7 @@ export async function adminUserEvents(
 export async function adminUserProjects(
   userId: string,
 ): Promise<AdminUserProject[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_user_projects", {
     p_user: userId,
   });
@@ -199,6 +202,7 @@ export async function adminUserProjects(
 export async function listAdminSharedMaps(
   userId: string | null = null,
 ): Promise<AdminSharedMap[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_shared_map_summaries", {
     p_user: userId,
   });
@@ -230,6 +234,7 @@ type AdminMapCardRow = Omit<AdminMapCard, "owner" | "owner_username" | "owner_os
 export async function listAdminMapCards(
   userId: string | null = null,
 ): Promise<AdminMapCard[]> {
+  const supabase = await getSupabase();
   let query = supabase
     .from("map_cards")
     .select(
@@ -263,6 +268,7 @@ export async function setUserAdmin(
   id: string,
   isAdmin: boolean,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("users")
     .update({ is_admin: isAdmin })
@@ -271,6 +277,7 @@ export async function setUserAdmin(
 }
 
 export async function listAllProjects(): Promise<AdminProject[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_project_summaries");
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminProject[];
@@ -288,18 +295,21 @@ export type AdminEventStat = {
 };
 
 export async function adminEventStats(): Promise<AdminEventStat[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_event_stats");
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminEventStat[];
 }
 
 export async function adminPlatformStats(): Promise<AdminPlatformStat[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_platform_stats");
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminPlatformStat[];
 }
 
 export async function adminAppVersionStats(): Promise<AdminAppVersionStat[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_app_version_stats");
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminAppVersionStat[];
@@ -308,12 +318,14 @@ export async function adminAppVersionStats(): Promise<AdminAppVersionStat[]> {
 export async function adminDesktopDownloads(): Promise<
   AdminDesktopDownloadStat[]
 > {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_desktop_download_stats");
   if (error) throw new Error(error.message);
   return (data ?? []) as AdminDesktopDownloadStat[];
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
+  const supabase = await getSupabase();
   const [
     usersResult,
     exportOsuResult,

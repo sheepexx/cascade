@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import {
   createProjectAssetUrls,
   deleteProjectAsset,
@@ -80,6 +80,7 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
 }
 
 async function saveProjectCloudOnce(params: SaveParams): Promise<string> {
+  const supabase = await getSupabase();
   const { ownerId, projectId, audioFiles, bgFiles, sampleFiles = [] } = params;
   const data = cloudSafeProjectData(params.data);
   const mutationId = params.mutationId ?? crypto.randomUUID();
@@ -221,6 +222,7 @@ export async function saveProjectDataCloud(
   data: CloudProjectData,
   mutationId: string = crypto.randomUUID(),
 ): Promise<CloudSyncStamp> {
+  const supabase = await getSupabase();
   const safeData = cloudSafeProjectData(data);
   const { data: saved, error: rpcError } = await supabase.rpc(
     "save_project_snapshot",
@@ -267,6 +269,7 @@ export type CloudChartSnapshot = CloudSyncStamp & { data: CloudProjectData };
 export async function loadProjectChartCloud(
   id: string,
 ): Promise<CloudChartSnapshot> {
+  const supabase = await getSupabase();
   const rich = await supabase
     .from("projects")
     .select("data,revision,last_mutation_id,updated_by")
@@ -306,6 +309,7 @@ export async function loadProjectChartCloud(
 }
 
 export async function listProjectsCloud(): Promise<CloudProjectSummary[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("projects")
     .select("id,owner,title,artist,creator,updated_at")
@@ -352,6 +356,7 @@ export function duplicateProjectQuery(data: CloudProjectData): DuplicateProjectQ
 export async function findDuplicateProjectsCloud(
   data: CloudProjectData,
 ): Promise<DuplicateProjectMatch[]> {
+  const supabase = await getSupabase();
   const query = duplicateProjectQuery(data);
   if (!query.title && query.setId === null && query.beatmapIds.length === 0) return [];
   const { data: rows, error } = await supabase.rpc("find_duplicate_projects", {
@@ -398,6 +403,7 @@ export type CloudProjectRich = {
 };
 
 export async function listMyProjectsRich(): Promise<CloudProjectRich[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("list_my_projects");
   if (error) throw new Error(error.message);
   return (data ?? []) as CloudProjectRich[];
@@ -421,6 +427,7 @@ export type LoadedCloudProject = {
 };
 
 export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> {
+  const supabase = await getSupabase();
   const { data: project, error } = await supabase
     .from("projects")
     .select("id,owner,data")
@@ -470,6 +477,7 @@ export async function publishProjectAsset(
   kind: CloudAssetKind,
   asset: CloudAsset,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const sha = await sha256Hex(asset.blob);
   const ext = extensionOf(asset.name);
   const storagePath = `${projectId}/${sha}.${ext}`;
@@ -495,6 +503,7 @@ export async function loadProjectAssets(
   projectId: string,
   filenames: string[],
 ): Promise<(CloudAsset & { kind: CloudAssetKind })[]> {
+  const supabase = await getSupabase();
   if (!filenames.length) return [];
   const { data: rows, error } = await supabase
     .from("project_assets")
@@ -524,6 +533,7 @@ export async function setProjectArchived(
   projectId: string,
   archived: boolean,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.rpc("set_project_archived", {
     p_project: projectId,
     p_archived: archived,

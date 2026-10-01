@@ -1,7 +1,7 @@
 import { starColor } from "./starRating";
 import type { ManiaNote, TimingPoint } from "../types";
 import { gridLinesInRange, gridLineColor } from "./timing";
-import { nearestSnap } from "./aimod";
+import { nearestSnap } from "./snapCheck";
 import { FONT_STACK } from "./fontStack";
 import { t } from "./i18n/core";
 

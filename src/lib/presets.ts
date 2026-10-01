@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import { patternHash, type PatternNote } from "./patterns";
 
 export type PresetStatus = "pending" | "approved" | "rejected";
@@ -33,6 +33,7 @@ export async function listPresets(opts?: {
   keyCount?: number;
   ownerId?: string | null;
 }): Promise<Preset[]> {
+  const supabase = await getSupabase();
   let q = supabase
     .from("presets")
     .select(COLUMNS)
@@ -85,6 +86,7 @@ async function insertPreset(input: {
   isPublic: boolean;
   status: PresetStatus;
 }): Promise<void> {
+  const supabase = await getSupabase();
   const hash = await patternHash(input.pattern, input.keyCount);
   const { error } = await supabase.from("presets").insert({
     author: input.authorId,
@@ -106,6 +108,7 @@ async function insertPreset(input: {
 }
 
 export async function deletePreset(id: string): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase.from("presets").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
@@ -113,6 +116,7 @@ export async function deletePreset(id: string): Promise<void> {
 export async function listPresetsByStatus(
   status: PresetStatus,
 ): Promise<Preset[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("presets")
     .select(COLUMNS)
@@ -124,6 +128,7 @@ export async function listPresetsByStatus(
 }
 
 export async function listPrivatePresets(): Promise<Preset[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("presets")
     .select(COLUMNS)
@@ -137,6 +142,7 @@ export async function setPresetStatus(
   id: string,
   status: PresetStatus,
 ): Promise<void> {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("presets")
     .update({ status })
