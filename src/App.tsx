@@ -1,6 +1,16 @@
 import { useNotificationInbox } from "./app/useNotificationInbox";
 import { useSkins } from "./app/useSkins";
+import { useDifficultyActions } from "./app/useDifficultyActions";
+import { useTimelineEdits } from "./app/useTimelineEdits";
+import { useEditHistory } from "./app/useEditHistory";
+import { useNoteEditing } from "./app/useNoteEditing";
+import { useCollabSession } from "./app/useCollabSession";
 import { useAppSettings } from "./app/useAppSettings";
+import {
+  initialPlaytestState,
+  usePlaytest,
+  type PlaytestRuntimeState,
+} from "./app/usePlaytest";
 import { useFeatureFlags } from "./app/useFeatureFlags";
 import { useAccountSettingsSync } from "./app/useAccountSettingsSync";
 import {
@@ -34,11 +44,6 @@ import { previewStartMs } from "./lib/sharedMapPreview";
 import { renderShareCard } from "./lib/shareCard";
 import { VersionHistoryModal } from "./components/menus/VersionHistoryModal";
 import { batchApplyDifficulties, type BatchRequest } from "./lib/batchApply";
-import {
-  describeNoteOp,
-  describeSnapshotChange,
-  jumpSnapshotHistory,
-} from "./lib/editorHistory";
 import { readExclusivePreference } from "./lib/nativeAudio";
 import { NowPlaying } from "./components/NowPlaying";
 import { ExitCurtain } from "./components/ExitCurtain";
@@ -110,7 +115,7 @@ import {
   loadFile,
   newLocalProjectId,
 } from "./app/appUtils";
-import type { BookmarkLoopState, DocSnapshot, ModalId, OsuEntry } from "./app/appTypes";
+import type { BookmarkLoopState, ModalId, OsuEntry } from "./app/appTypes";
 import {
   CommentIcon,
   SampleMapsIcon,
@@ -122,11 +127,7 @@ import {
   UndoIcon,
   UserIcon,
 } from "./components/ui/Icons";
-import {
-  createRateDifficulty as makeRateDifficulty,
-  difficultyRate,
-  type RateCreateOptions,
-} from "./lib/rateChange";
+import { difficultyRate } from "./lib/rateChange";
 import type { Comment } from "./lib/comments";
 import type { AiModFileFacts } from "./lib/aimodFiles";
 import type { SampleFile } from "./lib/mapSamples";
@@ -140,44 +141,18 @@ import {
   saveProjectCloud,
   findDuplicateProjectsCloud,
   type DuplicateProjectMatch,
-  saveProjectDataCloud,
   loadProjectCloud,
-  loadProjectChartCloud,
-  publishProjectAsset,
-  loadProjectAssets,
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
-import { getSupabaseToken, subscribeSupabase } from "./lib/supabase";
-import {
-  useCollab,
-  type AssetChange,
-  type ProjectSyncChange,
-} from "./hooks/useCollab";
-import {
-  applyNoteOp,
-  applyOp,
-  applyDiffFieldOp,
-  invertNoteOp,
-  type NoteOp,
-  type DiffFieldOp,
-  type CollabOp,
-} from "./lib/ops";
+import { getSupabaseToken } from "./lib/supabase";
 import { myAccess, type AccessRole } from "./lib/collab";
 import { chooseMapperName } from "./lib/mapperName";
 import { validateProject, type ValidationResult } from "./lib/validation";
 import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
-import { pushClip, type DifficultyClip } from "./lib/clipboardStore";
+import { pushClip } from "./lib/clipboardStore";
 import { formatOsuTimestamp } from "./lib/osuTimestamp";
-import {
-  loadClipAssets,
-  placeClipAssets,
-  saveClipAssets,
-  type ClipAsset,
-  type ClipAssetKind,
-} from "./lib/clipboardAssets";
-import { adoptCopiedDifficulty } from "./lib/editorClipboard";
 import {
   CommandPalette,
   type PaletteCommand,
@@ -226,24 +201,7 @@ import { logAnalyticsEvent } from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
-import { usePlaytestInput } from "./hooks/usePlaytestInput";
-import { usePlaytestAutoplay } from "./hooks/usePlaytestAutoplay";
-import {
-  fullLongNotes,
-  fullRiceNotes,
-  fullLongNotesWithin,
-  fullRiceNotesWithin,
-  shiftLongNoteEnds,
-  dropShortLongNotes,
-  copyHitsounds,
-  countHitsounds,
-} from "./lib/noteTools";
-import {
-  hasNoteCollisions,
-  sameNoteGeometry,
-  withoutNoteCollisions,
-  placementFor,
-} from "./lib/noteCollision";
+import { countHitsounds } from "./lib/noteTools";
 import { buildOsuFile, downloadOsu, setFilename } from "./lib/osuExport";
 import { uniqueDifficultyName } from "./lib/rateChange";
 import { ExternalEditModal } from "./components/menus/ExternalEditModal";
@@ -255,27 +213,12 @@ import { snapshotBlobMap } from "./lib/blobSnapshot";
 import type { PackSong } from "./lib/smPackImport";
 import { assertTextImportSize } from "./lib/importLimits";
 import {
-  maniaJudgementWindows,
-  maniaReleaseWindows,
-  clampPlaytestRate,
-} from "./lib/playtestJudgements";
-import { createPlaytestEngine, type PlaytestEngine } from "./lib/playtestEngine";
-import { createPlaytestScoreStore } from "./lib/playtestScoreStore";
-import { findUnplayableNotes } from "./lib/autoplay";
-import {
   PLAYHEAD_FROM_EDGE as PLAYTEST_HIT_LINE_FROM_EDGE,
   resolvePlayfieldLayout,
 } from "./lib/playfieldGeometry";
-import {
-  buildPlaytestNoteIndex,
-  firstNoteAtOrAfter,
-  nearestPlayableNote,
-  type PlaytestNoteIndex,
-} from "./lib/playtestIndex";
 import { type PlayfieldBounds } from "./lib/hudLayout";
 import { HudPreviewViewport } from "./components/HudPreviewViewport";
 import { HudScrubber } from "./components/HudScrubber";
-import { PRESET_SKINS } from "./lib/presetSkins";
 import {
   loadProject,
   requestPersistentStorage,
@@ -313,12 +256,9 @@ import {
   type BackgroundScope,
   type Difficulty,
   type LoadedFile,
-  type LoadedSkin,
-  type ManiaNote,
   type SongMeta,
   type TimingPoint,
   type ViewState,
-  DEFAULT_HUMANIZE,
 } from "./types";
 import type { MapCardPresetOption } from "./lib/mapCard";
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
@@ -334,14 +274,6 @@ import {
 } from "./lib/editorKeybinds";
 import { MAX_UI_SCALE, MIN_UI_SCALE, uiScaleFromWheel } from "./lib/uiScale";
 import { OnScreenDisplay } from "./components/ui/OnScreenDisplay";
-import {
-  MAX_PLAYTEST_SCROLL_SPEED,
-  MIN_PLAYTEST_SCROLL_SPEED,
-  gameplayTime,
-  inputTime,
-  runStartTime,
-  type PlaytestTiming,
-} from "./lib/playtestClock";
 import { osdRange, osdToggle, type OsdNotice } from "./lib/osd";
 import {
   MAX_PLAYFIELD_SCALE,
@@ -360,13 +292,7 @@ import {
 } from "./lib/progress";
 import type { AutoTimeStatus } from "./components/AutoTimePrompt";
 import { useMountedModals } from "./hooks/useMountedModals";
-import {
-  bookmarkInDirection,
-  bookmarkKey,
-  loopAroundTime,
-  remapBookmarkLabels,
-  sortedBookmarks,
-} from "./lib/bookmarks";
+import { remapBookmarkLabels } from "./lib/bookmarks";
 
 /** Lane width for the skin dialog's playfield, independent of the user's own. */
 const SKIN_PREVIEW_SCALE = 0.7;
@@ -377,57 +303,15 @@ const SKIN_PREVIEW_SCALE = 0.7;
 
 
 const LOCAL_AUTOSAVE_MS = 60000;
-/** osu!mania's DelayedResumeOverlay counts 3 over two seconds. */
-const PLAYTEST_RESUME_COUNTDOWN_MS = 2000;
-
-
-/**
- * Where a playtest run is, not how it is going: the score lives in a store
- * the HUD reads (see playtestScoreStore), so judgements do not re-render the
- * editor.
- */
-type PlaytestRuntimeState = {
-  active: boolean;
-  hudEditing: boolean;
-  /** Where the run's notes start: the playhead it was started from. */
-  startTime: number;
-  ended: boolean;
-  paused: boolean;
-  autoplay: boolean;
-  runKey: number;
-  countdownEndsAt: number | null;
-  /** The countdown is bringing a paused run back rather than starting one. */
-  resuming: boolean;
-};
-
-function initialPlaytestState(): PlaytestRuntimeState {
-  return {
-    active: false,
-    hudEditing: false,
-    startTime: 0,
-    ended: false,
-    paused: false,
-    autoplay: false,
-    runKey: 0,
-    countdownEndsAt: null,
-    resuming: false,
-  };
-}
 
 
 
 
 
 
-const TRIM_BROADCAST_MS = 90;
 
-/**
- * The HUD editor plays the map only so the HUD has live numbers to sit against.
- * Scattered timing and the odd miss would make those numbers jump about while
- * something is being placed, so its run is always the perfect autoplay however
- * humanizing is set for a real playtest.
- */
-const PERFECT_AUTOPLAY = { ...DEFAULT_HUMANIZE, enabled: false };
+
+
 
 export default function App() {
   const {
@@ -609,7 +493,6 @@ export default function App() {
   const [duplicateCloudMatches, setDuplicateCloudMatches] = useState<
     DuplicateProjectMatch[] | null
   >(null);
-  const [cloudSyncRetry, setCloudSyncRetry] = useState(0);
   const [publishPattern, setPublishPattern] = useState<PatternNote[] | null>(
     null,
   );
@@ -668,33 +551,6 @@ export default function App() {
       y: rect.top + rect.height * 0.18,
     };
   }, []);
-  const autoplayBeforeHudRef = useRef(false);
-  const playtestEngineRef = useRef<PlaytestEngine | null>(null);
-  /** The notes the engine was built from, to notice edits during a run. */
-  const playtestEngineNotesRef = useRef<ManiaNote[] | null>(null);
-  const [playtestScore] = useState(createPlaytestScoreStore);
-  const playtestNoteIndexRef = useRef<PlaytestNoteIndex | null>(null);
-  const playtestEndArmedRef = useRef(false);
-  /** A run counting in over silence before the song's start. */
-  const playtestPreRollRef = useRef<{
-    from: number;
-    startedAt: number;
-    pausedAt: number | null;
-    timer: number;
-  } | null>(null);
-  // The playfield reads the engine's note states through these.
-  const playtestHiddenView = useMemo(
-    () => ({ current: { has: (id: string) => playtestEngineRef.current?.hidden.has(id) ?? false } }),
-    [],
-  );
-  const playtestHoldingView = useMemo(
-    () => ({ current: { has: (id: string) => playtestEngineRef.current?.holding.has(id) ?? false } }),
-    [],
-  );
-  const playtestDroppedView = useMemo(
-    () => ({ current: { has: (id: string) => playtestEngineRef.current?.dropped.has(id) ?? false } }),
-    [],
-  );
   const difficultiesRef = useRef(difficulties);
   difficultiesRef.current = difficulties;
   const audioFilesRef = useRef(audioFiles);
@@ -804,39 +660,6 @@ export default function App() {
     setAppSettings,
     t,
   });
-  const cloudProjectIdRef = useRef(cloudProjectId);
-  cloudProjectIdRef.current = cloudProjectId;
-
-  const liveEnabled = !!cloudProjectId && !!authUser;
-  const canEdit =
-    !playtest.active &&
-    (!cloudProjectId || myRole === "owner" || myRole === "editor");
-  const sessionActiveRef = useRef(false);
-  sessionActiveRef.current = liveEnabled;
-  const canEditRef = useRef(true);
-  canEditRef.current = canEdit;
-
-  const applyingRemoteRef = useRef(false);
-  const opUndoRef = useRef<NoteOp[]>([]);
-  const opRedoRef = useRef<NoteOp[]>([]);
-  const pendingDiffOpRef = useRef<DiffFieldOp | null>(null);
-  const lastDiffOpSendRef = useRef(0);
-  const diffOpTimerRef = useRef<number | null>(null);
-  const pendingDocSyncRef = useRef(false);
-  const cloudSyncTimerRef = useRef<number | null>(null);
-  const localEditVersionRef = useRef(0);
-  const cloudRevisionRef = useRef<number | null>(null);
-  const ownMutationIdsRef = useRef<Set<string>>(new Set());
-  const collabRef = useRef<ReturnType<typeof useCollab> | null>(null);
-  const publishedAssetBlobsRef = useRef<Map<string, Blob>>(new Map());
-  const assetPublishPromiseRef = useRef<Promise<void>>(Promise.resolve());
-  const cloudSavePromiseRef = useRef<Promise<void>>(Promise.resolve());
-  const [assetPublishTick, setAssetPublishTick] = useState(0);
-  const [assetSyncTick, setAssetSyncTick] = useState(0);
-  const assetAttemptsRef = useRef<Map<string, number>>(new Map());
-  const forcedAssetReloadsRef = useRef<Set<string>>(new Set());
-  const cloudRefreshIdRef = useRef(0);
-  const pendingSeekRef = useRef<number | null>(null);
 
   const recoveryChart = useMemo<RecoveryChart>(
     () => ({ meta, timingPoints, difficulties, activeId, bgScope }),
@@ -869,242 +692,6 @@ export default function App() {
   });
   const localProjectIdRef = useRef(localProjectId);
   localProjectIdRef.current = localProjectId;
-
-  const markStructural = useCallback(() => {
-    localEditVersionRef.current += 1;
-    if (sessionActiveRef.current) pendingDocSyncRef.current = true;
-    noteRecoveryEdit();
-  }, [noteRecoveryEdit]);
-
-  useEffect(() => {
-    if (!cloudProjectId || !authUser) return;
-    if (cloudOwnerId === authUser.id) {
-      setMyRole("owner");
-      return;
-    }
-    return subscribeSupabase((supabase) =>
-      supabase
-        .channel(`collab:${cloudProjectId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "project_collaborators",
-            filter: `project_id=eq.${cloudProjectId}`,
-          },
-          () => {
-            myAccess(cloudProjectId, authUser.id)
-              .then(setMyRole)
-              .catch(() => {});
-          },
-        )
-        .subscribe(),
-    );
-  }, [cloudProjectId, cloudOwnerId, authUser]);
-
-  const applyRemoteOp = useCallback((op: CollabOp) => {
-    applyingRemoteRef.current = true;
-    setDifficulties((prev) => applyOp(prev, op));
-  }, []);
-  const refreshFromCloud = useCallback((change?: ProjectSyncChange) => {
-    const pid = cloudProjectIdRef.current;
-    if (!pid) return;
-    if (change?.mutationId && ownMutationIdsRef.current.has(change.mutationId)) {
-      if (change.revision !== null) cloudRevisionRef.current = change.revision;
-      return;
-    }
-    if (
-      change?.revision !== null &&
-      change?.revision !== undefined &&
-      cloudRevisionRef.current !== null &&
-      change.revision <= cloudRevisionRef.current
-    ) {
-      return;
-    }
-    const refreshId = ++cloudRefreshIdRef.current;
-    const editVersion = localEditVersionRef.current;
-    void loadProjectChartCloud(pid)
-      .then((snapshot) => {
-        if (refreshId !== cloudRefreshIdRef.current) return;
-        if (
-          localEditVersionRef.current !== editVersion ||
-          pendingDocSyncRef.current ||
-          cloudSyncTimerRef.current !== null
-        ) {
-          return;
-        }
-        if (
-          snapshot.revision !== null &&
-          cloudRevisionRef.current !== null &&
-          snapshot.revision <= cloudRevisionRef.current
-        ) {
-          return;
-        }
-        if (snapshot.revision !== null) cloudRevisionRef.current = snapshot.revision;
-        const data = snapshot.data;
-        const localChart = JSON.stringify({
-          meta: metaRef.current,
-          timingPoints: timingPointsRef.current,
-          difficulties: difficultiesRef.current,
-        });
-        const remoteChart = JSON.stringify({
-          meta: data.meta,
-          timingPoints: data.timingPoints,
-          difficulties: data.difficulties,
-        });
-        if (localChart === remoteChart) return;
-        applyingRemoteRef.current = true;
-        setMeta(data.meta);
-        setTimingPoints(normalizeTimingPoints(data.timingPoints));
-        const diffs = (
-          data.difficulties?.length ? data.difficulties : [makeDifficulty()]
-        ).map((d) => ({
-          ...d,
-          timingPoints: normalizeTimingPoints(d.timingPoints),
-        }));
-        setDifficulties(diffs);
-        setActiveId((cur) =>
-          diffs.some((d) => d.id === cur) ? cur : diffs[0].id,
-        );
-      })
-      .catch(() => {});
-  }, []);
-
-  const showPeerNotice = useCallback((text: string, avatar: string | null) => {
-    setPeerNotice({ key: Date.now(), text, avatar });
-  }, []);
-
-  const collab = useCollab({
-    projectId: cloudProjectId,
-    enabled: liveEnabled,
-    invisible: invisibleMode,
-    me: authUser
-      ? { id: authUser.id, username: authUser.username, avatar: authUser.avatar_url }
-      : null,
-    onRemoteOp: applyRemoteOp,
-    onRefresh: refreshFromCloud,
-    onAssetChange: useCallback((change: AssetChange) => {
-      if (change.filename) {
-        forcedAssetReloadsRef.current.add(change.filename);
-        assetAttemptsRef.current.delete(change.filename);
-      }
-      setAssetSyncTick((tick) => tick + 1);
-    }, []),
-    onPeerJoin: useCallback(
-      (p: { username: string; avatar: string | null }) =>
-        showPeerNotice(`${p.username} joined the session`, p.avatar),
-      [showPeerNotice],
-    ),
-    onPeerLeave: useCallback(
-      (p: { username: string; avatar: string | null }) =>
-        showPeerNotice(`${p.username} left`, p.avatar),
-      [showPeerNotice],
-    ),
-    onNotice: useCallback(
-      (n: { text: string; avatar: string | null }) =>
-        showPeerNotice(n.text, n.avatar),
-      [showPeerNotice],
-    ),
-  });
-  collabRef.current = collab;
-
-  const queueCloudSave = useCallback(
-    (projectId: string, data: Parameters<typeof saveProjectDataCloud>[1]) => {
-      const mutationId = crypto.randomUUID();
-      ownMutationIdsRef.current.add(mutationId);
-      if (ownMutationIdsRef.current.size > 1_000) {
-        const oldest = ownMutationIdsRef.current.values().next().value;
-        if (oldest) ownMutationIdsRef.current.delete(oldest);
-      }
-      const save = async () => {
-        await assetPublishPromiseRef.current;
-        const stamp = await saveProjectDataCloud(projectId, data, mutationId);
-        if (stamp.revision !== null) cloudRevisionRef.current = stamp.revision;
-      };
-      const queued = cloudSavePromiseRef.current
-        .catch(() => {})
-        .then(save)
-        .catch((error) => {
-          ownMutationIdsRef.current.delete(mutationId);
-          throw error;
-        });
-      cloudSavePromiseRef.current = queued;
-      return queued;
-    },
-    [],
-  );
-
-  const commitNoteOp = useCallback((op: NoteOp) => {
-    if (!canEditRef.current) return;
-    markStructural();
-    setDifficulties((prev) => applyNoteOp(prev, op));
-    if (sessionActiveRef.current) {
-      opUndoRef.current.push(op);
-      if (opUndoRef.current.length > 300) opUndoRef.current.shift();
-      opRedoRef.current = [];
-      collabRef.current?.sendOp(op);
-    }
-  }, [markStructural]);
-
-  const flushDiffOp = useCallback(() => {
-    if (diffOpTimerRef.current !== null) {
-      window.clearTimeout(diffOpTimerRef.current);
-      diffOpTimerRef.current = null;
-    }
-    const op = pendingDiffOpRef.current;
-    pendingDiffOpRef.current = null;
-    if (!op) return;
-    lastDiffOpSendRef.current = Date.now();
-    collabRef.current?.sendOp(op);
-  }, []);
-
-  const commitDiffFields = useCallback(
-    (fields: Partial<Record<keyof DiffFieldOp["fields"], number | null>>) => {
-      if (!canEditRef.current) return;
-      markStructural();
-      const diffId = activeIdRef.current;
-      const op: DiffFieldOp = { t: "diff.fields", diffId, fields };
-      setDifficulties((prev) => applyDiffFieldOp(prev, op));
-      if (!sessionActiveRef.current) return;
-      const prevOp = pendingDiffOpRef.current;
-      pendingDiffOpRef.current =
-        prevOp && prevOp.diffId === diffId
-          ? { t: "diff.fields", diffId, fields: { ...prevOp.fields, ...fields } }
-          : op;
-      const elapsed = Date.now() - lastDiffOpSendRef.current;
-      if (elapsed >= TRIM_BROADCAST_MS) {
-        flushDiffOp();
-      } else if (diffOpTimerRef.current === null) {
-        diffOpTimerRef.current = window.setTimeout(
-          flushDiffOp,
-          TRIM_BROADCAST_MS - elapsed,
-        );
-      }
-    },
-    [flushDiffOp, markStructural],
-  );
-
-  const announceAssetChange = useCallback((action: string) => {
-    if (!sessionActiveRef.current) return;
-    const name = authUserRef.current?.username ?? "A collaborator";
-    collabRef.current?.sendNotice(`${name} ${action}`);
-  }, []);
-
-  const noop = useCallback(() => {}, []);
-
-  const updateMeta = useCallback(
-    (m: SongMeta) => {
-      if (!canEditRef.current) return;
-      markStructural();
-      setMeta(m);
-    },
-    [markStructural],
-  );
-
-  useEffect(() => {
-    if (liveEnabled) collabRef.current?.updatePresence({ activeDiffId: activeId });
-  }, [activeId, liveEnabled]);
 
   const audioFile = useMemo<LoadedFile | null>(() => {
     const named = active.audioFilename ? audioFiles[active.audioFilename] : null;
@@ -1236,183 +823,70 @@ export default function App() {
     sampleFiles,
   );
 
-  useEffect(() => {
-    if (!liveEnabled) return;
-    const id = window.setInterval(() => {
-      collabRef.current?.updatePresence({
-        playheadMs: Math.round(currentTimeRef.current),
-      });
-    }, 500);
-    return () => window.clearInterval(id);
-  }, [liveEnabled]);
-
-  useEffect(() => {
-    if (!cloudProjectId) return;
-    const savePosition = () => {
-      try {
-        localStorage.setItem(
-          `mania:pos:${cloudProjectId}`,
-          JSON.stringify({
-            activeId,
-            playheadMs: Math.round(currentTimeRef.current),
-          }),
-        );
-      } catch {
-      }
-    };
-    const id = window.setInterval(savePosition, 1000);
-    return () => {
-      window.clearInterval(id);
-      savePosition();
-    };
-  }, [cloudProjectId, activeId]);
-
-  useEffect(() => {
-    if (pendingSeekRef.current != null && audio.duration > 0) {
-      seekAudio(Math.min(pendingSeekRef.current, audio.duration));
-      pendingSeekRef.current = null;
-    }
-  }, [audio.duration, seekAudio]);
-
-  useEffect(() => {
-    if (!cloudProjectId || !liveEnabled || !canEdit) return;
-    const pending: { kind: "audio" | "bg"; file: LoadedFile }[] = [];
-    for (const f of Object.values(audioFiles))
-      if (publishedAssetBlobsRef.current.get(`audio:${f.name}`) !== f.blob)
-        pending.push({ kind: "audio", file: f });
-    for (const f of Object.values(bgFiles))
-      if (publishedAssetBlobsRef.current.get(`bg:${f.name}`) !== f.blob)
-        pending.push({ kind: "bg", file: f });
-    if (!pending.length) return;
-
-    const publish = async () => {
-      for (const { kind, file } of pending) {
-        const key = `${kind}:${file.name}`;
-        if (publishedAssetBlobsRef.current.get(key) === file.blob) continue;
-        let published = false;
-        let lastError: unknown;
-        for (let attempt = 0; attempt < 3 && !published; attempt += 1) {
-          try {
-            await publishProjectAsset(cloudProjectId, kind, {
-              name: file.name,
-              blob: file.blob,
-            });
-            publishedAssetBlobsRef.current.set(key, file.blob);
-            published = true;
-          } catch (error) {
-            lastError = error;
-            if (attempt < 2)
-              await new Promise((resolve) =>
-                window.setTimeout(resolve, 500 * 2 ** attempt),
-              );
-          }
-        }
-        if (!published) throw lastError;
-      }
-    };
-    const queued = assetPublishPromiseRef.current.catch(() => {}).then(publish);
-    assetPublishPromiseRef.current = queued;
-    let retryTimer: number | undefined;
-    let cancelled = false;
-    void queued.catch(() => {
-      if (cancelled) return;
-      retryTimer = window.setTimeout(
-        () => setAssetPublishTick((tick) => tick + 1),
-        1500,
-      );
-    });
-    return () => {
-      cancelled = true;
-      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
-    };
-  }, [cloudProjectId, liveEnabled, canEdit, audioFiles, bgFiles, assetPublishTick]);
-
-  useEffect(() => {
-    if (!cloudProjectId || !liveEnabled) return;
-    const ATTEMPT_CAP = 20;
-    const wanted = new Set<string>();
-    const referenced = new Set<string>();
-    for (const d of difficulties) {
-      if (d.audioFilename) {
-        referenced.add(d.audioFilename);
-        if (!audioFiles[d.audioFilename]) wanted.add(d.audioFilename);
-      }
-      if (d.backgroundFilename) {
-        referenced.add(d.backgroundFilename);
-        if (!bgFiles[d.backgroundFilename]) wanted.add(d.backgroundFilename);
-      }
-    }
-    for (const name of forcedAssetReloadsRef.current)
-      if (referenced.has(name)) wanted.add(name);
-    const attempts = assetAttemptsRef.current;
-    for (const name of [...attempts.keys()])
-      if (!wanted.has(name)) attempts.delete(name);
-
-    const todo = [...wanted].filter((n) => (attempts.get(n) ?? 0) < ATTEMPT_CAP);
-    if (!todo.length) return;
-
-    let cancelled = false;
-    let retry: number | undefined;
-    void (async () => {
-      for (const n of todo) attempts.set(n, (attempts.get(n) ?? 0) + 1);
-      let fetched: Awaited<ReturnType<typeof loadProjectAssets>> = [];
-      try {
-        fetched = await loadProjectAssets(cloudProjectId, todo);
-      } catch {
-        fetched = [];
-      }
-      if (cancelled) return;
-      if (fetched.length) {
-        const newAudio: Record<string, LoadedFile> = {};
-        const newBg: Record<string, LoadedFile> = {};
-        for (const a of fetched) {
-          const lf: LoadedFile = {
-            name: a.name,
-            url: URL.createObjectURL(a.blob),
-            blob: a.blob,
-          };
-          if (a.kind === "audio") newAudio[a.name] = lf;
-          else if (a.kind === "bg") newBg[a.name] = lf;
-          else {
-            URL.revokeObjectURL(lf.url);
-            continue;
-          }
-          publishedAssetBlobsRef.current.set(`${a.kind}:${a.name}`, a.blob);
-          forcedAssetReloadsRef.current.delete(a.name);
-          attempts.delete(a.name);
-        }
-        if (Object.keys(newAudio).length) {
-          setAudioFiles((prev) => {
-            for (const [name, file] of Object.entries(newAudio)) {
-              const old = prev[name];
-              if (old && old.blob !== file.blob) URL.revokeObjectURL(old.url);
-            }
-            return { ...prev, ...newAudio };
-          });
-        }
-        if (Object.keys(newBg).length) {
-          setBgFiles((prev) => {
-            for (const [name, file] of Object.entries(newBg)) {
-              const old = prev[name];
-              if (old && old.blob !== file.blob) URL.revokeObjectURL(old.url);
-            }
-            return { ...prev, ...newBg };
-          });
-        }
-      }
-      const anyRetryable = todo.some(
-        (n) =>
-          !fetched.some((f) => f.name === n) &&
-          (attempts.get(n) ?? 0) < ATTEMPT_CAP,
-      );
-      if (anyRetryable && !cancelled)
-        retry = window.setTimeout(() => setAssetSyncTick((t) => t + 1), 1200);
-    })();
-    return () => {
-      cancelled = true;
-      if (retry) window.clearTimeout(retry);
-    };
-  }, [cloudProjectId, liveEnabled, difficulties, audioFiles, bgFiles, assetSyncTick]);
+  const noop = useCallback(() => {}, []);
+  const audioDuration = audio.duration;
+  const {
+    announceAssetChange,
+    applyingRemoteRef,
+    assetAttemptsRef,
+    canEdit,
+    canEditRef,
+    cloudProjectIdRef,
+    cloudRevisionRef,
+    cloudSavePromiseRef,
+    collab,
+    collabRef,
+    commitDiffFields,
+    commitNoteOp,
+    liveEnabled,
+    localEditVersionRef,
+    markStructural,
+    opRedoRef,
+    opUndoRef,
+    ownMutationIdsRef,
+    pendingDocSyncRef,
+    pendingSeekRef,
+    publishedAssetBlobsRef,
+    sessionActiveRef,
+    updateMeta,
+  } = useCollabSession({
+    activeId,
+    activeIdRef,
+    audioDuration,
+    audioFiles,
+    authUser,
+    authUserRef,
+    bgFiles,
+    bgScope,
+    cloudOwnerId,
+    cloudProjectId,
+    currentTimeRef,
+    difficulties,
+    difficultiesRef,
+    invisibleMode,
+    localProjectIdRef,
+    markRecoverySaved,
+    meta,
+    metaRef,
+    myRole,
+    noteRecoveryEdit,
+    playtest,
+    recoverySaveToken,
+    seekAudio,
+    setActiveId,
+    setAudioFiles,
+    setBgFiles,
+    setCloudError,
+    setDifficulties,
+    setMeta,
+    setMyRole,
+    setPeerNotice,
+    setTimingPoints,
+    t,
+    timingPoints,
+    timingPointsRef,
+    view,
+  });
 
   // Alt+wheel adjusts whichever volume ring was last hovered, Master by default.
   const volumeTargetRef = useRef<VolumeMeter>("master");
@@ -1514,616 +988,65 @@ export default function App() {
   const [autoTimeResult, setAutoTimeResult] = useState<BpmDetection | null>(
     null,
   );
-
-  const playtestSettings = appSettings.playtest;
-  const playtestSettingsRef = useRef(playtestSettings);
-  playtestSettingsRef.current = playtestSettings;
-
-  // Playtest can draw with a different skin than the editor. It is imported
-  // as soon as it is picked, so starting a run never waits on it; until it is
-  // ready, or if it has gone missing, the editor's skin stands in.
-  const [playtestSkin, setPlaytestSkin] = useState<LoadedSkin | null>(null);
-  const playtestSkinChoice = playtestSettings.skin;
-  const playtestSkinSource = playtestSkinChoice?.source ?? null;
-  const playtestSkinFile =
-    playtestSkinChoice && playtestSkinChoice.source !== "none"
-      ? playtestSkinChoice.fileName
-      : null;
-  const skinLibraryRef = useRef(skinLibrary);
-  skinLibraryRef.current = skinLibrary;
-  const playtestSavedSkin =
-    playtestSkinSource === "saved"
-      ? skinLibrary.find((saved) => saved.name === playtestSkinFile)
-      : undefined;
-  // Reloading the library hands back fresh blobs; only a re-import of this
-  // skin should load it again.
-  const playtestSavedStamp = playtestSavedSkin
-    ? (playtestSavedSkin.savedAt ?? 0)
-    : null;
-  const playtestReusesEditorSkin =
-    playtestSkinFile !== null && skin?.fileName === playtestSkinFile;
-  useEffect(() => {
-    const replace = (next: LoadedSkin | null) =>
-      setPlaytestSkin((prev) => {
-        if (prev && prev !== next) prev.objectUrls.forEach(URL.revokeObjectURL);
-        return next;
-      });
-    if (!playtestSkinFile || playtestReusesEditorSkin) {
-      replace(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      let blob: Blob | null = null;
-      if (playtestSkinSource === "preset") {
-        const preset = PRESET_SKINS.find((p) => p.fileName === playtestSkinFile);
-        if (preset) {
-          blob = await fetch(preset.url)
-            .then((res) => (res.ok ? res.blob() : null))
-            .catch(() => null);
-        }
-      } else {
-        blob =
-          skinLibraryRef.current.find((saved) => saved.name === playtestSkinFile)
-            ?.blob ?? null;
-      }
-      const { importOsk } = await import("./lib/skinImport");
-      const loaded = blob
-        ? await importOsk(blob, playtestSkinFile).catch(() => null)
-        : null;
-      if (cancelled) {
-        loaded?.objectUrls.forEach(URL.revokeObjectURL);
-        return;
-      }
-      replace(loaded);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    playtestSkinFile,
-    playtestSkinSource,
-    playtestSavedStamp,
-    playtestReusesEditorSkin,
-  ]);
-
-  const playtestLook =
-    playtest.active && playtestSkinChoice
-      ? playtestSkinChoice.source === "none"
-        ? null
-        : (playtestSkin ?? skin)
-      : skin;
-  const activeSkin = playtestLook?.keymodes[active.keyCount] ?? null;
-  const playtestRate = clampPlaytestRate(playtestSettings.rate);
-  const playtestWindows = useMemo(
-    () => maniaJudgementWindows(active.overallDifficulty, playtestRate),
-    [active.overallDifficulty, playtestRate],
-  );
-  const playtestReleaseWindows = useMemo(
-    () => maniaReleaseWindows(active.overallDifficulty, playtestRate),
-    [active.overallDifficulty, playtestRate],
-  );
-  const playtestWindowsRef = useRef(playtestWindows);
-  playtestWindowsRef.current = playtestWindows;
-  const playtestTiming = useMemo<PlaytestTiming>(
-    () => ({
-      rate: playtestRate,
-      audioOffsetMs: playtestSettings.audioOffsetMs,
-      inputOffsetMs: playtestSettings.inputOffsetMs,
-    }),
-    [playtestRate, playtestSettings.audioOffsetMs, playtestSettings.inputOffsetMs],
-  );
-  const playtestTimingRef = useRef(playtestTiming);
-  playtestTimingRef.current = playtestTiming;
-
-  const ensurePlaytestNoteIndex = useCallback(
-    (notes: ManiaNote[], keyCount: number): PlaytestNoteIndex => {
-      const existing = playtestNoteIndexRef.current;
-      if (existing && existing.source === notes && existing.keyCount === keyCount) {
-        return existing;
-      }
-      const next = buildPlaytestNoteIndex(notes, keyCount);
-      playtestNoteIndexRef.current = next;
-      return next;
-    },
-    [],
-  );
-
-  /** The music's time, or the count-in's while a run starts before zero. */
-  const playtestAudioTime = useCallback(
-    (now = performance.now()) => {
-      const preRoll = playtestPreRollRef.current;
-      if (preRoll) {
-        const at = preRoll.pausedAt ?? now;
-        const time =
-          preRoll.from + (at - preRoll.startedAt) * playtestTimingRef.current.rate;
-        if (time < 0) return time;
-      }
-      return getCurrentTime();
-    },
-    [getCurrentTime],
-  );
-
-  /** The time the playfield shows, which is also where misses are judged. */
-  const playtestGameplayTime = useCallback(
-    () => gameplayTime(playtestAudioTime(), playtestTimingRef.current),
-    [playtestAudioTime],
-  );
-
-  /** The time a key press or release with this event stamp lands on. */
-  const playtestInputTime = useCallback(
-    (stamp?: number) => {
-      const now = performance.now();
-      return inputTime(playtestAudioTime(now), now, stamp, playtestTimingRef.current);
-    },
-    [playtestAudioTime],
-  );
-
-  const clearPlaytestPreRoll = useCallback(() => {
-    const preRoll = playtestPreRollRef.current;
-    if (preRoll?.timer) window.clearTimeout(preRoll.timer);
-    playtestPreRollRef.current = null;
-  }, []);
-
-  /** Starts the song once the count-in before zero has run out. */
-  const armPlaytestPreRoll = useCallback(() => {
-    const preRoll = playtestPreRollRef.current;
-    if (!preRoll) return;
-    if (preRoll.timer) window.clearTimeout(preRoll.timer);
-    const remaining =
-      -preRoll.from / playtestTimingRef.current.rate -
-      (performance.now() - preRoll.startedAt);
-    preRoll.timer = window.setTimeout(() => {
-      preRoll.timer = 0;
-      playAudio();
-    }, Math.max(0, remaining));
-  }, [playAudio]);
-
-  // Built on the first key press of a run rather than on every edit: only
-  // playtest looks notes up by id.
-  const noteByIdRef = useRef<{ notes: ManiaNote[]; byId: Map<string, ManiaNote> } | null>(null);
-  const playtestNoteById = useCallback(
-    (id: string) => {
-      const notes = activeNotesRef.current;
-      let cache = noteByIdRef.current;
-      if (!cache || cache.notes !== notes) {
-        cache = { notes, byId: new Map(notes.map((note) => [note.id, note])) };
-        noteByIdRef.current = cache;
-      }
-      return cache.byId.get(id);
-    },
-    [],
-  );
-
-  const resetPlaytestRuntime = useCallback(
-    (startTime: number) => {
-      playtestEngineRef.current = createPlaytestEngine({
-        notes: active.notes,
-        keyCount: active.keyCount,
-        windows: playtestWindowsRef.current,
-        startTime,
-      });
-      playtestEngineNotesRef.current = active.notes;
-      playtestScore.reset(startTime);
-      playtestEndArmedRef.current = false;
-    },
-    [active.keyCount, active.notes, playtestScore],
-  );
-
-  const handlePlaytestPress = useCallback(
-    (column: number, atMs?: number, targetId?: string, stamp?: number) => {
-      const pt = playtestRef.current;
-      const engine = playtestEngineRef.current;
-      if (!engine || !pt.active || pt.ended || pt.paused || pt.countdownEndsAt !== null) {
-        return;
-      }
-      const time = atMs ?? playtestInputTime(stamp);
-      const events = engine.press(column, time, targetId);
-      playtestScore.apply(events);
-      // osu!mania sounds every key press: the note it hit, or else the
-      // nearest note in that column.
-      const hit = events[0]?.kind === "judgement" ? events[0].result.noteId : null;
-      const note = hit
-        ? playtestNoteById(hit)
-        : nearestPlayableNote(
-            ensurePlaytestNoteIndex(active.notes, active.keyCount).byColumn[column] ?? [],
-            time,
-            Infinity,
-            () => false,
-          );
-      if (note) playtestHitsound(note);
-    },
-    [
-      active.keyCount,
-      active.notes,
-      ensurePlaytestNoteIndex,
-      playtestHitsound,
-      playtestInputTime,
-      playtestNoteById,
-      playtestScore,
-    ],
-  );
-
-  const handlePlaytestRelease = useCallback(
-    (column: number, atMs?: number, targetId?: string, stamp?: number) => {
-      const pt = playtestRef.current;
-      const engine = playtestEngineRef.current;
-      if (!engine || !pt.active || pt.ended || pt.paused || pt.countdownEndsAt !== null) {
-        return;
-      }
-      playtestScore.apply(
-        engine.release(column, atMs ?? playtestInputTime(stamp), targetId),
-      );
-    },
-    [playtestInputTime, playtestScore],
-  );
-
-  const exitPlaytest = useCallback(() => {
-    const wasEditing = playtestRef.current.hudEditing;
-    clearPlaytestPreRoll();
-    pauseAudio();
-    setPlaytest((prev) => ({
-      ...prev,
-      active: false,
-      hudEditing: false,
-      autoplay: wasEditing ? autoplayBeforeHudRef.current : prev.autoplay,
-      ended: false,
-      paused: false,
-      countdownEndsAt: null,
-      resuming: false,
-    }));
-    playtestEngineRef.current = null;
-    playtestEngineNotesRef.current = null;
-    if (wasEditing) openSettings("Playtest");
-  }, [clearPlaytestPreRoll, openSettings, pauseAudio]);
-
-  // Starts a run at `startTime` like osu!'s editor test play: notes before it
-  // are left out, and play goes on from there. The music starts right away,
-  // backed up when needed so the first note has the lead-in, and before the
-  // song's start the run counts in over silence.
-  const startPlaytest = useCallback(
-    (startTime = getCurrentTime(), { hudEditing = false }: { hudEditing?: boolean } = {}) => {
-      if (!audioFile || !projectStarted) return;
-      if (hudEditing && !playtestRef.current.hudEditing) {
-        autoplayBeforeHudRef.current = playtestRef.current.autoplay;
-      }
-      const clamped = Math.max(0, Math.min(startTime, audio.duration || startTime));
-      setModal(null);
-      setCommentsOpen(false);
-      void logAnalyticsEvent("playtest_started", authUserRef.current?.id).catch(
-        () => {},
-      );
-      clearPlaytestPreRoll();
-      pauseAudio();
-      const rate = clampPlaytestRate(playtestSettingsRef.current.rate);
-      setAudioPlaybackRate(rate, 0);
-      const index = ensurePlaytestNoteIndex(active.notes, active.keyCount);
-      const first = index.sorted[firstNoteAtOrAfter(index.sorted, clamped)];
-      const from = runStartTime(clamped, first?.startTime ?? null, rate);
-      resetPlaytestRuntime(clamped);
-      setPlaytest((prev) => ({
-        ...initialPlaytestState(),
-        active: true,
-        hudEditing,
-        startTime: clamped,
-        autoplay: hudEditing || prev.autoplay,
-        runKey: prev.runKey + 1,
-      }));
-      if (from >= 0) {
-        seekAudio(from);
-        playAudio();
-      } else {
-        seekAudio(0);
-        playtestPreRollRef.current = {
-          from,
-          startedAt: performance.now(),
-          pausedAt: null,
-          timer: 0,
-        };
-        armPlaytestPreRoll();
-      }
-    },
-    [
-      active.keyCount,
-      active.notes,
-      armPlaytestPreRoll,
-      audio.duration,
-      audioFile,
-      clearPlaytestPreRoll,
-      ensurePlaytestNoteIndex,
-      getCurrentTime,
-      pauseAudio,
-      playAudio,
-      projectStarted,
-      resetPlaytestRuntime,
-      seekAudio,
-      setAudioPlaybackRate,
-    ],
-  );
-
-  const restartPlaytest = useCallback(() => {
-    const current = playtestRef.current;
-    startPlaytest(current.startTime, { hudEditing: current.hudEditing });
-  }, [startPlaytest]);
-
-  useEffect(() => {
-    if (playtest.active && playtest.hudEditing && playtest.ended) {
-      startPlaytest(0, { hudEditing: true });
-    }
-  }, [playtest.active, playtest.hudEditing, playtest.ended, startPlaytest]);
-
-  // Resuming counts down (osu!mania's DelayedResumeOverlay) and then plays on.
-  useEffect(() => {
-    const countdownEndsAt = playtest.countdownEndsAt;
-    if (!playtest.active || playtest.ended || countdownEndsAt === null) return;
-    const start = () => {
-      const current = playtestRef.current;
-      if (!current.active || current.countdownEndsAt !== countdownEndsAt) return;
-      setPlaytest((prev) =>
-        prev.active && prev.countdownEndsAt === countdownEndsAt
-          ? { ...prev, countdownEndsAt: null, resuming: false }
-          : prev,
-      );
-      // The rate may have been changed from the pause menu.
-      setAudioPlaybackRate(playtestTimingRef.current.rate, 0);
-      const preRoll = playtestPreRollRef.current;
-      if (preRoll && preRoll.pausedAt !== null) {
-        preRoll.startedAt += performance.now() - preRoll.pausedAt;
-        preRoll.pausedAt = null;
-        if (playtestAudioTime() < 0) {
-          armPlaytestPreRoll();
-          return;
-        }
-      }
-      playAudio();
-    };
-    const remaining = countdownEndsAt - performance.now();
-    if (remaining <= 0) {
-      start();
-      return;
-    }
-    const timer = window.setTimeout(start, remaining);
-    return () => window.clearTimeout(timer);
-  }, [
-    armPlaytestPreRoll,
-    playAudio,
-    playtest.active,
-    playtest.countdownEndsAt,
-    playtest.ended,
-    playtestAudioTime,
-    setAudioPlaybackRate,
-  ]);
-
-  const pausePlaytest = useCallback(() => {
-    const preRoll = playtestPreRollRef.current;
-    if (preRoll && preRoll.pausedAt === null) {
-      if (preRoll.timer) window.clearTimeout(preRoll.timer);
-      preRoll.timer = 0;
-      preRoll.pausedAt = performance.now();
-    }
-    setPlaytest((prev) =>
-      prev.active && !prev.ended && !prev.paused
-        ? { ...prev, paused: true }
-        : prev,
-    );
-    pauseAudio();
-  }, [pauseAudio]);
-
-  const resumePlaytest = useCallback(() => {
-    setPlaytest((prev) =>
-      prev.active && !prev.ended && prev.paused
-        ? {
-            ...prev,
-            paused: false,
-            resuming: true,
-            countdownEndsAt: performance.now() + PLAYTEST_RESUME_COUNTDOWN_MS,
-          }
-        : prev,
-    );
-  }, []);
-
-  const togglePlaytestPause = useCallback(() => {
-    const pt = playtestRef.current;
-    if (!pt.active || pt.ended) return;
-    if (pt.paused) resumePlaytest();
-    else pausePlaytest();
-  }, [pausePlaytest, resumePlaytest]);
-
-  const toggleAutoplay = useCallback(() => {
-    setPlaytest((prev) =>
-      prev.active && !prev.ended ? { ...prev, autoplay: !prev.autoplay } : prev,
-    );
-  }, []);
-
-  const handleHumanPress = useCallback(
-    (column: number, stamp: number) => {
-      if (playtestRef.current.autoplay) return;
-      handlePlaytestPress(column, undefined, undefined, stamp);
-    },
-    [handlePlaytestPress],
-  );
-
-  const handleHumanRelease = useCallback(
-    (column: number, stamp: number) => {
-      if (playtestRef.current.autoplay) return;
-      handlePlaytestRelease(column, undefined, undefined, stamp);
-    },
-    [handlePlaytestRelease],
-  );
-
-  // In-game scroll speed, on osu!'s keys.
-  const adjustPlaytestScrollSpeed = useCallback(
-    (direction: 1 | -1) => {
-      setAppSettings((s) => {
-        const scrollSpeed = Math.round(
-          Math.min(
-            MAX_PLAYTEST_SCROLL_SPEED,
-            Math.max(MIN_PLAYTEST_SCROLL_SPEED, s.playtest.scrollSpeed + direction),
-          ),
-        );
-        announceShortcut(
-          osdRange(
-            t("osd.scrollSpeed"),
-            String(scrollSpeed),
-            scrollSpeed,
-            MIN_PLAYTEST_SCROLL_SPEED,
-            MAX_PLAYTEST_SCROLL_SPEED,
-            [
-              editorKeyLabel(editorKeybindsRef.current.zoomOut),
-              editorKeyLabel(editorKeybindsRef.current.zoomIn),
-            ],
-          ),
-        );
-        return { ...s, playtest: { ...s.playtest, scrollSpeed } };
-      });
-    },
-    [announceShortcut, t, setAppSettings],
-  );
-
-  const playtestSpeedKeys = useMemo(
+  const modalRef = useRef<ModalId>(null);
+  modalRef.current = modal;
+  const editorKeybinds = useMemo(
     () => normalizeEditorKeybinds(appSettings.editorKeybinds),
     [appSettings.editorKeybinds],
   );
-  const { heldKeys: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef } =
-    usePlaytestInput({
-      active: playtest.active && !playtest.hudEditing && playtest.countdownEndsAt === null,
-      paused: playtest.paused,
-      keyCount: active.keyCount,
-      keybinds: playtestSettings.keybinds,
-      quickRestartCode: playtestSettings.quickRestartKey,
-      scrollSpeedDownCode: playtestSpeedKeys.zoomOut,
-      scrollSpeedUpCode: playtestSpeedKeys.zoomIn,
-      onPress: handleHumanPress,
-      onRelease: handleHumanRelease,
-      onPause: togglePlaytestPause,
-      onRestart: restartPlaytest,
-      onToggleAutoplay: toggleAutoplay,
-      onScrollSpeed: adjustPlaytestScrollSpeed,
-    });
-
-  const playtestRunNotes = useMemo(() => {
-    if (!playtest.active) return active.notes;
-    // A run is a test from where it was started, so it leaves out what is
-    // behind. The HUD editor is scrubbed rather than played, and keeps the
-    // whole chart the way the editor always has it: seeking there moves the
-    // playhead without throwing away everything before it, which otherwise
-    // empties the density graph and moves the note count as it is dragged.
-    const from = playtest.hudEditing
-      ? active.notes
-      : active.notes.filter((note) => note.startTime >= playtest.startTime);
-    if (!playtest.hudEditing) return from;
-    // The HUD editor's run is only a backdrop to place the HUD against, so the
-    // notes autoplay cannot reach — a stack in one column, or a note starting
-    // inside a hold — are left out rather than missed. Otherwise the combo and
-    // accuracy being positioned jump about on their own.
-    const unplayable = findUnplayableNotes(from);
-    return unplayable.size > 0
-      ? from.filter((note) => !unplayable.has(note.id))
-      : from;
-  }, [active.notes, playtest.active, playtest.startTime, playtest.hudEditing]);
-
-  const { summary: autoplaySummary, profile: skillProfile } = usePlaytestAutoplay({
-    enabled: playtest.autoplay,
-    active: playtest.active && playtest.countdownEndsAt === null,
-    paused: playtest.paused,
-    ended: playtest.ended,
-    notes: playtestRunNotes,
-    keyCount: active.keyCount,
-    humanize: playtest.hudEditing ? PERFECT_AUTOPLAY : playtestSettings.humanize,
-    skill: playtestSettings.skill,
-    windows: playtestWindows,
-    releaseWindows: playtestReleaseWindows,
-    rate: playtestRate,
-    getCurrentTime: playtestInputTime,
-    onPress: handlePlaytestPress,
-    onRelease: handlePlaytestRelease,
-    runKey: playtest.runKey,
-  });
-
-  const playtestTickRef = useRef({
-    audio,
-    active,
-    playtestInputTime,
+  const editorKeybindsRef = useRef(editorKeybinds);
+  editorKeybindsRef.current = editorKeybinds;
+  const projectStartedRef = useRef(false);
+  projectStartedRef.current = projectStarted;
+  const {
+    activeSkin,
+    autoplaySummary,
+    exitPlaytest,
+    heldPlaytestKeys,
+    playtestDroppedView,
+    playtestGameplayTime,
+    playtestHiddenView,
+    playtestHoldingView,
+    playtestLook,
+    playtestPressedColumnsRef,
+    playtestRate,
+    playtestRunNotes,
     playtestScore,
-  });
-  playtestTickRef.current = {
-    audio,
+    playtestSettings,
+    playtestWindows,
+    restartPlaytest,
+    resumePlaytest,
+    skillProfile,
+    startPlaytest,
+  } = usePlaytest({
     active,
-    playtestInputTime,
-    playtestScore,
-  };
-
-  // Once a frame while running: misses for whatever time has passed, and the
-  // end of the song.
-  useEffect(() => {
-    if (
-      !playtest.active ||
-      playtest.ended ||
-      playtest.paused ||
-      playtest.countdownEndsAt !== null
-    )
-      return;
-    let raf = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      const { audio, active, playtestInputTime, playtestScore } = playtestTickRef.current;
-      const time = playtestInputTime();
-      if (playtestEngineNotesRef.current !== active.notes) {
-        // The map changed under the run (a collaborator's edit): judge the new
-        // notes from here on.
-        playtestEngineRef.current = createPlaytestEngine({
-          notes: active.notes,
-          keyCount: active.keyCount,
-          windows: playtestWindowsRef.current,
-          startTime: time,
-        });
-        playtestEngineNotesRef.current = active.notes;
-      }
-      const engine = playtestEngineRef.current;
-      if (engine) playtestScore.apply(engine.update(time));
-      if (playtestPreRollRef.current && time < 0) return;
-      const now = audio.getCurrentTime();
-      if (!playtestEndArmedRef.current) {
-        const runStart = playtestRef.current.startTime ?? 0;
-        if (now <= runStart + 1000) playtestEndArmedRef.current = true;
-      }
-      if (
-        playtestEndArmedRef.current &&
-        Number.isFinite(audio.duration) &&
-        audio.duration > 0 &&
-        now >= audio.duration - 10
-      ) {
-        audio.pause();
-        setPlaytest((prev) => ({ ...prev, ended: true }));
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [
-    playtest.active,
-    playtest.countdownEndsAt,
-    playtest.ended,
-    playtest.paused,
-  ]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (playtestRef.current.hudEditing && e.code === "Escape") {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        exitPlaytest();
-        return;
-      }
-      if (!matchesBind(e.code, editorKeybindsRef.current.playtestToggle))
-        return;
-      e.preventDefault();
-      if (playtestRef.current.active) exitPlaytest();
-      else if (!modalRef.current && featureFlagsRef.current.playtest)
-        startPlaytest(getCurrentTime());
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [exitPlaytest, getCurrentTime, startPlaytest, featureFlagsRef]);
+    activeNotesRef,
+    announceShortcut,
+    appSettings,
+    audio,
+    audioFile,
+    authUserRef,
+    editorKeybindsRef,
+    featureFlagsRef,
+    getCurrentTime,
+    modalRef,
+    openSettings,
+    pauseAudio,
+    playAudio,
+    playtest,
+    playtestHitsound,
+    playtestRef,
+    projectStarted,
+    seekAudio,
+    setAppSettings,
+    setAudioPlaybackRate,
+    setCommentsOpen,
+    setModal,
+    setPlaytest,
+    skin,
+    skinLibrary,
+    t,
+  });
 
   const eligibleRefs = useMemo(() => {
     const resolve = (d: Difficulty): string | null => {
@@ -2516,7 +1439,7 @@ export default function App() {
     const url = sharedMapUrl(slug);
     setPublicMapUrl(url);
     return url;
-  }, [t]);
+  }, [t, cloudProjectIdRef]);
 
   const openSharedMap = useCallback(
     (file: File) => {
@@ -2918,7 +1841,7 @@ export default function App() {
           : `Added ${added.length} difficulties`,
       );
     },
-    [markStructural, announceAssetChange, t],
+    [markStructural, announceAssetChange, t, canEditRef],
   );
 
   const openOsuFiles = useCallback(
@@ -3079,7 +2002,7 @@ export default function App() {
         }),
       );
     },
-    [markStructural],
+    [markStructural, canEditRef],
   );
 
   const applyTimingPoints = useCallback(
@@ -3107,7 +2030,7 @@ export default function App() {
         ),
       );
     },
-    [patchDifficulty, markStructural, appSettingsRef],
+    [patchDifficulty, markStructural, appSettingsRef, canEditRef],
   );
 
   const [externalEdit, setExternalEdit] = useState<{
@@ -3149,7 +2072,7 @@ export default function App() {
     } catch (err) {
       setExternalEditError(err instanceof Error ? err.message : String(err));
     }
-  }, []);
+  }, [canEditRef]);
 
   const showExternalFile = useCallback(
     async (inFolder: boolean) => {
@@ -3201,7 +2124,7 @@ export default function App() {
     } finally {
       setExternalEditBusy(false);
     }
-  }, [backupRecovery, externalEdit, markStructural, t]);
+  }, [backupRecovery, externalEdit, markStructural, t, canEditRef]);
 
   const discardExternalEdit = useCallback(() => {
     if (externalEdit) {
@@ -3218,7 +2141,7 @@ export default function App() {
     markStructural();
     if (request.meta) setMeta(request.meta);
     setDifficulties(prev => batchApplyDifficulties(prev, request, timingPoints));
-  }, [markStructural, timingPoints]);
+  }, [markStructural, timingPoints, canEditRef]);
 
   const shiftTimingMarkers = useCallback(
     (deltaMs: number) => {
@@ -3255,7 +2178,7 @@ export default function App() {
         }),
       );
     },
-    [markStructural, appSettingsRef],
+    [markStructural, appSettingsRef, canEditRef],
   );
 
   const runAutoTime = useCallback(() => {
@@ -3430,111 +2353,6 @@ export default function App() {
       void import("./lib/aimod").then(({ runAiMod }) => setAiModReport(runAiMod(input)));
     }
   }, [patchDifficulty, audioFiles, bgFiles, aiModFiles]);
-
-  const addBookmark = useCallback(
-    (ms: number, label?: string) => {
-      if (!canEditRef.current) return;
-      const t = Math.round(ms);
-      if (!(t >= 0)) return;
-      const name = label?.trim().slice(0, 80) ?? "";
-      markStructural();
-      setDifficulties((prev) =>
-        prev.map((d) => {
-          if (d.id !== activeIdRef.current) return d;
-          const existing = d.bookmarks ?? [];
-          const nearby = existing.find((b) => Math.abs(b - t) <= 5);
-          if (nearby !== undefined && !name) return d;
-          const time = nearby ?? t;
-          const nextBookmarks = nearby
-            ? existing
-            : [...existing, time].sort((a, b) => a - b);
-          const nextLabels = { ...(d.bookmarkLabels ?? {}) };
-          if (name) nextLabels[bookmarkKey(time)] = name;
-          return {
-            ...d,
-            bookmarks: nextBookmarks,
-            bookmarkLabels: Object.keys(nextLabels).length
-              ? nextLabels
-              : undefined,
-          };
-        }),
-      );
-    },
-    [markStructural],
-  );
-
-  const renameBookmark = useCallback(
-    (ms: number, label: string) => {
-      if (!canEditRef.current) return;
-      const name = label.trim().slice(0, 80);
-      markStructural();
-      setDifficulties((prev) =>
-        prev.map((d) => {
-          if (d.id !== activeIdRef.current || !d.bookmarks?.includes(ms)) return d;
-          const labels = { ...(d.bookmarkLabels ?? {}) };
-          if (name) labels[bookmarkKey(ms)] = name;
-          else delete labels[bookmarkKey(ms)];
-          return {
-            ...d,
-            bookmarkLabels: Object.keys(labels).length ? labels : undefined,
-          };
-        }),
-      );
-    },
-    [markStructural],
-  );
-
-  const removeBookmark = useCallback(
-    (ms: number) => {
-      if (!canEditRef.current) return;
-      markStructural();
-      setDifficulties((prev) =>
-        prev.map((d) => {
-          if (d.id !== activeIdRef.current) return d;
-          const existing = d.bookmarks ?? [];
-          const next = existing.filter((b) => b !== ms);
-          if (next.length === existing.length) return d;
-          const labels = { ...(d.bookmarkLabels ?? {}) };
-          delete labels[bookmarkKey(ms)];
-          return {
-            ...d,
-            bookmarks: next.length ? next : undefined,
-            bookmarkLabels: Object.keys(labels).length ? labels : undefined,
-          };
-        }),
-      );
-      setBookmarkLoop((loop) =>
-        loop?.diffId === activeIdRef.current &&
-        (loop.startMs === ms || loop.endMs === ms)
-          ? null
-          : loop,
-      );
-    },
-    [markStructural],
-  );
-
-  const seekBookmark = useCallback(
-    (direction: "previous" | "next") => {
-      const d = difficultiesRef.current.find(
-        (item) => item.id === activeIdRef.current,
-      );
-      const target = bookmarkInDirection(
-        d?.bookmarks,
-        currentTimeRef.current,
-        direction,
-      );
-      if (target !== null) seekAudio(target, "smooth");
-    },
-    [seekAudio],
-  );
-  const seekPreviousBookmark = useCallback(
-    () => seekBookmark("previous"),
-    [seekBookmark],
-  );
-  const seekNextBookmark = useCallback(
-    () => seekBookmark("next"),
-    [seekBookmark],
-  );
   const setWaveformSensitivity = useCallback((value: number) => {
     setAppSettings((settings) => ({
       ...settings,
@@ -3556,892 +2374,126 @@ export default function App() {
     (id: string, name: string) => patchDifficulty(id, { name }),
     [patchDifficulty],
   );
-
-  const setBookmarkLoopStart = useCallback((ms: number) => {
-    const d = difficultiesRef.current.find(
-      (item) => item.id === activeIdRef.current,
-    );
-    const after = sortedBookmarks(d?.bookmarks).find((value) => value > ms);
-    setBookmarkLoop((loop) => {
-      const end =
-        loop?.diffId === activeIdRef.current && loop.endMs > ms
-          ? loop.endMs
-          : after;
-      if (end === undefined) return loop;
-      return {
-        diffId: activeIdRef.current,
-        startMs: ms,
-        endMs: end,
-        enabled: loop?.diffId === activeIdRef.current && loop.enabled,
-      };
-    });
-  }, []);
-
-  const setBookmarkLoopEnd = useCallback((ms: number) => {
-    const d = difficultiesRef.current.find(
-      (item) => item.id === activeIdRef.current,
-    );
-    const prior = sortedBookmarks(d?.bookmarks).filter((value) => value < ms);
-    const before = prior[prior.length - 1];
-    setBookmarkLoop((loop) => {
-      const start =
-        loop?.diffId === activeIdRef.current && loop.startMs < ms
-          ? loop.startMs
-          : before;
-      if (start === undefined) return loop;
-      return {
-        diffId: activeIdRef.current,
-        startMs: start,
-        endMs: ms,
-        enabled: loop?.diffId === activeIdRef.current && loop.enabled,
-      };
-    });
-  }, []);
-
-  const toggleBookmarkLoop = useCallback(() => {
-    setBookmarkLoop((loop) => {
-      if (loop?.diffId === activeIdRef.current) {
-        return { ...loop, enabled: !loop.enabled };
-      }
-      const d = difficultiesRef.current.find(
-        (item) => item.id === activeIdRef.current,
-      );
-      const range = loopAroundTime(d?.bookmarks, currentTimeRef.current);
-      return range
-        ? { diffId: activeIdRef.current, ...range, enabled: true }
-        : loop;
-    });
-  }, []);
-
-  const clearBookmarkLoop = useCallback(() => {
-    setBookmarkLoop((loop) =>
-      loop?.diffId === activeIdRef.current ? null : loop,
-    );
-  }, []);
-
-  const setTrimStart = useCallback(
-    (ms: number) => {
-      const d = difficultiesRef.current.find(
-        (x) => x.id === activeIdRef.current,
-      );
-      if (!d) return;
-      const end = d.trimEndMs ?? durationRef.current;
-      const t = Math.round(Math.max(0, Math.min(ms, end - 10)));
-      commitDiffFields({ trimStartMs: t <= 0 ? null : t });
-    },
-    [commitDiffFields],
-  );
-
-  const setTrimEnd = useCallback(
-    (ms: number) => {
-      const d = difficultiesRef.current.find(
-        (x) => x.id === activeIdRef.current,
-      );
-      if (!d) return;
-      const dur = durationRef.current;
-      const start = d.trimStartMs ?? 0;
-      const t = Math.round(Math.max(start + 10, Math.min(ms, dur)));
-      commitDiffFields({ trimEndMs: t >= dur - 0.5 ? null : t });
-    },
-    [commitDiffFields],
-  );
-
-  const setFadeIn = useCallback(
-    (ms: number) => {
-      const d = difficultiesRef.current.find(
-        (x) => x.id === activeIdRef.current,
-      );
-      if (!d) return;
-      const start = d.trimStartMs ?? 0;
-      const end = d.trimEndMs ?? durationRef.current;
-      const max = Math.max(0, end - start);
-      const t = Math.round(Math.max(0, Math.min(ms, max)));
-      commitDiffFields({ fadeInMs: t <= 0 ? null : t });
-    },
-    [commitDiffFields],
-  );
-
-  const setFadeOut = useCallback(
-    (ms: number) => {
-      const d = difficultiesRef.current.find(
-        (x) => x.id === activeIdRef.current,
-      );
-      if (!d) return;
-      const start = d.trimStartMs ?? 0;
-      const end = d.trimEndMs ?? durationRef.current;
-      const max = Math.max(0, end - start);
-      const t = Math.round(Math.max(0, Math.min(ms, max)));
-      commitDiffFields({ fadeOutMs: t <= 0 ? null : t });
-    },
-    [commitDiffFields],
-  );
-
-  const addDifficulty = useCallback(() => {
-    if (!canEditRef.current) return;
-    const base = difficulties.find((d) => d.id === activeId);
-    const diff = makeDifficulty("New Difficulty", base?.keyCount ?? 4);
-    diff.audioFilename = base?.audioFilename;
-    diff.timingPoints = (base?.timingPoints?.length
-      ? base.timingPoints
-      : timingPoints
-    ).map((p) => ({ ...p, id: uid("tp") }));
-    markStructural();
-    setDifficulties((prev) => [...prev, diff]);
-    setActiveId(diff.id);
-  }, [difficulties, activeId, timingPoints, markStructural]);
-
-  /**
-   * Builds a rate-shifted copy of the active difficulty. The source is left
-   * untouched; the copy carries its own audioRate so the editor plays the
-   * shared audio file at that rate. Picked up by the snapshot history like any
-   * other structural change, so it undoes/redoes for free.
-   */
-  const createRateDifficulty = useCallback(
-    (options: RateCreateOptions) => {
-      if (!canEditRef.current) return;
-      const source = difficultiesRef.current.find(
-        (d) => d.id === activeIdRef.current,
-      );
-      if (!source) return;
-      const rated = makeRateDifficulty(source, {
-        ...options,
-        existingNames: difficultiesRef.current.map((d) => d.name),
-      });
-      markStructural();
-      setDifficulties((prev) => [...prev, rated]);
-      setActiveId(rated.id);
-      void logAnalyticsEvent("rate_change_export", authUserRef.current?.id).catch(
-        () => {},
-      );
-    },
-    [markStructural],
-  );
-
-  const duplicateDifficulty = useCallback(
-    (id: string) => {
-      if (!canEditRef.current) return;
-      markStructural();
-      setDifficulties((prev) => {
-        const src = prev.find((d) => d.id === id);
-        if (!src) return prev;
-        const copy: Difficulty = {
-          ...src,
-          id: uid("diff"),
-          name: t("app.copyName", { name: src.name }),
-          // Unsubmitted copy: reusing the source's id would collide with it.
-          beatmapId: undefined,
-          timingPoints: src.timingPoints.map((p) => ({ ...p, id: uid("tp") })),
-          notes: src.notes.map((n) => ({ ...n, id: uid("n") })),
-        };
-        return [...prev, copy];
-      });
-    },
-    [markStructural, t],
-  );
-
-  // Copying needs no edit access: a map someone shared read-only is still a
-  // fine source to paste into one of your own. The music, background and video
-  // it plays go along, so it pastes whole into any project.
-  const copyDifficulty = useCallback(async (id: string) => {
-    const difficulty = difficultiesRef.current.find((d) => d.id === id);
-    if (!difficulty) return;
-    const audioNames = Object.keys(audioFilesRef.current);
-    const audio =
-      (difficulty.audioFilename && audioFilesRef.current[difficulty.audioFilename]) ||
-      (audioNames.length === 1 ? audioFilesRef.current[audioNames[0]] : null);
-    const background = difficulty.backgroundFilename
-      ? bgFilesRef.current[difficulty.backgroundFilename]
-      : null;
-    const video = difficulty.videoFilename
-      ? videoFilesRef.current[difficulty.videoFilename]
-      : null;
-    const files: ClipAsset[] = [];
-    if (audio) files.push({ kind: "audio", name: audio.name, blob: audio.blob });
-    if (background) {
-      files.push({ kind: "background", name: background.name, blob: background.blob });
-    }
-    if (video) files.push({ kind: "video", name: video.name, blob: video.blob });
-
-    const clipId = uid("clip");
-    const saved =
-      files.length > 0 &&
-      (await saveClipAssets(clipId, files).then(
-        () => true,
-        () => false,
-      ));
-    const label = difficulty.name || "the difficulty";
-    pushClip({
-      kind: "difficulty",
-      id: clipId,
-      // Named after the song it plays, so a map that only had one song and
-      // never named it still pastes with the right one.
-      difficulty: { ...difficulty, audioFilename: audio?.name ?? difficulty.audioFilename },
-      source: `${metaRef.current.artist} - ${metaRef.current.title}`,
-      meta: metaRef.current,
-      assets: saved
-        ? files.map(({ kind, name, blob }) => ({ kind, name, bytes: blob.size }))
-        : [],
-    });
-    setImportNotice(
-      files.length && !saved
-        ? `Copied ${label}, but its music and background didn't fit in browser storage`
-        : `Copied ${label} to the clipboard`,
-    );
-  }, []);
-
-  const pasteDifficulty = useCallback(
-    async (clip: DifficultyClip) => {
-      if (!canEditRef.current) return;
-      const expected = clip.assets?.length ?? 0;
-      const stored = expected
-        ? await loadClipAssets(clip.id).catch((): ClipAsset[] => [])
-        : [];
-      const { names, added } = await placeClipAssets(stored, {
-        audio: audioFilesRef.current,
-        background: bgFilesRef.current,
-        video: videoFilesRef.current,
-      });
-      if (!canEditRef.current) return;
-
-      const addedOf = (kind: ClipAssetKind) =>
-        added.filter((file) => file.kind === kind);
-      const loaded = (kind: ClipAssetKind): LoadedFile[] =>
-        addedOf(kind).map((file) => ({
-          name: file.name,
-          blob: file.blob,
-          url: URL.createObjectURL(file.blob),
-        }));
-      const register =
-        (files: LoadedFile[]) => (prev: Record<string, LoadedFile>) =>
-          files.length
-            ? { ...prev, ...Object.fromEntries(files.map((f) => [f.name, f])) }
-            : prev;
-      const newAudio = loaded("audio");
-      const newBackgrounds = loaded("background");
-      const newVideos = loaded("video");
-
-      const current = difficultiesRef.current;
-      const base =
-        current.find((d) => d.id === activeIdRef.current) ?? current[0];
-      const source = clip.difficulty;
-      const diff = adoptCopiedDifficulty(
-        {
-          ...source,
-          audioFilename: names.audio ?? source.audioFilename,
-          backgroundFilename: names.background ?? source.backgroundFilename,
-          videoFilename: names.video ?? source.videoFilename,
-        },
-        {
-          existingNames: current.map((d) => d.name),
-          audioFilenames: [
-            ...Object.keys(audioFilesRef.current),
-            ...newAudio.map((f) => f.name),
-          ],
-          backgroundFilenames: [
-            ...Object.keys(bgFilesRef.current),
-            ...newBackgrounds.map((f) => f.name),
-          ],
-          videoFilenames: [
-            ...Object.keys(videoFilesRef.current),
-            ...newVideos.map((f) => f.name),
-          ],
-          base,
-        },
-      );
-
-      // Difficulties that play this map's only song without naming it would
-      // lose it once a second song arrives, so name it for them first.
-      const ownSongs = Object.keys(audioFilesRef.current);
-      const lone = newAudio.length && ownSongs.length === 1 ? ownSongs[0] : null;
-      const pinned = (list: Difficulty[]) =>
-        lone
-          ? list.map((d) =>
-              d.audioFilename && audioFilesRef.current[d.audioFilename]
-                ? d
-                : { ...d, audioFilename: lone },
-            )
-          : list;
-
-      markStructural();
-      setAudioFiles(register(newAudio));
-      setBgFiles(register(newBackgrounds));
-      setVideoFiles(register(newVideos));
-      setDifficulties((prev) => [...pinned(prev), diff]);
-      setActiveId(diff.id);
-      // A fresh project takes the song details along with the song.
-      const own = metaRef.current;
-      if (
-        clip.meta &&
-        own.title === DEFAULT_SONG_META.title &&
-        own.artist === DEFAULT_SONG_META.artist
-      ) {
-        setMeta({ ...clip.meta, beatmapSetId: undefined });
-      }
-      announceAssetChange(`added the difficulty ${diff.name}`);
-      setImportNotice(
-        expected > stored.length
-          ? `Added ${diff.name}, but its copied music and background are no longer in browser storage`
-          : `Added ${diff.name} as a new difficulty`,
-      );
-    },
-    [markStructural, announceAssetChange],
-  );
-
-  const pruneOrphanAssets = useCallback((remaining: Difficulty[]) => {
-    const prune = (
-      reg: Record<string, LoadedFile>,
-      used: Set<string>,
-    ): Record<string, LoadedFile> => {
-      let changed = false;
-      const next: Record<string, LoadedFile> = {};
-      for (const [name, file] of Object.entries(reg)) {
-        if (used.has(name)) next[name] = file;
-        else {
-          if (file.url) URL.revokeObjectURL(file.url);
-          changed = true;
-        }
-      }
-      return changed ? next : reg;
-    };
-
-    setAudioFiles((prev) => {
-      const names = Object.keys(prev);
-      const lone = names.length === 1 ? names[0] : null;
-      const used = new Set<string>();
-      for (const d of remaining) {
-        const name =
-          d.audioFilename && prev[d.audioFilename] ? d.audioFilename : lone;
-        if (name) used.add(name);
-      }
-      return prune(prev, used);
-    });
-
-    setBgFiles((prev) =>
-      prune(
-        prev,
-        new Set(
-          remaining
-            .map((d) => d.backgroundFilename)
-            .filter((n): n is string => !!n),
-        ),
-      ),
-    );
-
-    setVideoFiles((prev) =>
-      prune(
-        prev,
-        new Set(
-          remaining.map((d) => d.videoFilename).filter((n): n is string => !!n),
-        ),
-      ),
-    );
-  }, []);
-
-  const deleteDifficulties = useCallback(
-    (ids: string[]) => {
-      if (!canEditRef.current || ids.length === 0) return;
-      const prev = difficultiesRef.current;
-      const remove = new Set(ids);
-      let next = prev.filter((d) => !remove.has(d.id));
-      if (next.length === 0) next = prev.slice(0, 1);
-      if (next.length === prev.length) return;
-      void backupRecovery("before-delete");
-      markStructural();
-      setDifficulties(next);
-      if (!next.some((d) => d.id === activeIdRef.current))
-        setActiveId(next[0].id);
-      pruneOrphanAssets(next);
-    },
-    [backupRecovery, markStructural, pruneOrphanAssets],
-  );
-
-  const placeNote = useCallback(
-    (note: ManiaNote) => {
-      const did = activeIdRef.current;
-      const target = difficultiesRef.current.find((d) => d.id === did);
-      if (!target) return;
-      const placement = placementFor(note, target.notes);
-      if (placement.kind === "blocked") return;
-      if (placement.kind === "replace") {
-        // Keeping the replaced note's id makes the swap a single edit, so one
-        // undo brings the old note back.
-        const { replaced } = placement;
-        commitNoteOp({
-          t: "note.update",
-          diffId: did,
-          before: [replaced],
-          after: [{ ...note, id: replaced.id }],
-        });
-        return;
-      }
-      commitNoteOp({ t: "note.add", diffId: did, notes: [note] });
-    },
-    [commitNoteOp],
-  );
-
-  const deleteNote = useCallback(
-    (noteId: string) => {
-      const did = activeIdRef.current;
-      const target = difficultiesRef.current.find((d) => d.id === did);
-      const note = target?.notes.find((n) => n.id === noteId);
-      if (!note) return;
-      commitNoteOp({ t: "note.remove", diffId: did, notes: [note] });
-    },
-    [commitNoteOp],
-  );
-
-  const addNotes = useCallback(
-    (notes: ManiaNote[]) => {
-      if (!notes.length) return;
-      const did = activeIdRef.current;
-      const target = difficultiesRef.current.find((d) => d.id === did);
-      if (!target) return;
-      const accepted = withoutNoteCollisions(notes, target.notes);
-      if (!accepted.length) return;
-      commitNoteOp({ t: "note.add", diffId: did, notes: accepted });
-    },
-    [commitNoteOp],
-  );
-
-  const deleteNotes = useCallback(
-    (ids: string[]) => {
-      if (!ids.length) return;
-      const did = activeIdRef.current;
-      const target = difficultiesRef.current.find((d) => d.id === did);
-      const set = new Set(ids);
-      const removed = target ? target.notes.filter((n) => set.has(n.id)) : [];
-      if (!removed.length) return;
-      commitNoteOp({ t: "note.remove", diffId: did, notes: removed });
-    },
-    [commitNoteOp],
-  );
-
-  const applyFullLong = useCallback(
-    (ticks: number) => {
-      const did = activeIdRef.current;
-      const target = difficultiesRef.current.find((d) => d.id === did);
-      if (!target) return;
-      const points = target.timingPoints?.length
-        ? target.timingPoints
-        : timingPointsRef.current;
-      const after = fullLongNotes(target.notes, points, view.snapDivisor, ticks);
-      if (hasNoteCollisions(after)) return;
-      commitNoteOp({
-        t: "note.update",
-        diffId: did,
-        before: target.notes,
-        after,
-      });
-    },
-    [commitNoteOp, view.snapDivisor],
-  );
-
-  const applyFullRice = useCallback(() => {
-    const did = activeIdRef.current;
-    const target = difficultiesRef.current.find((d) => d.id === did);
-    if (!target) return;
-    const after = fullRiceNotes(target.notes);
-    if (hasNoteCollisions(after)) return;
-    commitNoteOp({
-      t: "note.update",
-      diffId: did,
-      before: target.notes,
-      after,
-    });
-  }, [commitNoteOp]);
-
-  /**
-   * The selection-scoped note tools. Each takes the ids the editor reports and
-   * commits one undoable update, the same way the difficulty-wide tools do.
-   */
-  const commitSelectionEdit = useCallback(
-    (edit: (notes: ManiaNote[], ids: ReadonlySet<string>) => ManiaNote[]) => {
-      const ids = selectionRange?.ids;
-      if (!ids?.size) return;
-      const did = activeIdRef.current;
-      const target = difficultiesRef.current.find((d) => d.id === did);
-      if (!target) return;
-      const after = edit(target.notes, ids);
-      if (after === target.notes || hasNoteCollisions(after)) return;
-      commitNoteOp({
-        t: "note.update",
-        diffId: did,
-        before: target.notes,
-        after,
-      });
-    },
-    [commitNoteOp, selectionRange],
-  );
-
-  const applySelectionLong = useCallback(
-    (ticks: number) =>
-      commitSelectionEdit((notes, ids) => {
-        const target = difficultiesRef.current.find(
-          (d) => d.id === activeIdRef.current,
-        );
-        const points = target?.timingPoints?.length
-          ? target.timingPoints
-          : timingPointsRef.current;
-        return fullLongNotesWithin(notes, ids, points, view.snapDivisor, ticks);
-      }),
-    [commitSelectionEdit, view.snapDivisor],
-  );
-
-  const applySelectionRice = useCallback(
-    () => commitSelectionEdit((notes, ids) => fullRiceNotesWithin(notes, ids)),
-    [commitSelectionEdit],
-  );
-
-  const applyShiftLnEnds = useCallback(
-    (deltaMs: number) =>
-      commitSelectionEdit((notes, ids) =>
-        shiftLongNoteEnds(notes, ids, deltaMs),
-      ),
-    [commitSelectionEdit],
-  );
-
-  const applyDropShortLns = useCallback(
-    (minMs: number) =>
-      commitSelectionEdit((notes, ids) =>
-        dropShortLongNotes(notes, ids, minMs),
-      ),
-    [commitSelectionEdit],
-  );
-
-  const applyCopyHitsounds = useCallback(
-    (sourceId: string) => {
-      const did = activeIdRef.current;
-      if (sourceId === did) return;
-      const diffs = difficultiesRef.current;
-      const target = diffs.find((d) => d.id === did);
-      const source = diffs.find((d) => d.id === sourceId);
-      if (!target || !source) return;
-      const { before, after } = copyHitsounds(target.notes, source.notes);
-      const name = source.name || t("hitsounds.unnamed");
-      if (after.length === 0) {
-        announceShortcut(t("hitsounds.nothingNewFrom", { name }));
-        return;
-      }
-      commitNoteOp({ t: "note.update", diffId: did, before, after });
-      announceShortcut(
-        t("hitsounds.copiedFrom", {
-          name,
-          notes: t("hitsounds.noteCount", { count: after.length }),
-        }),
-      );
-    },
-    [commitNoteOp, announceShortcut, t],
-  );
-
-  // Rate-changed difficulties sit on a stretched copy of the song, so only
-  // difficulties on the same audio line up note for note.
-  const hitsoundTargets = useMemo(
-    () =>
-      difficulties.filter(
-        (d) =>
-          d.id !== activeId &&
-          (d.audioFilename ?? "") === (active.audioFilename ?? ""),
-      ),
-    [difficulties, activeId, active.audioFilename],
-  );
-
-  const applyCopyHitsoundsToAll = useCallback(() => {
-    const did = activeIdRef.current;
-    const diffs = difficultiesRef.current;
-    const source = diffs.find((d) => d.id === did);
-    if (!source) return;
-    let changedNotes = 0;
-    let changedDiffs = 0;
-    for (const target of diffs) {
-      if (target.id === did) continue;
-      if ((target.audioFilename ?? "") !== (source.audioFilename ?? "")) continue;
-      const { before, after } = copyHitsounds(target.notes, source.notes);
-      if (after.length === 0) continue;
-      commitNoteOp({ t: "note.update", diffId: target.id, before, after });
-      changedNotes += after.length;
-      changedDiffs += 1;
-    }
-    announceShortcut(
-      changedNotes
-        ? t("hitsounds.copiedToAll", {
-            notes: t("hitsounds.noteCount", { count: changedNotes }),
-            difficulties: t("hitsounds.difficultyCount", { count: changedDiffs }),
-          })
-        : t("hitsounds.allMatch"),
-    );
-  }, [commitNoteOp, announceShortcut, t]);
-
-  const hitsoundSources = useMemo(
-    () =>
-      difficulties
-        .filter((d) => d.id !== activeId)
-        .map((d) => ({
-          id: d.id,
-          name: d.name || "(unnamed)",
-          noteCount: d.notes.length,
-          hitsoundCount: countHitsounds(d.notes),
-        })),
-    [difficulties, activeId],
-  );
-
-  const applyCropToBrackets = useCallback(() => {
-    const did = activeIdRef.current;
-    const target = difficultiesRef.current.find((d) => d.id === did);
-    if (!target) return;
-    const start = target.trimStartMs ?? 0;
-    const hasEnd = target.trimEndMs !== undefined;
-    const end = target.trimEndMs ?? Infinity;
-    if (start <= 0.5 && !hasEnd) return;
-
-    const toRemove: ManiaNote[] = [];
-    const clampBefore: ManiaNote[] = [];
-    const clampAfter: ManiaNote[] = [];
-    for (const n of target.notes) {
-      if (n.startTime < start - 0.5 || n.startTime > end + 0.5) {
-        toRemove.push(n);
-      } else if (hasEnd && n.endTime !== undefined && n.endTime > end + 0.5) {
-        clampBefore.push(n);
-        clampAfter.push(
-          end > n.startTime
-            ? { ...n, endTime: Math.round(end) }
-            : { ...n, endTime: undefined },
-        );
-      }
-    }
-    if (toRemove.length) {
-      commitNoteOp({ t: "note.remove", diffId: did, notes: toRemove });
-    }
-    if (clampAfter.length) {
-      commitNoteOp({
-        t: "note.update",
-        diffId: did,
-        before: clampBefore,
-        after: clampAfter,
-      });
-    }
-  }, [commitNoteOp]);
-
-  const moveNotes = useCallback(
-    (updated: ManiaNote[]) => {
-      if (!updated.length) return;
-      const did = activeIdRef.current;
-      const target = difficultiesRef.current.find((d) => d.id === did);
-      if (!target) return;
-      const byId = new Map(updated.map((n) => [n.id, n]));
-      const before = target.notes.filter((n) => byId.has(n.id));
-      if (!before.length) return;
-      const beforeById = new Map(before.map((n) => [n.id, n]));
-      const changedGeometry = updated.some((n) => {
-        const old = beforeById.get(n.id);
-        return old ? !sameNoteGeometry(old, n) : true;
-      });
-      if (changedGeometry) {
-        const nextNotes = target.notes.map((n) => byId.get(n.id) ?? n);
-        if (hasNoteCollisions(nextNotes)) return;
-      }
-      commitNoteOp({ t: "note.update", diffId: did, before, after: updated });
-    },
-    [commitNoteOp],
-  );
-
-  const snapshot = useMemo<DocSnapshot>(
-    () => ({ meta, timingPoints, difficulties }),
-    [meta, timingPoints, difficulties],
-  );
-  const undoStackRef = useRef<DocSnapshot[]>([]);
-  const redoStackRef = useRef<DocSnapshot[]>([]);
-  const presentRef = useRef<DocSnapshot | null>(null);
-  const applyingHistoryRef = useRef(false);
-  const [historyRevision, bumpHistory] = useState(0);
-
-  useEffect(() => {
-    if (presentRef.current === null) {
-      presentRef.current = snapshot;
-      return;
-    }
-    if (applyingHistoryRef.current) {
-      applyingHistoryRef.current = false;
-      presentRef.current = snapshot;
-      return;
-    }
-    if (sessionActiveRef.current || applyingRemoteRef.current) {
-      applyingRemoteRef.current = false;
-      presentRef.current = snapshot;
-      return;
-    }
-    const previous = presentRef.current;
-    if (previous === snapshot || (previous.meta === snapshot.meta && previous.timingPoints === snapshot.timingPoints && previous.difficulties.length === snapshot.difficulties.length && previous.difficulties.every((d, i) => d === snapshot.difficulties[i]))) {
-      presentRef.current = snapshot;
-      return;
-    }
-    undoStackRef.current.push(presentRef.current);
-    if (undoStackRef.current.length > 200) undoStackRef.current.shift();
-    redoStackRef.current = [];
-    presentRef.current = snapshot;
-    bumpHistory((v) => v + 1);
-  }, [snapshot]);
-
-  useEffect(() => {
-    if (!sessionActiveRef.current || !pendingDocSyncRef.current) return;
-    if (cloudSyncTimerRef.current !== null) {
-      window.clearTimeout(cloudSyncTimerRef.current);
-    }
-    cloudSyncTimerRef.current = window.setTimeout(() => {
-      cloudSyncTimerRef.current = null;
-      if (!pendingDocSyncRef.current) return;
-      pendingDocSyncRef.current = false;
-      const pid = cloudProjectIdRef.current;
-      if (!pid || !canEditRef.current) return;
-      const recoveryProject = localProjectIdRef.current;
-      const recoveryToken = recoverySaveToken();
-      void queueCloudSave(pid, {
-        meta: metaRef.current,
-        timingPoints: timingPointsRef.current,
-        difficulties: difficultiesRef.current,
-        activeId: activeIdRef.current,
-        view,
-        bgScope,
-      })
-        // doc.bump keeps old deployments functional; revision-aware peers ignore
-        // the duplicate refresh produced by Postgres Changes.
-        .then(() => {
-          if (cloudProjectIdRef.current !== pid) return;
-          markRecoverySaved(recoveryProject, recoveryToken);
-          setCloudError((current) =>
-            current?.startsWith("Live collaboration save failed:") ? null : current,
-          );
-          collabRef.current?.sendRefresh();
-        })
-        .catch((error) => {
-          if (cloudProjectIdRef.current !== pid || !canEditRef.current) return;
-          pendingDocSyncRef.current = true;
-          const detail = error instanceof Error ? error.message : t("app.unknownError");
-          setCloudError(
-            t("app.liveSaveFailed", { detail }),
-          );
-          if (cloudSyncTimerRef.current !== null) {
-            window.clearTimeout(cloudSyncTimerRef.current);
-          }
-          cloudSyncTimerRef.current = window.setTimeout(() => {
-            cloudSyncTimerRef.current = null;
-            setCloudSyncRetry((value) => value + 1);
-          }, 2_000);
-        });
-    }, 250);
-    return () => {
-      if (cloudSyncTimerRef.current !== null) {
-        window.clearTimeout(cloudSyncTimerRef.current);
-        cloudSyncTimerRef.current = null;
-      }
-    };
-  }, [
-    t,
-    meta,
-    timingPoints,
-    difficulties,
+  const {
+    addBookmark,
+    clearBookmarkLoop,
+    removeBookmark,
+    renameBookmark,
+    seekBookmark,
+    seekNextBookmark,
+    seekPreviousBookmark,
+    setBookmarkLoopEnd,
+    setBookmarkLoopStart,
+    setFadeIn,
+    setFadeOut,
+    setTrimEnd,
+    setTrimStart,
+    toggleBookmarkLoop,
+  } = useTimelineEdits({
+    activeIdRef,
+    canEditRef,
+    commitDiffFields,
+    currentTimeRef,
+    difficultiesRef,
+    durationRef,
+    markStructural,
+    seekAudio,
+    setBookmarkLoop,
+    setDifficulties,
+  });
+  const {
+    addDifficulty,
+    copyDifficulty,
+    createRateDifficulty,
+    deleteDifficulties,
+    duplicateDifficulty,
+    pasteDifficulty,
+  } = useDifficultyActions({
     activeId,
+    activeIdRef,
+    announceAssetChange,
+    audioFilesRef,
+    authUserRef,
+    backupRecovery,
+    bgFilesRef,
+    canEditRef,
+    difficulties,
+    difficultiesRef,
+    markStructural,
+    metaRef,
+    setActiveId,
+    setAudioFiles,
+    setBgFiles,
+    setDifficulties,
+    setImportNotice,
+    setMeta,
+    setVideoFiles,
+    t,
+    timingPoints,
+    videoFilesRef,
+  });
+  const {
+    addNotes,
+    applyCopyHitsounds,
+    applyCopyHitsoundsToAll,
+    applyCropToBrackets,
+    applyDropShortLns,
+    applyFullLong,
+    applyFullRice,
+    applySelectionLong,
+    applySelectionRice,
+    applyShiftLnEnds,
+    deleteNote,
+    deleteNotes,
+    hitsoundSources,
+    hitsoundTargets,
+    moveNotes,
+    placeNote,
+  } = useNoteEditing({
+    active,
+    activeId,
+    activeIdRef,
+    announceShortcut,
+    commitNoteOp,
+    difficulties,
+    difficultiesRef,
+    selectionRange,
+    t,
+    timingPointsRef,
     view,
-    bgScope,
-    cloudSyncRetry,
-    queueCloudSave,
-    markRecoverySaved,
-    recoverySaveToken,
-  ]);
-
-  const applySnapshot = useCallback((s: DocSnapshot) => {
-    applyingHistoryRef.current = true;
-    presentRef.current = s;
-    setMeta(s.meta);
-    setTimingPoints(s.timingPoints);
-    setDifficulties(s.difficulties);
-    setActiveId(id => s.difficulties.some(d => d.id === id) ? id : s.difficulties[0]?.id ?? id);
-  }, []);
-
-  const undo = useCallback(() => {
-    if (sessionActiveRef.current) {
-      const op = opUndoRef.current.pop();
-      if (!op) return;
-      const inv = invertNoteOp(op);
-      markStructural();
-      setDifficulties((prev) => applyNoteOp(prev, inv));
-      opRedoRef.current.push(op);
-      collabRef.current?.sendOp(inv);
-      bumpHistory((v) => v + 1);
-      return;
-    }
-    const prev = undoStackRef.current.pop();
-    if (!prev) return;
-    if (presentRef.current) redoStackRef.current.push(presentRef.current);
-    applySnapshot(prev);
-    noteRecoveryEdit();
-    bumpHistory((v) => v + 1);
-  }, [applySnapshot, markStructural, noteRecoveryEdit]);
-
-  const redo = useCallback(() => {
-    if (sessionActiveRef.current) {
-      const op = opRedoRef.current.pop();
-      if (!op) return;
-      markStructural();
-      setDifficulties((prev) => applyNoteOp(prev, op));
-      opUndoRef.current.push(op);
-      collabRef.current?.sendOp(op);
-      bumpHistory((v) => v + 1);
-      return;
-    }
-    const next = redoStackRef.current.pop();
-    if (!next) return;
-    if (presentRef.current) undoStackRef.current.push(presentRef.current);
-    applySnapshot(next);
-    noteRecoveryEdit();
-    bumpHistory((v) => v + 1);
-  }, [applySnapshot, markStructural, noteRecoveryEdit]);
-
-  const canUndo = liveEnabled
-    ? opUndoRef.current.length > 0
-    : undoStackRef.current.length > 0;
-  const canRedo = liveEnabled
-    ? opRedoRef.current.length > 0
-    : redoStackRef.current.length > 0;
-
-  const historyCurrent = liveEnabled ? opUndoRef.current.length : undoStackRef.current.length;
-  const historyEntries = useMemo(() => {
-    void historyRevision;
-    if (modal !== "history" && !historyPanel) return [];
-    if (liveEnabled) {
-      const names = new Map(difficulties.map(d => [d.id, d.name]));
-      return [t("app.historyStart"), ...[...opUndoRef.current, ...opRedoRef.current.slice().reverse()].map(op => describeNoteOp(op, names))];
-    }
-    const states = [...undoStackRef.current, presentRef.current ?? snapshot, ...redoStackRef.current.slice().reverse()];
-    return states.map((s, i) => i === 0 ? t("app.historyStart") : describeSnapshotChange(states[i - 1], s));
-  }, [modal, historyPanel, liveEnabled, difficulties, snapshot, historyRevision, t]);
-
-  const jumpHistory = useCallback((index: number) => {
-    if (!canEditRef.current) return;
-    if (sessionActiveRef.current) {
-      if (!Number.isInteger(index) || index < 0 || index > opUndoRef.current.length + opRedoRef.current.length) return;
-      const operations: NoteOp[] = [];
-      while (opUndoRef.current.length > index) {
-        const op = opUndoRef.current.pop()!;
-        opRedoRef.current.push(op); operations.push(invertNoteOp(op));
-      }
-      while (opUndoRef.current.length < index) {
-        const op = opRedoRef.current.pop()!;
-        opUndoRef.current.push(op); operations.push(op);
-      }
-      if (!operations.length) return;
-      markStructural();
-      setDifficulties(prev => operations.reduce((state, op) => applyNoteOp(state, op), prev));
-      for (const op of operations) collabRef.current?.sendOp(op);
-    } else {
-      if (!presentRef.current || index === undoStackRef.current.length) return;
-      const result = jumpSnapshotHistory(undoStackRef.current, presentRef.current, redoStackRef.current, index);
-      if (!result) return;
-      undoStackRef.current = result.past; redoStackRef.current = result.future;
-      applySnapshot(result.present);
-      noteRecoveryEdit();
-    }
-    bumpHistory(v => v + 1);
-  }, [applySnapshot, markStructural, noteRecoveryEdit]);
+  });
+  const {
+    applyingHistoryRef,
+    canRedo,
+    canUndo,
+    historyCurrent,
+    historyEntries,
+    jumpHistory,
+    redo,
+    redoStackRef,
+    undo,
+    undoStackRef,
+  } = useEditHistory({
+    applyingRemoteRef,
+    canEditRef,
+    collabRef,
+    difficulties,
+    historyPanel,
+    liveEnabled,
+    markStructural,
+    meta,
+    modal,
+    noteRecoveryEdit,
+    opRedoRef,
+    opUndoRef,
+    sessionActiveRef,
+    setActiveId,
+    setDifficulties,
+    setMeta,
+    setTimingPoints,
+    t,
+    timingPoints,
+  });
 
   const applySavedProject = useCallback((saved: SavedProject) => {
     applyingHistoryRef.current = true;
@@ -4552,7 +2604,7 @@ export default function App() {
     setCloudProjectId(null);
     setCloudOwnerId(null);
     setMyRole(null);
-  }, []);
+  }, [applyingHistoryRef, redoStackRef, undoStackRef]);
 
   const loadLocalProject = useCallback(
     async (id: string) => {
@@ -4624,8 +2676,6 @@ export default function App() {
 
   const hasAudioRef = useRef(false);
   hasAudioRef.current = !!audioFile;
-  const modalRef = useRef<ModalId>(null);
-  modalRef.current = modal;
   const isPlayingRef = useRef(false);
   isPlayingRef.current = audio.isPlaying;
 
@@ -4648,14 +2698,6 @@ export default function App() {
   }, [modal]);
   const skinPreviewOpen = modal === "skin";
   const editorCanvasPlaying = audio.isPlaying && !skinPreviewOpen;
-  const editorKeybinds = useMemo(
-    () => normalizeEditorKeybinds(appSettings.editorKeybinds),
-    [appSettings.editorKeybinds],
-  );
-  const editorKeybindsRef = useRef(editorKeybinds);
-  editorKeybindsRef.current = editorKeybinds;
-  const projectStartedRef = useRef(false);
-  projectStartedRef.current = projectStarted;
   const slowHeldRef = useRef(false);
   useEffect(() => {
     const shouldIgnoreHotkey = (e: KeyboardEvent, allowInSkinModal = false) => {
@@ -5623,7 +3665,7 @@ export default function App() {
       target: exportCheck.target,
     });
     setExportCheck((check) => (check ? { ...check, result } : check));
-  }, [exportCheck, difficulties, meta, audioFiles, bgFiles, markStructural]);
+  }, [exportCheck, difficulties, meta, audioFiles, bgFiles, markStructural, canEditRef]);
 
   const buildSavedProject = useCallback((): SavedProject => ({
     version: PROJECT_VERSION,
@@ -5691,7 +3733,7 @@ export default function App() {
       );
       if (chart.bgScope) setBgScope(chart.bgScope);
     },
-    [backupRecovery, markStructural, t],
+    [backupRecovery, markStructural, t, canEditRef],
   );
 
   const handleRestoreSnapshot = useCallback(
@@ -6018,6 +4060,9 @@ export default function App() {
       setCloudSaveStatus("error");
     }
   }, [
+    cloudSavePromiseRef,
+    ownMutationIdsRef,
+    publishedAssetBlobsRef,
     authUser,
     refreshAuth,
     cloudProjectId,
@@ -6145,7 +4190,7 @@ export default function App() {
     } finally {
       setImportingMap(false);
     }
-  }, []);
+  }, [assetAttemptsRef, cloudRevisionRef, localEditVersionRef, opRedoRef, opUndoRef, ownMutationIdsRef, pendingDocSyncRef, pendingSeekRef, publishedAssetBlobsRef, applyingHistoryRef, redoStackRef, undoStackRef]);
   const {
     dismissInboxNotification,
     ignoreInvite,
@@ -6249,7 +4294,7 @@ export default function App() {
       setAutoTimeResult(null);
     }
 
-  }, [t]);
+  }, [t, applyingHistoryRef, redoStackRef, undoStackRef]);
 
   const [jumpToTimeOpen, setJumpToTimeOpen] = useState(false);
 
