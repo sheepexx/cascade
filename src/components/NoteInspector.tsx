@@ -86,7 +86,7 @@ export function NoteInspector({
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="absolute left-3 top-14 z-10 w-48 select-none rounded-lg border border-ink-600 bg-ink-800/90 p-2 text-xs text-slate-300 shadow-xl backdrop-blur">
+    <div className="absolute left-3 top-[5.5rem] z-10 w-48 select-none rounded-lg border border-ink-600 bg-ink-800/90 p-2 text-xs text-slate-300 shadow-xl backdrop-blur">
       <div className="mb-1.5 font-medium text-slate-200">{title}</div>
       <div className="flex flex-col gap-1">{children}</div>
     </div>
