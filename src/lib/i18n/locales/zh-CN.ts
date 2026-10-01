@@ -2197,4 +2197,5 @@ export const zhCN: PartialCatalog = {
   "account.redirectNote": "前往 osu! 登录页面之前，谱面会先保存在这里。",
   "account.desktopNote": "osu! 登录会在浏览器中打开，Cascade 会从那里接管。",
   "account.bodyNoMap": "编辑器的所有功能无需账号即可使用。使用 osu! 登录后还可以：",
+  "palette.new": "新",
 };

@@ -2314,4 +2314,5 @@ export const de: PartialCatalog = {
   "account.redirectNote": "Deine Map wird hier gespeichert, bevor du zur osu!-Anmeldeseite wechselst.",
   "account.desktopNote": "Die osu!-Anmeldung öffnet sich in deinem Browser, und Cascade übernimmt sie von dort.",
   "account.bodyNoMap": "Im Editor funktioniert alles auch ohne Konto. Mit einer osu!-Anmeldung kommt hinzu:",
+  "palette.new": "Neu",
 };

@@ -2606,6 +2606,7 @@ export default function App() {
     canRedo,
     canUndo,
     cloudProjectId,
+    editorKeybinds,
     eligibleRefs,
     exitPlaytest,
     exporting,

@@ -2313,4 +2313,5 @@ export const ptBR: PartialCatalog = {
   "account.redirectNote": "Seu mapa é salvo aqui antes de você ir para a página de login do osu!.",
   "account.desktopNote": "O login do osu! abre no seu navegador e o Cascade continua a partir dali.",
   "account.bodyNoMap": "Tudo no editor funciona sem conta. Entrar com o osu! adiciona:",
+  "palette.new": "Novo",
 };

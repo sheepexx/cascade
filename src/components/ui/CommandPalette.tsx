@@ -13,6 +13,12 @@ import {
   rememberCommand,
 } from "../../lib/commandRecents";
 import { MOTION } from "../../lib/motion";
+import {
+  markNewSeen,
+  retireNewBadge,
+  searchCommands,
+  showNewBadge,
+} from "../../lib/paletteSearch";
 import { playUiSound } from "../../lib/uiSounds";
 import { useT } from "../../lib/i18n";
 
@@ -20,28 +26,18 @@ export type PaletteCommand = {
   id: string;
   label: string;
   group: string;
+  /** Words that make the command findable without ranking it up. */
   keywords?: string;
+  /** Other names for the command; a match ranks nearly as high as the label. */
+  aliases?: readonly string[];
+  /** The keyboard shortcut, shown at the end of the row. */
   hint?: string;
   icon?: ReactNode;
   disabled?: boolean;
+  /** Recently added: shows a New badge until used or two weeks have passed. */
+  isNew?: boolean;
   run: () => void;
 };
-
-function searchable(command: PaletteCommand): string {
-  return `${command.label} ${command.group} ${command.keywords ?? ""}`.toLocaleLowerCase();
-}
-
-function rank(command: PaletteCommand, query: string): number {
-  if (!query) return 1;
-  const label = command.label.toLocaleLowerCase();
-  const haystack = searchable(command);
-  const tokens = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
-  if (!tokens.every((token) => haystack.includes(token))) return -1;
-  if (label === query) return 100;
-  if (label.startsWith(query)) return 60;
-  if (label.includes(query)) return 30;
-  return 10;
-}
 
 export function CommandPalette({
   open,
@@ -62,12 +58,13 @@ export function CommandPalette({
 
   const [recents, setRecents] = useState<string[]>(loadRecentCommands);
 
+  const [newSeen, setNewSeen] = useState<Record<string, number>>({});
+  // Read when the palette opens; the list itself is rebuilt on every render.
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
+
   const results = useMemo(() => {
-    const matched = commands
-      .map((command, order) => ({ command, order, score: rank(command, query) }))
-      .filter((entry) => entry.score >= 0)
-      .sort((a, b) => b.score - a.score || a.order - b.order)
-      .map((entry) => entry.command);
+    const matched = searchCommands(commands, query);
     // Recents only reorder the unfiltered list. Once someone types, their
     // query is the stronger signal and ranking stays as it was.
     return (query ? matched : orderByRecency(matched, recents)).slice(0, 60);
@@ -81,6 +78,7 @@ export function CommandPalette({
       setQuery("");
       setSelected(0);
       setRecents(loadRecentCommands());
+      setNewSeen(markNewSeen(commandsRef.current.filter((c) => c.isNew).map((c) => c.id)));
       window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
       return;
     }
@@ -105,6 +103,7 @@ export function CommandPalette({
   const run = (command: PaletteCommand) => {
     if (command.disabled) return;
     setRecents(rememberCommand(command.id));
+    if (command.isNew) setNewSeen(retireNewBadge(command.id));
     onClose();
     // Let the palette begin its exit before an underlying modal opens.
     window.setTimeout(command.run, 0);
@@ -182,7 +181,14 @@ export function CommandPalette({
                   {command.icon ?? <span aria-hidden>›</span>}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{command.label}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium">{command.label}</span>
+                    {command.isNew && showNewBadge(command.id, newSeen, recents) && (
+                      <span className="shrink-0 rounded-full bg-accent/20 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-accent">
+                        {t("palette.new")}
+                      </span>
+                    )}
+                  </span>
                   <span className="block truncate text-[11px] text-slate-500">{command.group}</span>
                 </span>
                 {command.hint && (

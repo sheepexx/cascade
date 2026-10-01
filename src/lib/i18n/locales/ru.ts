@@ -2449,4 +2449,5 @@ export const ru: PartialCatalog = {
   "account.redirectNote": "Перед переходом на страницу входа osu! карта сохраняется здесь.",
   "account.desktopNote": "Вход через osu! откроется в браузере, и Cascade подхватит его оттуда.",
   "account.bodyNoMap": "В редакторе всё работает без аккаунта. Вход через osu! добавляет:",
+  "palette.new": "Новое",
 };

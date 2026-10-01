@@ -6,6 +6,7 @@ import type { AudioController } from "../hooks/useAudio";
 import type { Waveform } from "../hooks/useWaveform";
 import type { AuthUser } from "../lib/auth";
 import { canExitDesktop } from "../lib/desktopExit";
+import { editorKeyLabel, type EditorKeybinds } from "../lib/editorKeybinds";
 import type { FeatureFlags } from "../lib/featureFlags";
 import type { MessageKey, Translate } from "../lib/i18n";
 import type { MapCardPresetOption } from "../lib/mapCard";
@@ -35,6 +36,7 @@ export function buildPaletteCommands({
   canRedo,
   canUndo,
   cloudProjectId,
+  editorKeybinds,
   eligibleRefs,
   exitPlaytest,
   exporting,
@@ -95,6 +97,7 @@ export function buildPaletteCommands({
   canRedo: boolean;
   canUndo: boolean;
   cloudProjectId: string | null;
+  editorKeybinds: EditorKeybinds;
   eligibleRefs: Difficulty[];
   exitPlaytest: () => void;
   exporting: boolean;
@@ -230,6 +233,7 @@ export function buildPaletteCommands({
   const paletteCommands: PaletteCommand[] = [
     {
       id: "new-map",
+      aliases: ["create map"],
       label: t("menu.newMap"),
       group: t("palette.group.create"),
       keywords: "song beatmap project",
@@ -244,6 +248,7 @@ export function buildPaletteCommands({
     },
     {
       id: "import-map",
+      aliases: ["open file", "load map"],
       label: t("menu.importMap"),
       group: t("palette.group.open"),
       keywords: "osz osu sm ssc qua folder",
@@ -258,6 +263,8 @@ export function buildPaletteCommands({
     },
     {
       id: "backups",
+      aliases: ["restore", "recover", "autosave"],
+      isNew: true,
       label: t("backups.title"),
       group: t("palette.group.file"),
       keywords: "recovery restore history crash autosave versions undo lost unsaved",
@@ -273,15 +280,15 @@ export function buildPaletteCommands({
     ...(hasProject
       ? [
           { id: "map-settings", label: t("nav.mapSettings"), group: t("palette.group.editor"), run: () => setModal("mapSettings") },
-          { id: "timing", label: t("nav.timing"), group: t("palette.group.editor"), keywords: "bpm offset", run: () => setModal("timing") },
+          { id: "timing", aliases: ["bpm", "offset", "red line"], label: t("nav.timing"), group: t("palette.group.editor"), keywords: "bpm offset", run: () => setModal("timing") },
           ...(featureFlags.sv_tools
-            ? [{ id: "sv", label: t("nav.sv"), group: t("palette.group.editor"), keywords: "scroll velocity", run: () => setModal("sv" as ModalId) }]
+            ? [{ id: "sv", aliases: ["scroll velocity", "slider velocity", "green line"], label: t("nav.sv"), group: t("palette.group.editor"), keywords: "scroll velocity", run: () => setModal("sv" as ModalId) }]
             : []),
           { id: "difficulty", label: t("nav.difficulty"), group: t("palette.group.editor"), keywords: "keys od hp", run: () => setModal("difficulty") },
           { id: "add-difficulty", label: t("app.addDifficulty"), group: t("palette.group.editor"), keywords: "new diff", disabled: !canEdit, run: addDifficulty },
           { id: "tools", label: t("nav.tools"), group: t("palette.group.editor"), keywords: "full ln rice crop", run: () => setModal("tools") },
-          { id: "map-card", label: t("file.mapCard"), group: t("palette.group.export"), keywords: "image png share description msd skillsets bbcode discord", run: () => openMapCard() },
-          { id: "aimod", label: t("nav.aiMod"), group: t("palette.group.editor"), keywords: "check validation", run: openAiMod },
+          { id: "map-card", aliases: ["image", "screenshot"], label: t("file.mapCard"), group: t("palette.group.export"), keywords: "image png share description msd skillsets bbcode discord", run: () => openMapCard() },
+          { id: "aimod", aliases: ["mod check", "problems"], label: t("nav.aiMod"), group: t("palette.group.editor"), keywords: "check validation", run: openAiMod },
           ...(appSettings.showPatternTools
             ? [{ id: "presets", label: t("nav.presets"), group: t("palette.group.editor"), keywords: "patterns clipboard", run: () => setModal("presets" as ModalId) }]
             : []),
@@ -294,7 +301,7 @@ export function buildPaletteCommands({
           { id: "save-cloud", label: t("file.saveToCloud"), group: t("palette.group.file"), keywords: "account collaborate", disabled: !canEdit || (!authUser && !featureFlags.cloud_accounts), run: () => (authUser ? void handleCloudSave() : askToLogIn("cloudSave")) },
           { id: "copy-hitsounds-all", label: t("hitsounds.copyToAllCommand"), group: t("palette.group.edit"), keywords: "hitsound whistle finish clap samples apply", disabled: !canEdit || hitsoundTargets.length === 0 || countHitsounds(active.notes) === 0, run: applyCopyHitsoundsToAll },
           { id: "export-osu", label: t("file.exportOsu"), group: t("palette.group.export"), disabled: !canExport, run: handleExportOsu },
-          { id: "export-osz", label: t("file.exportOsz"), group: t("palette.group.export"), disabled: !canExport || exporting, run: handleExportOsz },
+          { id: "export-osz", aliases: ["osz"], label: t("file.exportOsz"), group: t("palette.group.export"), disabled: !canExport || exporting, run: handleExportOsz },
           { id: "export-sm", label: t("file.exportSm"), group: t("palette.group.export"), disabled: !canExport, run: handleExportSm },
           { id: "export-qua", label: t("file.exportQua"), group: t("palette.group.export"), disabled: !canExport, run: handleExportQua },
           { id: "export-mcz", label: t("file.exportMcz"), group: t("palette.group.export"), keywords: "malody mc", disabled: !canExport || exporting || !hasMalodyDifficulty, run: handleExportMcz },
@@ -310,12 +317,14 @@ export function buildPaletteCommands({
             id: "play-pause",
             label: audio.isPlaying ? t("app.pausePlayback") : t("app.playAudio"),
             group: t("palette.group.playback"),
-            hint: "Space",
+            hint: editorKeyLabel(editorKeybinds.playPause),
             disabled: !audioFile,
             run: toggleAudio,
           },
           {
             id: "playtest",
+            aliases: ["playtest", "test play"],
+            hint: editorKeyLabel(editorKeybinds.playtestToggle),
             label: playtest.active ? t("app.exitPlaytest") : t("app.startPlaytest"),
             group: t("palette.group.playback"),
             disabled: !audioFile || !featureFlags.playtest,
@@ -323,6 +332,8 @@ export function buildPaletteCommands({
           },
           {
             id: "zen",
+            aliases: ["focus mode"],
+            hint: editorKeyLabel(editorKeybinds.zenMode),
             label: zenMode ? t("app.leaveZen") : t("app.enterZen"),
             group: t("palette.group.view"),
             keywords: "hide interface distraction free",
@@ -330,6 +341,7 @@ export function buildPaletteCommands({
           },
           {
             id: "waveform",
+            hint: editorKeyLabel(editorKeybinds.waveformOverlay),
             label: appSettings.showWaveform ? t("app.hideWaveform") : t("app.showWaveform"),
             group: t("palette.group.view"),
             run: toggleWaveformOverlay,
@@ -344,6 +356,8 @@ export function buildPaletteCommands({
           },
           {
             id: "jump-time",
+            aliases: ["go to time", "seek"],
+            hint: "Ctrl G",
             label: t("app.jumpToTime"),
             group: t("palette.group.playback"),
             keywords: "seek timestamp",
@@ -413,6 +427,7 @@ export function buildPaletteCommands({
       : []),
     {
       id: "settings",
+      aliases: ["preferences", "options"],
       label: t("settings.title"),
       group: t("palette.group.settings"),
       hint: "Ctrl K",

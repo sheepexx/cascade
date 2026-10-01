@@ -2417,4 +2417,5 @@ export const en = {
   "account.redirectNote": "Your map is saved here before you go to the osu! login page.",
   "account.desktopNote": "The osu! login opens in your browser and Cascade picks it up from there.",
   "account.bodyNoMap": "Everything in the editor works without an account. Logging in with osu! adds:",
+  "palette.new": "New",
 } as const;
