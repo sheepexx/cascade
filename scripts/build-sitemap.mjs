@@ -55,8 +55,20 @@ const PAGES = [
     changefreq: "monthly",
   },
   {
+    path: "/guides",
+    updated: "2026-10-01",
+    priority: "0.8",
+    changefreq: "monthly",
+  },
+  {
+    path: "/arrowvortex-alternative",
+    updated: "2026-10-01",
+    priority: "0.6",
+    changefreq: "monthly",
+  },
+  {
     path: "/osu-mania-map-viewer",
-    updated: "2026-09-24",
+    updated: "2026-10-01",
     priority: "0.7",
     changefreq: "monthly",
   },

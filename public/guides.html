@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="canonical" href="https://cascade.sheepex.net/guides" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="index, follow" />
+    <title>osu!mania Mapping Guides | Cascade</title>
+    <meta
+      name="description"
+      content="Guides for mapping osu!mania in Cascade: making a first map, timing and SV, checking and sharing a map, converting to other games, and the desktop app."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cascade" />
+    <meta property="og:title" content="osu!mania mapping guides" />
+    <meta property="og:description" content="Making a first map, timing and SV, checking and sharing, converting to other games." />
+    <meta property="og:url" content="https://cascade.sheepex.net/guides" />
+    <meta property="og:image" content="https://cascade.sheepex.net/og.png?v=2" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Cascade, the osu!mania editor that runs in your browser" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="osu!mania mapping guides" />
+    <meta name="twitter:description" content="Making a first map, timing and SV, checking and sharing, converting to other games." />
+    <meta name="twitter:image" content="https://cascade.sheepex.net/og.png?v=2" />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0b0b10;
+        color: #9aa0ad;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.65;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 40px 20px 64px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header a { color: #cfd2dc; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+      h1 { margin: 0 0 14px; font-size: 1.5rem; font-weight: 700; color: #e6e8ee; }
+      h2 { margin: 30px 0 10px; font-size: 1.05rem; color: #cfd2dc; }
+      p { margin: 0 0 10px; }
+      ol, ul { margin: 0 0 10px; padding-left: 22px; }
+      li { margin: 4px 0; }
+      code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
+      a { color: #f48a8a; }
+      .cta {
+        display: inline-block; margin: 18px 0 6px; padding: 11px 22px;
+        border-radius: 10px; background: #f45a5a; color: #fff; font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #f47070; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1d1d27; font-size: 0.85rem; }
+      .group { margin-top: 26px; }
+      .guide { display: block; padding: 12px 14px; margin: 8px 0; border: 1px solid #1d1d27; border-radius: 10px; text-decoration: none; background: #101017; }
+      .guide:hover { border-color: #3a2a30; background: #15131b; }
+      .guide strong { display: block; color: #e6e8ee; font-weight: 600; }
+      .guide span { color: #9aa0ad; font-size: 0.92rem; }
+      #drop-zone {
+        margin: 22px 0 8px; padding: 30px 20px; border: 2px dashed #34343f; border-radius: 14px;
+        text-align: center; color: #cfd2dc; cursor: pointer; background: #12121a;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      #drop-zone:hover, #drop-zone:focus-visible, #drop-zone.over { border-color: #f45a5a; background: #1a1219; outline: none; }
+      #drop-zone strong { display: block; font-size: 1.05rem; color: #e6e8ee; margin-bottom: 4px; }
+      #drop-note { min-height: 1.4em; font-size: 0.9rem; }
+      footer a { color: #9aa0ad; }
+    </style>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": "osu!mania mapping guides",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "url": "https://cascade.sheepex.net/how-to-make-an-osu-mania-map", "name": "How to make an osu!mania map" },
+          { "@type": "ListItem", "position": 2, "url": "https://cascade.sheepex.net/osu-mania-map-viewer", "name": "Preview maps online" },
+          { "@type": "ListItem", "position": 3, "url": "https://cascade.sheepex.net/osu-mania-playtest", "name": "Playtest your map" },
+          { "@type": "ListItem", "position": 4, "url": "https://cascade.sheepex.net/osu-mania-bpm-finder", "name": "Find BPM and offset" },
+          { "@type": "ListItem", "position": 5, "url": "https://cascade.sheepex.net/osu-mania-sv-editor", "name": "Edit scroll velocity" },
+          { "@type": "ListItem", "position": 6, "url": "https://cascade.sheepex.net/osu-mania-aimod", "name": "Check a map before upload" },
+          { "@type": "ListItem", "position": 7, "url": "https://cascade.sheepex.net/osu-mania-map-card", "name": "Make a Map Card" },
+          { "@type": "ListItem", "position": 8, "url": "https://cascade.sheepex.net/osu-mania-collab", "name": "Map together in real time" },
+          { "@type": "ListItem", "position": 9, "url": "https://cascade.sheepex.net/osu-to-stepmania", "name": "Convert to StepMania, Quaver or Malody" },
+          { "@type": "ListItem", "position": 10, "url": "https://cascade.sheepex.net/arrowvortex-alternative", "name": "Cascade and ArrowVortex compared" },
+          { "@type": "ListItem", "position": 11, "url": "https://cascade.sheepex.net/osu-mania-pack-creator", "name": "Combine maps into one pack" },
+          { "@type": "ListItem", "position": 12, "url": "https://cascade.sheepex.net/download", "name": "Download Cascade" }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <a href="/">Cascade</a>
+      </header>
+      <h1>osu!mania mapping guides</h1>
+      <p>
+        Short guides to the things people do in Cascade, from a first map to
+        sharing a finished one. Each one shows the steps in the editor and
+        links to the next thing you are likely to need.
+      </p>
+      <section class="group">
+        <h2>Getting started</h2>
+        <a class="guide" href="/how-to-make-an-osu-mania-map"><strong>How to make an osu!mania map</strong><span>Your first map in the browser, step by step: load a song, set BPM and offset, place notes and holds, add hitsounds, export an .osz.</span></a>
+        <a class="guide" href="/osu-mania-map-viewer"><strong>Preview maps online</strong><span>Drop an .osz to watch it scroll with audio and hitsounds, playtest it, and inspect timing and SV.</span></a>
+        <a class="guide" href="/osu-mania-playtest"><strong>Playtest your map</strong><span>Play the chart you are editing with the real osu!mania judgement windows: accuracy, combo, unstable rate and live NPS.</span></a>
+      </section>
+      <section class="group">
+        <h2>Timing and scroll speed</h2>
+        <a class="guide" href="/osu-mania-bpm-finder"><strong>Find BPM and offset</strong><span>Detect the tempo from the audio, tap along to confirm it and check it with a metronome.</span></a>
+        <a class="guide" href="/osu-mania-sv-editor"><strong>Edit scroll velocity</strong><span>Generate constant, ramp and stutter SV, preview the curve before applying it, and play it live.</span></a>
+      </section>
+      <section class="group">
+        <h2>Checking and sharing</h2>
+        <a class="guide" href="/osu-mania-aimod"><strong>Check a map before upload</strong><span>Flags metadata, timing, unsnapped notes and broken long notes, and jumps to each one.</span></a>
+        <a class="guide" href="/osu-mania-map-card"><strong>Make a Map Card</strong><span>An image of a difficulty with its stats and MSD skillsets, as a PNG or a link for your map description.</span></a>
+        <a class="guide" href="/osu-mania-collab"><strong>Map together in real time</strong><span>Invite a mapper by osu! username and edit one map together, with live cursors and timestamped comments.</span></a>
+      </section>
+      <section class="group">
+        <h2>Other games and packs</h2>
+        <a class="guide" href="/osu-to-stepmania"><strong>Convert to StepMania, Quaver or Malody</strong><span>Open .osz, .sm, .qua or .mcz and save it as any of the others.</span></a>
+        <a class="guide" href="/arrowvortex-alternative"><strong>Cascade and ArrowVortex compared</strong><span>What each editor is built for, how charts move between them, and when to use which.</span></a>
+        <a class="guide" href="/osu-mania-pack-creator"><strong>Combine maps into one pack</strong><span>Merge several maps into one .osz with shared metadata, per-map credits and safe file names.</span></a>
+      </section>
+      <section class="group">
+        <h2>The desktop app</h2>
+        <a class="guide" href="/download"><strong>Download Cascade</strong><span>The same editor in its own window for Windows, macOS and Linux, working offline and opening .osz and .osu files from your file manager.</span></a>
+      </section>
+      <a class="cta" href="/">Open Cascade</a>
+      <footer>
+        <p>Cascade is free and runs in your browser. <a href="/">Open the editor</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -12,11 +12,13 @@ export function urlFor(slug, locale) {
 }
 
 const LEGACY_EN = [
+  { href: "/guides", label: "All guides" },
   { href: "/how-to-make-an-osu-mania-map", label: "How to make an osu!mania map" },
   { href: "/osu-mania-sv-editor", label: "Edit scroll velocity" },
   { href: "/osu-to-stepmania", label: "Convert to StepMania, Quaver or Malody" },
   { href: "/osu-mania-map-viewer", label: "Preview maps online" },
   { href: "/osu-mania-pack-creator", label: "Combine maps into one pack" },
+  { href: "/arrowvortex-alternative", label: "Cascade and ArrowVortex compared" },
 ];
 
 export const UI = {
