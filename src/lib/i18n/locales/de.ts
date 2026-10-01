@@ -2332,4 +2332,5 @@ export const de: PartialCatalog = {
   "landing.docs": "Doku",
   "landing.docsHint": "Anleitungen zu allen Teilen von Cascade",
   "landing.docsAll": "Alle Anleitungen",
+  "import.notReadable": "Cascade konnte diese Datei nicht lesen. Liegt sie in einem Cloud-Ordner wie iCloud Drive, OneDrive oder Dropbox, lade sie zuerst auf diesen Computer herunter und versuche es dann erneut.",
 };

@@ -1,3 +1,5 @@
+import { ownBlob } from "./ownedBlobs";
+
 /**
  * Files handed over from a static page on this site (the map viewer page
  * takes a dropped .osz) to the editor. The page parks them in IndexedDB and
@@ -31,7 +33,19 @@ export function filesFromParked(record: unknown, now = Date.now()): File[] {
     .map((f) => new File([f.blob], f.name, { type: f.type || f.blob.type }));
 }
 
-/** Reads and deletes the parked files. */
+function request<T>(db: IDBDatabase, mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const tx = db.transaction(HANDOFF_STORE, mode);
+    const req = run(tx.objectStore(HANDOFF_STORE));
+    tx.oncomplete = () => resolve(req.result);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Reads the parked files into memory, then deletes them, so nothing the editor
+ * goes on to read depends on a record that is gone.
+ */
 export async function takeHandedOffFiles(): Promise<File[]> {
   if (typeof indexedDB === "undefined") return [];
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -41,16 +55,10 @@ export async function takeHandedOffFiles(): Promise<File[]> {
     req.onerror = () => reject(req.error);
   });
   try {
-    return await new Promise<File[]>((resolve, reject) => {
-      const tx = db.transaction(HANDOFF_STORE, "readwrite");
-      const store = tx.objectStore(HANDOFF_STORE);
-      const get = store.get(HANDOFF_KEY);
-      get.onsuccess = () => {
-        store.delete(HANDOFF_KEY);
-        tx.oncomplete = () => resolve(filesFromParked(get.result));
-      };
-      tx.onerror = () => reject(tx.error);
-    });
+    const parked = await request<unknown>(db, "readonly", (store) => store.get(HANDOFF_KEY));
+    const files = await Promise.all(filesFromParked(parked).map((file) => ownBlob(file)));
+    await request(db, "readwrite", (store) => store.delete(HANDOFF_KEY));
+    return files.filter((file): file is File => file instanceof File);
   } finally {
     db.close();
   }

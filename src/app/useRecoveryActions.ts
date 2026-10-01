@@ -23,6 +23,7 @@ import type {
 import { makeDifficulty, normalizeTimingPoints } from "../types";
 import type { ModalId } from "./appTypes";
 import type { SetImportError } from "../lib/importErrors";
+import { describeImportFailure } from "../lib/importErrors";
 
 /**
  * Restoring earlier work: snapshots and backups into the open map, unsaved work
@@ -243,9 +244,8 @@ export function useRecoveryActions({
       await restoreUnsavedWork(offer.projectId);
       setRecoveryOffer(null);
     } catch (error) {
-      setImportError(
-        error instanceof Error ? error.message : t("recovery.restoreFailed"),
-      );
+      const problem = describeImportFailure(error, t("recovery.restoreFailed"), t);
+      setImportError(problem.message, problem.details);
     } finally {
       setRecoveryBusy(false);
     }

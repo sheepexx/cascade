@@ -2434,4 +2434,5 @@ export const en = {
   "landing.docs": "Docs",
   "landing.docsHint": "Guides for every part of Cascade",
   "landing.docsAll": "All docs",
+  "import.notReadable": "Cascade couldn't read that file. If it's in a cloud folder such as iCloud Drive, OneDrive or Dropbox, make sure it's downloaded to this computer, then try again.",
 } as const;

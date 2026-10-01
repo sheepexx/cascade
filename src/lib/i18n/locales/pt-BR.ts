@@ -2331,4 +2331,5 @@ export const ptBR: PartialCatalog = {
   "landing.docs": "Docs",
   "landing.docsHint": "Guias para cada parte do Cascade",
   "landing.docsAll": "Todos os docs",
+  "import.notReadable": "O Cascade não conseguiu ler esse arquivo. Se ele estiver em uma pasta na nuvem como iCloud Drive, OneDrive ou Dropbox, baixe-o para este computador e tente de novo.",
 };

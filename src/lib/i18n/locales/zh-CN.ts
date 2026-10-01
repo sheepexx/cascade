@@ -2215,4 +2215,5 @@ export const zhCN: PartialCatalog = {
   "landing.docs": "文档",
   "landing.docsHint": "Cascade 各部分的指南",
   "landing.docsAll": "全部文档",
+  "import.notReadable": "Cascade 无法读取该文件。如果它在 iCloud 云盘、OneDrive 或 Dropbox 等云文件夹中，请先下载到这台电脑上，然后重试。",
 };

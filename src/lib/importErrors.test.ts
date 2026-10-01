@@ -37,4 +37,15 @@ describe("describeImportFailure", () => {
     expect(describeImportFailure("nope", "fallback", t)).toEqual({ message: "fallback" });
     expect(describeImportFailure(new Error(""), "fallback", t)).toEqual({ message: "fallback" });
   });
+
+  it("explains a file the browser couldn't read and keeps its words", () => {
+    const webkit = new Error("The I/O read operation failed.");
+    expect(describeImportFailure(webkit, "fallback", t)).toEqual({
+      message: "import.notReadable",
+      details: "Error: The I/O read operation failed.",
+    });
+    const named = new Error("The requested file could not be read.");
+    named.name = "NotReadableError";
+    expect(describeImportFailure(named, "fallback", t).message).toBe("import.notReadable");
+  });
 });

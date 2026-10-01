@@ -8,6 +8,7 @@ import {
   type AccountReason,
 } from "./components/menus/AccountPromptModal";
 import type { ImportProblem, SetImportError } from "./lib/importErrors";
+import { describeImportFailure } from "./lib/importErrors";
 import { buildPaletteCommands } from "./app/paletteCommands";
 import { useEditorHotkeys } from "./app/useEditorHotkeys";
 import { useCloudProject } from "./app/useCloudProject";
@@ -2462,9 +2463,8 @@ export default function App() {
       try {
         loadedAudio = await loadFile(audioSource);
       } catch (error) {
-        setImportError(
-          error instanceof Error ? error.message : t("app.loadAudioFailed"),
-        );
+        const problem = describeImportFailure(error, t("app.loadAudioFailed"), t);
+        setImportError(problem.message, problem.details);
         return;
       }
     }
