@@ -2198,4 +2198,8 @@ export const zhCN: PartialCatalog = {
   "account.desktopNote": "osu! 登录会在浏览器中打开，Cascade 会从那里接管。",
   "account.bodyNoMap": "编辑器的所有功能无需账号即可使用。使用 osu! 登录后还可以：",
   "palette.new": "新",
+  "install.title": "将 Cascade 安装为应用",
+  "install.body": "它会在独立窗口中打开，并能直接从文件管理器打开 .osz、.osu、.sm、.qua 和 .mc 文件。",
+  "install.install": "安装",
+  "install.command": "将 Cascade 安装为应用",
 };

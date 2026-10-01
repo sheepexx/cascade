@@ -1,3 +1,5 @@
+import { captureInstallPrompt } from "./installPrompt";
+
 type LaunchParams = { files?: FileSystemFileHandle[] };
 type LaunchQueue = { setConsumer: (fn: (params: LaunchParams) => void) => void };
 
@@ -79,6 +81,8 @@ export function initPwa(): void {
     openExternalLinksInBrowser();
     return;
   }
+
+  captureInstallPrompt();
 
   const queue = (window as { launchQueue?: LaunchQueue }).launchQueue;
   queue?.setConsumer((params) => {

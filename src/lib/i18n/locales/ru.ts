@@ -2450,4 +2450,8 @@ export const ru: PartialCatalog = {
   "account.desktopNote": "Вход через osu! откроется в браузере, и Cascade подхватит его оттуда.",
   "account.bodyNoMap": "В редакторе всё работает без аккаунта. Вход через osu! добавляет:",
   "palette.new": "Новое",
+  "install.title": "Установить Cascade как приложение",
+  "install.body": "Оно открывается в отдельном окне и может открывать файлы .osz, .osu, .sm, .qua и .mc прямо из файлового менеджера.",
+  "install.install": "Установить",
+  "install.command": "Установить Cascade как приложение",
 };

@@ -2418,4 +2418,8 @@ export const en = {
   "account.desktopNote": "The osu! login opens in your browser and Cascade picks it up from there.",
   "account.bodyNoMap": "Everything in the editor works without an account. Logging in with osu! adds:",
   "palette.new": "New",
+  "install.title": "Install Cascade as an app",
+  "install.body": "It opens in its own window and can open .osz, .osu, .sm, .qua and .mc files straight from your file manager.",
+  "install.install": "Install",
+  "install.command": "Install Cascade as an app",
 } as const;

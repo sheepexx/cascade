@@ -2315,4 +2315,8 @@ export const de: PartialCatalog = {
   "account.desktopNote": "Die osu!-Anmeldung öffnet sich in deinem Browser, und Cascade übernimmt sie von dort.",
   "account.bodyNoMap": "Im Editor funktioniert alles auch ohne Konto. Mit einer osu!-Anmeldung kommt hinzu:",
   "palette.new": "Neu",
+  "install.title": "Cascade als App installieren",
+  "install.body": "Es öffnet sich in einem eigenen Fenster und kann .osz-, .osu-, .sm-, .qua- und .mc-Dateien direkt aus deinem Dateimanager öffnen.",
+  "install.install": "Installieren",
+  "install.command": "Cascade als App installieren",
 };

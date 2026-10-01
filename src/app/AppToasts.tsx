@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { RecoveryPrompt } from "../components/RecoveryPrompt";
+import { InstallOffer } from "./InstallOffer";
 import { SampleMapsIcon } from "../components/ui/StartIcons";
 import { Toast } from "../components/ui/Toast";
 import { activityLog, type ActivityInput } from "../lib/activityLog";
@@ -53,6 +54,7 @@ export function AppToasts({
   importError,
   importErrorDetails,
   importNotice,
+  installEligible,
   needsSongHint,
   pwaUpdateReady,
   recoveryBusy,
@@ -85,6 +87,8 @@ export function AppToasts({
   importError: string | null;
   importErrorDetails: string | null;
   importNotice: string | null;
+  /** A map is open with nothing in the way, so an install offer may show. */
+  installEligible: boolean;
   needsSongHint: boolean;
   pwaUpdateReady: boolean;
   recoveryBusy: boolean;
@@ -314,6 +318,8 @@ export function AppToasts({
         resetKey={importNotice}
         onDismiss={() => setImportNotice(null)}
       />
+
+      <InstallOffer eligible={installEligible} />
     </div>
   );
 }

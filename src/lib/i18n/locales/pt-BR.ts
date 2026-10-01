@@ -2314,4 +2314,8 @@ export const ptBR: PartialCatalog = {
   "account.desktopNote": "O login do osu! abre no seu navegador e o Cascade continua a partir dali.",
   "account.bodyNoMap": "Tudo no editor funciona sem conta. Entrar com o osu! adiciona:",
   "palette.new": "Novo",
+  "install.title": "Instalar o Cascade como app",
+  "install.body": "Ele abre na própria janela e pode abrir arquivos .osz, .osu, .sm, .qua e .mc direto do seu gerenciador de arquivos.",
+  "install.install": "Instalar",
+  "install.command": "Instalar o Cascade como app",
 };

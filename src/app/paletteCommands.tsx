@@ -6,6 +6,7 @@ import type { AudioController } from "../hooks/useAudio";
 import type { Waveform } from "../hooks/useWaveform";
 import type { AuthUser } from "../lib/auth";
 import { canExitDesktop } from "../lib/desktopExit";
+import { promptInstall } from "../lib/installPrompt";
 import { editorKeyLabel, type EditorKeybinds } from "../lib/editorKeybinds";
 import type { FeatureFlags } from "../lib/featureFlags";
 import type { MessageKey, Translate } from "../lib/i18n";
@@ -56,6 +57,7 @@ export function buildPaletteCommands({
   hasProject,
   hitsoundTargets,
   importingMap,
+  installAvailable,
   openAiMod,
   openMapCard,
   openSettings,
@@ -117,6 +119,7 @@ export function buildPaletteCommands({
   hasProject: boolean;
   hitsoundTargets: Difficulty[];
   importingMap: boolean;
+  installAvailable: boolean;
   openAiMod: () => void;
   openMapCard: (start?: MapCardPresetOption | null) => void;
   openSettings: (tab?: SettingsTab) => void;
@@ -414,6 +417,18 @@ export function buildPaletteCommands({
               ]
             : []),
         ] satisfies PaletteCommand[]
+      : []),
+    ...(installAvailable
+      ? [
+          {
+            id: "install-app",
+            label: t("install.command"),
+            group: t("palette.group.cascade"),
+            aliases: ["install", "add to desktop"],
+            keywords: "pwa app window shortcut",
+            run: () => void promptInstall(),
+          },
+        ]
       : []),
     {
       id: "feedback",

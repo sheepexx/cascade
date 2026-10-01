@@ -145,7 +145,8 @@ import type { SettingsTab } from "./components/menus/AppSettingsModal";
 import { Menu } from "./components/ui/Menu";
 import { Modal } from "./components/ui/Modal";
 import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
-import { isDesktopApp, setLaunchFileConsumer } from "./lib/pwa";
+import { isDesktopApp, isStandalone, setLaunchFileConsumer } from "./lib/pwa";
+import { useInstallAvailable } from "./lib/installPrompt";
 import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
 import { displaySong } from "./lib/metadataDisplay";
@@ -2591,6 +2592,7 @@ export default function App() {
     }
     return { trimActive, remove, clamp };
   }, [toolsOpen, active.notes, active.trimStartMs, active.trimEndMs]);
+  const installAvailable = useInstallAvailable() && !isStandalone();
   const paletteCommands = buildPaletteCommands({
     active,
     addDifficulty,
@@ -2626,6 +2628,7 @@ export default function App() {
     hasProject,
     hitsoundTargets,
     importingMap,
+    installAvailable,
     openAiMod,
     openMapCard,
     openSettings,
@@ -4203,6 +4206,9 @@ export default function App() {
         importError={importError}
         importErrorDetails={importProblem?.details ?? null}
         importNotice={importNotice}
+        installEligible={
+          projectStarted && modal === null && !playtest.active && !zenMode && !isStandalone()
+        }
         needsSongHint={needsSongHint}
         pwaUpdateReady={pwaUpdateReady}
         recoveryBusy={recoveryBusy}
