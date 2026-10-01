@@ -2,6 +2,11 @@ import { useNotificationInbox } from "./app/useNotificationInbox";
 import { useSkins } from "./app/useSkins";
 import { AppHeader } from "./app/AppHeader";
 import { AppToasts } from "./app/AppToasts";
+import { rememberProjectForLogin, takeProjectAfterLogin } from "./lib/loginResume";
+import {
+  AccountPromptModal,
+  type AccountReason,
+} from "./components/menus/AccountPromptModal";
 import type { ImportProblem, SetImportError } from "./lib/importErrors";
 import { buildPaletteCommands } from "./app/paletteCommands";
 import { useEditorHotkeys } from "./app/useEditorHotkeys";
@@ -2511,6 +2516,38 @@ export default function App() {
 
   const close = useCallback(() => setModal(null), []);
 
+  const [accountReason, setAccountReason] = useState<AccountReason>("cloudSave");
+  /**
+   * A logged-out mapper reached for an account feature: explain, don't block.
+   * The open map is saved first, which is what the prompt promises.
+   */
+  const askToLogIn = useCallback(
+    (reason: AccountReason) => {
+      if (projectStartedRef.current && canEditRef.current) void handleSave(true);
+      setAccountReason(reason);
+      setModal("account");
+    },
+    [canEditRef, handleSave, projectStartedRef],
+  );
+  // The web login leaves the page, so the map is saved here before it goes.
+  const loginFromPrompt = useCallback(async () => {
+    if (projectStartedRef.current) {
+      if (canEditRef.current) await handleSave(true);
+      if (!isDesktopApp()) rememberProjectForLogin(localProjectIdRef.current);
+    }
+    await flushRecovery();
+    authLogin();
+  }, [authLogin, canEditRef, flushRecovery, handleSave, localProjectIdRef, projectStartedRef]);
+  // Back from the osu! login page: reopen the map that was open before it.
+  useEffect(() => {
+    const projectId = takeProjectAfterLogin();
+    if (projectId) void loadLocalProject(projectId);
+  }, [loadLocalProject]);
+  // A desktop login finishes in the browser; the prompt has done its job.
+  useEffect(() => {
+    if (authUser && modal === "account") setModal(null);
+  }, [authUser, modal]);
+
   // The Tools dialog is the only reader of these counts.
   const toolsOpen = modal === "tools";
   const holds = useMemo(
@@ -2558,6 +2595,7 @@ export default function App() {
     active,
     addDifficulty,
     appSettings,
+    askToLogIn,
     applyCopyHitsoundsToAll,
     audio,
     audioFile,
@@ -2713,6 +2751,7 @@ export default function App() {
       <AppHeader
         active={active}
         appSettings={appSettings}
+        askToLogIn={askToLogIn}
         authUser={authUser}
         beginExternalEdit={beginExternalEdit}
         canEdit={canEdit}
@@ -4044,6 +4083,17 @@ export default function App() {
             onToggleInvisible={toggleInvisibleMode}
           />
         </Suspense>
+      )}
+
+      {modalMounted("account") && (
+        <AccountPromptModal
+          open={modal === "account"}
+          reason={accountReason}
+          hasMap={projectStarted && canEdit}
+          collab={featureFlags.collab}
+          onClose={close}
+          onLogin={loginFromPrompt}
+        />
       )}
 
       {modalMounted("share") && (

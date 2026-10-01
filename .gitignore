@@ -21,3 +21,4 @@ src-tauri/gen/
 
 # Cached ranked .osu downloads for the pattern corpus build
 .corpus-cache/
+.claude/

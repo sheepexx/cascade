@@ -3,6 +3,7 @@ import { AccountControl } from "../components/auth/LoginButton";
 import { DesktopDownloadLink } from "../components/DesktopDownloadLink";
 import { IconButton, MenuButton } from "../components/header/HeaderButtons";
 import { LanguagePicker } from "../components/LanguagePicker";
+import type { AccountReason } from "../components/menus/AccountPromptModal";
 import type { SettingsTab } from "../components/menus/AppSettingsModal";
 import { NotificationInbox } from "../components/NotificationInbox";
 import { NowPlaying } from "../components/NowPlaying";
@@ -33,6 +34,7 @@ import type { ModalId } from "./appTypes";
 export function AppHeader({
   active,
   appSettings,
+  askToLogIn,
   authUser,
   beginExternalEdit,
   canEdit,
@@ -96,6 +98,7 @@ export function AppHeader({
 }: {
   active: Difficulty;
   appSettings: AppSettings;
+  askToLogIn: (reason: AccountReason) => void;
   authUser: AuthUser | null;
   beginExternalEdit: () => Promise<void>;
   canEdit: boolean;
@@ -414,10 +417,16 @@ export function AppHeader({
                     cloudSaveStatus === "saving"
                       ? t("file.saving")
                       : t("file.saveToCloud"),
-                  title: !authUser ? t("file.logInFirst") : undefined,
+                  title:
+                    !authUser && !featureFlags.cloud_accounts
+                      ? t("file.logInFirst")
+                      : undefined,
                   disabled:
-                    !authUser || !canEdit || cloudSaveStatus === "saving",
-                  onClick: () => void handleCloudSave(),
+                    !canEdit ||
+                    cloudSaveStatus === "saving" ||
+                    (!authUser && !featureFlags.cloud_accounts),
+                  onClick: () =>
+                    authUser ? void handleCloudSave() : askToLogIn("cloudSave"),
                 },
                 { separator: true },
                 {

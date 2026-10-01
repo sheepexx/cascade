@@ -27,6 +27,7 @@ export type ModalId =
   | "share"
   | "packBrowser"
   | "backups"
+  | "account"
   | null;
 
 export type DocSnapshot = {

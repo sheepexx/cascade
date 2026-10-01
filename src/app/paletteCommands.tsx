@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import type { AccountReason } from "../components/menus/AccountPromptModal";
 import type { SettingsTab } from "../components/menus/AppSettingsModal";
 import type { PaletteCommand } from "../components/ui/CommandPalette";
 import type { AudioController } from "../hooks/useAudio";
@@ -23,6 +24,7 @@ export function buildPaletteCommands({
   active,
   addDifficulty,
   appSettings,
+  askToLogIn,
   applyCopyHitsoundsToAll,
   audio,
   audioFile,
@@ -82,6 +84,7 @@ export function buildPaletteCommands({
   active: Difficulty;
   addDifficulty: () => void;
   appSettings: AppSettings;
+  askToLogIn: (reason: AccountReason) => void;
   applyCopyHitsoundsToAll: () => void;
   audio: AudioController;
   audioFile: LoadedFile | null;
@@ -288,7 +291,7 @@ export function buildPaletteCommands({
           { id: "redo", label: t("nav.redo"), group: t("palette.group.edit"), hint: "Ctrl Y", disabled: !canRedo, run: redo },
           { id: "new-open", label: t("file.newOpen"), group: t("palette.group.file"), keywords: "project map welcome", run: () => setModal("welcome") },
           { id: "save", label: t("file.saveLocally"), group: t("palette.group.file"), hint: "Ctrl S", run: () => void handleSave() },
-          { id: "save-cloud", label: t("file.saveToCloud"), group: t("palette.group.file"), keywords: "account collaborate", disabled: !authUser || !canEdit, run: () => void handleCloudSave() },
+          { id: "save-cloud", label: t("file.saveToCloud"), group: t("palette.group.file"), keywords: "account collaborate", disabled: !canEdit || (!authUser && !featureFlags.cloud_accounts), run: () => (authUser ? void handleCloudSave() : askToLogIn("cloudSave")) },
           { id: "copy-hitsounds-all", label: t("hitsounds.copyToAllCommand"), group: t("palette.group.edit"), keywords: "hitsound whistle finish clap samples apply", disabled: !canEdit || hitsoundTargets.length === 0 || countHitsounds(active.notes) === 0, run: applyCopyHitsoundsToAll },
           { id: "export-osu", label: t("file.exportOsu"), group: t("palette.group.export"), disabled: !canExport, run: handleExportOsu },
           { id: "export-osz", label: t("file.exportOsz"), group: t("palette.group.export"), disabled: !canExport || exporting, run: handleExportOsz },
@@ -381,7 +384,13 @@ export function buildPaletteCommands({
           ...(cloudProjectId
             ? [
                 { id: "comments", label: t("nav.comments"), group: t("palette.group.collaboration"), run: () => setCommentsOpen((value) => !value) },
-                { id: "share", label: t("nav.shareTitle"), group: t("palette.group.collaboration"), disabled: !authUser, run: () => setModal("share" as ModalId) },
+              ]
+            : []),
+          // Listed before the map is in the cloud too: the share dialog says
+          // to save it first, and a logged-out mapper learns what an account adds.
+          ...(cloudProjectId || featureFlags.cloud_accounts
+            ? [
+                { id: "share", label: t("nav.shareTitle"), group: t("palette.group.collaboration"), keywords: "invite collaborate together link public", run: () => (authUser ? setModal("share" as ModalId) : askToLogIn("share")) },
               ]
             : []),
           ...(isDesktopApp()
