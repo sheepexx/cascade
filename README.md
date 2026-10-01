@@ -73,6 +73,8 @@ Mapping needs a keyboard and a mouse. On a phone, Cascade shows an overview page
 - Trim brackets and fades on the timeline. The original audio stays untouched in the project, and the cut is only applied when you export an `.osz`.
 - Right-click the timeline to set the preview point or add a named bookmark. With two bookmarks set, the Loop button repeats that section.
 - Local projects are saved with Ctrl+S, or automatically with autosave turned on. They include audio, difficulties and background files.
+- Crash recovery keeps a copy of the map you are editing in the browser, a few seconds behind your last edit. If the tab closes, the browser crashes or the editor hits an error before you save, Cascade offers the work back the next time it opens.
+- File → Backups lists a backup taken every few minutes while you edit and before anything replaces the map, plus unsaved work from maps you moved away from. Restoring a backup of the open map is a normal edit, so Ctrl+Z undoes it.
 
 ### Selection and patterns
 

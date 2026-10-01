@@ -194,6 +194,11 @@ const AutoTimePrompt = lazyWithPreload(() =>
 const PackCreator = lazyWithPreload(() =>
   import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
 );
+const BackupsModal = lazyWithPreload(() =>
+  import("./components/menus/BackupsModal").then((m) => ({
+    default: m.BackupsModal,
+  })),
+);
 import {
   CommentIcon,
   SampleMapsIcon,
@@ -348,6 +353,7 @@ function preloadLazyChunks(): Promise<unknown> {
       PackBrowserModal,
       AutoTimePrompt,
       PackCreator,
+      BackupsModal,
       AdminPanel,
     ].map((component) => component.preload()),
   );
@@ -491,6 +497,16 @@ import {
 } from "./lib/persistence";
 import { restoreSnapshot } from "./lib/projectVault";
 import {
+  recoveryRecorder,
+  sameChartContent,
+  type BackupRecord,
+  type RecoveryChart,
+  type RecoveryHead,
+  type RecoveryMedia,
+} from "./lib/recovery";
+import { useProjectRecovery } from "./hooks/useProjectRecovery";
+import { RecoveryPrompt } from "./components/RecoveryPrompt";
+import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_SONG_META,
   DEFAULT_VIEW,
@@ -608,6 +624,7 @@ type ModalId =
   | "admin"
   | "share"
   | "packBrowser"
+  | "backups"
   | null;
 
 type DocSnapshot = {
@@ -1291,10 +1308,43 @@ export default function App() {
   const accountSettingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const accountSettingsSaveVersionRef = useRef(0);
 
+  const recoveryChart = useMemo<RecoveryChart>(
+    () => ({ meta, timingPoints, difficulties, activeId, bgScope }),
+    [meta, timingPoints, difficulties, activeId, bgScope],
+  );
+  const recoveryMedia = useMemo<RecoveryMedia>(
+    () => ({
+      audioFiles: Object.values(audioFiles).map(({ name, blob }) => ({ name, blob })),
+      backgroundFiles: Object.values(bgFiles).map(({ name, blob }) => ({ name, blob })),
+      videoFiles: Object.values(videoFiles).map(({ name, blob }) => ({ name, blob })),
+      sampleFiles: Object.values(sampleFiles),
+    }),
+    [audioFiles, bgFiles, videoFiles, sampleFiles],
+  );
+  const {
+    noteEdit: noteRecoveryEdit,
+    saveToken: recoverySaveToken,
+    markSaved: markRecoverySaved,
+    backup: backupRecovery,
+    flush: flushRecovery,
+  } = useProjectRecovery({
+    enabled: projectStarted,
+    projectId: localProjectId,
+    chart: recoveryChart,
+    media: recoveryMedia,
+    onClosedUnsaved: (title) =>
+      setImportNotice(
+        t("recovery.closedUnsaved", { title: title.trim() || t("app.unnamed") }),
+      ),
+  });
+  const localProjectIdRef = useRef(localProjectId);
+  localProjectIdRef.current = localProjectId;
+
   const markStructural = useCallback(() => {
     localEditVersionRef.current += 1;
     if (sessionActiveRef.current) pendingDocSyncRef.current = true;
-  }, []);
+    noteRecoveryEdit();
+  }, [noteRecoveryEdit]);
 
   useEffect(() => {
     if (!cloudProjectId || !authUser) return;
@@ -3820,6 +3870,7 @@ export default function App() {
         ...result.difficulty,
         name: uniqueDifficultyName(result.difficulty.name, otherNames),
       };
+      await backupRecovery("before-external-edit");
       markStructural();
       setMeta(result.meta);
       setDifficulties((prev) => prev.map((d) => (d.id === current.id ? difficulty : d)));
@@ -3831,7 +3882,7 @@ export default function App() {
     } finally {
       setExternalEditBusy(false);
     }
-  }, [externalEdit, markStructural, t]);
+  }, [backupRecovery, externalEdit, markStructural, t]);
 
   const discardExternalEdit = useCallback(() => {
     if (externalEdit) void finishExternalEdit(externalEdit.path);
@@ -4564,13 +4615,14 @@ export default function App() {
       let next = prev.filter((d) => !remove.has(d.id));
       if (next.length === 0) next = prev.slice(0, 1);
       if (next.length === prev.length) return;
+      void backupRecovery("before-delete");
       markStructural();
       setDifficulties(next);
       if (!next.some((d) => d.id === activeIdRef.current))
         setActiveId(next[0].id);
       pruneOrphanAssets(next);
     },
-    [markStructural, pruneOrphanAssets],
+    [backupRecovery, markStructural, pruneOrphanAssets],
   );
 
   const placeNote = useCallback(
@@ -4910,6 +4962,8 @@ export default function App() {
       pendingDocSyncRef.current = false;
       const pid = cloudProjectIdRef.current;
       if (!pid || !canEditRef.current) return;
+      const recoveryProject = localProjectIdRef.current;
+      const recoveryToken = recoverySaveToken();
       void queueCloudSave(pid, {
         meta: metaRef.current,
         timingPoints: timingPointsRef.current,
@@ -4922,6 +4976,7 @@ export default function App() {
         // the duplicate refresh produced by Postgres Changes.
         .then(() => {
           if (cloudProjectIdRef.current !== pid) return;
+          markRecoverySaved(recoveryProject, recoveryToken);
           setCloudError((current) =>
             current?.startsWith("Live collaboration save failed:") ? null : current,
           );
@@ -4959,6 +5014,8 @@ export default function App() {
     bgScope,
     cloudSyncRetry,
     queueCloudSave,
+    markRecoverySaved,
+    recoverySaveToken,
   ]);
 
   const applySnapshot = useCallback((s: DocSnapshot) => {
@@ -4986,8 +5043,9 @@ export default function App() {
     if (!prev) return;
     if (presentRef.current) redoStackRef.current.push(presentRef.current);
     applySnapshot(prev);
+    noteRecoveryEdit();
     bumpHistory((v) => v + 1);
-  }, [applySnapshot, markStructural]);
+  }, [applySnapshot, markStructural, noteRecoveryEdit]);
 
   const redo = useCallback(() => {
     if (sessionActiveRef.current) {
@@ -5004,8 +5062,9 @@ export default function App() {
     if (!next) return;
     if (presentRef.current) undoStackRef.current.push(presentRef.current);
     applySnapshot(next);
+    noteRecoveryEdit();
     bumpHistory((v) => v + 1);
-  }, [applySnapshot, markStructural]);
+  }, [applySnapshot, markStructural, noteRecoveryEdit]);
 
   const canUndo = liveEnabled
     ? opUndoRef.current.length > 0
@@ -5049,9 +5108,10 @@ export default function App() {
       if (!result) return;
       undoStackRef.current = result.past; redoStackRef.current = result.future;
       applySnapshot(result.present);
+      noteRecoveryEdit();
     }
     bumpHistory(v => v + 1);
-  }, [applySnapshot, markStructural]);
+  }, [applySnapshot, markStructural, noteRecoveryEdit]);
 
   const applySavedProject = useCallback((saved: SavedProject) => {
     applyingHistoryRef.current = true;
@@ -6413,37 +6473,201 @@ export default function App() {
 
   const projectVaultKey = projectStorageKey(localProjectId);
 
+  /**
+   * Puts an earlier chart back into the open project as one ordinary edit:
+   * the media that is loaded stays, a live session syncs it, and Ctrl+Z takes
+   * it back. A backup of what was there comes first.
+   */
+  const restoreChartInPlace = useCallback(
+    async (chart: Pick<RecoveryChart, "meta" | "timingPoints" | "difficulties"> &
+      Partial<Pick<RecoveryChart, "activeId" | "bgScope">>) => {
+      if (!canEditRef.current) throw new Error(t("app.noEditAccess"));
+      await backupRecovery("before-restore");
+      const diffs = (chart.difficulties.length ? chart.difficulties : [makeDifficulty()]).map(
+        (d) => ({ ...d, timingPoints: normalizeTimingPoints(d.timingPoints) }),
+      );
+      markStructural();
+      setMeta(chart.meta);
+      setTimingPoints(normalizeTimingPoints(chart.timingPoints));
+      setDifficulties(diffs);
+      setActiveId((current) =>
+        diffs.some((d) => d.id === current)
+          ? current
+          : diffs.find((d) => d.id === chart.activeId)?.id ?? diffs[0].id,
+      );
+      if (chart.bgScope) setBgScope(chart.bgScope);
+    },
+    [backupRecovery, markStructural, t],
+  );
+
   const handleRestoreSnapshot = useCallback(
     async (stamp: string) => {
       const snapshot = await restoreSnapshot(projectVaultKey, stamp);
-      const current = buildSavedProject();
-      applySavedProject({
-        ...snapshot,
-        // Snapshots hold the chart only, so keep the media that is loaded.
-        // Restoring notes and timing must never drop the audio.
-        audioFiles: current.audioFiles,
-        audio: current.audio,
-        backgroundFiles: current.backgroundFiles,
-        videoFiles: current.videoFiles,
-        background: current.background,
-        skin: current.skin,
-      });
+      await restoreChartInPlace(snapshot);
     },
-    [projectVaultKey, buildSavedProject, applySavedProject],
+    [projectVaultKey, restoreChartInPlace],
   );
+
+  /**
+   * Opens recovered work as its own project. It is saved to the local
+   * projects straight away, so it is safe the moment it is back.
+   */
+  const openRecoveredProject = useCallback(
+    async (projectId: string, chart: RecoveryChart, media: RecoveryMedia | null) => {
+      let files = media;
+      if (!files) {
+        const saved = await loadProject(projectId).catch(() => null);
+        files = saved
+          ? {
+              audioFiles: saved.audioFiles ?? (saved.audio ? [saved.audio] : []),
+              backgroundFiles:
+                saved.backgroundFiles ?? (saved.background ? [saved.background] : []),
+              videoFiles: saved.videoFiles ?? [],
+              sampleFiles: saved.sampleFiles ?? [],
+            }
+          : null;
+      }
+      const project: SavedProject = {
+        version: PROJECT_VERSION,
+        localId: projectId,
+        savedAt: Date.now(),
+        meta: chart.meta,
+        timingPoints: chart.timingPoints,
+        difficulties: chart.difficulties,
+        activeId: chart.activeId,
+        view: viewRef.current,
+        appSettings: appSettingsRef.current,
+        bgScope: chart.bgScope,
+        audioFiles: files?.audioFiles ?? [],
+        backgroundFiles: files?.backgroundFiles ?? [],
+        videoFiles: files?.videoFiles ?? [],
+        sampleFiles: files?.sampleFiles ?? [],
+        background: null,
+        skin: null,
+      };
+      const token = recoverySaveToken();
+      const saved = await saveProject(project, projectId).then(
+        () => true,
+        () => false,
+      );
+      importStartedRef.current = true;
+      applySavedProject(project);
+      setLocalProjectId(projectId);
+      setModal(null);
+      if (saved) markRecoverySaved(projectId, token);
+      else noteRecoveryEdit(projectId);
+      const title = chart.meta.title.trim() || t("app.unnamed");
+      setImportNotice(
+        !files || !files.audioFiles.length
+          ? t("recovery.restoredNoMedia", { title })
+          : t("recovery.restored", { title }),
+      );
+    },
+    [
+      applySavedProject,
+      markRecoverySaved,
+      noteRecoveryEdit,
+      recoverySaveToken,
+      t,
+    ],
+  );
+
+  const restoreUnsavedWork = useCallback(
+    async (projectId: string) => {
+      const recorder = recoveryRecorder();
+      const found = await recorder?.load(projectId);
+      if (!found) throw new Error(t("recovery.restoreFailed"));
+      await openRecoveredProject(projectId, found.chart, found.media);
+    },
+    [openRecoveredProject, t],
+  );
+
+  const restoreBackup = useCallback(
+    async (record: BackupRecord) => {
+      if (record.projectId === localProjectIdRef.current && projectStartedRef.current) {
+        await restoreChartInPlace(record.chart);
+        setModal(null);
+        setImportNotice(t("backups.restoredHere"));
+        return;
+      }
+      const recorder = recoveryRecorder();
+      const live = await recorder?.load(record.projectId).catch(() => null);
+      await openRecoveredProject(record.projectId, record.chart, live?.media ?? null);
+    },
+    [openRecoveredProject, restoreChartInPlace, t],
+  );
+
+  const [recoveryOffer, setRecoveryOffer] = useState<RecoveryHead | null>(null);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  // Looks for work a crash or a closed tab left behind, once the start-up rush
+  // is over. Work that matches a saved copy is quietly marked saved instead.
+  useEffect(() => {
+    const recorder = recoveryRecorder();
+    if (!recorder) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const heads = await recorder.recoverable().catch(() => []);
+        for (const head of heads.slice(0, 3)) {
+          if (cancelled) return;
+          const [found, saved] = await Promise.all([
+            recorder.load(head.projectId).catch(() => null),
+            loadProject(head.projectId).catch(() => null),
+          ]);
+          if (!found) continue;
+          if (saved && sameChartContent(saved, found.chart)) {
+            await recorder.markSaved(head.projectId, saved.savedAt).catch(() => {});
+            continue;
+          }
+          if (!cancelled && head.projectId !== localProjectIdRef.current) {
+            setRecoveryOffer(head);
+          }
+          return;
+        }
+      })();
+    }, 1500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  const acceptRecoveryOffer = useCallback(async () => {
+    const offer = recoveryOffer;
+    if (!offer) return;
+    setRecoveryBusy(true);
+    try {
+      await restoreUnsavedWork(offer.projectId);
+      setRecoveryOffer(null);
+    } catch (error) {
+      setImportError(
+        error instanceof Error ? error.message : t("recovery.restoreFailed"),
+      );
+    } finally {
+      setRecoveryBusy(false);
+    }
+  }, [recoveryOffer, restoreUnsavedWork, t]);
+
+  const dismissRecoveryOffer = useCallback(() => {
+    const offer = recoveryOffer;
+    setRecoveryOffer(null);
+    if (offer) void recoveryRecorder()?.close(offer.projectId).catch(() => {});
+  }, [recoveryOffer]);
 
   const handleSave = useCallback(async (silent = false) => {
     setSaveStatus("saving");
     if (!silent) requestPersistentStorage();
+    const token = recoverySaveToken();
     try {
       await saveProject(buildSavedProject(), localProjectId);
+      markRecoverySaved(localProjectId, token);
       setSaveErrorDetail(null);
       setSaveStatus("saved");
     } catch (err) {
       setSaveErrorDetail(describeSaveError(err));
       setSaveStatus("error");
     }
-  }, [buildSavedProject, localProjectId]);
+  }, [buildSavedProject, localProjectId, markRecoverySaved, recoverySaveToken]);
 
   useEffect(() => {
     if (saveStatus !== "saved") return;
@@ -6515,6 +6739,7 @@ export default function App() {
       return;
     }
 
+    const recoveryToken = recoverySaveToken();
     try {
       await cloudSavePromiseRef.current.catch(() => {});
       const targetId = cloudProjectId ?? overwriteId ?? null;
@@ -6554,6 +6779,7 @@ export default function App() {
         ),
       ]);
       setCloudProjectId(id);
+      markRecoverySaved(localProjectId, recoveryToken);
       // A new map and an overwritten duplicate are both the caller's own.
       if (!cloudProjectId) {
         setCloudOwnerId(authUser.id);
@@ -6609,6 +6835,9 @@ export default function App() {
     audioFiles,
     bgFiles,
     sampleFiles,
+    localProjectId,
+    markRecoverySaved,
+    recoverySaveToken,
   ]);
 
   const loadCloudProject = useCallback(async (id: string) => {
@@ -7168,7 +7397,7 @@ export default function App() {
     { key: "settings.rate", tab: "Playtest", keywords: "playback speed dt ht" },
     { key: "settings.zoom", tab: "Playtest", keywords: "playfield size", hud: true },
     { key: "settings.hitPosition", tab: "Playtest", keywords: "judgement line receptor", hud: true },
-    { key: "settings.quickRestartKey", tab: "Playtest", keywords: "retry" },
+    { key: "settings.quickRestartKey", tab: "Playtest", keywords: "retry keybind" },
     { key: "settings.keybinds", tab: "Playtest", keywords: "keys lanes controls" },
     { key: "settings.showJudgements", tab: "Playtest", hud: true },
     { key: "settings.showCombo", tab: "Playtest", hud: true },
@@ -7190,8 +7419,6 @@ export default function App() {
     { key: "settings.humanizeMissChance", tab: "Playtest", keywords: "autoplay error" },
     { key: "settings.humanizeReleaseJitter", tab: "Playtest", keywords: "autoplay long note ln" },
     { key: "settings.humanizeSeed", tab: "Playtest", keywords: "autoplay random" },
-    { key: "settings.quickRestartKey", tab: "Playtest", keywords: "keybind" },
-    { key: "settings.keybinds", tab: "Playtest", keywords: "lanes controls" },
     { key: "settings.audioSetup", tab: "Audio", keywords: "output calibration" },
     { key: "settings.playHitsounds", tab: "Audio" },
     { key: "settings.masterVolume", tab: "Audio", keywords: "volume sound everything" },
@@ -7235,6 +7462,13 @@ export default function App() {
       group: t("palette.group.open"),
       keywords: "examples demo",
       run: () => setModal("sampleMaps"),
+    },
+    {
+      id: "backups",
+      label: t("backups.title"),
+      group: t("palette.group.file"),
+      keywords: "recovery restore history crash autosave versions undo lost unsaved",
+      run: () => setModal("backups"),
     },
     {
       id: "pack-creator",
@@ -7791,6 +8025,10 @@ export default function App() {
                   {
                     label: t("file.mapCard"),
                     onClick: () => openMapCard(),
+                  },
+                  {
+                    label: t("file.backups"),
+                    onClick: () => setModal("backups"),
                   },
                   ...(isDesktopApp()
                     ? [
@@ -8470,6 +8708,18 @@ export default function App() {
           onClose={close}
           storageKey={projectVaultKey}
           onRestore={handleRestoreSnapshot}
+        />
+      )}
+      {modalMounted("backups") && (
+        <BackupsModal
+          open={modal === "backups"}
+          onClose={close}
+          projectId={localProjectId}
+          projectOpen={hasProject}
+          canEdit={canEdit}
+          onBackupNow={() => backupRecovery("manual")}
+          onRestoreBackup={restoreBackup}
+          onRestoreUnsaved={restoreUnsavedWork}
         />
       )}
       {modalMounted("myProjects") && (
@@ -9275,6 +9525,12 @@ export default function App() {
       )}
 
       <div className="pointer-events-none fixed bottom-28 left-1/2 z-[65] flex w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 flex-col items-center gap-2">
+        <RecoveryPrompt
+          offer={recoveryOffer}
+          busy={recoveryBusy}
+          onRestore={() => void acceptRecoveryOffer()}
+          onDismiss={dismissRecoveryOffer}
+        />
         {saveStatus === "error" && (
           <TimedNotification
             durationMs={6500}
@@ -9496,7 +9752,18 @@ export default function App() {
               onClick={() => {
                 setShowHomeConfirm(false);
                 document.body.classList.add('fade-out');
-                setTimeout(() => window.location.reload(), 120);
+                // The page reloads, so the project is put somewhere durable
+                // first: a local save when autosave is on, and the recovery
+                // copy either way. Neither may hold the reload up for long.
+                const autosave =
+                  appSettings.localAutosaveEnabled && canEdit && projectStarted;
+                void Promise.race([
+                  Promise.all([
+                    flushRecovery(),
+                    autosave ? handleSave(true) : null,
+                  ]),
+                  new Promise((resolve) => setTimeout(resolve, 2000)),
+                ]).finally(() => window.location.reload());
               }}
             >
               {t("home.returnButton")}
