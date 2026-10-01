@@ -1,4 +1,5 @@
 import type { ManiaNote } from "../types";
+import { memoByNotes } from "./notesMemo";
 
 export type MapStats = {
   notes: number;
@@ -40,7 +41,14 @@ const EMPTY: MapStats = {
   handBalance: 0.5,
 };
 
+/** Cached per notes array; see memoByNotes. */
 export function computeMapStats(notes: ManiaNote[], keyCount = 0): MapStats {
+  return cachedMapStats(notes, keyCount);
+}
+
+const cachedMapStats = memoByNotes(mapStatsOf);
+
+function mapStatsOf(notes: ManiaNote[], keyCount: number): MapStats {
   if (notes.length === 0)
     return keyCount > 0
       ? { ...EMPTY, columnCounts: new Array(keyCount).fill(0) }

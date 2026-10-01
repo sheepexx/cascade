@@ -3,6 +3,7 @@ import type { Difficulty, ManiaNote } from "../../types";
 import {
   msdSupportsKeyCount,
   notesToMsdRows,
+  packMsdRows,
   type MsdRating,
   type SkillsetPoint,
 } from "./minacalc";
@@ -57,7 +58,11 @@ export function requestMsd(
   return new Promise((resolve) => {
     const id = nextId++;
     pending.set(id, { resolve: (response) => resolve(response?.rating ?? null) });
-    w.postMessage({ id, rows, keyCount } satisfies MsdWorkerRequest);
+    const packed = packMsdRows(rows);
+    w.postMessage({ id, rows: packed, keyCount } satisfies MsdWorkerRequest, [
+      packed.masks.buffer,
+      packed.times.buffer,
+    ]);
   });
 }
 
@@ -74,7 +79,11 @@ export function requestSkillsetTimeline(
   return new Promise((resolve) => {
     const id = nextId++;
     pending.set(id, { resolve: (response) => resolve(response?.timeline ?? null) });
-    w.postMessage({ id, rows, keyCount, kind: "timeline" } satisfies MsdWorkerRequest);
+    const packed = packMsdRows(rows);
+    w.postMessage({ id, rows: packed, keyCount, kind: "timeline" } satisfies MsdWorkerRequest, [
+      packed.masks.buffer,
+      packed.times.buffer,
+    ]);
   });
 }
 

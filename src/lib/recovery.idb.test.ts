@@ -71,3 +71,42 @@ describe("indexedDbRecoveryBackend", () => {
     expect((await recorder.load("local-20"))?.head.noteCount).toBe(4);
   });
 });
+
+describe("recovery storage from version 1", () => {
+  it("moves backup charts out of their summaries", async () => {
+    const name = "cascade-recovery";
+    await new Promise<void>((resolve, reject) => {
+      const del = indexedDB.deleteDatabase(name);
+      del.onsuccess = () => resolve();
+      del.onerror = () => reject(del.error);
+    });
+    const chartV1 = chart([diff("Old", 4)]);
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open(name, 1);
+      open.onupgradeneeded = () => {
+        for (const store of ["heads", "diffs", "media", "backups"]) open.result.createObjectStore(store);
+      };
+      open.onsuccess = () => {
+        const tx = open.result.transaction("backups", "readwrite");
+        tx.objectStore("backups").put(
+          { key: "p|1|0", projectId: "p", createdAt: 1, reason: "manual", title: "T", artist: "A", difficultyCount: 1, noteCount: 4, chart: chartV1 },
+          "p|1|0",
+        );
+        tx.oncomplete = () => {
+          open.result.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      };
+      open.onerror = () => reject(open.error);
+    });
+    const backend = indexedDbRecoveryBackend();
+    const recorder = new RecoveryRecorder(backend);
+    const [summary] = await recorder.backups("p");
+    const migrated = await backend.get<Record<string, unknown>>("backups", "p|1|0");
+    expect(migrated && "chart" in migrated).toBe(false);
+    expect(await backend.keys("backupCharts")).toEqual(["p|1|0"]);
+    expect(summary).toMatchObject({ key: "p|1|0", noteCount: 4 });
+    expect((await recorder.loadBackup("p|1|0"))?.chart.difficulties[0].notes).toHaveLength(4);
+  });
+});

@@ -1107,6 +1107,8 @@ export default function App() {
   } | null>(null);
   const active =
     difficulties.find((d) => d.id === activeId) ?? difficulties[0];
+  const activeNotesRef = useRef(active.notes);
+  activeNotesRef.current = active.notes;
   const activeCommentMarkers = useMemo(
     () => commentMarkers.filter((c) => c.difficulty_id === active.id),
     [commentMarkers, active.id],
@@ -2158,9 +2160,20 @@ export default function App() {
     }, Math.max(0, remaining));
   }, [playAudio]);
 
-  const playtestNoteById = useMemo(
-    () => new Map(active.notes.map((note) => [note.id, note])),
-    [active.notes],
+  // Built on the first key press of a run rather than on every edit: only
+  // playtest looks notes up by id.
+  const noteByIdRef = useRef<{ notes: ManiaNote[]; byId: Map<string, ManiaNote> } | null>(null);
+  const playtestNoteById = useCallback(
+    (id: string) => {
+      const notes = activeNotesRef.current;
+      let cache = noteByIdRef.current;
+      if (!cache || cache.notes !== notes) {
+        cache = { notes, byId: new Map(notes.map((note) => [note.id, note])) };
+        noteByIdRef.current = cache;
+      }
+      return cache.byId.get(id);
+    },
+    [],
   );
 
   const resetPlaytestRuntime = useCallback(
@@ -2192,7 +2205,7 @@ export default function App() {
       // nearest note in that column.
       const hit = events[0]?.kind === "judgement" ? events[0].result.noteId : null;
       const note = hit
-        ? playtestNoteById.get(hit)
+        ? playtestNoteById(hit)
         : nearestPlayableNote(
             ensurePlaytestNoteIndex(active.notes, active.keyCount).byColumn[column] ?? [],
             time,
@@ -4068,12 +4081,16 @@ export default function App() {
     setModal("aimod");
   }, [runAiModCheck]);
 
+  // Only AiMod and its Resnap prompt show this, so it is not worked out on
+  // every edit while neither is open.
+  const aiModUnsnappedNeeded = modal === "aimod" || confirmResnap;
   const aiModUnsnapped = useMemo(() => {
+    if (!aiModUnsnappedNeeded) return 0;
     const d = difficulties.find((x) => x.id === activeId);
     if (!d) return 0;
     const pts = d.timingPoints?.length ? d.timingPoints : [];
     return countUnsnapped(d.notes, pts);
-  }, [difficulties, activeId]);
+  }, [aiModUnsnappedNeeded, difficulties, activeId]);
 
   const handleAiModJump = useCallback(
     (issue: AiModIssue, time?: number) => {
@@ -7348,15 +7365,17 @@ export default function App() {
 
   const close = useCallback(() => setModal(null), []);
 
+  // The Tools dialog is the only reader of these counts.
+  const toolsOpen = modal === "tools";
   const holds = useMemo(
-    () => active.notes.filter((n) => n.endTime !== undefined).length,
-    [active.notes],
+    () => (toolsOpen ? active.notes.filter((n) => n.endTime !== undefined).length : 0),
+    [toolsOpen, active.notes],
   );
 
   /** Rice and hold counts inside the current selection, for the Tools panel. */
   const selectionCounts = useMemo(() => {
     const ids = selectionRange?.ids;
-    if (!ids?.size) return { rice: 0, holds: 0 };
+    if (!toolsOpen || !ids?.size) return { rice: 0, holds: 0 };
     let rice = 0;
     let holdCount = 0;
     for (const n of active.notes) {
@@ -7365,7 +7384,7 @@ export default function App() {
       else rice++;
     }
     return { rice, holds: holdCount };
-  }, [active.notes, selectionRange]);
+  }, [toolsOpen, active.notes, selectionRange]);
 
   const [laneFlash, setLaneFlash] = useState<{ column: number; at: number } | null>(null);
   const flashColumn = useCallback(
@@ -7380,7 +7399,7 @@ export default function App() {
     const trimActive = start > 0.5 || hasEnd;
     let remove = 0;
     let clamp = 0;
-    if (trimActive) {
+    if (trimActive && toolsOpen) {
       for (const n of active.notes) {
         if (n.startTime < start - 0.5 || n.startTime > end + 0.5) remove++;
         else if (hasEnd && n.endTime !== undefined && n.endTime > end + 0.5)
@@ -7388,7 +7407,7 @@ export default function App() {
       }
     }
     return { trimActive, remove, clamp };
-  }, [active.notes, active.trimStartMs, active.trimEndMs]);
+  }, [toolsOpen, active.notes, active.trimStartMs, active.trimEndMs]);
 
   const paletteSettingEntries: Array<{
     key: MessageKey;

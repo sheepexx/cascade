@@ -50,10 +50,27 @@ export function hasNoteCollisions(notes: ManiaNote[]): boolean {
   return false;
 }
 
+/**
+ * The existing notes that overlap the span `notes` covers. Only these can
+ * collide, so a paste into a 100k-note difficulty checks a handful of
+ * neighbours instead of every note for every pasted one.
+ */
+function notesNear(notes: ManiaNote[], existing: ManiaNote[]): ManiaNote[] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const note of notes) {
+    if (note.startTime < lo) lo = note.startTime;
+    const end = noteEnd(note);
+    if (end > hi) hi = end;
+  }
+  return existing.filter((other) => other.startTime <= hi && noteEnd(other) >= lo);
+}
+
 export function withoutNoteCollisions(
   notes: ManiaNote[],
-  existing: ManiaNote[],
+  allExisting: ManiaNote[],
 ): ManiaNote[] {
+  const existing = notes.length ? notesNear(notes, allExisting) : allExisting;
   const accepted: ManiaNote[] = [];
   if (notes.length <= 32) {
     for (const note of notes) {
@@ -148,7 +165,9 @@ export type NotePlacement =
  * would still overlap after that keeps the placement from happening.
  */
 export function placementFor(note: ManiaNote, existing: ManiaNote[]): NotePlacement {
-  const collisions = existing.filter((other) => notesCollide(note, other));
+  const collisions = existing.filter(
+    (other) => other.column === note.column && notesCollide(note, other),
+  );
   if (collisions.length === 0) return { kind: "add" };
   if (collisions.length === 1 && Math.abs(collisions[0].startTime - note.startTime) < 1)
     return { kind: "replace", replaced: collisions[0] };

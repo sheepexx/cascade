@@ -125,11 +125,29 @@ describe("invertNoteOp", () => {
     },
   );
 
-  it("restores a removed note without preserving its slot in the array", () => {
+  it("puts a restored note back in time order", () => {
     const start = docs([a, c]);
     const op: NoteOp = { t: "note.remove", diffId: "d1", notes: [a] };
     const undone = applyNoteOp(applyNoteOp(start, op), invertNoteOp(op));
-    expect(ids(undone)).toEqual(["c", "a"]);
+    expect(ids(undone)).toEqual(["a", "c"]);
+  });
+
+  it("adds a note after the notes already at its time", () => {
+    const twin = note("twin", 3, 1000);
+    const added = applyNoteOp(docs([a, b, c]), { t: "note.add", diffId: "d1", notes: [twin] });
+    expect(ids(added)).toEqual(["a", "b", "c", "twin"]);
+    const early = note("early", 3, 250);
+    expect(ids(applyNoteOp(docs([a, b, c]), { t: "note.add", diffId: "d1", notes: [early] }))).toEqual([
+      "a",
+      "early",
+      "b",
+      "c",
+    ]);
+  });
+
+  it("does not add a note it already holds", () => {
+    const start = docs([a, b]);
+    expect(applyNoteOp(start, { t: "note.add", diffId: "d1", notes: [a] })).toEqual(start);
   });
 
   it("is its own inverse when applied twice", () => {

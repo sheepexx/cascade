@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useDeferredValue, useMemo } from "react";
 import type { ManiaNote } from "../types";
 import { computeStarRating } from "../lib/starRating";
 import { maniaMaxPP } from "../lib/performance";
@@ -20,10 +20,13 @@ export function PPCounter({
   onPlaybackRateChange,
 }: Props) {
   const t = useT();
+  // Trails an edit by a render, so placing a note on a huge map is not held
+  // up by working out its star rating.
+  const deferredNotes = useDeferredValue(notes);
   const pp = useMemo(() => {
-    const star = computeStarRating(notes, keyCount);
-    return maniaMaxPP(star, notes);
-  }, [notes, keyCount]);
+    const star = computeStarRating(deferredNotes, keyCount);
+    return maniaMaxPP(star, deferredNotes);
+  }, [deferredNotes, keyCount]);
 
   return (
     <div className="absolute bottom-3 right-3 flex select-none items-stretch gap-2 transition-opacity duration-300">

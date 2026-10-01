@@ -107,6 +107,25 @@ export function notesToMsdRows(
     .map(([ms, mask]) => ({ mask, timeSec: ms / 1000 }));
 }
 
+/** Rows as two typed arrays, which a worker receives by transfer instead of a copy. */
+export type PackedMsdRows = { masks: Uint32Array; times: Float64Array };
+
+export function packMsdRows(rows: MsdRow[]): PackedMsdRows {
+  const masks = new Uint32Array(rows.length);
+  const times = new Float64Array(rows.length);
+  for (let i = 0; i < rows.length; i++) {
+    masks[i] = rows[i].mask;
+    times[i] = rows[i].timeSec;
+  }
+  return { masks, times };
+}
+
+export function unpackMsdRows({ masks, times }: PackedMsdRows): MsdRow[] {
+  const rows: MsdRow[] = new Array(masks.length);
+  for (let i = 0; i < masks.length; i++) rows[i] = { mask: masks[i], timeSec: times[i] };
+  return rows;
+}
+
 /** The skillsets the timeline graph shows; overall and stamina need a whole song. */
 export const SKILLSET_GRAPH_KEYS = [
   "stream",

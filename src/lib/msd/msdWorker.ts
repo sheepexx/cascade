@@ -3,14 +3,16 @@ import {
   SKILLSET_GRAPH_KEYS,
   loadMinacalc,
   skillsetWindows,
+  unpackMsdRows,
   type Minacalc,
-  type MsdRow,
+  type PackedMsdRows,
   type SkillsetPoint,
 } from "./minacalc";
 
 export type MsdWorkerRequest = {
   id: number;
-  rows: MsdRow[];
+  /** Transferred, not copied: a 100k-note map's rows cost a copy a long task. */
+  rows: PackedMsdRows;
   keyCount: number;
   /** "timeline" rates overlapping slices for the skillset graph. */
   kind?: "rating" | "timeline";
@@ -38,7 +40,8 @@ function getCalc(): Promise<Minacalc> {
 }
 
 self.onmessage = (event: MessageEvent<MsdWorkerRequest>) => {
-  const { id, rows, keyCount, kind } = event.data;
+  const { id, keyCount, kind } = event.data;
+  const rows = unpackMsdRows(event.data.rows);
   void getCalc()
     .then((calc) => {
       if (kind === "timeline") {

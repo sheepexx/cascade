@@ -371,3 +371,65 @@ describe("formatRecoveryTime", () => {
     expect(older).toMatch(/^30 \S+ 10:42$/);
   });
 });
+
+describe("packed notes", () => {
+  it("round-trips every note field, including absent ones and sample files", async () => {
+    const { packNotes, unpackNotes } = await import("./recovery");
+    const notes = [
+      { id: "a", column: 0, startTime: 0 },
+      { id: "b", column: 6, startTime: 125.5, endTime: 500, hitSound: 2, sampleSet: 3, additionSet: 2, sampleIndex: 1, sampleVolume: 40 },
+      { id: "c", column: 3, startTime: 900, sampleFile: "kick.wav", hitSound: 0 },
+    ];
+    const packed = packNotes(notes)!;
+    expect(packed.data).toBeInstanceOf(Float64Array);
+    expect(unpackNotes(packed)).toEqual(notes);
+    expect(unpackNotes(packNotes([])!)).toEqual([]);
+  });
+
+  it("leaves notes unpacked when an id could not survive the packing", async () => {
+    const { packNotes } = await import("./recovery");
+    expect(packNotes([{ id: "bad\nid", column: 0, startTime: 0 }])).toBeNull();
+  });
+
+  it("still reads a difficulty stored before packing", async () => {
+    const backend = memoryRecoveryBackend();
+    const recorder = new RecoveryRecorder(backend, now);
+    const d = withNotes("Old", 3);
+    await backend.commit([
+      {
+        store: "heads",
+        key: "p",
+        value: {
+          projectId: "p",
+          title: "T",
+          artist: "A",
+          difficultyIds: [d.id],
+          meta: { ...DEFAULT_SONG_META, title: "T" },
+          timingPoints: [],
+          activeId: d.id,
+          bgScope: "mapset",
+          noteCount: 3,
+          updatedAt: 1,
+          editedAt: 1,
+          savedAt: null,
+          closedAt: null,
+          hasMedia: false,
+        },
+      },
+      { store: "diffs", key: `p|${d.id}`, value: d },
+    ]);
+    expect((await recorder.load("p"))?.chart.difficulties[0].notes).toEqual(d.notes);
+  });
+
+  it("lists backups without reading their charts", async () => {
+    const backend = memoryRecoveryBackend();
+    const recorder = new RecoveryRecorder(backend, now);
+    await recorder.backup({ projectId: "p", chart: chartWith([withNotes("A", 5)]), media: noMedia }, "manual");
+    const [summary] = await recorder.backups();
+    const stored = await backend.get<Record<string, unknown>>("backups", summary.key);
+    expect(stored && "chart" in stored).toBe(false);
+    expect((await recorder.loadBackup(summary.key))?.chart.difficulties[0].notes).toHaveLength(5);
+    await recorder.deleteBackup(summary.key);
+    expect(await backend.keys("backupCharts")).toEqual([]);
+  });
+});

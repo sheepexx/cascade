@@ -89,7 +89,11 @@ export type BackupSummary = {
 
 export type BackupRecord = BackupSummary & { chart: RecoveryChart };
 
-export type RecoveryStoreName = "heads" | "diffs" | "media" | "backups";
+/**
+ * heads, diffs and media hold live state; backups holds backup summaries and
+ * backupCharts their charts, so listing backups never reads a chart.
+ */
+export type RecoveryStoreName = "heads" | "diffs" | "media" | "backups" | "backupCharts";
 
 /** A put, or a delete when `value` is undefined. */
 export type RecoveryOp = {
@@ -318,6 +322,90 @@ export function sameChartContent(
   );
 }
 
+/**
+ * A difficulty's notes as one string of ids and one typed array. Storing it
+ * clones in a few milliseconds where an array of 100k note objects took tens,
+ * which is the difference between a recovery write nobody notices and a
+ * dropped frame.
+ */
+export type PackedNotes = {
+  v: 1;
+  ids: string;
+  data: Float64Array;
+  /** Custom sample file names, by note index; most maps have none. */
+  files?: Record<number, string>;
+};
+
+const NOTE_FIELDS = [
+  "column",
+  "startTime",
+  "endTime",
+  "hitSound",
+  "sampleSet",
+  "additionSet",
+  "sampleIndex",
+  "sampleVolume",
+] as const;
+const STRIDE = NOTE_FIELDS.length;
+
+export function packNotes(notes: readonly ManiaNote[]): PackedNotes | null {
+  const data = new Float64Array(notes.length * STRIDE);
+  const ids: string[] = new Array(notes.length);
+  let files: Record<number, string> | undefined;
+  for (let i = 0; i < notes.length; i++) {
+    const note = notes[i];
+    if (note.id.includes("\n")) return null;
+    ids[i] = note.id;
+    const base = i * STRIDE;
+    for (let f = 0; f < STRIDE; f++) {
+      const value = note[NOTE_FIELDS[f]];
+      data[base + f] = value === undefined ? Number.NaN : value;
+    }
+    if (note.sampleFile !== undefined) (files ??= {})[i] = note.sampleFile;
+  }
+  return { v: 1, ids: ids.join("\n"), data, ...(files ? { files } : {}) };
+}
+
+export function unpackNotes(packed: PackedNotes): ManiaNote[] {
+  const count = packed.data.length / STRIDE;
+  const ids = count ? packed.ids.split("\n") : [];
+  const notes: ManiaNote[] = new Array(count);
+  for (let i = 0; i < count; i++) {
+    const note: ManiaNote = { id: ids[i], column: 0, startTime: 0 };
+    const base = i * STRIDE;
+    for (let f = 0; f < STRIDE; f++) {
+      const value = packed.data[base + f];
+      if (!Number.isNaN(value)) (note as Record<string, number | string>)[NOTE_FIELDS[f]] = value;
+    }
+    const file = packed.files?.[i];
+    if (file !== undefined) note.sampleFile = file;
+    notes[i] = note;
+  }
+  return notes;
+}
+
+type StoredDifficulty = Difficulty & { packedNotes?: PackedNotes };
+
+function storeDifficulty(difficulty: Difficulty): StoredDifficulty {
+  const packedNotes = packNotes(difficulty.notes);
+  return packedNotes ? { ...difficulty, notes: [], packedNotes } : difficulty;
+}
+
+/** Reads a stored difficulty back, packed or (from older records) not. */
+function readDifficulty(stored: StoredDifficulty): Difficulty {
+  if (!stored?.packedNotes) return stored;
+  const { packedNotes, ...difficulty } = stored;
+  return { ...difficulty, notes: unpackNotes(packedNotes) };
+}
+
+function storeChart(chart: RecoveryChart): RecoveryChart {
+  return { ...chart, difficulties: chart.difficulties.map(storeDifficulty) };
+}
+
+function readChart(chart: RecoveryChart): RecoveryChart {
+  return { ...chart, difficulties: (chart.difficulties ?? []).map(readDifficulty) };
+}
+
 let blobIds = new WeakMap<Blob, number>();
 let nextBlobId = 1;
 function blobId(blob: Blob): number {
@@ -418,7 +506,7 @@ export class RecoveryRecorder {
       for (const d of chart.difficulties) {
         ids.add(d.id);
         if (written.diffs.get(d.id) === d) continue;
-        ops.push({ store: "diffs", key: diffKey(projectId, d.id), value: d });
+        ops.push({ store: "diffs", key: diffKey(projectId, d.id), value: storeDifficulty(d) });
         changed += 1;
       }
       for (const id of written.diffs.keys()) {
@@ -507,7 +595,7 @@ export class RecoveryRecorder {
         if (same) return false;
       }
       if (!noteTotal(chart.difficulties) && reason !== "manual") return false;
-      const record: BackupRecord = {
+      const summary: BackupSummary = {
         key: backupKey(state.projectId, now, this.seq++),
         projectId: state.projectId,
         createdAt: now,
@@ -516,9 +604,11 @@ export class RecoveryRecorder {
         artist: chart.meta.artist,
         difficultyCount: chart.difficulties.length,
         noteCount: noteTotal(chart.difficulties),
-        chart,
       };
-      await this.backend.commit([{ store: "backups", key: record.key, value: record }]);
+      await this.backend.commit([
+        { store: "backups", key: summary.key, value: summary },
+        { store: "backupCharts", key: summary.key, value: storeChart(chart) },
+      ]);
       written.lastBackupAt = now;
       written.lastBackupDiffs = chart.difficulties;
       written.lastBackupMeta = chart.meta;
@@ -568,7 +658,12 @@ export class RecoveryRecorder {
   }
 
   deleteBackup(key: string): Promise<void> {
-    return this.enqueue(() => this.backend.commit([{ store: "backups", key }]));
+    return this.enqueue(() =>
+      this.backend.commit([
+        { store: "backups", key },
+        { store: "backupCharts", key },
+      ]),
+    );
   }
 
   /** Rebuilds a project from its head, its difficulties and, if kept, its media. */
@@ -580,11 +675,13 @@ export class RecoveryRecorder {
     return this.enqueue(async () => {
       const head = await this.backend.get<RecoveryHead>("heads", projectId);
       if (!head) return null;
-      const records = await this.backend.entries<Difficulty>(
+      const records = await this.backend.entries<StoredDifficulty>(
         "diffs",
         projectPrefix(projectId),
       );
-      const byId = new Map(records.map((r) => [r.value?.id, r.value]));
+      const byId = new Map(
+        records.filter((r) => r.value).map((r) => [r.value.id, readDifficulty(r.value)]),
+      );
       const difficulties = head.difficultyIds
         .map((id) => byId.get(id))
         .filter((d): d is Difficulty => !!d);
@@ -605,7 +702,7 @@ export class RecoveryRecorder {
 
   backups(projectId?: string): Promise<BackupSummary[]> {
     return this.enqueue(async () => {
-      const records = await this.backend.entries<BackupRecord>(
+      const records = await this.backend.entries<BackupSummary>(
         "backups",
         projectId ? projectPrefix(projectId) : undefined,
       );
@@ -626,23 +723,41 @@ export class RecoveryRecorder {
 
   loadBackup(key: string): Promise<BackupRecord | null> {
     return this.enqueue(async () => {
-      const record = await this.backend.get<BackupRecord>("backups", key);
-      if (!record) return null;
-      const chart = sanitizeChart(record.chart);
-      return chart ? { ...record, chart } : null;
+      const summary = await this.backend.get<BackupSummary & { chart?: RecoveryChart }>(
+        "backups",
+        key,
+      );
+      if (!summary) return null;
+      // Records from before the stores were split carry the chart inline.
+      const stored =
+        summary.chart ?? (await this.backend.get<RecoveryChart>("backupCharts", key));
+      if (!stored) return null;
+      const chart = sanitizeChart(readChart(stored));
+      if (!chart) return null;
+      return {
+        key: summary.key,
+        projectId: summary.projectId,
+        createdAt: summary.createdAt,
+        reason: summary.reason,
+        title: summary.title,
+        artist: summary.artist,
+        difficultyCount: summary.difficultyCount,
+        noteCount: summary.noteCount,
+        chart,
+      };
     });
   }
 
   /** Applies the backup limits and the project cap. Safe to run at any time. */
   prune(keep: string | null = null): Promise<void> {
     return this.enqueue(async () => {
-      const backups = (await this.backend.entries<BackupRecord>("backups")).map(
+      const backups = (await this.backend.entries<BackupSummary>("backups")).map(
         ({ key, value }) => ({ key, projectId: value.projectId, createdAt: value.createdAt }),
       );
-      const ops: RecoveryOp[] = backupsToPrune(backups, this.now()).map((key) => ({
-        store: "backups",
-        key,
-      }));
+      const ops: RecoveryOp[] = backupsToPrune(backups, this.now()).flatMap((key) => [
+        { store: "backups" as const, key },
+        { store: "backupCharts" as const, key },
+      ]);
       const heads = (await this.backend.entries<RecoveryHead>("heads")).map((e) => e.value);
       for (const projectId of headsToEvict(heads, keep)) {
         ops.push({ store: "heads", key: projectId }, { store: "media", key: projectId });
@@ -697,16 +812,32 @@ export function memoryRecoveryBackend(): RecoveryBackend {
 }
 
 const DB_NAME = "cascade-recovery";
-const DB_VERSION = 1;
-const STORES: RecoveryStoreName[] = ["heads", "diffs", "media", "backups"];
+const DB_VERSION = 2;
+const STORES: RecoveryStoreName[] = ["heads", "diffs", "media", "backups", "backupCharts"];
 
 function openRecoveryDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
       for (const name of STORES) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
+      }
+      // Version 1 kept each backup's chart inside its summary; move them out
+      // so listing backups stops reading every chart.
+      if (event.oldVersion === 1 && req.transaction) {
+        const backups = req.transaction.objectStore("backups");
+        const charts = req.transaction.objectStore("backupCharts");
+        backups.openCursor().onsuccess = function () {
+          const cursor = this.result;
+          if (!cursor) return;
+          const { chart, ...summary } = cursor.value as BackupRecord;
+          if (chart) {
+            charts.put(chart, cursor.key);
+            cursor.update(summary);
+          }
+          cursor.continue();
+        };
       }
     };
     req.onsuccess = () => resolve(req.result);

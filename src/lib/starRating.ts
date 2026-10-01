@@ -1,4 +1,5 @@
 import type { ManiaNote } from "../types";
+import { memoByNotes } from "./notesMemo";
 
 // Star rating, ported from osu!'s own mania difficulty calculator so a map
 // shows the stars osu! gives it (ppy/osu, osu.Game.Rulesets.Mania/Difficulty,
@@ -34,6 +35,16 @@ export function computeStarRating(
   notes: ManiaNote[],
   keyCount: number,
   clockRate = 1,
+): number {
+  return cachedStarRating(notes, keyCount, clockRate);
+}
+
+const cachedStarRating = memoByNotes(starRatingOf);
+
+function starRatingOf(
+  notes: ManiaNote[],
+  keyCount: number,
+  clockRate: number,
 ): number {
   if (notes.length < 2 || keyCount <= 0) return 0;
   const rate = Number.isFinite(clockRate) && clockRate > 0 ? clockRate : 1;

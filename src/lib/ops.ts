@@ -128,6 +128,42 @@ export function applyOp(
     : applyNoteOp(difficulties, op);
 }
 
+/**
+ * The notes of `add` that `existing` does not hold yet. A placement adds one
+ * note, and hashing every id of a 100k-note difficulty for it cost more than
+ * the rest of the edit, so small adds scan instead.
+ */
+function notesNotIn(add: ManiaNote[], existing: ManiaNote[]): ManiaNote[] {
+  if (add.length <= 8) {
+    return add.filter((note) => !existing.some((other) => other.id === note.id));
+  }
+  const have = new Set(existing.map((n) => n.id));
+  return add.filter((n) => !have.has(n.id));
+}
+
+/**
+ * Inserts notes in time order, each after the notes already at its time, so a
+ * time-sorted difficulty stays sorted and notes at the same time keep the
+ * order an append gave them (which osu!'s star rating depends on).
+ */
+export function insertByTime(notes: ManiaNote[], add: ManiaNote[]): ManiaNote[] {
+  if (add.length > 64) {
+    return [...notes, ...add];
+  }
+  const next = notes.slice();
+  for (const note of add) {
+    let lo = 0;
+    let hi = next.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (next[mid].startTime <= note.startTime) lo = mid + 1;
+      else hi = mid;
+    }
+    next.splice(lo, 0, note);
+  }
+  return next;
+}
+
 export function applyNoteOp(
   difficulties: Difficulty[],
   op: NoteOp,
@@ -136,9 +172,8 @@ export function applyNoteOp(
     if (d.id !== op.diffId) return d;
     switch (op.t) {
       case "note.add": {
-        const have = new Set(d.notes.map((n) => n.id));
-        const add = op.notes.filter((n) => !have.has(n.id));
-        return add.length ? { ...d, notes: [...d.notes, ...add] } : d;
+        const add = notesNotIn(op.notes, d.notes);
+        return add.length ? { ...d, notes: insertByTime(d.notes, add) } : d;
       }
       case "note.remove": {
         const ids = new Set(op.notes.map((n) => n.id));

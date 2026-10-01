@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useDeferredValue, useMemo, useState, useRef, useEffect } from "react";
 import type { Difficulty, TimingPoint } from "../types";
 import { computeStarRating, starColor, starTextOn, starTier } from "../lib/starRating";
 import { computeMapStats } from "../lib/mapStats";
@@ -95,9 +95,14 @@ export function DifficultySidebar({
     }
     if (ids.length) onDelete(ids);
   };
+  // The stats and the star-sorted list trail an edit by a render: they cost
+  // tens of milliseconds on a huge map, and the playfield should show the
+  // new note first.
+  const deferredDifficulties = useDeferredValue(difficulties);
+  const deferredActive = useDeferredValue(active);
   const stats = useMemo(
-    () => (active ? computeMapStats(active.notes, active.keyCount) : null),
-    [active],
+    () => (deferredActive ? computeMapStats(deferredActive.notes, deferredActive.keyCount) : null),
+    [deferredActive],
   );
   /** "180", or "150–200" when the map changes tempo. */
   const bpmLabel = useMemo(
@@ -106,13 +111,13 @@ export function DifficultySidebar({
   );
   const sorted = useMemo(
     () =>
-      difficulties
+      deferredDifficulties
         .map((d) => ({
           difficulty: d,
           star: computeStarRating(d.notes, d.keyCount),
         }))
         .sort((a, b) => a.star - b.star),
-    [difficulties],
+    [deferredDifficulties],
   );
   const existingNames = useMemo(
     () => difficulties.map((d) => d.name),

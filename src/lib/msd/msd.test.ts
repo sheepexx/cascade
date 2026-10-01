@@ -178,3 +178,16 @@ describe("skillset timeline windows", () => {
     expect(jack.jackspeed / jack.stream).toBeGreaterThan(stream.jackspeed / stream.stream);
   });
 });
+
+describe("packMsdRows", () => {
+  it("round-trips rows through typed arrays for the worker", async () => {
+    const { packMsdRows, unpackMsdRows } = await import("./minacalc");
+    const rows = [
+      { mask: 0b0101, timeSec: 0.5 },
+      { mask: 0b1000000, timeSec: 12.345 },
+    ];
+    const packed = packMsdRows(rows);
+    expect(packed.masks).toBeInstanceOf(Uint32Array);
+    expect(unpackMsdRows(packed)).toEqual(rows);
+  });
+});

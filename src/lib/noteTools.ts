@@ -1,5 +1,6 @@
 import type { ManiaNote, SnapDivisor, TimingPoint } from "../types";
 import { snapIntervalAt } from "./timing";
+import { memoByNotes } from "./notesMemo";
 
 export function fullLongNotes(
   notes: ManiaNote[],
@@ -295,8 +296,9 @@ export function copyHitsounds(
 }
 
 /** Count how many notes in a difficulty carry any hitsound. */
-export function countHitsounds(notes: ManiaNote[]): number {
+/** Cached per notes array; see memoByNotes. */
+export const countHitsounds = memoByNotes((notes: ManiaNote[]): number => {
   let n = 0;
   for (const note of notes) if (hasHitsound(pickHitsound(note))) n++;
   return n;
-}
+});
