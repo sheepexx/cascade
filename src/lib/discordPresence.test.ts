@@ -42,4 +42,15 @@ describe("Discord presence", () => {
     expect(presenceDetails(minimal)).toBeNull();
     expect(presenceState(minimal)).toBeNull();
   });
+
+  it("activity mode says what you are doing without naming the map", () => {
+    const activity: PresenceInput = { ...editing, mode: "activity" };
+    expect(presenceDetails(activity)).toBe("Mapping");
+    expect(presenceState(activity)).toBe("Editing 7K");
+    expect(presenceState({ ...activity, playtesting: true })).toBe("Playtesting 7K");
+    expect(presenceDetails({ ...activity, projectOpen: false })).toBe("In the main menu");
+    const shown = `${presenceDetails(activity)} ${presenceState(activity)}`;
+    expect(shown).not.toContain("GHOST");
+    expect(shown).not.toContain("Insane");
+  });
 });

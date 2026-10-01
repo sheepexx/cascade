@@ -453,7 +453,7 @@ export const ru: PartialCatalog = {
   "settings.discordDetailed": "Показывать карту",
   "settings.discordMinimal": "Показывать только Cascade",
   "settings.discordOff": "Выключено",
-  "settings.discordPresenceHint": "Показывает в Discord, над чем ты работаешь. «Показывать только Cascade» скрывает песню, сложность и то, что ты тестируешь.",
+  "settings.discordPresenceHint": "Показывает в Discord, над чем вы работаете. «Показывать занятие, а не карту» сообщает, что вы маппите или тестируете и сколько клавиш, но никогда не называет песню или сложность. «Показывать только Cascade» скрывает и это.",
   "osu.sent": "Отправлено в osu!",
   "osu.loaded": "{name} загружена из osu!",
   "osu.sendFailed": "Не удалось передать карту в osu!.",
@@ -2462,4 +2462,6 @@ export const ru: PartialCatalog = {
   "settings.privacy": "Конфиденциальность",
   "settings.usageStats": "Отправлять анонимную статистику использования",
   "settings.usageStatsHint": "Счётчики вроде числа экспортированных карт или того, возвращаются ли люди через неделю. Без содержимого карт и без ID, связывающего один счётчик с другим. Всегда выключено, если браузер отправляет Do Not Track или Global Privacy Control.",
+  "settings.discordActivity": "Показывать занятие, а не карту",
+  "mapCard.share": "Поделиться…",
 };

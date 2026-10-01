@@ -800,6 +800,7 @@ export function AppSettingsModal({
                       value={discordPresence}
                       options={[
                         { value: "detailed", label: t("settings.discordDetailed") },
+                        { value: "activity", label: t("settings.discordActivity") },
                         { value: "minimal", label: t("settings.discordMinimal") },
                         { value: "off", label: t("settings.discordOff") },
                       ]}

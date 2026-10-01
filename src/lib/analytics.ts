@@ -29,6 +29,7 @@ export type AnalyticsEventType =
   | "import_from_osu"
   | "sync_to_osu"
   | "discord_click"
+  | "map_card_shared"
   | MilestoneEvent;
 
 export type AnalyticsPlatform = "web" | "desktop";
@@ -126,6 +127,11 @@ export function trackMapping(): void {
   if (!analyticsAllowed()) return;
   sendMilestones(usage().mapped(new Date()));
   sendMilestones(usage().reached("edited"));
+}
+
+/** A Map Card left the editor; `how` is copy, download, share or upload. */
+export function trackMapCardShared(how: "copy" | "download" | "share" | "upload"): void {
+  void logAnalyticsEvent("map_card_shared", null, { source: how }).catch(() => {});
 }
 
 /** A Discord link was clicked; `source` says which one. No account attached. */

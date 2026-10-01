@@ -449,7 +449,7 @@ export const ptBR: PartialCatalog = {
   "settings.discordDetailed": "Mostrar o mapa",
   "settings.discordMinimal": "Mostrar apenas o Cascade",
   "settings.discordOff": "Desligado",
-  "settings.discordPresenceHint": "Mostra no Discord no que você está trabalhando. \"Mostrar apenas o Cascade\" esconde a música, a dificuldade e se você está testando.",
+  "settings.discordPresenceHint": "Mostra no Discord no que você está trabalhando. \"Mostrar atividade, não o mapa\" diz que você está mapeando ou testando e quantas teclas, mas nunca o nome da música ou da dificuldade. \"Mostrar apenas o Cascade\" esconde até isso.",
   "osu.sent": "Enviado para o osu!",
   "osu.loaded": "{name} carregado do osu!",
   "osu.sendFailed": "Não foi possível entregar o mapa ao osu!.",
@@ -2326,4 +2326,6 @@ export const ptBR: PartialCatalog = {
   "settings.privacy": "Privacidade",
   "settings.usageStats": "Compartilhar estatísticas de uso anônimas",
   "settings.usageStatsHint": "Contagens como quantos mapas são exportados ou se as pessoas voltam depois de uma semana. Sem conteúdo de mapas e sem ID que ligue uma contagem a outra. Sempre desligado quando o navegador envia Do Not Track ou Global Privacy Control.",
+  "settings.discordActivity": "Mostrar atividade, não o mapa",
+  "mapCard.share": "Compartilhar…",
 };

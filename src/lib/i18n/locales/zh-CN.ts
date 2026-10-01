@@ -439,7 +439,7 @@ export const zhCN: PartialCatalog = {
   "settings.discordDetailed": "显示谱面",
   "settings.discordMinimal": "只显示 Cascade",
   "settings.discordOff": "关闭",
-  "settings.discordPresenceHint": "在 Discord 上显示你正在做什么。“只显示 Cascade”会隐藏歌曲、难度以及你是否在试玩。",
+  "settings.discordPresenceHint": "在 Discord 中显示你正在做什么。“显示活动，不显示谱面”只说明你在作图或试玩以及键数，从不显示歌曲或难度名称。“只显示 Cascade”连这些也隐藏。",
   "osu.sent": "已发送到 osu!",
   "osu.loaded": "已从 osu! 载入 {name}",
   "osu.sendFailed": "无法把谱面交给 osu!。",
@@ -2210,4 +2210,6 @@ export const zhCN: PartialCatalog = {
   "settings.privacy": "隐私",
   "settings.usageStats": "分享匿名使用统计",
   "settings.usageStatsHint": "例如导出了多少谱面、用户一周后是否回来之类的计数。不包含谱面内容，也没有能把一条计数与另一条关联起来的 ID。浏览器发送“请勿跟踪”或“全球隐私控制”信号时始终关闭。",
+  "settings.discordActivity": "显示活动，不显示谱面",
+  "mapCard.share": "分享…",
 };

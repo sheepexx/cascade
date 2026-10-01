@@ -163,7 +163,11 @@ export type SmMeta = {
   listnotes?: string;
 };
 
-export type DiscordPresenceMode = "off" | "minimal" | "detailed";
+/**
+ * What Discord shows: nothing, just Cascade, what you are doing without naming
+ * the map ("activity"), or the song and difficulty too.
+ */
+export type DiscordPresenceMode = "off" | "minimal" | "activity" | "detailed";
 
 export type Difficulty = {
   id: string;

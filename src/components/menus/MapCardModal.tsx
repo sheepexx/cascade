@@ -38,6 +38,8 @@ import { MapCardStyleControls } from "../mapCard/MapCardStyleControls";
 import { MapCardStatToggles } from "../mapCard/MapCardStatToggles";
 import { MapCardExport } from "../mapCard/MapCardExport";
 import { Notice, PanelSection } from "../mapCard/controls";
+import { trackMapCardShared } from "../../lib/analytics";
+import { canShareImages, shareImage } from "../../lib/mapCardShare";
 
 type Props = {
   open: boolean;
@@ -103,7 +105,7 @@ export function MapCardModal({
     () => start?.id ?? builtInMatch(config),
   );
   const [fontsRevision, setFontsRevision] = useState(0);
-  const [action, setAction] = useState<"download" | "copy" | "upload" | null>(null);
+  const [action, setAction] = useState<"download" | "copy" | "share" | "upload" | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [uploadedSignature, setUploadedSignature] = useState<string | null>(null);
 
@@ -223,6 +225,7 @@ export function MapCardModal({
       const { blob } = await render();
       triggerDownload(blob, mapCardFilename(meta, difficulty));
       setStatus({ tone: "success", text: t("mapCard.saved") });
+      trackMapCardShared("download");
     } catch (error) {
       setStatus({ tone: "error", text: errorText(error, t("mapCard.pngFailed")) });
     } finally {
@@ -240,6 +243,7 @@ export function MapCardModal({
       const png = render().then((result) => result.blob);
       await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
       setStatus({ tone: "success", text: t("mapCard.copied") });
+      trackMapCardShared("copy");
     } catch {
       setStatus({ tone: "error", text: t("mapCard.copyUnsupported") });
     } finally {
@@ -252,13 +256,33 @@ export function MapCardModal({
     setStatus(null);
     try {
       const { blob } = await render();
-      if (await hosted.upload(blob)) setUploadedSignature(signature);
+      if (await hosted.upload(blob)) {
+        setUploadedSignature(signature);
+        trackMapCardShared("upload");
+      }
     } catch (error) {
       setStatus({ tone: "error", text: errorText(error, t("mapCard.pngFailed")) });
     } finally {
       setAction(null);
     }
   };
+
+  const shareCard = async () => {
+    setAction("share");
+    setStatus(null);
+    try {
+      const { blob } = await render();
+      const title = data.difficultyName ? `${data.title} [${data.difficultyName}]` : data.title;
+      if ((await shareImage(blob, mapCardFilename(meta, difficulty), title)) === "shared") {
+        trackMapCardShared("share");
+      }
+    } catch (error) {
+      setStatus({ tone: "error", text: errorText(error, t("mapCard.pngFailed")) });
+    } finally {
+      setAction(null);
+    }
+  };
+  const shareSupported = useMemo(() => canShareImages(), []);
 
   const stale =
     !!hosted.card && uploadedSignature !== null && uploadedSignature !== signature;
@@ -321,6 +345,7 @@ export function MapCardModal({
             }
             onCopy={() => void copyImage()}
             onDownload={() => void download()}
+            onShare={shareSupported ? () => void shareCard() : undefined}
           >
             <MapCardHosting
               hosted={hosted}

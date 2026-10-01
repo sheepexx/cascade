@@ -19,15 +19,18 @@ export function MapCardExport({
   waiting,
   onCopy,
   onDownload,
+  onShare,
   children,
 }: {
   ready: boolean;
   busy: boolean;
-  action: "download" | "copy" | "upload" | null;
+  action: "download" | "copy" | "share" | "upload" | null;
   status: MapCardExportStatus | null;
   waiting: string | null;
   onCopy: () => void;
   onDownload: () => void;
+  /** Only where the system share sheet takes image files. */
+  onShare?: () => void;
   children: ReactNode;
 }) {
   const t = useT();
@@ -81,6 +84,17 @@ export function MapCardExport({
           )}
           {action === "download" ? t("mapCard.rendering") : t("mapCard.downloadPng")}
         </Button>
+        {onShare && (
+          <Button
+            variant="primary"
+            onClick={onShare}
+            disabled={!ready || busy}
+            className="col-span-2 flex items-center justify-center gap-2 py-2"
+          >
+            {action === "share" && <Spinner />}
+            {action === "share" ? t("mapCard.rendering") : t("mapCard.share")}
+          </Button>
+        )}
       </div>
       <div className="border-t border-white/[0.06] pt-4">{children}</div>
     </section>

@@ -222,8 +222,7 @@ export const en = {
   "settings.discordDetailed": "Show the map",
   "settings.discordMinimal": "Only show Cascade",
   "settings.discordOff": "Off",
-  "settings.discordPresenceHint":
-    "Shows what you are working on in Discord. \"Only show Cascade\" hides the song, difficulty and whether you are playtesting.",
+  "settings.discordPresenceHint": "Shows what you are working on in Discord. \"Show activity, not the map\" says you are mapping or playtesting and the key count, but never the song or difficulty name. \"Only show Cascade\" hides even that.",
 
   "settings.scrollSpeed": "Scroll speed",
   "settings.rate": "Rate",
@@ -2430,4 +2429,6 @@ export const en = {
   "settings.privacy": "Privacy",
   "settings.usageStats": "Share anonymous usage statistics",
   "settings.usageStatsHint": "Counts such as how many maps get exported or whether people come back after a week. No map content and no ID that links one count to another. Always off when your browser sends Do Not Track or Global Privacy Control.",
+  "settings.discordActivity": "Show activity, not the map",
+  "mapCard.share": "Share…",
 } as const;

@@ -449,7 +449,7 @@ export const de: PartialCatalog = {
   "settings.discordDetailed": "Map anzeigen",
   "settings.discordMinimal": "Nur Cascade anzeigen",
   "settings.discordOff": "Aus",
-  "settings.discordPresenceHint": "Zeigt in Discord, woran du arbeitest. „Nur Cascade anzeigen“ verbirgt Song, Schwierigkeit und ob du gerade testest.",
+  "settings.discordPresenceHint": "Zeigt in Discord, woran du arbeitest. „Aktivität zeigen, nicht die Map“ verrät, dass du mappst oder testest und wie viele Tasten, aber nie den Song- oder Difficulty-Namen. „Nur Cascade anzeigen“ verbirgt auch das.",
   "osu.sent": "An osu! gesendet",
   "osu.loaded": "{name} aus osu! geladen",
   "osu.sendFailed": "Die Map konnte nicht an osu! übergeben werden.",
@@ -2327,4 +2327,6 @@ export const de: PartialCatalog = {
   "settings.privacy": "Datenschutz",
   "settings.usageStats": "Anonyme Nutzungsstatistiken teilen",
   "settings.usageStatsHint": "Zählungen wie die Anzahl exportierter Maps oder ob Leute nach einer Woche wiederkommen. Keine Map-Inhalte und keine ID, die eine Zählung mit einer anderen verknüpft. Immer aus, wenn dein Browser Do Not Track oder Global Privacy Control sendet.",
+  "settings.discordActivity": "Aktivität zeigen, nicht die Map",
+  "mapCard.share": "Teilen…",
 };
