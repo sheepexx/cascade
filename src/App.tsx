@@ -1,5 +1,9 @@
 import { useNotificationInbox } from "./app/useNotificationInbox";
 import { useSkins } from "./app/useSkins";
+import { AppHeader } from "./app/AppHeader";
+import { AppToasts } from "./app/AppToasts";
+import { buildPaletteCommands } from "./app/paletteCommands";
+import { useEditorHotkeys } from "./app/useEditorHotkeys";
 import { useCloudProject } from "./app/useCloudProject";
 import { useLocalSave } from "./app/useLocalSave";
 import { useRecoveryActions } from "./app/useRecoveryActions";
@@ -49,7 +53,6 @@ import { renderShareCard } from "./lib/shareCard";
 import { VersionHistoryModal } from "./components/menus/VersionHistoryModal";
 import { batchApplyDifficulties, type BatchRequest } from "./lib/batchApply";
 import { readExclusivePreference } from "./lib/nativeAudio";
-import { NowPlaying } from "./components/NowPlaying";
 import { ExitCurtain } from "./components/ExitCurtain";
 import {
   canExitDesktop,
@@ -102,7 +105,6 @@ import {
   MemoizedPlaytestNpsGraph,
 } from "./app/lazySurfaces";
 import {
-  blurActiveControl,
   hasDraggedFiles,
   isAudioFile,
   isImageFile,
@@ -117,27 +119,11 @@ import {
   newLocalProjectId,
 } from "./app/appUtils";
 import type { BookmarkLoopState, ModalId, OsuEntry } from "./app/appTypes";
-import {
-  CommentIcon,
-  SampleMapsIcon,
-  UsersIcon,
-} from "./components/ui/StartIcons";
-import {
-  MusicNoteIcon,
-  RedoIcon,
-  UndoIcon,
-  UserIcon,
-} from "./components/ui/Icons";
+import { MusicNoteIcon, UserIcon } from "./components/ui/Icons";
 import { difficultyRate } from "./lib/rateChange";
 import type { Comment } from "./lib/comments";
 import type { AiModFileFacts } from "./lib/aimodFiles";
 import type { SampleFile } from "./lib/mapSamples";
-import {
-  closestDivisor,
-  nextSnapPreset,
-  presetDivisors,
-  stepDivisor,
-} from "./lib/snapPresets";
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
 import { type AccessRole } from "./lib/collab";
@@ -146,19 +132,13 @@ import { Button } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
 import { pushClip } from "./lib/clipboardStore";
 import { formatOsuTimestamp } from "./lib/osuTimestamp";
-import {
-  CommandPalette,
-  type PaletteCommand,
-} from "./components/ui/CommandPalette";
+import { CommandPalette } from "./components/ui/CommandPalette";
 import { VolumeRings, type VolumeMeter } from "./components/ui/VolumeRings";
 import { SessionIntro } from "./components/ui/SessionIntro";
 import type { SettingsTab } from "./components/menus/AppSettingsModal";
 import { Menu } from "./components/ui/Menu";
-import { HistoryPopover } from "./components/ui/HistoryPopover";
 import { Modal } from "./components/ui/Modal";
 import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
-import { AccountControl } from "./components/auth/LoginButton";
-import { LanguagePicker } from "./components/LanguagePicker";
 import { isDesktopApp, setLaunchFileConsumer } from "./lib/pwa";
 import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
@@ -171,19 +151,16 @@ import {
   type DesktopUpdate,
 } from "./lib/desktopUpdate";
 import { usePwa } from "./hooks/usePwa";
-import { DesktopDownloadLink } from "./components/DesktopDownloadLink";
-import { NotificationInbox } from "./components/NotificationInbox";
 import { LandingCopy } from "./components/LandingCopy";
-import { ChevronIcon, IconButton, MenuButton } from "./components/header/HeaderButtons";
+import { ChevronIcon } from "./components/header/HeaderButtons";
 import { InviteNotifications } from "./components/InviteNotifications";
 import { playUiSound, preloadUiSounds } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
-import { useLocale, type MessageKey } from "./lib/i18n";
+import { useLocale } from "./lib/i18n";
 import { logAnalyticsEvent } from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
-import { countHitsounds } from "./lib/noteTools";
 import { buildOsuFile } from "./lib/osuExport";
 import { uniqueDifficultyName } from "./lib/rateChange";
 import { ExternalEditModal } from "./components/menus/ExternalEditModal";
@@ -209,8 +186,6 @@ import {
 } from "./lib/persistence";
 import { type RecoveryChart, type RecoveryMedia } from "./lib/recovery";
 import { useProjectRecovery } from "./hooks/useProjectRecovery";
-import { formatIssues } from "./lib/roundTrip";
-import { RecoveryPrompt } from "./components/RecoveryPrompt";
 import {
   DEFAULT_SONG_META,
   DEFAULT_VIEW,
@@ -231,14 +206,7 @@ import type { MapCardPresetOption } from "./lib/mapCard";
 import { detectBpmFromBuffer, type BpmDetection } from "./lib/bpmDetect";
 import { notesFollowingTiming, sortedPoints } from "./lib/timing";
 import { hasSv } from "./lib/sv";
-import {
-  editorKeyLabel,
-  matchesBind,
-  normalizeEditorKeybinds,
-  snapDivisorForBind,
-  timelineZoomDirection,
-  type EditorAction,
-} from "./lib/editorKeybinds";
+import { editorKeyLabel, normalizeEditorKeybinds } from "./lib/editorKeybinds";
 import { MAX_UI_SCALE, MIN_UI_SCALE, uiScaleFromWheel } from "./lib/uiScale";
 import { OnScreenDisplay } from "./components/ui/OnScreenDisplay";
 import { osdRange, osdToggle, type OsdNotice } from "./lib/osd";
@@ -2011,271 +1979,6 @@ export default function App() {
   }, [modal]);
   const skinPreviewOpen = modal === "skin";
   const editorCanvasPlaying = audio.isPlaying && !skinPreviewOpen;
-  const slowHeldRef = useRef(false);
-  useEffect(() => {
-    const shouldIgnoreHotkey = (e: KeyboardEvent, allowInSkinModal = false) => {
-      if (playtestRef.current.active) return true;
-      if (!projectStartedRef.current) return true;
-      // Play/pause is the one hotkey the skin dialog wants, so its preview can
-      // be started and stopped without leaving the dialog. dialogIsOpen() is
-      // true for the skin dialog itself, so it has to be exempted as well.
-      const skinPreview = allowInSkinModal && modalRef.current === "skin";
-      if (!skinPreview && (modalRef.current || askBgScope || dialogIsOpen())) {
-        return true;
-      }
-      if (!isTypingTarget(e.target)) return false;
-      return (e.target as HTMLInputElement).type !== "range";
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      const binds = editorKeybindsRef.current;
-      const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
-      const is = (action: EditorAction) => matchesBind(e.code, binds[action]);
-      const isSpace = is("playPause");
-      const isTab = is("zenMode");
-      const isUp = is("volumeUp");
-      const isDown = is("volumeDown");
-      const symbolZoom = noMod ? timelineZoomDirection(e.key) : 0;
-      const isTimelineZoomOut =
-        is("scrollSpeedDown") || symbolZoom === -1;
-      const isTimelineZoomIn = is("scrollSpeedUp") || symbolZoom === 1;
-      const isPreviousBookmark = is("prevBookmark");
-      const isNextBookmark = is("nextBookmark");
-      const isZoomIn = noMod && is("zoomIn");
-      const isZoomOut = noMod && is("zoomOut");
-      const isSlow = noMod && is("slowMo");
-      const isBookmark = noMod && is("addBookmark");
-      const snapDivisor = noMod ? snapDivisorForBind(e.code, binds) : null;
-      const snapStep = !noMod ? 0 : is("snapNext") ? 1 : is("snapPrevious") ? -1 : 0;
-      const isSnapPreset = noMod && is("snapPreset");
-      if (
-        !isSpace &&
-        !isTab &&
-        !isUp &&
-        !isDown &&
-        !isTimelineZoomOut &&
-        !isTimelineZoomIn &&
-        !isPreviousBookmark &&
-        !isNextBookmark &&
-        !isZoomIn &&
-        !isZoomOut &&
-        !isSlow &&
-        !isBookmark &&
-        snapDivisor === null &&
-        snapStep === 0 &&
-        !isSnapPreset
-      )
-        return;
-      if (shouldIgnoreHotkey(e, isSpace)) return;
-      // Space in the skin dialog is swallowed even with no audio to play: left
-      // to the browser it would press whatever button has focus, and the first
-      // one is Close.
-      const skinPreviewSpace = isSpace && modalRef.current === "skin";
-      if (
-        !hasAudioRef.current &&
-        !skinPreviewSpace &&
-        !isTab &&
-        !isTimelineZoomOut &&
-        !isTimelineZoomIn &&
-        !isZoomIn &&
-        !isZoomOut &&
-        snapDivisor === null &&
-        snapStep === 0 &&
-        !isSnapPreset
-      )
-        return;
-      e.preventDefault();
-      blurActiveControl();
-      if (isTab)
-        setZenMode((z) => {
-          announceShortcut(osdToggle(t("osd.zenMode"), !z, [editorKeyLabel(binds.zenMode)]));
-          return !z;
-        });
-      else if (isPreviousBookmark) {
-        seekBookmark("previous");
-        announceShortcut({
-          label: t("osd.bookmarks"),
-          value: t("osd.previous"),
-          keys: [editorKeyLabel(binds.prevBookmark)],
-        });
-      }
-      else if (isNextBookmark) {
-        seekBookmark("next");
-        announceShortcut({
-          label: t("osd.bookmarks"),
-          value: t("osd.next"),
-          keys: [editorKeyLabel(binds.nextBookmark)],
-        });
-      }
-      else if (isBookmark) {
-        if (!e.repeat) {
-          addBookmark(Math.round(currentTimeRef.current));
-          announceShortcut({
-            label: t("osd.bookmarks"),
-            value: t("osd.added"),
-            keys: [editorKeyLabel(binds.addBookmark)],
-          });
-        }
-      } else if (isSpace) {
-        // hasAudio is re-checked because the skin dialog lets Space through
-        // even without it, purely to keep it off the focused button.
-        if (!e.repeat && hasAudioRef.current) toggleAudio();
-      }
-      else if (isSlow) {
-        if (slowHeldRef.current || e.repeat) return;
-        slowHeldRef.current = true;
-        setAudioPlaybackRate(0.25);
-        announceShortcut(
-          osdRange(t("osd.playbackRate"), "25%", 0.25, 0, 1, [editorKeyLabel(binds.slowMo)]),
-        );
-      }
-      else if (isUp || isDown) {
-        const volume = Math.max(
-          0,
-          Math.min(1, audioVolumeRef.current + (isUp ? 0.05 : -0.05)),
-        );
-        setAudioVolume(volume);
-        setVolumeHudKey((value) => value + 1);
-      }
-      else if (snapStep !== 0 || isSnapPreset) {
-        const settings = appSettingsRef.current;
-        const custom = settings.customSnapDivisors;
-        let preset = presetDivisors(settings.snapPreset, custom).length
-          ? settings.snapPreset
-          : "common";
-        if (isSnapPreset) {
-          if (e.repeat) return;
-          preset = nextSnapPreset(preset, custom);
-          const chosen = preset;
-          setAppSettings((s) => ({ ...s, snapPreset: chosen }));
-        }
-        const divisors = presetDivisors(preset, custom);
-        const current = viewRef.current.snapDivisor;
-        const next = snapStep !== 0
-          ? stepDivisor(divisors, current, snapStep)
-          : closestDivisor(divisors, current);
-        setView((v) => ({ ...v, snapDivisor: next }));
-        announceShortcut({
-          label: isSnapPreset ? t("osd.snapPreset") : t("osd.snap"),
-          value: isSnapPreset
-            ? `${t(`snapPreset.${preset}`)} · 1/${next}`
-            : `1/${next}`,
-          keys: [editorKeyLabel(e.code)],
-        });
-      }
-      else if (snapDivisor !== null) {
-        setView((v) => ({ ...v, snapDivisor }));
-        announceShortcut({
-          label: t("osd.snap"),
-          value: snapDivisor === 0 ? t("transport.snapFree") : `1/${snapDivisor}`,
-          keys: [editorKeyLabel(e.code)],
-        });
-      }
-      else if (isTimelineZoomOut || isTimelineZoomIn) {
-        setView((v) => {
-          const scrollSpeed = Math.max(
-            MIN_SCROLL_SPEED,
-            Math.min(
-              MAX_SCROLL_SPEED,
-              v.scrollSpeed + (isTimelineZoomIn ? 1 : -1),
-            ),
-          );
-          announceShortcut(
-            osdRange(t("osd.timelineZoom"), String(scrollSpeed), scrollSpeed, MIN_SCROLL_SPEED, MAX_SCROLL_SPEED, [
-              editorKeyLabel(binds.scrollSpeedDown),
-              editorKeyLabel(binds.scrollSpeedUp),
-            ]),
-          );
-          return { ...v, scrollSpeed };
-        });
-      } else if (isZoomIn || isZoomOut) {
-        setAppSettings((s) => {
-          const playfieldScale = Math.round(
-            Math.max(
-              0.5,
-              Math.min(2.5, s.playfieldScale + (isZoomIn ? 0.1 : -0.1)),
-            ) * 100,
-          ) / 100;
-          announceShortcut(
-            osdRange(t("osd.playfieldSize"), `${Math.round(playfieldScale * 100)}%`, playfieldScale, MIN_PLAYFIELD_SCALE, MAX_PLAYFIELD_SCALE, [
-              editorKeyLabel(binds.zoomOut),
-              editorKeyLabel(binds.zoomIn),
-            ]),
-          );
-          return { ...s, playfieldScale };
-        });
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (
-        !matchesBind(e.code, editorKeybindsRef.current.slowMo) ||
-        !slowHeldRef.current
-      )
-        return;
-      slowHeldRef.current = false;
-      e.preventDefault();
-      setAudioPlaybackRate(1);
-      announceShortcut(
-        osdRange(t("osd.playbackRate"), "100%", 1, 0, 1, [
-          editorKeyLabel(editorKeybindsRef.current.slowMo),
-        ]),
-      );
-    };
-    const onBlur = () => {
-      if (!slowHeldRef.current) return;
-      slowHeldRef.current = false;
-      setAudioPlaybackRate(1);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, [
-    appSettingsRef,
-    setAppSettings,
-    t,
-    addBookmark,
-    announceShortcut,
-    askBgScope,
-    seekBookmark,
-    setAudioPlaybackRate,
-    setAudioVolume,
-    toggleAudio,
-  ]);
-
-  useEffect(() => {
-    const onBareAlt = (e: KeyboardEvent) => {
-      if (
-        e.key !== "Alt" ||
-        e.ctrlKey ||
-        e.metaKey ||
-        e.shiftKey ||
-        isTypingTarget(e.target)
-      )
-        return;
-      e.preventDefault();
-      blurActiveControl();
-    };
-    window.addEventListener("keydown", onBareAlt, true);
-    window.addEventListener("keyup", onBareAlt, true);
-    return () => {
-      window.removeEventListener("keydown", onBareAlt, true);
-      window.removeEventListener("keyup", onBareAlt, true);
-    };
-  }, []);
-
-  useEffect(() => {
-    const onDevtoolsKey = (e: KeyboardEvent) => {
-      if (e.key !== "F12") return;
-      e.preventDefault();
-      e.stopPropagation();
-    };
-    window.addEventListener("keydown", onDevtoolsKey, true);
-    return () => window.removeEventListener("keydown", onDevtoolsKey, true);
-  }, []);
 
 
   const resetFileDrag = useCallback(() => {
@@ -2770,50 +2473,34 @@ export default function App() {
   }, [logProjectCreated, replaceProject, t, setSaveStatus]);
 
   const [jumpToTimeOpen, setJumpToTimeOpen] = useState(false);
-
-  const undoRef = useRef(undo);
-  undoRef.current = undo;
-  const redoRef = useRef(redo);
-  redoRef.current = redo;
-  const saveRef = useRef(handleSave);
-  saveRef.current = handleSave;
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      if (playtestRef.current.active) {
-        e.preventDefault();
-        return;
-      }
-      const key = e.key.toLowerCase();
-      if (key === "s") {
-        e.preventDefault();
-        void saveRef.current();
-        return;
-      }
-      const t = e.target as HTMLElement | null;
-      const tag = t?.tagName;
-      const typing =
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        t?.isContentEditable;
-      if (typing) return;
-      if (key === "z") {
-        e.preventDefault();
-        if (e.shiftKey) redoRef.current();
-        else undoRef.current();
-      } else if (key === "y") {
-        e.preventDefault();
-        redoRef.current();
-      } else if (key === "g") {
-        e.preventDefault();
-        if (showChromeRef.current) setJumpToTimeOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  useEditorHotkeys({
+    addBookmark,
+    announceShortcut,
+    appSettingsRef,
+    askBgScope,
+    audioVolumeRef,
+    currentTimeRef,
+    editorKeybindsRef,
+    handleSave,
+    hasAudioRef,
+    modalRef,
+    playtestRef,
+    projectStartedRef,
+    redo,
+    seekBookmark,
+    setAppSettings,
+    setAudioPlaybackRate,
+    setAudioVolume,
+    setJumpToTimeOpen,
+    setView,
+    setVolumeHudKey,
+    setZenMode,
+    showChromeRef,
+    t,
+    toggleAudio,
+    undo,
+    viewRef,
+  });
 
   const close = useCallback(() => setModal(null), []);
 
@@ -2860,288 +2547,66 @@ export default function App() {
     }
     return { trimActive, remove, clamp };
   }, [toolsOpen, active.notes, active.trimStartMs, active.trimEndMs]);
-
-  const paletteSettingEntries: Array<{
-    key: MessageKey;
-    tab: SettingsTab;
-    keywords?: string;
-    /** Its control lives in the HUD editor, so send the user there instead. */
-    hud?: boolean;
-  }> = [
-    { key: "settings.language", tab: "General" },
-    { key: "settings.uiScale", tab: "General", keywords: "interface size zoom" },
-    { key: "settings.altWheelAction", tab: "General", keywords: "mouse scroll audio" },
-    { key: "settings.menuMusic", tab: "General" },
-    { key: "settings.menuBackground", tab: "General", keywords: "main menu wallpaper image picture song art" },
-    { key: "settings.menuTips", tab: "General", keywords: "main menu hints" },
-    { key: "settings.logoSkinHitsounds", tab: "General", keywords: "main menu logo click sound" },
-    { key: "settings.sessionIntro", tab: "General", keywords: "logo launch animation" },
-    { key: "settings.shortcutNotices", tab: "General", keywords: "popup overlay toast" },
-    { key: "settings.performanceMode", tab: "General" },
-    { key: "settings.osuListener", tab: "General", keywords: "integration" },
-    { key: "settings.osuFolder", tab: "General", keywords: "integration path stable lazer" },
-    { key: "settings.autosave", tab: "General", keywords: "local project" },
-    { key: "settings.showMenuPlayers", tab: "General", keywords: "presence online" },
-    { key: "settings.hideStatus", tab: "General", keywords: "presence privacy" },
-    { key: "settings.discordPresence", tab: "General", keywords: "rich status" },
-    { key: "settings.resetData", tab: "General", keywords: "erase local" },
-    { key: "settings.showDifficultyPanel", tab: "Editor", keywords: "layout sidebar stats" },
-    { key: "settings.showBottomTimeline", tab: "Editor", keywords: "layout sv" },
-    { key: "settings.simplifyBottomTimeline", tab: "Editor" },
-    { key: "settings.showPpCounter", tab: "Editor", keywords: "speed" },
-    { key: "settings.showPatternTools", tab: "Editor", keywords: "presets" },
-    { key: "settings.showSkillsetGraph", tab: "Editor", keywords: "msd minacalc etterna stream jack chordjack difficulty graph" },
-    { key: "settings.colourblindLanes", tab: "Editor", keywords: "colorblind color blind colours lanes notes accessibility" },
-    { key: "settings.snapColouredNotes", tab: "Editor", keywords: "color snap divisor beat colours notes unsnapped rhythm" },
-    { key: "settings.moveNotesWithTiming", tab: "Editor", keywords: "offset bpm red point timing shift follow resnap" },
-    { key: "settings.backgroundDim", tab: "Editor" },
-    { key: "settings.backgroundBlur", tab: "Editor", keywords: "blur background" },
-    { key: "settings.sizeZoom", tab: "Editor", keywords: "playfield" },
-    { key: "settings.noteHeight", tab: "Editor" },
-    { key: "settings.waveformOnLane", tab: "Editor" },
-    { key: "settings.waveformTransparency", tab: "Editor", keywords: "waveform opacity" },
-    { key: "settings.timingLines", tab: "Editor", keywords: "bookmarks" },
-    { key: "settings.smoothScrolling", tab: "Editor" },
-    { key: "settings.svPreview", tab: "Editor" },
-    { key: "settings.bpmAffectsScroll", tab: "Editor" },
-    { key: "settings.scrollDirection", tab: "Editor", keywords: "upscroll downscroll" },
-    { key: "settings.bodyWidth", tab: "Editor", keywords: "long notes ln" },
-    { key: "settings.rate", tab: "Playtest", keywords: "playback speed dt ht" },
-    { key: "settings.zoom", tab: "Playtest", keywords: "playfield size", hud: true },
-    { key: "settings.hitPosition", tab: "Playtest", keywords: "judgement line receptor", hud: true },
-    { key: "settings.quickRestartKey", tab: "Playtest", keywords: "retry keybind" },
-    { key: "settings.keybinds", tab: "Playtest", keywords: "keys lanes controls" },
-    { key: "settings.showJudgements", tab: "Playtest", hud: true },
-    { key: "settings.showCombo", tab: "Playtest", hud: true },
-    { key: "settings.showAccuracy", tab: "Playtest", hud: true },
-    { key: "settings.showHitError", tab: "Playtest", hud: true },
-    { key: "settings.showErrorBar", tab: "Playtest", keywords: "unstable rate ur", hud: true },
-    { key: "settings.skinComboFont", tab: "Playtest", keywords: "hud typography", hud: true },
-    { key: "settings.skinJudgements", tab: "Playtest", keywords: "hud graphics", hud: true },
-    { key: "settings.playtestSkin", tab: "Playtest", keywords: "skin look notes osk appearance" },
-    { key: "settings.showNpsGraph", tab: "Playtest", keywords: "density", hud: true },
-    { key: "settings.showRunStats", tab: "Playtest", hud: true },
-    { key: "settings.hudEditorTitle", tab: "Playtest", keywords: "hud layout move resize overlay" },
-    { key: "settings.danRegular", tab: "Playtest", keywords: "autoplay skill dan ladder" },
-    { key: "settings.danLn", tab: "Playtest", keywords: "autoplay skill dan long note ln" },
-    { key: "settings.humanize", tab: "Playtest", keywords: "autoplay timing" },
-    { key: "settings.humanizeJitter", tab: "Playtest", keywords: "autoplay scatter" },
-    { key: "settings.humanizeBias", tab: "Playtest", keywords: "autoplay early late" },
-    { key: "settings.humanizeSlipChance", tab: "Playtest", keywords: "autoplay error" },
-    { key: "settings.humanizeMissChance", tab: "Playtest", keywords: "autoplay error" },
-    { key: "settings.humanizeReleaseJitter", tab: "Playtest", keywords: "autoplay long note ln" },
-    { key: "settings.humanizeSeed", tab: "Playtest", keywords: "autoplay random" },
-    { key: "settings.audioSetup", tab: "Audio", keywords: "output calibration" },
-    { key: "settings.playHitsounds", tab: "Audio" },
-    { key: "settings.masterVolume", tab: "Audio", keywords: "volume sound everything" },
-    { key: "settings.musicVolume", tab: "Audio", keywords: "volume song menu" },
-    { key: "settings.effectsVolume", tab: "Audio", keywords: "volume hitsound" },
-    { key: "settings.unfocusedVolume", tab: "Audio", keywords: "volume background inactive tab window focus alt-tab" },
-    { key: "settings.keepPitch", tab: "Audio", keywords: "pitch speed slow rate playback" },
-    { key: "settings.uiSounds", tab: "Audio", keywords: "interface hover click" },
-    { key: "settings.convertPng", tab: "Export", keywords: "background jpeg" },
-    { key: "settings.jpegQuality", tab: "Export", keywords: "background image" },
-    { key: "settings.cascadeTag", tab: "Export", keywords: "tags metadata credit" },
-    { key: "settings.mapCardPrompt", tab: "Export", keywords: "map card share image" },
-    { key: "settings.tabShortcuts", tab: "Shortcuts", keywords: "keyboard commands hotkeys" },
-  ];
-
-  const paletteCommands: PaletteCommand[] = [
-    {
-      id: "new-map",
-      label: t("menu.newMap"),
-      group: t("palette.group.create"),
-      keywords: "song beatmap project",
-      run: () => setModal("newMap"),
-    },
-    {
-      id: "my-maps",
-      label: t("menu.myMaps"),
-      group: t("palette.group.open"),
-      keywords: "projects library cloud local",
-      run: () => setModal("myProjects"),
-    },
-    {
-      id: "import-map",
-      label: t("menu.importMap"),
-      group: t("palette.group.open"),
-      keywords: "osz osu sm ssc qua folder",
-      run: () => setModal("import"),
-    },
-    {
-      id: "sample-maps",
-      label: t("menu.tryMaps"),
-      group: t("palette.group.open"),
-      keywords: "examples demo",
-      run: () => setModal("sampleMaps"),
-    },
-    {
-      id: "backups",
-      label: t("backups.title"),
-      group: t("palette.group.file"),
-      keywords: "recovery restore history crash autosave versions undo lost unsaved",
-      run: () => setModal("backups"),
-    },
-    {
-      id: "pack-creator",
-      label: t("menu.packCreator"),
-      group: t("palette.group.create"),
-      keywords: "collection songs",
-      run: () => setPackCreatorOpen(true),
-    },
-    ...(hasProject
-      ? [
-          { id: "map-settings", label: t("nav.mapSettings"), group: t("palette.group.editor"), run: () => setModal("mapSettings") },
-          { id: "timing", label: t("nav.timing"), group: t("palette.group.editor"), keywords: "bpm offset", run: () => setModal("timing") },
-          ...(featureFlags.sv_tools
-            ? [{ id: "sv", label: t("nav.sv"), group: t("palette.group.editor"), keywords: "scroll velocity", run: () => setModal("sv" as ModalId) }]
-            : []),
-          { id: "difficulty", label: t("nav.difficulty"), group: t("palette.group.editor"), keywords: "keys od hp", run: () => setModal("difficulty") },
-          { id: "add-difficulty", label: t("app.addDifficulty"), group: t("palette.group.editor"), keywords: "new diff", disabled: !canEdit, run: addDifficulty },
-          { id: "tools", label: t("nav.tools"), group: t("palette.group.editor"), keywords: "full ln rice crop", run: () => setModal("tools") },
-          { id: "map-card", label: t("file.mapCard"), group: t("palette.group.export"), keywords: "image png share description msd skillsets bbcode discord", run: () => openMapCard() },
-          { id: "aimod", label: t("nav.aiMod"), group: t("palette.group.editor"), keywords: "check validation", run: openAiMod },
-          ...(appSettings.showPatternTools
-            ? [{ id: "presets", label: t("nav.presets"), group: t("palette.group.editor"), keywords: "patterns clipboard", run: () => setModal("presets" as ModalId) }]
-            : []),
-          { id: "skin", label: t("nav.skin"), group: t("palette.group.editor"), run: () => setModal("skin") },
-          { id: "history", label: t("undoHistory.title"), group: t("palette.group.edit"), keywords: "versions changes", run: () => setModal("history") },
-          { id: "undo", label: t("nav.undo"), group: t("palette.group.edit"), hint: "Ctrl Z", disabled: !canUndo, run: undo },
-          { id: "redo", label: t("nav.redo"), group: t("palette.group.edit"), hint: "Ctrl Y", disabled: !canRedo, run: redo },
-          { id: "new-open", label: t("file.newOpen"), group: t("palette.group.file"), keywords: "project map welcome", run: () => setModal("welcome") },
-          { id: "save", label: t("file.saveLocally"), group: t("palette.group.file"), hint: "Ctrl S", run: () => void handleSave() },
-          { id: "save-cloud", label: t("file.saveToCloud"), group: t("palette.group.file"), keywords: "account collaborate", disabled: !authUser || !canEdit, run: () => void handleCloudSave() },
-          { id: "copy-hitsounds-all", label: t("hitsounds.copyToAllCommand"), group: t("palette.group.edit"), keywords: "hitsound whistle finish clap samples apply", disabled: !canEdit || hitsoundTargets.length === 0 || countHitsounds(active.notes) === 0, run: applyCopyHitsoundsToAll },
-          { id: "export-osu", label: t("file.exportOsu"), group: t("palette.group.export"), disabled: !canExport, run: handleExportOsu },
-          { id: "export-osz", label: t("file.exportOsz"), group: t("palette.group.export"), disabled: !canExport || exporting, run: handleExportOsz },
-          { id: "export-sm", label: t("file.exportSm"), group: t("palette.group.export"), disabled: !canExport, run: handleExportSm },
-          { id: "export-qua", label: t("file.exportQua"), group: t("palette.group.export"), disabled: !canExport, run: handleExportQua },
-          { id: "export-mcz", label: t("file.exportMcz"), group: t("palette.group.export"), keywords: "malody mc", disabled: !canExport || exporting || !hasMalodyDifficulty, run: handleExportMcz },
-          ...(osuApp?.supported
-            ? [
-                { id: "import-into-osu", label: t("file.importIntoOsu"), group: "osu!", keywords: "send export stable", disabled: !canExport || osuBusy || exporting, run: handleSendToOsu },
-                { id: "sync-to-osu", label: t("file.syncToOsu"), group: "osu!", keywords: "songs folder export stable", disabled: !canExport || osuBusy || exporting, run: handleSyncToOsu },
-                { id: "import-from-osu", label: t("file.importFromOsu"), group: "osu!", keywords: "load selected map stable", disabled: osuBusy || importingMap, run: () => void handleLoadFromOsu() },
-              ]
-            : []),
-          { id: "home", label: t("home.returnTitle"), group: t("palette.group.cascade"), keywords: "main menu start screen close project", run: () => setShowHomeConfirm(true) },
-          {
-            id: "play-pause",
-            label: audio.isPlaying ? t("app.pausePlayback") : t("app.playAudio"),
-            group: t("palette.group.playback"),
-            hint: "Space",
-            disabled: !audioFile,
-            run: toggleAudio,
-          },
-          {
-            id: "playtest",
-            label: playtest.active ? t("app.exitPlaytest") : t("app.startPlaytest"),
-            group: t("palette.group.playback"),
-            disabled: !audioFile || !featureFlags.playtest,
-            run: () => playtest.active ? exitPlaytest() : startPlaytest(getCurrentTime()),
-          },
-          {
-            id: "zen",
-            label: zenMode ? t("app.leaveZen") : t("app.enterZen"),
-            group: t("palette.group.view"),
-            keywords: "hide interface distraction free",
-            run: () => setZenMode((value) => !value),
-          },
-          {
-            id: "waveform",
-            label: appSettings.showWaveform ? t("app.hideWaveform") : t("app.showWaveform"),
-            group: t("palette.group.view"),
-            run: toggleWaveformOverlay,
-          },
-          {
-            id: "auto-time",
-            label: t("app.detectBpm"),
-            group: t("palette.group.timing"),
-            keywords: "auto time song analysis",
-            disabled: !waveform?.buffer,
-            run: () => setAutoTimeOpen(true),
-          },
-          {
-            id: "jump-time",
-            label: t("app.jumpToTime"),
-            group: t("palette.group.playback"),
-            keywords: "seek timestamp",
-            run: () => setJumpToTimeOpen(true),
-          },
-          {
-            id: "difficulty-panel",
-            label: appSettings.difficultyPanelOpen ? t("app.hideDifficultyPanel") : t("app.showDifficultyPanel"),
-            group: t("palette.group.view"),
-            run: () => setAppSettings((value) => ({ ...value, difficultyPanelOpen: !value.difficultyPanelOpen })),
-          },
-          {
-            id: "bottom-timeline",
-            label: appSettings.showBottomTimeline ? t("app.hideBottomTimeline") : t("app.showBottomTimeline"),
-            group: t("palette.group.view"),
-            run: () => setAppSettings((value) => ({ ...value, showBottomTimeline: !value.showBottomTimeline })),
-          },
-          {
-            id: "playfield-layout",
-            label: t("layout.open"),
-            group: t("palette.group.view"),
-            run: () => setLayoutEditing(true),
-          },
-          ...(!zenMode && !playtest.active
-            ? [
-                ...eligibleRefs.map((d) => ({
-                  id: `reference-${d.id}`,
-                  label: t("app.referenceItem", { name: d.name, keys: d.keyCount }),
-                  group: t("palette.group.view"),
-                  keywords: "compare difficulty side by side",
-                  run: () => setReferenceId(d.id),
-                })),
-                ...(referenceDiff
-                  ? [{ id: "reference-off", label: t("app.referenceOff"), group: t("palette.group.view"), keywords: "compare difficulty", run: () => setReferenceId(null) }]
-                  : []),
-              ]
-            : []),
-          ...(cloudProjectId
-            ? [
-                { id: "comments", label: t("nav.comments"), group: t("palette.group.collaboration"), run: () => setCommentsOpen((value) => !value) },
-                { id: "share", label: t("nav.shareTitle"), group: t("palette.group.collaboration"), disabled: !authUser, run: () => setModal("share" as ModalId) },
-              ]
-            : []),
-          ...(isDesktopApp()
-            ? [
-                { id: "version-history", label: t("file.versionHistory"), group: t("palette.group.file"), run: () => setModal("versionHistory" as ModalId) },
-                { id: "edit-externally", label: t("file.editExternally"), group: t("palette.group.file"), keywords: "text editor osu file notepad", disabled: !canEdit, run: () => void beginExternalEdit() },
-              ]
-            : []),
-        ] satisfies PaletteCommand[]
-      : []),
-    {
-      id: "feedback",
-      label: t("app.sendFeedback"),
-      group: t("palette.group.cascade"),
-      keywords: "report bug suggestion",
-      run: () => setModal("feedback"),
-    },
-    ...(canExitDesktop()
-      ? [{ id: "exit", label: t("menu.exit"), group: t("palette.group.cascade"), keywords: "quit close app", run: () => setExitConfirm(true) }]
-      : []),
-    {
-      id: "settings",
-      label: t("settings.title"),
-      group: t("palette.group.settings"),
-      hint: "Ctrl K",
-      run: () => openSettings(),
-    },
-    ...paletteSettingEntries.map(({ key, tab, keywords, hud }) => ({
-      id: `setting-${key}`,
-      label: t(key),
-      group: t("palette.group.setting", { tab: t(`settings.tab${tab}` as MessageKey) }),
-      keywords,
-      run: () =>
-        hud && hasProject && audioFile
-          ? startPlaytest(0, { hudEditing: true })
-          : openSettings(tab),
-    })),
-  ];
+  const paletteCommands = buildPaletteCommands({
+    active,
+    addDifficulty,
+    appSettings,
+    applyCopyHitsoundsToAll,
+    audio,
+    audioFile,
+    authUser,
+    beginExternalEdit,
+    canEdit,
+    canExport,
+    canRedo,
+    canUndo,
+    cloudProjectId,
+    eligibleRefs,
+    exitPlaytest,
+    exporting,
+    featureFlags,
+    getCurrentTime,
+    handleCloudSave,
+    handleExportMcz,
+    handleExportOsu,
+    handleExportOsz,
+    handleExportQua,
+    handleExportSm,
+    handleLoadFromOsu,
+    handleSave,
+    handleSendToOsu,
+    handleSyncToOsu,
+    hasMalodyDifficulty,
+    hasProject,
+    hitsoundTargets,
+    importingMap,
+    openAiMod,
+    openMapCard,
+    openSettings,
+    osuApp,
+    osuBusy,
+    playtest,
+    redo,
+    referenceDiff,
+    setAppSettings,
+    setAutoTimeOpen,
+    setCommentsOpen,
+    setExitConfirm,
+    setJumpToTimeOpen,
+    setLayoutEditing,
+    setModal,
+    setPackCreatorOpen,
+    setReferenceId,
+    setShowHomeConfirm,
+    setZenMode,
+    startPlaytest,
+    t,
+    toggleAudio,
+    toggleWaveformOverlay,
+    undo,
+    waveform,
+    zenMode,
+  });
 
   if (packCreatorOpen) packCreatorEverOpenedRef.current = true;
   if (modal === "admin") adminEverOpenedRef.current = true;
@@ -3238,440 +2703,69 @@ export default function App() {
         </div>
       )}
 
-      <header
-        className={`z-30 flex items-center justify-between gap-2 overflow-hidden border-white/10 bg-ink-800/65 px-3 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out uixl:gap-4 uixl:px-5 ${
-          hasProject ? "" : "absolute inset-x-0 top-0"
-        } ${
-          showHeader
-            ? "max-h-20 translate-y-0 border-b py-2.5 opacity-100"
-            : "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
-        }`}
-        aria-hidden={!showHeader}
-        {...({ inert: !showHeader ? "" : undefined } as { inert?: string })}
-      >
-        <div className="flex min-w-0 items-center gap-2 uixl:gap-4">
-          <div className="flex shrink-0 items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => hasProject && setShowHomeConfirm(true)}
-              className="flex items-center gap-2.5 rounded-md transition hover:opacity-80"
-              title={hasProject ? t("home.returnTitle") : undefined}
-              data-no-uisound=""
-            >
-              <img
-                src={`${import.meta.env.BASE_URL}favicon.png?v=3`}
-                alt="Cascade"
-                draggable={false}
-                onDragStart={(e) => e.preventDefault()}
-                className="h-8 w-8 select-none rounded-lg object-cover"
-              />
-              <span className="hidden text-sm font-semibold text-slate-100 uimd:inline">
-                Cascade
-              </span>
-            </button>
-          </div>
-
-          <div
-            className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
-              hasProject
-                ? "max-w-[68rem] translate-x-0 opacity-100"
-                : "pointer-events-none max-w-0 -translate-x-3 opacity-0"
-            }`}
-            aria-hidden={!hasProject}
-            {...({ inert: !hasProject ? "" : undefined } as { inert?: string })}
-          >
-            <nav className="flex items-center gap-1 whitespace-nowrap">
-              <MenuButton onClick={() => setModal("mapSettings")}>
-                {t("nav.mapSettings")}
-              </MenuButton>
-              <MenuButton onClick={() => setModal("timing")}>
-                {t("nav.timing")}
-              </MenuButton>
-              {featureFlags.sv_tools && (
-                <MenuButton onClick={() => setModal("sv")}>
-                  {t("nav.sv")}
-                </MenuButton>
-              )}
-              <MenuButton onClick={() => setModal("difficulty")}>
-                {t("nav.difficulty")}
-              </MenuButton>
-              <div className="hidden items-center gap-1 uixl:flex">
-                <MenuButton onClick={() => setModal("tools")}>
-                  {t("nav.tools")}
-                </MenuButton>
-                <MenuButton onClick={openAiMod}>{t("nav.aiMod")}</MenuButton>
-                {appSettings.showPatternTools && (
-                  <MenuButton onClick={() => setModal("presets")}>
-                    {t("nav.presets")}
-                  </MenuButton>
-                )}
-                <MenuButton onClick={() => setModal("skin")}>
-                  {t("nav.skin")}
-                </MenuButton>
-                <MenuButton onClick={() => openSettings()}>
-                  {t("nav.settings")}
-                </MenuButton>
-                <span className="mx-1 h-5 w-px bg-white/10" />
-                <HistoryPopover
-                  open={historyPanel}
-                  onOpenChange={setHistoryPanel}
-                  available={canUndo || canRedo}
-                  entries={historyEntries}
-                  current={historyCurrent}
-                  onJump={jumpHistory}
-                  readOnly={!canEdit}
-                  live={liveEnabled}
-                >
-                  <IconButton
-                    onClick={undo}
-                    disabled={!canUndo}
-                    title={t("nav.undo")}
-                  >
-                    <UndoIcon className="h-4 w-4" />
-                  </IconButton>
-                </HistoryPopover>
-                <IconButton
-                  onClick={redo}
-                  disabled={!canRedo}
-                  title={t("nav.redo")}
-                >
-                  <RedoIcon className="h-4 w-4" />
-                </IconButton>
-              </div>
-              <div className="uixl:hidden">
-                <Menu
-                  label={t("nav.more")}
-                  className="!px-2.5"
-                  items={[
-                    {
-                      label: t("nav.tools"),
-                      onClick: () => setModal("tools"),
-                    },
-                    { label: t("nav.aiMod"), onClick: openAiMod },
-                    ...(appSettings.showPatternTools
-                      ? [
-                          {
-                            label: t("nav.presets"),
-                            onClick: () => setModal("presets"),
-                          },
-                        ]
-                      : []),
-                    {
-                      label: t("nav.skin"),
-                      onClick: () => setModal("skin"),
-                    },
-                    {
-                      label: t("nav.settings"),
-                      onClick: () => openSettings(),
-                    },
-                    { separator: true as const },
-                    {
-                      label: t("nav.undo"),
-                      disabled: !canUndo,
-                      onClick: undo,
-                    },
-                    {
-                      label: t("nav.redo"),
-                      disabled: !canRedo,
-                      onClick: redo,
-                    },
-                    {
-                      label: t("undoHistory.title"),
-                      disabled: !canUndo && !canRedo,
-                      onClick: () => setModal("history"),
-                    },
-                  ]}
-                />
-              </div>
-            </nav>
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-3">
-          <div
-            className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
-              hasProject
-                ? "max-w-[68rem] translate-x-0 opacity-100"
-                : "pointer-events-none max-w-0 translate-x-3 opacity-0"
-            }`}
-            aria-hidden={!hasProject}
-          >
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
-              {cloudProjectId && myRole === "viewer" && (
-                <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
-                  {t("nav.viewOnly")}
-                </span>
-              )}
-              {cloudProjectId &&
-                authUser &&
-                cloudOwnerId === authUser.id &&
-                featureFlags.collab && (
-                  <IconButton
-                    onClick={() => setModal("share")}
-                    title={t("nav.shareTitle")}
-                  >
-                    <UsersIcon className="h-4 w-4" />
-                  </IconButton>
-                )}
-              {cloudProjectId && authUser && (
-                <IconButton
-                  onClick={() => setCommentsOpen((v) => !v)}
-                  title={
-                    commentUnreadCount
-                      ? t("nav.commentsUnread", { count: commentUnreadCount })
-                      : t("nav.comments")
-                  }
-                >
-                  <CommentIcon className="h-4 w-4" />
-                  {commentUnreadCount > 0 && (
-                    <span className="absolute right-0 top-0 grid min-h-3 min-w-3 place-items-center rounded-full bg-accent px-0.5 text-[8px] font-bold leading-3 text-ink-900">
-                      {commentUnreadCount > 9 ? "9+" : commentUnreadCount}
-                    </span>
-                  )}
-                </IconButton>
-              )}
-              {saveStatus && (
-                <div
-                  role="status"
-                  aria-label={
-                    saveStatus === "saving"
-                      ? t("file.saving")
-                      : saveStatus === "saved"
-                        ? t("file.saved")
-                        : t("file.saveFailed")
-                  }
-                  title={
-                    saveStatus === "error" && saveErrorDetail
-                      ? `${t("file.saveFailed")}: ${saveErrorDetail}`
-                      : undefined
-                  }
-                  className={`hidden h-8 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium transition uilg:flex uixl:px-2.5 ${
-                    saveStatus === "saving"
-                      ? "border-amber-400/15 bg-amber-400/5 text-amber-200"
-                      : saveStatus === "saved"
-                        ? "border-emerald-400/15 bg-emerald-400/5 text-emerald-200"
-                        : "border-red-400/20 bg-red-400/10 text-red-200"
-                  }`}
-                >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      saveStatus === "saving"
-                        ? "animate-pulse bg-amber-300"
-                        : saveStatus === "saved"
-                          ? "bg-emerald-300"
-                          : "bg-red-300"
-                    }`}
-                  />
-                  <span className="hidden uixl:inline">
-                    {saveStatus === "saving"
-                      ? t("file.saving")
-                      : saveStatus === "saved"
-                        ? t("file.saved")
-                        : t("file.saveFailed")}
-                  </span>
-                </div>
-              )}
-              <Menu
-                label={t("nav.file")}
-                tone="accent"
-                items={[
-                  {
-                    label: t("file.newOpen"),
-                    onClick: () => setModal("welcome"),
-                  },
-                  {
-                    label:
-                      saveStatus === "saving"
-                        ? t("file.saving")
-                        : t("file.saveLocally"),
-                    hint: "Ctrl+S",
-                    disabled: saveStatus === "saving",
-                    onClick: () => void handleSave(),
-                  },
-                  {
-                    label:
-                      cloudSaveStatus === "saving"
-                        ? t("file.saving")
-                        : t("file.saveToCloud"),
-                    title: !authUser ? t("file.logInFirst") : undefined,
-                    disabled:
-                      !authUser || !canEdit || cloudSaveStatus === "saving",
-                    onClick: () => void handleCloudSave(),
-                  },
-                  { separator: true },
-                  {
-                    label: t("file.exportOsu"),
-                    disabled: !canExport,
-                    onClick: handleExportOsu,
-                  },
-                  {
-                    label: t("file.exportOsz"),
-                    disabled: !canExport || exporting,
-                    onClick: handleExportOsz,
-                  },
-                  {
-                    label: t("file.exportSm"),
-                    disabled: !canExport,
-                    onClick: handleExportSm,
-                  },
-                  {
-                    label: t("file.exportQua"),
-                    disabled:
-                      !canExport ||
-                      (active.keyCount !== 4 && active.keyCount !== 7),
-                    title:
-                      active.keyCount !== 4 && active.keyCount !== 7
-                        ? t("app.quaverKeys")
-                        : undefined,
-                    onClick: handleExportQua,
-                  },
-                  {
-                    label: t("file.exportMcz"),
-                    disabled: !canExport || exporting || !hasMalodyDifficulty,
-                    title: !hasMalodyDifficulty
-                      ? t("malody.maxKeys", { count: MALODY_MAX_KEYS })
-                      : undefined,
-                    onClick: handleExportMcz,
-                  },
-                  { separator: true },
-                  {
-                    label: t("file.mapCard"),
-                    onClick: () => openMapCard(),
-                  },
-                  {
-                    label: t("file.backups"),
-                    onClick: () => setModal("backups"),
-                  },
-                  ...(isDesktopApp()
-                    ? [
-                        { separator: true as const },
-                        {
-                          label: t("file.versionHistory"),
-                          disabled: !hasProject,
-                          onClick: () => setModal("versionHistory"),
-                        },
-                        {
-                          label: t("file.editExternally"),
-                          title: t("file.editExternallyHint"),
-                          disabled: !hasProject || !canEdit,
-                          onClick: () => void beginExternalEdit(),
-                        },
-                      ]
-                    : []),
-                  ...(osuApp?.supported
-                    ? [
-                        { separator: true as const },
-                        {
-                          label: t("file.importIntoOsu"),
-                          disabled: !canExport || osuBusy || exporting,
-                          title: !osuApp.installed
-                            ? t("osu.notInstalled")
-                            : undefined,
-                          onClick: handleSendToOsu,
-                        },
-                        {
-                          label: t("file.syncToOsu"),
-                          disabled: !canExport || osuBusy || exporting,
-                          title: t("file.syncToOsuHint"),
-                          onClick: handleSyncToOsu,
-                        },
-                        {
-                          label: t("file.importFromOsu"),
-                          disabled: osuBusy || importingMap,
-                          title: !osuApp.running
-                            ? t("osu.notRunning")
-                            : undefined,
-                          onClick: () => void handleLoadFromOsu(),
-                        },
-                      ]
-                    : []),
-                ]}
-              />
-            </div>
-          </div>
-          {liveEnabled && (
-            <span
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-ink-700/42 px-2 py-1 text-[11px] font-medium shadow-sm backdrop-blur-xl"
-              title={
-                collab.status === "connected"
-                  ? t("collab.live")
-                  : collab.status === "connecting"
-                    ? t("collab.connecting")
-                    : t("collab.offline")
-              }
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  collab.status === "connected"
-                    ? "bg-emerald-400"
-                    : collab.status === "connecting"
-                      ? "animate-pulse bg-amber-400"
-                      : "bg-rose-500"
-                }`}
-              />
-              <span className="text-slate-300">{t("app.live")}</span>
-            </span>
-          )}
-          {liveEnabled && collab.peers.length > 0 && (
-            <div
-              className="flex items-center -space-x-1.5"
-              title={t("app.editingNow")}
-            >
-              {collab.peers.slice(0, 5).map((p) => (
-                <span
-                  key={p.id}
-                  className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border-2 bg-ink-700/70 text-[10px] font-semibold text-slate-100 shadow-sm backdrop-blur"
-                  style={{ borderColor: p.color }}
-                  title={p.username}
-                >
-                  {p.avatar ? (
-                    <img
-                      src={p.avatar}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    p.username.slice(0, 1).toUpperCase()
-                  )}
-                </span>
-              ))}
-            </div>
-          )}
-          {!hasProject && !sharedSlug && <NowPlaying
-              music={menuMusic}
-              preferOriginalMetadata={preferOriginalMetadata}
-            />}
-          {!hasProject && featureFlags.desktop_download && (
-            <DesktopDownloadLink
-              active={showHeader && modal === null && !packCreatorOpen}
-            />
-          )}
-          {!hasProject && <LanguagePicker compact />}
-          {authUser && (
-            <NotificationInbox
-              notifications={notifications}
-              loading={notificationsLoading}
-              error={notificationsError}
-              onRefresh={refreshNotifications}
-              onOpen={openInboxNotification}
-              onMarkRead={markInboxNotificationRead}
-              onMarkAllRead={markInboxAllRead}
-              onDismiss={dismissInboxNotification}
-            />
-          )}
-          <AccountControl
-            compact
-            onOpenMyMaps={() => setModal("myMaps")}
-            onOpenPresets={
-              appSettings.showPatternTools
-                ? () => setModal("presets")
-                : undefined
-            }
-            onOpenFeedback={() => setModal("feedback")}
-            onOpenAdmin={() => setModal("admin")}
-          />
-        </div>
-      </header>
+      <AppHeader
+        active={active}
+        appSettings={appSettings}
+        authUser={authUser}
+        beginExternalEdit={beginExternalEdit}
+        canEdit={canEdit}
+        canExport={canExport}
+        canRedo={canRedo}
+        canUndo={canUndo}
+        cloudOwnerId={cloudOwnerId}
+        cloudProjectId={cloudProjectId}
+        cloudSaveStatus={cloudSaveStatus}
+        collab={collab}
+        commentUnreadCount={commentUnreadCount}
+        dismissInboxNotification={dismissInboxNotification}
+        exporting={exporting}
+        featureFlags={featureFlags}
+        handleCloudSave={handleCloudSave}
+        handleExportMcz={handleExportMcz}
+        handleExportOsu={handleExportOsu}
+        handleExportOsz={handleExportOsz}
+        handleExportQua={handleExportQua}
+        handleExportSm={handleExportSm}
+        handleLoadFromOsu={handleLoadFromOsu}
+        handleSave={handleSave}
+        handleSendToOsu={handleSendToOsu}
+        handleSyncToOsu={handleSyncToOsu}
+        hasMalodyDifficulty={hasMalodyDifficulty}
+        hasProject={hasProject}
+        historyCurrent={historyCurrent}
+        historyEntries={historyEntries}
+        historyPanel={historyPanel}
+        importingMap={importingMap}
+        jumpHistory={jumpHistory}
+        liveEnabled={liveEnabled}
+        markInboxAllRead={markInboxAllRead}
+        markInboxNotificationRead={markInboxNotificationRead}
+        menuMusic={menuMusic}
+        modal={modal}
+        myRole={myRole}
+        notifications={notifications}
+        notificationsError={notificationsError}
+        notificationsLoading={notificationsLoading}
+        openAiMod={openAiMod}
+        openInboxNotification={openInboxNotification}
+        openMapCard={openMapCard}
+        openSettings={openSettings}
+        osuApp={osuApp}
+        osuBusy={osuBusy}
+        packCreatorOpen={packCreatorOpen}
+        preferOriginalMetadata={preferOriginalMetadata}
+        redo={redo}
+        refreshNotifications={refreshNotifications}
+        saveErrorDetail={saveErrorDetail}
+        saveStatus={saveStatus}
+        setCommentsOpen={setCommentsOpen}
+        setHistoryPanel={setHistoryPanel}
+        setModal={setModal}
+        setShowHomeConfirm={setShowHomeConfirm}
+        sharedSlug={sharedSlug}
+        showHeader={showHeader}
+        undo={undo}
+      />
 
       <Suspense fallback={null}>
       <div className="flex min-h-0 flex-1">
@@ -5035,228 +4129,36 @@ export default function App() {
         </TimedNotification>
       )}
 
-      <div className="pointer-events-none fixed bottom-28 left-1/2 z-[65] flex w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 flex-col items-center gap-2">
-        <RecoveryPrompt
-          offer={recoveryOffer}
-          busy={recoveryBusy}
-          onRestore={() => void acceptRecoveryOffer()}
-          onDismiss={dismissRecoveryOffer}
-        />
-        {saveStatus === "error" && (
-          <TimedNotification
-            durationMs={6500}
-            onDismiss={() => setSaveStatus(null)}
-            resetKey={`${saveStatus}:${saveErrorDetail ?? ""}`}
-            showClose
-            progressClassName="bg-red-400"
-            className="pointer-events-auto max-w-full rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-2 pb-3 text-sm text-red-200 shadow-lg"
-          >
-            {saveErrorDetail
-              ? `${t("file.saveFailed")} (${saveErrorDetail})`
-              : t("file.saveFailed")}
-          </TimedNotification>
-        )}
-
-        <TimedNotification
-          open={!!desktopUpdate}
-          durationMs={null}
-          resetKey="desktop-update"
-          showClose
-          onDismiss={() => setDesktopUpdate(null)}
-          progressClassName="bg-accent"
-          className="pointer-events-auto flex max-w-full items-center gap-3 rounded-lg border border-white/10 bg-ink-800/95 py-2 pb-3 pl-4 pr-9 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
-        >
-          <span>
-            {t("update.available", { version: desktopUpdate?.version ?? "" })}
-          </span>
-          <button
-            type="button"
-            onClick={applyDesktopUpdate}
-            disabled={updating}
-            className="shrink-0 rounded-md bg-accent/90 px-2.5 py-1 text-xs font-semibold text-white transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] disabled:opacity-60"
-          >
-            {updating ? t("update.installing") : t("update.install")}
-          </button>
-        </TimedNotification>
-
-        <TimedNotification
-          open={pwaUpdateReady}
-          durationMs={null}
-          resetKey="pwa-update"
-          showClose
-          progressClassName="bg-accent"
-          className="pointer-events-auto flex max-w-full items-center gap-3 rounded-lg border border-white/10 bg-ink-800/95 py-2 pb-3 pl-4 pr-9 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
-        >
-          <span>{t("app.newVersion")}</span>
-          <button
-            type="button"
-            onClick={applyPendingUpdate}
-            className="shrink-0 rounded-md bg-accent/90 px-2.5 py-1 text-xs font-semibold text-white transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
-          >
-            {t("app.reload")}
-          </button>
-        </TimedNotification>
-
-        <TimedNotification
-          open={needsSongHint && !audioFile}
-          durationMs={8000}
-          onDismiss={() => setNeedsSongHint(false)}
-          resetKey="needs-song"
-          showClose
-          progressClassName="bg-accent"
-          className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-lg border border-white/10 bg-ink-800/95 px-4 py-2 pb-3 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
-        >
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
-            <SampleMapsIcon className="h-4 w-4" />
-          </span>
-          <span>{t("menu.needSong")}</span>
-        </TimedNotification>
-
-        <TimedNotification
-          open={cloudSaveStatus === "saving" || exporting}
-          durationMs={null}
-          resetKey={cloudSaveStatus === "saving" ? "cloud-save" : "export"}
-          progressClassName="bg-accent"
-          className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-lg border border-white/10 bg-ink-800/95 px-4 py-2 pb-3 text-sm text-slate-200 shadow-lg backdrop-blur-xl"
-        >
-          <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-500 border-t-accent" />
-          {cloudSaveStatus === "saving" ? (
-            t("app.savingToAccount")
-          ) : (
-            // Fixed width: the phase labels vary wildly in length ("Compressing
-            // the .osz" vs "Encoding audio - very long filename.mp3") and a
-            // shrink-to-fit toast would resize on every report.
-            <span className="flex w-[17rem] flex-col gap-1">
-              <span className="flex items-baseline justify-between gap-3">
-                <span>{t("app.exportingMap")}</span>
-                <span className="shrink-0 font-mono text-[11px] tabular-nums text-slate-300/40">
-                  {exportProgress
-                    ? `${Math.round(exportProgress.ratio * 100)}%`
-                    : ""}
-                </span>
-              </span>
-              <span
-                className="block h-1 w-full overflow-hidden rounded-full bg-white/10"
-                role="progressbar"
-                aria-valuenow={Math.round((exportProgress?.ratio ?? 0) * 100)}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={exportProgress?.label ?? t("app.exporting")}
-              >
-                <span
-                  className="block h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
-                  style={{
-                    width: `${Math.round((exportProgress?.ratio ?? 0) * 100)}%`,
-                  }}
-                />
-              </span>
-              {/* Reserve the line so the toast keeps its height between phases. */}
-              <span className="block h-4 truncate text-[11px] leading-4 text-slate-300/40">
-                {exportProgress?.label ?? ""}
-              </span>
-            </span>
-          )}
-        </TimedNotification>
-
-        {(cloudSaveStatus === "saved" || cloudSaveStatus === "error") && (
-          <TimedNotification
-            durationMs={cloudSaveStatus === "saved" ? 3000 : 6500}
-            onDismiss={() => {
-              if (cloudSaveStatus === "error") setCloudError(null);
-              setCloudSaveStatus(null);
-            }}
-            resetKey={`${cloudSaveStatus}:${cloudError ?? ""}`}
-            progressClassName={
-              cloudSaveStatus === "saved" ? "bg-emerald-400" : "bg-red-400"
-            }
-            className={`pointer-events-auto max-w-full rounded-lg border px-4 py-2 pb-3 text-sm shadow-lg ${
-              cloudSaveStatus === "saved"
-                ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
-                : "border-red-500/40 bg-red-950/90 text-red-200"
-            }`}
-          >
-            {cloudSaveStatus === "saved"
-              ? t("app.savedToAccount")
-              : cloudError ?? t("app.saveToAccountFailed")}
-          </TimedNotification>
-        )}
-
-        <TimedNotification
-          open={!!cloudError && cloudSaveStatus !== "error"}
-          durationMs={6500}
-          onDismiss={() => setCloudError(null)}
-          resetKey={cloudError}
-          progressClassName="bg-red-400"
-          showClose
-          className="pointer-events-auto max-w-full rounded-lg border border-red-500/40 bg-red-950/90 py-2 pb-3 pl-4 pr-9 text-sm text-red-200 shadow-lg"
-        >
-          {cloudError ?? ""}
-        </TimedNotification>
-
-        <TimedNotification
-          open={!!importError}
-          durationMs={6500}
-          onDismiss={() => setImportError(null)}
-          resetKey={importError}
-          progressClassName="bg-red-400"
-          showClose
-          className="pointer-events-auto max-w-full rounded-lg border border-red-500/40 bg-red-950/90 py-2 pb-3 pl-4 pr-9 text-sm text-red-200 shadow-lg"
-        >
-          {importError ?? ""}
-        </TimedNotification>
-
-        <TimedNotification
-          open={!!exportIssues}
-          durationMs={null}
-          onDismiss={() => setExportIssues(null)}
-          resetKey={exportIssues ? `${exportIssues.target}:${exportIssues.issues.length}` : null}
-          showClose
-          progressClassName="bg-amber-400"
-          className="pointer-events-auto max-w-full rounded-lg border border-amber-400/40 bg-ink-800/95 py-2 pb-3 pl-4 pr-9 text-sm text-amber-100 shadow-lg"
-        >
-          {exportIssues && (
-            <span className="flex flex-col gap-1.5">
-              <span className="font-semibold">
-                {t("exportVerify.title", { target: exportIssues.target })}
-              </span>
-              <span className="text-xs text-amber-100/80">
-                {exportIssues.issues[0].path}: {exportIssues.issues[0].message}
-                {exportIssues.issues.length > 1
-                  ? ` ${t("exportVerify.more", { count: exportIssues.issues.length - 1 })}`
-                  : ""}
-              </span>
-              <span className="text-xs text-slate-400">{t("exportVerify.body")}</span>
-              <button
-                type="button"
-                onClick={() =>
-                  void navigator.clipboard
-                    ?.writeText(
-                      formatIssues(
-                        exportIssues.issues,
-                        `Cascade ${__APP_VERSION__} export check (${exportIssues.target})`,
-                      ),
-                    )
-                    .catch(() => {})
-                }
-                className="self-start rounded-md border border-white/10 px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:bg-white/10"
-              >
-                {t("crash.copyDetails")}
-              </button>
-            </span>
-          )}
-        </TimedNotification>
-
-        <TimedNotification
-          open={!!importNotice}
-          durationMs={4000}
-          onDismiss={() => setImportNotice(null)}
-          resetKey={importNotice}
-          progressClassName="bg-emerald-400"
-          className="pointer-events-auto max-w-full rounded-lg border border-emerald-500/40 bg-emerald-950/90 px-4 py-2 pb-3 text-sm text-emerald-200 shadow-lg"
-        >
-          {importNotice ?? ""}
-        </TimedNotification>
-      </div>
+      <AppToasts
+        acceptRecoveryOffer={acceptRecoveryOffer}
+        applyDesktopUpdate={applyDesktopUpdate}
+        applyPendingUpdate={applyPendingUpdate}
+        audioFile={audioFile}
+        cloudError={cloudError}
+        cloudSaveStatus={cloudSaveStatus}
+        desktopUpdate={desktopUpdate}
+        dismissRecoveryOffer={dismissRecoveryOffer}
+        exportIssues={exportIssues}
+        exportProgress={exportProgress}
+        exporting={exporting}
+        importError={importError}
+        importNotice={importNotice}
+        needsSongHint={needsSongHint}
+        pwaUpdateReady={pwaUpdateReady}
+        recoveryBusy={recoveryBusy}
+        recoveryOffer={recoveryOffer}
+        saveErrorDetail={saveErrorDetail}
+        saveStatus={saveStatus}
+        setCloudError={setCloudError}
+        setCloudSaveStatus={setCloudSaveStatus}
+        setDesktopUpdate={setDesktopUpdate}
+        setExportIssues={setExportIssues}
+        setImportError={setImportError}
+        setImportNotice={setImportNotice}
+        setNeedsSongHint={setNeedsSongHint}
+        setSaveStatus={setSaveStatus}
+        updating={updating}
+      />
 
       <InviteNotifications
         notices={invites}
