@@ -391,7 +391,8 @@ Cascade is a static single-page app with a small backend around it.
 
 | Path | Contents |
 | --- | --- |
-| `src/components` | React UI. The editor canvas is `ManiaEditor.tsx`, and dialogs are in `menus/` |
+| `src/App.tsx`, `src/app` | The app shell. `src/app` holds its parts: opening, saving and recovering maps, export, hotkeys, the command palette, the header and the notices |
+| `src/components` | React UI. The editor canvas is `ManiaEditor.tsx`, with its drawing, keys and widgets in `editor/`; dialogs are in `menus/` |
 | `src/lib` | Format import and export, timing and SV, playtest scoring, AiMod, star rating, persistence, cloud and collaboration clients, translations |
 | `src/hooks` | Audio playback, waveform, metronome, collaboration and playtest input |
 | `src-tauri` | Rust side of the desktop app |
