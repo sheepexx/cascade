@@ -30,6 +30,7 @@ import { difficultyRate, formatRate, isNeutralRate } from "./rateChange";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 import type { SampleFile } from "./mapSamples";
 import { t } from "./i18n/core";
+import { zipEntryOptions } from "./zipEntry";
 
 export type BuildOszArgs = {
   meta: SongMeta;
@@ -98,7 +99,7 @@ export async function buildOsz({
             outBlob = jpeg;
           }
         }
-        zip.file(outName, outBlob);
+        zip.file(outName, outBlob, zipEntryOptions(outName));
         usedNames.add(outName.toLowerCase());
         bundledBgs.add(bg.name);
         bgExportName.set(bg.name, outName);
@@ -107,7 +108,7 @@ export async function buildOsz({
     if (difficulty.videoFilename && videoFiles?.[difficulty.videoFilename]) {
       const video = videoFiles[difficulty.videoFilename];
       if (!bundledBgs.has(video.name)) {
-        zip.file(video.name, video.blob);
+        zip.file(video.name, video.blob, zipEntryOptions(video.name));
         usedNames.add(video.name.toLowerCase());
         bundledBgs.add(video.name);
       }
@@ -147,6 +148,7 @@ export async function buildOsz({
 
   progress.advance();
 
+  const osuNames = new Set<string>();
   try {
     let diffIndex = 0;
     for (const difficulty of difficulties) {
@@ -209,7 +211,7 @@ export async function buildOsz({
                   preservePitch ? `x${formatRate(rate)}-pitch` : `x${formatRate(rate)}`,
                 )
               : cutAudioName(audio.name, bundled, encoded.ext);
-            zip.file(bakedName, encoded.blob);
+            zip.file(bakedName, encoded.blob, zipEntryOptions(bakedName));
             bundled.add(bakedName);
             cutNameByKey.set(key, bakedName);
           }
@@ -240,7 +242,7 @@ export async function buildOsz({
           }
         }
         if (!bundled.has(effectiveName)) {
-          zip.file(effectiveName, effectiveBlob);
+          zip.file(effectiveName, effectiveBlob, zipEntryOptions(effectiveName));
           bundled.add(effectiveName);
         }
         audioName = effectiveName;
@@ -262,7 +264,16 @@ export async function buildOsz({
         videoOffsetMs: exportDiff.videoOffsetMs,
         cascadeTag,
       });
-      zip.file(osuFilename(meta, difficulty), osu);
+      // Two difficulties can share a file name (the same name, or names that
+      // differ only in characters a file name cannot hold); without a suffix
+      // the second would silently replace the first in the archive.
+      const base = osuFilename(meta, difficulty);
+      let filename = base;
+      for (let n = 2; osuNames.has(filename.toLowerCase()); n += 1) {
+        filename = base.replace(/\.osu$/i, ` (${n}).osu`);
+      }
+      osuNames.add(filename.toLowerCase());
+      zip.file(filename, osu);
     }
   } finally {
     ctxHolder.ctx?.close().catch(() => {});
@@ -275,7 +286,7 @@ export async function buildOsz({
   for (const sample of Object.values(sampleFiles ?? {})) {
     const key = sample.name.toLowerCase();
     if (written.has(key)) continue;
-    zip.file(sample.name, sample.blob);
+    zip.file(sample.name, sample.blob, zipEntryOptions(sample.name));
     written.add(key);
   }
 
@@ -301,7 +312,9 @@ export async function buildOsz({
   return blob;
 }
 
-export async function downloadOsz(args: BuildOszArgs): Promise<void> {
+/** Builds and downloads the set, and hands back the archive for checking. */
+export async function downloadOsz(args: BuildOszArgs): Promise<Blob> {
   const blob = await buildOsz(args);
   triggerDownload(blob, setFilename(args.meta));
+  return blob;
 }

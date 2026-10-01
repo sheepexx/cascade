@@ -1,0 +1,85 @@
+osu file format v14
+
+[General]
+AudioFilename: audio.mp3
+AudioLeadIn: 0
+PreviewTime: 4210
+Countdown: 0
+SampleSet: Soft
+StackLeniency: 0.7
+Mode: 3
+LetterboxInBreaks: 0
+SpecialStyle: 0
+WidescreenStoryboard: 0
+
+[Editor]
+Bookmarks: 1000,2345,8000
+DistanceSpacing: 1
+BeatDivisor: 4
+GridSize: 8
+TimelineZoom: 1
+
+[Metadata]
+Title:Kimi no Uta
+TitleUnicode:君の歌
+Artist:Someone
+ArtistUnicode:誰か
+Creator:Fixture
+Version:Hard // 7K
+Source:Round trip corpus
+Tags:fixture edge-case hitsounds
+BeatmapID:1234567
+BeatmapSetID:765432
+
+[Difficulty]
+HPDrainRate:8
+CircleSize:7
+OverallDifficulty:8.5
+ApproachRate:5
+SliderMultiplier:1.4
+SliderTickRate:1
+
+[Events]
+//Background and Video events
+Video,-120,"intro.mp4"
+0,0,"bg.jpg",0,0
+//Break Periods
+//Storyboard Layer 0 (Background)
+//Storyboard Layer 1 (Fail)
+//Storyboard Layer 2 (Pass)
+//Storyboard Layer 3 (Foreground)
+//Storyboard Layer 4 (Overlay)
+//Storyboard Sound Samples
+
+[TimingPoints]
+123.45,344.827586206897,4,2,1,60,1,0
+123.45,-200,4,2,1,60,0,0
+1503.1,-100,4,1,2,80,0,1
+2882.759,-66.6666666666667,4,3,0,45,0,0
+4262.4,250,3,2,1,70,1,8
+5262.4,-133.333333333333,3,2,1,70,0,1
+6262.4,-100,3,2,1,70,0,0
+7012.4,200,4,1,0,100,1,0
+
+[HitObjects]
+36,192,50,1,0,0:0:0:0:
+109,192,50,1,2,0:0:0:0:
+182,192,123,1,8,1:0:0:0:
+256,192,468,1,4,0:2:0:0:
+329,192,812,128,2,1500:2:3:1:60:
+402,192,812,1,0,0:0:0:0:custom-kick.wav
+475,192,1157,1,10,3:2:2:40:
+36,192,1503,128,0,2882:0:0:0:0:
+109,192,1503,1,0,0:0:0:0:
+182,192,1503,1,0,0:0:0:0:
+256,192,2193,1,0,0:0:0:0:
+329,192,2882,1,6,0:0:0:0:
+402,192,3572,128,0,4262:0:0:0:0:
+475,192,4262,1,0,0:0:0:0:
+36,192,4262,1,0,0:0:0:0:
+109,192,4512,1,0,0:0:0:0:
+182,192,4762,1,0,0:0:0:0:
+256,192,5262,128,0,6262:1:0:0:0:
+329,192,6012,1,2,0:0:0:0:
+402,192,7012,1,0,0:0:0:0:
+475,192,7162,1,0,0:0:0:0:

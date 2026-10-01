@@ -736,7 +736,7 @@ export function ManiaEditor(props: Props) {
       setClipboardStatus(t("editor.selectToCopy"));
       return null;
     }
-    const timestamp = formatOsuTimestamp(selected, timingPoints) ?? undefined;
+    const timestamp = formatOsuTimestamp(selected) ?? undefined;
     const clip: Clip = {
       kind: "notes",
       id: uid("clip"),

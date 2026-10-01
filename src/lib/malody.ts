@@ -14,6 +14,7 @@ import {
   type TimingPoint,
 } from "../types";
 import { sortedPoints } from "./timing";
+import { zipEntryOptions } from "./zipEntry";
 
 /**
  * Malody charts (.mc) are JSON. Every position is a beat written as
@@ -333,13 +334,17 @@ export function buildMalodyChart({
       ? [0, 0, 1]
       : toMalodyBeat(clock.beat + (red.time - clock.time) / beatMs, beatMs);
     const exact = beatNumber(beat);
+    // Where Malody will put this red point once its beat is a fraction: up to
+    // a millisecond from where it was. Later red points and notes are measured
+    // from here, so that rounding never carries over into the next one.
+    const placed = index === 0 ? origin : clock.time + (exact - clock.beat) * beatMs;
     const last = segments[segments.length - 1];
     if (beatNumber(last.beat) === exact) {
       // Two red points on one beat: the later one wins, as in osu!.
       last.bpm = red.bpm;
       time[time.length - 1] = { beat: time[time.length - 1].beat, bpm: red.bpm };
     } else if (red.bpm !== clock.bpm || exact > clock.beat) {
-      segments.push({ time: red.time, beat, bpm: red.bpm });
+      segments.push({ time: placed, beat, bpm: red.bpm });
       time.push({ beat, bpm: red.bpm });
     }
     const redMeter = Math.max(1, Math.round(red.meter || 4));
@@ -347,9 +352,7 @@ export function buildMalodyChart({
       effect.push({ beat, sign: redMeter });
       meter = redMeter;
     }
-    clock = index === 0
-      ? { time: origin, beat: 0, bpm: red.bpm }
-      : { time: red.time, beat: exact, bpm: red.bpm };
+    clock = { time: placed, beat: exact, bpm: red.bpm };
   }
 
   const beatAt = (ms: number): MalodyBeat => {
@@ -456,12 +459,12 @@ export async function buildMcz(args: BuildMczArgs): Promise<Blob> {
     if (!audio) {
       throw new Error(t("malody.noAudio", { name: difficulty.name }));
     }
-    if (!folder.file(audio.name)) folder.file(audio.name, audio.blob);
+    if (!folder.file(audio.name)) folder.file(audio.name, audio.blob, zipEntryOptions(audio.name));
     const background = difficulty.backgroundFilename
       ? args.bgFiles?.[difficulty.backgroundFilename]
       : undefined;
     if (background && !folder.file(background.name)) {
-      folder.file(background.name, background.blob);
+      folder.file(background.name, background.blob, zipEntryOptions(background.name));
     }
     let name = `${safeName(difficulty.name)}.mc`;
     for (let n = 2; usedNames.has(name.toLowerCase()); n += 1) {

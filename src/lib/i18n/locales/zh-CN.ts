@@ -2163,4 +2163,11 @@ export const zhCN: PartialCatalog = {
   "backups.reason.beforeDelete": "删除难度前",
   "backups.reason.beforeExternalEdit": "外部编辑前",
   "file.backups": "备份…",
+  "import.storyboardLeftOut": "此谱面集带有故事板。Cascade 会保留音符、时间点和打击音效，但导出时不会包含故事板。",
+  "import.specialStyleLeftOut": "此谱面集使用了 8K 搓盘布局（SpecialStyle），导出时不会保留。",
+  "exportVerify.title": "导出的 {target} 回读后与你的谱面不一致",
+  "exportVerify.more.other": "另有 {count} 处差异",
+  "exportVerify.body": "这是 Cascade 的错误，不是你谱面的问题。请保留项目，并附上下方详情在 Discord 反馈。",
+  "validation.smNoKeyCount": "StepMania 和 Etterna 只支持 4K、5K、6K、7K、8K 和 10K 谱面，因此这些难度都无法导出为 .sm。",
+  "validation.smKeyCountSkipped.other": "{count} 个难度的键数 StepMania 不支持，将被跳过。",
 };

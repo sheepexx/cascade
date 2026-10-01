@@ -16,28 +16,25 @@ describe("formatOsuTimestamp", () => {
     const selected = notes([
       [71974, 4], [72259, 6], [72545, 5], [72831, 4], [73116, 5], [73402, 6],
     ]);
-    expect(formatOsuTimestamp(selected, [])).toBe(
+    expect(formatOsuTimestamp(selected)).toBe(
       "01:11:974 (71974|4,72259|6,72545|5,72831|4,73116|5,73402|6) - ",
     );
   });
 
   it("orders by time, then left to right on a row", () => {
     const selected = notes([[21076, 6], [20901, 6], [21076, 5], [20901, 5]]);
-    expect(formatOsuTimestamp(selected, [])).toBe(
+    expect(formatOsuTimestamp(selected)).toBe(
       "00:20:901 (20901|5,20901|6,21076|5,21076|6) - ",
     );
   });
 
-  it("writes each note on the millisecond the export would", () => {
-    // 1/3 at 120 BPM: stable floors the 166.67 ms tick to 166.
-    const points = [makeRedPoint(0, 120)];
-    expect(formatOsuTimestamp(notes([[167, 0]]), points)).toBe(
-      "00:00:166 (166|0) - ",
-    );
+  it("writes each note on the millisecond the export writes it", () => {
+    expect(formatOsuTimestamp(notes([[167, 0]]))).toBe("00:00:167 (167|0) - ");
+    expect(formatOsuTimestamp(notes([[166.6, 1]]))).toBe("00:00:167 (167|1) - ");
   });
 
   it("has nothing to copy without notes", () => {
-    expect(formatOsuTimestamp([], [])).toBeNull();
+    expect(formatOsuTimestamp([])).toBeNull();
   });
 
   it("pads the clock", () => {
@@ -49,10 +46,7 @@ describe("formatOsuTimestamp", () => {
 
 describe("osuEditLink", () => {
   it("links the timestamp without stable's trailing dash", () => {
-    const stamp = formatOsuTimestamp(
-      notes([[20901, 5], [20901, 6], [21076, 5]]),
-      [],
-    )!;
+    const stamp = formatOsuTimestamp(notes([[20901, 5], [20901, 6], [21076, 5]]))!;
     expect(osuEditLink(stamp)).toBe(
       "osu://edit/00:20:901%20(20901|5,20901|6,21076|5)",
     );

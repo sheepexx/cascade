@@ -18,6 +18,7 @@ import { ProgressSplitter, type ProgressFn } from "./progress";
 import { buildOsuFile } from "./osuExport";
 import { isPngName, pngToJpeg, toJpegName, uniqueFileName } from "./imageConvert";
 import { t } from "./i18n/core";
+import { zipEntryOptions } from "./zipEntry";
 
 
 export function sanitizePackFilename(s: string): string {
@@ -650,7 +651,7 @@ export async function buildPack({
     progress.phase(t("packLib.backgrounds"), 0.5);
     await convertPackBackgroundsToJpeg(files, renamesByArchive, items, jpegQuality);
   }
-  for (const f of files) zip.file(f.name, f.blob);
+  for (const f of files) zip.file(f.name, f.blob, zipEntryOptions(f.name));
   progress.advance();
   progress.phase(t("packLib.writing"));
 

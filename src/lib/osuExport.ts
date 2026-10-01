@@ -6,7 +6,7 @@ import type {
   TimingPoint,
 } from "../types";
 import { makeRedPoint, svToBeatLength } from "../types";
-import { sortedPoints, toStableTick } from "./timing";
+import { sortedPoints } from "./timing";
 
 export function columnToX(column: number, keyCount: number): number {
   return Math.floor((column + 0.5) * 512 / keyCount);
@@ -18,20 +18,16 @@ export function xToColumn(x: number, keyCount: number): number {
 }
 
 /**
- * Times go out on the millisecond osu! stable snaps to. Notes Cascade placed
- * before it followed stable's rule, or pasted from beat offsets, can sit 1 ms
- * off a tick, which stable, its AiMod and hitsound copiers read as unsnapped;
- * those land on the tick. Anything further off is a real unsnap and is written
- * as it is.
+ * Times go out exactly as the map holds them. Exporting never moves a note:
+ * a map that came from osu! must come back on the same milliseconds, and the
+ * editors that made ranked maps disagree by a millisecond on where an exact
+ * tick lands, so no single rule could "correct" them without damaging some.
+ * Notes 1 ms off the grid are AiMod's to report and Resnap's to fix, on request.
  */
-function formatHitObject(
-  note: ManiaNote,
-  keyCount: number,
-  timingPoints: TimingPoint[],
-): string {
+function formatHitObject(note: ManiaNote, keyCount: number): string {
   const x = columnToX(note.column, keyCount);
   const y = 192;
-  const time = toStableTick(note.startTime, timingPoints);
+  const time = Math.round(note.startTime);
   const hitSound = note.hitSound ?? 0;
   const sample = [
     note.sampleSet ?? 0,
@@ -42,8 +38,7 @@ function formatHitObject(
   ].join(":");
 
   if (note.endTime !== undefined && note.endTime > note.startTime) {
-    const snappedEnd = toStableTick(note.endTime, timingPoints);
-    const end = snappedEnd > time ? snappedEnd : Math.round(note.endTime);
+    const end = Math.max(time + 1, Math.round(note.endTime));
     return `${x},${y},${time},128,${hitSound},${end}:${sample}`;
   }
   return `${x},${y},${time},1,${hitSound},${sample}`;
@@ -124,11 +119,7 @@ export function buildOsuFile({
   const sortedNotes = [...difficulty.notes].sort(
     (a, b) => a.startTime - b.startTime,
   );
-  const hitObjects = sortedNotes.map((n) =>
-    // The map's own timing, never the 120 BPM stand-in above: a map without
-    // timing has no ticks to snap to.
-    formatHitObject(n, difficulty.keyCount, timingPoints),
-  );
+  const hitObjects = sortedNotes.map((n) => formatHitObject(n, difficulty.keyCount));
 
   const lines = [
     "osu file format v14",

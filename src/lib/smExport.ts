@@ -16,6 +16,8 @@ import {
 } from "./audioTrim";
 import { loadMp3Encoder } from "./lameEncoder";
 import { isRateDifficulty } from "./rateChange";
+import { zipEntryOptions } from "./zipEntry";
+import { smStepsType } from "./smFormat";
 
 export type BuildSmArgs = {
   meta: SongMeta;
@@ -123,20 +125,18 @@ function computeRadarValues(
   return [stream, voltage, air, freeze, chaos];
 }
 
+/**
+ * Makes text safe inside an MSD value. Colons and semicolons end a value and
+ * are escaped; "//" starts a comment that StepMania strips even inside a
+ * value, so it is broken up rather than allowed to swallow the rest of a line.
+ */
 function escape(s: string): string {
-  return s.replace(/;/g, "\\;").replace(/\n/g, " ").replace(/\r/g, "");
-}
-
-function stepType(keys: number): string {
-  switch (keys) {
-    case 4: return "dance-single";
-    case 5: return "pump-single";
-    case 6: return "dance-solo";
-    case 7: return "kb7-single";
-    case 8: return "dance-double";
-    case 10: return "pump-double";
-    default: return "dance-single";
-  }
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/:/g, "\\:")
+    .replace(/;/g, "\\;")
+    .replace(/\/(?=\/)/g, "/ ")
+    .replace(/[\r\n]+/g, " ");
 }
 
 function notesToMeasures(
@@ -280,7 +280,8 @@ export function buildSmFile({
   lines.push("#FGCHANGES:;");
 
   for (const diff of difficulties) {
-    const st = stepType(diff.keyCount);
+    const st = smStepsType(diff.keyCount);
+    if (!st) continue;
     const name = diff.name || "Converted";
     const durationMs = diff.notes.reduce(
       (max, n) => Math.max(max, n.endTime ?? n.startTime),
@@ -354,7 +355,9 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
   // in-game rate mod.
   const args: BuildSmzArgs = {
     ...rawArgs,
-    difficulties: rawArgs.difficulties.filter((d) => !isRateDifficulty(d)),
+    difficulties: rawArgs.difficulties.filter(
+      (d) => !isRateDifficulty(d) && smStepsType(d.keyCount) !== null,
+    ),
   };
 
   const [, { default: JSZip }] = await Promise.all([
@@ -371,7 +374,7 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
   for (const diff of args.difficulties) {
     if (diff.backgroundFilename && args.bgFiles?.[diff.backgroundFilename]) {
       const bg = args.bgFiles[diff.backgroundFilename];
-      zip.file("bg.png", bg.blob);
+      zip.file("bg.png", bg.blob, zipEntryOptions("bg.png"));
       break;
     }
   }
@@ -437,7 +440,7 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
         if (!cutName) {
           const encoded = renderTrimmedAudio(buffer, region);
           cutName = cutAudioName(audio.name, bundled, encoded.ext);
-          zip.file(cutName, encoded.blob);
+          zip.file(cutName, encoded.blob, zipEntryOptions(cutName));
           bundled.add(cutName);
           cutNameByKey.set(key, cutName);
         }
@@ -464,7 +467,7 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
         }
       }
       if (!bundled.has(effectiveName)) {
-        zip.file(effectiveName, effectiveBlob);
+        zip.file(effectiveName, effectiveBlob, zipEntryOptions(effectiveName));
         bundled.add(effectiveName);
       }
       audioName = effectiveName;
@@ -474,7 +477,7 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
       try {
         const resp = await fetch(`/api/avatar?user=${encodeURIComponent(args.meta.creator)}`);
         if (resp.ok) {
-          zip.file("cdtitle.png", await resp.blob());
+          zip.file("cdtitle.png", await resp.blob(), zipEntryOptions("cdtitle.png"));
         }
       } catch {
       }

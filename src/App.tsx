@@ -505,6 +505,7 @@ import {
   type RecoveryMedia,
 } from "./lib/recovery";
 import { useProjectRecovery } from "./hooks/useProjectRecovery";
+import { formatIssues, type ChartLike, type RoundTripIssue } from "./lib/roundTrip";
 import { RecoveryPrompt } from "./components/RecoveryPrompt";
 import {
   DEFAULT_APP_SETTINGS,
@@ -3104,6 +3105,17 @@ export default function App() {
       setPendingImport(null);
       setModal(null);
       setLocalProjectId(newLocalProjectId());
+      if (map.unsupported?.length) {
+        setImportNotice(
+          map.unsupported
+            .map((feature) =>
+              feature === "storyboard"
+                ? t("import.storyboardLeftOut")
+                : t("import.specialStyleLeftOut"),
+            )
+            .join(" "),
+        );
+      }
       void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
         () => {},
       );
@@ -5958,6 +5970,29 @@ export default function App() {
     }
   }, []);
 
+  const [exportIssues, setExportIssues] = useState<{
+    target: string;
+    issues: RoundTripIssue[];
+  } | null>(null);
+  /**
+   * Reads an exported set back and compares it with the map that went out.
+   * Runs after the download, so it never holds an export up; a difference
+   * means a bug in Cascade, and the mapper is told before they upload.
+   */
+  const checkExportedSet = useCallback(
+    (archive: Blob, chart: ChartLike, target: string) => {
+      void import("./lib/exportCheck")
+        .then(({ verifyOszArchive }) => verifyOszArchive(archive, chart))
+        .then((issues) => {
+          if (!issues.length) return;
+          console.warn(formatIssues(issues, `Export check (${target})`));
+          setExportIssues({ target, issues });
+        })
+        .catch(() => {});
+    },
+    [],
+  );
+
   const doExportOsu = useCallback((songMeta: SongMeta = meta) => {
     if (!audioFile) return;
     downloadOsu({
@@ -6075,7 +6110,7 @@ export default function App() {
     setExportProgress({ ratio: 0, label: t("app.startingEncoder") });
     try {
       const { downloadOsz } = await import("./lib/oszExport");
-      await downloadOsz({
+      const archive = await downloadOsz({
         meta: songMeta,
         difficulties,
         timingPoints,
@@ -6090,6 +6125,7 @@ export default function App() {
         onProgress: setExportProgress,
       });
       playUiSound("mapExportDone");
+      checkExportedSet(archive, { meta: songMeta, timingPoints, difficulties }, ".osz");
       void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
       offerMapCard(".osz");
     } catch (error) {
@@ -6116,6 +6152,7 @@ export default function App() {
     appSettings.exportJpegQuality,
     appSettings.addCascadeTag,
     offerMapCard,
+    checkExportedSet,
   ]);
 
   const checkAndExport = useCallback(
@@ -6224,6 +6261,7 @@ export default function App() {
         onProgress: setExportProgress,
       });
       await osuSendMap(archive, setFilename(songMeta));
+      checkExportedSet(archive, { meta: songMeta, timingPoints, difficulties }, "osu!");
       playUiSound("mapExportDone");
       setImportNotice(t("osu.sent"));
       void logAnalyticsEvent("export_to_osu", authUserRef.current?.id).catch(
@@ -6249,6 +6287,7 @@ export default function App() {
     appSettings.exportJpegQuality,
     appSettings.addCascadeTag,
     ensureOsuFolder,
+    checkExportedSet,
     t,
   ]);
 
@@ -6283,6 +6322,7 @@ export default function App() {
         archive,
         osuFolderName(songMeta.artist, songMeta.title),
       );
+      checkExportedSet(archive, { meta: songMeta, timingPoints, difficulties }, "osu!");
       playUiSound("mapExportDone");
       setImportNotice(t("osu.synced"));
       void logAnalyticsEvent("sync_to_osu", authUserRef.current?.id).catch(
@@ -6308,6 +6348,7 @@ export default function App() {
     appSettings.exportJpegQuality,
     appSettings.addCascadeTag,
     ensureOsuFolder,
+    checkExportedSet,
     t,
   ]);
 
@@ -8242,7 +8283,6 @@ export default function App() {
                     ? () =>
                         formatOsuTimestamp(
                           active.notes.filter((n) => selectionRange.ids.has(n.id)),
-                          activeTimingPoints,
                         )
                     : undefined
                 }
@@ -9692,6 +9732,47 @@ export default function App() {
           className="pointer-events-auto max-w-full rounded-lg border border-red-500/40 bg-red-950/90 py-2 pb-3 pl-4 pr-9 text-sm text-red-200 shadow-lg"
         >
           {importError ?? ""}
+        </TimedNotification>
+
+        <TimedNotification
+          open={!!exportIssues}
+          durationMs={null}
+          onDismiss={() => setExportIssues(null)}
+          resetKey={exportIssues ? `${exportIssues.target}:${exportIssues.issues.length}` : null}
+          showClose
+          progressClassName="bg-amber-400"
+          className="pointer-events-auto max-w-full rounded-lg border border-amber-400/40 bg-ink-800/95 py-2 pb-3 pl-4 pr-9 text-sm text-amber-100 shadow-lg"
+        >
+          {exportIssues && (
+            <span className="flex flex-col gap-1.5">
+              <span className="font-semibold">
+                {t("exportVerify.title", { target: exportIssues.target })}
+              </span>
+              <span className="text-xs text-amber-100/80">
+                {exportIssues.issues[0].path}: {exportIssues.issues[0].message}
+                {exportIssues.issues.length > 1
+                  ? ` ${t("exportVerify.more", { count: exportIssues.issues.length - 1 })}`
+                  : ""}
+              </span>
+              <span className="text-xs text-slate-400">{t("exportVerify.body")}</span>
+              <button
+                type="button"
+                onClick={() =>
+                  void navigator.clipboard
+                    ?.writeText(
+                      formatIssues(
+                        exportIssues.issues,
+                        `Cascade ${__APP_VERSION__} export check (${exportIssues.target})`,
+                      ),
+                    )
+                    .catch(() => {})
+                }
+                className="self-start rounded-md border border-white/10 px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:bg-white/10"
+              >
+                {t("crash.copyDetails")}
+              </button>
+            </span>
+          )}
         </TimedNotification>
 
         <TimedNotification

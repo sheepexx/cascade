@@ -2,6 +2,7 @@ import type { Difficulty, LoadedFile, ManiaNote, SongMeta } from "../types";
 import { MAX_KEYS, MIN_KEYS } from "../types";
 import { isRateDifficulty } from "./rateChange";
 import { t } from "./i18n/core";
+import { smStepsType } from "./smFormat";
 
 export type ValidationIssue = {
   message: string;
@@ -82,6 +83,15 @@ export function validateProject({
   // .sm has no per-chart audio, and Etterna applies rates in-game, so rate
   // difficulties are skipped rather than exported out of sync.
   if (target === ".sm") {
+    const unsupported = difficulties.filter((d) => smStepsType(d.keyCount) === null);
+    if (unsupported.length === difficulties.length && unsupported.length > 0) {
+      errors.push({ message: t("validation.smNoKeyCount") });
+    } else if (unsupported.length > 0) {
+      warnings.push({
+        message: t("validation.smKeyCountSkipped", { count: unsupported.length }),
+        scope: unsupported.map((d) => `${d.name || t("app.unnamed")} (${d.keyCount}K)`).join(", "),
+      });
+    }
     const rated = difficulties.filter(isRateDifficulty);
     if (rated.length === difficulties.length && rated.length > 0) {
       errors.push({

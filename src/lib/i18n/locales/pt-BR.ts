@@ -2277,4 +2277,13 @@ export const ptBR: PartialCatalog = {
   "backups.reason.beforeDelete": "Antes de excluir dificuldades",
   "backups.reason.beforeExternalEdit": "Antes de uma edição externa",
   "file.backups": "Backups…",
+  "import.storyboardLeftOut": "Este set tem um storyboard. O Cascade mantém as notas, o timing e os hitsounds, mas as exportações não incluem o storyboard.",
+  "import.specialStyleLeftOut": "Este set usa o layout de scratch do 8K (SpecialStyle), que as exportações deixam de fora.",
+  "exportVerify.title": "A exportação {target} não foi lida de volta como o seu mapa",
+  "exportVerify.more.one": "e mais {count} diferença",
+  "exportVerify.more.other": "e mais {count} diferenças",
+  "exportVerify.body": "Isso é um bug do Cascade, não do seu mapa. Guarde o projeto e, por favor, reporte no Discord com os detalhes abaixo.",
+  "validation.smNoKeyCount": "O StepMania e o Etterna só têm charts de 4K, 5K, 6K, 7K, 8K e 10K, então nenhuma dessas dificuldades pode ser exportada como .sm.",
+  "validation.smKeyCountSkipped.one": "{count} dificuldade tem um número de teclas que o StepMania não suporta e fica de fora.",
+  "validation.smKeyCountSkipped.other": "{count} dificuldades têm números de teclas que o StepMania não suporta e ficam de fora.",
 };

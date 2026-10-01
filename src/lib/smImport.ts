@@ -19,16 +19,59 @@ type SmHeaders = Record<string, string>;
 type BpmEntry = { beat: number; bpm: number };
 type StopEntry = { beat: number; seconds: number };
 
+/** Undoes the MSD escapes (\: \; \\) StepMania writes inside values. */
+function unescapeMsd(value: string): string {
+  return value.replace(/\\(.)/gs, "$1");
+}
+
 function parseHeaders(raw: string): SmHeaders {
   const headers: SmHeaders = {};
-  const re = /#(\w+):(.*?);/gs;
+  // A value runs to the first unescaped semicolon.
+  const re = /#(\w+):((?:\\.|[^;\\])*);/gs;
   let m: RegExpExecArray | null;
   while ((m = re.exec(raw)) !== null) {
     const key = m[1].toUpperCase();
     if (key === "NOTES" || key in headers) continue;
-    headers[key] = m[2].trim();
+    headers[key] = unescapeMsd(m[2].trim());
   }
   return headers;
+}
+
+type NotesFields = {
+  keys: number;
+  description: string;
+  /** The note rows, everything after the fifth field. */
+  data: string;
+};
+
+/**
+ * Splits a #NOTES value into its fields the way StepMania does: on colons
+ * that are not escaped, before comments are stripped from the note rows. A
+ * line-by-line reading took a "//" inside a difficulty name for a comment,
+ * lost the colon after it, and then read the header fields as note rows.
+ */
+function notesFields(section: string): NotesFields | null {
+  const parts: string[] = [];
+  let current = "";
+  for (let i = 0; i < section.length; i++) {
+    const ch = section[i];
+    if (ch === "\\" && i + 1 < section.length) {
+      current += ch + section[i + 1];
+      i += 1;
+    } else if (ch === ":" && parts.length < 5) {
+      parts.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  if (parts.length < 5) return null;
+  const field = (raw: string) => unescapeMsd(raw.trim()).replace(/"/g, "");
+  return {
+    keys: stepTypeToKeys(field(parts[0])),
+    description: field(parts[1]),
+    data: current,
+  };
 }
 
 function extractNotesSections(raw: string): string[] {
@@ -68,17 +111,6 @@ function stepTypeToKeys(steptype: string): number {
     case "kbx-single": return 7;
     default: return 4;
   }
-}
-
-function detectKeys(notesSection: string): number {
-  return stepTypeToKeys(notesSection.split("\n")[0] ?? "");
-}
-
-function detectDifficultyName(notesSection: string): string {
-  const lines = notesSection.split("\n").filter((l) => l.trim());
-  return lines.length > 1
-    ? lines[1].trim().replace(/:+$/, "").trim().replace(/"/g, "")
-    : "";
 }
 
 function parseBpms(str: string): BpmEntry[] {
@@ -190,23 +222,6 @@ function buildTimingPoints(
   }
 
   return points;
-}
-
-function parseNotesData(
-  notesSection: string,
-  keys: number,
-  bpms: BpmEntry[],
-  stops: StopEntry[],
-  offsetMs: number,
-): ManiaNote[] {
-  const lines = toDataLines(notesSection);
-
-  let skipped = 0;
-  while (skipped < lines.length && skipped < 5 && lines[skipped].endsWith(":")) {
-    skipped++;
-  }
-  if (skipped === 0) return [];
-  return notesFromRows(lines.slice(skipped), keys, bpms, stops, offsetMs);
 }
 
 function toDataLines(notesSection: string): string[] {
@@ -473,9 +488,12 @@ export function parseSmFile(text: string): ParsedSm {
         audioFilename,
       })
     : extractNotesSections(raw).map((section) => {
-        const keys = detectKeys(section);
-        const name = detectDifficultyName(section);
-        const notes = parseNotesData(section, keys, bpms, stops, offsetMs);
+        const fields = notesFields(section);
+        const keys = fields?.keys ?? 4;
+        const name = fields?.description ?? "";
+        const notes = fields
+          ? notesFromRows(toDataLines(fields.data), keys, bpms, stops, offsetMs)
+          : [];
         const localTiming =
           timingPoints.length > 0
             ? timingPoints.map((tp) => ({ ...tp }))

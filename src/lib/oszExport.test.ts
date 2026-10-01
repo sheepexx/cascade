@@ -215,3 +215,62 @@ describe("buildOsz asset references", () => {
     expect(await back.sampleFiles!["kick.wav"].blob.text()).toBe("kick");
   });
 });
+
+describe("difficulties that share a file name", () => {
+  it("all reach the archive", async () => {
+    const blob = await buildOsz({
+      meta,
+      difficulties: [diff("Hard"), diff("Hard"), diff("Hard?")],
+      timingPoints,
+      audioFiles: { "audio.mp3": loaded("audio.mp3") },
+    });
+    const files = await entries(blob);
+    const osu = [...files.keys()].filter((name) => name.endsWith(".osu"));
+    expect(osu).toHaveLength(3);
+    const back = await importOsz(blob);
+    expect(back.difficulties.map((d) => d.name).sort()).toEqual(["Hard", "Hard", "Hard?"]);
+  });
+});
+
+describe("importOsz", () => {
+  async function setWith(files: Record<string, string>): Promise<Blob> {
+    const zip = new JSZip();
+    for (const [name, body] of Object.entries(files)) zip.file(name, body);
+    return zip.generateAsync({ type: "blob" });
+  }
+  const chart = (events: string, general = "") =>
+    [
+      "osu file format v14",
+      "[General]",
+      "AudioFilename: audio.mp3",
+      "Mode: 3",
+      general,
+      "[Metadata]",
+      "Title:T",
+      "Version:Hard",
+      "[Difficulty]",
+      "CircleSize:4",
+      "[Events]",
+      events,
+      "[TimingPoints]",
+      "0,500,4,1,0,100,1,0",
+      "[HitObjects]",
+      "64,192,0,1,0,0:0:0:0:",
+    ].join("\n");
+
+  it("says what exporting will leave out", async () => {
+    const withStoryboard = await importOsz(
+      await setWith({
+        "a.osu": chart('Sprite,Foreground,Centre,"sb.png",320,240\n F,0,0,1000,0,1', "SpecialStyle: 1"),
+        "audio.mp3": "x",
+      }),
+    );
+    expect(withStoryboard.unsupported).toEqual(["storyboard", "specialStyle"]);
+    const separateFile = await importOsz(
+      await setWith({ "a.osu": chart(""), "set.osb": "[Events]", "audio.mp3": "x" }),
+    );
+    expect(separateFile.unsupported).toEqual(["storyboard"]);
+    const plain = await importOsz(await setWith({ "a.osu": chart(""), "audio.mp3": "x" }));
+    expect(plain.unsupported).toBeUndefined();
+  });
+});

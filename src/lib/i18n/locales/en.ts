@@ -2381,4 +2381,13 @@ export const en = {
   "hud.scrollDesc": "How fast notes fall. F3 and F4 also change it during a run.",
   "hud.timing": "Timing",
   "hud.timingDesc": "Line the notes up with the music you hear.",
+  "import.storyboardLeftOut": "This set has a storyboard. Cascade keeps its notes, timing and hitsounds, but exports will not include the storyboard.",
+  "import.specialStyleLeftOut": "This set uses the 8K scratch layout (SpecialStyle), which exports leave out.",
+  "exportVerify.title": "The {target} export did not read back as your map",
+  "exportVerify.more.one": "and {count} more difference",
+  "exportVerify.more.other": "and {count} more differences",
+  "exportVerify.body": "This is a bug in Cascade, not in your map. Keep your project, and please report it on Discord with the details below.",
+  "validation.smNoKeyCount": "StepMania and Etterna only have charts for 4K, 5K, 6K, 7K, 8K and 10K, so none of these difficulties can be exported as .sm.",
+  "validation.smKeyCountSkipped.one": "{count} difficulty has a key count StepMania cannot hold and is left out.",
+  "validation.smKeyCountSkipped.other": "{count} difficulties have key counts StepMania cannot hold and are left out.",
 } as const;

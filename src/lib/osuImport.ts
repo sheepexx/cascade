@@ -27,6 +27,7 @@ import {
   type SampleFile,
 } from "./mapSamples";
 import { uniqueDifficultyName } from "./rateChange";
+import { osuInventory } from "./roundTrip";
 
 export type ParsedOsu = {
   meta: SongMeta;
@@ -38,7 +39,12 @@ export type ParsedOsu = {
   videoOffsetMs: number;
 };
 
+/** Parts of a set that Cascade reads past and cannot export again. */
+export type UnsupportedFeature = "storyboard" | "specialStyle";
+
 export type ImportedMap = {
+  /** Parts of the set that exporting will leave out, for telling the mapper. */
+  unsupported?: UnsupportedFeature[];
   meta: SongMeta;
   difficulties: Difficulty[];
   timingPoints: TimingPoint[];
@@ -420,6 +426,10 @@ export async function importOsz(
   }
 
   const parsed: ParsedOsu[] = [];
+  const unsupported = new Set<UnsupportedFeature>();
+  zip.forEach((path) => {
+    if (path.toLowerCase().endsWith(".osb")) unsupported.add("storyboard");
+  });
   let malodyError: Error | null = null;
   for (const path of chartPaths) {
     progress.phase(
@@ -435,6 +445,9 @@ export async function importOsz(
       }
     } else if (isManiaOsu(text)) {
       parsed.push(parseOsuFile(text));
+      const inventory = osuInventory(text);
+      if (inventory.storyboardLines > 0) unsupported.add("storyboard");
+      if (inventory.specialStyle) unsupported.add("specialStyle");
     }
   }
   if (parsed.length === 0) {
@@ -504,6 +517,7 @@ export async function importOsz(
   }));
 
   return {
+    ...(unsupported.size ? { unsupported: [...unsupported] } : {}),
     meta: first.meta,
     difficulties,
     timingPoints: first.timingPoints,

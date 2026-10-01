@@ -26,14 +26,11 @@ export function formatOsuClock(ms: number): string {
  * a row, each on the millisecond the .osu export writes. The trailing " - " is
  * stable's too, leaving room for the comment in a modding post.
  */
-export function formatOsuTimestamp(
-  notes: ManiaNote[],
-  timingPoints: TimingPoint[],
-): string | null {
+export function formatOsuTimestamp(notes: ManiaNote[]): string | null {
   if (!notes.length) return null;
   const stamps = notes
     .map((n) => ({
-      time: Math.max(0, toStableTick(n.startTime, timingPoints)),
+      time: Math.max(0, Math.round(n.startTime)),
       column: n.column,
     }))
     .sort((a, b) => a.time - b.time || a.column - b.column);
@@ -75,8 +72,8 @@ export function parseOsuTimestamp(input: string): OsuTimestamp | null {
 
 /**
  * The notes of a difficulty a timestamp names. A note matches in its column on
- * either the millisecond it sits on or the stable tick the export moves it to,
- * so timestamps from the original .osu and from Cascade's export both land.
+ * either the millisecond it sits on or the nearest stable tick, which older
+ * Cascade exports moved notes onto, so timestamps from those still land.
  */
 export function notesAtOsuTimestamp(
   stamp: OsuTimestamp,

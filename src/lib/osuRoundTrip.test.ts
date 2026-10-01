@@ -240,16 +240,18 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
     expect(green?.kiai).toBe(true);
   });
 
-  it("writes notes on the millisecond osu! stable snaps to", () => {
+  it("writes every note on the millisecond the map holds it", () => {
+    // Exporting must not "fix" snapping: ranked maps put exact ticks on
+    // either side of a millisecond, depending on the editor that made them.
     const exported = buildOsuFile({
       meta,
       difficulty: {
         ...difficulty,
         notes: [
-          { id: "late", column: 0, startTime: 167 }, // the old rounded 1/3
-          { id: "early", column: 1, startTime: 332 }, // 1 ms before 333
+          { id: "late", column: 0, startTime: 167 },
+          { id: "early", column: 1, startTime: 332 },
           { id: "on", column: 2, startTime: 500 },
-          { id: "off", column: 3, startTime: 300 }, // a real unsnap stays put
+          { id: "off", column: 3, startTime: 300 },
           { id: "hold", column: 0, startTime: 1000, endTime: 1167 },
         ],
       },
@@ -260,22 +262,22 @@ describe("buildOsuFile -> parseOsuFile round-trip", () => {
       .difficulty.notes.map((n) => [n.startTime, n.endTime])
       .sort((a, b) => (a[0] ?? 0) - (b[0] ?? 0));
     expect(times).toEqual([
-      [166, undefined],
+      [167, undefined],
       [300, undefined],
-      [333, undefined],
+      [332, undefined],
       [500, undefined],
-      [1000, 1166],
+      [1000, 1167],
     ]);
   });
 
-  it("leaves notes alone on a map with no timing to snap to", () => {
+  it("keeps a hold at least a millisecond long", () => {
     const exported = buildOsuFile({
       meta,
-      difficulty: { ...difficulty, notes: [{ id: "x", column: 0, startTime: 167 }] },
-      timingPoints: [],
+      difficulty: { ...difficulty, notes: [{ id: "x", column: 0, startTime: 100.2, endTime: 100.4 }] },
+      timingPoints: [makeRedPoint(0, 120)],
       audioFilename: "audio.mp3",
     });
-    expect(parseOsuFile(exported).difficulty.notes[0].startTime).toBe(167);
+    expect(parseOsuFile(exported).difficulty.notes[0]).toMatchObject({ startTime: 100, endTime: 101 });
   });
 
   it("preserves fractional timing offsets so snapped objects stay snapped", () => {

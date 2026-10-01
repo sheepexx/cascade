@@ -83,3 +83,24 @@ describe("validateProject — rate difficulties on .sm export", () => {
     expect(result.warnings.some((w) => w.message.includes("skipped"))).toBe(false);
   });
 });
+
+describe("validateProject — key counts on .sm export", () => {
+  const withKeys = (name: string, keys: number) => ({ ...base(name), keyCount: keys });
+
+  it("warns about difficulties StepMania has no chart type for", () => {
+    const result = validate([withKeys("Seven", 7), withKeys("Nine", 9)], ".sm");
+    const warning = result.warnings.find((w) => w.message.includes("left out"));
+    expect(warning?.scope).toBe("Nine (9K)");
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("errors when no difficulty fits", () => {
+    const result = validate([withKeys("Nine", 9), withKeys("Three", 3)], ".sm");
+    expect(result.errors.some((e) => e.message.includes("4K, 5K, 6K, 7K, 8K and 10K"))).toBe(true);
+  });
+
+  it("checks nothing for other formats", () => {
+    const result = validate([withKeys("Nine", 9)], ".osz");
+    expect(result.warnings.some((w) => w.message.includes("left out"))).toBe(false);
+  });
+});
