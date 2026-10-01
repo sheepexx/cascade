@@ -1,6 +1,9 @@
+import { useNotificationInbox } from "./app/useNotificationInbox";
+import { useSkins } from "./app/useSkins";
+import { useAppSettings } from "./app/useAppSettings";
+import { useFeatureFlags } from "./app/useFeatureFlags";
+import { useAccountSettingsSync } from "./app/useAccountSettingsSync";
 import {
-  Fragment,
-  memo,
   Suspense,
   useCallback,
   useEffect,
@@ -31,7 +34,11 @@ import { previewStartMs } from "./lib/sharedMapPreview";
 import { renderShareCard } from "./lib/shareCard";
 import { VersionHistoryModal } from "./components/menus/VersionHistoryModal";
 import { batchApplyDifficulties, type BatchRequest } from "./lib/batchApply";
-import { describeNoteOp, describeSnapshotChange, jumpSnapshotHistory } from "./lib/editorHistory";
+import {
+  describeNoteOp,
+  describeSnapshotChange,
+  jumpSnapshotHistory,
+} from "./lib/editorHistory";
 import { readExclusivePreference } from "./lib/nativeAudio";
 import { NowPlaying } from "./components/NowPlaying";
 import { ExitCurtain } from "./components/ExitCurtain";
@@ -43,170 +50,67 @@ import {
 import { useMenuMusic } from "./hooks/useMenuMusic";
 import { dialogIsOpen } from "./hooks/useDialog";
 import type { AudioSeekTransition } from "./lib/audioSeek";
-import { lazyWithPreload } from "./lib/lazyPreload";
-const loadEditorWorkspace = () => import("./components/EditorWorkspace");
-const BottomTimeline = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.BottomTimeline })),
-);
-const CommentsSidebar = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.CommentsSidebar })),
-);
-const DifficultySidebar = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.DifficultySidebar })),
-);
-const ManiaEditor = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.ManiaEditor })),
-);
-const PlaytestNpsGraph = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.PlaytestNpsGraph })),
-);
-const PlaytestOverlay = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.PlaytestOverlay })),
-);
-const PlaytestRunStats = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.PlaytestRunStats })),
-);
-const PPCounter = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.PPCounter })),
-);
-const TransportBar = lazyWithPreload(() =>
-  loadEditorWorkspace().then((m) => ({ default: m.TransportBar })),
-);
-const SharedMapPage = lazyWithPreload(() =>
-  import("./components/SharedMapPage").then((m) => ({
-    default: m.SharedMapPage,
-  })),
-);
-const SettingsModal = lazyWithPreload(() =>
-  import("./components/menus/SettingsModal").then((m) => ({
-    default: m.SettingsModal,
-  })),
-);
-const AppSettingsModal = lazyWithPreload(() =>
-  import("./components/menus/AppSettingsModal").then((m) => ({
-    default: m.AppSettingsModal,
-  })),
-);
-const SkinModal = lazyWithPreload(() =>
-  import("./components/menus/SkinModal").then((m) => ({
-    default: m.SkinModal,
-  })),
-);
-const DifficultyModal = lazyWithPreload(() =>
-  import("./components/menus/DifficultyModal").then((m) => ({
-    default: m.DifficultyModal,
-  })),
-);
-const TimingModal = lazyWithPreload(() =>
-  import("./components/menus/TimingModal").then((m) => ({
-    default: m.TimingModal,
-  })),
-);
-const SvModal = lazyWithPreload(() =>
-  import("./components/menus/SvModal").then((m) => ({ default: m.SvModal })),
-);
-const ToolsModal = lazyWithPreload(() =>
-  import("./components/menus/ToolsModal").then((m) => ({
-    default: m.ToolsModal,
-  })),
-);
-const MapCardModal = lazyWithPreload(() =>
-  import("./components/menus/MapCardModal").then((m) => ({
-    default: m.MapCardModal,
-  })),
-);
-const MapCardPrompt = lazyWithPreload(() =>
-  import("./components/menus/MapCardPrompt").then((m) => ({
-    default: m.MapCardPrompt,
-  })),
-);
-const AiModModal = lazyWithPreload(() =>
-  import("./components/menus/AiModModal").then((m) => ({
-    default: m.AiModModal,
-  })),
-);
-const WelcomeModal = lazyWithPreload(() =>
-  import("./components/menus/StartModal").then((m) => ({
-    default: m.WelcomeModal,
-  })),
-);
-const SampleMapsModal = lazyWithPreload(() =>
-  import("./components/menus/StartModal").then((m) => ({
-    default: m.SampleMapsModal,
-  })),
-);
-const MyMapsModal = lazyWithPreload(() =>
-  import("./components/menus/MyMapsModal").then((m) => ({
-    default: m.MyMapsModal,
-  })),
-);
-const ImportModal = lazyWithPreload(() =>
-  import("./components/menus/ImportModal").then((m) => ({
-    default: m.ImportModal,
-  })),
-);
-const NewMapModal = lazyWithPreload(() =>
-  import("./components/menus/NewMapModal").then((m) => ({
-    default: m.NewMapModal,
-  })),
-);
-const PresetBrowserModal = lazyWithPreload(() =>
-  import("./components/menus/PresetBrowserModal").then((m) => ({
-    default: m.PresetBrowserModal,
-  })),
-);
-const PublishPresetModal = lazyWithPreload(() =>
-  import("./components/menus/PublishPresetModal").then((m) => ({
-    default: m.PublishPresetModal,
-  })),
-);
-const FeedbackModal = lazyWithPreload(() =>
-  import("./components/menus/FeedbackModal").then((m) => ({
-    default: m.FeedbackModal,
-  })),
-);
-const HistoryModal = lazyWithPreload(() =>
-  import("./components/menus/HistoryModal").then((m) => ({
-    default: m.HistoryModal,
-  })),
-);
-const ShareModal = lazyWithPreload(() =>
-  import("./components/menus/ShareModal").then((m) => ({
-    default: m.ShareModal,
-  })),
-);
-const PackBrowserModal = lazyWithPreload(() =>
-  import("./components/menus/PackBrowserModal").then((m) => ({
-    default: m.PackBrowserModal,
-  })),
-);
-const AutoTimePrompt = lazyWithPreload(() =>
-  import("./components/AutoTimePrompt").then((m) => ({
-    default: m.AutoTimePrompt,
-  })),
-);
-const PackCreator = lazyWithPreload(() =>
-  import("./components/PackCreator").then((m) => ({ default: m.PackCreator })),
-);
-const EditorLayoutOverlay = lazyWithPreload(() =>
-  import("./components/EditorLayoutOverlay").then((m) => ({
-    default: m.EditorLayoutOverlay,
-  })),
-);
-const AudioSetupModal = lazyWithPreload(() =>
-  import("./components/menus/AudioSetupModal").then((m) => ({
-    default: m.AudioSetupModal,
-  })),
-);
-/** The format readers load when a file is opened, not with the app. */
-const loadOsuImport = () => import("./lib/osuImport");
-/** Desktop-only: editing a difficulty's .osu in a text editor. */
-const loadExternalEdit = () => import("./lib/externalEdit");
-const BackupsModal = lazyWithPreload(() =>
-  import("./components/menus/BackupsModal").then((m) => ({
-    default: m.BackupsModal,
-  })),
-);
+import {
+  loadEditorWorkspace,
+  CommentsSidebar,
+  PlaytestOverlay,
+  PlaytestRunStats,
+  TransportBar,
+  SharedMapPage,
+  SettingsModal,
+  AppSettingsModal,
+  SkinModal,
+  DifficultyModal,
+  TimingModal,
+  SvModal,
+  ToolsModal,
+  MapCardModal,
+  MapCardPrompt,
+  AiModModal,
+  WelcomeModal,
+  SampleMapsModal,
+  MyMapsModal,
+  ImportModal,
+  NewMapModal,
+  PresetBrowserModal,
+  PublishPresetModal,
+  FeedbackModal,
+  HistoryModal,
+  ShareModal,
+  PackBrowserModal,
+  AutoTimePrompt,
+  PackCreator,
+  EditorLayoutOverlay,
+  AudioSetupModal,
+  loadOsuImport,
+  loadExternalEdit,
+  BackupsModal,
+  AdminPanel,
+  preloadLazyChunks,
+  MemoizedManiaEditor,
+  MemoizedBottomTimeline,
+  MemoizedDifficultySidebar,
+  MemoizedPPCounter,
+  MemoizedPlaytestNpsGraph,
+} from "./app/lazySurfaces";
+import {
+  blurActiveControl,
+  decodeJwtClaims,
+  describeSaveError,
+  hasDraggedFiles,
+  isAudioFile,
+  isImageFile,
+  isOskFile,
+  isOsuFile,
+  isOszFile,
+  isSingleChartFile,
+  isSmFile,
+  isTypingTarget,
+  isVideoFile,
+  loadFile,
+  newLocalProjectId,
+} from "./app/appUtils";
+import type { BookmarkLoopState, DocSnapshot, ModalId, OsuEntry } from "./app/appTypes";
 import {
   CommentIcon,
   SampleMapsIcon,
@@ -228,9 +132,7 @@ import type { AiModFileFacts } from "./lib/aimodFiles";
 import type { SampleFile } from "./lib/mapSamples";
 import {
   closestDivisor,
-  isSnapPresetId,
   nextSnapPreset,
-  normalizeCustomDivisors,
   presetDivisors,
   stepDivisor,
 } from "./lib/snapPresets";
@@ -243,7 +145,6 @@ import {
   loadProjectChartCloud,
   publishProjectAsset,
   loadProjectAssets,
-  listMyProjectsRich,
 } from "./lib/cloud";
 import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
@@ -304,12 +205,7 @@ import {
 } from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
 import { displaySong } from "./lib/metadataDisplay";
-import {
-  clampHoldConfirmMs,
-  clampParallaxStrength,
-  setHoldConfirmMs,
-  setParallaxStrength,
-} from "./lib/interfaceFeel";
+import { clampHoldConfirmMs, clampParallaxStrength } from "./lib/interfaceFeel";
 import { updatePresence } from "./lib/discordPresence";
 import {
   checkDesktopUpdate,
@@ -320,116 +216,14 @@ import { siteAsset } from "./lib/siteAssets";
 import { usePwa } from "./hooks/usePwa";
 import { DesktopDownloadLink } from "./components/DesktopDownloadLink";
 import { NotificationInbox } from "./components/NotificationInbox";
-const AdminPanel = lazyWithPreload(() =>
-  import("./components/admin/AdminPanel").then((m) => ({
-    default: m.AdminPanel,
-  })),
-);
-type IdleWindow = Window & {
-  requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-};
-
-/**
- * Fetches the split-out surfaces so none suspends on first open, in two
- * waves. The editor and the ways into a map come straight after the first
- * paint, under the session intro, which waits for them. Everything else
- * waits for an idle moment, so it does not compete with the start screen's
- * animations or the first click. The admin panel is left to load when an
- * admin opens it.
- */
-function preloadLazyChunks(): Promise<unknown> {
-  const first = Promise.allSettled(
-    [
-      BottomTimeline,
-      CommentsSidebar,
-      DifficultySidebar,
-      ManiaEditor,
-      PlaytestNpsGraph,
-      PlaytestOverlay,
-      PlaytestRunStats,
-      PPCounter,
-      TransportBar,
-      WelcomeModal,
-      SampleMapsModal,
-      MyMapsModal,
-      ImportModal,
-      NewMapModal,
-    ].map((component) => component.preload()),
-  );
-  void first.then(() => {
-    const later = () => {
-      for (const component of [
-        SettingsModal,
-        AppSettingsModal,
-        SkinModal,
-        DifficultyModal,
-        TimingModal,
-        SvModal,
-        ToolsModal,
-        MapCardModal,
-        MapCardPrompt,
-        AiModModal,
-        PresetBrowserModal,
-        PublishPresetModal,
-        FeedbackModal,
-        HistoryModal,
-        ShareModal,
-        PackBrowserModal,
-        AutoTimePrompt,
-        PackCreator,
-        BackupsModal,
-        EditorLayoutOverlay,
-        AudioSetupModal,
-      ]) {
-        void component.preload().catch(() => {});
-      }
-    };
-    const idle = window as IdleWindow;
-    if (idle.requestIdleCallback) idle.requestIdleCallback(later, { timeout: 5000 });
-    else window.setTimeout(later, 2000);
-  });
-  return first;
-}
-import {
-  InviteNotifications,
-  type InviteNotice,
-} from "./components/InviteNotifications";
-import {
-  installUiSoundInteractions,
-  playUiSound,
-  preloadUiSounds,
-  setUiSoundsEnabled,
-  setUiSoundVolume,
-} from "./lib/uiSounds";
-import { setPerformanceMode } from "./lib/performanceMode";
+import { LandingCopy } from "./components/LandingCopy";
+import { ChevronIcon, IconButton, MenuButton } from "./components/header/HeaderButtons";
+import { InviteNotifications } from "./components/InviteNotifications";
+import { playUiSound, preloadUiSounds } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
-import { useLocale, useT, type MessageKey } from "./lib/i18n";
-import {
-  downloadCloudMenuBackground,
-  downloadCloudSkin,
-  listCloudSkins,
-  loadAccountSettings,
-  loadCloudMenuBackground,
-  normalizeAccountSettings,
-  removeCloudMenuBackground,
-  removeCloudSkin,
-  saveAccountSettings,
-  uploadCloudMenuBackground,
-  uploadCloudSkin,
-  type AccountSettings,
-  type CloudMenuBackground,
-  type CloudSkin,
-} from "./lib/accountCloud";
-import {
-  dismissNotification,
-  listNotifications,
-  markAllNotificationsRead,
-  markNotificationRead,
-  type InboxNotification,
-} from "./lib/notifications";
+import { useLocale, type MessageKey } from "./lib/i18n";
 import { logAnalyticsEvent } from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
-import { useWindowActive } from "./hooks/useWindowActive";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
 import { usePlaytestInput } from "./hooks/usePlaytestInput";
@@ -453,13 +247,11 @@ import {
 import { buildOsuFile, downloadOsu, setFilename } from "./lib/osuExport";
 import { uniqueDifficultyName } from "./lib/rateChange";
 import { ExternalEditModal } from "./components/menus/ExternalEditModal";
-import type { ParsedOsu } from "./lib/osuImport";
 import { MALODY_MAX_KEYS } from "./lib/formatLimits";
-import { setLaneColourScheme } from "./lib/laneColours";
 import { useSkillsetTimeline } from "./lib/msd/useMsd";
 import { msdSupportsKeyCount } from "./lib/msd/minacalc";
 import { SkillsetGraph } from "./components/SkillsetGraph";
-import { snapshotBlob, snapshotBlobMap } from "./lib/blobSnapshot";
+import { snapshotBlobMap } from "./lib/blobSnapshot";
 import type { PackSong } from "./lib/smPackImport";
 import { assertTextImportSize } from "./lib/importLimits";
 import {
@@ -480,34 +272,20 @@ import {
   nearestPlayableNote,
   type PlaytestNoteIndex,
 } from "./lib/playtestIndex";
-import { normalizePlaytestKeybinds } from "./lib/playtestKeybinds";
-import { normalizeHudLayout, type PlayfieldBounds } from "./lib/hudLayout";
+import { type PlayfieldBounds } from "./lib/hudLayout";
 import { HudPreviewViewport } from "./components/HudPreviewViewport";
 import { HudScrubber } from "./components/HudScrubber";
-import { normalizePlaytestSkin } from "./lib/playtestSkin";
 import { PRESET_SKINS } from "./lib/presetSkins";
 import {
   loadProject,
   requestPersistentStorage,
   saveProject,
   PROJECT_VERSION,
-  savePreferences,
-  loadPreferences,
-  saveSkinBlob,
-  loadSkinBlob,
-  saveHitsoundSkinBlob,
-  loadHitsoundSkinBlob,
-  saveSkinToLibrary,
-  loadSkinLibrary,
-  deleteSkinFromLibrary,
-  saveHitsoundSkinSource,
-  loadHitsoundSkinSource,
   saveVolume,
   loadVolume,
   saveViewPreferences,
   loadViewPreferences,
   projectStorageKey,
-  type SavedSkinBlob,
   type SavedProject,
 } from "./lib/persistence";
 import { restoreSnapshot } from "./lib/projectVault";
@@ -523,26 +301,20 @@ import { useProjectRecovery } from "./hooks/useProjectRecovery";
 import { formatIssues, type ChartLike, type RoundTripIssue } from "./lib/roundTrip";
 import { RecoveryPrompt } from "./components/RecoveryPrompt";
 import {
-  DEFAULT_APP_SETTINGS,
   DEFAULT_SONG_META,
   DEFAULT_VIEW,
   MAX_SCROLL_SPEED,
   MIN_SCROLL_SPEED,
   defaultTimingPoints,
-  isAltWheelAction,
   makeDifficulty,
   makeRedPoint,
   normalizeTimingPoints,
   uid,
-  type AppSettings,
   type BackgroundScope,
   type Difficulty,
-  type HitsoundSkinSource,
-  type HumanizeSettings,
   type LoadedFile,
   type LoadedSkin,
   type ManiaNote,
-  type PlaytestSettings,
   type SongMeta,
   type TimingPoint,
   type ViewState,
@@ -560,22 +332,17 @@ import {
   timelineZoomDirection,
   type EditorAction,
 } from "./lib/editorKeybinds";
-import { MAX_UI_SCALE, MIN_UI_SCALE, clampUiScale, uiScaleFromWheel } from "./lib/uiScale";
+import { MAX_UI_SCALE, MIN_UI_SCALE, uiScaleFromWheel } from "./lib/uiScale";
 import { OnScreenDisplay } from "./components/ui/OnScreenDisplay";
 import {
   MAX_PLAYTEST_SCROLL_SPEED,
   MIN_PLAYTEST_SCROLL_SPEED,
   gameplayTime,
   inputTime,
-  normalizePlaytestTiming,
   runStartTime,
   type PlaytestTiming,
 } from "./lib/playtestClock";
 import { osdRange, osdToggle, type OsdNotice } from "./lib/osd";
-import {
-  clearUiBreakpointAttributes,
-  syncUiBreakpointAttributes,
-} from "./lib/uiBreakpoints";
 import {
   MAX_PLAYFIELD_SCALE,
   MIN_PLAYFIELD_SCALE,
@@ -583,11 +350,6 @@ import {
   timelineZoomFromWheel,
   volumeFromWheel,
 } from "./lib/altWheel";
-import {
-  fetchFeatureFlags,
-  loadCachedFlags,
-  type FeatureFlags,
-} from "./lib/featureFlags";
 import { parseOsuBeatmapLink } from "./lib/osuLinks";
 import {
   formatBytes,
@@ -609,95 +371,15 @@ import {
 /** Lane width for the skin dialog's playfield, independent of the user's own. */
 const SKIN_PREVIEW_SCALE = 0.7;
 
-const MemoizedManiaEditor = memo(ManiaEditor);
-const MemoizedBottomTimeline = memo(BottomTimeline);
-const MemoizedDifficultySidebar = memo(DifficultySidebar);
-const MemoizedPPCounter = memo(PPCounter);
-const MemoizedPlaytestNpsGraph = memo(PlaytestNpsGraph);
 
-type ModalId =
-  | "history"
-  | "audioSetup"
-  | "newMap"
-  | "welcome"
-  | "myProjects"
-  | "import"
-  | "sampleMaps"
-  | "mapSettings"
-  | "settings"
-  | "skin"
-  | "timing"
-  | "sv"
-  | "difficulty"
-  | "tools"
-  | "mapCard"
-  | "aimod"
-  | "myMaps"
-  | "presets"
-  | "publishPreset"
-  | "feedback"
-  | "versionHistory"
-  | "admin"
-  | "share"
-  | "packBrowser"
-  | "backups"
-  | null;
 
-type DocSnapshot = {
-  meta: SongMeta;
-  timingPoints: TimingPoint[];
-  difficulties: Difficulty[];
-};
 
-type BookmarkLoopState = {
-  diffId: string;
-  startMs: number;
-  endMs: number;
-  enabled: boolean;
-};
 
-type OsuEntry = { file: File; parsed: ParsedOsu };
-
-function decodeJwtClaims(
-  token: string,
-): { sub?: string; role?: string; exp?: number } | null {
-  try {
-    const part = token.split(".")[1];
-    if (!part) return null;
-    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
-
-function newLocalProjectId(): string {
-  const random =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return `local-${random}`;
-}
-
-async function loadFile(file: File): Promise<LoadedFile> {
-  const blob = await snapshotBlob(file);
-  return { name: file.name, url: URL.createObjectURL(blob), blob };
-}
 
 const LOCAL_AUTOSAVE_MS = 60000;
 /** osu!mania's DelayedResumeOverlay counts 3 over two seconds. */
 const PLAYTEST_RESUME_COUNTDOWN_MS = 2000;
 
-function describeSaveError(err: unknown): string | null {
-  if (!(err instanceof Error)) return null;
-  if (err.name === "QuotaExceededError") {
-    return "browser storage is full";
-  }
-  if (err.name === "AbortError" || err.name === "NotReadableError") {
-    return "a source file changed on disk, re-add your audio/background files";
-  }
-  return err.message || err.name || null;
-}
 
 /**
  * Where a playtest run is, not how it is going: the score lives in a store
@@ -732,101 +414,10 @@ function initialPlaytestState(): PlaytestRuntimeState {
   };
 }
 
-function normalizeHumanize(
-  saved: Partial<HumanizeSettings> | undefined,
-): HumanizeSettings {
-  const legacy = saved as { greatChance?: number } | undefined;
-  const { slipChance, ...rest } = saved ?? {};
-  return {
-    ...DEFAULT_APP_SETTINGS.playtest.humanize,
-    ...rest,
-    slipChance:
-      slipChance ??
-      (typeof legacy?.greatChance === "number"
-        ? Math.min(0.1, legacy.greatChance / 4)
-        : DEFAULT_APP_SETTINGS.playtest.humanize.slipChance),
-  };
-}
 
-function normalizeAppSettings(
-  prefs: Partial<AppSettings> | null,
-): AppSettings {
-  const playtestPrefs = prefs?.playtest as Partial<PlaytestSettings> | undefined;
-  const suggestedUiScale =
-    typeof window !== "undefined" &&
-    (window.innerWidth >= 2000 || window.innerHeight >= 1200)
-      ? 1.15
-      : 1;
-  const uiScale =
-    typeof prefs?.uiScale === "number" && Number.isFinite(prefs.uiScale)
-      ? clampUiScale(prefs.uiScale)
-      : suggestedUiScale;
-  return {
-    ...DEFAULT_APP_SETTINGS,
-    ...(prefs ?? {}),
-    uiScale,
-    masterVolume:
-      typeof prefs?.masterVolume === "number" &&
-      Number.isFinite(prefs.masterVolume)
-        ? Math.max(0, Math.min(1, prefs.masterVolume))
-        : DEFAULT_APP_SETTINGS.masterVolume,
-    unfocusedVolume:
-      typeof prefs?.unfocusedVolume === "number" &&
-      Number.isFinite(prefs.unfocusedVolume)
-        ? Math.max(0, Math.min(1, prefs.unfocusedVolume))
-        : DEFAULT_APP_SETTINGS.unfocusedVolume,
-    snapPreset: isSnapPresetId(prefs?.snapPreset)
-      ? prefs.snapPreset
-      : DEFAULT_APP_SETTINGS.snapPreset,
-    customSnapDivisors: normalizeCustomDivisors(prefs?.customSnapDivisors),
-    altWheelAction: isAltWheelAction(prefs?.altWheelAction)
-      ? prefs.altWheelAction
-      : DEFAULT_APP_SETTINGS.altWheelAction,
-    playtest: {
-      ...normalizePlaytestTiming(
-        { ...DEFAULT_APP_SETTINGS.playtest, ...(playtestPrefs ?? {}) },
-        DEFAULT_APP_SETTINGS.playtest,
-      ),
-      keybinds: normalizePlaytestKeybinds(playtestPrefs?.keybinds),
-      hud: normalizeHudLayout(playtestPrefs?.hud),
-      skin: normalizePlaytestSkin(playtestPrefs?.skin),
-      humanize: normalizeHumanize(playtestPrefs?.humanize),
-      skill: {
-        ...DEFAULT_APP_SETTINGS.playtest.skill,
-        ...(playtestPrefs?.skill ?? {}),
-        enabled: true,
-        lnProfile: playtestPrefs?.skill
-          ? playtestPrefs.skill.lnProfile
-          : DEFAULT_APP_SETTINGS.playtest.skill.lnProfile,
-        danSelections: playtestPrefs?.skill
-          ? (playtestPrefs.skill.danSelections ?? {})
-          : DEFAULT_APP_SETTINGS.playtest.skill.danSelections,
-      },
-    },
-  };
-}
 
-function isTypingTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  const tag = el?.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT" ||
-    !!el?.isContentEditable
-  );
-}
 
-function blurActiveControl(): void {
-  const el = document.activeElement as HTMLElement | null;
-  if (!el || !document.getElementById("root")?.contains(el)) return;
-  if (isTypingTarget(el) && (el as HTMLInputElement).type !== "range") return;
-  if (typeof el.blur === "function") el.blur();
-}
 
-function hasDraggedFiles(dataTransfer: DataTransfer | null): boolean {
-  return !!dataTransfer && Array.from(dataTransfer.types).includes("Files");
-}
 
 const TRIM_BROADCAST_MS = 90;
 
@@ -867,21 +458,6 @@ export default function App() {
   // the skin's where osu! would.
   const [sampleFiles, setSampleFiles] = useState<Record<string, SampleFile>>({});
   const [pendingBgName, setPendingBgName] = useState<string | null>(null);
-  const [skin, setSkin] = useState<LoadedSkin | null>(null);
-  const [hitsoundSkin, setHitsoundSkin] = useState<LoadedSkin | null>(null);
-  const [hitsoundSkinSource, setHitsoundSkinSource] =
-    useState<HitsoundSkinSource>(() => loadHitsoundSkinSource());
-  const [skinLibrary, setSkinLibrary] = useState<SavedSkinBlob[]>([]);
-  const [cloudSkins, setCloudSkins] = useState<CloudSkin[]>([]);
-  const [cloudSkinsLoading, setCloudSkinsLoading] = useState(false);
-  const [menuBackground, setMenuBackground] =
-    useState<CloudMenuBackground | null>(null);
-  const [menuBackgroundUrl, setMenuBackgroundUrl] = useState<string | null>(null);
-  const [menuBackgroundBusy, setMenuBackgroundBusy] = useState(false);
-  const [menuBackgroundError, setMenuBackgroundError] = useState<string | null>(
-    null,
-  );
-  const [skinError, setSkinError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [mapCardStart, setMapCardStart] = useState<MapCardPresetOption | null>(null);
   const [mapCardOffer, setMapCardOffer] = useState<{
@@ -924,35 +500,10 @@ export default function App() {
     count: number;
     ids: ReadonlySet<string>;
   } | null>(null);
-  // Admin kill switches; cached copy renders instantly, then the fetch and a
-  // realtime subscription keep it current. Fails open (see lib/featureFlags).
-  const [featureFlags, setFeatureFlags] =
-    useState<FeatureFlags>(loadCachedFlags);
-  const featureFlagsRef = useRef(featureFlags);
-  featureFlagsRef.current = featureFlags;
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = () => {
-      void fetchFeatureFlags().then((flags) => {
-        if (!cancelled) setFeatureFlags(flags);
-      });
-    };
-    refresh();
-    const unsubscribe = subscribeSupabase((supabase) =>
-      supabase
-        .channel("feature-flags")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "feature_flags" },
-          refresh,
-        )
-        .subscribe(),
-    );
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, []);
+  const {
+    featureFlags,
+    featureFlagsRef,
+  } = useFeatureFlags();
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const phoneViewport = usePhoneViewport();
@@ -967,30 +518,20 @@ export default function App() {
     (OsdNotice & { id: number }) | null
   >(null);
   const [volumeHudKey, setVolumeHudKey] = useState(0);
-  const [appSettings, setAppSettings] = useState<AppSettings>(() => ({
-    ...normalizeAppSettings(loadPreferences()),
-  }));
-  const appSettingsRef = useRef(appSettings);
-  // Like osu!, everything Cascade plays drops to the unfocused level while
-  // another window or tab is in front, playtest included.
-  const windowActive = useWindowActive();
-  const outputVolume =
-    appSettings.masterVolume * (windowActive ? 1 : appSettings.unfocusedVolume);
-  appSettingsRef.current = appSettings;
-  /** Which of a song's two names every display in the editor reaches for. */
-  const preferOriginalMetadata = appSettings.preferOriginalMetadata;
-  // Set before the children render so every playfield drawing picks it up.
-  setLaneColourScheme(appSettings.colourblindLanes ? "colourblind" : "default");
-  // Read from pointer handlers and dialogs that never see these props.
-  setHoldConfirmMs(appSettings.holdConfirmMs);
-  setParallaxStrength(appSettings.parallaxStrength);
+  const {
+    appSettings,
+    appSettingsRef,
+    outputVolume,
+    preferOriginalMetadata,
+    setAppSettings,
+  } = useAppSettings();
   /** Shows the on-screen display: a setting with its new value, or a message. */
   const announceShortcut = useCallback((notice: OsdNotice | string) => {
     if (!appSettingsRef.current.shortcutNoticesEnabled) return;
     const body = typeof notice === "string" ? { label: notice } : notice;
     setShortcutNotice({ ...body, id: Date.now() + Math.random() });
     playUiSound("notice");
-  }, []);
+  }, [appSettingsRef]);
   const hideShortcutNotice = useCallback(() => setShortcutNotice(null), []);
   const openSettings = useCallback((tab: SettingsTab = "General") => {
     setSettingsTab(tab);
@@ -1008,22 +549,6 @@ export default function App() {
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, []);
-  // Layout effect so the scaled font size and the breakpoint attributes land
-  // before first paint, instead of flashing an unscaled/compact header.
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    const previous = root.style.fontSize;
-    root.style.fontSize = `${16 * appSettings.uiScale}px`;
-    const syncBreakpoints = () =>
-      syncUiBreakpointAttributes(root, window.innerWidth, appSettings.uiScale);
-    syncBreakpoints();
-    window.addEventListener("resize", syncBreakpoints);
-    return () => {
-      window.removeEventListener("resize", syncBreakpoints);
-      clearUiBreakpointAttributes(root);
-      root.style.fontSize = previous;
-    };
-  }, [appSettings.uiScale]);
   const [bgScope, setBgScope] = useState<BackgroundScope>("mapset");
   const [askBgScope, setAskBgScope] = useState(false);
   const [lnTicks, setLnTicks] = useState(1);
@@ -1085,16 +610,6 @@ export default function App() {
     DuplicateProjectMatch[] | null
   >(null);
   const [cloudSyncRetry, setCloudSyncRetry] = useState(0);
-  const [invites, setInvites] = useState<InviteNotice[]>([]);
-  const [notifications, setNotifications] = useState<InboxNotification[]>([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [notificationsError, setNotificationsError] = useState<string | null>(
-    null,
-  );
-  const [accountSyncStatus, setAccountSyncStatus] = useState<
-    "idle" | "syncing" | "synced" | "error"
-  >("idle");
-  const [accountSyncError, setAccountSyncError] = useState<string | null>(null);
   const [publishPattern, setPublishPattern] = useState<PatternNote[] | null>(
     null,
   );
@@ -1255,43 +770,42 @@ export default function App() {
       () => {},
     );
   }, [authLoading]);
-  const refreshCloudSkins = useCallback(async () => {
-    const userId = authUserRef.current?.id;
-    if (!userId) {
-      setCloudSkins([]);
-      setCloudSkinsLoading(false);
-      return;
-    }
-    setCloudSkinsLoading(true);
-    try {
-      setCloudSkins(await listCloudSkins(userId));
-    } catch {
-      setCloudSkins([]);
-    } finally {
-      setCloudSkinsLoading(false);
-    }
-  }, []);
-  useEffect(() => {
-    void refreshCloudSkins();
-  }, [authUser?.id, refreshCloudSkins]);
-  const refreshMenuBackground = useCallback(async () => {
-    const userId = authUserRef.current?.id;
-    if (!userId) {
-      setMenuBackground(null);
-      return;
-    }
-    try {
-      setMenuBackground(await loadCloudMenuBackground(userId));
-    } catch {
-      setMenuBackground(null);
-    }
-  }, []);
-  useEffect(() => {
-    void refreshMenuBackground();
-  }, [authUser?.id, refreshMenuBackground]);
+  const {
+    cloudSkins,
+    cloudSkinsLoading,
+    effectiveHitsounds,
+    hitsoundSkin,
+    hitsoundSkinSource,
+    menuBackground,
+    menuBackgroundBusy,
+    menuBackgroundError,
+    menuBackgroundUrl,
+    onApplyLocalSkin,
+    onApplyPresetSkin,
+    onClearSkin,
+    onDeleteCloudSkin,
+    onDeleteLocalSkin,
+    onDownloadCloudSkin,
+    onRemoveMenuBackground,
+    onSkinFile,
+    onUploadCloudSkin,
+    onUploadMenuBackground,
+    onUseDefaultHitsounds,
+    onUseSelectedHitsounds,
+    onUseVisualHitsounds,
+    setHitsoundSkinSource,
+    skin,
+    skinError,
+    skinLibrary,
+  } = useSkins({
+    appSettings,
+    authUser,
+    authUserRef,
+    setAppSettings,
+    t,
+  });
   const cloudProjectIdRef = useRef(cloudProjectId);
   cloudProjectIdRef.current = cloudProjectId;
-  const inviteNoticeProjectsRef = useRef<Set<string>>(new Set());
 
   const liveEnabled = !!cloudProjectId && !!authUser;
   const canEdit =
@@ -1323,10 +837,6 @@ export default function App() {
   const forcedAssetReloadsRef = useRef<Set<string>>(new Set());
   const cloudRefreshIdRef = useRef(0);
   const pendingSeekRef = useRef<number | null>(null);
-  const accountSettingsReadyUserRef = useRef<string | null>(null);
-  const lastCloudSettingsRef = useRef<string | null>(null);
-  const accountSettingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const accountSettingsSaveVersionRef = useRef(0);
 
   const recoveryChart = useMemo<RecoveryChart>(
     () => ({ meta, timingPoints, difficulties, activeId, bgScope }),
@@ -1676,7 +1186,7 @@ export default function App() {
       );
       return { ...settings, showWaveform };
     });
-  }, [announceShortcut, t]);
+  }, [announceShortcut, t, setAppSettings]);
 
   useEffect(() => {
     if (!activeBookmarkLoop?.enabled) return;
@@ -1712,13 +1222,6 @@ export default function App() {
     showHomeConfirm ||
     pendingDeleteDiffIds !== null;
   const modalAtmosphereActive = modalAtmosphereOpen && audio.isPlaying;
-  const effectiveHitsounds = useMemo(() => {
-    if (hitsoundSkinSource === "default") return null;
-    if (hitsoundSkinSource === "selected") {
-      return hitsoundSkin?.hitsounds ?? null;
-    }
-    return skin?.hitsounds ?? null;
-  }, [hitsoundSkin, hitsoundSkinSource, skin]);
 
   const { playNote: playtestHitsound } = useHitsounds(
     getCurrentTime,
@@ -1936,7 +1439,7 @@ export default function App() {
       }
       setVolumeHudKey((value) => value + 1);
     },
-    [],
+    [setAppSettings],
   );
 
   useEffect(() => {
@@ -1985,7 +1488,7 @@ export default function App() {
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("wheel", onWheel);
     };
-  }, [adjustVolumeMeter, announceShortcut, t]);
+  }, [adjustVolumeMeter, announceShortcut, t, appSettingsRef, setAppSettings]);
 
   const activeBg = active.backgroundFilename ? bgFiles[active.backgroundFilename] ?? null : null;
   const activeVideo = active.videoFilename ? videoFiles[active.videoFilename] ?? null : null;
@@ -1998,7 +1501,7 @@ export default function App() {
         ...s,
         skillsetGraphCollapsed: !s.skillsetGraphCollapsed,
       })),
-    [],
+    [setAppSettings],
   );
   const skillsetTimeline = useSkillsetTimeline(
     active.notes,
@@ -2474,7 +1977,7 @@ export default function App() {
         return { ...s, playtest: { ...s.playtest, scrollSpeed } };
       });
     },
-    [announceShortcut, t],
+    [announceShortcut, t, setAppSettings],
   );
 
   const playtestSpeedKeys = useMemo(
@@ -2620,7 +2123,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [exitPlaytest, getCurrentTime, startPlaytest]);
+  }, [exitPlaytest, getCurrentTime, startPlaytest, featureFlagsRef]);
 
   const eligibleRefs = useMemo(() => {
     const resolve = (d: Difficulty): string | null => {
@@ -2833,241 +2336,6 @@ export default function App() {
     markStructural,
     announceAssetChange,
   ]);
-
-  const refreshSkinLibrary = useCallback(async () => {
-    const saved = await loadSkinLibrary().catch(() => []);
-    setSkinLibrary(saved);
-  }, []);
-
-  const applyLoadedSkin = useCallback(
-    (loaded: LoadedSkin, target: "visual" | "hitsound") => {
-      void logAnalyticsEvent("skin_imported", authUserRef.current?.id).catch(
-        () => {},
-      );
-      if (target === "hitsound") {
-        setHitsoundSkin((prev) => {
-          if (prev && prev !== skin) prev.objectUrls.forEach(URL.revokeObjectURL);
-          return loaded;
-        });
-        setHitsoundSkinSource("selected");
-      } else {
-        setSkin((prev) => {
-          if (prev && prev !== hitsoundSkin) {
-            prev.objectUrls.forEach(URL.revokeObjectURL);
-          }
-          return loaded;
-        });
-      }
-    },
-    [hitsoundSkin, skin],
-  );
-
-  const loadSkin = useCallback(
-    async (
-      blob: Blob,
-      fileName: string,
-      target: "visual" | "hitsound",
-      saveToLibrary: boolean,
-    ) => {
-      setSkinError(null);
-      try {
-        const snapshot = await snapshotBlob(blob);
-        const { importOsk } = await import("./lib/skinImport");
-        const loaded = await importOsk(snapshot, fileName);
-        applyLoadedSkin(loaded, target);
-        if (saveToLibrary) {
-          await saveSkinToLibrary({ name: fileName, blob: snapshot });
-          await refreshSkinLibrary();
-        }
-      } catch (err) {
-        setSkinError(
-          err instanceof Error ? err.message : "Failed to load skin (.osk).",
-        );
-      }
-    },
-    [applyLoadedSkin, refreshSkinLibrary],
-  );
-
-  const onSkinFile = useCallback(
-    (file: File, target: "visual" | "hitsound") =>
-      loadSkin(file, file.name, target, true),
-    [loadSkin],
-  );
-
-  const onApplyLocalSkin = useCallback(
-    (saved: SavedSkinBlob, target: "visual" | "hitsound") =>
-      loadSkin(saved.blob, saved.name, target, false),
-    [loadSkin],
-  );
-
-  const onDeleteLocalSkin = useCallback(
-    async (saved: SavedSkinBlob) => {
-      setSkinError(null);
-      try {
-        await deleteSkinFromLibrary(saved.name);
-        await refreshSkinLibrary();
-      } catch (error) {
-        setSkinError(
-          error instanceof Error
-            ? error.message
-            : "Couldn't remove that saved skin.",
-        );
-        throw error;
-      }
-    },
-    [refreshSkinLibrary],
-  );
-
-  const onApplyPresetSkin = useCallback(
-    async (url: string, fileName: string, target: "visual" | "hitsound") => {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(t("app.presetSkinFailed"));
-        await loadSkin(await res.blob(), fileName, target, false);
-      } catch (err) {
-        setSkinError(
-          err instanceof Error ? err.message : "Couldn't load that preset skin.",
-        );
-      }
-    },
-    [loadSkin, t],
-  );
-
-  const onUploadCloudSkin = useCallback(
-    async (slot: 1 | 2, file: File) => {
-      setSkinError(null);
-      try {
-        await uploadCloudSkin(slot, file);
-        await refreshCloudSkins();
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Couldn't upload that skin.";
-        setSkinError(message);
-        throw error;
-      }
-    },
-    [refreshCloudSkins],
-  );
-
-  const onDownloadCloudSkin = useCallback(
-    async (cloudSkin: CloudSkin) => {
-      setSkinError(null);
-      try {
-        const blob = await downloadCloudSkin(cloudSkin.slot);
-        await loadSkin(blob, cloudSkin.filename, "visual", true);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Couldn't download that skin.";
-        setSkinError(message);
-        throw error;
-      }
-    },
-    [loadSkin],
-  );
-
-  const onDeleteCloudSkin = useCallback(
-    async (cloudSkin: CloudSkin) => {
-      setSkinError(null);
-      try {
-        await removeCloudSkin(cloudSkin.slot);
-        await refreshCloudSkins();
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Couldn't remove that skin.";
-        setSkinError(message);
-        throw error;
-      }
-    },
-    [refreshCloudSkins],
-  );
-
-  // The picture itself is only fetched once it is going to be shown, so an
-  // account that stays on song art never pays for the download. Keyed by the
-  // checksum so replacing the picture swaps the object URL.
-  const menuBackgroundKey =
-    appSettings.menuBackgroundMode === "custom" && menuBackground
-      ? menuBackground.sha256
-      : null;
-  useEffect(() => {
-    if (!menuBackgroundKey) {
-      setMenuBackgroundUrl(null);
-      return;
-    }
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    downloadCloudMenuBackground()
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setMenuBackgroundUrl(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setMenuBackgroundUrl(null);
-      });
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [menuBackgroundKey]);
-
-  const onUploadMenuBackground = useCallback(async (file: File) => {
-    setMenuBackgroundError(null);
-    setMenuBackgroundBusy(true);
-    try {
-      setMenuBackground(await uploadCloudMenuBackground(file));
-      // Uploading one is a clear request to see it.
-      setAppSettings((s) => ({ ...s, menuBackgroundMode: "custom" }));
-    } catch (error) {
-      setMenuBackgroundError(
-        error instanceof Error ? error.message : "Couldn't upload that image.",
-      );
-    } finally {
-      setMenuBackgroundBusy(false);
-    }
-  }, []);
-
-  const onRemoveMenuBackground = useCallback(async () => {
-    setMenuBackgroundError(null);
-    setMenuBackgroundBusy(true);
-    try {
-      await removeCloudMenuBackground();
-      setMenuBackground(null);
-      setAppSettings((s) =>
-        s.menuBackgroundMode === "custom"
-          ? { ...s, menuBackgroundMode: "song" }
-          : s,
-      );
-    } catch (error) {
-      setMenuBackgroundError(
-        error instanceof Error ? error.message : "Couldn't remove that image.",
-      );
-    } finally {
-      setMenuBackgroundBusy(false);
-    }
-  }, []);
-
-  const onClearSkin = useCallback(() => {
-    setSkinError(null);
-    setSkin((prev) => {
-      if (prev) prev.objectUrls.forEach(URL.revokeObjectURL);
-      return null;
-    });
-  }, []);
-
-  const onUseDefaultHitsounds = useCallback(() => {
-    setSkinError(null);
-    setHitsoundSkinSource("default");
-  }, []);
-
-  const onUseVisualHitsounds = useCallback(() => {
-    setSkinError(null);
-    setHitsoundSkinSource("visual");
-  }, []);
-
-  const onUseSelectedHitsounds = useCallback(() => {
-    setSkinError(null);
-    if (hitsoundSkin) setHitsoundSkinSource("selected");
-  }, [hitsoundSkin]);
 
   const [sharedSlug, setSharedSlug] = useState<string | null>(() =>
     typeof location === "undefined" ? null : slugFromPath(location.pathname),
@@ -3492,7 +2760,7 @@ export default function App() {
     } finally {
       setImportingMap(false);
     }
-  }, [t]);
+  }, [t, setAppSettings]);
 
   const requestImportSm = useCallback(
     (file: File) => {
@@ -3839,7 +3107,7 @@ export default function App() {
         ),
       );
     },
-    [patchDifficulty, markStructural],
+    [patchDifficulty, markStructural, appSettingsRef],
   );
 
   const [externalEdit, setExternalEdit] = useState<{
@@ -3987,7 +3255,7 @@ export default function App() {
         }),
       );
     },
-    [markStructural],
+    [markStructural, appSettingsRef],
   );
 
   const runAutoTime = useCallback(() => {
@@ -4272,7 +3540,7 @@ export default function App() {
       ...settings,
       waveformSensitivity: value,
     }));
-  }, []);
+  }, [setAppSettings]);
   const openTimelineComment = useCallback(
     (time: number) => {
       seekAudio(time, "smooth");
@@ -5302,133 +4570,24 @@ export default function App() {
     },
     [applySavedProject],
   );
-
-  useEffect(() => {
-    const id = window.setTimeout(() => savePreferences(appSettings), 200);
-    return () => window.clearTimeout(id);
-  }, [appSettings]);
-
-  const accountSettings = useMemo<AccountSettings>(
-    () => ({
-      version: 1,
-      appSettings,
-      view,
-      volume: audio.volume,
-      locale,
-      hitsoundSkinSource,
-    }),
-    [appSettings, view, audio.volume, locale, hitsoundSkinSource],
-  );
-  const accountSettingsRef = useRef(accountSettings);
-  accountSettingsRef.current = accountSettings;
-
-  useEffect(() => {
-    const userId = authUser?.id;
-    accountSettingsSaveVersionRef.current += 1;
-    accountSettingsReadyUserRef.current = null;
-    lastCloudSettingsRef.current = null;
-    if (!userId) {
-      setAccountSyncStatus("idle");
-      setAccountSyncError(null);
-      return;
-    }
-    let cancelled = false;
-    setAccountSyncStatus("syncing");
-    setAccountSyncError(null);
-    const local = {
-      ...accountSettingsRef.current,
-      volume: loadVolume() ?? accountSettingsRef.current.volume,
-    };
-    void loadAccountSettings(userId)
-      .then(async (remote) => {
-        if (cancelled) return;
-        const next = remote
-          ? normalizeAccountSettings(remote, local)
-          : local;
-        const applied = {
-          ...next,
-          appSettings: normalizeAppSettings(next.appSettings),
-        };
-        if (remote) {
-          setAppSettings(applied.appSettings);
-          setView(applied.view);
-          setAudioVolume(applied.volume);
-          setLocale(applied.locale);
-          setHitsoundSkinSource(applied.hitsoundSkinSource);
-        } else {
-          await saveAccountSettings(userId, applied);
-        }
-        if (cancelled) return;
-        lastCloudSettingsRef.current = JSON.stringify(applied);
-        accountSettingsReadyUserRef.current = userId;
-        setAccountSyncStatus("synced");
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setAccountSyncError(
-          error instanceof Error ? error.message : "Cloud settings sync failed.",
-        );
-        setAccountSyncStatus("error");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [authUser?.id, setAudioVolume, setLocale]);
-
-  useEffect(() => {
-    const userId = authUser?.id;
-    if (!userId || accountSettingsReadyUserRef.current !== userId) return;
-    const serialized = JSON.stringify(accountSettings);
-    if (serialized === lastCloudSettingsRef.current) return;
-    const version = ++accountSettingsSaveVersionRef.current;
-    const id = window.setTimeout(() => {
-      setAccountSyncStatus("syncing");
-      setAccountSyncError(null);
-      const save = accountSettingsSaveQueueRef.current
-        .catch(() => {})
-        .then(() => saveAccountSettings(userId, accountSettings));
-      accountSettingsSaveQueueRef.current = save.catch(() => {});
-      void save
-        .then(() => {
-          if (
-            authUserRef.current?.id !== userId ||
-            accountSettingsSaveVersionRef.current !== version
-          ) {
-            return;
-          }
-          lastCloudSettingsRef.current = serialized;
-          setAccountSyncStatus("synced");
-        })
-        .catch((error) => {
-          if (
-            authUserRef.current?.id !== userId ||
-            accountSettingsSaveVersionRef.current !== version
-          ) {
-            return;
-          }
-          setAccountSyncError(
-            error instanceof Error ? error.message : "Cloud settings sync failed.",
-          );
-          setAccountSyncStatus("error");
-        });
-    }, 800);
-    return () => window.clearTimeout(id);
-  }, [authUser?.id, accountSettings]);
-
-  useLayoutEffect(() => {
-    setPerformanceMode(appSettings.performanceMode);
-  }, [appSettings.performanceMode]);
-
-  useEffect(() => {
-    setUiSoundsEnabled(appSettings.uiSoundsEnabled);
-  }, [appSettings.uiSoundsEnabled]);
-  useEffect(() => {
-    setUiSoundVolume(appSettings.uiSoundVolume * outputVolume);
-  }, [appSettings.uiSoundVolume, outputVolume]);
-
-  useEffect(() => {
-    return installUiSoundInteractions();
-  }, []);
+  const musicVolume = audio.volume;
+  const {
+    accountSyncError,
+    accountSyncStatus,
+  } = useAccountSettingsSync({
+    appSettings,
+    authUser,
+    authUserRef,
+    hitsoundSkinSource,
+    locale,
+    musicVolume,
+    setAppSettings,
+    setAudioVolume,
+    setHitsoundSkinSource,
+    setLocale,
+    setView,
+    view,
+  });
 
   // Runs under the session intro, which waits for it before lifting.
   const [chunksReady, setChunksReady] = useState(false);
@@ -5452,52 +4611,6 @@ export default function App() {
     const id = window.setTimeout(() => saveViewPreferences(view), 200);
     return () => window.clearTimeout(id);
   }, [view]);
-
-  const skinLoadedRef = useRef(false);
-  const hitsoundSkinLoadedRef = useRef(false);
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      await refreshSkinLibrary();
-      const rec = await loadSkinBlob().catch(() => null);
-      if (!cancelled && rec) {
-        const { importOsk } = await import("./lib/skinImport");
-        const loaded = await importOsk(rec.blob, rec.name).catch(() => null);
-        if (!cancelled && loaded) setSkin(loaded);
-      }
-      const hitsoundRec = await loadHitsoundSkinBlob().catch(() => null);
-      if (!cancelled && hitsoundRec) {
-        const { importOsk } = await import("./lib/skinImport");
-        const loaded = await importOsk(hitsoundRec.blob, hitsoundRec.name).catch(
-          () => null,
-        );
-        if (!cancelled && loaded) setHitsoundSkin(loaded);
-      }
-      if (!cancelled) skinLoadedRef.current = true;
-      if (!cancelled) hitsoundSkinLoadedRef.current = true;
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshSkinLibrary]);
-
-  useEffect(() => {
-    if (!skinLoadedRef.current) return;
-    void saveSkinBlob(skin ? { name: skin.fileName, blob: skin.blob } : null);
-  }, [skin]);
-
-  useEffect(() => {
-    if (!hitsoundSkinLoadedRef.current) return;
-    void saveHitsoundSkinBlob(
-      hitsoundSkin
-        ? { name: hitsoundSkin.fileName, blob: hitsoundSkin.blob }
-        : null,
-    );
-  }, [hitsoundSkin]);
-
-  useEffect(() => {
-    saveHitsoundSkinSource(hitsoundSkinSource);
-  }, [hitsoundSkinSource]);
 
   useEffect(() => {
     const v = loadVolume();
@@ -5766,6 +4879,8 @@ export default function App() {
       window.removeEventListener("blur", onBlur);
     };
   }, [
+    appSettingsRef,
+    setAppSettings,
     t,
     addBookmark,
     announceShortcut,
@@ -5807,18 +4922,6 @@ export default function App() {
     return () => window.removeEventListener("keydown", onDevtoolsKey, true);
   }, []);
 
-  const isAudioFile = (f: File) =>
-    f.type.startsWith("audio/") || /\.(mp3|ogg)$/i.test(f.name);
-  const isImageFile = (f: File) =>
-    f.type.startsWith("image/") || /\.(png|jpe?g|gif)$/i.test(f.name);
-  const isVideoFile = (f: File) =>
-    f.type.startsWith("video/") ||
-    /\.(mp4|webm|avi|flv|mov|wmv|m4v|mpe?g)$/i.test(f.name);
-  const isOszFile = (f: File) => /\.(osz|zip|mcz)$/i.test(f.name);
-  const isOsuFile = (f: File) => /\.osu$/i.test(f.name);
-  const isOskFile = (f: File) => /\.osk$/i.test(f.name);
-  const isSmFile = (f: File) => /\.(sm|ssc)$/i.test(f.name);
-  const isSingleChartFile = (f: File) => /\.(qua|mc)$/i.test(f.name);
 
   const resetFileDrag = useCallback(() => {
     dragDepthRef.current = 0;
@@ -6018,7 +5121,7 @@ export default function App() {
     if (appSettingsRef.current.offerMapCardAfterExport) {
       setMapCardOffer({ target, open: true });
     }
-  }, []);
+  }, [appSettingsRef]);
 
   const [exportIssues, setExportIssues] = useState<{
     target: string;
@@ -6655,6 +5758,7 @@ export default function App() {
       );
     },
     [
+      appSettingsRef,
       applySavedProject,
       markRecoverySaved,
       noteRecoveryEdit,
@@ -7042,228 +6146,24 @@ export default function App() {
       setImportingMap(false);
     }
   }, []);
-
-  const addInviteNotice = useCallback(async (
-    projectId: string,
-    notificationId?: string,
-  ) => {
-    if (projectId === cloudProjectIdRef.current) return;
-    if (inviteNoticeProjectsRef.current.has(projectId)) {
-      if (notificationId) {
-        setInvites((prev) =>
-          prev.map((notice) =>
-            notice.projectId === projectId && !notice.notificationId
-              ? { ...notice, notificationId }
-              : notice,
-          ),
-        );
-      }
-      return;
-    }
-    inviteNoticeProjectsRef.current.add(projectId);
-    try {
-      const rows = await listMyProjectsRich();
-      const proj = rows.find((r) => r.id === projectId);
-      if (!proj) {
-        inviteNoticeProjectsRef.current.delete(projectId);
-        return;
-      }
-      const owner = proj.participants.find((x) => x.role === "owner");
-      setInvites((prev) =>
-        prev.some((n) => n.projectId === projectId)
-          ? prev.map((notice) =>
-              notice.projectId === projectId && !notice.notificationId
-                ? { ...notice, notificationId }
-                : notice,
-            )
-          : [
-              ...prev,
-              {
-                notificationId,
-                projectId,
-                title: proj.title || "Untitled",
-                who: owner?.username ?? null,
-                avatar: owner?.avatar_url ?? null,
-              },
-            ],
-      );
-      playUiSound("invite");
-    } catch {
-      inviteNoticeProjectsRef.current.delete(projectId);
-    }
-  }, []);
-
-  const refreshNotifications = useCallback(async () => {
-    const userId = authUserRef.current?.id;
-    if (!userId) {
-      setNotifications([]);
-      setNotificationsLoading(false);
-      setNotificationsError(null);
-      return;
-    }
-    setNotificationsLoading(true);
-    try {
-      const rows = await listNotifications();
-      if (authUserRef.current?.id !== userId) return;
-      setNotifications(rows);
-      setNotificationsError(null);
-    } catch (error) {
-      setNotificationsError(
-        error instanceof Error ? error.message : "Couldn't load notifications.",
-      );
-    } finally {
-      setNotificationsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!authUser) {
-      setInvites([]);
-      inviteNoticeProjectsRef.current.clear();
-      return;
-    }
-    return subscribeSupabase((supabase) =>
-      supabase
-        .channel(`invites:${authUser.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "project_collaborators",
-            filter: `user_id=eq.${authUser.id}`,
-          },
-          (payload) => {
-            const pid = (payload.new as { project_id?: string })?.project_id;
-            if (pid) void addInviteNotice(pid);
-          },
-        )
-        .subscribe(),
-    );
-  }, [authUser, addInviteNotice]);
-
-  useEffect(() => {
-    if (!authUser) {
-      setNotifications([]);
-      setNotificationsError(null);
-      setNotificationsLoading(false);
-      return;
-    }
-
-    void refreshNotifications();
-    const unsubscribe = subscribeSupabase((supabase) =>
-      supabase
-        .channel(`notification-inbox:${authUser.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "notifications",
-            filter: `recipient=eq.${authUser.id}`,
-          },
-          (payload) => {
-            void refreshNotifications();
-            if (payload.eventType !== "INSERT") return;
-            const notification = payload.new as Partial<InboxNotification>;
-            if (
-              notification.kind === "invite" &&
-              notification.project_id &&
-              notification.id
-            ) {
-              void addInviteNotice(notification.project_id, notification.id);
-            }
-          },
-        )
-        .subscribe(),
-    );
-
-    const refreshOnFocus = () => void refreshNotifications();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void refreshNotifications();
-    };
-    window.addEventListener("focus", refreshOnFocus);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener("focus", refreshOnFocus);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      unsubscribe();
-    };
-  }, [authUser, addInviteNotice, refreshNotifications]);
-
-  const markInboxNotificationRead = useCallback(
-    (id: string) => {
-      const readAt = new Date().toISOString();
-      setNotifications((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, read_at: item.read_at ?? readAt } : item,
-        ),
-      );
-      void markNotificationRead(id).catch(() => refreshNotifications());
-    },
-    [refreshNotifications],
-  );
-
-  const markInboxAllRead = useCallback(() => {
-    const readAt = new Date().toISOString();
-    setNotifications((prev) =>
-      prev.map((item) => ({ ...item, read_at: item.read_at ?? readAt })),
-    );
-    void markAllNotificationsRead().catch(() => refreshNotifications());
-  }, [refreshNotifications]);
-
-  const dismissInboxNotification = useCallback(
-    (id: string) => {
-      const notification = notifications.find((item) => item.id === id);
-      setNotifications((prev) => prev.filter((item) => item.id !== id));
-      if (notification?.project_id) {
-        inviteNoticeProjectsRef.current.delete(notification.project_id);
-        setInvites((prev) =>
-          prev.filter((item) => item.projectId !== notification.project_id),
-        );
-      }
-      void dismissNotification(id).catch(() => refreshNotifications());
-    },
-    [notifications, refreshNotifications],
-  );
-
-  const joinInvite = useCallback(
-    (n: InviteNotice) => {
-      setInvites((prev) => prev.filter((x) => x.projectId !== n.projectId));
-      inviteNoticeProjectsRef.current.delete(n.projectId);
-      const notificationId =
-        n.notificationId ??
-        notifications.find(
-          (item) =>
-            item.kind === "invite" && item.project_id === n.projectId,
-        )?.id;
-      if (notificationId) markInboxNotificationRead(notificationId);
-      void loadCloudProject(n.projectId);
-    },
-    [loadCloudProject, markInboxNotificationRead, notifications],
-  );
-  const ignoreInvite = useCallback((n: InviteNotice) => {
-    setInvites((prev) => prev.filter((x) => x.projectId !== n.projectId));
-    inviteNoticeProjectsRef.current.delete(n.projectId);
-  }, []);
-
-  const openInboxNotification = useCallback(
-    (notification: InboxNotification) => {
-      markInboxNotificationRead(notification.id);
-      if (notification.kind === "invite" && notification.project_id) {
-        inviteNoticeProjectsRef.current.delete(notification.project_id);
-        setInvites((prev) =>
-          prev.filter((item) => item.projectId !== notification.project_id),
-        );
-        void loadCloudProject(notification.project_id);
-        return;
-      }
-      if (notification.action_url) {
-        window.open(notification.action_url, "_blank", "noopener,noreferrer");
-      }
-    },
-    [loadCloudProject, markInboxNotificationRead],
-  );
+  const {
+    dismissInboxNotification,
+    ignoreInvite,
+    invites,
+    joinInvite,
+    markInboxAllRead,
+    markInboxNotificationRead,
+    notifications,
+    notificationsError,
+    notificationsLoading,
+    openInboxNotification,
+    refreshNotifications,
+  } = useNotificationInbox({
+    authUser,
+    authUserRef,
+    cloudProjectIdRef,
+    loadCloudProject,
+  });
 
   const handlePublishPattern = useCallback(
     (pattern: PatternNote[], keyCount: number) => {
@@ -9990,203 +8890,5 @@ export default function App() {
 
       {exiting && <ExitCurtain />}
     </div>
-  );
-}
-
-function MenuButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-md px-3 py-1.5 text-sm text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
-    >
-      {children}
-    </button>
-  );
-}
-
-function IconButton({
-  children,
-  onClick,
-  disabled,
-  title,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="relative grid h-8 w-8 place-items-center rounded-md text-base text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100"
-    >
-      {children}
-    </button>
-  );
-}
-
-function ChevronIcon({ flipped }: { flipped: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      className={`h-4 w-4 transition-transform duration-200 ${
-        flipped ? "rotate-180" : ""
-      }`}
-    >
-      <path d="M15 5 8 12l7 7" />
-    </svg>
-  );
-}
-
-const LANDING_DO_KEYS = [
-  "landing.do1",
-  "landing.do2",
-  "landing.do3",
-  "landing.do4",
-  "landing.do5",
-  "landing.do6",
-  "landing.do7",
-  "landing.do8",
-  "landing.do9",
-  "landing.do10",
-] as const;
-
-const LANDING_FAQ_KEYS = [
-  ["landing.faqQ1", "landing.faqA1"],
-  ["landing.faqQ2", "landing.faqA2"],
-  ["landing.faqQ3", "landing.faqA3"],
-  ["landing.faqQ4", "landing.faqA4"],
-  ["landing.faqQ5", "landing.faqA5"],
-  ["landing.faqQ6", "landing.faqA6"],
-] as const;
-
-const LANDING_GUIDES = [
-  { href: "/how-to-make-an-osu-mania-map", key: "landing.guide1" },
-  { href: "/osu-to-stepmania", key: "landing.guide2" },
-  { href: "/osu-mania-map-viewer", key: "landing.guide3" },
-  { href: "/osu-mania-pack-creator", key: "landing.guide4" },
-] as const;
-
-function LandingText({ text }: { text: string }) {
-  return (
-    <>
-      {text.split("`").map((part, i) =>
-        i % 2 === 1 ? (
-          <code key={i} className="text-slate-300">
-            {part}
-          </code>
-        ) : (
-          part
-        ),
-      )}
-    </>
-  );
-}
-
-function LandingCopy() {
-  const t = useT();
-  return (
-    <>
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-5 pt-8 text-xs text-slate-500">
-        <p>
-          {t("empty.madeBy")}{" "}
-          <a
-            href="https://osu.ppy.sh/u/sheepex_"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-slate-300 transition hover:text-accent"
-          >
-            sheepex_
-          </a>
-        </p>
-        <p>
-          {t("empty.contributors")}{" "}
-          <a
-            href="https://github.com/kaanreal"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-slate-300 transition hover:text-accent"
-          >
-            kaanreal
-          </a>
-        </p>
-        <a
-          href="https://ko-fi.com/sheepex"
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-slate-400 transition hover:text-accent"
-        >
-          {t("empty.support")}
-        </a>
-      </div>
-
-      <section className="mx-auto max-w-2xl px-5 pb-14 pt-6 text-left text-sm leading-relaxed text-slate-400">
-        <h1 className="mb-3 text-xl font-bold text-slate-200">
-          {t("landing.h1")}
-        </h1>
-        <p className="mb-2">
-          <LandingText text={t("landing.intro")} />
-        </p>
-
-        <h2 className="mb-2 mt-7 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          {t("landing.doTitle")}
-        </h2>
-        <ul className="list-disc space-y-1 pl-5">
-          {LANDING_DO_KEYS.map((key) => (
-            <li key={key}>
-              <LandingText text={t(key)} />
-            </li>
-          ))}
-        </ul>
-
-        <h2 className="mb-2 mt-7 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          {t("landing.faqTitle")}
-        </h2>
-        <dl>
-          {LANDING_FAQ_KEYS.map(([question, answer]) => (
-            <Fragment key={question}>
-              <dt className="mt-3 font-semibold text-slate-300">
-                {t(question)}
-              </dt>
-              <dd>
-                <LandingText text={t(answer)} />
-              </dd>
-            </Fragment>
-          ))}
-        </dl>
-
-        <h2 className="mb-2 mt-7 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          {t("landing.guidesTitle")}
-        </h2>
-        <ul className="list-disc space-y-1 pl-5">
-          {LANDING_GUIDES.map((guide) => (
-            <li key={guide.href}>
-              <a
-                href={guide.href}
-                className="text-slate-300 underline-offset-2 transition hover:text-accent hover:underline"
-              >
-                {t(guide.key)}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </>
   );
 }
