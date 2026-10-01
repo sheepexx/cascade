@@ -1,6 +1,5 @@
 import { PLAYHEAD_FROM_EDGE } from "../lib/playfieldGeometry";
 import {
-  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -15,34 +14,22 @@ import {
   HITSOUND_FINISH,
   HITSOUND_CLAP,
   SAMPLE_SET_NAMES,
-  type ManiaKeymodeSkin,
   type ManiaNote,
   type ManiaStagePiece,
-  type TimingPoint,
-  type ViewState,
 } from "../types";
 import {
   activeTimingAt,
   beatLength,
-  gridLineColor,
   gridLinesInRange,
-  greenPoints,
   kiaiAt,
   noteSnapColour,
   noteSnapDivisor,
-  redPoints,
   snapTime,
   stepToSnap,
 } from "../lib/timing";
 import { buildSvMap, svPositionAt, svTimeAt } from "../lib/sv";
+import { notesToPattern } from "../lib/patterns";
 import {
-  DEFAULT_EDITOR_KEYBINDS,
-  matchesBind,
-  type EditorKeybinds,
-} from "../lib/editorKeybinds";
-import { notesToPattern, type PatternNote } from "../lib/patterns";
-import {
-  isClipboardTextTarget,
   NOTE_CLIP_DRAG_TYPE,
   positionPatternForDrop,
   prepareNotePaste,
@@ -62,19 +49,14 @@ import {
   pushClip,
   selectClip,
   useClipboard,
-  type DifficultyClip,
-  type NoteClip,
 } from "../lib/clipboardStore";
-import { defaultLaneColour, type LaneColourScheme } from "../lib/laneColours";
-import type { Waveform } from "../hooks/useWaveform";
+import { defaultLaneColour } from "../lib/laneColours";
 import {
   consumeLocalSeekSignal,
   type AudioSeekRequest,
-  type AudioSeekSignal,
   type AudioSeekTransition,
 } from "../lib/audioSeek";
 import { computeWaveformOverlay } from "../lib/waveform";
-import { dialogIsOpen } from "../hooks/useDialog";
 import {
   hasNoteCollisions,
   placementFor,
@@ -92,7 +74,6 @@ import { SnapBadge } from "./ui/SnapBadge";
 import { DifficultyClipLabel } from "./ui/DifficultyClipLabel";
 import { t } from "../lib/i18n/core";
 import { FONT_STACK as CANVAS_FONT_STACK } from "../lib/fontStack";
-import { formatUiNumber } from "../lib/formatUiNumber";
 import {
   reduceMotion,
   renderScale,
@@ -101,17 +82,52 @@ import {
 import { parallaxScale } from "../lib/interfaceFeel";
 import { PatternImageModal } from "./menus/PatternImageModal";
 import type { renderPatternCard } from "../lib/shareCard";
-
-export type HitsoundSource = {
-  id: string;
-  name: string;
-  hitsoundCount: number;
-  noteCount: number;
-};
+import {
+  columnUnits,
+  drawCover,
+  drawHitsoundLetters,
+  drawHoldBody,
+  drawReceptor,
+  drawReceptorGlow,
+  drawSprite,
+  hitsoundOf,
+  LANE_FLASH_MS,
+  laneFlashStrength,
+  normalizeRect,
+  NOTE_HEIGHT,
+  opaqueBounds,
+  rectIntersects,
+  roundRect,
+  skinUnit,
+  usableStagePiece,
+} from "./editor/canvasDraw";
+import type {
+  CanvasRect,
+  ColumnRender,
+  StagePieceRender,
+  StageRender,
+} from "./editor/canvasDraw";
+import { ClipThumb } from "./editor/ClipPreview";
+import {
+  drawPlayfieldBounds,
+  drawSnapGrid,
+  drawTimingMarkers,
+  type PlayfieldFrame,
+} from "./editor/playfieldLayers";
+import { useEditorKeys } from "./editor/useEditorKeys";
+import { HitsoundAddBtn, SelectionActionButton } from "./editor/EditorButtons";
+import type {
+  Clip,
+  ClipDropPreview,
+  DragState,
+  InteractionMode,
+  ManiaEditorProps,
+  MoveDragState,
+  SelectionDragState,
+} from "./editor/editorTypes";
 
 const MANIA_MAX_TIME_RANGE = 11485;
 const PLAYHEAD_FROM_BOTTOM = PLAYHEAD_FROM_EDGE;
-const NOTE_HEIGHT = 16;
 const SELECT_AUTOSCROLL_TOP_ZONE = 64;
 const SELECT_EDGE_INSET = 12;
 /** How far from a long note's tail a press still grabs it for resizing. */
@@ -121,311 +137,38 @@ const SELECT_AUTOSCROLL_MAX_PX_PER_SEC = 900;
 const RECEPTOR_HIT_WINDOW = 90;
 const NOTE_FALLTHROUGH_FADE_MS = 240;
 
-const BOUND_HATCH_STEP = 15;
-const BOUND_HATCH_ALPHA = 0.14;
-const BOUND_TINT_ALPHA = 0.05;
-const BOUND_SONG_RGB = "239,68,68";
-const BOUND_TRIM_RGB = "245,158,11";
-
 const BACKGROUND_FADE_DELAY_MS = 700;
 const BACKGROUND_FADE_MS = 500;
 const SCROLL_SPEED_EASE = 11;
 const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
 
-type Props = {
-  patternTitle?: string;
-  difficultyName?: string;
-  notes: ManiaNote[];
-  keyCount: number;
-  timingPoints: TimingPoint[];
-  previewTime: number;
-  view: ViewState;
-  getCurrentTime: () => number;
-  getVisualCurrentTime: (frameNow?: number) => number;
-  isVisualSeekActive: (frameNow?: number) => boolean;
-  isPlaying: boolean;
-  seekSignal?: AudioSeekSignal;
-  backgroundUrl: string | null;
-  /** Identifies the picture itself, so the same image on another difficulty
-   * carries over instead of fading in again. Defaults to the URL. */
-  backgroundKey?: string | null;
-  videoUrl?: string | null;
-  videoOffsetMs?: number;
-  playbackRate?: number;
-  /**
-   * Rate this difficulty's times are written against. Editor times are map
-   * times, so anything measured against the raw audio file (waveform buckets,
-   * video position) has to be converted through this.
-   */
-  timeScale?: number;
-  dimBackground: number;
-  /** Blur on the background picture, in pixels; 0 leaves it sharp. */
-  backgroundBlur?: number;
-  /** Lane waveform transparency, 0–100%; 75 keeps the original look. */
-  waveformTransparency?: number;
-  skin: ManiaKeymodeSkin | null;
-  playfieldScale: number;
-  noteHeightScale: number;
-  longNoteBodyScale: number;
-  smoothScrolling?: boolean;
-  upscroll?: boolean;
-  zenMode: boolean;
-  onPlaceNote: (note: ManiaNote) => void;
-  onDeleteNote: (id: string) => void;
-  onAddNotes: (notes: ManiaNote[]) => void;
-  onDeleteNotes: (ids: string[]) => void;
-  onMoveNotes: (notes: ManiaNote[]) => void;
-  onView: (view: ViewState) => void;
-  onSeek: (ms: number, transition?: AudioSeekTransition) => void;
-  currentHitSound: number;
-  currentSampleSet: number;
-  onCurrentHitSound: (value: number) => void;
-  onCurrentSampleSet: (value: number) => void;
-  hitsoundSources?: HitsoundSource[];
-  onCopyHitsounds?: (sourceId: string) => void;
-  /** Default-skin note colours: the usual set or the colourblind one. */
-  laneColourScheme?: LaneColourScheme;
-  /** Notes take the colour of their beat divisor instead of their lane's. */
-  snapColours?: boolean;
-  /** A lane to light up briefly; `at` is a performance.now() timestamp. */
-  laneFlash?: { column: number; at: number } | null;
-  /** Copies this difficulty's hitsounds onto every difficulty on the same audio. */
-  onCopyHitsoundsToAll?: () => void;
-  onPublishPattern?: (pattern: PatternNote[], keyCount: number) => void;
-  /** Adds a difficulty pasted from the clipboard, with its files, to the open map. */
-  onPasteDifficulty?: (clip: DifficultyClip) => void;
-  /** For the reference playfield, which has nothing to paste into. */
-  hideClipboard?: boolean;
-  readOnly?: boolean;
-  keyboardShortcuts?: boolean;
-  playtestMode?: boolean;
-  heldLnIdsRef?: { readonly current: { has(id: string): boolean } };
-  consumedIdsRef?: { readonly current: { has(id: string): boolean } };
-  pressedColumnsRef?: { readonly current: { has(column: number): boolean } };
-  /**
-   * Playtest only: pixels the judgement line sits further from the screen
-   * edge. Receptors, notes and judging all use that line.
-   */
-  hitPosition?: number;
-  /** Draw the glow under a column as a note is hit. */
-  hitLight?: boolean;
-  /**
-   * Filled with where the playfield and its judgement line are, in CSS pixels
-   * of the canvas, every frame; the HUD editor lays its handles over them.
-   */
-  playfieldBoundsRef?: {
-    current: { left: number; width: number; hitY: number; height: number } | null;
-  };
-  /** Long notes let go or missed, drawn dimmed as they scroll by. */
-  droppedIdsRef?: { readonly current: { has(id: string): boolean } };
-  waveformOverlay?: Waveform | null;
-  onToggleWaveformOverlay?: () => void;
-  missWindowMs?: number;
-  hideHints?: boolean;
-  bookmarks?: number[];
-  /** Length of the loaded audio in map time; bounds the playable range. */
-  songEndMs?: number;
-  trimStartMs?: number;
-  trimEndMs?: number;
-  showTimingLines?: boolean;
-  /** Warp scroll by green-point SV (playtest, or editor playback preview). */
-  svPreview?: boolean;
-  /** Also scale scroll with BPM, the way osu!mania stable does. */
-  svBpmScroll?: boolean;
-  /** Reports the current note selection: its time span (for the SV modal) and ids. */
-  onSelectionRange?: (
-    range: {
-      start: number;
-      end: number;
-      count: number;
-      ids: ReadonlySet<string>;
-    } | null,
-  ) => void;
-  /** Remappable notefield shortcuts; falls back to the defaults. */
-  editorKeybinds?: EditorKeybinds;
-};
-
 /**
  * Times a note may occupy: inside the audio file, and inside the trim when the
  * difficulty has one. Notes already outside it (a trim set after mapping) are
  * left alone; this only stops new ones being put there.
  */
-function playableBounds(props: Props): { lo: number; hi: number } {
+function playableBounds(props: ManiaEditorProps): { lo: number; hi: number } {
   const songEnd = props.songEndMs ?? 0;
   let hi = songEnd > 0 ? songEnd : Infinity;
   if (props.trimEndMs !== undefined) hi = Math.min(hi, props.trimEndMs);
   return { lo: Math.max(0, props.trimStartMs ?? 0), hi };
 }
 
-type DragState = {
-  column: number;
-  startTime: number;
-  currentTime: number;
-  replace?: ManiaNote;
-  /** Dragging an existing long note's tail; currentTime is its new end. */
-  resize?: boolean;
-};
-
-type InteractionMode = "edit" | "select";
-
-type SelectionDragState = {
-  startX: number;
-  startY: number;
-  startTime: number;
-  currentX: number;
-  currentY: number;
-  currentTime: number;
-  rawY: number;
-};
-
-type MoveDragState = {
-  startX: number;
-  startY: number;
-  colDelta: number;
-  timeDelta: number;
-  moved: boolean;
-  timeMoved: boolean;
-  origin: ({
-    id: string;
-    column: number;
-    startTime: number;
-    endTime?: number;
-  } & Partial<ManiaNote>)[];
-};
-
-type Clip = NoteClip;
-
-type ClipDropPreview = {
-  clip: Clip;
-  column: number;
-  base: number;
-  notes: ManiaNote[];
-  timingPoints: TimingPoint[];
-  keyCount: number;
-  snapDivisor: number;
-  lo: number;
-  hi: number;
-  result: ReturnType<typeof prepareNotePaste>;
-  acceptedIds: Set<string>;
-};
-
-function hitsoundOf(n: {
-  hitSound?: number;
-  sampleSet?: number;
-  additionSet?: number;
-  sampleIndex?: number;
-  sampleVolume?: number;
-  sampleFile?: string;
-}): Partial<ManiaNote> {
-  return {
-    hitSound: n.hitSound,
-    sampleSet: n.sampleSet,
-    additionSet: n.additionSet,
-    sampleIndex: n.sampleIndex,
-    sampleVolume: n.sampleVolume,
-    sampleFile: n.sampleFile,
-  };
-}
-
-function hitsoundLabel(hitSound: number | undefined): string {
-  if (!hitSound) return "";
-  let s = "";
-  if (hitSound & HITSOUND_WHISTLE) s += "W";
-  if (hitSound & HITSOUND_FINISH) s += "F";
-  if (hitSound & HITSOUND_CLAP) s += "C";
-  return s;
-}
-
-function drawHitsoundLetters(
-  ctx: CanvasRenderingContext2D,
-  hitSound: number | undefined,
-  cx: number,
-  cy: number,
-) {
-  const label = hitsoundLabel(hitSound);
-  if (!label) return;
-  ctx.save();
-  ctx.font = `700 8px ${CANVAS_FONT_STACK}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineJoin = "round";
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "rgba(0,0,0,0.6)";
-  ctx.strokeText(label, cx, cy);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(label, cx, cy);
-  ctx.restore();
-}
-
-type CanvasRect = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-};
-
-/**
- * A stage piece worth drawing. Skins routinely ship a 1x1 pixel to switch an
- * element off rather than deleting the file, and stretching that across the
- * playfield would paint a bar the author meant to be invisible.
- */
-function usableStagePiece(
-  piece: StagePieceRender | null | undefined,
-): StagePieceRender | null {
-  return piece && piece.img.width > 2 && piece.img.height > 2 ? piece : null;
-}
-
-type StagePieceRender = { img: HTMLImageElement; scale: number };
-
-type StageRender = {
-  left: StagePieceRender | null;
-  right: StagePieceRender | null;
-  bottom: StagePieceRender | null;
-  hint: StagePieceRender | null;
-};
-
-/**
- * The strip osu! stretches a hold body over, in the units `ColumnWidth` is
- * measured in. `LegacyBodyPiece` scales the sprite by `32800 / DrawHeight`.
- */
-const LEGACY_BODY_STRIP = 32800;
-/** `DEFAULT_COLUMN_SIZE`: 30 in skin.ini, times the 480-to-768 factor of 1.6. */
-const DEFAULT_COLUMN_UNITS = 48;
-
-/** A column's width in osu!'s units, guarding the skins that declare it zero. */
-function columnUnits(col: ColumnRender | undefined): number {
-  const width = col?.columnWidth ?? 0;
-  return width > 0 ? width : DEFAULT_COLUMN_UNITS;
-}
-
-/**
- * Editor pixels per osu! unit: a lane stands in for what the skin calls a
- * column, so art the skin sizes for itself is measured against that. One scale
- * for the whole stage keeps the frame in proportion with the notes.
- */
-function skinUnit(laneWidth: number, col: ColumnRender | undefined): number {
-  return laneWidth / columnUnits(col);
-}
-
-type ColumnRender = {
-  background: string;
-  bodyStretch: boolean;
-  columnWidth: number;
-  noteHeightScale: number;
-  note: HTMLImageElement | null;
-  head: HTMLImageElement | null;
-  body: HTMLImageElement | null;
-  tail: HTMLImageElement | null;
-  key: HTMLImageElement | null;
-  keyDown: HTMLImageElement | null;
-};
+/** A transparent 1×1 picture handed to setDragImage in place of the ghost.
+ *  Made at load so it has decoded by the first drag. */
+const EMPTY_DRAG_IMAGE =
+  typeof Image === "undefined"
+    ? null
+    : Object.assign(new Image(1, 1), {
+        src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+      });
 
 // The editor remounts for every difficulty; the last background it drew
 // survives that so an unchanged picture neither blinks nor fades.
 let shownBackground: { key: string; img: HTMLImageElement } | null = null;
 
-export function ManiaEditor(props: Props) {
+export function ManiaEditor(props: ManiaEditorProps) {
   const [interactionMode, setInteractionMode] = useState<InteractionMode>("edit");
   const interactionModeRef = useRef<InteractionMode>("edit");
   interactionModeRef.current = interactionMode;
@@ -975,227 +718,37 @@ export function ManiaEditor(props: Props) {
       propsRef.current.onMoveNotes(updated);
     }
   }, []);
-
-  useEffect(() => {
-    if (props.keyboardShortcuts === false) return;
-    const setShift = (active: boolean) => {
-      shiftActiveRef.current = active;
-      setShiftActive(active);
-    };
-    const isTyping = (target: EventTarget | null) => {
-      if (dialogIsOpen()) return true;
-      const t = target as HTMLElement | null;
-      const tag = t?.tagName;
-      return (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        !!t?.isContentEditable
-      );
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      markDirty();
-      if (propsRef.current.playtestMode) {
-        if (e.key === "Shift") setShift(false);
-        return;
-      }
-      if (e.key === "Shift") setShift(true);
-      const binds =
-        propsRef.current.editorKeybinds ?? DEFAULT_EDITOR_KEYBINDS;
-      const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
-      // Esc steps back one level per press, like osu!lazer: a drag in
-      // progress, then the selection, then the placement tool. Only when the
-      // playfield itself has focus, so a menu's own Esc isn't doubled up.
-      if (
-        e.key === "Escape" &&
-        noMod &&
-        !e.shiftKey &&
-        !isTyping(e.target) &&
-        (e.target === canvasRef.current || e.target === document.body)
-      ) {
-        if (dragRef.current || moveDragRef.current || selectionDragRef.current) {
-          e.preventDefault();
-          dragRef.current = null;
-          moveDragRef.current = null;
-          selectionDragRef.current = null;
-          selectionAutoscrollTimeRef.current = null;
-          setTailHover(false);
-          markDirty();
-          return;
-        }
-        if (selectedNoteIdsRef.current.size) {
-          e.preventDefault();
-          setSelection(new Set());
-          return;
-        }
-        if (interactionModeRef.current === "edit" && !propsRef.current.readOnly) {
-          e.preventDefault();
-          setInteractionMode("select");
-          return;
-        }
-      }
-      if (e.code === "KeyQ" && noMod && !isTyping(e.target)) {
-        e.preventDefault();
-        setInteractionMode((mode) => (mode === "edit" ? "select" : "edit"));
-        return;
-      }
-      if (
-        matchesBind(e.code, binds.toggleReceptors) &&
-        noMod &&
-        !isTyping(e.target)
-      ) {
-        e.preventDefault();
-        setReceptorsOn((on) => !on);
-        return;
-      }
-      if (
-        matchesBind(e.code, binds.hitsoundMode) &&
-        noMod &&
-        !isTyping(e.target)
-      ) {
-        e.preventDefault();
-        setHitsoundMode((on) => !on);
-        return;
-      }
-      if (
-        matchesBind(e.code, binds.mirrorSelection) &&
-        noMod &&
-        !isTyping(e.target) &&
-        selectedNoteIdsRef.current.size
-      ) {
-        e.preventDefault();
-        mirrorSelection();
-        return;
-      }
-      if (hitsoundModeRef.current && noMod && !isTyping(e.target)) {
-        if (matchesBind(e.code, binds.whistleAdd)) {
-          e.preventDefault();
-          toggleAddition(HITSOUND_WHISTLE);
-          return;
-        }
-        if (matchesBind(e.code, binds.finishAdd)) {
-          e.preventDefault();
-          toggleAddition(HITSOUND_FINISH);
-          return;
-        }
-        if (matchesBind(e.code, binds.clapAdd)) {
-          e.preventDefault();
-          toggleAddition(HITSOUND_CLAP);
-          return;
-        }
-      }
-      if (
-        matchesBind(e.code, binds.waveformOverlay) &&
-        noMod &&
-        !isTyping(e.target)
-      ) {
-        e.preventDefault();
-        propsRef.current.onToggleWaveformOverlay?.();
-        return;
-      }
-      if (
-        (e.key === "Delete" || e.key === "Backspace") &&
-        !isTyping(e.target) &&
-        selectedNoteIdsRef.current.size
-      ) {
-        e.preventDefault();
-        deleteSelection();
-        return;
-      }
-      if (noMod && !isTyping(e.target) && selectedNoteIdsRef.current.size) {
-        if (matchesBind(e.code, binds.reverseSelection)) {
-          e.preventDefault();
-          reverseSelection();
-          return;
-        }
-        if (matchesBind(e.code, binds.shuffleSelection)) {
-          e.preventDefault();
-          shuffleSelection();
-          return;
-        }
-        const scaleHalf = matchesBind(e.code, binds.scaleHalf);
-        if (scaleHalf || matchesBind(e.code, binds.scaleDouble)) {
-          e.preventDefault();
-          scaleSelection(scaleHalf ? 0.5 : 2);
-          return;
-        }
-        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          e.preventDefault();
-          nudgeSelection(e.key === "ArrowLeft" ? "left" : "right");
-          return;
-        }
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-          e.preventDefault();
-          // Arrows follow the screen: up moves notes later in downscroll.
-          const up = e.key === "ArrowUp";
-          const later = propsRef.current.upscroll ? !up : up;
-          nudgeSelection(later ? "later" : "earlier");
-          return;
-        }
-      }
-      if (
-        !(e.ctrlKey || e.metaKey) ||
-        e.altKey ||
-        dialogIsOpen() ||
-        isClipboardTextTarget(e.target)
-      ) return;
-      const key = e.key.toLowerCase();
-      if (key === "c" && e.shiftKey && selectedNoteIdsRef.current.size) {
-        e.preventDefault(); openPatternImage();
-      } else if (key === "c") {
-        if (copySelection()) e.preventDefault();
-      } else if (key === "a") {
-        e.preventDefault();
-        setSelection(new Set(propsRef.current.notes.map((n) => n.id)));
-      } else if (key === "x") {
-        if (selectedNoteIdsRef.current.size) {
-          e.preventDefault();
-          cutSelection();
-        }
-      } else if (key === "v") {
-        // Left to the browser, so the native paste delivers the clipboard's
-        // text without a permission prompt.
-        pasteFromKeyboard();
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      markDirty();
-      if (propsRef.current.playtestMode) return;
-      if (e.key === "Shift") {
-        setShift(false);
-      }
-    };
-    const onBlur = () => {
-      markDirty();
-      setShift(false);
-      selectionDragRef.current = null;
-      selectionAutoscrollTimeRef.current = null;
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, [
-    props.keyboardShortcuts,
-    deleteSelection,
-    markDirty,
-    setSelection,
+  useEditorKeys({
+    keyboardShortcuts: props.keyboardShortcuts,
+    canvasRef,
     copySelection,
     cutSelection,
-    pasteFromKeyboard,
-    toggleAddition,
+    deleteSelection,
+    dragRef,
+    hitsoundModeRef,
+    interactionModeRef,
+    markDirty,
     mirrorSelection,
-    reverseSelection,
-    scaleSelection,
-    shuffleSelection,
+    moveDragRef,
     nudgeSelection,
     openPatternImage,
-  ]);
+    pasteFromKeyboard,
+    propsRef,
+    reverseSelection,
+    scaleSelection,
+    selectedNoteIdsRef,
+    selectionAutoscrollTimeRef,
+    selectionDragRef,
+    setHitsoundMode,
+    setInteractionMode,
+    setReceptorsOn,
+    setSelection,
+    setShiftActive,
+    setTailHover,
+    shiftActiveRef,
+    shuffleSelection,
+    toggleAddition,
+  });
 
   useEffect(() => {
     if (!props.backgroundUrl) {
@@ -1591,17 +1144,6 @@ export function ManiaEditor(props: Props) {
     return lo;
   }, []);
 
-  const firstPointFrom = useCallback((list: TimingPoint[], t: number) => {
-    let lo = 0;
-    let hi = list.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (list[mid].time < t) lo = mid + 1;
-      else hi = mid;
-    }
-    return lo;
-  }, []);
-
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1855,6 +1397,15 @@ export function ManiaEditor(props: Props) {
       }
     }
 
+    const frame: PlayfieldFrame = {
+      width,
+      height,
+      originX,
+      playfieldWidth,
+      up,
+      timeToY,
+      yToTime,
+    };
     const edgeTimeA = yToTime(0);
     const edgeTimeB = yToTime(height);
     const topTime = Math.max(edgeTimeA, edgeTimeB);
@@ -1865,106 +1416,20 @@ export function ManiaEditor(props: Props) {
       svBlendRef.current > 0.001 &&
       topTime - bottomTime > (4 * height) / ppms();
     if (!propsRef.current.playtestMode && !gridOverload) {
-      const lines = gridLinesInRange(
-        bottomTime,
-        topTime,
-        timingPoints,
+      drawSnapGrid(
+        ctx,
+        frame,
+        gridLinesInRange(bottomTime, topTime, timingPoints, view.snapDivisor),
         view.snapDivisor,
       );
-      for (const line of lines) {
-        const y = Math.round(timeToY(line.time)) + 0.5;
-        if (y < -4 || y > height + 4) continue;
-        const color = line.barline
-          ? "rgba(255,255,255,0.9)"
-          : gridLineColor(line.idxInBeat, view.snapDivisor);
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.28;
-        ctx.lineWidth = line.barline ? 5 : 4;
-        ctx.beginPath();
-        ctx.moveTo(originX, y);
-        ctx.lineTo(originX + playfieldWidth, y);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        ctx.lineWidth = line.barline ? 1.5 : 1;
-        ctx.beginPath();
-        ctx.moveTo(originX, y);
-        ctx.lineTo(originX + playfieldWidth, y);
-        ctx.stroke();
-      }
     }
 
     if (!propsRef.current.playtestMode) {
-      const drawBoundary = (
-        time: number,
-        outsideLater: boolean,
-        rgb: string,
-        label: string,
-        limit?: number,
-      ) => {
-        const y = timeToY(time);
-        const dir = up ? -1 : 1;
-        const sign = outsideLater ? -dir : dir;
-        const far =
-          limit === undefined ? (sign > 0 ? height : 0) : timeToY(limit);
-        const bandTop = Math.max(0, Math.min(y, far));
-        const bandBottom = Math.min(height, Math.max(y, far));
-        const bandH = bandBottom - bandTop;
-        if (bandH > 0) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(originX, bandTop, playfieldWidth, bandH);
-          ctx.clip();
-          ctx.fillStyle = `rgba(${rgb},${BOUND_TINT_ALPHA})`;
-          ctx.fillRect(originX, bandTop, playfieldWidth, bandH);
-          ctx.strokeStyle = `rgba(${rgb},${BOUND_HATCH_ALPHA})`;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          for (let x = 0; x <= playfieldWidth + bandH; x += BOUND_HATCH_STEP) {
-            ctx.moveTo(originX - bandH + x, bandBottom);
-            ctx.lineTo(originX + x, bandTop);
-          }
-          ctx.stroke();
-          ctx.restore();
-        }
-        if (y < -4 || y > height + 4) return;
-        const x0 = originX;
-        const x1 = originX + playfieldWidth;
-        ctx.strokeStyle = `rgba(${rgb},0.26)`;
-        ctx.lineWidth = 7;
-        ctx.beginPath();
-        ctx.moveTo(x0, y);
-        ctx.lineTo(x1, y);
-        ctx.stroke();
-        ctx.strokeStyle = `rgb(${rgb})`;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(x0, y);
-        ctx.lineTo(x1, y);
-        ctx.stroke();
-        ctx.fillStyle = `rgb(${rgb})`;
-        ctx.font = `11px ${CANVAS_FONT_STACK}`;
-        ctx.fillText(label, 6, sign > 0 ? y + 14 : y - 6);
-      };
-
-      const songEnd = propsRef.current.songEndMs ?? 0;
-      const trimStart = propsRef.current.trimStartMs;
-      const trimEnd = propsRef.current.trimEndMs;
-      drawBoundary(0, false, BOUND_SONG_RGB, t("editor.songStart"));
-      if (songEnd > 0) {
-        drawBoundary(songEnd, true, BOUND_SONG_RGB, t("editor.songEnd"));
-      }
-      if (trimStart !== undefined && trimStart > 0) {
-        drawBoundary(trimStart, false, BOUND_TRIM_RGB, t("editor.trimStart"), 0);
-      }
-      if (trimEnd !== undefined && (!(songEnd > 0) || trimEnd < songEnd - 0.5)) {
-        drawBoundary(
-          trimEnd,
-          true,
-          BOUND_TRIM_RGB,
-          t("editor.trimEnd"),
-          songEnd > 0 ? songEnd : undefined,
-        );
-      }
+      drawPlayfieldBounds(ctx, frame, t, {
+        songEndMs: propsRef.current.songEndMs,
+        trimStartMs: propsRef.current.trimStartMs,
+        trimEndMs: propsRef.current.trimEndMs,
+      });
     }
 
     const showTimingLines =
@@ -1972,86 +1437,11 @@ export function ManiaEditor(props: Props) {
       propsRef.current.showTimingLines !== false;
 
     if (showTimingLines) {
-      const lineEdgeA = yToTime(-20);
-      const lineEdgeB = yToTime(height + 20);
-      const lineLo = Math.min(lineEdgeA, lineEdgeB);
-      const lineHi = Math.max(lineEdgeA, lineEdgeB);
-
-      const reds = redPoints(timingPoints);
-      for (let i = firstPointFrom(reds, lineLo); i < reds.length; i++) {
-        const tp = reds[i];
-        if (tp.time > lineHi) break;
-        const y = timeToY(tp.time);
-        ctx.strokeStyle = "#ff2d6f";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-        ctx.fillStyle = "#ff2d6f";
-        ctx.font = `11px ${CANVAS_FONT_STACK}`;
-        ctx.fillText(`${formatUiNumber(tp.bpm)} BPM`, 6, y - 4);
-      }
-
-      const greens = greenPoints(timingPoints);
-      for (let i = firstPointFrom(greens, lineLo); i < greens.length; i++) {
-        const tp = greens[i];
-        if (tp.time > lineHi) break;
-        const y = timeToY(tp.time);
-        const markerRight = originX + playfieldWidth;
-        const markerLeft = Math.max(originX, markerRight - 28);
-        const label = `${formatUiNumber(tp.sv)}× SV`;
-        ctx.strokeStyle = "#2dd4bf";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(markerLeft, y);
-        ctx.lineTo(markerRight, y);
-        ctx.stroke();
-        ctx.font = `600 12px ${CANVAS_FONT_STACK}`;
-        const labelWidth = ctx.measureText(label).width;
-        const labelX =
-          markerRight + labelWidth + 16 <= width
-            ? markerRight + 7
-            : markerLeft - labelWidth - 7;
-        ctx.fillStyle = "rgba(9,18,23,0.88)";
-        roundRect(ctx, labelX - 4, y - 9, labelWidth + 8, 18, 4);
-        ctx.fill();
-        ctx.fillStyle = "#5eead4";
-        ctx.fillText(label, labelX, y + 4);
-      }
-
-      if (previewTime >= 0) {
-        const y = timeToY(previewTime);
-        if (y >= -20 && y <= height + 20) {
-          ctx.strokeStyle = "#c084fc";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(width, y);
-          ctx.stroke();
-          ctx.fillStyle = "#c084fc";
-          ctx.font = `11px ${CANVAS_FONT_STACK}`;
-          ctx.fillText(t("editor.previewPoint"), 6, y - 4);
-        }
-      }
-
-      if (propsRef.current.bookmarks?.length) {
-        ctx.setLineDash([6, 3]);
-        for (const bm of propsRef.current.bookmarks) {
-          const y = timeToY(bm);
-          if (y < -20 || y > height + 20) continue;
-          ctx.strokeStyle = "#fbbf24";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(width, y);
-          ctx.stroke();
-          ctx.fillStyle = "#fbbf24";
-          ctx.font = `11px ${CANVAS_FONT_STACK}`;
-          ctx.fillText(t("editor.bookmark"), 6, y - 4);
-        }
-        ctx.setLineDash([]);
-      }
+      drawTimingMarkers(ctx, frame, t, {
+        timingPoints,
+        previewTime,
+        bookmarks: propsRef.current.bookmarks,
+      });
     }
 
     if (receptorsOnRef.current) {
@@ -2488,7 +1878,6 @@ export function ManiaEditor(props: Props) {
   }, [
     columnAtX,
     firstNoteFrom,
-    firstPointFrom,
     laneColor,
     laneGeometry,
     liveCurrentTime,
@@ -2609,7 +1998,6 @@ export function ManiaEditor(props: Props) {
       y: (e.clientY - rect.top) * sizeRef.current.height / Math.max(1, rect.height),
     };
   };
-
 
   const findNoteAt = (x: number, y: number): ManiaNote | null => {
     const { notes, keyCount } = propsRef.current;
@@ -3406,6 +2794,7 @@ export function ManiaEditor(props: Props) {
             <button
               key={mode}
               type="button"
+              aria-pressed={interactionMode === mode}
               onClick={() => setInteractionMode(mode)}
               className={`rounded-md px-2.5 py-1 font-medium capitalize transition ${
                 interactionMode === mode
@@ -3735,433 +3124,4 @@ export function ManiaEditor(props: Props) {
       )}
     </div>
   );
-}
-
-function HitsoundAddBtn({
-  label,
-  title,
-  active,
-  onClick,
-}: {
-  label: string;
-  title: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className={`w-6 rounded py-0.5 font-semibold transition ${
-        active
-          ? "bg-emerald-500/80 text-ink-900"
-          : "bg-ink-700 text-slate-300 hover:bg-ink-600"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-type ClipPreviewSize = "small" | "normal" | "large";
-
-const ClipPreview = memo(function ClipPreview({
-  clip,
-  keyCount,
-  size = "normal",
-}: {
-  clip: Clip;
-  keyCount: number;
-  size?: ClipPreviewSize;
-}) {
-  const cellW = size === "small" ? 5 : size === "large" ? 18 : 8;
-  const w = Math.max(1, keyCount) * cellW;
-  const h = size === "small" ? 22 : size === "large" ? 160 : 44;
-  const pad = size === "large" ? 6 : 3;
-  const riceH = size === "large" ? 6 : 3;
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = ref.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.ceil(w * dpr);
-    canvas.height = Math.ceil(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const maxTime = clip.notes.reduce(
-      (max, n) => Math.max(max, n.endTime ?? n.startTime),
-      1,
-    );
-    const ty = (time: number) => h - pad - (time / maxTime) * (h - 2 * pad);
-    for (const n of clip.notes) {
-      const x = n.column * cellW + 0.5;
-      const hold = n.endTime !== undefined && n.endTime > n.startTime;
-      const top = hold ? ty(n.endTime!) : ty(n.startTime) - riceH / 2;
-      const height = hold ? Math.max(2, ty(n.startTime) - top) : riceH;
-      ctx.fillStyle = hold
-        ? "rgba(232,104,104,0.85)"
-        : defaultLaneColour(n.column, keyCount);
-      roundRect(ctx, x, top, cellW - 1, height, 1);
-      ctx.fill();
-    }
-  }, [clip, keyCount, cellW, w, h, pad, riceH]);
-  return (
-    <canvas
-      ref={ref}
-      width={w}
-      height={h}
-      style={{ width: w, height: h }}
-      className="shrink-0 rounded bg-ink-900/70"
-      aria-hidden
-    />
-  );
-});
-
-function SelectionActionButton({
-  label,
-  title,
-  danger = false,
-  onClick,
-}: {
-  label: string;
-  title: string;
-  danger?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      className={`rounded px-1.5 py-1 text-[10px] font-medium transition ${
-        danger
-          ? "text-rose-300 hover:bg-rose-500/15 hover:text-rose-200"
-          : "text-slate-300 hover:bg-white/10 hover:text-white"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-/** A transparent 1×1 picture handed to setDragImage in place of the ghost.
- *  Made at load so it has decoded by the first drag. */
-const EMPTY_DRAG_IMAGE =
-  typeof Image === "undefined"
-    ? null
-    : Object.assign(new Image(1, 1), {
-        src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-      });
-
-function ClipThumb({
-  clip,
-  keyCount,
-  small,
-}: {
-  clip: Clip;
-  keyCount: number;
-  small?: boolean;
-}) {
-  return (
-    <span className="group/clip relative shrink-0">
-      <ClipPreview
-        clip={clip}
-        keyCount={keyCount}
-        size={small ? "small" : "normal"}
-      />
-      <span className="pointer-events-none absolute right-full top-1/2 z-30 mr-2 -translate-y-1/2 rounded-md border border-ink-500 bg-ink-900/95 p-2 opacity-0 shadow-2xl transition-opacity duration-150 group-hover/clip:opacity-100">
-        <ClipPreview clip={clip} keyCount={keyCount} size="large" />
-      </span>
-    </span>
-  );
-}
-
-function normalizeRect(x1: number, y1: number, x2: number, y2: number): CanvasRect {
-  const x = Math.min(x1, x2);
-  const y = Math.min(y1, y2);
-  return {
-    x,
-    y,
-    w: Math.abs(x2 - x1),
-    h: Math.abs(y2 - y1),
-  };
-}
-
-function rectIntersects(a: CanvasRect, b: CanvasRect): boolean {
-  return (
-    a.x <= b.x + b.w &&
-    a.x + a.w >= b.x &&
-    a.y <= b.y + b.h &&
-    a.y + a.h >= b.y
-  );
-}
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  const radius = Math.min(r, w / 2, Math.abs(h) / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + w, y, x + w, y + h, radius);
-  ctx.arcTo(x + w, y + h, x, y + h, radius);
-  ctx.arcTo(x, y + h, x, y, radius);
-  ctx.arcTo(x, y, x + w, y, radius);
-  ctx.closePath();
-}
-
-/**
- * A hold note's body, filling `span` between the tail and the head.
- *
- * osu! does something odd here that the whole look depends on. The body is not
- * fitted to the note at all: `LegacyBodyPiece` sizes the sprite to the hold,
- * then scales it vertically by `max(1, 32800 / DrawHeight)` — so whatever the
- * hold's length, the texture is stretched over a fixed strip 32800 units tall,
- * pinned at the tail end, and only the part overlapping the note is seen.
- *
- * That constant is why skins ship bodies like 104x32767, 148x20000 and
- * 128x40000: against a 32800-unit strip those land at roughly one texture pixel
- * per unit, so the art plays out at the scale it was drawn, running off the far
- * end of all but the longest holds. It also fixes the vertical scale
- * independently of the horizontal one, which is set by the column — a body
- * drawn 148 wide for a 108-unit column is squashed to 73% across while staying
- * 164% tall. Scaling both axes together, the obvious reading, flattens exactly
- * the tapered caps those tall bodies exist to show.
- *
- * Measured in the editor's pixels the strip is `32800 * width / columnWidth`,
- * since `width` pixels span `columnWidth` units. `NoteBodyStyle: 0` opts out
- * and stretches one copy over the note instead.
- */
-function drawHoldBody(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  stretch: boolean,
-  x: number,
-  top: number,
-  width: number,
-  span: number,
-  columnWidth: number,
-) {
-  if (img.width <= 0 || img.height <= 0 || span <= 0 || width <= 0) return;
-  if (stretch) {
-    ctx.drawImage(img, x, top, width, span);
-    return;
-  }
-
-  const strip = (LEGACY_BODY_STRIP * width) / columnWidth;
-  if (strip <= 0) return;
-
-  if (strip >= span) {
-    // The usual case by a wide margin: the strip is thousands of pixels tall,
-    // so the note shows the first slice of the texture and nothing more.
-    // Floored at a whole row: a body a few dozen pixels tall covers so little
-    // of the strip that the slice comes to a fraction of one, and a sub-pixel
-    // source rectangle is not something every browser samples the same way.
-    const srcH = Math.min(img.height, Math.max(1, (span / strip) * img.height));
-    ctx.drawImage(img, 0, 0, img.width, srcH, x, top, width, span);
-    return;
-  }
-
-  // A column wide enough to make the strip shorter than the note is far-fetched,
-  // but osu! loads the body with `WrapMode.Repeat`, so it would tile.
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x, top, width, span);
-  ctx.clip();
-  // Snapped to whole pixels and sharing each boundary, because tiles landing on
-  // fractions leave hairline gaps that read as seams across the whole note.
-  const bottom = top + span;
-  for (let edge = top; edge < bottom; edge += strip) {
-    const lo = Math.floor(edge);
-    ctx.drawImage(img, x, lo, width, Math.ceil(edge + strip) - lo);
-  }
-  ctx.restore();
-}
-// osu! draws note art across the full column — `LegacyNotePiece` is
-// `RelativeSizeAxes = Axes.X` inside it — so skin sprites get the whole lane,
-// not the gutter the editor's own notes are drawn with. Keeping the gutter left
-// heads a different width from the body they cap.
-function drawSprite(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  x: number,
-  bottomY: number,
-  laneWidth: number,
-  flip = false,
-  heightScale = 1,
-) {
-  const h =
-    img.width > 0 ? img.height * (laneWidth / img.width) * heightScale : NOTE_HEIGHT;
-  if (flip) {
-    ctx.save();
-    ctx.translate(0, bottomY + h);
-    ctx.scale(1, -1);
-    ctx.drawImage(img, x, 0, laneWidth, h);
-    ctx.restore();
-    return;
-  }
-  ctx.drawImage(img, x, bottomY - h, laneWidth, h);
-}
-
-type OpaqueBounds = { left: number; top: number; right: number; bottom: number };
-const opaqueBoundsCache = new WeakMap<HTMLImageElement, OpaqueBounds>();
-// Bounding box of the non-transparent content, so receptors with lots of empty
-// canvas padding (common in arrow / note-shaped receptor skins) can be sized and
-// aligned by their visible pixels rather than the raw image edges.
-function opaqueBounds(img: HTMLImageElement): OpaqueBounds {
-  const cached = opaqueBoundsCache.get(img);
-  if (cached) return cached;
-  let result: OpaqueBounds = { left: 0, top: 0, right: img.width, bottom: img.height };
-  try {
-    const c = document.createElement("canvas");
-    c.width = img.width;
-    c.height = img.height;
-    const cx = c.getContext("2d", { willReadFrequently: true });
-    if (cx) {
-      cx.drawImage(img, 0, 0);
-      const { data } = cx.getImageData(0, 0, img.width, img.height);
-      let left = img.width;
-      let right = 0;
-      let top = img.height;
-      let bottom = 0;
-      let any = false;
-      for (let y = 0; y < img.height; y++) {
-        for (let x = 0; x < img.width; x++) {
-          if (data[(y * img.width + x) * 4 + 3] > 8) {
-            any = true;
-            if (x < left) left = x;
-            if (x > right) right = x;
-            if (y < top) top = y;
-            if (y > bottom) bottom = y;
-          }
-        }
-      }
-      if (any) result = { left, top, right: right + 1, bottom: bottom + 1 };
-    }
-  } catch {
-    // keep full-image fallback
-  }
-  opaqueBoundsCache.set(img, result);
-  return result;
-}
-
-function drawReceptor(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  x: number,
-  lineY: number,
-  laneWidth: number,
-  up = false,
-  // The note's opaque display box (width/height in canvas px). A note-shaped
-  // receptor - one whose visible pixels are much taller than the note, e.g. an
-  // arrow or ring the note falls into - is fitted to this box and centred on the
-  // note, matching how osu! renders it (a tall oval ring becomes a round ring the
-  // size of the note). Normal/flat key images keep the old "opaque bottom on the
-  // hit line" placement, so ordinary skins render exactly as before.
-  noteBox?: { w: number; h: number } | null,
-) {
-  if (img.width <= 0 || img.height <= 0) return;
-  const s = laneWidth / img.width;
-  const b = opaqueBounds(img);
-  const opaqueDisplayH = (b.bottom - b.top) * s;
-
-  if (noteBox && noteBox.h > 0 && opaqueDisplayH > noteBox.h * 1.15) {
-    const srcW = b.right - b.left;
-    const srcH = b.bottom - b.top;
-    const cx = x + laneWidth / 2;
-    const cy = up ? lineY + noteBox.h / 2 : lineY - noteBox.h / 2;
-    if (up) {
-      ctx.save();
-      ctx.translate(0, lineY * 2);
-      ctx.scale(1, -1);
-      ctx.drawImage(
-        img, b.left, b.top, srcW, srcH,
-        cx - noteBox.w / 2, lineY * 2 - (cy + noteBox.h / 2), noteBox.w, noteBox.h,
-      );
-      ctx.restore();
-    } else {
-      ctx.drawImage(
-        img, b.left, b.top, srcW, srcH,
-        cx - noteBox.w / 2, cy - noteBox.h / 2, noteBox.w, noteBox.h,
-      );
-    }
-    return;
-  }
-
-  // Default: aspect-preserving, opaque bottom anchored on the hit line.
-  const dy = lineY - b.bottom * s;
-  if (up) {
-    ctx.save();
-    ctx.translate(0, lineY * 2);
-    ctx.scale(1, -1);
-    ctx.drawImage(img, x, dy, laneWidth, img.height * s);
-    ctx.restore();
-    return;
-  }
-  ctx.drawImage(img, x, dy, laneWidth, img.height * s);
-}
-
-const LANE_FLASH_MS = 800;
-
-/**
- * How lit a flashed lane is, 0 to 1: bright at once, dark, bright again a
- * little softer, then out. With reduced motion it simply fades.
- */
-function laneFlashStrength(elapsed: number, reduced: boolean): number {
-  if (elapsed < 0 || elapsed >= LANE_FLASH_MS) return 0;
-  const p = elapsed / LANE_FLASH_MS;
-  if (reduced) return 1 - p;
-  return Math.cos(1.5 * Math.PI * p) ** 2 * (1 - 0.4 * p);
-}
-
-function drawReceptorGlow(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  lineY: number,
-  laneWidth: number,
-  canvasHeight: number,
-  color: string,
-  intensity = 1,
-  up = false,
-) {
-  const h = up ? lineY : canvasHeight - lineY;
-  if (h <= 0 || intensity <= 0) return;
-  const farY = up ? lineY - h : lineY + h;
-  ctx.save();
-  ctx.globalCompositeOperation = "lighter";
-  ctx.globalAlpha = 0.55 * intensity;
-  const grad = ctx.createLinearGradient(0, lineY, 0, farY);
-  grad.addColorStop(0, color);
-  grad.addColorStop(1, "transparent");
-  ctx.fillStyle = grad;
-  ctx.fillRect(x, Math.min(lineY, farY), laneWidth, h);
-  ctx.restore();
-}
-
-function drawCover(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement | HTMLVideoElement,
-  dx: number,
-  dy: number,
-  dw: number,
-  dh: number,
-) {
-  const w = img instanceof HTMLVideoElement ? img.videoWidth : img.width;
-  const h = img instanceof HTMLVideoElement ? img.videoHeight : img.height;
-  const ir = w / h;
-  const r = dw / dh;
-  let sw = w;
-  let sh = h;
-  if (ir > r) {
-    sw = h * r;
-  } else {
-    sh = w / r;
-  }
-  const sx = (w - sw) / 2;
-  const sy = (h - sh) / 2;
-  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }
