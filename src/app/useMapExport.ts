@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import { logAnalyticsEvent } from "../lib/analytics";
+import { logAnalyticsEvent, trackFunnel } from "../lib/analytics";
 import type { AuthUser } from "../lib/auth";
 import type { Translate } from "../lib/i18n";
 import { chooseMapperName } from "../lib/mapperName";
@@ -143,6 +143,7 @@ export function useMapExport({
     });
     playUiSound("mapExportDone");
     void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
+    trackFunnel("exported");
     offerMapCard(".osu");
   }, [
     audioFile,
@@ -169,6 +170,7 @@ export function useMapExport({
       });
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_sm", authUser?.id).catch(() => {});
+      trackFunnel("exported");
       offerMapCard(".sm");
     } catch (error) {
       setImportError(
@@ -264,6 +266,7 @@ export function useMapExport({
       playUiSound("mapExportDone");
       checkExportedSet(archive, { meta: songMeta, timingPoints, difficulties }, ".osz");
       void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
+      trackFunnel("exported");
       offerMapCard(".osz");
     } catch (error) {
       setImportError(
@@ -405,6 +408,7 @@ export function useMapExport({
       void logAnalyticsEvent("export_to_osu", authUserRef.current?.id).catch(
         () => {},
       );
+      trackFunnel("exported");
     } catch (error) {
       setImportError(
         error instanceof Error ? error.message : t("osu.sendFailed"),

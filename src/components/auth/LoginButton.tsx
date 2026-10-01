@@ -6,6 +6,7 @@ import { Button } from "../ui/Controls";
 import { Skeleton } from "../ui/Skeleton";
 import { ChevronDownIcon, DiscordIcon } from "../ui/Icons";
 import { DISCORD_INVITE, siteUrl } from "../../lib/siteAssets";
+import { trackDiscord } from "../../lib/discordLink";
 import { MOTION } from "../../lib/motion";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
@@ -258,7 +259,10 @@ export function AccountControl({
               target="_blank"
               rel="noreferrer"
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-slate-200 transition hover:bg-ink-600"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                trackDiscord("account_menu");
+                setOpen(false);
+              }}
             >
               <DiscordIcon className="h-4 w-4 text-[#5865F2]" />
               Discord

@@ -1,5 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { t } from "../lib/i18n/core";
+import { trackDiscord } from "../lib/discordLink";
+import { DISCORD_INVITE } from "../lib/siteAssets";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null; stack: string | null; copied: boolean };
@@ -73,6 +75,18 @@ export class ErrorBoundary extends Component<Props, State> {
               {copied ? t("common.copied") : t("crash.copyDetails")}
             </button>
           </div>
+          <p className="mt-4 text-xs text-slate-500">
+            {t("crash.discordPrompt")}{" "}
+            <a
+              href={DISCORD_INVITE}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => trackDiscord("crash")}
+              className="font-medium text-slate-300 underline decoration-ink-500 underline-offset-2 transition hover:text-white"
+            >
+              {t("crash.discordLink")}
+            </a>
+          </p>
         </div>
       </div>
     );

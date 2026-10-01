@@ -2454,4 +2454,12 @@ export const ru: PartialCatalog = {
   "install.body": "Оно открывается в отдельном окне и может открывать файлы .osz, .osu, .sm, .qua и .mc прямо из файлового менеджера.",
   "install.install": "Установить",
   "install.command": "Установить Cascade как приложение",
+  "crash.discordPrompt": "Если это повторится, скопируйте подробности и",
+  "crash.discordLink": "сообщите в Discord",
+  "discord.report": "Сообщить в Discord",
+  "feedback.noAccount": "Нет аккаунта? Напишите нам в Discord.",
+  "feedback.preferChat": "Удобнее в чате?",
+  "settings.privacy": "Конфиденциальность",
+  "settings.usageStats": "Отправлять анонимную статистику использования",
+  "settings.usageStatsHint": "Счётчики вроде числа экспортированных карт или того, возвращаются ли люди через неделю. Без содержимого карт и без ID, связывающего один счётчик с другим. Всегда выключено, если браузер отправляет Do Not Track или Global Privacy Control.",
 };

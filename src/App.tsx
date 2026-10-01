@@ -164,7 +164,7 @@ import { InviteNotifications } from "./components/InviteNotifications";
 import { playUiSound, preloadUiSounds } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
 import { useLocale } from "./lib/i18n";
-import { logAnalyticsEvent } from "./lib/analytics";
+import { logAnalyticsEvent, setUsageStatsEnabled, trackAppOpened, trackMapping } from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
@@ -515,6 +515,10 @@ export default function App() {
       );
     });
   }, [t, setImportError]);
+  // Declared before the events below so a mapper who opted out sends none.
+  useEffect(() => {
+    setUsageStatsEnabled(appSettings.shareUsageStats !== false);
+  }, [appSettings.shareUsageStats]);
   const appOpenLoggedRef = useRef(false);
   useEffect(() => {
     if (authLoading || appOpenLoggedRef.current) return;
@@ -522,6 +526,7 @@ export default function App() {
     void logAnalyticsEvent("app_opened", authUserRef.current?.id).catch(
       () => {},
     );
+    trackAppOpened();
   }, [authLoading]);
   const {
     cloudSkins,
@@ -2516,6 +2521,10 @@ export default function App() {
   });
 
   const close = useCallback(() => setModal(null), []);
+  // An undoable edit means someone is mapping; counted at most weekly.
+  useEffect(() => {
+    if (canUndo) trackMapping();
+  }, [canUndo]);
 
   const [accountReason, setAccountReason] = useState<AccountReason>("cloudSave");
   /**
@@ -3631,6 +3640,10 @@ export default function App() {
           onPlaytest={(v) => setAppSettings((s) => ({ ...s, playtest: v }))}
           onOpenHudEditor={hasProject && audioFile ? () => startPlaytest(0, { hudEditing: true }) : undefined}
           savedSkinNames={skinLibrary.map((saved) => saved.name)}
+          shareUsageStats={appSettings.shareUsageStats !== false}
+          onShareUsageStats={(v) =>
+            setAppSettings((s) => ({ ...s, shareUsageStats: v }))
+          }
           localAutosaveEnabled={appSettings.localAutosaveEnabled}
           onLocalAutosaveEnabled={(v) =>
             setAppSettings((s) => ({ ...s, localAutosaveEnabled: v }))

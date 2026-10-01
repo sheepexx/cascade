@@ -138,6 +138,8 @@ type Props = {
   /** File names of the imported skins playtest can use. */
   savedSkinNames: string[];
   localAutosaveEnabled: boolean;
+  shareUsageStats: boolean;
+  onShareUsageStats: (value: boolean) => void;
   onLocalAutosaveEnabled: (value: boolean) => void;
   exportPngBackgroundsAsJpeg: boolean;
   onExportPngBackgroundsAsJpeg: (value: boolean) => void;
@@ -285,6 +287,8 @@ export function AppSettingsModal({
   onOpenHudEditor,
   savedSkinNames,
   localAutosaveEnabled,
+  shareUsageStats,
+  onShareUsageStats,
   onLocalAutosaveEnabled,
   exportPngBackgroundsAsJpeg,
   onExportPngBackgroundsAsJpeg,
@@ -743,6 +747,19 @@ export function AppSettingsModal({
                   tip={t("settings.autosaveHint")}
                   checked={localAutosaveEnabled}
                   onChange={onLocalAutosaveEnabled}
+                />
+              </div>
+            </section>
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t("settings.privacy")}
+              </h3>
+              <div className="flex flex-col gap-3">
+                <SettingToggle
+                  label={t("settings.usageStats")}
+                  tip={t("settings.usageStatsHint")}
+                  checked={shareUsageStats}
+                  onChange={onShareUsageStats}
                 />
               </div>
             </section>

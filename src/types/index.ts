@@ -503,6 +503,8 @@ export type AppSettings = {
   svPreviewPlayback: boolean;
   bpmAffectsScroll: boolean;
   localAutosaveEnabled: boolean;
+  /** Send the anonymous usage events described in the privacy policy. */
+  shareUsageStats: boolean;
   exportPngBackgroundsAsJpeg: boolean;
   exportJpegQuality: number;
   /** Exported maps carry "Cascade" in their tags. */
@@ -680,6 +682,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   svPreviewPlayback: false,
   bpmAffectsScroll: false,
   localAutosaveEnabled: true,
+  shareUsageStats: true,
   discordPresence: "detailed",
   exportPngBackgroundsAsJpeg: true,
   exportJpegQuality: 0.9,

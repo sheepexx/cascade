@@ -2319,4 +2319,12 @@ export const de: PartialCatalog = {
   "install.body": "Es öffnet sich in einem eigenen Fenster und kann .osz-, .osu-, .sm-, .qua- und .mc-Dateien direkt aus deinem Dateimanager öffnen.",
   "install.install": "Installieren",
   "install.command": "Cascade als App installieren",
+  "crash.discordPrompt": "Wenn es wieder passiert, kopiere die Details und",
+  "crash.discordLink": "melde es auf Discord",
+  "discord.report": "Auf Discord melden",
+  "feedback.noAccount": "Kein Konto? Schreib uns stattdessen auf Discord.",
+  "feedback.preferChat": "Lieber chatten?",
+  "settings.privacy": "Datenschutz",
+  "settings.usageStats": "Anonyme Nutzungsstatistiken teilen",
+  "settings.usageStatsHint": "Zählungen wie die Anzahl exportierter Maps oder ob Leute nach einer Woche wiederkommen. Keine Map-Inhalte und keine ID, die eine Zählung mit einer anderen verknüpft. Immer aus, wenn dein Browser Do Not Track oder Global Privacy Control sendet.",
 };

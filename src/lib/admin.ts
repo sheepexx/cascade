@@ -301,6 +301,45 @@ export async function adminEventStats(): Promise<AdminEventStat[]> {
   return (data ?? []) as AdminEventStat[];
 }
 
+export type AdminRetentionRow = {
+  cohort_week: string;
+  installs: number;
+  d1: number;
+  d7: number;
+  d30: number;
+  mature_d1: boolean;
+  mature_d7: boolean;
+  mature_d30: boolean;
+};
+
+export type AdminFunnel = { opened: number; created: number; edited: number; exported: number };
+export type AdminWeeklyMappers = { week_start: string; mappers: number };
+export type AdminDiscordClicks = { source: string; clicks: number };
+
+/** Usage milestones (migration 0037): retention, funnel, mappers, Discord. */
+export async function adminUsageStats(): Promise<{
+  retention: AdminRetentionRow[];
+  funnel: AdminFunnel | null;
+  mappers: AdminWeeklyMappers[];
+  discord: AdminDiscordClicks[];
+}> {
+  const supabase = await getSupabase();
+  const [retention, funnel, mappers, discord] = await Promise.all([
+    supabase.rpc("admin_retention_stats", { p_weeks: 12 }),
+    supabase.rpc("admin_funnel_stats", { p_days: 30 }),
+    supabase.rpc("admin_weekly_mappers", { p_weeks: 12 }),
+    supabase.rpc("admin_discord_clicks", { p_days: 30 }),
+  ]);
+  const failed = [retention, funnel, mappers, discord].find((r) => r.error);
+  if (failed?.error) throw new Error(failed.error.message);
+  return {
+    retention: (retention.data ?? []) as AdminRetentionRow[],
+    funnel: ((funnel.data ?? []) as AdminFunnel[])[0] ?? null,
+    mappers: (mappers.data ?? []) as AdminWeeklyMappers[],
+    discord: (discord.data ?? []) as AdminDiscordClicks[],
+  };
+}
+
 export async function adminPlatformStats(): Promise<AdminPlatformStat[]> {
   const supabase = await getSupabase();
   const { data, error } = await supabase.rpc("admin_platform_stats");

@@ -27,6 +27,7 @@ import {
   adminAppVersionStats,
   adminDesktopDownloads,
   adminEventStats,
+  adminUsageStats,
   adminPlatformStats,
   adminUserEvents,
   adminUserProjects,
@@ -41,6 +42,8 @@ import {
   type AdminAppVersionStat,
   type AdminDesktopDownloadStat,
   type AdminEventStat,
+  type AdminFunnel,
+  type AdminRetentionRow,
   type AdminPlatform,
   type AdminPlatformStat,
   type AdminStats,
@@ -168,6 +171,7 @@ function StatsTab() {
   const [downloads, setDownloads] = useState<
     AdminDesktopDownloadStat[] | null
   >(null);
+  const [usage, setUsage] = useState<AdminUsage | null | "missing">(null);
   const { error, setError } = useAsyncError();
 
   useEffect(() => {
@@ -197,6 +201,11 @@ function StatsTab() {
     adminDesktopDownloads()
       .then(setDownloads)
       .catch(() => setDownloads([]));
+    // Requires migration 0037; the section says so if it isn't applied.
+    setUsage(null);
+    adminUsageStats()
+      .then(setUsage)
+      .catch(() => setUsage("missing"));
     getStorageStats()
       .then(setStorage)
       .catch((e) =>
@@ -233,6 +242,7 @@ function StatsTab() {
             />
           </div>
           <PlatformSection stats={platforms} />
+          <UsageSection usage={usage} />
           <DesktopDownloadSection stats={downloads} />
           <AppVersionSection stats={versions} />
           <StorageStatsSection stats={storage} error={storageError} />
@@ -366,6 +376,143 @@ function AdminSection({
       </h2>
       {children}
     </section>
+  );
+}
+
+type AdminUsage = Awaited<ReturnType<typeof adminUsageStats>>;
+
+function percent(part: number, whole: number): string {
+  return whole > 0 ? `${Math.round((part / whole) * 100)}%` : "–";
+}
+
+/**
+ * Retention, the new-mapper funnel, weekly active mappers and Discord clicks.
+ * All of it comes from milestones the browser reports once each, with no ID,
+ * so these are counts of browsers, not people.
+ */
+function UsageSection({ usage }: { usage: AdminUsage | null | "missing" }) {
+  return (
+    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+      <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        Retention and funnel
+      </h2>
+      <p className="mb-3 text-[11px] text-slate-500">
+        Counted per browser from anonymous milestones, so one person on two
+        browsers counts twice. Browsers that send Do Not Track or Global Privacy
+        Control, or turned usage statistics off, aren't counted.
+      </p>
+      {usage === null && <SkeletonTable rows={4} columns={5} label="Loading usage" />}
+      {usage === "missing" && (
+        <p className="text-sm text-slate-500">Not available (is migration 0037 applied?).</p>
+      )}
+      {usage && usage !== "missing" && (
+        <div className="flex flex-col gap-5">
+          <FunnelRow funnel={usage.funnel} />
+          <div>
+            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Came back on day 1 / 7 / 30, by week of first open
+            </h3>
+            {usage.retention.length === 0 ? (
+              <p className="text-sm text-slate-500">No cohorts yet.</p>
+            ) : (
+              <AdminTable<AdminRetentionRow>
+                rows={usage.retention}
+                rowKey={(row) => row.cohort_week}
+                columns={[
+                  { label: "Week of", render: (row) => row.cohort_week.slice(0, 10) },
+                  { label: "New browsers", right: true, render: (row) => row.installs },
+                  {
+                    label: "Day 1",
+                    right: true,
+                    render: (row) => (row.mature_d1 ? percent(row.d1, row.installs) : "…"),
+                  },
+                  {
+                    label: "Day 7",
+                    right: true,
+                    render: (row) => (row.mature_d7 ? percent(row.d7, row.installs) : "…"),
+                  },
+                  {
+                    label: "Day 30",
+                    right: true,
+                    render: (row) => (row.mature_d30 ? percent(row.d30, row.installs) : "…"),
+                  },
+                ]}
+              />
+            )}
+            <p className="mt-1 text-[10px] text-slate-600">
+              … means the cohort hasn't reached that day yet.
+            </p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Weekly active mappers
+              </h3>
+              {usage.mappers.length === 0 ? (
+                <p className="text-sm text-slate-500">Nothing yet.</p>
+              ) : (
+                <AdminTable
+                  rows={usage.mappers}
+                  rowKey={(row) => row.week_start}
+                  columns={[
+                    { label: "Week of", render: (row) => row.week_start.slice(0, 10) },
+                    { label: "Mappers", right: true, render: (row) => row.mappers },
+                  ]}
+                />
+              )}
+            </div>
+            <div>
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Discord clicks, last 30 days
+              </h3>
+              {usage.discord.length === 0 ? (
+                <p className="text-sm text-slate-500">No clicks yet.</p>
+              ) : (
+                <AdminTable
+                  rows={usage.discord}
+                  rowKey={(row) => row.source}
+                  columns={[
+                    { label: "Where", render: (row) => row.source },
+                    { label: "Clicks", right: true, render: (row) => row.clicks },
+                  ]}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FunnelRow({ funnel }: { funnel: AdminFunnel | null }) {
+  const steps: Array<[string, number]> = funnel
+    ? [
+        ["Opened", funnel.opened],
+        ["Created a map", funnel.created],
+        ["Edited a map", funnel.edited],
+        ["Exported", funnel.exported],
+      ]
+    : [];
+  return (
+    <div>
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        New browsers in the last 30 days
+      </h3>
+      {!funnel || funnel.opened === 0 ? (
+        <p className="text-sm text-slate-500">No new browsers yet.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {steps.map(([label, count]) => (
+            <div key={label} className="rounded-lg bg-ink-700/50 px-3 py-2">
+              <div className="text-[11px] text-slate-500">{label}</div>
+              <div className="font-mono text-lg text-slate-100">{count}</div>
+              <div className="text-[11px] text-slate-400">{percent(count, funnel.opened)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -29,6 +29,7 @@ import { MENU_ACCENTS } from "../lib/menuTheme";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
 import { isDesktopApp } from "../lib/pwa";
 import { DISCORD_INVITE, siteUrl } from "../lib/siteAssets";
+import { trackDiscord } from "../lib/discordLink";
 import { DiscordIcon } from "./ui/Icons";
 import {
   DEFAULT_EDITOR_KEYBINDS,
@@ -732,6 +733,7 @@ export function StartScreen({
             href={DISCORD_INVITE}
             target="_blank"
             rel="noreferrer"
+            onClick={() => trackDiscord("start_screen")}
             aria-label={t("startModal.joinDiscord")}
             title={t("startModal.joinDiscord")}
             className="transition hover:text-[#5865F2]"

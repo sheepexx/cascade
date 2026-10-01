@@ -5,6 +5,7 @@ import { InstallOffer } from "./InstallOffer";
 import { SampleMapsIcon } from "../components/ui/StartIcons";
 import { Toast } from "../components/ui/Toast";
 import { activityLog, type ActivityInput } from "../lib/activityLog";
+import { openDiscord } from "../lib/discordLink";
 import type { DesktopUpdate } from "../lib/desktopUpdate";
 import { useT } from "../lib/i18n";
 import type { ProgressReport } from "../lib/progress";
@@ -303,6 +304,13 @@ export function AppToasts({
         title={exportIssues ? t("exportVerify.title", { target: exportIssues.target }) : null}
         message={issueSummary}
         details={issueDetails}
+        actions={[
+          {
+            label: t("discord.report"),
+            onClick: () => openDiscord("export_check"),
+            keepOpen: true,
+          },
+        ]}
         resetKey={exportIssues ? `${exportIssues.target}:${exportIssues.issues.length}` : null}
         onClose={seenExportIssues}
         onDismiss={() => setExportIssues(null)}

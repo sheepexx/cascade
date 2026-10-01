@@ -6,6 +6,7 @@ import type { AudioController } from "../hooks/useAudio";
 import type { Waveform } from "../hooks/useWaveform";
 import type { AuthUser } from "../lib/auth";
 import { canExitDesktop } from "../lib/desktopExit";
+import { openDiscord } from "../lib/discordLink";
 import { promptInstall } from "../lib/installPrompt";
 import { editorKeyLabel, type EditorKeybinds } from "../lib/editorKeybinds";
 import type { FeatureFlags } from "../lib/featureFlags";
@@ -430,6 +431,14 @@ export function buildPaletteCommands({
           },
         ]
       : []),
+    {
+      id: "discord",
+      label: t("startModal.joinDiscord"),
+      group: t("palette.group.cascade"),
+      aliases: ["discord", "community"],
+      keywords: "help chat support server",
+      run: () => openDiscord("palette"),
+    },
     {
       id: "feedback",
       label: t("app.sendFeedback"),

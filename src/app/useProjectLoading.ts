@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { SampleMap } from "../components/menus/StartModal";
-import { logAnalyticsEvent } from "../lib/analytics";
+import { logAnalyticsEvent, trackFunnel } from "../lib/analytics";
 import type { AuthUser } from "../lib/auth";
 import { snapshotBlobMap } from "../lib/blobSnapshot";
 import type { AccessRole } from "../lib/collab";
@@ -217,6 +217,7 @@ export function useProjectLoading({
     void logAnalyticsEvent("local_project_created", authUserRef.current?.id).catch(
       () => {},
     );
+    trackFunnel("created");
   }, [authUserRef]);
 
   const reportImportFailure = useCallback(

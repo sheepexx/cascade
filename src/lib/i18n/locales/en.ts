@@ -2422,4 +2422,12 @@ export const en = {
   "install.body": "It opens in its own window and can open .osz, .osu, .sm, .qua and .mc files straight from your file manager.",
   "install.install": "Install",
   "install.command": "Install Cascade as an app",
+  "crash.discordPrompt": "If it keeps happening, copy the details and",
+  "crash.discordLink": "report it on Discord",
+  "discord.report": "Report on Discord",
+  "feedback.noAccount": "No account? Tell us on Discord instead.",
+  "feedback.preferChat": "Prefer chatting?",
+  "settings.privacy": "Privacy",
+  "settings.usageStats": "Share anonymous usage statistics",
+  "settings.usageStatsHint": "Counts such as how many maps get exported or whether people come back after a week. No map content and no ID that links one count to another. Always off when your browser sends Do Not Track or Global Privacy Control.",
 } as const;

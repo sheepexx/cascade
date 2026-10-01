@@ -4,6 +4,8 @@ import { Button, Field } from "../ui/Controls";
 import { useAuth } from "../../lib/auth";
 import { submitFeedback } from "../../lib/feedback";
 import { useT } from "../../lib/i18n";
+import { trackDiscord } from "../../lib/discordLink";
+import { DISCORD_INVITE } from "../../lib/siteAssets";
 
 export function FeedbackModal({
   open,
@@ -69,9 +71,21 @@ export function FeedbackModal({
       }
     >
       {!user ? (
-        <p className="text-sm text-slate-400">
-          {t("feedback.signIn")}
-        </p>
+        <div className="flex flex-col gap-3 text-sm text-slate-400">
+          <p>{t("feedback.signIn")}</p>
+          <p>
+            {t("feedback.noAccount")}{" "}
+            <a
+              href={DISCORD_INVITE}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => trackDiscord("feedback")}
+              className="font-medium text-slate-200 underline decoration-ink-500 underline-offset-2 transition hover:text-white"
+            >
+              {t("startModal.joinDiscord")}
+            </a>
+          </p>
+        </div>
       ) : status === "done" ? (
         <p className="text-sm text-slate-300">{t("feedback.sent")}</p>
       ) : (
@@ -85,8 +99,20 @@ export function FeedbackModal({
               className="resize-none rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/10 outline-none transition focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
             />
           </Field>
-          <div className="text-right text-[11px] text-slate-500">
-            {body.length}/4000
+          <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500">
+            <span>
+              {t("feedback.preferChat")}{" "}
+              <a
+                href={DISCORD_INVITE}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => trackDiscord("feedback")}
+                className="font-medium text-slate-300 underline decoration-ink-500 underline-offset-2 transition hover:text-white"
+              >
+                {t("startModal.joinDiscord")}
+              </a>
+            </span>
+            <span>{body.length}/4000</span>
           </div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
         </div>

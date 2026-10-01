@@ -2318,4 +2318,12 @@ export const ptBR: PartialCatalog = {
   "install.body": "Ele abre na própria janela e pode abrir arquivos .osz, .osu, .sm, .qua e .mc direto do seu gerenciador de arquivos.",
   "install.install": "Instalar",
   "install.command": "Instalar o Cascade como app",
+  "crash.discordPrompt": "Se continuar acontecendo, copie os detalhes e",
+  "crash.discordLink": "relate no Discord",
+  "discord.report": "Relatar no Discord",
+  "feedback.noAccount": "Sem conta? Fale com a gente no Discord.",
+  "feedback.preferChat": "Prefere conversar?",
+  "settings.privacy": "Privacidade",
+  "settings.usageStats": "Compartilhar estatísticas de uso anônimas",
+  "settings.usageStatsHint": "Contagens como quantos mapas são exportados ou se as pessoas voltam depois de uma semana. Sem conteúdo de mapas e sem ID que ligue uma contagem a outra. Sempre desligado quando o navegador envia Do Not Track ou Global Privacy Control.",
 };

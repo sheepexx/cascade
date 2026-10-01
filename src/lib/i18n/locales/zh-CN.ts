@@ -2202,4 +2202,12 @@ export const zhCN: PartialCatalog = {
   "install.body": "它会在独立窗口中打开，并能直接从文件管理器打开 .osz、.osu、.sm、.qua 和 .mc 文件。",
   "install.install": "安装",
   "install.command": "将 Cascade 安装为应用",
+  "crash.discordPrompt": "如果问题反复出现，请复制详情并",
+  "crash.discordLink": "在 Discord 上报告",
+  "discord.report": "在 Discord 上报告",
+  "feedback.noAccount": "没有账号？可以在 Discord 上告诉我们。",
+  "feedback.preferChat": "更喜欢聊天？",
+  "settings.privacy": "隐私",
+  "settings.usageStats": "分享匿名使用统计",
+  "settings.usageStatsHint": "例如导出了多少谱面、用户一周后是否回来之类的计数。不包含谱面内容，也没有能把一条计数与另一条关联起来的 ID。浏览器发送“请勿跟踪”或“全球隐私控制”信号时始终关闭。",
 };

@@ -33,6 +33,7 @@ import {
   type BrowseSort,
 } from "../../lib/projectSearch";
 import { DISCORD_INVITE, siteAsset, siteUrl } from "../../lib/siteAssets";
+import { trackDiscord } from "../../lib/discordLink";
 import { MENU_ACCENTS } from "../../lib/menuTheme";
 import {
   ArchiveIcon,
@@ -552,6 +553,7 @@ export function WelcomeModal({
           href={DISCORD_INVITE}
           target="_blank"
           rel="noreferrer"
+          onClick={() => trackDiscord("start_modal")}
           className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-[#5865F2]/70 hover:bg-ink-700 hover:text-white"
         >
           <DiscordIcon className="h-5 w-5 text-[#5865F2]" />
