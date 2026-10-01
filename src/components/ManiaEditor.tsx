@@ -99,8 +99,6 @@ import {
   usePerformanceMode,
 } from "../lib/performanceMode";
 import { parallaxScale } from "../lib/interfaceFeel";
-import { useGhostNotes } from "../hooks/useGhostNotes";
-import { GhostNotesPanel } from "./GhostNotesPanel";
 import { PatternImageModal } from "./menus/PatternImageModal";
 import type { renderPatternCard } from "../lib/shareCard";
 
@@ -136,7 +134,6 @@ const PARALLAX_PX = 10;
 const PARALLAX_EASE = 7;
 
 type Props = {
-  audioBuffer?: AudioBuffer | null;
   patternTitle?: string;
   difficultyName?: string;
   notes: ManiaNote[];
@@ -247,8 +244,6 @@ type Props = {
   ) => void;
   /** Remappable notefield shortcuts; falls back to the defaults. */
   editorKeybinds?: EditorKeybinds;
-  ghostNotes?: boolean;
-  onGhostNotes?: (enabled: boolean) => void;
 };
 
 /**
@@ -493,18 +488,6 @@ export function ManiaEditor(props: Props) {
   const propsRef = useRef(props);
   propsRef.current = props;
   const [patternImage, setPatternImage] = useState<Parameters<typeof renderPatternCard>[0] | null>(null);
-  const review = useGhostNotes({
-    buffer: props.audioBuffer ?? null, notes: props.notes, timingPoints: props.timingPoints,
-    snapDivisor: props.view.snapDivisor, timeScale: props.timeScale ?? 1, keyCount: props.keyCount,
-    start: Math.max(0, props.trimStartMs ?? 0), end: Math.min(props.songEndMs || Infinity, props.trimEndMs ?? Infinity),
-    onAdd: props.onAddNotes,
-    enabled: !!props.ghostNotes, onEnabled: (on) => props.onGhostNotes?.(on),
-  });
-  useEffect(() => {
-    if (props.ghostNotes && !props.readOnly) canvasRef.current?.focus({ preventScroll: true });
-  }, [props.ghostNotes, props.readOnly]);
-  const reviewRef = useRef(review);
-  reviewRef.current = review;
   const openPatternImage = useCallback(() => {
     const p = propsRef.current;
     const notes = p.notes.filter(n => selectedNoteIdsRef.current.has(n.id));
@@ -1016,7 +999,6 @@ export function ManiaEditor(props: Props) {
         if (e.key === "Shift") setShift(false);
         return;
       }
-      if (!propsRef.current.readOnly && !dialogIsOpen() && e.target === canvasRef.current && reviewRef.current.onKey(e)) return;
       if (e.key === "Shift") setShift(true);
       const binds =
         propsRef.current.editorKeybinds ?? DEFAULT_EDITOR_KEYBINDS;
@@ -2406,21 +2388,6 @@ export function ManiaEditor(props: Props) {
       ctx.restore();
     }
 
-    if (!propsRef.current.playtestMode && !propsRef.current.readOnly) {
-      ctx.save();
-      ctx.setLineDash([4, 3]);
-      ctx.fillStyle = "rgba(94,234,212,0.16)";
-      ctx.strokeStyle = "rgba(94,234,212,0.6)";
-      ctx.lineWidth = 1;
-      for (const note of reviewRef.current.ghosts) {
-        const bounds = noteBounds(note, laneWidth, originX);
-        if (!bounds || bounds.y + bounds.h < 0 || bounds.y > height) continue;
-        const x = originX + note.column * laneWidth + 4;
-        ctx.fillRect(x, bounds.y, laneWidth - 8, bounds.h);
-        ctx.strokeRect(x, bounds.y, laneWidth - 8, bounds.h);
-      }
-      ctx.restore();
-    }
     const drag = dragRef.current;
     if (drag && !drag.resize) {
       const x = originX + drag.column * laneWidth;
@@ -2446,18 +2413,11 @@ export function ManiaEditor(props: Props) {
     ) {
       const col = columnAtX(mouseRef.current.x);
       if (col >= 0) {
-        const my = mouseRef.current.y;
-        const hover = reviewRef.current.ghosts.find((n) => {
-          if (n.column !== col) return false;
-          const b = noteBounds(n, laneWidth, originX);
-          return !!b && my >= b.y && my <= b.y + b.h;
-        });
-        const t = hover ? hover.startTime : yToTime(my);
-        const x = hover ? originX + col * laneWidth : mouseRef.current.x - laneWidth / 2;
-        const y = timeToY(t);
-        const ghost = skinCols[col]?.note ?? null;
-        if (ghost) {
-          drawSprite(ctx, ghost, x, y, laneWidth, up);
+        const x = mouseRef.current.x - laneWidth / 2;
+        const y = timeToY(yToTime(mouseRef.current.y));
+        const sprite = skinCols[col]?.note ?? null;
+        if (sprite) {
+          drawSprite(ctx, sprite, x, y, laneWidth, up);
         } else {
           ctx.fillStyle = noteColor(col);
           roundRect(ctx, x + 3, up ? y : y - defaultNoteHeight, laneWidth - 6, defaultNoteHeight, 4);
@@ -2594,26 +2554,6 @@ export function ManiaEditor(props: Props) {
 
   useEffect(markDirty);
 
-  const revealGhostsRef = useRef(false);
-  useEffect(() => {
-    revealGhostsRef.current = !!props.ghostNotes;
-  }, [props.ghostNotes]);
-  useEffect(() => {
-    const ghosts = review.ghosts;
-    if (!revealGhostsRef.current || !ghosts.length) return;
-    revealGhostsRef.current = false;
-    const p = propsRef.current;
-    if (p.isPlaying) return;
-    const a = yToTime(0);
-    const b = yToTime(sizeRef.current.height);
-    const lo = Math.min(a, b);
-    const hi = Math.max(a, b);
-    if (ghosts.some((n) => n.startTime >= lo && n.startTime <= hi)) return;
-    const now = p.getCurrentTime();
-    const next = ghosts.find((n) => n.startTime >= now) ?? ghosts[0];
-    p.onSeek(next.startTime);
-  }, [review.ghosts, yToTime]);
-
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -2691,17 +2631,6 @@ export function ManiaEditor(props: Props) {
       }
     }
     return null;
-  };
-
-  const findGhostAt = (x: number, y: number): ManiaNote | null => {
-    const col = columnAtX(x);
-    if (col < 0) return null;
-    const { laneWidth, originX } = laneGeometry();
-    return reviewRef.current.ghosts.find((n) => {
-      if (n.column !== col) return false;
-      const bounds = noteBounds(n, laneWidth, originX);
-      return !!bounds && y >= bounds.y && y <= bounds.y + bounds.h;
-    }) ?? null;
   };
 
   // The far end of a long note, which drags to lengthen or shorten it. The
@@ -2962,15 +2891,6 @@ export function ManiaEditor(props: Props) {
     }
 
     if (selectedNoteIdsRef.current.size) setSelection(new Set());
-    const ghost = findGhostAt(x, y);
-    if (ghost?.endTime !== undefined) {
-      propsRef.current.onAddNotes([{ id: uid("n"), column: ghost.column, startTime: ghost.startTime, endTime: ghost.endTime }]);
-      return;
-    }
-    if (ghost) {
-      dragRef.current = { column: ghost.column, startTime: ghost.startTime, currentTime: ghost.startTime };
-      return;
-    }
     const col = columnAtX(x);
     if (col < 0) return;
     const { timingPoints, view } = propsRef.current;
@@ -3143,11 +3063,7 @@ export function ManiaEditor(props: Props) {
     if (props.playtestMode || props.readOnly) return;
     const { x, y } = localPoint(e);
     const note = findNoteAt(x, y);
-    if (!note) {
-      const ghost = findGhostAt(x, y);
-      if (ghost) reviewRef.current.dismiss(ghost.id);
-      return;
-    }
+    if (!note) return;
 
     if (selectedNoteIdsRef.current.has(note.id)) {
       deleteSelection();
@@ -3465,7 +3381,6 @@ export function ManiaEditor(props: Props) {
         onDrop={onClipDrop}
       />
       {patternImage && <PatternImageModal info={patternImage} onClose={() => { setPatternImage(null); canvasRef.current?.focus(); }} />}
-      {review.enabled && !props.playtestMode && !props.readOnly && <GhostNotesPanel review={review} hasAudio={!!props.audioBuffer} focusEditor={() => canvasRef.current?.focus()} />}
       {!props.playtestMode && clipboardStatus && (
         <div role="status" className="pointer-events-none absolute bottom-14 left-3 right-3 z-20 mx-auto w-fit max-w-md rounded-md border border-ink-600 bg-ink-900/95 px-3 py-2 text-xs text-slate-200 shadow-lg">
           {clipboardStatus}

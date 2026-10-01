@@ -30,7 +30,7 @@ Mapping needs a keyboard and a mouse. On a phone, Cascade shows an overview page
 | [Playtest](#playtest) | Play the chart you are editing with F5, using osu!mania judgements, UR and a hit error bar |
 | [Timing and audio](#timing-and-audio) | Red and green points, tap tempo, BPM detection, metronome, offset calibration |
 | [Scroll velocity](#scroll-velocity) | Constant, curve and stutter SV with a preview before you apply |
-| [Checks and mapping tools](#checks-and-mapping-tools) | AiMod report, export validation, resnapping, note suggestions, pattern presets |
+| [Checks and mapping tools](#checks-and-mapping-tools) | AiMod report, export validation, resnapping, pattern presets |
 | [Map Card](#map-card) | A shareable image of a difficulty's stats and MSD skillsets, with a direct link for osu! descriptions |
 | [Import and export](#import-export-and-pack-creator) | osu!mania, StepMania, Etterna, Quaver and Malody formats, osu! links, Pack Creator |
 | [Accounts and collaboration](#accounts-cloud-collaboration-and-sharing) | osu! login, cloud projects, realtime collaboration, comments, public share links |
@@ -202,7 +202,6 @@ Before an export, Cascade lists errors that block it and warnings you can ignore
 ### Tools menu
 
 - **Map Card** makes a shareable image of the difficulty. See [Map Card](#map-card).
-- **Note suggestions** (experimental): analyzes the song and shows dashed notes on the snap grid where the music hits. Placement is guided by a bundled pattern model. Click a suggestion to place it, right-click to dismiss it, or place them all as a rough first draft.
 - **Full LN** turns every note into a long note that ends a set number of ticks before the next note in its column.
 - **Full RC** turns every long note back into a rice note.
 - **Crop to brackets** deletes notes outside the trim brackets and shortens holds that run past the end.
@@ -397,7 +396,7 @@ Cascade is a static single-page app with a small backend around it.
 | `worker` | Cloudflare Worker, with its own `package.json` |
 | `supabase/migrations` | Database schema, row-level security and Realtime setup |
 | `public` | Static landing pages, the download page, sample maps and hitsounds |
-| `scripts` | Build scripts, including `npm run build:corpus` and `npm run build:model` for the pattern data used by AiMod and note suggestions |
+| `scripts` | Build scripts, including `npm run build:corpus` for the ranked-map pattern data AiMod compares against |
 
 ## Credits
 

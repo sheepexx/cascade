@@ -2,10 +2,10 @@ import type { ManiaNote } from "../types";
 
 export type NoteRow = { time: number; mask: number; notes: ManiaNote[] };
 
-export const CHORD_TOLERANCE_MS = 10;
-export const REPEAT_LOOKBACK = 8;
-export const REPEAT_MAX_PERIOD = 16;
-export const ROLL_MIN_STEPS = 8;
+const CHORD_TOLERANCE_MS = 10;
+const REPEAT_LOOKBACK = 8;
+const REPEAT_MAX_PERIOD = 16;
+const ROLL_MIN_STEPS = 8;
 
 export function toRows(notes: ManiaNote[], keyCount: number): NoteRow[] {
   const sorted = notes
@@ -22,7 +22,7 @@ export function toRows(notes: ManiaNote[], keyCount: number): NoteRow[] {
   return rows;
 }
 
-export function repeatPeriod(masks: ArrayLike<number>, end: number): number {
+function repeatPeriod(masks: ArrayLike<number>, end: number): number {
   for (let p = 1; p <= REPEAT_MAX_PERIOD; p++) {
     if (end - (REPEAT_LOOKBACK - 1) - p < 0) return 0;
     let k = 0;
@@ -32,19 +32,11 @@ export function repeatPeriod(masks: ArrayLike<number>, end: number): number {
   return 0;
 }
 
-export function rollStep(prev: number, next: number, keyCount: number): number {
+function rollStep(prev: number, next: number, keyCount: number): number {
   if (!prev || !next || prev & (prev - 1) || next & (next - 1)) return 0;
   const d = (Math.log2(next) - Math.log2(prev) + keyCount) % keyCount;
   if (d === 0 || d * 2 === keyCount) return 0;
   return d * 2 < keyCount ? 1 : -1;
-}
-
-export function rollLengthAt(masks: ArrayLike<number>, end: number, keyCount: number): number {
-  const dir = end > 0 ? rollStep(masks[end - 1], masks[end], keyCount) : 0;
-  if (!dir) return 0;
-  let length = 1;
-  while (end - length > 0 && rollStep(masks[end - length - 1], masks[end - length], keyCount) === dir) length++;
-  return length;
 }
 
 export type MonotoneRun = { from: number; to: number; kind: "repeat" | "roll"; period: number };

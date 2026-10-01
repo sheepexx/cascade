@@ -7102,12 +7102,6 @@ export default function App() {
     (column: number) => setLaneFlash({ column, at: performance.now() }),
     [],
   );
-  const [ghostNotesFor, setGhostNotesFor] = useState<string | null>(null);
-  const ghostNotes = ghostNotesFor === active.id;
-  const setGhostNotes = useCallback(
-    (on: boolean) => setGhostNotesFor(on ? activeIdRef.current : null),
-    [],
-  );
 
   const cropInfo = useMemo(() => {
     const start = active.trimStartMs ?? 0;
@@ -7258,7 +7252,7 @@ export default function App() {
             : []),
           { id: "difficulty", label: t("nav.difficulty"), group: t("palette.group.editor"), keywords: "keys od hp", run: () => setModal("difficulty") },
           { id: "add-difficulty", label: t("app.addDifficulty"), group: t("palette.group.editor"), keywords: "new diff", disabled: !canEdit, run: addDifficulty },
-          { id: "tools", label: t("nav.tools"), group: t("palette.group.editor"), keywords: "ghost notes full ln rice crop", run: () => setModal("tools") },
+          { id: "tools", label: t("nav.tools"), group: t("palette.group.editor"), keywords: "full ln rice crop", run: () => setModal("tools") },
           { id: "map-card", label: t("file.mapCard"), group: t("palette.group.export"), keywords: "image png share description msd skillsets bbcode discord", run: () => openMapCard() },
           { id: "aimod", label: t("nav.aiMod"), group: t("palette.group.editor"), keywords: "check validation", run: openAiMod },
           ...(appSettings.showPatternTools
@@ -7312,14 +7306,6 @@ export default function App() {
             label: appSettings.showWaveform ? t("app.hideWaveform") : t("app.showWaveform"),
             group: t("palette.group.view"),
             run: toggleWaveformOverlay,
-          },
-          {
-            id: "ghost-notes",
-            label: ghostNotes ? t("app.hideGhostNotes") : t("app.showGhostNotes"),
-            group: t("palette.group.editor"),
-            keywords: "assist suggested notes",
-            disabled: !waveform?.buffer || !canEdit,
-            run: () => setGhostNotes(!ghostNotes),
           },
           {
             id: "auto-time",
@@ -8047,7 +8033,6 @@ export default function App() {
                 snapColours={appSettings.snapColouredNotes}
                 laneFlash={laneFlash}
                 key={active.id}
-                audioBuffer={waveform?.buffer ?? null}
                 patternTitle={displaySong(meta, preferOriginalMetadata, " – ")}
                 difficultyName={active.name}
                 notes={active.notes}
@@ -8132,8 +8117,6 @@ export default function App() {
                 songEndMs={audio.duration}
                 trimStartMs={active.trimStartMs}
                 trimEndMs={active.trimEndMs}
-                ghostNotes={ghostNotes}
-                onGhostNotes={setGhostNotes}
               />
             ) : sharedSlug ? (
               <SharedMapPage
@@ -8944,10 +8927,6 @@ export default function App() {
           cropRemoveCount={cropInfo.remove}
           cropClampCount={cropInfo.clamp}
           onCropToBrackets={applyCropToBrackets}
-          ghostNotesActive={ghostNotes}
-          ghostNotesReady={!!waveform?.buffer}
-          ghostNotesAllowed={canEdit}
-          onGhostNotes={setGhostNotes}
           onMapCard={() => openMapCard()}
         />
       )}

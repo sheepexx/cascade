@@ -28,10 +28,6 @@ type Props = {
   cropRemoveCount: number;
   cropClampCount: number;
   onCropToBrackets: () => void;
-  ghostNotesActive: boolean;
-  ghostNotesReady: boolean;
-  ghostNotesAllowed: boolean;
-  onGhostNotes: (enabled: boolean) => void;
   onMapCard: () => void;
 };
 
@@ -86,10 +82,6 @@ export function ToolsModal({
   cropRemoveCount,
   cropClampCount,
   onCropToBrackets,
-  ghostNotesActive,
-  ghostNotesReady,
-  ghostNotesAllowed,
-  onGhostNotes,
   onMapCard,
 }: Props) {
   const t = useT();
@@ -119,36 +111,6 @@ export function ToolsModal({
             <Button variant="accent" onClick={onMapCard}>
               {t("mapCard.create")}
             </Button>
-          </ToolCard>
-
-          <ToolCard
-            title={t("tools.ghostTitle")}
-            image="ghostNotes"
-            info={t("tools.ghostInfo")}
-            status={
-              !ghostNotesAllowed
-                ? t("tools.ghostNoAccess")
-                : !ghostNotesReady
-                  ? t("tools.ghostNoAudio")
-                  : ghostNotesActive
-                    ? t("tools.ghostShowing")
-                    : t("tools.ghostIdle")
-            }
-          >
-            {ghostNotesActive ? (
-              <Button onClick={() => onGhostNotes(false)}>{t("tools.hideSuggestions")}</Button>
-            ) : (
-              <Button
-                variant="accent"
-                disabled={!ghostNotesReady || !ghostNotesAllowed}
-                onClick={() => {
-                  onGhostNotes(true);
-                  onClose();
-                }}
-              >
-                {t("tools.showSuggestions")}
-              </Button>
-            )}
           </ToolCard>
 
           <ToolCard

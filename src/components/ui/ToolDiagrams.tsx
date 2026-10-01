@@ -16,10 +16,9 @@ const NOTE_ALT = "#5bc0ff";
 const ACCENT = "#e86868";
 const MUTED = "#6b7180";
 const WELL = "#0d0d14";
-const GHOST = "#5eead4";
-const GHOST_FOCUS = "#99f6e4";
+const TEAL = "#5eead4";
 
-export type ToolDiagramName = "ghostNotes" | "fullLn" | "fullRc" | "crop" | "mapCard";
+export type ToolDiagramName = "fullLn" | "fullRc" | "crop" | "mapCard";
 
 type Note = { lane: number; y: number; end?: number };
 
@@ -175,102 +174,6 @@ const CROP_CUT: Note[] = [
   { lane: 3, y: 11 },
 ];
 
-const GHOST_LANE = 14;
-const GHOST_FIELD = 18;
-const WAVE_X = 110;
-const PEAKS = [
-  { y: 52, s: 15, lane: 0, ghost: false },
-  { y: 41, s: 9, lane: 1, ghost: true },
-  { y: 30, s: 18, lane: 2, ghost: false },
-  { y: 19, s: 11, lane: 3, ghost: true },
-  { y: 10, s: 7, lane: 0, ghost: true },
-];
-
-function amplitude(y: number): number {
-  let a = 1.2;
-  for (const p of PEAKS) {
-    const d = p.y - y;
-    a += p.s * (d >= 0 ? Math.exp(-d / 5) : Math.exp(d / 1.2));
-  }
-  return Math.min(a, 22);
-}
-
-const WAVE = (() => {
-  const front: string[] = [];
-  const back: string[] = [];
-  for (let y = TOP; y <= BOTTOM; y++) {
-    const a = amplitude(y);
-    front.push(`${(WAVE_X + a).toFixed(1)},${y}`);
-    back.push(`${(WAVE_X - a).toFixed(1)},${y}`);
-  }
-  return `M${front.join(" L")} L${back.reverse().join(" L")} Z`;
-})();
-
-function Cursor({ x, y }: { x: number; y: number }) {
-  return (
-    <polygon
-      transform={"translate(" + x + " " + y + ")"}
-      points="0,0 0,9 2.4,6.8 4.2,10.5 5.8,9.8 4,6.2 7,6.2"
-      fill={NOTE}
-      stroke={WELL}
-      strokeWidth={0.8}
-      strokeLinejoin="round"
-    />
-  );
-}
-
-function GhostNotesDiagram() {
-  const w = GHOST_LANE - 3;
-  const fieldRight = GHOST_FIELD + GHOST_LANE * 4;
-  return (
-    <Frame>
-      <Field x={GHOST_FIELD} lane={GHOST_LANE} />
-      <path d={WAVE} fill={MUTED} opacity={0.6} />
-      {PEAKS.filter((p) => p.ghost).map((p) => (
-        <line
-          key={p.y}
-          x1={fieldRight + 2}
-          y1={p.y}
-          x2={WAVE_X - amplitude(p.y) - 2}
-          y2={p.y}
-          stroke={GHOST}
-          strokeOpacity={0.45}
-          strokeWidth={0.8}
-          strokeDasharray="1.5 2"
-        />
-      ))}
-      <Notes
-        x={GHOST_FIELD}
-        lane={GHOST_LANE}
-        notes={PEAKS.filter((p) => !p.ghost).map((p) => ({ lane: p.lane, y: p.y - 2 }))}
-      />
-      {PEAKS.filter((p) => p.ghost).map((p, i) => {
-        const focused = i === 0;
-        return (
-          <rect
-            key={p.y}
-            x={GHOST_FIELD + p.lane * GHOST_LANE + 1.5}
-            y={p.y - 2}
-            width={w}
-            height={4}
-            rx={1.5}
-            fill={GHOST}
-            fillOpacity={focused ? 0.38 : 0.12}
-            stroke={focused ? GHOST_FOCUS : GHOST}
-            strokeOpacity={focused ? 1 : 0.6}
-            strokeWidth={0.8}
-            strokeDasharray="2 1.5"
-          />
-        );
-      })}
-      <Cursor
-        x={GHOST_FIELD + PEAKS[1].lane * GHOST_LANE + w - 1}
-        y={PEAKS[1].y}
-      />
-    </Frame>
-  );
-}
-
 const CARD_X = 28;
 const CARD_Y = 6;
 const CARD_W = 92;
@@ -280,7 +183,7 @@ const CARD_SKILLS = [
   { width: 0.92, color: "#ff9d5c" },
   { width: 0.7, color: NOTE_ALT },
   { width: 0.82, color: ACCENT },
-  { width: 0.48, color: GHOST },
+  { width: 0.48, color: TEAL },
 ];
 
 function MapCardDiagram() {
@@ -339,8 +242,6 @@ export function ToolDiagram({ name }: { name: ToolDiagramName }) {
   switch (name) {
     case "mapCard":
       return <MapCardDiagram />;
-    case "ghostNotes":
-      return <GhostNotesDiagram />;
     case "fullLn":
       return (
         <Frame>
