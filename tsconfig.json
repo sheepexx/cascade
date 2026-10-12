@@ -5,6 +5,9 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    // Node's types belong to the integration tests' own config; the editor
+    // runs in a browser and should not see Node globals.
+    "types": [],
 
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

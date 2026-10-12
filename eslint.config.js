@@ -5,7 +5,23 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "public", "skin", "worker", "scripts"] },
+  { ignores: ["dist", "node_modules", "public", "skin", "worker", "scripts", "tests/integration/.results"] },
+  {
+    // The integration suite: Node for the backend and Playwright specs, a
+    // browser for the harness page.
+    files: ["tests/**/*.{ts,tsx}"],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: { ...globals.browser, ...globals.node },
+    },
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "no-empty": ["error", { allowEmptyCatch: true }],
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
   {
     files: ["src/**/*.{ts,tsx}"],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

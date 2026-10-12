@@ -45,7 +45,12 @@ npm run lint
 npm test
 npm run build
 npm run typecheck --prefix worker
+npm run test:integration
 ```
+
+`npm run test:integration` runs the workflows unit tests can't reach (see
+below). The first time, install its browser with
+`npx playwright install chromium`.
 
 and, if you touched `src-tauri`:
 
@@ -68,6 +73,31 @@ Please also:
   and 100k-note charts; compare before and after.
 - **Try it in the browser.** Open a map, place and undo notes, play, playtest
   and export. Type checks don't catch a broken dialog.
+
+## Integration tests
+
+`tests/integration` checks whole workflows rather than single functions:
+
+- `db/` applies every migration in `supabase/migrations` to a real Postgres
+  ([PGlite](https://pglite.dev), in-process, no Docker) and calls the
+  database functions as owners, editors, viewers and strangers, under the
+  real row-level security.
+- `browser/` opens the editor's collaboration pipeline (the live session,
+  undo history and cloud save hooks App uses) in separate Playwright browser
+  contexts, one per collaborator. `browser/backend.ts` stands in for
+  Supabase on top of the same PGlite database: requests run as the signed-in
+  user, and Realtime joins and broadcasts are checked against the
+  `realtime.messages` policies. Tests can hold back, reorder or drop what a
+  window receives to play out delays and reconnects.
+
+What they don't cover: the backend speaks a reduced protocol to a stand-in
+client (`browser/fakeSupabase.ts`), not supabase-js to the real Supabase
+services, and the harness page doesn't draw the editor's canvas or play
+audio. Changes to supabase-js usage or the Realtime setup still need a try
+against a real project.
+
+When you change saving, collaboration or a migration, add a scenario there.
+New migrations are picked up automatically.
 
 ## Import and export changes
 
