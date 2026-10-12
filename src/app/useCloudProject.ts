@@ -4,10 +4,12 @@ import { logAnalyticsEvent } from "../lib/analytics";
 import type { AuthUser } from "../lib/auth";
 import type { DuplicateProjectMatch } from "../lib/cloud";
 import {
+  fetchProjectRevision,
   findDuplicateProjectsCloud,
   loadProjectCloud,
   saveProjectCloud,
 } from "../lib/cloud";
+import { normalizedChart, type CloudSync } from "../lib/cloudSync";
 import type { AccessRole } from "../lib/collab";
 import { myAccess } from "../lib/collab";
 import type { SampleFile } from "../lib/mapSamples";
@@ -29,6 +31,9 @@ import { decodeJwtClaims } from "./appUtils";
 /**
  * Saving the open map to the cloud and opening a cloud map. A first save
  * looks for a cloud map of the same song first, so it isn't uploaded twice.
+ * Saving over a cloud map always names the revision being replaced: the open
+ * map's goes through the session's CloudSync like its autosaves, and a map
+ * chosen to overwrite is checked at the revision it has just before.
  */
 export function useCloudProject({
   activeId,
@@ -39,8 +44,7 @@ export function useCloudProject({
   bgFiles,
   bgScope,
   cloudProjectId,
-  cloudRevisionRef,
-  cloudSavePromiseRef,
+  cloudSync,
   difficulties,
   localEditVersionRef,
   localProjectId,
@@ -48,7 +52,6 @@ export function useCloudProject({
   meta,
   opRedoRef,
   opUndoRef,
-  ownMutationIdsRef,
   pendingDocSyncRef,
   pendingSeekRef,
   publishedAssetBlobsRef,
@@ -75,8 +78,7 @@ export function useCloudProject({
   bgFiles: Record<string, LoadedFile>;
   bgScope: BackgroundScope;
   cloudProjectId: string | null;
-  cloudRevisionRef: MutableRefObject<number | null>;
-  cloudSavePromiseRef: MutableRefObject<Promise<void>>;
+  cloudSync: CloudSync;
   difficulties: Difficulty[];
   localEditVersionRef: MutableRefObject<number>;
   localProjectId: string;
@@ -84,7 +86,6 @@ export function useCloudProject({
   meta: SongMeta;
   opRedoRef: MutableRefObject<NoteOp[]>;
   opUndoRef: MutableRefObject<NoteOp[]>;
-  ownMutationIdsRef: MutableRefObject<Set<string>>;
   pendingDocSyncRef: MutableRefObject<boolean>;
   pendingSeekRef: MutableRefObject<number | null>;
   publishedAssetBlobsRef: MutableRefObject<Map<string, Blob>>;
@@ -137,7 +138,6 @@ export function useCloudProject({
 
     const recoveryToken = recoverySaveToken();
     try {
-      await cloudSavePromiseRef.current.catch(() => {});
       const targetId = cloudProjectId ?? overwriteId ?? null;
       const creatingProject = !targetId;
       const data = { meta, timingPoints, difficulties, activeId, view, bgScope };
@@ -149,12 +149,7 @@ export function useCloudProject({
           return;
         }
       }
-      const mutationId = crypto.randomUUID();
-      if (!creatingProject) ownMutationIdsRef.current.add(mutationId);
-      const id = await saveProjectCloud({
-        ownerId: authUser.id,
-        projectId: targetId,
-        data,
+      const assets = {
         audioFiles: Object.values(audioFiles).map((f) => ({
           name: f.name,
           blob: f.blob,
@@ -164,8 +159,43 @@ export function useCloudProject({
           blob: f.blob,
         })),
         sampleFiles: Object.values(sampleFiles),
-        mutationId,
-      });
+      };
+      let id: string;
+      if (cloudProjectId) {
+        // The open cloud map: in turn with its autosaves, against the
+        // revision this copy is based on, merging a newer save if needed.
+        await cloudSync.save(
+          async (saveData, expectedRevision, mutationId) => {
+            const saved = await saveProjectCloud({
+              ownerId: authUser.id,
+              projectId: cloudProjectId,
+              data: saveData,
+              ...assets,
+              mutationId,
+              expectedRevision,
+            });
+            return { revision: saved.revision, mutationId, updatedBy: authUser.id };
+          },
+          { force: true },
+        );
+        if (cloudSync.isSaved(localEditVersionRef.current)) pendingDocSyncRef.current = false;
+        id = cloudProjectId;
+      } else {
+        // A new map, or one the user chose to overwrite with this copy: the
+        // overwrite still names the revision it replaces, so a save someone
+        // makes in between isn't lost.
+        const expectedRevision = targetId ? await fetchProjectRevision(targetId) : null;
+        const editVersion = localEditVersionRef.current;
+        const saved = await saveProjectCloud({
+          ownerId: authUser.id,
+          projectId: targetId,
+          data,
+          ...assets,
+          expectedRevision,
+        });
+        id = saved.id;
+        cloudSync.reset(normalizedChart(data), saved.revision, editVersion);
+      }
       publishedAssetBlobsRef.current = new Map([
         ...Object.values(audioFiles).map(
           (f) => [`audio:${f.name}`, f.blob] as const,
@@ -223,8 +253,9 @@ export function useCloudProject({
     setCloudOwnerId,
     setCloudProjectId,
     setMyRole,
-    cloudSavePromiseRef,
-    ownMutationIdsRef,
+    cloudSync,
+    localEditVersionRef,
+    pendingDocSyncRef,
     publishedAssetBlobsRef,
     authUser,
     refreshAuth,
@@ -248,8 +279,8 @@ export function useCloudProject({
     setModal(null);
     setImportingMap(true);
     pendingDocSyncRef.current = false;
-    cloudRevisionRef.current = null;
-    ownMutationIdsRef.current.clear();
+    // Drops any save or merge still queued for the map being closed.
+    cloudSync.reset(null, null);
     localEditVersionRef.current = 0;
     try {
       const proj = await loadProjectCloud(id);
@@ -286,6 +317,9 @@ export function useCloudProject({
       });
       if (d.view) setView({ ...DEFAULT_VIEW, ...d.view });
       setBgScope(d.bgScope ?? "mapset");
+      // The copy the editor now holds, and the revision it is: every save
+      // from here is checked against it.
+      cloudSync.reset(normalizedChart(d), proj.revision, localEditVersionRef.current);
       // After replaceProject, which clears the cloud link for a plain import.
       setCloudProjectId(proj.id);
       setCloudOwnerId(proj.owner);
@@ -309,7 +343,7 @@ export function useCloudProject({
     } finally {
       setImportingMap(false);
     }
-  }, [assetAttemptsRef, cloudRevisionRef, localEditVersionRef, opRedoRef, opUndoRef, ownMutationIdsRef, pendingDocSyncRef, pendingSeekRef, publishedAssetBlobsRef, replaceProject, authUserRef, setBgScope, setCloudError, setCloudOwnerId, setCloudProjectId, setImportingMap, setModal, setMyRole, setView]);
+  }, [assetAttemptsRef, cloudSync, localEditVersionRef, opRedoRef, opUndoRef, pendingDocSyncRef, pendingSeekRef, publishedAssetBlobsRef, replaceProject, authUserRef, setBgScope, setCloudError, setCloudOwnerId, setCloudProjectId, setImportingMap, setModal, setMyRole, setView]);
 
   return {
     cloudSaveStatus,

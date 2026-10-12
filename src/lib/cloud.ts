@@ -77,9 +77,46 @@ type SaveParams = {
   bgFiles: CloudAsset[];
   sampleFiles?: CloudAsset[];
   mutationId?: string;
+  /**
+   * The revision the saved chart was edited from. Required to save over an
+   * existing project: the database refuses the save if anyone saved since.
+   */
+  expectedRevision?: number | null;
 };
 
-export async function saveProjectCloud(params: SaveParams): Promise<string> {
+/**
+ * A save was refused because someone else saved the project after the
+ * revision this copy was edited from. Nothing was written; the caller
+ * merges with the newer snapshot and saves again.
+ */
+export class RevisionConflictError extends Error {
+  constructor() {
+    super(t("cloud.revisionConflict"));
+    this.name = "RevisionConflictError";
+  }
+}
+
+type RpcError = { code?: string; message: string };
+
+function isRevisionConflict(error: RpcError): boolean {
+  return error.code === "PT409" || /project revision conflict/i.test(error.message);
+}
+
+function isMissingFunction(error: RpcError, name: string): boolean {
+  return (
+    error.code === "PGRST202" ||
+    new RegExp(`could not find (?:the )?function .*${name}`, "i").test(error.message)
+  );
+}
+
+function requireRevision(projectId: string, revision: number | null | undefined): number {
+  if (typeof revision === "number" && Number.isInteger(revision)) return revision;
+  throw new Error(t("cloud.revisionUnknown", { id: projectId }));
+}
+
+export type SavedCloudProject = { id: string; revision: number | null };
+
+export async function saveProjectCloud(params: SaveParams): Promise<SavedCloudProject> {
   try {
     return await saveProjectCloudOnce(params);
   } catch (err) {
@@ -92,9 +129,12 @@ export async function saveProjectCloud(params: SaveParams): Promise<string> {
   }
 }
 
-async function saveProjectCloudOnce(params: SaveParams): Promise<string> {
+async function saveProjectCloudOnce(params: SaveParams): Promise<SavedCloudProject> {
   const supabase = await getSupabase();
   const { ownerId, projectId, audioFiles, bgFiles, sampleFiles = [] } = params;
+  // Checked before anything uploads, so a save that could overwrite newer
+  // work never starts.
+  const expectedRevision = projectId ? requireRevision(projectId, params.expectedRevision) : null;
   const data = cloudSafeProjectData(params.data);
   const mutationId = params.mutationId ?? crypto.randomUUID();
 
@@ -151,6 +191,7 @@ async function saveProjectCloudOnce(params: SaveParams): Promise<string> {
   }
 
   const uploadedPaths: string[] = [];
+  let revision: number | null = null;
   try {
     const assetRows: {
       project_id: string;
@@ -176,30 +217,35 @@ async function saveProjectCloudOnce(params: SaveParams): Promise<string> {
     }
 
     let obsolete: { obsolete_path: string | null }[] | null = null;
-    if (projectId) {
+    if (projectId && expectedRevision !== null) {
       const combined = await supabase.rpc("save_project_with_assets", {
         p_project: id,
         p_assets: assetRows,
         p_data: data,
         p_mutation_id: mutationId,
+        p_expected_revision: expectedRevision,
       });
+      if (combined.error && isRevisionConflict(combined.error)) throw new RevisionConflictError();
       const missingCombined =
-        combined.error?.code === "PGRST202" ||
-        (combined.error &&
-          /could not find (?:the )?function .*save_project_with_assets/i.test(
-            combined.error.message,
-          ));
+        !!combined.error && isMissingFunction(combined.error, "save_project_with_assets");
       if (combined.error && !missingCombined) throw new Error(combined.error.message);
       if (missingCombined) {
+        // Rolling-deploy compatibility, before migration 0038: the manifest
+        // and the chart can't switch together, so the revision is checked
+        // first and again by the guarded chart save.
+        const current = await fetchProjectRevision(id);
+        if (current !== expectedRevision) throw new RevisionConflictError();
         const replaced = await supabase.rpc("replace_project_assets", {
           p_project: id,
           p_assets: assetRows,
         });
         if (replaced.error) throw new Error(replaced.error.message);
         obsolete = replaced.data as { obsolete_path: string | null }[] | null;
-        await saveProjectDataCloud(id, data, mutationId);
+        revision = (await saveProjectDataCloud(id, data, mutationId, expectedRevision)).revision;
       } else {
-        obsolete = combined.data as { obsolete_path: string | null }[] | null;
+        const rows = combined.data as { obsolete_path: string | null; revision?: number | string }[] | null;
+        obsolete = rows;
+        revision = rows?.[0]?.revision == null ? null : Number(rows[0].revision);
       }
     } else {
       const replaced = await supabase.rpc("replace_project_assets", {
@@ -227,14 +273,35 @@ async function saveProjectCloudOnce(params: SaveParams): Promise<string> {
     throw err;
   }
 
-  return id;
+  return { id, revision };
 }
 
+type SavedRow = {
+  revision?: number | string;
+  last_mutation_id?: string | null;
+  updated_by?: string | null;
+};
+
+function stampOf(row: SavedRow | undefined, mutationId: string): CloudSyncStamp {
+  return {
+    revision: row?.revision == null ? null : Number(row.revision),
+    mutationId: row?.last_mutation_id ?? mutationId,
+    updatedBy: row?.updated_by ?? null,
+  };
+}
+
+/**
+ * Saves the chart over the cloud copy, if the cloud copy is still at
+ * `expectedRevision`; otherwise throws RevisionConflictError and writes
+ * nothing.
+ */
 export async function saveProjectDataCloud(
   projectId: string,
   data: CloudProjectData,
-  mutationId: string = crypto.randomUUID(),
+  mutationId: string,
+  expectedRevision: number | null,
 ): Promise<CloudSyncStamp> {
+  const expected = requireRevision(projectId, expectedRevision);
   const supabase = await getSupabase();
   const safeData = cloudSafeProjectData(data);
   const { data: saved, error: rpcError } = await supabase.rpc(
@@ -243,38 +310,56 @@ export async function saveProjectDataCloud(
       p_project: projectId,
       p_data: safeData,
       p_mutation_id: mutationId,
+      p_expected_revision: expected,
     },
   );
-  if (!rpcError) {
-    const row = (saved as unknown as {
-      revision?: number | string;
-      last_mutation_id?: string;
-      updated_by?: string | null;
-    }[] | null)?.[0];
-    return {
-      revision: row?.revision == null ? null : Number(row.revision),
-      mutationId: row?.last_mutation_id ?? mutationId,
-      updatedBy: row?.updated_by ?? null,
-    };
-  }
+  if (!rpcError) return stampOf((saved as unknown as SavedRow[] | null)?.[0], mutationId);
+  if (isRevisionConflict(rpcError)) throw new RevisionConflictError();
+  if (!isMissingFunction(rpcError, "save_project_snapshot")) throw new Error(rpcError.message);
 
-  // Rolling-deploy compatibility: old databases can keep saving until migration
-  // 0033 is applied. Other RPC failures must not be hidden by a direct update.
-  const missingRpc =
-    rpcError.code === "PGRST202" ||
-    /could not find (?:the )?function .*save_project_snapshot/i.test(rpcError.message);
-  if (!missingRpc) throw new Error(rpcError.message);
-  const { error } = await supabase
+  // Rolling-deploy compatibility, before migration 0038: the same check as an
+  // update that only matches the revision this copy was edited from. A row it
+  // doesn't match was saved by someone else since (or is hidden from this
+  // user), so nothing is written either way.
+  const { data: rows, error } = await supabase
     .from("projects")
     .update({
       title: safeData.meta.title,
       artist: safeData.meta.artist,
       creator: safeData.meta.creator,
       data: safeData,
+      last_mutation_id: mutationId,
     })
-    .eq("id", projectId);
-  if (error) throw new Error(error.message);
-  return { revision: null, mutationId, updatedBy: null };
+    .eq("id", projectId)
+    .eq("revision", expected)
+    .select("revision,last_mutation_id,updated_by");
+  if (error) {
+    if (error.code === "42703" || /revision/i.test(error.message)) {
+      throw new Error(t("cloud.databaseTooOld"));
+    }
+    throw new Error(error.message);
+  }
+  const row = (rows as SavedRow[] | null)?.[0];
+  if (!row) throw new RevisionConflictError();
+  return stampOf(row, mutationId);
+}
+
+/** The cloud copy's current revision, without downloading the chart. */
+export async function fetchProjectRevision(id: string): Promise<number | null> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("revision")
+    .eq("id", id)
+    .single();
+  if (error) {
+    if (error.code === "42703" || /revision/i.test(error.message)) {
+      throw new Error(t("cloud.databaseTooOld"));
+    }
+    throw new Error(error.message);
+  }
+  const revision = (data as { revision?: number | string } | null)?.revision;
+  return revision == null ? null : Number(revision);
 }
 
 export type CloudChartSnapshot = CloudSyncStamp & { data: CloudProjectData };
@@ -433,6 +518,8 @@ export async function signedThumbUrls(
 export type LoadedCloudProject = {
   id: string;
   owner: string;
+  /** The revision `data` is; null on a database from before migration 0033. */
+  revision: number | null;
   data: CloudProjectData;
   audio: CloudAsset[];
   bg: CloudAsset[];
@@ -441,12 +528,21 @@ export type LoadedCloudProject = {
 
 export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> {
   const supabase = await getSupabase();
-  const { data: project, error } = await supabase
+  let project: { id: unknown; owner: unknown; data: unknown; revision?: unknown };
+  const rich = await supabase
     .from("projects")
-    .select("id,owner,data")
+    .select("id,owner,data,revision")
     .eq("id", id)
     .single();
-  if (error) throw new Error(error.message);
+  if (!rich.error) {
+    project = rich.data;
+  } else {
+    const missingColumn = rich.error.code === "42703" || /revision/i.test(rich.error.message);
+    if (!missingColumn) throw new Error(rich.error.message);
+    const legacy = await supabase.from("projects").select("id,owner,data").eq("id", id).single();
+    if (legacy.error) throw new Error(legacy.error.message);
+    project = legacy.data;
+  }
 
   const { data: assets, error: aErr } = await supabase
     .from("project_assets")
@@ -478,6 +574,7 @@ export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> 
   return {
     id: project.id as string,
     owner: project.owner as string,
+    revision: project.revision == null ? null : Number(project.revision),
     data: checkedCloudProjectData(project.data),
     audio,
     bg,

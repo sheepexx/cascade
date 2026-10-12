@@ -2464,4 +2464,11 @@ export const en = {
   "collab.invalidOpIgnored": "An edit from a collaborator didn't fit this map and was ignored. Your map is unchanged.",
   "history.keptCollaboratorChanges.one": "{count} note was changed by a collaborator since, so it was left as they made it.",
   "history.keptCollaboratorChanges.other": "{count} notes were changed by a collaborator since, so they were left as they made them.",
+  "cloud.revisionConflict": "Someone saved this map since your copy was loaded.",
+  "cloud.revisionUnknown": "Cascade doesn't know which version of cloud map {id} this copy was made from, so it won't save over it. Reopen the map from the cloud and try again.",
+  "cloud.databaseTooOld": "The cloud database is missing an update Cascade needs to save safely (migration 0033 or later). Your changes are still on this device.",
+  "cloud.keptConflicting": "Collaborators kept saving this map while yours was merging in. Your changes are still here and will be saved on the next try.",
+  "cloud.mergedConflicts.one": "A collaborator saved a different change to {count} thing you also edited. Their version was kept; yours is in Backups.",
+  "cloud.mergedConflicts.other": "A collaborator saved different changes to {count} things you also edited. Their versions were kept; yours are in Backups.",
+  "backups.reason.beforeMerge": "Before merging a collaborator's save",
 } as const;

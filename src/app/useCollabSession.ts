@@ -10,6 +10,10 @@ import {
   publishProjectAsset,
   saveProjectDataCloud,
 } from "../lib/cloud";
+import { InvalidChartDataError } from "../lib/chartValidation";
+import { mergeDifficulties, mergeMeta, mergeTimingPoints } from "../lib/chartMerge";
+import { CloudSync, normalizedChart, type CloudSyncHost } from "../lib/cloudSync";
+import type { BackupReason } from "../lib/recovery";
 import type { AccessRole } from "../lib/collab";
 import { myAccess } from "../lib/collab";
 import type { Translate } from "../lib/i18n";
@@ -24,7 +28,6 @@ import type {
   TimingPoint,
   ViewState,
 } from "../types";
-import { makeDifficulty, normalizeTimingPoints } from "../types";
 import type { PlaytestRuntimeState } from "./usePlaytest";
 
 /** How often a trim or fade drag reaches collaborators while it moves. */
@@ -42,6 +45,11 @@ const TRIM_BROADCAST_MS = 90;
  * ops and saved revisions, saves the document a moment after each change,
  * publishes and fetches audio and backgrounds, follows the caller's role,
  * shares the playhead with peers and remembers where each map was left.
+ *
+ * Saving and merging saved revisions go through one CloudSync (lib/cloudSync):
+ * each save names the revision it was edited from, a save someone else beat
+ * is merged and saved again rather than written over theirs, and a change
+ * counts as saved only once the cloud has it.
  */
 export function useCollabSession({
   activeId,
@@ -50,6 +58,7 @@ export function useCollabSession({
   audioFiles,
   authUser,
   authUserRef,
+  backupRecovery,
   bgFiles,
   bgScope,
   cloudOwnerId,
@@ -87,6 +96,7 @@ export function useCollabSession({
   audioFiles: Record<string, LoadedFile>;
   authUser: AuthUser | null;
   authUserRef: MutableRefObject<AuthUser | null>;
+  backupRecovery: (reason: BackupReason) => Promise<boolean>;
   bgFiles: Record<string, LoadedFile>;
   bgScope: BackgroundScope;
   cloudOwnerId: string | null;
@@ -139,17 +149,21 @@ export function useCollabSession({
   const pendingDocSyncRef = useRef(false);
   const cloudSyncTimerRef = useRef<number | null>(null);
   const localEditVersionRef = useRef(0);
-  const cloudRevisionRef = useRef<number | null>(null);
-  const ownMutationIdsRef = useRef<Set<string>>(new Set());
   const collabRef = useRef<ReturnType<typeof useCollab> | null>(null);
   const publishedAssetBlobsRef = useRef<Map<string, Blob>>(new Map());
   const assetPublishPromiseRef = useRef<Promise<void>>(Promise.resolve());
-  const cloudSavePromiseRef = useRef<Promise<void>>(Promise.resolve());
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const bgScopeRef = useRef(bgScope);
+  bgScopeRef.current = bgScope;
+  const backupRecoveryRef = useRef(backupRecovery);
+  backupRecoveryRef.current = backupRecovery;
+  /** The save error this hook is showing, so a later save can clear just that. */
+  const liveSaveErrorRef = useRef<string | null>(null);
   const [assetPublishTick, setAssetPublishTick] = useState(0);
   const [assetSyncTick, setAssetSyncTick] = useState(0);
   const assetAttemptsRef = useRef<Map<string, number>>(new Map());
   const forcedAssetReloadsRef = useRef<Set<string>>(new Set());
-  const cloudRefreshIdRef = useRef(0);
   const pendingSeekRef = useRef<number | null>(null);
   const [cloudSyncRetry, setCloudSyncRetry] = useState(0);
 
@@ -201,69 +215,65 @@ export function useCollabSession({
     applyingRemoteRef.current = true;
     setDifficulties((prev) => (opProblem(op, prev) ? prev : applyOp(prev, op)));
   }, [difficultiesRef, setDifficulties, showPeerNotice, t]);
-  const refreshFromCloud = useCallback((change?: ProjectSyncChange) => {
-    const pid = cloudProjectIdRef.current;
-    if (!pid) return;
-    if (change?.mutationId && ownMutationIdsRef.current.has(change.mutationId)) {
-      if (change.revision !== null) cloudRevisionRef.current = change.revision;
-      return;
-    }
-    if (
-      change?.revision !== null &&
-      change?.revision !== undefined &&
-      cloudRevisionRef.current !== null &&
-      change.revision <= cloudRevisionRef.current
-    ) {
-      return;
-    }
-    const refreshId = ++cloudRefreshIdRef.current;
-    const editVersion = localEditVersionRef.current;
-    void loadProjectChartCloud(pid)
-      .then((snapshot) => {
-        if (refreshId !== cloudRefreshIdRef.current) return;
-        if (
-          localEditVersionRef.current !== editVersion ||
-          pendingDocSyncRef.current ||
-          cloudSyncTimerRef.current !== null
-        ) {
-          return;
-        }
-        if (
-          snapshot.revision !== null &&
-          cloudRevisionRef.current !== null &&
-          snapshot.revision <= cloudRevisionRef.current
-        ) {
-          return;
-        }
-        if (snapshot.revision !== null) cloudRevisionRef.current = snapshot.revision;
-        const data = snapshot.data;
-        const localChart = JSON.stringify({
+  const cloudSyncRef = useRef<CloudSync | null>(null);
+  if (!cloudSyncRef.current) {
+    const host: CloudSyncHost = {
+      read: () => ({
+        chart: {
           meta: metaRef.current,
           timingPoints: timingPointsRef.current,
           difficulties: difficultiesRef.current,
-        });
-        const remoteChart = JSON.stringify({
-          meta: data.meta,
-          timingPoints: data.timingPoints,
-          difficulties: data.difficulties,
-        });
-        if (localChart === remoteChart) return;
+        },
+        extra: {
+          activeId: activeIdRef.current,
+          view: viewRef.current,
+          bgScope: bgScopeRef.current,
+        },
+        editVersion: localEditVersionRef.current,
+      }),
+      // Each part merges again against the editor's newest state, in case a
+      // collaborator's op or a local edit landed since `local` was read.
+      apply: ({ base, remote, local, merged }) => {
         applyingRemoteRef.current = true;
-        setMeta(data.meta);
-        setTimingPoints(normalizeTimingPoints(data.timingPoints));
-        const diffs = (
-          data.difficulties?.length ? data.difficulties : [makeDifficulty()]
-        ).map((d) => ({
-          ...d,
-          timingPoints: normalizeTimingPoints(d.timingPoints),
-        }));
-        setDifficulties(diffs);
-        setActiveId((cur) =>
-          diffs.some((d) => d.id === cur) ? cur : diffs[0].id,
+        setMeta((prev) =>
+          prev === local.meta ? merged.meta : mergeMeta(base?.meta, prev, remote.meta).value,
         );
-      })
-      .catch(() => {});
-  }, [difficultiesRef, metaRef, setActiveId, setDifficulties, setMeta, setTimingPoints, timingPointsRef]);
+        setTimingPoints((prev) =>
+          prev === local.timingPoints
+            ? merged.timingPoints
+            : mergeTimingPoints(base?.timingPoints, prev, remote.timingPoints).value,
+        );
+        setDifficulties((prev) =>
+          prev === local.difficulties
+            ? merged.difficulties
+            : mergeDifficulties(base?.difficulties, prev, remote.difficulties).value,
+        );
+        setActiveId((cur) =>
+          merged.difficulties.some((d) => d.id === cur) ? cur : merged.difficulties[0]?.id ?? cur,
+        );
+      },
+      keepLocalCopy: async (conflicts) => {
+        await backupRecoveryRef.current("before-merge");
+        setCloudError(t("cloud.mergedConflicts", { count: conflicts }));
+      },
+    };
+    cloudSyncRef.current = new CloudSync(host, async () => {
+      const pid = cloudProjectIdRef.current;
+      if (!pid) throw new Error("no cloud project is open");
+      const snapshot = await loadProjectChartCloud(pid);
+      return { ...snapshot, data: { ...snapshot.data, ...normalizedChart(snapshot.data) } };
+    });
+  }
+  const cloudSync = cloudSyncRef.current;
+
+  const refreshFromCloud = useCallback((change?: ProjectSyncChange) => {
+    if (!cloudProjectIdRef.current) return;
+    void cloudSync.refresh(change).catch((error: unknown) => {
+      // A snapshot that fails its checks is reported and left out; anything
+      // else (offline, a closed map) waits for the next change or save.
+      if (error instanceof InvalidChartDataError) setCloudError(error.message);
+    });
+  }, [cloudSync, setCloudError]);
 
   const collab = useCollab({
     projectId: cloudProjectId,
@@ -298,32 +308,6 @@ export function useCollabSession({
     ),
   });
   collabRef.current = collab;
-
-  const queueCloudSave = useCallback(
-    (projectId: string, data: Parameters<typeof saveProjectDataCloud>[1]) => {
-      const mutationId = crypto.randomUUID();
-      ownMutationIdsRef.current.add(mutationId);
-      if (ownMutationIdsRef.current.size > 1_000) {
-        const oldest = ownMutationIdsRef.current.values().next().value;
-        if (oldest) ownMutationIdsRef.current.delete(oldest);
-      }
-      const save = async () => {
-        await assetPublishPromiseRef.current;
-        const stamp = await saveProjectDataCloud(projectId, data, mutationId);
-        if (stamp.revision !== null) cloudRevisionRef.current = stamp.revision;
-      };
-      const queued = cloudSavePromiseRef.current
-        .catch(() => {})
-        .then(save)
-        .catch((error) => {
-          ownMutationIdsRef.current.delete(mutationId);
-          throw error;
-        });
-      cloudSavePromiseRef.current = queued;
-      return queued;
-    },
-    [],
-  );
 
   const commitNoteOp = useCallback((op: NoteOp) => {
     if (!canEditRef.current) return;
@@ -580,36 +564,37 @@ export function useCollabSession({
     cloudSyncTimerRef.current = window.setTimeout(() => {
       cloudSyncTimerRef.current = null;
       if (!pendingDocSyncRef.current) return;
-      pendingDocSyncRef.current = false;
       const pid = cloudProjectIdRef.current;
       if (!pid || !canEditRef.current) return;
       const recoveryProject = localProjectIdRef.current;
       const recoveryToken = recoverySaveToken();
-      void queueCloudSave(pid, {
-        meta: metaRef.current,
-        timingPoints: timingPointsRef.current,
-        difficulties: difficultiesRef.current,
-        activeId: activeIdRef.current,
-        view,
-        bgScope,
-      })
+      void cloudSync
+        .save(async (data, expectedRevision, mutationId) => {
+          // Audio and backgrounds publish first, so a saved chart never
+          // names a file the cloud doesn't have yet.
+          await assetPublishPromiseRef.current.catch(() => {});
+          return saveProjectDataCloud(pid, data, mutationId, expectedRevision);
+        })
         // doc.bump keeps old deployments functional; revision-aware peers ignore
         // the duplicate refresh produced by Postgres Changes.
-        .then(() => {
+        .then((stamp) => {
           if (cloudProjectIdRef.current !== pid) return;
+          // Only edits the cloud now holds count as saved; anything newer
+          // keeps the map unsaved and schedules the next save.
+          if (cloudSync.isSaved(localEditVersionRef.current)) pendingDocSyncRef.current = false;
+          else setCloudSyncRetry((value) => value + 1);
+          if (!stamp) return;
           markRecoverySaved(recoveryProject, recoveryToken);
-          setCloudError((current) =>
-            current?.startsWith("Live collaboration save failed:") ? null : current,
-          );
+          const shown = liveSaveErrorRef.current;
+          liveSaveErrorRef.current = null;
+          setCloudError((current) => (current !== null && current === shown ? null : current));
           collabRef.current?.sendRefresh();
         })
         .catch((error) => {
           if (cloudProjectIdRef.current !== pid || !canEditRef.current) return;
-          pendingDocSyncRef.current = true;
           const detail = error instanceof Error ? error.message : t("app.unknownError");
-          setCloudError(
-            t("app.liveSaveFailed", { detail }),
-          );
+          liveSaveErrorRef.current = t("app.liveSaveFailed", { detail });
+          setCloudError(liveSaveErrorRef.current);
           if (cloudSyncTimerRef.current !== null) {
             window.clearTimeout(cloudSyncTimerRef.current);
           }
@@ -640,7 +625,7 @@ export function useCollabSession({
     view,
     bgScope,
     cloudSyncRetry,
-    queueCloudSave,
+    cloudSync,
     markRecoverySaved,
     recoverySaveToken,
   ]);
@@ -652,8 +637,7 @@ export function useCollabSession({
     canEdit,
     canEditRef,
     cloudProjectIdRef,
-    cloudRevisionRef,
-    cloudSavePromiseRef,
+    cloudSync,
     collab,
     collabRef,
     commitDiffFields,
@@ -663,7 +647,6 @@ export function useCollabSession({
     markStructural,
     opRedoRef,
     opUndoRef,
-    ownMutationIdsRef,
     pendingDocSyncRef,
     pendingSeekRef,
     publishedAssetBlobsRef,
@@ -671,3 +654,4 @@ export function useCollabSession({
     updateMeta,
   };
 }
+

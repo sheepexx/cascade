@@ -31,6 +31,7 @@ const REASON_KEYS: Record<BackupReason, MessageKey> = {
   "before-restore": "backups.reason.beforeRestore",
   "before-delete": "backups.reason.beforeDelete",
   "before-external-edit": "backups.reason.beforeExternalEdit",
+  "before-merge": "backups.reason.beforeMerge",
 };
 
 type Listing = {

@@ -49,7 +49,8 @@ export type BackupReason =
   | "replaced"
   | "before-restore"
   | "before-delete"
-  | "before-external-edit";
+  | "before-external-edit"
+  | "before-merge";
 
 export type RecoveryHead = {
   projectId: string;

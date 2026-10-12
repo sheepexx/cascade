@@ -384,6 +384,12 @@ Apply the SQL files in `supabase/migrations` in numeric order when updating the
 database. [docs/R2_MIGRATION.md](docs/R2_MIGRATION.md) covers asset storage in
 Cloudflare R2.
 
+Migration `0038_snapshot_revision_check.sql` makes every chart save name the
+revision it was edited from, so a stale copy can't overwrite a newer save.
+Deploy the app first and apply the migration after: the current app saves
+safely on either side of it, while builds from before it are told to reload
+once it is applied.
+
 ## Architecture
 
 Cascade is a static single-page app with a small backend around it.
