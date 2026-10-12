@@ -1,4 +1,6 @@
 import { getSupabase } from "./supabase";
+import { assertChartDocument } from "./chartValidation";
+import { t } from "./i18n/core";
 import {
   createProjectAssetUrls,
   deleteProjectAsset,
@@ -36,6 +38,17 @@ export type CloudSyncStamp = {
   mutationId: string;
   updatedBy: string | null;
 };
+
+/**
+ * A cloud snapshot is written by any editor of the map, so it is checked like
+ * any other outside data before it reaches the editor: a broken copy is
+ * reported and not opened, rather than half-loaded over the user's work.
+ */
+export function checkedCloudProjectData(value: unknown): CloudProjectData {
+  return cloudSafeProjectData(
+    assertChartDocument<CloudProjectData>(value, t("chartData.source.cloud")),
+  );
+}
 
 /** Videos are intentionally local/export-only and must not leave dangling cloud references. */
 export function cloudSafeProjectData(data: CloudProjectData): CloudProjectData {
@@ -283,7 +296,7 @@ export async function loadProjectChartCloud(
       updated_by: string | null;
     };
     return {
-      data: cloudSafeProjectData(row.data),
+      data: checkedCloudProjectData(row.data),
       revision: Number(row.revision),
       mutationId: row.last_mutation_id ?? "",
       updatedBy: row.updated_by,
@@ -301,7 +314,7 @@ export async function loadProjectChartCloud(
     .single();
   if (legacy.error) throw new Error(legacy.error.message);
   return {
-    data: cloudSafeProjectData(legacy.data.data as CloudProjectData),
+    data: checkedCloudProjectData(legacy.data.data),
     revision: null,
     mutationId: "",
     updatedBy: null,
@@ -465,7 +478,7 @@ export async function loadProjectCloud(id: string): Promise<LoadedCloudProject> 
   return {
     id: project.id as string,
     owner: project.owner as string,
-    data: cloudSafeProjectData(project.data as CloudProjectData),
+    data: checkedCloudProjectData(project.data),
     audio,
     bg,
     samples,

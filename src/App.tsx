@@ -1334,18 +1334,24 @@ export default function App() {
     const { startExternalEdit, showExternalEdit } = await loadExternalEdit();
     const d = difficultiesRef.current.find((x) => x.id === activeIdRef.current);
     if (!d) return;
-    const text = buildOsuFile({
-      meta: metaRef.current,
-      difficulty: d,
-      timingPoints: d.timingPoints.length ? d.timingPoints : timingPointsRef.current,
-      audioFilename:
-        d.audioFilename ?? Object.keys(audioFilesRef.current)[0] ?? "audio.mp3",
-      backgroundFilename: d.backgroundFilename,
-      videoFilename: d.videoFilename,
-      videoOffsetMs: d.videoOffsetMs,
-      // The file comes back in, so it must not pick up the export watermark.
-      cascadeTag: false,
-    });
+    let text: string;
+    try {
+      text = buildOsuFile({
+        meta: metaRef.current,
+        difficulty: d,
+        timingPoints: d.timingPoints.length ? d.timingPoints : timingPointsRef.current,
+        audioFilename:
+          d.audioFilename ?? Object.keys(audioFilesRef.current)[0] ?? "audio.mp3",
+        backgroundFilename: d.backgroundFilename,
+        videoFilename: d.videoFilename,
+        videoOffsetMs: d.videoOffsetMs,
+        // The file comes back in, so it must not pick up the export watermark.
+        cascadeTag: false,
+      });
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
+      return;
+    }
     setExternalEditError(null);
     let path: string;
     try {

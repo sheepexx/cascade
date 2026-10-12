@@ -104,3 +104,46 @@ describe("validateProject — key counts on .sm export", () => {
     expect(result.warnings.some((w) => w.message.includes("left out"))).toBe(false);
   });
 });
+
+describe("validateProject — values the format cannot hold", () => {
+  it("blocks export of a note whose start time is NaN", () => {
+    const d = base();
+    d.notes = [{ id: "n1", column: 0, startTime: Number.NaN }];
+    const result = validate([d], ".osz");
+    expect(result.errors.map((e) => e.message)).toContain("1 note with an invalid start or end time.");
+  });
+
+  it("blocks export of a fractional column and of a non-finite hold end", () => {
+    const d = base();
+    d.notes = [
+      { id: "n1", column: 1.5, startTime: 0 },
+      { id: "n2", column: 0, startTime: 0, endTime: Infinity },
+    ];
+    const messages = validate([d]).errors.map((e) => e.message);
+    expect(messages).toContain("1 note in an invalid column.");
+    expect(messages).toContain("1 note with an invalid start or end time.");
+  });
+
+  it("blocks export of a NaN BPM or a NaN difficulty setting", () => {
+    const d = base();
+    d.timingPoints = [{ ...d.timingPoints[0], bpm: Number.NaN }];
+    d.overallDifficulty = Number.NaN;
+    const messages = validate([d]).errors.map((e) => e.message);
+    expect(messages).toContain("1 timing point with an invalid time, BPM or value.");
+    expect(messages).toContain(
+      "HP, OD, preview time or another difficulty setting is not a valid number.",
+    );
+  });
+
+  it("keeps overlaps and duplicates as warnings, not errors", () => {
+    const d = base();
+    d.notes = [
+      { id: "n1", column: 0, startTime: 1000, endTime: 2000 },
+      { id: "n2", column: 0, startTime: 1500 },
+      { id: "n3", column: 0, startTime: 1500 },
+    ];
+    const result = validate([d]);
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings.length).toBeGreaterThan(0);
+  });
+});

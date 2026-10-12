@@ -1,5 +1,6 @@
 import { MAX_KEYS } from "../types";
 import type { Difficulty, ManiaNote, SongMeta, TimingPoint } from "../types";
+import { CHART_LIMITS, isFiniteNumber, isValidNote } from "./chartValidation";
 
 export type DocState = {
   meta: SongMeta;
@@ -29,46 +30,23 @@ export type DiffFieldOp = {
 export type CollabOp = NoteOp | DiffFieldOp;
 
 export const MAX_COLLAB_NOTES_PER_OP = 10_000;
-const MAX_COLLAB_ID_LENGTH = 256;
-const MAX_SAMPLE_FILE_LENGTH = 1024;
+const MAX_COLLAB_ID_LENGTH = CHART_LIMITS.maxIdLength;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
 }
 
 function isBoundedString(value: unknown, max: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= max;
 }
 
-function isOptionalFiniteNumber(value: unknown): boolean {
-  return value === undefined || isFiniteNumber(value);
-}
-
+/**
+ * A note shaped like one, before anyone knows which difficulty it is for:
+ * the column is only checked against the widest layout here, and against the
+ * real key count in opProblem once the target difficulty is known.
+ */
 function isManiaNote(value: unknown): value is ManiaNote {
-  if (!isRecord(value)) return false;
-  if (!isBoundedString(value.id, MAX_COLLAB_ID_LENGTH)) return false;
-  if (!Number.isInteger(value.column) || (value.column as number) < 0) return false;
-  if ((value.column as number) >= MAX_KEYS) return false;
-  if (!isFiniteNumber(value.startTime)) return false;
-  if (value.endTime !== undefined) {
-    if (!isFiniteNumber(value.endTime) || value.endTime <= value.startTime) return false;
-  }
-  if (!isOptionalFiniteNumber(value.hitSound)) return false;
-  if (!isOptionalFiniteNumber(value.sampleSet)) return false;
-  if (!isOptionalFiniteNumber(value.additionSet)) return false;
-  if (!isOptionalFiniteNumber(value.sampleIndex)) return false;
-  if (!isOptionalFiniteNumber(value.sampleVolume)) return false;
-  if (
-    value.sampleFile !== undefined &&
-    (typeof value.sampleFile !== "string" || value.sampleFile.length > MAX_SAMPLE_FILE_LENGTH)
-  ) {
-    return false;
-  }
-  return true;
+  return isValidNote(value, MAX_KEYS);
 }
 
 function isNoteArray(value: unknown): value is ManiaNote[] {
@@ -100,6 +78,26 @@ export function isCollabOp(value: unknown): value is CollabOp {
         (fieldValue === null || isFiniteNumber(fieldValue)),
     )
   );
+}
+
+export type OpProblem = "unknownDifficulty" | "column";
+
+/**
+ * Why a well-formed op can't apply to this map, or null. isCollabOp only
+ * knows the widest layout, so a note in column 17 passes it even when the
+ * difficulty has 4 keys; this checks the notes an op would leave in place
+ * against the difficulty it targets. An op for a difficulty this window
+ * doesn't have yet (a collaborator just added it) is not an error: the
+ * difficulty and its notes arrive with the next saved snapshot.
+ */
+export function opProblem(op: CollabOp, difficulties: Difficulty[]): OpProblem | null {
+  const target = difficulties.find((d) => d.id === op.diffId);
+  if (!target) return "unknownDifficulty";
+  const placed = op.t === "note.add" ? op.notes : op.t === "note.update" ? op.after : [];
+  for (const note of placed) {
+    if (!isValidNote(note, target.keyCount)) return "column";
+  }
+  return null;
 }
 
 export function applyDiffFieldOp(

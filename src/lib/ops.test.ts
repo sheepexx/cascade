@@ -8,6 +8,7 @@ import {
   invertNoteOp,
   isCollabOp,
   MAX_COLLAB_NOTES_PER_OP,
+  opProblem,
   type NoteOp,
 } from "./ops";
 
@@ -267,5 +268,33 @@ describe("isCollabOp", () => {
     expect(
       isCollabOp({ t: "note.add", diffId: "d1", notes: [...atLimit, a] }),
     ).toBe(false);
+  });
+});
+
+describe("opProblem", () => {
+  it("refuses a note in column 17 of a 4K difficulty", () => {
+    const op: NoteOp = { t: "note.add", diffId: "d1", notes: [note("x", 17, 1000)] };
+    // Well-formed for some layout, so it passes the shape check...
+    expect(isCollabOp(op)).toBe(true);
+    // ...but not for the difficulty it targets.
+    expect(opProblem(op, docs([a]))).toBe("column");
+  });
+
+  it("refuses an update that would move a note past the key count", () => {
+    const op: NoteOp = { t: "note.update", diffId: "d1", before: [b], after: [{ ...b, column: 4 }] };
+    expect(opProblem(op, docs([a, b]))).toBe("column");
+  });
+
+  it("accepts notes that fit and a removal of any note", () => {
+    expect(opProblem({ t: "note.add", diffId: "d1", notes: [note("x", 3, 0)] }, docs([]))).toBeNull();
+    expect(opProblem({ t: "note.remove", diffId: "d1", notes: [note("x", 17, 0)] }, docs([]))).toBeNull();
+  });
+
+  it("names an op for a difficulty this window doesn't have", () => {
+    expect(opProblem({ t: "note.add", diffId: "new", notes: [a] }, docs([]))).toBe("unknownDifficulty");
+  });
+
+  it("refuses a NaN time before any difficulty is consulted", () => {
+    expect(isCollabOp({ t: "note.add", diffId: "d1", notes: [{ id: "x", column: 0, startTime: Number.NaN }] })).toBe(false);
   });
 });

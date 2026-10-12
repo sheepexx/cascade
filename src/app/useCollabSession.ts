@@ -14,7 +14,7 @@ import type { AccessRole } from "../lib/collab";
 import { myAccess } from "../lib/collab";
 import type { Translate } from "../lib/i18n";
 import type { CollabOp, DiffFieldOp, NoteOp } from "../lib/ops";
-import { applyDiffFieldOp, applyNoteOp, applyOp } from "../lib/ops";
+import { applyDiffFieldOp, applyNoteOp, applyOp, opProblem } from "../lib/ops";
 import { subscribeSupabase } from "../lib/supabase";
 import type {
   BackgroundScope,
@@ -186,10 +186,21 @@ export function useCollabSession({
     );
   }, [cloudProjectId, cloudOwnerId, authUser, setMyRole]);
 
+  const showPeerNotice = useCallback((text: string, avatar: string | null) => {
+    setPeerNotice({ key: Date.now(), text, avatar });
+  }, [setPeerNotice]);
+
   const applyRemoteOp = useCallback((op: CollabOp) => {
+    // An op that can't fit this map (a column past its key count) is refused
+    // and reported; the sender's next saved snapshot is checked again on load.
+    if (opProblem(op, difficultiesRef.current) === "column") {
+      console.warn("[collab] ignored an op that does not fit this map", op);
+      showPeerNotice(t("collab.invalidOpIgnored"), null);
+      return;
+    }
     applyingRemoteRef.current = true;
-    setDifficulties((prev) => applyOp(prev, op));
-  }, [setDifficulties]);
+    setDifficulties((prev) => (opProblem(op, prev) ? prev : applyOp(prev, op)));
+  }, [difficultiesRef, setDifficulties, showPeerNotice, t]);
   const refreshFromCloud = useCallback((change?: ProjectSyncChange) => {
     const pid = cloudProjectIdRef.current;
     if (!pid) return;
@@ -253,10 +264,6 @@ export function useCollabSession({
       })
       .catch(() => {});
   }, [difficultiesRef, metaRef, setActiveId, setDifficulties, setMeta, setTimingPoints, timingPointsRef]);
-
-  const showPeerNotice = useCallback((text: string, avatar: string | null) => {
-    setPeerNotice({ key: Date.now(), text, avatar });
-  }, [setPeerNotice]);
 
   const collab = useCollab({
     projectId: cloudProjectId,

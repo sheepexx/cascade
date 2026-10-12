@@ -6,6 +6,7 @@ import type {
   TimingPoint,
 } from "../types";
 import { makeRedPoint, svToBeatLength } from "../types";
+import { assertExportable } from "./chartValidation";
 import { sortedPoints } from "./timing";
 
 export function columnToX(column: number, keyCount: number): number {
@@ -79,6 +80,7 @@ export function buildOsuFile({
   videoOffsetMs,
   cascadeTag = true,
 }: BuildOsuArgs): string {
+  assertExportable(difficulty, timingPoints);
   const points = sortedPoints(
     timingPoints.length ? timingPoints : [makeRedPoint(0, 120)],
   );

@@ -3,6 +3,7 @@ import { MAX_KEYS, MIN_KEYS } from "../types";
 import { isRateDifficulty } from "./rateChange";
 import { t } from "./i18n/core";
 import { smStepsType } from "./smFormat";
+import { CHART_LIMITS, isFiniteNumber, noteProblem, timingPointProblem } from "./chartValidation";
 
 export type ValidationIssue = {
   message: string;
@@ -63,6 +64,22 @@ function hasColumnOverlap(notes: ManiaNote[]): boolean {
     }
   }
   return false;
+}
+
+function isExportTime(value: unknown): boolean {
+  return isFiniteNumber(value) && Math.abs(value) <= CHART_LIMITS.maxAbsTimeMs;
+}
+
+/** A difficulty setting the exporters write out as a number but that isn't one. */
+function hasInvalidDifficultyValue(d: Difficulty): boolean {
+  return (
+    !isFiniteNumber(d.hpDrainRate) ||
+    !isFiniteNumber(d.overallDifficulty) ||
+    !isExportTime(d.previewTime) ||
+    (d.videoOffsetMs !== undefined && !isFiniteNumber(d.videoOffsetMs)) ||
+    (d.audioRate !== undefined && !(isFiniteNumber(d.audioRate) && d.audioRate > 0)) ||
+    (d.bookmarks ?? []).some((b) => !isExportTime(b))
+  );
 }
 
 export function validateProject({
@@ -131,11 +148,20 @@ export function validateProject({
     if (reds.length === 0)
       errors.push({ message: t("validation.noRed"), scope });
 
+    // The same checks a cloud copy or a collaborator's edit has to pass, so
+    // nothing the format can't hold (a NaN time, a fractional or out-of-range
+    // column) reaches an exported file.
     let invalidColumn = 0;
     let invalidLong = 0;
+    let invalidTime = 0;
+    let invalidNoteValue = 0;
     for (const n of d.notes) {
-      if (n.column < 0 || n.column >= d.keyCount) invalidColumn++;
-      if (n.endTime !== undefined && n.endTime <= n.startTime) invalidLong++;
+      const found = noteProblem(n, d.keyCount);
+      if (!found) continue;
+      if (found.problem === "column") invalidColumn++;
+      else if (found.problem === "hold") invalidLong++;
+      else if (found.problem === "time") invalidTime++;
+      else invalidNoteValue++;
     }
     if (invalidColumn > 0)
       errors.push({
@@ -147,6 +173,24 @@ export function validateProject({
         message: t("validation.invalidLong", { count: invalidLong }),
         scope,
       });
+    if (invalidTime > 0)
+      errors.push({
+        message: t("validation.invalidTime", { count: invalidTime }),
+        scope,
+      });
+    if (invalidNoteValue > 0)
+      errors.push({
+        message: t("validation.invalidNoteValue", { count: invalidNoteValue }),
+        scope,
+      });
+    const invalidTiming = d.timingPoints.filter((p) => timingPointProblem(p) !== null).length;
+    if (invalidTiming > 0)
+      errors.push({
+        message: t("validation.invalidTiming", { count: invalidTiming }),
+        scope,
+      });
+    if (hasInvalidDifficultyValue(d))
+      errors.push({ message: t("validation.invalidDifficultyValue"), scope });
 
     if (!d.backgroundFilename || !bgFiles[d.backgroundFilename])
       warnings.push({ message: t("aimod.noBackground"), scope });
