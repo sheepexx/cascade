@@ -1,10 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
+import { backend, rpcAs } from "./support";
 
 const DAY = 24 * 60 * 60_000;
 const KEY = "cascade:feedback-invite";
 
-/** A mapper who has used Cascade for a while: eligible for an invitation. */
-async function openEligible(page: Page, record: Record<string, unknown> = {}) {
+const ALL_ASKED = ["recommend", "reliability", "workflow", "missing"];
+
+/**
+ * A mapper who has used Cascade for a while: eligible for an invitation. By
+ * default every rating question was already asked, so it's the plain one.
+ */
+async function openEligible(page: Page, record: Record<string, unknown> = {}, query = "") {
   await page.clock.install({ time: new Date("2026-03-01T12:00:00") });
   const now = new Date("2026-03-01T12:00:00").getTime();
   await page.addInitScript(
@@ -19,11 +25,12 @@ async function openEligible(page: Page, record: Record<string, unknown> = {}) {
         dismissals: 0,
         optedOut: false,
         lastFeedbackAt: null,
+        askedRatings: ALL_ASKED,
         ...record,
       }),
     ] as const,
   );
-  await page.goto("/?mode=feedback-invite");
+  await page.goto(`/?mode=feedback-invite${query}`);
 }
 
 /**
@@ -118,5 +125,82 @@ test.describe("feedback invitation", () => {
     await page.clock.runFor(16_000);
     await expect(invite(page)).toBeVisible();
     await expect(page.locator(".notification-progress, .notification-progress-indeterminate")).toHaveCount(0);
+  });
+});
+
+const ratings = async () =>
+  (
+    await backend<{ rows: { user_id: string | null; author_username: string | null; question: string; score: number; comment: string | null }[] }>(
+      "/__test/sql",
+      { sql: "select user_id, author_username, question, score, comment from public.feedback_ratings order by created_at" },
+    )
+  ).rows;
+
+test.describe("1-10 rating questions", () => {
+  test.beforeEach(() => backend("/__test/reset"));
+
+  test("asks the first question, takes a score and an optional reason from someone signed out", async ({ page }) => {
+    await openEligible(page, { askedRatings: [] });
+    await page.getByRole("button", { name: "Finish export" }).click();
+    await page.clock.runFor(16_000);
+    const card = page.locator('.notification-shell[data-state="in"]');
+    await expect(card).toContainText("How likely are you to recommend Cascade to another mapper?");
+    await expect(card.getByRole("button", { name: "Send" })).toHaveCount(0);
+
+    const eight = card.getByRole("button", { name: "8 out of 10" });
+    await eight.focus();
+    await page.keyboard.press("Enter");
+    await expect(eight).toHaveAttribute("aria-pressed", "true");
+    await card.getByLabel(/main reason for your score/).fill("Fast, and the playtest is great");
+    await card.getByRole("button", { name: "Send" }).click();
+    await expect(card).toContainText("Thanks, that helps.");
+
+    expect(await ratings()).toEqual([
+      { user_id: null, author_username: null, question: "recommend", score: 8, comment: "Fast, and the playtest is great" },
+    ]);
+    const record = await stored(page);
+    expect(record.askedRatings).toEqual(["recommend"]);
+    expect(record.lastFeedbackAt).not.toBeNull();
+  });
+
+  test("never asks the same question twice, even after it was dismissed", async ({ page, context }) => {
+    await openEligible(page, { askedRatings: [] });
+    await page.getByRole("button", { name: "Finish export" }).click();
+    await page.clock.runFor(16_000);
+    await page.getByRole("button", { name: "Not now" }).click();
+
+    // Months later, in a new window: the next question, not the same one.
+    const later = await context.newPage();
+    await later.clock.install({ time: new Date("2026-08-01T12:00:00") });
+    await later.goto("/?mode=feedback-invite");
+    await later.evaluate((key) => {
+      const record = JSON.parse(localStorage.getItem(key)!);
+      localStorage.setItem(key, JSON.stringify({ ...record, dismissals: 0 }));
+    }, KEY);
+    await later.getByRole("button", { name: "Finish export" }).click();
+    await later.clock.runFor(16_000);
+    await expect(later.locator('.notification-shell[data-state="in"]')).toContainText(
+      "How much do you trust Cascade with your maps",
+    );
+    expect((await stored(later)).askedRatings).toEqual(["recommend", "reliability"]);
+  });
+
+  test("skips what the account already answered on another device, and files the answer under it", async ({ page }) => {
+    const user = (await backend<{ id: string }>("/__test/user", { username: "alice" })).id;
+    await rpcAs(user, "submit_feedback_rating", { p_question: "recommend", p_score: 9 });
+    const checked = page.waitForResponse((response) => response.url().endsWith("/table"));
+    await openEligible(page, { askedRatings: [] }, `&user=${user}`);
+    await checked;
+    await page.getByRole("button", { name: "Finish export" }).click();
+    await page.clock.runFor(16_000);
+    const card = page.locator('.notification-shell[data-state="in"]');
+    await expect(card).toContainText("How much do you trust Cascade with your maps");
+    await card.getByRole("button", { name: "3 out of 10" }).click();
+    await card.getByRole("button", { name: "Send" }).click();
+    await expect(card).toContainText("Thanks, that helps.");
+    expect(await ratings()).toEqual([
+      { user_id: user, author_username: "alice", question: "recommend", score: 9, comment: null },
+      { user_id: user, author_username: "alice", question: "reliability", score: 3, comment: null },
+    ]);
   });
 });

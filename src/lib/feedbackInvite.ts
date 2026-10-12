@@ -9,9 +9,15 @@
  * ends them for good, and sent feedback buys three months. The feedback
  * dialog itself is always available, whatever was answered here.
  *
+ * While some of the 1-10 questions (lib/feedbackRatings) haven't been asked,
+ * the invitation is one of them instead: each is asked once at most, here or
+ * on any device of the same account, and the next waits two months.
+ *
  * When the record can't be read or written, the invitation isn't shown:
  * forgetting an answer would mean asking again.
  */
+
+import { RATING_QUESTIONS, type RatingQuestionId } from "./feedbackRatings";
 
 export type FeedbackInviteRecord = {
   firstUsedAt: number;
@@ -23,6 +29,8 @@ export type FeedbackInviteRecord = {
   dismissals: number;
   optedOut: boolean;
   lastFeedbackAt: number | null;
+  /** Rating questions shown on this device, answered or not. */
+  askedRatings: string[];
 };
 
 const KEY = "cascade:feedback-invite";
@@ -32,6 +40,7 @@ export const INVITE_ACTIVE_DAYS = 3;
 export const INVITE_QUIET_MS = 30 * DAY_MS;
 export const INVITE_AFTER_FEEDBACK_MS = 90 * DAY_MS;
 export const INVITE_MAX_DISMISSALS = 2;
+export const INVITE_AFTER_RATING_MS = 60 * DAY_MS;
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -57,6 +66,7 @@ const fresh = (now: number): FeedbackInviteRecord => ({
   dismissals: 0,
   optedOut: false,
   lastFeedbackAt: null,
+  askedRatings: [],
 });
 
 /**
@@ -90,6 +100,9 @@ export function loadFeedbackInvite(
       dismissals: time(v.dismissals) ?? 0,
       optedOut: v.optedOut === true,
       lastFeedbackAt: time(v.lastFeedbackAt),
+      askedRatings: Array.isArray(v.askedRatings)
+        ? v.askedRatings.filter((id): id is string => typeof id === "string")
+        : [],
     };
   } catch {
     return null;
@@ -154,12 +167,41 @@ export function recordFeedbackExport(now = Date.now(), store = browserStorage())
 }
 
 /**
- * The invitation is about to show. It counts as asked even if it is never
- * answered, so it can't return for a month; when that can't be stored it
- * mustn't show at all.
+ * The rating question to ask next: the first this device hasn't shown and
+ * the account hasn't answered. `answered` is null when the account's answers
+ * couldn't be checked, and then no question is asked.
  */
-export function recordFeedbackInviteShown(now = Date.now(), store = browserStorage()): boolean {
-  return update((record) => ({ ...record, quietUntil: now + INVITE_QUIET_MS }), now, store);
+export function nextRatingQuestion(
+  record: FeedbackInviteRecord,
+  answered: ReadonlySet<string> | null,
+): RatingQuestionId | null {
+  if (!answered) return null;
+  return (
+    RATING_QUESTIONS.find((q) => !record.askedRatings.includes(q.id) && !answered.has(q.id))?.id ??
+    null
+  );
+}
+
+/**
+ * The invitation, or the rating question `rating`, is about to show. It
+ * counts as asked even if it is never answered, so it can't return for a
+ * month (two after a rating question, which is never asked again); when that
+ * can't be stored it mustn't show at all.
+ */
+export function recordFeedbackInviteShown(
+  now = Date.now(),
+  store = browserStorage(),
+  rating: RatingQuestionId | null = null,
+): boolean {
+  return update(
+    (record) => ({
+      ...record,
+      quietUntil: now + (rating ? INVITE_AFTER_RATING_MS : INVITE_QUIET_MS),
+      askedRatings: rating ? [...record.askedRatings, rating] : record.askedRatings,
+    }),
+    now,
+    store,
+  );
 }
 
 export function recordFeedbackInviteDismissed(now = Date.now(), store = browserStorage()): void {

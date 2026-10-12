@@ -4255,6 +4255,7 @@ export default function App() {
             !!cloudError ||
             !!importError ||
             !!recoveryOffer,
+          userId: authUser?.id ?? null,
           onShare: () => setModal("feedback"),
         }}
         importError={importError}

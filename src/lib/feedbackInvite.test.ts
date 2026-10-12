@@ -4,6 +4,7 @@ import {
   INVITE_IDLE_MS,
   loadFeedbackInvite,
   mayInviteFeedback,
+  nextRatingQuestion,
   recordFeedbackExport,
   recordFeedbackInviteDismissed,
   recordFeedbackInviteShown,
@@ -264,5 +265,53 @@ describe("FeedbackInviteTimer", () => {
     timer.taskSucceeded();
     clock.advance(10 * INVITE_IDLE_MS);
     expect(offers()).toBe(1);
+  });
+});
+
+describe("rating questions", () => {
+  const ready = START + 7 * DAY;
+
+  it("asks them in order, each once, and waits two months after one", () => {
+    const store = memory();
+    regular(store);
+    const record = () => loadFeedbackInvite(ready, store)!;
+    expect(nextRatingQuestion(record(), new Set())).toBe("recommend");
+    expect(recordFeedbackInviteShown(ready, store, "recommend")).toBe(true);
+    expect(eligible(store, ready + 59 * DAY)).toBe(false);
+    expect(eligible(store, ready + 60 * DAY)).toBe(true);
+    expect(nextRatingQuestion(record(), new Set())).toBe("reliability");
+  });
+
+  it("counts a question as asked even when it was dismissed", () => {
+    const store = memory();
+    regular(store);
+    recordFeedbackInviteShown(ready, store, "recommend");
+    recordFeedbackInviteDismissed(ready, store);
+    expect(loadFeedbackInvite(ready, store)!.askedRatings).toEqual(["recommend"]);
+    expect(nextRatingQuestion(loadFeedbackInvite(ready, store)!, new Set())).toBe("reliability");
+  });
+
+  it("skips questions the account answered on another device", () => {
+    const store = memory();
+    regular(store);
+    const record = loadFeedbackInvite(ready, store)!;
+    expect(nextRatingQuestion(record, new Set(["recommend", "reliability"]))).toBe("workflow");
+  });
+
+  it("asks none while the account's answers are unknown, and none once all were asked", () => {
+    const store = memory();
+    regular(store);
+    expect(nextRatingQuestion(loadFeedbackInvite(ready, store)!, null)).toBeNull();
+    for (const id of ["recommend", "reliability", "workflow", "missing"] as const) {
+      recordFeedbackInviteShown(ready, store, id);
+    }
+    expect(nextRatingQuestion(loadFeedbackInvite(ready, store)!, new Set())).toBeNull();
+  });
+
+  it("still respects Don't ask again and two dismissals", () => {
+    const store = memory();
+    regular(store);
+    recordFeedbackOptOut(ready, store);
+    expect(eligible(store, ready + 500 * DAY)).toBe(false);
   });
 });

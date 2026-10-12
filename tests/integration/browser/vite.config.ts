@@ -38,5 +38,7 @@ export default defineConfig({
   root: here("./harness"),
   plugins: [testBackend(), react()],
   define: { __APP_VERSION__: JSON.stringify("integration") },
+  // The editor's Tailwind setup lives at the repository root.
+  css: { postcss: here("../../..") },
   server: { host: "127.0.0.1", port: 5199, strictPort: true },
 });

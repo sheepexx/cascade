@@ -54,6 +54,7 @@ import {
   type AdminProject,
 } from "../../lib/admin";
 import { LinksTab, UserLinksSection } from "./AdminLinks";
+import { RatingsOverview, UserRatingsSection } from "./AdminRatings";
 import { formatBytes, formatMoment } from "./format";
 import {
   listFeedback,
@@ -1358,6 +1359,7 @@ function UserDetail({
         )}
       </section>
 
+      <UserRatingsSection userId={user.id} />
       <UserLinksSection userId={user.id} onDeleted={onLinkDeleted} />
     </div>
   );
@@ -1821,6 +1823,8 @@ function FeedbackTab() {
 
   return (
     <div>
+      <RatingsOverview />
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Messages</h2>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!items && !error && (
         <SkeletonRows

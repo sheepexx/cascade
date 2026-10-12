@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { AudioSetupModal } from "../../../../src/components/menus/AudioSetupModal";
 import { Dropdown, type DropdownOption } from "../../../../src/components/ui/Dropdown";
 import { FeedbackInvite } from "../../../../src/app/FeedbackInvite";
+import { RatingsOverview, UserRatingsSection } from "../../../../src/components/admin/AdminRatings";
 import { useCloudProject } from "../../../../src/app/useCloudProject";
 import { useCollabSession } from "../../../../src/app/useCollabSession";
 import { useEditHistory } from "../../../../src/app/useEditHistory";
@@ -350,6 +351,7 @@ function FeedbackInviteHarness() {
           activity={null}
           taskKey={taskKey}
           troubled={false}
+          userId={params.get("user")}
           onShare={() => setShared((count) => count + 1)}
         />
       </div>
@@ -357,8 +359,20 @@ function FeedbackInviteHarness() {
   );
 }
 
+/** The admin panel's rating views, as an admin sees them. */
+function AdminRatingsHarness() {
+  const profile = params.get("profile");
+  return (
+    <div className="min-h-screen bg-ink-900 p-6 text-slate-100">
+      <RatingsOverview />
+      {profile && <UserRatingsSection userId={profile} />}
+    </div>
+  );
+}
+
 function Harness() {
   if (params.get("mode") === "audio-setup") return <AudioSetupHarness />;
+  if (params.get("mode") === "admin-ratings") return <AdminRatingsHarness />;
   if (params.get("mode") === "feedback-invite") return <FeedbackInviteHarness />;
   if (params.get("mode") === "dropdown") return <DropdownHarness />;
   const userId = params.get("user") ?? "";
@@ -372,14 +386,20 @@ function Harness() {
   return <CollabHarness user={user} />;
 }
 
+
 const userId = params.get("user");
 if (userId) setSupabaseToken(token(userId));
 setConnectionLabel(params.get("label") ?? params.get("name") ?? "");
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <LocaleProvider>
-      <Harness />
-    </LocaleProvider>
-  </StrictMode>,
+// The editor's styles, for pages a test looks at rather than only drives;
+// rendering waits for them so a screenshot never catches the page bare.
+const styles = params.get("styled") ? import("../../../../src/index.css") : Promise.resolve();
+void styles.then(() =>
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <LocaleProvider>
+        <Harness />
+      </LocaleProvider>
+    </StrictMode>,
+  ),
 );
