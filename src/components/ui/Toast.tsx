@@ -67,6 +67,7 @@ export function Toast({
   durationMs,
   resetKey = null,
   closable,
+  showProgress = true,
   onDismiss,
   onClose,
   children,
@@ -83,6 +84,8 @@ export function Toast({
   durationMs?: number | null;
   resetKey?: string | number | null;
   closable?: boolean;
+  /** The bar along the bottom; without a duration it is a moving stripe. */
+  showProgress?: boolean;
   /** After the toast has gone, however it went. */
   onDismiss?: () => void;
   /** When the reader closes it or uses an action, as opposed to a timeout. */
@@ -118,6 +121,7 @@ export function Toast({
       onDismiss={onDismiss}
       resetKey={resetKey}
       paused={expanded}
+      showProgress={showProgress}
       live={tone === "error" ? "assertive" : "polite"}
       progressClassName={style.progress}
       className={`pointer-events-auto max-w-full rounded-lg border py-2 pb-3 pl-3 text-sm shadow-lg ${

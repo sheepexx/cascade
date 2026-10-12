@@ -2,6 +2,7 @@ import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AudioSetupModal } from "../../../../src/components/menus/AudioSetupModal";
 import { Dropdown, type DropdownOption } from "../../../../src/components/ui/Dropdown";
+import { FeedbackInvite } from "../../../../src/app/FeedbackInvite";
 import { useCloudProject } from "../../../../src/app/useCloudProject";
 import { useCollabSession } from "../../../../src/app/useCollabSession";
 import { useEditHistory } from "../../../../src/app/useEditHistory";
@@ -330,8 +331,35 @@ function DropdownHarness() {
   );
 }
 
+/** The feedback invitation with the editor's signals as buttons. */
+function FeedbackInviteHarness() {
+  const [busy, setBusy] = useState(false);
+  const [dialog, setDialog] = useState(false);
+  const [taskKey, setTaskKey] = useState(0);
+  const [shared, setShared] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={() => setTaskKey((key) => key + 1)}>Finish export</button>
+      <button type="button" onClick={() => setBusy((value) => !value)}>Toggle playback</button>
+      <button type="button" onClick={() => setDialog((value) => !value)}>Toggle dialog</button>
+      <output data-testid="shared">{shared}</output>
+      {dialog && <div role="dialog" aria-label="Some dialog" />}
+      <div className="fixed bottom-4 left-4">
+        <FeedbackInvite
+          busy={busy}
+          activity={null}
+          taskKey={taskKey}
+          troubled={false}
+          onShare={() => setShared((count) => count + 1)}
+        />
+      </div>
+    </>
+  );
+}
+
 function Harness() {
   if (params.get("mode") === "audio-setup") return <AudioSetupHarness />;
+  if (params.get("mode") === "feedback-invite") return <FeedbackInviteHarness />;
   if (params.get("mode") === "dropdown") return <DropdownHarness />;
   const userId = params.get("user") ?? "";
   const user: AuthUser = {

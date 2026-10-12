@@ -2468,4 +2468,9 @@ export const ru: PartialCatalog = {
   "landing.docsHint": "Руководства по всем частям Cascade",
   "landing.docsAll": "Вся документация",
   "import.notReadable": "Cascade не удалось прочитать этот файл. Если он лежит в облачной папке вроде iCloud Drive, OneDrive или Dropbox, сначала скачайте его на этот компьютер, затем попробуйте снова.",
+  "feedbackInvite.title": "Как вам Cascade?",
+  "feedbackInvite.body": "Расскажите, что работает хорошо, а что мешает.",
+  "feedbackInvite.share": "Оставить отзыв",
+  "feedbackInvite.notNow": "Не сейчас",
+  "feedbackInvite.never": "Больше не спрашивать",
 };

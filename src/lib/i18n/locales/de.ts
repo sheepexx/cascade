@@ -2333,4 +2333,9 @@ export const de: PartialCatalog = {
   "landing.docsHint": "Anleitungen zu allen Teilen von Cascade",
   "landing.docsAll": "Alle Anleitungen",
   "import.notReadable": "Cascade konnte diese Datei nicht lesen. Liegt sie in einem Cloud-Ordner wie iCloud Drive, OneDrive oder Dropbox, lade sie zuerst auf diesen Computer herunter und versuche es dann erneut.",
+  "feedbackInvite.title": "Wie läuft Cascade bei dir?",
+  "feedbackInvite.body": "Erzähl uns, was gut funktioniert und was dir im Weg ist.",
+  "feedbackInvite.share": "Feedback geben",
+  "feedbackInvite.notNow": "Nicht jetzt",
+  "feedbackInvite.never": "Nicht mehr fragen",
 };

@@ -147,6 +147,7 @@ import { Menu } from "./components/ui/Menu";
 import { Modal } from "./components/ui/Modal";
 import { HoldConfirmDialog } from "./components/ui/HoldConfirmDialog";
 import { isDesktopApp, isStandalone, setLaunchFileConsumer } from "./lib/pwa";
+import { recordFeedbackExport } from "./lib/feedbackInvite";
 import { useInstallAvailable } from "./lib/installPrompt";
 import { osuStatus, type OsuStatus } from "./lib/osuDesktop";
 import { watchLaunchFiles } from "./lib/desktopFiles";
@@ -2199,7 +2200,11 @@ export default function App() {
     setModal("mapCard");
   }, []);
 
+  const [feedbackTaskKey, setFeedbackTaskKey] = useState(0);
   const offerMapCard = useCallback((target: string) => {
+    // Every export that went through ends here.
+    recordFeedbackExport();
+    setFeedbackTaskKey((key) => key + 1);
     if (appSettingsRef.current.offerMapCardAfterExport) {
       setMapCardOffer({ target, open: true });
     }
@@ -2416,6 +2421,10 @@ export default function App() {
     timingPoints,
     view,
   });
+  useEffect(() => {
+    if (saveStatus === "saved" || cloudSaveStatus === "saved") setFeedbackTaskKey((key) => key + 1);
+  }, [saveStatus, cloudSaveStatus]);
+
   const {
     dismissInboxNotification,
     ignoreInvite,
@@ -4220,6 +4229,34 @@ export default function App() {
         exportIssues={exportIssues}
         exportProgress={exportProgress}
         exporting={exporting}
+        feedbackInvite={{
+          busy:
+            !projectStarted ||
+            modal !== null ||
+            playtest.active ||
+            audio.isPlaying ||
+            importingMap ||
+            exporting ||
+            osuBusy ||
+            recoveryBusy ||
+            !!recoveryOffer ||
+            !!mapCardOffer?.open ||
+            !!exportCheck ||
+            exitConfirm ||
+            layoutEditing ||
+            zenMode ||
+            saveStatus === "saving" ||
+            cloudSaveStatus === "saving",
+          activity: difficulties,
+          taskKey: feedbackTaskKey,
+          troubled:
+            saveStatus === "error" ||
+            cloudSaveStatus === "error" ||
+            !!cloudError ||
+            !!importError ||
+            !!recoveryOffer,
+          onShare: () => setModal("feedback"),
+        }}
         importError={importError}
         importErrorDetails={importProblem?.details ?? null}
         importNotice={importNotice}

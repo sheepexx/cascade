@@ -13,6 +13,7 @@ import {
 import { InvalidChartDataError } from "../lib/chartValidation";
 import { mergeDifficulties, mergeMeta, mergeTimingPoints } from "../lib/chartMerge";
 import { CloudSync, normalizedChart, type CloudSyncHost } from "../lib/cloudSync";
+import { recordFeedbackUse } from "../lib/feedbackInvite";
 import type { BackupReason } from "../lib/recovery";
 import type { AccessRole } from "../lib/collab";
 import { myAccess } from "../lib/collab";
@@ -173,6 +174,7 @@ export function useCollabSession({
     localEditVersionRef.current += 1;
     if (sessionActiveRef.current) pendingDocSyncRef.current = true;
     noteRecoveryEdit();
+    recordFeedbackUse();
   }, [noteRecoveryEdit]);
 
   useEffect(() => {

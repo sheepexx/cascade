@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { RecoveryPrompt } from "../components/RecoveryPrompt";
+import { FeedbackInvite } from "./FeedbackInvite";
 import { InstallOffer } from "./InstallOffer";
 import { SampleMapsIcon } from "../components/ui/StartIcons";
 import { Toast } from "../components/ui/Toast";
@@ -36,7 +37,8 @@ function useActivityRecord(entry: ActivityInput | null): () => void {
 /**
  * The stack of notices at the bottom of the window: unsaved work to restore,
  * save and export progress and failures, import results, the export check,
- * the reminder to add a song, and app updates. Failures and export checks are
+ * the reminder to add a song, app updates and the occasional feedback
+ * invitation. Failures and export checks are
  * also kept in the inbox's activity list, unread until the toast is closed or
  * acted on, so one that timed out unseen can still be found.
  */
@@ -52,6 +54,7 @@ export function AppToasts({
   exportIssues,
   exportProgress,
   exporting,
+  feedbackInvite,
   importError,
   importErrorDetails,
   importNotice,
@@ -85,6 +88,7 @@ export function AppToasts({
   exportIssues: { target: string; issues: RoundTripIssue[]; } | null;
   exportProgress: ProgressReport | null;
   exporting: boolean;
+  feedbackInvite: Parameters<typeof FeedbackInvite>[0];
   importError: string | null;
   importErrorDetails: string | null;
   importNotice: string | null;
@@ -328,6 +332,7 @@ export function AppToasts({
       />
 
       <InstallOffer eligible={installEligible} />
+      <FeedbackInvite {...feedbackInvite} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Modal } from "../ui/Modal";
 import { Button, Field } from "../ui/Controls";
 import { useAuth } from "../../lib/auth";
 import { submitFeedback } from "../../lib/feedback";
+import { recordFeedbackSent } from "../../lib/feedbackInvite";
 import { useT } from "../../lib/i18n";
 import { trackDiscord } from "../../lib/discordLink";
 import { DISCORD_INVITE } from "../../lib/siteAssets";
@@ -39,6 +40,7 @@ export function FeedbackModal({
         body: body.trim(),
       });
       setStatus("done");
+      recordFeedbackSent();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("feedback.failed"));
       setStatus("error");

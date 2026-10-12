@@ -2471,4 +2471,9 @@ export const en = {
   "cloud.mergedConflicts.one": "A collaborator saved a different change to {count} thing you also edited. Their version was kept; yours is in Backups.",
   "cloud.mergedConflicts.other": "A collaborator saved different changes to {count} things you also edited. Their versions were kept; yours are in Backups.",
   "backups.reason.beforeMerge": "Before merging a collaborator's save",
+  "feedbackInvite.title": "How’s Cascade working for you?",
+  "feedbackInvite.body": "Tell us what works well and what gets in the way.",
+  "feedbackInvite.share": "Share feedback",
+  "feedbackInvite.notNow": "Not now",
+  "feedbackInvite.never": "Don’t ask again",
 } as const;
