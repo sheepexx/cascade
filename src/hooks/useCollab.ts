@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { getSupabase, getSupabaseToken } from "../lib/supabase";
-import { isCollabOp, type CollabOp } from "../lib/ops";
+import type { CollabOp } from "../lib/ops";
+import { CollabInbox, isOwnMessage } from "../lib/collabInbox";
 import {
   aggregatePresencePeers,
   type PresencePeer,
@@ -110,7 +111,8 @@ export function useCollab(opts: {
   projectIdRef.current = projectId;
   const sendQueueRef = useRef<Promise<void>>(Promise.resolve());
   const opSequenceRef = useRef(0);
-  const seenOpIdsRef = useRef<Set<string>>(new Set());
+  const inboxRef = useRef<CollabInbox | null>(null);
+  inboxRef.current ??= new CollabInbox(sessionIdRef.current);
 
   const updateStatus = (next: CollabStatus) => {
     statusRef.current = next;
@@ -126,7 +128,7 @@ export function useCollab(opts: {
     }
 
     updateStatus("connecting");
-    seenOpIdsRef.current.clear();
+    inboxRef.current?.reset();
     peersRef.current.clear();
     setPeers([]);
     const myColor = colorForId(me.id);
@@ -244,33 +246,27 @@ export function useCollab(opts: {
       channel = ch;
       channelRef.current = ch;
 
+      // Own messages are told apart by window, not account, so another tab
+      // or device signed in to the same account still receives these.
+      const own = (payload: unknown) =>
+        isOwnMessage(payload, {
+          clientId: sessionIdRef.current,
+          userId: meRef.current?.id ?? null,
+        });
       ch.on("broadcast", { event: "op" }, ({ payload }) => {
-        if (!isCollabOp(payload)) return;
-        const record = payload as unknown as Record<string, unknown>;
-        const sender = record._from;
-        if (typeof sender === "string" && sender === meRef.current?.id) return;
-        const opId = record._opId;
-        if (typeof opId === "string") {
-          if (seenOpIdsRef.current.has(opId)) return;
-          seenOpIdsRef.current.add(opId);
-          if (seenOpIdsRef.current.size > 10_000) {
-            const oldest = seenOpIdsRef.current.values().next().value;
-            if (oldest) seenOpIdsRef.current.delete(oldest);
-          }
-        }
-        onRemoteOpRef.current(payload);
+        const op = inboxRef.current?.accept(payload, meRef.current?.id ?? null);
+        if (op) onRemoteOpRef.current(op);
       });
       ch.on("broadcast", { event: "doc.bump" }, ({ payload }) => {
-        if ((payload as { _from?: string })?._from === meRef.current?.id) return;
+        if (own(payload)) return;
         onRefreshRef.current();
       });
       ch.on("broadcast", { event: "notice" }, ({ payload }) => {
         const p = payload as {
           text?: string;
           avatar?: string | null;
-          _from?: string;
         };
-        if (!p?.text || p._from === meRef.current?.id) return;
+        if (!p?.text || own(payload)) return;
         onNoticeRef.current?.({ text: p.text, avatar: p.avatar ?? null });
       });
       ch.on("presence", { event: "sync" }, () => syncPresence(ch));
@@ -468,7 +464,10 @@ export function useCollab(opts: {
     });
   };
   const sendRefresh = () => {
-    sendBroadcast("doc.bump", { _from: meRef.current?.id });
+    sendBroadcast("doc.bump", {
+      _from: meRef.current?.id,
+      _clientId: sessionIdRef.current,
+    });
   };
   const sendNotice = (text: string) => {
     const currentMe = meRef.current;
@@ -477,6 +476,7 @@ export function useCollab(opts: {
       text,
       avatar: currentMe.avatar,
       _from: currentMe.id,
+      _clientId: sessionIdRef.current,
     });
   };
   const updatePresence = (fields: PresenceFields) => {
