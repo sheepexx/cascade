@@ -90,6 +90,13 @@ export function SettingsModal({
   const shownTab: Tab = tab === "batch" && !batch ? "metadata" : tab;
   const set = <K extends keyof SongMeta>(key: K, value: SongMeta[K]) =>
     onMeta({ ...meta, [key]: value });
+  // A .osu reads every value trimmed, so spaces at either end go when the field is left.
+  const trimMeta = (key: "title" | "artist" | "creator" | "tags" | "source" | "titleUnicode" | "artistUnicode") => () => {
+    const value = meta[key];
+    if (value === undefined || value === value.trim()) return;
+    const required = key === "title" || key === "artist" || key === "creator";
+    set(key, required ? value.trim() : value.trim() || undefined);
+  };
 
   const isSm = activeDiff?.sourceFormat === "sm";
   const sm: SmMeta = activeDiff?.smMeta ?? {};
@@ -103,6 +110,10 @@ export function SettingsModal({
 
   const setSm = <K extends keyof SmMeta>(key: K, value: SmMeta[K]) =>
     onSmMeta?.({ ...sm, [key]: value });
+  const trimSm = (key: "subtitle" | "titleTranslit" | "subtitleTranslit" | "artistTranslit" | "genre" | "displayBpm") => () => {
+    const value = sm[key];
+    if (value !== undefined && value !== value.trim()) setSm(key, value.trim() || undefined);
+  };
 
   const tabs: { value: Tab; label: string }[] = [
     { value: "metadata", label: t("mapSettings.metadata") },
@@ -152,6 +163,7 @@ export function SettingsModal({
                   <TextInput
                     value={meta.title}
                     onChange={(e) => set("title", e.target.value)}
+                    onBlur={trimMeta("title")}
                   />
                 </Field>
                 <Field label={t("mapSettings.fieldTitleUnicode")}>
@@ -160,12 +172,14 @@ export function SettingsModal({
                     onChange={(e) =>
                       set("titleUnicode", e.target.value || undefined)
                     }
+                    onBlur={trimMeta("titleUnicode")}
                   />
                 </Field>
                 <Field label={t("mapSettings.fieldArtist")}>
                   <TextInput
                     value={meta.artist}
                     onChange={(e) => set("artist", e.target.value)}
+                    onBlur={trimMeta("artist")}
                   />
                 </Field>
                 <Field label={t("mapSettings.fieldArtistUnicode")}>
@@ -174,6 +188,7 @@ export function SettingsModal({
                     onChange={(e) =>
                       set("artistUnicode", e.target.value || undefined)
                     }
+                    onBlur={trimMeta("artistUnicode")}
                   />
                 </Field>
               </div>
@@ -185,12 +200,14 @@ export function SettingsModal({
                   <TextInput
                     value={meta.creator}
                     onChange={(e) => set("creator", e.target.value)}
+                    onBlur={trimMeta("creator")}
                   />
                 </Field>
                 <Field label={t("mapSettings.fieldSource")}>
                   <TextInput
                     value={meta.source ?? ""}
                     onChange={(e) => set("source", e.target.value || undefined)}
+                    onBlur={trimMeta("source")}
                   />
                 </Field>
               </div>
@@ -201,6 +218,7 @@ export function SettingsModal({
                 <TextInput
                   value={meta.tags ?? ""}
                   onChange={(e) => set("tags", e.target.value)}
+                  onBlur={trimMeta("tags")}
                   placeholder={t("mapSettings.tagsPlaceholder")}
                 />
               </Field>
@@ -268,6 +286,7 @@ export function SettingsModal({
                     onChange={(e) =>
                       setSm("subtitle", e.target.value || undefined)
                     }
+                    onBlur={trimSm("subtitle")}
                     placeholder={t("mapSettings.smSubtitlePlaceholder")}
                   />
                 </Field>
@@ -279,6 +298,7 @@ export function SettingsModal({
                       onChange={(e) =>
                         setSm("titleTranslit", e.target.value || undefined)
                       }
+                      onBlur={trimSm("titleTranslit")}
                       placeholder={t("mapSettings.smRomanisedTitle")}
                     />
                   </Field>
@@ -288,6 +308,7 @@ export function SettingsModal({
                       onChange={(e) =>
                         setSm("subtitleTranslit", e.target.value || undefined)
                       }
+                      onBlur={trimSm("subtitleTranslit")}
                       placeholder={t("mapSettings.smRomanisedSubtitle")}
                     />
                   </Field>
@@ -299,6 +320,7 @@ export function SettingsModal({
                     onChange={(e) =>
                       setSm("artistTranslit", e.target.value || undefined)
                     }
+                    onBlur={trimSm("artistTranslit")}
                     placeholder={t("mapSettings.smRomanisedArtist")}
                   />
                 </Field>
@@ -307,6 +329,7 @@ export function SettingsModal({
                   <TextInput
                     value={sm.genre ?? ""}
                     onChange={(e) => setSm("genre", e.target.value || undefined)}
+                    onBlur={trimSm("genre")}
                     placeholder={t("mapSettings.smGenrePlaceholder")}
                   />
                 </Field>
@@ -318,6 +341,7 @@ export function SettingsModal({
                       onChange={(e) =>
                         setSm("displayBpm", e.target.value || undefined)
                       }
+                      onBlur={trimSm("displayBpm")}
                       placeholder={t("mapSettings.smDisplayBpmPlaceholder")}
                     />
                   </Field>
