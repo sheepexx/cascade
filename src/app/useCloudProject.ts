@@ -116,6 +116,9 @@ export function useCloudProject({
   ) => {
     const { overwriteId, asNewMap = false } = target;
     if (!authUser) return;
+    // The edits `data` below holds: counted before anything awaits, so an
+    // edit made while this save runs stays unsaved and goes up next.
+    const editVersion = localEditVersionRef.current;
     setCloudSaveStatus("saving");
     setCloudError(null);
 
@@ -185,7 +188,6 @@ export function useCloudProject({
         // overwrite still names the revision it replaces, so a save someone
         // makes in between isn't lost.
         const expectedRevision = targetId ? await fetchProjectRevision(targetId) : null;
-        const editVersion = localEditVersionRef.current;
         const saved = await saveProjectCloud({
           ownerId: authUser.id,
           projectId: targetId,

@@ -160,6 +160,8 @@ export function useCollabSession({
   backupRecoveryRef.current = backupRecovery;
   /** The save error this hook is showing, so a later save can clear just that. */
   const liveSaveErrorRef = useRef<string | null>(null);
+  const tRef = useRef(t);
+  tRef.current = t;
   const [assetPublishTick, setAssetPublishTick] = useState(0);
   const [assetSyncTick, setAssetSyncTick] = useState(0);
   const assetAttemptsRef = useRef<Map<string, number>>(new Map());
@@ -254,7 +256,7 @@ export function useCollabSession({
       },
       keepLocalCopy: async (conflicts) => {
         await backupRecoveryRef.current("before-merge");
-        setCloudError(t("cloud.mergedConflicts", { count: conflicts }));
+        setCloudError(tRef.current("cloud.mergedConflicts", { count: conflicts }));
       },
     };
     cloudSyncRef.current = new CloudSync(host, async () => {
