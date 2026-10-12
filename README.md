@@ -346,12 +346,15 @@ Cascade finds osu! through the running `osu!.exe`, the registry or `%LOCALAPPDAT
 
 ## Local development
 
-You need Node.js 20 or newer. The desktop app also needs a stable Rust toolchain and the Tauri 2 system dependencies for your platform. The Linux packages used in CI are listed in [.github/workflows/desktop.yml](.github/workflows/desktop.yml).
+You need Node.js 22.13 or newer (24 and later work too). The desktop app also needs a stable Rust toolchain and the Tauri 2 system dependencies for your platform. The Linux packages used in CI are listed in [.github/workflows/desktop.yml](.github/workflows/desktop.yml).
 
 ```bash
 npm ci
+npm ci --prefix worker
 npm run dev
 ```
+
+The Worker has its own packages; `npm test` runs its tests too, so install both.
 
 The dev server runs at http://localhost:5173.
 

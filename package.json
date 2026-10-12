@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.2.437",
   "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24"
+  },
   "description": "Cascade - a browser-based osu!mania beatmap editor",
   "scripts": {
     "dev": "vite",

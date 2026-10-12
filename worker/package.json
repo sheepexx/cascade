@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24"
+  },
   "description": "Cloudflare Worker: osu! OAuth + Supabase session minting for the mania editor",
   "scripts": {
     "dev": "wrangler dev",

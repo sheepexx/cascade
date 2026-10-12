@@ -17,10 +17,13 @@ helps more than a duplicate.
 
 ## Getting the code running
 
-You need Node.js 20 or newer.
+You need Node.js 22.13 or newer (24 and later work too; `.nvmrc` names the
+version CI uses). Install the editor's packages and the Worker's: the root
+test run includes the Worker's tests, which need its own packages.
 
 ```bash
 npm ci
+npm ci --prefix worker
 npm run dev
 ```
 
@@ -41,6 +44,7 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
+npm run typecheck --prefix worker
 ```
 
 and, if you touched `src-tauri`:
