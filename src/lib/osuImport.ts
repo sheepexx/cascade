@@ -139,9 +139,12 @@ export function parseOsuFile(text: string): ParsedOsu {
   };
   const beatmapId = Math.round(Number(meta["BeatmapID"]));
 
+  // An empty entry would read as 0 and invent a bookmark at the very start.
   const bookmarks = (editor["Bookmarks"] ?? "")
     .split(",")
-    .map((s) => Math.round(Number(s.trim())))
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => Math.round(Number(s)))
     .filter((n) => Number.isFinite(n))
     .sort((a, b) => a - b);
 

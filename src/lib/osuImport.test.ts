@@ -50,6 +50,19 @@ describe("isManiaOsu", () => {
   });
 });
 
+describe("parseOsuFile bookmarks", () => {
+  it("reads no bookmarks from a map without a Bookmarks line or with an empty one", () => {
+    expect(parseOsuFile(osuText()).difficulty.bookmarks).toBeUndefined();
+    const empty = osuText().replace("[Editor]\n", "[Editor]\nBookmarks: \n");
+    expect(parseOsuFile(empty).difficulty.bookmarks).toBeUndefined();
+  });
+
+  it("reads the bookmarks a map lists", () => {
+    const text = osuText().replace("[Editor]\n", "[Editor]\nBookmarks: 1500, 300,\n");
+    expect(parseOsuFile(text).difficulty.bookmarks).toEqual([300, 1500]);
+  });
+});
+
 describe("isSameSong", () => {
   it("ignores case and spacing", () => {
     expect(

@@ -169,6 +169,8 @@ const FIELD_DEFAULTS: Partial<Record<keyof Difficulty, unknown>> = {
 function sameValue(a: unknown, b: unknown): boolean {
   if (emptyish(a) && emptyish(b)) return true;
   if (typeof a === "number" && typeof b === "number") return nearlyEqual(a, b, 1e-9);
+  // Formats read `Key: value` lines trimmed, so spaces at either end never survive.
+  if (typeof a === "string" && typeof b === "string") return a.trim() === b.trim();
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
@@ -429,7 +431,7 @@ function pairDifficulties(a: Difficulty[], b: Difficulty[]) {
   const unmatchedB = [...b];
   const missing: Difficulty[] = [];
   for (const d of a) {
-    const index = unmatchedB.findIndex((x) => x.name === d.name);
+    const index = unmatchedB.findIndex((x) => x.name.trim() === d.name.trim());
     if (index >= 0) pairs.push({ a: d, b: unmatchedB.splice(index, 1)[0] });
     else missing.push(d);
   }

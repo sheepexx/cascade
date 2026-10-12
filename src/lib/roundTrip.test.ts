@@ -122,6 +122,12 @@ describe("compareCharts", () => {
     expect(compareCharts(a, b).map((i) => i.path)).toEqual(["metadata › tags"]);
   });
 
+  it("ignores spaces at either end of text, which a format reads trimmed", () => {
+    const a = chart({}, { artist: " Herb Alpert" });
+    const b = chart({}, { artist: "Herb Alpert" });
+    expect(compareCharts(a, b)).toEqual([]);
+  });
+
   it("pairs difficulties by name and reports one that went missing", () => {
     const easy = { ...makeDifficulty("Easy", 4), notes: [] };
     const hard = { ...makeDifficulty("Hard", 4), notes: [] };
