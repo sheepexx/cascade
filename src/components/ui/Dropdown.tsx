@@ -8,6 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDownIcon } from "./Icons";
+import { dropdownKeyTarget } from "./dropdownKeys";
 import { MOTION } from "../../lib/motion";
 
 export type DropdownOption<T extends string | number> = {
@@ -128,20 +129,21 @@ export function Dropdown<T extends string | number>({
         return;
       }
       const live = stateRef.current;
-      const index = live.options.findIndex(
-        (option) => option.value === live.value,
-      );
-      const step = (to: number) => {
+      if (
+        event.key === "ArrowDown" ||
+        event.key === "ArrowUp" ||
+        event.key === "Home" ||
+        event.key === "End"
+      ) {
         event.preventDefault();
-        const next =
-          live.options[Math.max(0, Math.min(live.options.length - 1, to))];
+        // Disabled rows are skipped, as a click on one does nothing.
+        const index = live.options.findIndex(
+          (option) => option.value === live.value,
+        );
+        const to = dropdownKeyTarget(live.options, index, event.key);
+        const next = to === null ? undefined : live.options[to];
         if (next && next.value !== live.value) live.onChange(next.value);
-      };
-      if (event.key === "ArrowDown") step(index + 1);
-      else if (event.key === "ArrowUp") step(index - 1);
-      else if (event.key === "Home") step(0);
-      else if (event.key === "End") step(live.options.length - 1);
-      else if (event.key === "Enter" || event.key === " ") {
+      } else if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         setOpen(false);
         triggerRef.current?.focus();
