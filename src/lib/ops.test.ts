@@ -9,6 +9,7 @@ import {
   isCollabOp,
   MAX_COLLAB_NOTES_PER_OP,
   opProblem,
+  rebaseNoteOp,
   type NoteOp,
 } from "./ops";
 
@@ -296,5 +297,175 @@ describe("opProblem", () => {
 
   it("refuses a NaN time before any difficulty is consulted", () => {
     expect(isCollabOp({ t: "note.add", diffId: "d1", notes: [{ id: "x", column: 0, startTime: Number.NaN }] })).toBe(false);
+  });
+});
+
+/**
+ * Two windows sharing a difficulty: each applies its own ops directly and the
+ * other's through applyOp, as a live session does. Undo is the inverse op
+ * rebased onto the document as it is when the user presses it.
+ */
+function session(notes: ManiaNote[]) {
+  let doc = docs(notes);
+  const notesNow = () => doc.find((d) => d.id === "d1")!.notes;
+  const find = (id: string) => notesNow().find((n) => n.id === id);
+  return {
+    find,
+    notesNow,
+    local(op: NoteOp) {
+      doc = applyNoteOp(doc, op);
+      return op;
+    },
+    remote(op: NoteOp) {
+      doc = applyOp(doc, op);
+    },
+    undo(op: NoteOp) {
+      const rebased = rebaseNoteOp(doc, invertNoteOp(op));
+      if (rebased.op) doc = applyNoteOp(doc, rebased.op);
+      return rebased;
+    },
+    redo(op: NoteOp) {
+      const rebased = rebaseNoteOp(doc, op);
+      if (rebased.op) doc = applyNoteOp(doc, rebased.op);
+      return rebased;
+    },
+  };
+}
+
+const move = (from: ManiaNote, changes: Partial<ManiaNote>): NoteOp => ({
+  t: "note.update",
+  diffId: "d1",
+  before: [from],
+  after: [{ ...from, ...changes }],
+});
+
+describe("collaborative undo", () => {
+  const n = note("n", 0, 1000);
+
+  it("keeps a collaborator's later move when undoing an earlier one", () => {
+    // Alice moves 1000 -> 1100, Bob moves 1100 -> 1200, Alice undoes.
+    const alice = session([n]);
+    const aliceMove = alice.local(move(n, { startTime: 1100 }));
+    const bobMove = move({ ...n, startTime: 1100 }, { startTime: 1200 });
+    alice.remote(bobMove);
+    const result = alice.undo(aliceMove);
+    expect(alice.find("n")?.startTime).toBe(1200);
+    expect(result).toEqual({ op: null, kept: 1 });
+  });
+
+  it("undoes the user's own move normally when nobody touched the note", () => {
+    const alice = session([n]);
+    const aliceMove = alice.local(move(n, { startTime: 1100 }));
+    expect(alice.undo(aliceMove).kept).toBe(0);
+    expect(alice.find("n")).toEqual(n);
+    alice.redo(aliceMove);
+    expect(alice.find("n")?.startTime).toBe(1100);
+  });
+
+  it("undoes one field while keeping a collaborator's change to another", () => {
+    const alice = session([n]);
+    const aliceMove = alice.local(move(n, { startTime: 1100 }));
+    alice.remote(move({ ...n, startTime: 1100 }, { column: 3 }));
+    const result = alice.undo(aliceMove);
+    expect(alice.find("n")).toEqual({ ...n, startTime: 1000, column: 3 });
+    expect(result.kept).toBe(0);
+  });
+
+  it("redo restores only the fields undo gave back", () => {
+    const alice = session([n]);
+    const aliceMove = alice.local(move(n, { startTime: 1100, column: 1 }));
+    alice.remote(move({ ...n, startTime: 1100, column: 1 }, { column: 2 }));
+    alice.undo(aliceMove);
+    expect(alice.find("n")).toEqual({ ...n, startTime: 1000, column: 2 });
+    alice.redo(aliceMove);
+    expect(alice.find("n")).toEqual({ ...n, startTime: 1100, column: 2 });
+  });
+
+  it("doesn't delete a note a collaborator edited when undoing its placement", () => {
+    const alice = session([]);
+    const placed = alice.local({ t: "note.add", diffId: "d1", notes: [n] });
+    alice.remote(move(n, { startTime: 1500 }));
+    expect(alice.undo(placed)).toEqual({ op: null, kept: 1 });
+    expect(alice.find("n")?.startTime).toBe(1500);
+  });
+
+  it("deletes the user's own unchanged placement on undo and places it again on redo", () => {
+    const alice = session([]);
+    const placed = alice.local({ t: "note.add", diffId: "d1", notes: [n] });
+    alice.undo(placed);
+    expect(alice.find("n")).toBeUndefined();
+    alice.redo(placed);
+    expect(alice.find("n")).toEqual(n);
+  });
+
+  it("leaves a note deleted when a collaborator deleted it after the user moved it", () => {
+    const alice = session([n]);
+    const aliceMove = alice.local(move(n, { startTime: 1100 }));
+    alice.remote({ t: "note.remove", diffId: "d1", notes: [{ ...n, startTime: 1100 }] });
+    expect(alice.undo(aliceMove)).toEqual({ op: null, kept: 1 });
+    expect(alice.find("n")).toBeUndefined();
+  });
+
+  it("restores a note the user deleted, unless someone already restored it", () => {
+    const alice = session([n]);
+    const removed = alice.local({ t: "note.remove", diffId: "d1", notes: [n] });
+    alice.undo(removed);
+    expect(alice.find("n")).toEqual(n);
+    const redo = alice.redo(removed);
+    expect(redo.op?.t).toBe("note.remove");
+    expect(alice.find("n")).toBeUndefined();
+  });
+
+  it("doesn't redo a delete over a collaborator's edit", () => {
+    const alice = session([n]);
+    const removed = alice.local({ t: "note.remove", diffId: "d1", notes: [n] });
+    alice.undo(removed);
+    alice.remote(move(n, { column: 2 }));
+    expect(alice.redo(removed)).toEqual({ op: null, kept: 1 });
+    expect(alice.find("n")?.column).toBe(2);
+  });
+
+  it("refuses a field mix that would leave a hold ending before it starts", () => {
+    const hold = note("h", 0, 1000, 1500);
+    const alice = session([hold]);
+    const lengthen = alice.local(move(hold, { endTime: 3000 }));
+    // Bob moves the hold's start past Alice's original end.
+    alice.remote(move({ ...hold, endTime: 3000 }, { startTime: 2000 }));
+    expect(alice.undo(lengthen)).toEqual({ op: null, kept: 1 });
+    expect(alice.find("h")).toEqual({ ...hold, startTime: 2000, endTime: 3000 });
+  });
+
+  it("treats only the notes that changed as kept in a multi-note undo", () => {
+    const other = note("o", 1, 2000);
+    const alice = session([n, other]);
+    const both: NoteOp = {
+      t: "note.update",
+      diffId: "d1",
+      before: [n, other],
+      after: [{ ...n, startTime: 1100 }, { ...other, startTime: 2100 }],
+    };
+    alice.local(both);
+    alice.remote(move({ ...other, startTime: 2100 }, { startTime: 2200 }));
+    const result = alice.undo(both);
+    expect(result.kept).toBe(1);
+    expect(alice.find("n")?.startTime).toBe(1000);
+    expect(alice.find("o")?.startTime).toBe(2200);
+  });
+});
+
+describe("applyOp with a stale op", () => {
+  it("ignores a delayed move whose starting point is gone", () => {
+    const n = note("n", 0, 1000);
+    const bob = session([{ ...n, startTime: 1200 }]);
+    // Bob's first move (1000 -> 1100) arrives after the document already has 1200.
+    bob.remote(move(n, { startTime: 1100 }));
+    expect(bob.find("n")?.startTime).toBe(1200);
+  });
+
+  it("doesn't add a second copy, or overwrite a note, with a repeated add", () => {
+    const n = note("n", 0, 1000);
+    const doc = session([{ ...n, column: 2 }]);
+    doc.remote({ t: "note.add", diffId: "d1", notes: [n] });
+    expect(doc.notesNow()).toEqual([{ ...n, column: 2 }]);
   });
 });

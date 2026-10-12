@@ -1778,6 +1778,7 @@ export default function App() {
     meta,
     modal,
     noteRecoveryEdit,
+    onKeptChanges: (count) => setImportNotice(t("history.keptCollaboratorChanges", { count })),
     opRedoRef,
     opUndoRef,
     sessionActiveRef,

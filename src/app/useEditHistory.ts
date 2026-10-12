@@ -8,7 +8,7 @@ import {
 } from "../lib/editorHistory";
 import type { Translate } from "../lib/i18n";
 import type { NoteOp } from "../lib/ops";
-import { applyNoteOp, invertNoteOp } from "../lib/ops";
+import { applyNoteOpIfCurrent, invertNoteOp, rebaseNoteOp } from "../lib/ops";
 import type { Difficulty, SongMeta, TimingPoint } from "../types";
 import type { DocSnapshot, ModalId } from "./appTypes";
 
@@ -17,7 +17,11 @@ import type { DocSnapshot, ModalId } from "./appTypes";
  * snapshot on a stack (up to 200), so anything undoes, including timing and
  * metadata. In a live session undo works on this user's own note ops instead,
  * inverting and broadcasting them, so it never undoes a collaborator's work.
- * The history list builds its entries only while it is on screen.
+ * A collaborator may have changed the same notes since: undo and redo only
+ * move the fields that still hold this user's value (lib/ops rebaseNoteOp),
+ * so their later change survives, and onKeptChanges says how many notes were
+ * left as they are. The history list builds its entries only while it is on
+ * screen.
  */
 export function useEditHistory({
   applyingRemoteRef,
@@ -30,6 +34,7 @@ export function useEditHistory({
   meta,
   modal,
   noteRecoveryEdit,
+  onKeptChanges,
   opRedoRef,
   opUndoRef,
   sessionActiveRef,
@@ -50,6 +55,8 @@ export function useEditHistory({
   meta: SongMeta;
   modal: ModalId;
   noteRecoveryEdit: (forProject?: string) => void | undefined;
+  /** Notes an undo or redo left alone because a collaborator changed them since. */
+  onKeptChanges?: (count: number) => void;
   opRedoRef: MutableRefObject<NoteOp[]>;
   opUndoRef: MutableRefObject<NoteOp[]>;
   sessionActiveRef: MutableRefObject<boolean>;
@@ -69,6 +76,34 @@ export function useEditHistory({
   const presentRef = useRef<DocSnapshot | null>(null);
   const applyingHistoryRef = useRef(false);
   const [historyRevision, bumpHistory] = useState(0);
+  const difficultiesRef = useRef(difficulties);
+  difficultiesRef.current = difficulties;
+  const onKeptChangesRef = useRef(onKeptChanges);
+  onKeptChangesRef.current = onKeptChanges;
+
+  /**
+   * Applies this user's own ops in a live session, each rebased onto the
+   * document as it is now, and broadcasts what actually changed. The state
+   * update rebases again in case a collaborator's op landed in between.
+   */
+  const applySessionOps = useCallback((ops: NoteOp[]) => {
+    let state = difficultiesRef.current;
+    let kept = 0;
+    const effective: NoteOp[] = [];
+    for (const op of ops) {
+      const rebased = rebaseNoteOp(state, op);
+      kept += rebased.kept;
+      if (!rebased.op) continue;
+      effective.push(rebased.op);
+      state = applyNoteOpIfCurrent(state, rebased.op);
+    }
+    if (effective.length) {
+      markStructural();
+      setDifficulties((prev) => effective.reduce(applyNoteOpIfCurrent, prev));
+      for (const op of effective) collabRef.current?.sendOp(op);
+    }
+    if (kept > 0) onKeptChangesRef.current?.(kept);
+  }, [collabRef, markStructural, setDifficulties]);
 
   useEffect(() => {
     if (presentRef.current === null) {
@@ -110,11 +145,8 @@ export function useEditHistory({
     if (sessionActiveRef.current) {
       const op = opUndoRef.current.pop();
       if (!op) return;
-      const inv = invertNoteOp(op);
-      markStructural();
-      setDifficulties((prev) => applyNoteOp(prev, inv));
       opRedoRef.current.push(op);
-      collabRef.current?.sendOp(inv);
+      applySessionOps([invertNoteOp(op)]);
       bumpHistory((v) => v + 1);
       return;
     }
@@ -124,16 +156,14 @@ export function useEditHistory({
     applySnapshot(prev);
     noteRecoveryEdit();
     bumpHistory((v) => v + 1);
-  }, [applySnapshot, markStructural, noteRecoveryEdit, collabRef, opRedoRef, opUndoRef, sessionActiveRef, setDifficulties]);
+  }, [applySessionOps, applySnapshot, noteRecoveryEdit, opRedoRef, opUndoRef, sessionActiveRef]);
 
   const redo = useCallback(() => {
     if (sessionActiveRef.current) {
       const op = opRedoRef.current.pop();
       if (!op) return;
-      markStructural();
-      setDifficulties((prev) => applyNoteOp(prev, op));
       opUndoRef.current.push(op);
-      collabRef.current?.sendOp(op);
+      applySessionOps([op]);
       bumpHistory((v) => v + 1);
       return;
     }
@@ -143,7 +173,7 @@ export function useEditHistory({
     applySnapshot(next);
     noteRecoveryEdit();
     bumpHistory((v) => v + 1);
-  }, [applySnapshot, markStructural, noteRecoveryEdit, collabRef, opRedoRef, opUndoRef, sessionActiveRef, setDifficulties]);
+  }, [applySessionOps, applySnapshot, noteRecoveryEdit, opRedoRef, opUndoRef, sessionActiveRef]);
 
   const canUndo = liveEnabled
     ? opUndoRef.current.length > 0
@@ -178,9 +208,7 @@ export function useEditHistory({
         opUndoRef.current.push(op); operations.push(op);
       }
       if (!operations.length) return;
-      markStructural();
-      setDifficulties(prev => operations.reduce((state, op) => applyNoteOp(state, op), prev));
-      for (const op of operations) collabRef.current?.sendOp(op);
+      applySessionOps(operations);
     } else {
       if (!presentRef.current || index === undoStackRef.current.length) return;
       const result = jumpSnapshotHistory(undoStackRef.current, presentRef.current, redoStackRef.current, index);
@@ -190,7 +218,7 @@ export function useEditHistory({
       noteRecoveryEdit();
     }
     bumpHistory(v => v + 1);
-  }, [applySnapshot, markStructural, noteRecoveryEdit, canEditRef, collabRef, opRedoRef, opUndoRef, sessionActiveRef, setDifficulties]);
+  }, [applySessionOps, applySnapshot, noteRecoveryEdit, canEditRef, opRedoRef, opUndoRef, sessionActiveRef]);
 
   return {
     applyingHistoryRef,

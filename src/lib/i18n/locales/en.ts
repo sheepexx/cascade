@@ -2462,4 +2462,6 @@ export const en = {
   "validation.invalidTiming.other": "{count} timing points with an invalid time, BPM or value.",
   "validation.invalidDifficultyValue": "HP, OD, preview time or another difficulty setting is not a valid number.",
   "collab.invalidOpIgnored": "An edit from a collaborator didn't fit this map and was ignored. Your map is unchanged.",
+  "history.keptCollaboratorChanges.one": "{count} note was changed by a collaborator since, so it was left as they made it.",
+  "history.keptCollaboratorChanges.other": "{count} notes were changed by a collaborator since, so they were left as they made them.",
 } as const;

@@ -117,13 +117,14 @@ export function applyDiffFieldOp(
   });
 }
 
+/** Applies a collaborator's op. Note ops apply only where still current: see rebaseNoteOp. */
 export function applyOp(
   difficulties: Difficulty[],
   op: CollabOp,
 ): Difficulty[] {
   return op.t === "diff.fields"
     ? applyDiffFieldOp(difficulties, op)
-    : applyNoteOp(difficulties, op);
+    : applyNoteOpIfCurrent(difficulties, op);
 }
 
 /**
@@ -199,4 +200,127 @@ export function invertNoteOp(op: NoteOp): NoteOp {
         after: op.before,
       };
   }
+}
+
+/** Every field a note op can change; the id is what ties a note across edits. */
+const NOTE_FIELDS = [
+  "column",
+  "startTime",
+  "endTime",
+  "hitSound",
+  "sampleSet",
+  "additionSet",
+  "sampleIndex",
+  "sampleVolume",
+  "sampleFile",
+] as const satisfies readonly (keyof ManiaNote)[];
+
+export function sameNote(a: ManiaNote, b: ManiaNote): boolean {
+  return a.id === b.id && NOTE_FIELDS.every((field) => a[field] === b[field]);
+}
+
+/**
+ * `current` moved field by field from `from` towards `to`: each field that
+ * still holds `from`'s value takes `to`'s, and a field someone has changed
+ * since keeps its newer value. Null when nothing would change, or when the
+ * fields that could move would leave a hold ending before it starts.
+ */
+function moveFields(current: ManiaNote, from: ManiaNote, to: ManiaNote): ManiaNote | null {
+  let next: ManiaNote | null = null;
+  for (const field of NOTE_FIELDS) {
+    if (current[field] !== from[field] || from[field] === to[field]) continue;
+    next ??= { ...current };
+    if (to[field] === undefined) delete next[field];
+    else (next as Record<string, unknown>)[field] = to[field];
+  }
+  if (next && next.endTime !== undefined && !(next.endTime > next.startTime)) return null;
+  return next;
+}
+
+export type RebasedNoteOp = {
+  /** What actually applies to the current document, or null for nothing. */
+  op: NoteOp | null;
+  /** Notes left alone because someone else changed or removed them since. */
+  kept: number;
+};
+
+/**
+ * Re-applies an op to a document that may have moved on since it was made.
+ *
+ * An op is read as "each note goes from this to that": an add takes a note
+ * from absent to present, a remove the other way, an update from `before` to
+ * `after`. Applied to today's document, a note only takes the step if it is
+ * still where the op started:
+ *
+ * - an add places a note that isn't there; one that is, is left as it is;
+ * - a remove deletes a note only while it is unchanged, so a note a
+ *   collaborator edited since is kept rather than deleted under them;
+ * - an update moves only the fields that still hold `before`'s value, so a
+ *   later change by someone else to the same field survives, and a change
+ *   to a different field of the same note combines with it. A note that is
+ *   gone stays gone.
+ *
+ * Undo in a live session is the inverse op rebased this way, so undoing
+ * never erases a collaborator's later work; redo is the op itself rebased.
+ * Incoming ops go through it too, so a stale or repeated op can't revert a
+ * newer change.
+ */
+export function rebaseNoteOp(difficulties: Difficulty[], op: NoteOp): RebasedNoteOp {
+  const target = difficulties.find((d) => d.id === op.diffId);
+  if (!target) return { op: null, kept: 0 };
+  const touched = new Set(
+    op.t === "note.update" ? op.before.map((n) => n.id) : op.notes.map((n) => n.id),
+  );
+  const current = new Map<string, ManiaNote>();
+  for (const note of target.notes) if (touched.has(note.id)) current.set(note.id, note);
+  let kept = 0;
+
+  switch (op.t) {
+    case "note.add": {
+      const notes = op.notes.filter((note) => {
+        const now = current.get(note.id);
+        if (now && !sameNote(now, note)) kept += 1;
+        return !now;
+      });
+      return { op: notes.length ? { ...op, notes } : null, kept };
+    }
+    case "note.remove": {
+      const notes: ManiaNote[] = [];
+      for (const note of op.notes) {
+        const now = current.get(note.id);
+        if (!now) continue;
+        if (sameNote(now, note)) notes.push(now);
+        else kept += 1;
+      }
+      return { op: notes.length ? { ...op, notes } : null, kept };
+    }
+    case "note.update": {
+      const before: ManiaNote[] = [];
+      const after: ManiaNote[] = [];
+      const targets = new Map(op.after.map((n) => [n.id, n]));
+      for (const from of op.before) {
+        const to = targets.get(from.id);
+        const now = current.get(from.id);
+        if (!to) continue;
+        if (!now) {
+          kept += 1;
+          continue;
+        }
+        const next = moveFields(now, from, to);
+        if (next) {
+          before.push(now);
+          after.push(next);
+        } else if (!sameNote(now, to)) {
+          kept += 1;
+        }
+      }
+      return { op: before.length ? { ...op, before, after } : null, kept };
+    }
+  }
+}
+
+/** applyNoteOp for an op that may be stale: see rebaseNoteOp. */
+export function applyNoteOpIfCurrent(difficulties: Difficulty[], op: NoteOp): Difficulty[] {
+  const rebased = rebaseNoteOp(difficulties, op).op;
+  return rebased ? applyNoteOp(difficulties, rebased) : difficulties;
 }
