@@ -375,6 +375,8 @@ export default function App() {
     (OsdNotice & { id: number }) | null
   >(null);
   const [volumeHudKey, setVolumeHudKey] = useState(0);
+  /** The session intro is up, so the menu's song title waits for it. */
+  const [introCovering, setIntroCovering] = useState(true);
   const {
     appSettings,
     appSettingsRef,
@@ -2792,6 +2794,7 @@ export default function App() {
         enabled={appSettings.introEnabled && !hasProject && !sharedSlug}
         musicPlaying={menuMusic.isPlaying}
         ready={chunksReady}
+        onCoveringChange={setIntroCovering}
       />
       {sceneEntering && (
         <div
@@ -3173,6 +3176,8 @@ export default function App() {
                 menuBackgroundUrl={menuBackgroundUrl}
                 editorKeybinds={editorKeybinds}
                 menuTips={appSettings.menuTipsEnabled}
+                preferOriginalMetadata={preferOriginalMetadata}
+                trackTitleHeld={introCovering}
               >
                 <LandingCopy />
               </StartScreen>

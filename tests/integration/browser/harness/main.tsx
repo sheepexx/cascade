@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { AudioSetupModal } from "../../../../src/components/menus/AudioSetupModal";
 import { Dropdown, type DropdownOption } from "../../../../src/components/ui/Dropdown";
 import { FeedbackInvite } from "../../../../src/app/FeedbackInvite";
+import { TrackTitleFlash } from "../../../../src/components/TrackTitleFlash";
 import { RatingsOverview, UserRatingsSection } from "../../../../src/components/admin/AdminRatings";
 import { useCloudProject } from "../../../../src/app/useCloudProject";
 import { useCollabSession } from "../../../../src/app/useCollabSession";
@@ -337,6 +338,27 @@ function DropdownHarness() {
 }
 
 /** The feedback invitation with the editor's signals as buttons. */
+/** The menu's song title, with buttons standing in for the menu music and the intro. */
+function TrackTitleHarness() {
+  const tracks = [
+    { id: "a", title: "Beta Jack practice pack", artist: "Various Artists" },
+    { id: "b", title: "Ladyfingers", artist: "Camellia" },
+  ];
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [held, setHeld] = useState(true);
+  return (
+    <div className="relative h-screen bg-ink-900 text-slate-100">
+      <div className="flex gap-2 p-2">
+        <button type="button" onClick={() => setHeld(false)}>Lift intro</button>
+        <button type="button" onClick={() => setPlaying((p) => !p)}>Play/pause</button>
+        <button type="button" onClick={() => setIndex((i) => (i + 1) % tracks.length)}>Next track</button>
+      </div>
+      <TrackTitleFlash track={tracks[index]} playing={playing} preferOriginalMetadata={false} held={held} />
+    </div>
+  );
+}
+
 function FeedbackInviteHarness() {
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState(false);
@@ -443,6 +465,7 @@ function Harness() {
   if (params.get("mode") === "admin-ratings") return <AdminRatingsHarness />;
   if (params.get("mode") === "feedback-invite") return <FeedbackInviteHarness />;
   if (params.get("mode") === "dropdown") return <DropdownHarness />;
+  if (params.get("mode") === "track-title") return <TrackTitleHarness />;
   const userId = params.get("user") ?? "";
   const user: AuthUser = {
     id: userId,

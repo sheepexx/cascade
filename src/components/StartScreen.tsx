@@ -42,6 +42,7 @@ import {
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { useAuth } from "../lib/auth";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
+import { TrackTitleFlash } from "./TrackTitleFlash";
 import { countLocalProjects } from "../lib/persistence";
 import {
   boxClear,
@@ -232,6 +233,8 @@ export function StartScreen({
   editorKeybinds = DEFAULT_EDITOR_KEYBINDS,
   menuTips = true,
   menuBackgroundUrl = null,
+  preferOriginalMetadata = false,
+  trackTitleHeld = false,
 }: {
   music: MenuMusic;
   onOpenChange?: (open: boolean) => void;
@@ -259,6 +262,10 @@ export function StartScreen({
   /** The account's own menu picture, when they have one and have chosen it.
    *  Null falls back to the playing song's art. */
   menuBackgroundUrl?: string | null;
+  /** Show titles in their original script when the map has them. */
+  preferOriginalMetadata?: boolean;
+  /** Something covers the menu (the intro), so the song title waits. */
+  trackTitleHeld?: boolean;
 }) {
   const counts = menuPanelCounts(Boolean(onExit));
   const panels = counts.left + counts.right;
@@ -496,6 +503,13 @@ export function StartScreen({
         />
 
         {!lowSpec && <SideFlashes music={music} />}
+
+        <TrackTitleFlash
+          track={music.track}
+          playing={music.isPlaying}
+          preferOriginalMetadata={preferOriginalMetadata}
+          held={trackTitleHeld}
+        />
 
         {open && (
           <button

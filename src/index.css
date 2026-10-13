@@ -633,6 +633,39 @@ img {
   animation: track-fade-in 340ms var(--ease-emphasized);
 }
 
+/* The menu's song title: slides in, stays about four seconds, fades away. */
+@keyframes track-title-flash {
+  0% {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  8% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+}
+
+@keyframes track-title-flash-still {
+  0%, 100% { opacity: 0; }
+  8%, 80% { opacity: 1; }
+}
+
+.track-title-flash {
+  animation: track-title-flash 5s var(--ease-emphasized) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-title-flash { animation-name: track-title-flash-still; }
+}
+
 @keyframes hitsound-bar-in {
   from {
     opacity: 0;

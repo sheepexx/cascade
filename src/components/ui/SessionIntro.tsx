@@ -22,10 +22,13 @@ export function SessionIntro({
   enabled,
   musicPlaying,
   ready,
+  onCoveringChange,
 }: {
   enabled: boolean;
   musicPlaying: boolean;
   ready: boolean;
+  /** Whether the curtain hides the menu; false from the moment it starts to lift. */
+  onCoveringChange?: (covering: boolean) => void;
 }) {
   const t = useT();
   const [visible, setVisible] = useState(() => enabled && shouldShow());
@@ -36,6 +39,10 @@ export function SessionIntro({
   useEffect(() => {
     if (!enabled) setVisible(false);
   }, [enabled]);
+
+  useEffect(() => {
+    onCoveringChange?.(visible && !leaving);
+  }, [leaving, onCoveringChange, visible]);
 
   const finish = useCallback(() => {
     if (!visible || leaving) return;
