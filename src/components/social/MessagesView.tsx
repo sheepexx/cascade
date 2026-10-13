@@ -19,6 +19,7 @@ import {
   listConversations,
   listFriends,
   listMessages,
+  searchUsers,
   markConversationRead,
   openConversation,
   sendMessage,
@@ -42,7 +43,7 @@ import {
   SearchIcon,
   SmallButton,
 } from "./socialUi";
-import { errorText, relativeTime, useNotice } from "./socialUtils";
+import { errorText, relativeTime, useDebounced, useNotice } from "./socialUtils";
 
 const PAGE = 50;
 const TYPING_SEND_MS = 2_500;
@@ -897,6 +898,8 @@ function NewConversation({ onClose, onOpen }: { onClose: () => void; onOpen: (id
   const [friends, setFriends] = useState<ProfileCard[] | null>(null);
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const query = useDebounced(filter.trim(), 250);
+  const [found, setFound] = useState<ProfileCard[] | null>(null);
 
   useEffect(() => {
     listFriends()
@@ -904,7 +907,27 @@ function NewConversation({ onClose, onOpen }: { onClose: () => void; onOpen: (id
       .catch(() => setFriends([]));
   }, []);
 
-  const shown = (friends ?? []).filter((f) => f.username.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()));
+  // Friends while the box is empty; anyone on Cascade once something is typed.
+  useEffect(() => {
+    if (!query) {
+      setFound(null);
+      return;
+    }
+    let cancelled = false;
+    setFound(null);
+    searchUsers(query, 20, 0)
+      .then((page) => {
+        if (!cancelled) setFound(page.users.filter((u) => u.relationship !== "self"));
+      })
+      .catch(() => {
+        if (!cancelled) setFound([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query]);
+
+  const shown = query ? found : friends;
 
   return (
     <div
@@ -930,15 +953,17 @@ function NewConversation({ onClose, onOpen }: { onClose: () => void; onOpen: (id
             autoFocus
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder={t("social.searchFriends")}
+            placeholder={t("social.searchAnyone")}
             className="w-full rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
           />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-          {!friends ? (
+          {!shown ? (
             <SkeletonRows count={3} avatar action={false} />
           ) : shown.length === 0 ? (
-            <p className="px-3 py-6 text-center text-xs text-slate-500">{friends.length ? t("social.noFriendMatch") : t("social.noFriendsToMessage")}</p>
+            <p className="px-3 py-6 text-center text-xs text-slate-500">
+              {query ? t("social.noResults", { query }) : t("social.typeToFindAnyone")}
+            </p>
           ) : (
             <ul>
               {shown.map((f) => (

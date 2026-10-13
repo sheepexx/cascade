@@ -6,7 +6,7 @@ import {
   type StorageAuthContext,
   type WorkerEnv,
 } from "./storage";
-import { handleSocialRoute } from "./social";
+import { handleSocialRoute, normalizeOsuUser, storeProfileSummary } from "./social";
 
 type DbUser = {
   id: string;
@@ -311,7 +311,8 @@ async function handleCallback(
       cookie(STATE_COOKIE, "", { maxAge: 0 }),
     ]);
   }
-  const me = (await meRes.json()) as {
+  const meJson = (await meRes.json()) as unknown;
+  const me = meJson as {
     id: number;
     username: string;
     avatar_url?: string;
@@ -327,6 +328,12 @@ async function handleCallback(
         ? me.country_code
         : null,
   });
+
+  // osu! already sent the full profile, so search and the community page can
+  // show this account's map counts without asking osu! again. Best effort:
+  // a database without migration 0041 simply has nowhere to put them.
+  const summary = normalizeOsuUser(meJson, "mania");
+  if (summary) await storeProfileSummary(env, user.id, summary).catch(() => {});
 
   const session = await signSession(env, user.id);
   const desktopPort = desktopPortFromState(state);

@@ -15,7 +15,7 @@ import type { ProfileTab, SocialRoute } from "../../lib/socialRoute";
 import { SegmentedControl } from "../ui/Controls";
 import { Menu, type MenuItem } from "../ui/Menu";
 import { Skeleton } from "../ui/Skeleton";
-import { OsuOverview } from "./OsuOverview";
+import { BadgeRow, OsuOverview } from "./OsuOverview";
 import { MapLibrary } from "./MapLibrary";
 import { MappingActivity } from "./MappingActivity";
 import { ReportDialog } from "./ReportDialog";
@@ -247,6 +247,11 @@ export function ProfileView({
             )}
             <PresenceLine presence={profile.presence} className="text-slate-400" />
           </div>
+          {osu && osu.badges.length > 0 && (
+            <div className="mt-2.5">
+              <BadgeRow badges={osu.badges} />
+            </div>
+          )}
         </div>
         <ProfileActions
           profile={profile}
@@ -321,6 +326,7 @@ export function ProfileView({
             onRetry={() => loadOsu(true)}
             stats={stats}
             onShowActivity={() => onNavigate({ view: "profile", name: profile.username, tab: "activity" }, true)}
+            onShowMaps={() => onNavigate({ view: "profile", name: profile.username, tab: "maps" }, true)}
           />
         )}
         {tab === "maps" && (

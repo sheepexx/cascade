@@ -4,6 +4,7 @@ import { searchUsers, type ProfileCard, type Relationship } from "../../lib/soci
 import type { SocialRoute } from "../../lib/socialRoute";
 import { SkeletonRows } from "../ui/Skeleton";
 import { useRelationship } from "./useRelationship";
+import { rankedCountOf, useRankedCounts } from "./useRankedCounts";
 import {
   EmptyState,
   ErrorLine,
@@ -38,6 +39,7 @@ export function PeopleSearch({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestRef = useRef(0);
+  const ranked = useRankedCounts(results);
 
   const run = (term: string, offset: number) => {
     const id = ++requestRef.current;
@@ -110,7 +112,7 @@ export function PeopleSearch({
                 key={user.id}
                 user={user}
                 onOpen={() => onNavigate({ view: "profile", name: user.username, tab: "overview" })}
-                detail={<SearchDetail user={user} />}
+                detail={<SearchDetail user={user} ranked={rankedCountOf(user, ranked)} />}
               >
                 <FriendButton user={user} onChange={(rel) => update(user.id, rel)} />
               </UserRow>
@@ -129,17 +131,13 @@ export function PeopleSearch({
   );
 }
 
-function SearchDetail({ user }: { user: ProfileCard }) {
+function SearchDetail({ user, ranked }: { user: ProfileCard; ranked: number | null }) {
   const t = useT();
   const parts: string[] = [];
-  if (user.osu?.ranked_count) parts.push(t("social.rankedCount", { count: user.osu.ranked_count }));
+  if (user.presence?.online) parts.push(t("social.online"));
+  if (ranked !== null) parts.push(t("social.rankedCount", { count: ranked }));
   if (user.osu?.loved_count) parts.push(t("social.lovedCount", { count: user.osu.loved_count }));
-  if (!parts.length && user.osu) {
-    const published = user.osu.pending_count + user.osu.graveyard_count;
-    if (published) parts.push(t("social.publishedCount", { count: published }));
-  }
-  if (user.presence?.online) parts.unshift(t("social.online"));
-  return <>{parts.join(" · ") || " "}</>;
+  return <>{parts.join(" · ") || "\u00a0"}</>;
 }
 
 /** The one friend action that fits where the caller stands with this person. */

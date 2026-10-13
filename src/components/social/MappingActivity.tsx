@@ -184,7 +184,7 @@ export function MappingActivity({
   );
 }
 
-function ActivityCalendar({ calendar, today }: { calendar: NonNullable<MappingStats["calendar"]>; today: string }) {
+export function ActivityCalendar({ calendar, today }: { calendar: NonNullable<MappingStats["calendar"]>; today: string }) {
   const t = useT();
   const { locale } = useLocale();
   const grid = useMemo(() => calendarGrid(calendar, today, 53), [calendar, today]);

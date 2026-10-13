@@ -30,13 +30,6 @@ export function useNumberFormat() {
   return (value: number | null | undefined, digits = 0) => formatNumber(value, locale, digits);
 }
 
-/** "123.5M" for numbers too long for a tile; the full value goes in a tooltip. */
-export function formatCompact(value: number | null | undefined, locale: string): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "–";
-  if (Math.abs(value) < 1_000_000) return formatNumber(value, locale);
-  return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(value);
-}
-
 export type Notice = { tone: "success" | "error" | "info"; text: string };
 
 const NoticeContext = createContext<(notice: Notice) => void>(() => {});

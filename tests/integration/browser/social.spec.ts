@@ -92,10 +92,15 @@ test("two mappers become friends, chat live, and a block stops both sides", asyn
   expect(refused.error?.message).toMatch(/can't send/);
 });
 
-test("a stranger can't start a conversation until the other mapper allows it", async ({ browser }) => {
+test("anyone can message a mapper unless they turn messages off", async ({ browser }) => {
   const alice = await user("alice");
   const carol = await user("carol");
   const a = await open(browser, alice, "alice", "/user/carol");
+  await expect(a.getByRole("heading", { name: "carol" })).toBeVisible();
+  await expect(a.getByRole("button", { name: "Message", exact: true })).toBeVisible();
+
+  await rpcAs(carol, "set_my_privacy", { p_settings: { messages: "nobody" } });
+  await a.reload();
   await expect(a.getByRole("heading", { name: "carol" })).toBeVisible();
   await expect(a.getByRole("button", { name: "Message", exact: true })).toHaveCount(0);
 
@@ -117,18 +122,25 @@ test("search finds mappers and the friend button follows the relationship", asyn
   await expect(rows.filter({ hasText: "bobcat" }).getByRole("button", { name: "Add friend" })).toBeVisible();
 });
 
-test("a profile shows osu! statistics, mapping counts and the map library", async ({ browser }) => {
+test("a profile leads with mapping, shows badges up top and imports maps", async ({ browser }) => {
   const alice = await user("alice");
   await user("bob");
   const a = await open(browser, alice, "alice", "/user/bob");
-  await expect(a.getByText("osu! statistics")).toBeVisible();
+  await expect(a.getByRole("heading", { name: "bob" })).toBeVisible();
+  await expect(a.getByRole("list", { name: "Badges" }).getByLabel("Winner of the Fixture Mapping Contest")).toBeVisible();
+  await expect(a.getByText("Mapping on osu!")).toBeVisible();
+  await expect(a.getByText("osu! player")).toBeVisible();
   await expect(a.getByText("#12,345")).toBeVisible();
+  await expect(a.getByText("4,568pp")).toBeVisible();
   await expect(a.getByText("Counts are beatmapsets, not difficulties.", { exact: false })).toBeVisible();
+  await expect(a.getByText("Accuracy")).toHaveCount(0);
   await shot(a, "profile-overview");
 
-  await a.getByRole("tab", { name: "Maps" }).click();
+  await a.getByRole("button", { name: "See maps" }).click();
   await expect(a.getByRole("tab", { name: /All maps/ })).toHaveAttribute("aria-selected", "true");
-  await expect(a.getByRole("link", { name: "Ranked Song" })).toBeVisible();
+  const ranked = a.getByRole("article").filter({ hasText: "Ranked Song" });
+  await ranked.getByRole("button", { name: "Import" }).click();
+  await expect(a.getByTestId("imported")).toHaveText("1");
   await a.getByRole("tab", { name: /Qualified/ }).click();
   await expect(a.getByRole("link", { name: "Qualified Song" })).toBeVisible();
   await expect(a.getByRole("link", { name: "Ranked Song" })).toHaveCount(0);
@@ -140,4 +152,16 @@ test("a profile shows osu! statistics, mapping counts and the map library", asyn
 
   await a.getByRole("tab", { name: "Activity" }).click();
   await expect(a.getByText("This mapper keeps their Cascade statistics private.")).toBeVisible();
+});
+
+test("the community page shows every mapper's ranked map count", async ({ browser }) => {
+  const alice = await user("alice");
+  await user("bob");
+  await user("carol");
+  await backend("/__test/sql", { sql: "update public.users set last_signed_in_at = now()" });
+  const a = await open(browser, alice, "alice", "/community");
+  const recent = a.locator("section").filter({ hasText: "Recently active" });
+  await expect(recent.getByRole("listitem")).toHaveCount(2);
+  await expect(recent.getByText("2 ranked maps")).toHaveCount(2);
+  await shot(a, "community");
 });

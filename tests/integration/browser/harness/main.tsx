@@ -387,6 +387,7 @@ function SocialHarness() {
   );
   const [counts, setCounts] = useState<SocialCounts>({ unread_messages: 0, pending_requests: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [imported, setImported] = useState<number | null>(null);
   const refreshCounts = useCallback(() => {
     void getSocialCounts().then(setCounts).catch(() => {});
   }, []);
@@ -408,6 +409,7 @@ function SocialHarness() {
         Refresh counts
       </button>
       <output data-testid="counts" className="sr-only">{`${counts.unread_messages}/${counts.pending_requests}`}</output>
+      <output data-testid="imported" className="sr-only">{imported ?? ""}</output>
       <SocialOverlay
         open
         route={route}
@@ -418,6 +420,7 @@ function SocialHarness() {
         onCountsChanged={refreshCounts}
         onOpenPrivacy={() => {}}
         onOpenCloudProject={() => {}}
+        onOpenBeatmapset={setImported}
       />
     </div>
   );

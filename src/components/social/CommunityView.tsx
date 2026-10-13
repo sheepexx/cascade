@@ -3,6 +3,7 @@ import { useT } from "../../lib/i18n";
 import { discoverUsers, type ProfileCard, type Relationship } from "../../lib/social";
 import type { SocialRoute } from "../../lib/socialRoute";
 import { Skeleton } from "../ui/Skeleton";
+import { rankedCountOf, useRankedCounts } from "./useRankedCounts";
 import { FriendButton, PeopleSearch } from "./PeopleSearch";
 import { Avatar, Flag, PresenceLine, SectionCard } from "./socialUi";
 
@@ -55,11 +56,11 @@ export function CommunityView({
 
       {(!lists || lists.featured.length > 0) && (
         <SectionCard title={t("social.featuredMappers")} aside={<span className="text-[11px] text-slate-500">{t("social.featuredHint")}</span>}>
-          <PeopleGrid users={lists?.featured ?? null} onNavigate={onNavigate} onChange={update} detail="ranked" />
+          <PeopleGrid users={lists?.featured ?? null} onNavigate={onNavigate} onChange={update} />
         </SectionCard>
       )}
       <SectionCard title={t("social.recentlyActive")}>
-        <PeopleGrid users={lists?.recent ?? null} onNavigate={onNavigate} onChange={update} detail="presence" />
+        <PeopleGrid users={lists?.recent ?? null} onNavigate={onNavigate} onChange={update} />
       </SectionCard>
     </div>
   );
@@ -69,14 +70,13 @@ function PeopleGrid({
   users,
   onNavigate,
   onChange,
-  detail,
 }: {
   users: ProfileCard[] | null;
   onNavigate: (route: SocialRoute) => void;
   onChange: (id: string, relationship: Relationship) => void;
-  detail: "ranked" | "presence";
 }) {
   const t = useT();
+  const ranked = useRankedCounts(users);
   if (!users) {
     return (
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -105,16 +105,22 @@ function PeopleGrid({
               <Flag code={user.country_code} className="h-3" />
             </span>
             <span className="h-4 max-w-full truncate text-[11px] text-slate-500">
-              {detail === "ranked" && user.osu ? (
-                t("social.rankedCount", { count: user.osu.ranked_count })
-              ) : (
-                <PresenceLine presence={user.presence} className="justify-center" />
-              )}
+              <RankedLine count={rankedCountOf(user, ranked)} />
             </span>
+            {user.presence?.online && (
+              <PresenceLine presence={user.presence} className="-mt-1.5 max-w-full justify-center text-[11px] text-slate-500" />
+            )}
           </button>
           <FriendButton user={user} onChange={(rel) => onChange(user.id, rel)} />
         </li>
       ))}
     </ul>
   );
+}
+
+/** "12 ranked maps", or a placeholder while the count is on its way. */
+export function RankedLine({ count }: { count: number | null }) {
+  const t = useT();
+  if (count === null) return <span className="inline-block h-2.5 w-20 animate-pulse rounded bg-white/[0.06] align-middle" />;
+  return <>{t("social.rankedCount", { count })}</>;
 }

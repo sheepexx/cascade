@@ -395,16 +395,25 @@ describe("social", () => {
       expect((await failure(() => canJoin(carol, "dm:not-a-uuid")))?.message).toMatch(/row-level security/);
     });
 
+    it("lets anyone message anyone by default (migration 0043)", async () => {
+      const conversation = await rpc<string>(alice, "public.open_conversation($1)", [bob]);
+      await send(alice, conversation, "hi, loved your 7K set");
+      expect(await rpc<Json>(bob, "public.get_social_counts()")).toMatchObject({ unread_messages: 1 });
+      expect(await rpc<Json>(bob, "public.get_my_privacy()")).toMatchObject({ messages: "everyone" });
+    });
+
     it("follows the recipient's message setting, but always allows a reply", async () => {
+      await rpc(bob, "public.set_my_privacy($1::jsonb)", ['{"messages":"nobody"}']);
       expect((await failure(() => rpc(alice, "public.open_conversation($1)", [bob])))?.message).toMatch(
         /isn't accepting messages/,
       );
       await rpc(bob, "public.set_my_privacy($1::jsonb)", ['{"messages":"everyone"}']);
       const conversation = await rpc<string>(alice, "public.open_conversation($1)", [bob]);
       await send(alice, conversation, "hi bob");
-      await rpc(bob, "public.set_my_privacy($1::jsonb)", ['{"messages":"nobody"}']);
+      await rpc(bob, "public.set_my_privacy($1::jsonb)", ['{"messages":"friends"}']);
       expect((await failure(() => send(alice, conversation, "again")))?.message).toMatch(/can't send/);
-      // Alice's own setting is friends-only, but Bob may answer her.
+      // Alice turned messages off, but Bob may answer her since she wrote first.
+      await rpc(alice, "public.set_my_privacy($1::jsonb)", ['{"messages":"nobody"}']);
       await send(bob, conversation, "hi alice");
       await send(alice, conversation, "thanks");
     });

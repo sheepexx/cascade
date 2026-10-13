@@ -351,7 +351,8 @@ async function osuGet(path: string, deps: SocialDeps): Promise<Response | null> 
   }
 }
 
-async function storeProfileSummary(env: WorkerEnv, userId: string, profile: OsuProfile): Promise<void> {
+/** Writes the numbers lists show (country, map counts) for one account. */
+export async function storeProfileSummary(env: WorkerEnv, userId: string, profile: OsuProfile): Promise<void> {
   const headers = {
     apikey: env.SUPABASE_SERVICE_ROLE_KEY,
     Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,

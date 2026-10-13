@@ -22,7 +22,7 @@ export type PrivacySettings = {
 
 export const DEFAULT_PRIVACY: PrivacySettings = {
   friend_requests: "everyone",
-  messages: "friends",
+  messages: "everyone",
   online_status: "everyone",
   activity: "friends",
   mapping_stats: "friends",

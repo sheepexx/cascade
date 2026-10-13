@@ -22,7 +22,15 @@ function profile(osuId: number, mode: OsuMode): OsuProfile {
     playmode: "mania",
     mode,
     previous_usernames: [],
-    badges: [],
+    badges: [
+      {
+        awarded_at: "2024-02-01T00:00:00Z",
+        description: "Winner of the Fixture Mapping Contest",
+        image_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='86' height='40'><rect width='86' height='40' rx='6' fill='%23e86868'/></svg>",
+        image_2x_url: null,
+        url: null,
+      },
+    ],
     kudosu: { total: 42, available: 12 },
     follower_count: 120,
     mapping_follower_count: 35,

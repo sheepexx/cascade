@@ -387,9 +387,9 @@ function BeatmapsetCard({
           )}
         </div>
         {(cascadeSeconds !== null || onOpenInCascade) && (
-          <div className="relative z-[1] flex items-center justify-between gap-2 border-t border-white/[0.06] pt-2">
+          <div className="relative z-[1] flex items-center justify-between gap-2 border-t border-white/[0.06] pt-2.5">
             {cascadeSeconds !== null ? (
-              <span className="truncate text-[11px] font-medium text-accent-soft" title={t("social.cascadeTimeHint")}>
+              <span className="min-w-0 truncate text-[11px] font-medium text-accent-soft" title={t("social.cascadeTimeHint")}>
                 {t("social.timeInCascade", { time: formatDuration(cascadeSeconds) })}
               </span>
             ) : (
@@ -399,9 +399,13 @@ function BeatmapsetCard({
               <button
                 type="button"
                 onClick={() => onOpenInCascade(set.id)}
-                className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-300 transition hover:bg-white/10 hover:text-slate-100"
+                title={t("social.importHint")}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-accent-deep/40 bg-accent/90 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
               >
-                {t("social.openInCascade")}
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
+                </svg>
+                {t("social.importToCascade")}
               </button>
             )}
           </div>
