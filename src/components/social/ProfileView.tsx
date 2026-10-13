@@ -21,6 +21,7 @@ import { MappingActivity } from "./MappingActivity";
 import { ReportDialog } from "./ReportDialog";
 import { useRelationship } from "./useRelationship";
 import {
+  AdminBadge,
   Avatar,
   ChatIcon,
   DotsIcon,
@@ -223,6 +224,7 @@ export function ProfileView({
         <div className="min-w-0 flex-1 sm:pb-1.5">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <h2 className="truncate text-2xl font-bold leading-tight text-slate-50">{profile.username}</h2>
+            {profile.is_admin && <AdminBadge />}
             {(osu?.is_supporter ?? profile.osu?.is_supporter) && (
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-pink-500/15 px-2 py-0.5 text-[11px] font-semibold text-pink-300"
@@ -464,8 +466,10 @@ function ProfileActions({
         </>
       )}
       {rel === "friends" && (
-        <span className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-2.5 text-xs font-medium text-emerald-200">
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+        <span className="inline-flex min-h-8 items-center gap-1.5 px-1 text-xs font-medium text-slate-300">
+          <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9 10.5a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5ZM16 11l2 2 4-4" />
+          </svg>
           {t("social.friends")}
         </span>
       )}

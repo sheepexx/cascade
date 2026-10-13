@@ -211,7 +211,11 @@ export function SocialOverlay({
           <NoticeProvider value={showNotice}>
             <main
               className={`min-h-0 flex-1 ${
-                route.view === "messages" ? "flex flex-col p-2 sm:p-4" : "overflow-y-auto p-3 sm:p-5"
+                route.view === "messages"
+                  ? "flex flex-col p-2 sm:p-4"
+                  : // The gutter stays reserved, so the page doesn't shift as tabs
+                    // come and go with and without a scrollbar.
+                    "overflow-y-auto p-3 [scrollbar-gutter:stable] sm:p-5"
               }`}
             >
               {needsAccount ? (

@@ -66,6 +66,27 @@ export function Avatar({
   );
 }
 
+/**
+ * Marks someone who runs Cascade: the accent colour and a shield, a step up
+ * from the plain title pills but no louder than the supporter one.
+ */
+export function AdminBadge({ compact = false }: { compact?: boolean }) {
+  const t = useT();
+  return (
+    <span
+      title={t("social.adminTitle")}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/15 font-semibold text-accent-soft ring-1 ring-inset ring-accent/30 ${
+        compact ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-[11px]"
+      }`}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} fill="currentColor">
+        <path d="M12 2.5 4.5 5.4v5.9c0 4.7 3.2 8.6 7.5 10.2 4.3-1.6 7.5-5.5 7.5-10.2V5.4L12 2.5Z" />
+      </svg>
+      {t("social.admin")}
+    </span>
+  );
+}
+
 export function Flag({ code, name, className = "h-3.5" }: { code: string | null; name?: string; className?: string }) {
   const [failed, setFailed] = useState(false);
   const url = countryFlagUrl(code);
@@ -127,6 +148,7 @@ export function UserRow({
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
             <span className="truncate text-sm font-semibold text-slate-100">{user.username}</span>
+            {user.is_admin && <AdminBadge compact />}
             <Flag code={user.country_code} className="h-3" />
           </span>
           <span className="mt-0.5 block truncate text-xs text-slate-400">
@@ -199,6 +221,11 @@ export function SectionCard({
   );
 }
 
+/**
+ * A labelled number. In a grid of tiles it takes three of the grid's rows
+ * (label, number, hint) as a subgrid, so every number in a row lines up even
+ * when one label wraps onto two lines or one tile has a hint.
+ */
 export function StatTile({
   label,
   value,
@@ -212,7 +239,7 @@ export function StatTile({
   title?: string;
 }) {
   return (
-    <div className="min-w-0 rounded-xl bg-ink-800/60 px-3 py-2.5" title={title}>
+    <div className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-0 rounded-xl bg-ink-800/60 px-3 py-2.5" title={title}>
       <div className="text-[11px] font-medium uppercase leading-tight tracking-wide text-slate-500 [overflow-wrap:anywhere]">
         {label}
       </div>

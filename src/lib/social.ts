@@ -44,6 +44,8 @@ export type ProfileCard = {
   osu_id: number;
   username: string;
   avatar_url: string | null;
+  /** Runs Cascade (migration 0046); missing before it. */
+  is_admin?: boolean;
   country_code: string | null;
   relationship: Relationship;
   presence: Presence | null;

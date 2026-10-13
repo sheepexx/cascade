@@ -61,6 +61,14 @@ describe("social", () => {
       expect(await profile(alice, "nobody-here")).toBeNull();
     });
 
+    it("marks admins on their profile cards (migration 0046)", async () => {
+      await t.db.query("update public.users set is_admin = true where id = $1", [bob]);
+      expect(await profile(null, "bob")).toMatchObject({ is_admin: true });
+      expect(await profile(alice, "alice")).toMatchObject({ is_admin: false });
+      const found = await rpc<{ users: Json[] }>(alice, "public.search_users($1, 20, 0)", ["bob"]);
+      expect(found.users[0]).toMatchObject({ username: "bob", is_admin: true });
+    });
+
     it("follows a username change, since profiles key on the account id", async () => {
       await t.db.query("update public.users set username = 'Alicia' where id = $1", [alice]);
       expect(await profile(bob, "alice")).toBeNull();

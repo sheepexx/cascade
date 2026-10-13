@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useT } from "../../lib/i18n";
 import { formatDuration, localDay } from "../../lib/mappingTracker";
 import {
@@ -188,6 +188,12 @@ export function ActivityCalendar({ calendar, today }: { calendar: NonNullable<Ma
   const t = useT();
   const { locale } = useLocale();
   const grid = useMemo(() => calendarGrid(calendar, today, 53), [calendar, today]);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  // Starts on the latest weeks when the year doesn't fit, like GitHub's.
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [grid]);
   const [hover, setHover] = useState<{ day: string; seconds: number | null; level: number } | null>(null);
   const monthLabels = useMemo(() => {
     const labels: { index: number; label: string }[] = [];
@@ -221,7 +227,7 @@ export function ActivityCalendar({ calendar, today }: { calendar: NonNullable<Ma
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="no-scrollbar overflow-x-auto" dir="ltr">
+      <div ref={scrollerRef} className="no-scrollbar overflow-x-auto" dir="ltr">
         <div className="inline-flex min-w-full flex-col gap-1.5 pr-1">
           <div className="relative h-3.5 text-[10px] text-slate-500">
             {monthLabels.map((m) => (

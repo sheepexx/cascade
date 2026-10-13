@@ -36,6 +36,7 @@ import { subscribeSupabase } from "../../lib/supabase";
 import { Menu } from "../ui/Menu";
 import { SkeletonRows } from "../ui/Skeleton";
 import {
+  AdminBadge,
   Avatar,
   ChatIcon,
   DotsIcon,
@@ -285,8 +286,11 @@ function ConversationItem({
       <Avatar url={c.user.avatar_url} name={c.user.username} presence={c.user.presence} />
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-2">
-          <span className={`truncate text-sm ${c.unread ? "font-semibold text-slate-50" : "font-medium text-slate-200"}`}>
-            {c.user.username}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className={`truncate text-sm ${c.unread ? "font-semibold text-slate-50" : "font-medium text-slate-200"}`}>
+              {c.user.username}
+            </span>
+            {c.user.is_admin && <AdminBadge compact />}
           </span>
           {last && <span className="shrink-0 text-[10px] text-slate-500">{relativeTime(last.created_at, t)}</span>}
         </span>
@@ -573,7 +577,10 @@ function ConversationPane({
         <button type="button" onClick={openProfile} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">
           <Avatar url={other.avatar_url} name={other.username} size="sm" presence={other.presence} />
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-slate-100">{other.username}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-sm font-semibold text-slate-100">{other.username}</span>
+              {other.is_admin && <AdminBadge compact />}
+            </span>
             <PresenceLine presence={other.presence} className="text-[11px] text-slate-500" />
           </span>
         </button>

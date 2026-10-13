@@ -5,7 +5,7 @@ import type { SocialRoute } from "../../lib/socialRoute";
 import { Skeleton } from "../ui/Skeleton";
 import { rankedCountOf, useRankedCounts } from "./useRankedCounts";
 import { FriendButton, PeopleSearch } from "./PeopleSearch";
-import { Avatar, Flag, PresenceLine, SectionCard } from "./socialUi";
+import { AdminBadge, Avatar, Flag, PresenceLine, SectionCard } from "./socialUi";
 
 /**
  * Finding mappers: username search, people who signed in lately, and the
@@ -102,6 +102,7 @@ function PeopleGrid({
             <Avatar url={user.avatar_url} name={user.username} size="lg" presence={user.presence} />
             <span className="flex max-w-full items-center gap-1.5">
               <span className="truncate text-sm font-semibold text-slate-100">{user.username}</span>
+              {user.is_admin && <AdminBadge compact />}
               <Flag code={user.country_code} className="h-3" />
             </span>
             <span className="h-4 max-w-full truncate text-[11px] text-slate-500">

@@ -95,7 +95,6 @@ export function OsuOverview({
                   <StatTile label={t("social.mappingFollowers")} value={fmt(osu.mapping_follower_count)} />
                 )}
               </div>
-              <p className="mt-3 text-[11px] leading-4 text-slate-500">{t("social.beatmapsetCountsHint")}</p>
             </>
           )}
         </SectionCard>
@@ -115,7 +114,6 @@ export function OsuOverview({
             }))}
           />
           <PlayerStats osu={osu} loading={loading} mode={mode} />
-          <p className="mt-3 text-[11px] text-slate-500">{t("social.fromOsu")}</p>
         </SectionCard>
       </div>
     </div>
@@ -139,7 +137,7 @@ function PlayerStats({ osu, loading, mode }: { osu: OsuProfile | null; loading: 
     return <p className="py-3 text-sm text-slate-500">{t("social.noPlaysInMode")}</p>;
   }
   return (
-    <div className="flex flex-col gap-2">
+    <div className="grid gap-2">
       <StatTile
         label={t("social.globalRank")}
         value={s.global_rank ? `#${fmt(s.global_rank)}` : "–"}

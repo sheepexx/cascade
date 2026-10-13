@@ -34,6 +34,7 @@ test.beforeEach(async () => {
 test("two mappers become friends, chat live, and a block stops both sides", async ({ browser }) => {
   const alice = await user("alice");
   const bob = await user("bob");
+  await backend("/__test/sql", { sql: "update public.users set is_admin = true where id = $1", params: [bob] });
 
   const a = await open(browser, alice, "alice", "/user/bob");
   await expect(a.getByRole("heading", { name: "bob" })).toBeVisible();
@@ -51,6 +52,9 @@ test("two mappers become friends, chat live, and a block stops both sides", asyn
   // Alice's profile view of Bob now offers a conversation.
   await a.reload();
   await expect(a.getByText("Friends", { exact: true }).first()).toBeVisible();
+  // Bob runs Cascade, which his profile says.
+  await expect(a.getByTitle("Runs Cascade")).toBeVisible();
+  await shot(a, "profile-friends");
   await a.getByRole("button", { name: "Message", exact: true }).click();
   const aliceBox = a.getByRole("textbox", { name: "Message bob" });
   await aliceBox.fill("hi bob, want to collab on a 7K map?");
@@ -190,7 +194,10 @@ test("a profile leads with mapping, shows badges up top and imports maps", async
   await expect(a.getByText("osu! player")).toBeVisible();
   await expect(a.getByText("#12,345")).toBeVisible();
   await expect(a.getByText("4,568pp")).toBeVisible();
-  await expect(a.getByText("Counts are beatmapsets, not difficulties.", { exact: false })).toBeVisible();
+  // Every number in a row of tiles sits on one line, even under a label that wraps.
+  const numberTop = (label: string) =>
+    a.getByText(label, { exact: true }).locator("xpath=following-sibling::div[1]").evaluate((el) => el.getBoundingClientRect().top);
+  expect(await numberTop("Guest difficulties")).toBe(await numberTop("Nominated"));
   await expect(a.getByText("Accuracy")).toHaveCount(0);
   await shot(a, "profile-overview");
 
@@ -255,6 +262,18 @@ test("admins see a mapper's private statistics, on the profile and in the admin 
   await expect(a.getByText("1m", { exact: true }).first()).toBeVisible();
   await expect(a.getByText("Secret Song")).toBeVisible();
   await shot(a, "admin-profile");
+
+  // On a narrow screen the activity grid starts on the latest weeks.
+  await a.setViewportSize({ width: 560, height: 860 });
+  await a.reload();
+  const calendar = a.getByRole("grid").first();
+  await expect(calendar).toBeVisible();
+  const scroller = calendar.locator("xpath=ancestor::div[contains(@class,'overflow-x-auto')][1]");
+  await expect
+    .poll(() => scroller.evaluate((el) => el.scrollWidth - el.clientWidth - el.scrollLeft))
+    .toBeLessThan(2);
+  expect(await scroller.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  await a.setViewportSize({ width: 1280, height: 860 });
 
   const page = await a.context().newPage();
   await page.goto(`/?mode=admin-mapping&styled=1&user=${admin}&profile=${bob}&profileName=bob`);
