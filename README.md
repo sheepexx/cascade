@@ -293,7 +293,7 @@ The local project list, search and sorting also work without an account.
 
 - Every account has a profile at `/user/<osu! username>`: the osu! banner, avatar, country, supporter status and badges, osu! statistics per mode (osu!mania first), mapping counts on osu! and a map library with search, key and status filters and sorting. Links to an old username follow the rename.
 - Friends with requests, a block list and reports, plus username search and a community page with recently active and featured mappers.
-- Private messages between two people, live, with unread counts, replies, edits, deletion, mute and archive.
+- Private messages between two people, live, with avatars, unread counts, replies, edits, deletion, mute and archive. Emoji, GIFs from KLIPY and reactions, which show up live too.
 - Mapping time: while a map is open and you are editing, Cascade counts active time (it stops after a minute without input, in the background and in unrelated menus), and separately playtesting and listening. The profile shows it per day, per map and per difficulty, next to notes placed, playtests and exports. Only time in Cascade's editor is counted, and the database never credits more time than actually passed, so two open windows count once.
 - Social & privacy settings decide who can send friend requests and messages, and who sees your online status, what you're working on, your mapping statistics and time, and your Cascade projects. The database enforces them.
 
@@ -386,6 +386,8 @@ To connect a backend, create `.env.local` in the project root:
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_WORKER_URL=https://your-worker.workers.dev
+# Optional: a KLIPY app key (partner.klipy.com) for GIFs in messages.
+VITE_KLIPY_APP_KEY=your-klipy-app-key
 ```
 
 Apply the SQL files in `supabase/migrations` in numeric order when updating the
@@ -397,6 +399,9 @@ friends, messages and mapping time. Apply them, deploy the Worker (it serves
 osu! profile data at `/osu/...` with the app's existing client credentials),
 then deploy the site and turn on **Profiles, friends & messages** under
 Settings in the admin panel. Until the flag is on, none of it shows.
+
+Migration `0045_message_reactions.sql` adds reactions to messages. The app
+works on either side of it; reactions start working once it is applied.
 
 Migration `0038_snapshot_revision_check.sql` makes every chart save name the
 revision it was edited from, so a stale copy can't overwrite a newer save.

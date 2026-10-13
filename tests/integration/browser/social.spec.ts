@@ -92,6 +92,64 @@ test("two mappers become friends, chat live, and a block stops both sides", asyn
   expect(refused.error?.message).toMatch(/can't send/);
 });
 
+test("messages show avatars, take emoji and reactions live, and show GIFs inline", async ({ browser }) => {
+  const alice = await user("alice");
+  const bob = await user("bob");
+  const conversation = (await rpcAs(alice, "open_conversation", { p_user: bob })).data as string;
+  await rpcAs(alice, "send_message", { p_conversation: conversation, p_body: "new map is up", p_reply_to: null });
+
+  const a = await open(browser, alice, "alice", `/messages/${conversation}`);
+  const b = await open(browser, bob, "bob", `/messages/${conversation}`);
+  const aliceLog = a.getByRole("log");
+  const bobLog = b.getByRole("log");
+  await expect(bobLog.getByText("new map is up")).toBeVisible();
+  // Each run of messages leads with its author, like Discord.
+  await expect(bobLog.getByRole("button", { name: "View alice's profile" })).toBeVisible();
+
+  // Bob reacts from the picker; Alice sees it without a reload.
+  await bobLog.getByText("new map is up").hover();
+  await bobLog.getByRole("button", { name: "Add reaction" }).click();
+  const picker = b.getByRole("dialog", { name: "Pick an emoji" });
+  await picker.getByRole("searchbox", { name: "Search emoji" }).fill("fire");
+  await picker.getByRole("button", { name: "fire", exact: true }).click();
+  await expect(picker).toHaveCount(0);
+  const aliceFire = aliceLog.getByRole("button", { name: "bob reacted with 🔥" });
+  await expect(aliceFire).toHaveText("🔥1");
+  await expect(aliceFire).toHaveAttribute("aria-pressed", "false");
+
+  // Alice joins in by clicking the reaction, and Bob takes his back.
+  await aliceFire.click();
+  await expect(bobLog.getByRole("button", { name: "You, alice reacted with 🔥" })).toHaveText("🔥2");
+  await bobLog.getByRole("button", { name: "You, alice reacted with 🔥" }).click();
+  await expect(aliceLog.getByRole("button", { name: "You reacted with 🔥" })).toHaveText("🔥1");
+
+  // Emoji from the composer picker go where the caret was.
+  const box = b.getByRole("textbox", { name: "Message alice" });
+  await box.fill("nice ");
+  await b.getByRole("button", { name: "Emoji and GIFs" }).click();
+  await shot(b, "emoji-picker");
+  await b.getByRole("searchbox", { name: "Search emoji" }).fill("thumbs up");
+  await b.getByRole("button", { name: "thumbs up", exact: true }).click();
+  // emojibase writes it with a variation selector.
+  await expect(box).toHaveValue(/^nice 👍\uFE0F?$/);
+  await b.keyboard.press("Escape");
+  await box.press("Enter");
+  await expect(aliceLog.getByText(/^nice 👍/)).toBeVisible();
+
+  // A KLIPY media URL on its own is a GIF, shown as an image and listed as "GIF".
+  const gif = "https://static.klipy.com/ii/test/hello.gif";
+  await a.route("https://static.klipy.com/**", (route) =>
+    route.fulfill({
+      contentType: "image/gif",
+      body: Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"),
+    }),
+  );
+  await rpcAs(bob, "send_message", { p_conversation: conversation, p_body: gif, p_reply_to: null });
+  await expect(aliceLog.getByRole("img", { name: "GIF" })).toHaveAttribute("src", gif);
+  await expect(a.getByRole("complementary", { name: "Conversations" })).toContainText("GIF");
+  await shot(b, "messages-reactions");
+});
+
 test("anyone can message a mapper unless they turn messages off", async ({ browser }) => {
   const alice = await user("alice");
   const carol = await user("carol");

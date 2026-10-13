@@ -458,6 +458,53 @@ describe("social", () => {
       expect(rows[0].deleted_at).not.toBeNull();
     });
 
+    it("toggles reactions for members only and clears them on delete (migration 0045)", async () => {
+      const conversation = await rpc<string>(alice, "public.open_conversation($1)", [bob]);
+      const message = await send(alice, conversation, "new map is up");
+      const react = (user: string, emoji: string) =>
+        rpc<Json>(user, "public.toggle_reaction($1, $2)", [message.id, emoji]);
+
+      expect((await react(bob, "🔥")).reactions).toEqual({ "🔥": [bob] });
+      expect((await react(alice, "🔥")).reactions).toEqual({ "🔥": [bob, alice] });
+      expect((await react(bob, "👍🏽")).reactions).toEqual({ "🔥": [bob, alice], "👍🏽": [bob] });
+      expect((await react(bob, "1️⃣")).reactions).toMatchObject({ "1️⃣": [bob] });
+      expect((await react(bob, "🔥")).reactions).toEqual({ "🔥": [alice], "👍🏽": [bob], "1️⃣": [bob] });
+      await react(bob, "1️⃣");
+      expect((await react(bob, "👍🏽")).reactions).toEqual({ "🔥": [alice] });
+
+      for (const text of ["", "lol", "🔥 🔥", "a🔥", "<b>"]) {
+        expect((await failure(() => react(bob, text)))?.message).toMatch(/isn't a reaction/);
+      }
+      expect((await failure(() => react(carol, "🔥")))?.message).toMatch(/not found/);
+      const direct = await failure(() =>
+        t.asUser(bob, (tx) => tx.query("update public.messages set reactions = '{}' where id = $1", [message.id])),
+      );
+      expect(direct?.message).toMatch(/permission denied/);
+
+      await rpc(bob, "public.block_user($1)", [alice]);
+      expect((await failure(() => react(bob, "👀")))?.message).toMatch(/can't react/);
+      await rpc(bob, "public.unblock_user($1)", [alice]);
+
+      await rpc(alice, "public.delete_message($1)", [message.id]);
+      const rows = await t.asUser(bob, async (tx) =>
+        (await tx.query<{ reactions: Json }>("select reactions from public.messages")).rows,
+      );
+      expect(rows[0].reactions).toEqual({});
+      expect((await failure(() => react(bob, "🔥")))?.message).toMatch(/not found/);
+    });
+
+    it("caps the number of different reactions on one message", async () => {
+      const conversation = await rpc<string>(alice, "public.open_conversation($1)", [bob]);
+      const message = await send(alice, conversation, "react away");
+      const emoji = [..."😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚🙂🤗"];
+      for (const e of emoji) await rpc(bob, "public.toggle_reaction($1, $2)", [message.id, e]);
+      expect(
+        (await failure(() => rpc(bob, "public.toggle_reaction($1, $2)", [message.id, "🤩"])))?.message,
+      ).toMatch(/as many reactions/);
+      // Adding to a reaction already there still works.
+      await rpc(alice, "public.toggle_reaction($1, $2)", [message.id, "😀"]);
+    });
+
     it("doesn't notify a member who muted the conversation", async () => {
       await befriend(alice, bob);
       const conversation = await rpc<string>(alice, "public.open_conversation($1)", [bob]);

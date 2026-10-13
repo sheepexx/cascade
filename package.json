@@ -1,7 +1,7 @@
 {
   "name": "cascade",
   "private": true,
-  "version": "1.2.446",
+  "version": "1.2.447",
   "type": "module",
   "engines": {
     "node": "^22.13.0 || >=24"
@@ -30,6 +30,7 @@
     "@tauri-apps/plugin-opener": "^2.5.5",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.11.0",
+    "emojibase-data": "^16.0.3",
     "jszip": "^3.10.1",
     "lamejs": "^1.2.1",
     "react": "^18.3.1",

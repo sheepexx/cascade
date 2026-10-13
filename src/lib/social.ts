@@ -107,6 +107,8 @@ export type Message = {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
+  /** Emoji to the ids of the members who reacted with it (migration 0045). */
+  reactions?: Record<string, string[]>;
 };
 
 export type SocialCounts = { unread_messages: number; pending_requests: number };
@@ -196,6 +198,10 @@ export const editMessage = (messageId: string, body: string) =>
 export const deleteMessage = (messageId: string) =>
   call<void>("delete_message", { p_message: messageId });
 
+/** Adds the caller's reaction, or takes it back when they already reacted with it. */
+export const toggleReaction = (messageId: string, emoji: string) =>
+  call<Message>("toggle_reaction", { p_message: messageId, p_emoji: emoji });
+
 export const markConversationRead = (conversationId: string) =>
   call<void>("mark_conversation_read", { p_conversation: conversationId });
 
@@ -209,8 +215,10 @@ export const setConversationState = (
     p_archived: state.archived ?? null,
   });
 
-const MESSAGE_COLUMNS =
-  "id,conversation_id,sender,body,reply_to,created_at,edited_at,deleted_at";
+const MESSAGE_COLUMNS = "id,conversation_id,sender,body,reply_to,created_at,edited_at,deleted_at";
+
+/** False once the database turned out not to have reactions yet (before migration 0045). */
+let reactionsColumn = true;
 
 /** A page of a conversation, newest first, before the given time. */
 export async function listMessages(
@@ -219,16 +227,23 @@ export async function listMessages(
   limit = 50,
 ): Promise<Message[]> {
   const supabase = await getSupabase();
-  let query = supabase
-    .from("messages")
-    .select(MESSAGE_COLUMNS)
-    .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  if (before) query = query.lt("created_at", before);
-  const { data, error } = await query;
+  const page = (columns: string) => {
+    let query = supabase
+      .from("messages")
+      .select(columns)
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (before) query = query.lt("created_at", before);
+    return query;
+  };
+  let { data, error } = await page(reactionsColumn ? `${MESSAGE_COLUMNS},reactions` : MESSAGE_COLUMNS);
+  if (error && reactionsColumn && (error.code === "42703" || error.code === "PGRST204")) {
+    reactionsColumn = false;
+    ({ data, error } = await page(MESSAGE_COLUMNS));
+  }
   if (error) throw new Error(error.message);
-  return (data ?? []) as Message[];
+  return (data ?? []) as unknown as Message[];
 }
 
 export type AdminUserReport = {

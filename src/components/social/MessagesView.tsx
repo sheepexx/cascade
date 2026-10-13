@@ -24,11 +24,13 @@ import {
   openConversation,
   sendMessage,
   setConversationState,
+  toggleReaction,
   type Conversation,
   type Message,
   type ProfileCard,
 } from "../../lib/social";
 import { groupMessages, linkify, mergeMessages } from "../../lib/messageThread";
+import { gifInMessage, klipyCustomerId, reportGifShare, type Gif } from "../../lib/klipy";
 import type { SocialRoute } from "../../lib/socialRoute";
 import { subscribeSupabase } from "../../lib/supabase";
 import { Menu } from "../ui/Menu";
@@ -44,12 +46,19 @@ import {
   SmallButton,
 } from "./socialUi";
 import { errorText, relativeTime, useDebounced, useNotice } from "./socialUtils";
+import { EmojiGifPicker } from "./EmojiGifPicker";
 
 const PAGE = 50;
 const TYPING_SEND_MS = 2_500;
 const TYPING_SHOW_MS = 5_000;
 
 type Pending = Message & { pending?: boolean; failed?: boolean };
+
+/** A message as a line of text: GIFs read as "GIF" rather than their URL. */
+function useMessageText() {
+  const t = useT();
+  return (body: string) => (gifInMessage(body) ? t("social.gif") : body);
+}
 
 /**
  * Private messages: the conversation list on the left, the open conversation
@@ -206,7 +215,7 @@ export function MessagesView({
         )}
       </aside>
 
-      <section className={`min-h-0 flex-col md:flex ${conversationId ? "flex" : "hidden"}`}>
+      <section className={`relative min-h-0 flex-col md:flex ${conversationId ? "flex" : "hidden"}`}>
         {conversationId && active ? (
           <ConversationPane
             key={active.id}
@@ -257,12 +266,13 @@ function ConversationItem({
   onSelect: () => void;
 }) {
   const t = useT();
+  const text = useMessageText();
   const last = c.last_message;
   const preview = !last
     ? t("social.noMessagesYet")
     : last.deleted
       ? t("social.messageDeleted")
-      : `${last.sender === meId ? `${t("social.you")}: ` : ""}${last.body}`;
+      : `${last.sender === meId ? `${t("social.you")}: ` : ""}${text(last.body)}`;
   return (
     <button
       type="button"
@@ -326,6 +336,9 @@ function ConversationPane({
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
   const [typing, setTyping] = useState(false);
+  /** The message whose reaction picker is open, and where to put the picker. */
+  const [reacting, setReacting] = useState<{ id: string; top: number; left: number } | null>(null);
+  const text = useMessageText();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottom = useRef(true);
@@ -438,10 +451,11 @@ function ConversationPane({
     void channelRef.current?.send({ type: "broadcast", event: "typing", payload: { user: me.id } });
   };
 
-  const submit = async () => {
-    const body = draft.trim();
+  /** Sends the draft, or `gifUrl` in its place (the draft stays). */
+  const submit = async (gifUrl?: string) => {
+    const body = (gifUrl ?? draft).trim();
     if (!body || body.length > MESSAGE_MAX_LENGTH) return;
-    if (editing) {
+    if (editing && !gifUrl) {
       const target = editing;
       setEditing(null);
       setDraft("");
@@ -469,7 +483,7 @@ function ConversationPane({
     };
     stickToBottom.current = true;
     setMessages((prev) => [...prev, optimistic]);
-    setDraft("");
+    if (!gifUrl) setDraft("");
     setReplyTo(null);
     try {
       const saved = await sendMessage(conversation.id, body, optimistic.reply_to);
@@ -479,6 +493,43 @@ function ConversationPane({
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true } : m)));
       notice({ tone: "error", text: errorText(e, t("social.sendFailed")) });
     }
+  };
+
+  const sendGif = (gif: Gif, query: string) => {
+    void submit(gif.full.url);
+    void klipyCustomerId(me.id).then((id) => reportGifShare(gif.slug, id, query)).catch(() => {});
+    inputRef.current?.focus();
+  };
+
+  const react = async (message: Message, emoji: string) => {
+    const before = message.reactions ?? {};
+    const users = before[emoji] ?? [];
+    const users2 = users.includes(me.id) ? users.filter((u) => u !== me.id) : [...users, me.id];
+    const next = { ...before };
+    if (users2.length) next[emoji] = users2;
+    else delete next[emoji];
+    setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, reactions: next } : m)));
+    try {
+      const saved = await toggleReaction(message.id, emoji);
+      setMessages((prev) => mergeMessages(prev, [saved]));
+    } catch (e) {
+      setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, reactions: before } : m)));
+      notice({ tone: "error", text: errorText(e, t("social.actionFailed")) });
+    }
+  };
+
+  /** Opens the reaction picker next to the button that asked for it, inside the pane. */
+  const openReactions = (message: Message, button: HTMLElement) => {
+    const pane = button.closest("section");
+    if (!pane) return;
+    const box = pane.getBoundingClientRect();
+    const at = button.getBoundingClientRect();
+    const width = Math.min(352, box.width - 16);
+    const height = 352;
+    const left = Math.max(8, Math.min(at.left - box.left - width / 2, box.width - width - 8));
+    const below = at.bottom - box.top + 4;
+    const top = below + height <= box.height - 8 ? below : Math.max(8, at.top - box.top - height - 4);
+    setReacting({ id: message.id, top, left });
   };
 
   const remove = async (message: Message) => {
@@ -595,8 +646,27 @@ function ConversationPane({
                 </div>
                 {day.runs.map((run) => {
                   const mine = run.sender === me.id;
+                  const author = mine ? me : other;
                   return (
-                    <div key={run.messages[0].id} className={`mb-2 flex flex-col gap-0.5 ${mine ? "items-end" : "items-start"}`}>
+                    <div key={run.messages[0].id} className={`mb-3 flex gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate({ view: "profile", name: author.username, tab: "overview" })}
+                        className="mt-0.5 h-fit shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                        aria-label={t("social.viewProfileOf", { name: author.username })}
+                      >
+                        <Avatar url={author.avatar_url} name={author.username} size="sm" />
+                      </button>
+                      <div className={`flex min-w-0 flex-1 flex-col gap-0.5 ${mine ? "items-end" : "items-start"}`}>
+                        <div className={`flex items-baseline gap-2 px-1 ${mine ? "flex-row-reverse" : ""}`}>
+                          <span className="text-xs font-semibold text-slate-200">{author.username}</span>
+                          <span className="text-[10px] text-slate-500">
+                            {new Date(run.messages[0].created_at).toLocaleTimeString(locale, {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
                       {run.messages.map((m) => (
                         <MessageBubble
                           key={m.id}
@@ -605,6 +675,13 @@ function ConversationPane({
                           replied={m.reply_to ? byId.get(m.reply_to) ?? null : null}
                           otherName={other.username}
                           meId={me.id}
+                          canReact={conversation.can_send}
+                          onReact={(emoji) => void react(m, emoji)}
+                          onMoreReactions={(button) => openReactions(m, button)}
+                          onMediaLoad={() => {
+                            const el = scrollRef.current;
+                            if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
+                          }}
                           onReply={() => {
                             setEditing(null);
                             setReplyTo(m);
@@ -624,12 +701,7 @@ function ConversationPane({
                           }}
                         />
                       ))}
-                      <span className="px-1 text-[10px] text-slate-600">
-                        {new Date(run.messages[run.messages.length - 1].created_at).toLocaleTimeString(locale, {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      </div>
                     </div>
                   );
                 })}
@@ -658,11 +730,13 @@ function ConversationPane({
             if (value) sendTyping();
           }}
           onSubmit={() => void submit()}
+          userId={me.id}
+          onGif={sendGif}
           banner={
             replyTo ? (
               <ComposerBanner
                 label={t("social.replyingTo", { name: replyTo.sender === me.id ? t("social.yourself") : other.username })}
-                text={replyTo.deleted_at ? t("social.messageDeleted") : replyTo.body}
+                text={replyTo.deleted_at ? t("social.messageDeleted") : text(replyTo.body)}
                 onCancel={() => setReplyTo(null)}
               />
             ) : editing ? (
@@ -688,6 +762,21 @@ function ConversationPane({
           {t("social.cantReply")}
         </p>
       )}
+
+      {reacting && (
+        <div className="absolute z-30" style={{ top: reacting.top, left: reacting.left }}>
+          <EmojiGifPicker
+            userId={me.id}
+            gifs={false}
+            onEmoji={(emoji) => {
+              const target = messages.find((m) => m.id === reacting.id);
+              setReacting(null);
+              if (target) void react(target, emoji);
+            }}
+            onClose={() => setReacting(null)}
+          />
+        </div>
+      )}
     </>
   );
 }
@@ -698,6 +787,10 @@ function MessageBubble({
   replied,
   otherName,
   meId,
+  canReact,
+  onReact,
+  onMoreReactions,
+  onMediaLoad,
   onReply,
   onEdit,
   onDelete,
@@ -708,32 +801,55 @@ function MessageBubble({
   replied: Message | null;
   otherName: string;
   meId: string;
+  canReact: boolean;
+  onReact: (emoji: string) => void;
+  onMoreReactions: (button: HTMLElement) => void;
+  onMediaLoad: () => void;
   onReply: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onRetry: () => void;
 }) {
   const t = useT();
+  const text = useMessageText();
   const deleted = !!message.deleted_at;
+  const gif = deleted ? null : gifInMessage(message.body);
+  const [gifFailed, setGifFailed] = useState(false);
+  const reactions = Object.entries(message.reactions ?? {}).filter(([, users]) => users.length > 0);
+  const live = !deleted && !message.pending && !message.failed;
   return (
-    <div className={`group flex max-w-[85%] items-center gap-1 sm:max-w-[72%] ${mine ? "flex-row-reverse" : ""}`}>
+    <div className={`flex max-w-[85%] flex-col gap-1 sm:max-w-[72%] ${mine ? "items-end" : "items-start"}`}>
+    <div className={`group flex max-w-full items-center gap-1 ${mine ? "flex-row-reverse" : ""}`}>
       <div
-        className={`min-w-0 rounded-2xl px-3 py-1.5 text-sm leading-relaxed ${
-          deleted
-            ? "border border-dashed border-white/10 italic text-slate-500"
-            : mine
-              ? "bg-accent/85 text-white"
-              : "bg-ink-600/80 text-slate-100"
-        } ${message.pending ? "opacity-60" : ""} ${message.failed ? "ring-1 ring-rose-400/70" : ""}`}
+        className={`min-w-0 text-sm leading-relaxed ${
+          gif && !gifFailed && !replied
+            ? ""
+            : `rounded-2xl px-3 py-1.5 ${
+                deleted
+                  ? "border border-dashed border-white/10 italic text-slate-500"
+                  : mine
+                    ? "bg-accent/85 text-white"
+                    : "bg-ink-600/80 text-slate-100"
+              }`
+        } ${message.pending ? "opacity-60" : ""} ${message.failed ? "rounded-2xl ring-1 ring-rose-400/70" : ""}`}
       >
         {replied && !deleted && (
           <div className={`mb-1 border-l-2 pl-2 text-xs ${mine ? "border-white/50 text-white/75" : "border-slate-400/50 text-slate-400"}`}>
             <span className="font-medium">{replied.sender === meId ? t("social.you") : otherName}</span>
-            <span className="line-clamp-2 break-words">{replied.deleted_at ? t("social.messageDeleted") : replied.body}</span>
+            <span className="line-clamp-2 break-words">{replied.deleted_at ? t("social.messageDeleted") : text(replied.body)}</span>
           </div>
         )}
         {deleted ? (
           t("social.messageDeleted")
+        ) : gif && !gifFailed ? (
+          <img
+            src={gif}
+            alt={t("social.gif")}
+            draggable={false}
+            onLoad={onMediaLoad}
+            onError={() => setGifFailed(true)}
+            className="block max-h-60 max-w-full rounded-xl bg-ink-700/60 sm:max-w-[18rem]"
+          />
         ) : (
           <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
             {linkify(message.body).map((part, i) =>
@@ -763,27 +879,69 @@ function MessageBubble({
         !deleted &&
         !message.pending && (
           <div className="flex shrink-0 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+            {canReact && (
+              <BubbleAction label={t("social.addReaction")} onClick={(e) => onMoreReactions(e.currentTarget)}>
+                <circle cx="12" cy="12" r="8.5" />
+                <path strokeLinecap="round" d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9.5 9.75h.01M14.5 9.75h.01" />
+              </BubbleAction>
+            )}
             <BubbleAction label={t("social.reply")} onClick={onReply}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 8 4 12l5 4M4 12h10a6 6 0 0 1 6 6" />
             </BubbleAction>
+            {mine && !gif && (
+              <BubbleAction label={t("common.edit")} onClick={onEdit}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m15 5 4 4L9 19H5v-4L15 5Z" />
+              </BubbleAction>
+            )}
             {mine && (
-              <>
-                <BubbleAction label={t("common.edit")} onClick={onEdit}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m15 5 4 4L9 19H5v-4L15 5Z" />
-                </BubbleAction>
-                <BubbleAction label={t("common.delete")} onClick={onDelete}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 7h14M10 11v6M14 11v6M6 7l1 12h10l1-12M9 7V4h6v3" />
-                </BubbleAction>
-              </>
+              <BubbleAction label={t("common.delete")} onClick={onDelete}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 7h14M10 11v6M14 11v6M6 7l1 12h10l1-12M9 7V4h6v3" />
+              </BubbleAction>
             )}
           </div>
         )
       )}
     </div>
+      {live && reactions.length > 0 && (
+        <div className={`flex flex-wrap gap-1 ${mine ? "justify-end" : ""}`}>
+          {reactions.map(([emoji, users]) => {
+            const reacted = users.includes(meId);
+            const names = users.map((u) => (u === meId ? t("social.you") : otherName)).join(", ");
+            return (
+              <button
+                key={emoji}
+                type="button"
+                disabled={!canReact}
+                onClick={() => onReact(emoji)}
+                aria-pressed={reacted}
+                aria-label={t("social.reactedWith", { names, emoji })}
+                title={t("social.reactedWith", { names, emoji })}
+                className={`flex h-6 items-center gap-1 rounded-full border px-2 text-xs tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default ${
+                  reacted
+                    ? "border-accent/70 bg-accent/20 text-slate-100"
+                    : "border-white/10 bg-ink-700/70 text-slate-300 enabled:hover:border-white/20"
+                }`}
+              >
+                <span className="text-sm leading-none">{emoji}</span>
+                <span>{users.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
-function BubbleAction({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+function BubbleAction({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -822,6 +980,8 @@ function Composer({
   onCancel,
   banner,
   placeholder,
+  userId,
+  onGif,
 }: {
   inputRef: React.RefObject<HTMLTextAreaElement>;
   draft: string;
@@ -830,9 +990,26 @@ function Composer({
   onCancel: () => void;
   banner: ReactNode;
   placeholder: string;
+  userId: string;
+  onGif: (gif: Gif, query: string) => void;
 }) {
   const t = useT();
   const over = draft.length > MESSAGE_MAX_LENGTH;
+  const [picking, setPicking] = useState(false);
+  const closePicker = () => setPicking(false);
+  /** Where the caret was when the picker took focus, for putting emoji there. */
+  const caret = useRef<{ start: number; end: number } | null>(null);
+
+  const insertEmoji = (emoji: string) => {
+    const el = inputRef.current;
+    const at = caret.current ?? { start: draft.length, end: draft.length };
+    const next = draft.slice(0, at.start) + emoji + draft.slice(at.end);
+    if (next.length > MESSAGE_MAX_LENGTH) return;
+    const position = at.start + emoji.length;
+    caret.current = { start: position, end: position };
+    onDraft(next);
+    requestAnimationFrame(() => el?.setSelectionRange(position, position));
+  };
 
   useLayoutEffect(() => {
     const el = inputRef.current;
@@ -843,12 +1020,24 @@ function Composer({
 
   return (
     <form
-      className="border-t border-white/[0.07] p-3"
+      className="relative border-t border-white/[0.07] p-3"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
       }}
     >
+      {picking && (
+        <EmojiGifPicker
+          userId={userId}
+          onEmoji={insertEmoji}
+          onGif={(gif, query) => {
+            setPicking(false);
+            onGif(gif, query);
+          }}
+          onClose={closePicker}
+          className="absolute bottom-full right-3 z-30 mb-2"
+        />
+      )}
       {banner}
       <div className="flex items-end gap-2">
         <label className="min-w-0 flex-1">
@@ -871,6 +1060,26 @@ function Composer({
             className="block max-h-40 w-full resize-none rounded-xl border border-white/10 bg-ink-800/70 px-3 py-2 text-sm leading-relaxed text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
           />
         </label>
+        <button
+          type="button"
+          onPointerDown={() => {
+            const el = inputRef.current;
+            caret.current = el ? { start: el.selectionStart, end: el.selectionEnd } : null;
+          }}
+          onClick={() => setPicking((open) => !open)}
+          data-picker-toggle
+          aria-label={t("social.emojiAndGifs")}
+          title={t("social.emojiAndGifs")}
+          aria-expanded={picking}
+          className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+            picking ? "bg-white/10 text-slate-100" : "bg-ink-800/70 text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+            <circle cx="12" cy="12" r="8.5" />
+            <path strokeLinecap="round" d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9.5 9.75h.01M14.5 9.75h.01" />
+          </svg>
+        </button>
         <button
           type="submit"
           disabled={!draft.trim() || over}

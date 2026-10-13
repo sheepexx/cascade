@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string;
   readonly VITE_SUPABASE_ANON_KEY: string;
   readonly VITE_WORKER_URL: string;
+  /** KLIPY app key for GIFs in messages; without it the GIF tab is hidden. */
+  readonly VITE_KLIPY_APP_KEY?: string;
 }
 
 interface ImportMeta {

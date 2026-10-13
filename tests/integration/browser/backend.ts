@@ -217,10 +217,10 @@ export async function startBackend(port = 0): Promise<Backend> {
     const exists = await db.db.query<{ t: string | null }>("select to_regclass('public.messages')::text as t");
     if (!exists.rows[0]?.t) return;
     const { rows } = await db.db.query<Record<string, Json> & { id: string }>(
-      "select id, conversation_id, sender, body, reply_to, created_at, edited_at, deleted_at from public.messages",
+      "select id, conversation_id, sender, body, reply_to, created_at, edited_at, deleted_at, reactions from public.messages",
     );
     for (const row of rows) {
-      const version = `${row.edited_at ?? ""}|${row.deleted_at ?? ""}`;
+      const version = `${row.edited_at ?? ""}|${row.deleted_at ?? ""}|${JSON.stringify(row.reactions)}`;
       const before = messageVersions.get(row.id);
       if (before === version) continue;
       messageVersions.set(row.id, version);
