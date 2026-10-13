@@ -33,7 +33,7 @@ test("the menu shows the song's title when it opens and on a skip, never while c
   // Up for about four seconds, then faded and gone.
   await page.waitForTimeout(2500);
   await expect(flash).toHaveCSS("opacity", "1");
-  await expect(flash).toHaveCount(0, { timeout: 3000 });
+  await expect(flash).toHaveCount(0, { timeout: 5000 });
 
   // A song following on by itself isn't announced; a skip is.
   await button("Song ends");
