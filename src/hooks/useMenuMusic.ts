@@ -39,6 +39,9 @@ export type MenuMusic = {
   track: MenuTrack | null;
   isPlaying: boolean;
   hasPlaylist: boolean;
+  /** Goes up each time someone skips to another song (V, X, the next button),
+   *  not when one ends by itself. */
+  skips: number;
   toggle: () => void;
   next: () => void;
   previous: () => void;
@@ -133,6 +136,7 @@ export function useMenuMusic(
   const [playlist, setPlaylist] = useState<LocalTrackSummary[]>([]);
   const [track, setTrack] = useState<MenuTrack | null>(null);
   const [index, setIndex] = useState(0);
+  const [skips, setSkips] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
@@ -457,6 +461,7 @@ export function useMenuMusic(
         const to = Math.max(0, from + steps);
         if (list.length && list[to % list.length] !== list[from % list.length]) {
           setIndex(to);
+          setSkips((n) => n + 1);
           return;
         }
         // Nowhere else to go: bring the current song back up.
@@ -602,6 +607,7 @@ export function useMenuMusic(
       track,
       isPlaying,
       hasPlaylist: playlist.length > 0,
+      skips,
       toggle,
       next,
       previous,
@@ -618,6 +624,7 @@ export function useMenuMusic(
       track,
       isPlaying,
       playlist.length,
+      skips,
       toggle,
       next,
       previous,

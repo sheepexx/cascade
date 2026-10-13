@@ -338,7 +338,7 @@ function DropdownHarness() {
 }
 
 /** The feedback invitation with the editor's signals as buttons. */
-/** The menu's song title, with buttons standing in for the menu music and the intro. */
+/** The menu's song title, with buttons standing in for the menu, its music and the intro. */
 function TrackTitleHarness() {
   const tracks = [
     { id: "a", title: "Beta Jack practice pack", artist: "Various Artists" },
@@ -347,14 +347,34 @@ function TrackTitleHarness() {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [held, setHeld] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [skips, setSkips] = useState(0);
   return (
     <div className="relative h-screen bg-ink-900 text-slate-100">
       <div className="flex gap-2 p-2">
         <button type="button" onClick={() => setHeld(false)}>Lift intro</button>
         <button type="button" onClick={() => setPlaying((p) => !p)}>Play/pause</button>
-        <button type="button" onClick={() => setIndex((i) => (i + 1) % tracks.length)}>Next track</button>
+        <button type="button" onClick={() => setOpen((o) => !o)}>Toggle menu</button>
+        <button type="button" onClick={() => setIndex((i) => (i + 1) % tracks.length)}>Song ends</button>
+        <button
+          type="button"
+          onClick={() => {
+            setSkips((n) => n + 1);
+            // The next song loads a moment after the skip, as in the app.
+            window.setTimeout(() => setIndex((i) => (i + 1) % tracks.length), 150);
+          }}
+        >
+          Skip
+        </button>
       </div>
-      <TrackTitleFlash track={tracks[index]} playing={playing} preferOriginalMetadata={false} held={held} />
+      <TrackTitleFlash
+        track={tracks[index]}
+        playing={playing}
+        open={open}
+        skips={skips}
+        preferOriginalMetadata={false}
+        held={held}
+      />
     </div>
   );
 }

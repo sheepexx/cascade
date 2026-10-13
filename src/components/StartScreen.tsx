@@ -507,6 +507,8 @@ export function StartScreen({
         <TrackTitleFlash
           track={music.track}
           playing={music.isPlaying}
+          open={open}
+          skips={music.skips}
           preferOriginalMetadata={preferOriginalMetadata}
           held={trackTitleHeld}
         />

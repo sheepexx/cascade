@@ -669,8 +669,20 @@ img {
   will-change: opacity, transform;
 }
 
+/* The menu collapsed: gone quickly, without waiting out the hold. */
+@keyframes track-title-leave {
+  to {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+
+.track-title-flash[data-leaving] {
+  animation: track-title-leave 320ms cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .track-title-flash { animation-name: track-title-flash-still; }
+  .track-title-flash:not([data-leaving]) { animation-name: track-title-flash-still; }
 }
 
 @keyframes hitsound-bar-in {

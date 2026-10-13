@@ -1,36 +1,51 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * The menu announces its song in the top-right corner when it opens,
- * osu!-style: once it plays and the intro has lifted, for about four seconds,
- * then it fades away. Later songs aren't announced.
+ * The menu announces its song in the top-right corner, osu!-style: when the
+ * menu opens and when someone skips to another song while it is open, for
+ * about four seconds, then it fades away. Collapsing the menu takes it away.
  */
-test("opening the menu shows the song's title for a few seconds, then fades it out", async ({ page }) => {
+test("the menu shows the song's title when it opens and on a skip, never while collapsed", async ({ page }) => {
   await page.goto("/?mode=track-title&styled=1");
   const flash = page.getByTestId("track-title-flash");
-  const button = (name: string) => page.getByRole("button", { name }).click();
+  const button = (name: string) => page.getByRole("button", { name, exact: true }).click();
+  const absent = async () => {
+    await page.waitForTimeout(400);
+    await expect(flash).toHaveCount(0);
+  };
 
-  // Nothing while the intro covers the menu or the song hasn't started.
+  // Nothing while the menu is collapsed, the intro is up or nothing plays.
   await button("Play/pause");
-  await page.waitForTimeout(300);
-  await expect(flash).toHaveCount(0);
   await button("Lift intro");
-  await expect(flash).toContainText("Beta Jack practice pack");
-  await expect(flash).toContainText("Various Artists");
+  await absent();
+  await button("Skip");
+  await absent();
+  await button("Play/pause");
+  await button("Toggle menu");
+  await absent();
+  await button("Play/pause");
+  await expect(flash).toContainText("Ladyfingers");
   if (process.env.SCREENSHOTS) {
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(1000);
     await page.screenshot({ path: `${process.env.SCREENSHOTS}/track-title.png` });
   }
 
-  // Still up shortly before four seconds, faded and gone a little after.
-  await page.waitForTimeout(3300);
+  // Up for about four seconds, then faded and gone.
+  await page.waitForTimeout(2500);
   await expect(flash).toHaveCSS("opacity", "1");
   await expect(flash).toHaveCount(0, { timeout: 3000 });
 
-  // Neither pausing and resuming nor the next song brings it back.
-  await button("Play/pause");
-  await button("Play/pause");
-  await button("Next track");
-  await page.waitForTimeout(400);
-  await expect(flash).toHaveCount(0);
+  // A song following on by itself isn't announced; a skip is.
+  await button("Song ends");
+  await absent();
+  await button("Skip");
+  await expect(flash).toContainText("Ladyfingers");
+
+  // Collapsing the menu takes it away at once.
+  await button("Toggle menu");
+  await expect(flash).toHaveCount(0, { timeout: 1000 });
+
+  // Opening it again announces the song again.
+  await button("Toggle menu");
+  await expect(flash).toContainText("Ladyfingers");
 });
