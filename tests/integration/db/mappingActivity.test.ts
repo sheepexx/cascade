@@ -178,6 +178,47 @@ describe("mapping activity", () => {
     ]);
   });
 
+  it("shows admins everything, and says when that's only because they're an admin (0044)", async () => {
+    await record(alice, SESSION_A, [entry({ beatmapset_id: 77 })], span(60, 5));
+    const admin = await t.createUser("admin");
+    await t.db.query("update public.users set is_admin = true where id = $1", [admin]);
+
+    const asAdmin = await stats(admin, alice);
+    expect(asAdmin.admin_override).toBe(true);
+    expect(asAdmin.visible).toEqual({ mapping_stats: true, mapping_time: true, project_time: true, projects: true });
+    expect(asAdmin.totals).toMatchObject({ edit: 60 });
+    expect((asAdmin.projects as Json[])[0]).toMatchObject({ title: "Song", edit: 60 });
+    const profile = await t.asUser(admin, async (tx) => {
+      const { rows } = await tx.query<{ v: Json }>("select public.get_profile('alice') as v");
+      return rows[0].v;
+    });
+    expect(profile.visible).toEqual({ mapping_stats: true, mapping_time: true, project_time: true, projects: true });
+
+    // Still private to everyone else, and not an override on public stats.
+    expect((await stats(bob, alice)).totals).toBeNull();
+    await t.asUser(alice, (tx) =>
+      tx.query("select public.set_my_privacy($1::jsonb)", [
+        JSON.stringify({ mapping_stats: "everyone", mapping_time: "everyone", project_time: "everyone", projects: "everyone" }),
+      ]),
+    );
+    expect((await stats(admin, alice)).admin_override).toBe(false);
+    expect((await stats(alice, alice)).admin_override).toBe(false);
+  });
+
+  it("lists mapping totals per account for admins only", async () => {
+    await record(alice, SESSION_A, [entry({ edit: 40, playtest: 20 })], span(60, 5));
+    const admin = await t.createUser("admin");
+    await t.db.query("update public.users set is_admin = true where id = $1", [admin]);
+    const rows = await t.asUser(admin, async (tx) =>
+      (await tx.query<Json>("select user_id, edit_seconds::int, playtest_seconds::int, active_days::int from public.admin_mapping_totals()")).rows,
+    );
+    expect(rows).toEqual([{ user_id: alice, edit_seconds: 40, playtest_seconds: 20, active_days: 1 }]);
+    const refused = await t
+      .asUser(bob, (tx) => tx.query("select * from public.admin_mapping_totals()"))
+      .catch(dbError);
+    expect(refused).toMatchObject({ message: expect.stringMatching(/admin access required/) });
+  });
+
   it("can't be read or written directly", async () => {
     const read = await t.asUser(bob, (tx) => tx.query("select * from public.mapping_days")).catch(dbError);
     expect(read).toMatchObject({ message: expect.stringMatching(/permission denied/) });

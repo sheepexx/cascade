@@ -29,6 +29,7 @@ import {
 } from "../../../../src/types";
 import { setConnectionLabel, setSupabaseToken } from "../fakeSupabase";
 import { SocialOverlay } from "../../../../src/components/social/SocialOverlay";
+import { UserMappingSection } from "../../../../src/components/admin/AdminMapping";
 import { getSocialCounts, type SocialCounts } from "../../../../src/lib/social";
 import { parseSocialPath, socialPath, type SocialRoute } from "../../../../src/lib/socialRoute";
 
@@ -426,8 +427,18 @@ function SocialHarness() {
   );
 }
 
+/** The admin panel's mapping section for one account. */
+function AdminMappingHarness() {
+  return (
+    <div className="min-h-screen bg-ink-900 p-6 text-slate-100">
+      <UserMappingSection userId={params.get("profile") ?? ""} username={params.get("profileName") ?? ""} />
+    </div>
+  );
+}
+
 function Harness() {
   if (params.get("mode") === "social") return <SocialHarness />;
+  if (params.get("mode") === "admin-mapping") return <AdminMappingHarness />;
   if (params.get("mode") === "audio-setup") return <AudioSetupHarness />;
   if (params.get("mode") === "admin-ratings") return <AdminRatingsHarness />;
   if (params.get("mode") === "feedback-invite") return <FeedbackInviteHarness />;

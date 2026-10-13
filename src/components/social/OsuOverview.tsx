@@ -7,7 +7,7 @@ import { SegmentedControl } from "../ui/Controls";
 import { Skeleton } from "../ui/Skeleton";
 import { Tooltip } from "../ui/Tooltip";
 import { ActivityCalendar } from "./MappingActivity";
-import { ErrorLine, SectionCard, StatTile } from "./socialUi";
+import { AdminViewNote, ErrorLine, SectionCard, StatTile } from "./socialUi";
 import { useNumberFormat } from "./socialUtils";
 
 const MODE_LABELS: Record<OsuMode, string> = {
@@ -247,6 +247,7 @@ function CascadeSummary({
         <p className="text-sm text-slate-500">{isSelf ? t("social.statsPrivateSelf") : t("social.statsPrivate")}</p>
       ) : (
         <div className="flex flex-col gap-4">
+          {stats.admin_override && <AdminViewNote />}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {stats.totals && <StatTile label={t("social.mappingTime")} value={formatDuration(stats.totals.edit)} />}
             {periods && <StatTile label={t("social.last7Days")} value={formatDuration(periods.week)} />}

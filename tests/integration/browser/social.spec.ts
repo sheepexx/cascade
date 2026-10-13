@@ -165,3 +165,43 @@ test("the community page shows every mapper's ranked map count", async ({ browse
   await expect(recent.getByText("2 ranked maps")).toHaveCount(2);
   await shot(a, "community");
 });
+
+test("admins see a mapper's private statistics, on the profile and in the admin panel", async ({ browser }) => {
+  const admin = await user("admin");
+  const bob = await user("bob");
+  await backend("/__test/sql", { sql: "update public.users set is_admin = true where id = $1", params: [admin] });
+  const now = Date.now();
+  await rpcAs(bob, "record_mapping_activity", {
+    p_session: "33333333-3333-4333-8333-333333333333",
+    p_entries: [
+      {
+        day: new Date(now).toISOString().slice(0, 10),
+        project_key: "local:abc",
+        project_title: "Secret Song",
+        project_artist: "Artist",
+        difficulty_key: "d1",
+        difficulty_name: "Insane",
+        edit: 90,
+        playtest: 0,
+        review: 0,
+        notes_placed: 120,
+        maps_created: 1,
+      },
+    ],
+    p_from: new Date(now - 95_000).toISOString(),
+    p_to: new Date(now - 5_000).toISOString(),
+  });
+
+  const a = await open(browser, admin, "admin", "/user/bob/activity");
+  await expect(a.getByText("Admin view")).toBeVisible();
+  await expect(a.getByText("1m", { exact: true }).first()).toBeVisible();
+  await expect(a.getByText("Secret Song")).toBeVisible();
+  await shot(a, "admin-profile");
+
+  const page = await a.context().newPage();
+  await page.goto(`/?mode=admin-mapping&styled=1&user=${admin}&profile=${bob}&profileName=bob`);
+  await expect(page.getByText("Mapping in Cascade")).toBeVisible();
+  await expect(page.getByRole("cell", { name: /Secret Song/ })).toBeVisible();
+  await expect(page.getByText("120").first()).toBeVisible();
+  await shot(page, "admin-mapping");
+});

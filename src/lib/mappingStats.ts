@@ -32,6 +32,8 @@ export type MappingProject = {
 };
 
 export type MappingStats = {
+  /** The caller sees private parts only because they are an admin (0044). */
+  admin_override?: boolean;
   visible: { mapping_stats: boolean; mapping_time: boolean; project_time: boolean; projects: boolean };
   counters: {
     notes_placed: number;

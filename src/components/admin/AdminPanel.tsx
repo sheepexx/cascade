@@ -34,6 +34,8 @@ import {
   getAdminStats,
   getStorageStats,
   listUserSummaries,
+  adminMappingTotals,
+  type AdminMappingTotal,
   platformRank,
   setUserAdmin,
   listAllProjects,
@@ -56,6 +58,8 @@ import {
 import { LinksTab, UserLinksSection } from "./AdminLinks";
 import { RatingsOverview, UserRatingsSection } from "./AdminRatings";
 import { ReportsTab } from "./AdminReports";
+import { UserMappingSection } from "./AdminMapping";
+import { formatDuration } from "../../lib/mappingTracker";
 import { formatBytes, formatMoment } from "./format";
 import {
   listFeedback,
@@ -912,7 +916,8 @@ type UserSortKey =
   | "export_count"
   | "project_count"
   | "storage_bytes"
-  | "preset_count";
+  | "preset_count"
+  | "mapping";
 
 const USER_COLUMNS: { key: UserSortKey; label: string; right?: boolean }[] = [
   { key: "username", label: "User" },
@@ -924,6 +929,7 @@ const USER_COLUMNS: { key: UserSortKey; label: string; right?: boolean }[] = [
   { key: "event_count", label: "Events", right: true },
   { key: "export_count", label: "Exports", right: true },
   { key: "project_count", label: "Maps", right: true },
+  { key: "mapping", label: "Mapping", right: true },
   { key: "storage_bytes", label: "Storage", right: true },
   { key: "preset_count", label: "Presets", right: true },
 ];
@@ -939,7 +945,9 @@ function lastSeenAt(u: AdminUserSummary): number {
 function userSortValue(
   u: AdminUserSummary,
   key: UserSortKey,
+  mapping: ReadonlyMap<string, AdminMappingTotal>,
 ): number | string {
+  if (key === "mapping") return mapping.get(u.id)?.edit_seconds ?? 0;
   if (key === "username") return u.username.toLowerCase();
   if (key === "platform") return platformRank(u);
   if (key === "created_at") return new Date(u.created_at).getTime();
@@ -954,7 +962,12 @@ function UsersTab() {
   const [descending, setDescending] = useState(true);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapping, setMapping] = useState<ReadonlyMap<string, AdminMappingTotal>>(() => new Map());
   const { error, setError, wrap } = useAsyncError();
+
+  useEffect(() => {
+    void adminMappingTotals().then(setMapping);
+  }, []);
 
   useEffect(() => {
     listUserSummaries()
@@ -996,15 +1009,15 @@ function UsersTab() {
         )
       : users;
     return [...filtered].sort((a, b) => {
-      const av = userSortValue(a, sort);
-      const bv = userSortValue(b, sort);
+      const av = userSortValue(a, sort, mapping);
+      const bv = userSortValue(b, sort, mapping);
       const cmp =
         typeof av === "string" && typeof bv === "string"
           ? av.localeCompare(bv)
           : Number(av) - Number(bv);
       return descending ? -cmp : cmp;
     });
-  }, [users, query, sort, descending]);
+  }, [users, query, sort, descending, mapping]);
 
   const selected = users?.find((u) => u.id === selectedId) ?? null;
 
@@ -1132,6 +1145,18 @@ function UsersTab() {
                   <NumberCell value={u.event_count} />
                   <NumberCell value={u.export_count} />
                   <NumberCell value={u.project_count} />
+                  <td
+                    className={`px-1.5 py-2 text-right font-mono text-xs ${
+                      mapping.get(u.id)?.edit_seconds ? "text-slate-300" : "text-slate-600"
+                    }`}
+                    title={
+                      mapping.get(u.id)
+                        ? `${mapping.get(u.id)!.active_days} active days, last ${mapping.get(u.id)!.last_day ?? "never"}`
+                        : undefined
+                    }
+                  >
+                    {mapping.get(u.id)?.edit_seconds ? formatDuration(mapping.get(u.id)!.edit_seconds) : "0"}
+                  </td>
                   <td className="px-1.5 py-2 text-right font-mono text-xs text-slate-400">
                     {formatBytes(Number(u.storage_bytes))}
                   </td>
@@ -1282,6 +1307,8 @@ function UserDetail({
         <span>os {user.last_os ?? "unknown"}</span>
         <span>feedback {Number(user.feedback_count)}</span>
       </div>
+
+      <UserMappingSection userId={user.id} username={user.username} />
 
       <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">

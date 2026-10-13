@@ -2591,6 +2591,8 @@ export const en = {
   "social.mappingFollowers": "Mapping followers",
   "social.beatmapsetCountsHint": "Counts are beatmapsets, not difficulties. Ranked includes qualified sets; guest counts sets by others with a difficulty from this mapper.",
   "social.inCascade": "In Cascade",
+  "social.adminView": "Admin view",
+  "social.adminViewHint": "Some of this is private. You see it because you’re an admin.",
   "social.seeActivity": "See activity",
   "social.statsPrivate": "This mapper keeps their Cascade statistics private.",
   "social.statsPrivateHint": "{name} hasn’t shared their mapping statistics with you.",

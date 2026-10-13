@@ -13,8 +13,7 @@ import {
   EmptyState,
   SectionCard,
   SmallButton,
-  StatTile,
-} from "./socialUi";
+  StatTile, AdminViewNote } from "./socialUi";
 import { relativeTime, useNumberFormat } from "./socialUtils";
 
 // One hue, light end clearing the dark surface (checked with the dataviz
@@ -91,6 +90,7 @@ export function MappingActivity({
 
   return (
     <div className="flex flex-col gap-4">
+      {stats.admin_override && <AdminViewNote />}
       {stats.totals && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <StatTile label={t("social.mappingTime")} value={formatDuration(stats.totals.edit)} hint={t("social.allTime")} />

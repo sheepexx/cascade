@@ -415,3 +415,31 @@ export async function getAdminStats(): Promise<AdminStats> {
 export async function getStorageStats(): Promise<AdminStorageStats> {
   return getAdminStorageStats();
 }
+
+export type AdminMappingTotal = {
+  user_id: string;
+  edit_seconds: number;
+  playtest_seconds: number;
+  review_seconds: number;
+  active_days: number;
+  last_day: string | null;
+};
+
+/** Mapping time per account (migration 0044); empty before it is applied. */
+export async function adminMappingTotals(): Promise<Map<string, AdminMappingTotal>> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.rpc("admin_mapping_totals");
+  if (error) return new Map();
+  return new Map(
+    ((data ?? []) as AdminMappingTotal[]).map((row) => [
+      row.user_id,
+      {
+        ...row,
+        edit_seconds: Number(row.edit_seconds),
+        playtest_seconds: Number(row.playtest_seconds),
+        review_seconds: Number(row.review_seconds),
+        active_days: Number(row.active_days),
+      },
+    ]),
+  );
+}

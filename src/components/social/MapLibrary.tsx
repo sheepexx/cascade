@@ -207,7 +207,7 @@ export function MapLibrary({
       </div>
 
       {active === "cascade" ? (
-        <CascadeProjects projects={projects} isSelf={isSelf} onOpenCloudProject={onOpenCloudProject} />
+        <CascadeProjects projects={projects} onOpenCloudProject={onOpenCloudProject} />
       ) : (
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -426,11 +426,9 @@ function Chip({ children, title }: { children: React.ReactNode; title?: string }
 
 function CascadeProjects({
   projects,
-  isSelf,
   onOpenCloudProject,
 }: {
   projects: MappingProject[];
-  isSelf: boolean;
   onOpenCloudProject: (id: string) => void;
 }) {
   const t = useT();
@@ -440,12 +438,13 @@ function CascadeProjects({
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {projects.map((project) => {
           const open =
-            isSelf && project.project_id
+            project.project_id
               ? () => onOpenCloudProject(project.project_id!)
               : project.shared_slug
                 ? () => window.open(sharedMapUrl(project.shared_slug!), "_blank", "noopener,noreferrer")
                 : null;
           const time = project.edit;
+          // project_id only comes back for the owner and for admins.
           return (
             <li key={project.project_key}>
               <div className="flex h-full flex-col gap-2 rounded-xl border border-white/[0.07] bg-ink-700/40 p-3.5 transition hover:border-white/15 hover:bg-ink-700/70">
@@ -482,7 +481,7 @@ function CascadeProjects({
                 {open && (
                   <div className="mt-auto pt-1">
                     <SmallButton onClick={open}>
-                      {isSelf && project.project_id ? t("social.openProject") : t("social.viewSharedMap")}
+                      {project.project_id ? t("social.openProject") : t("social.viewSharedMap")}
                     </SmallButton>
                   </div>
                 )}

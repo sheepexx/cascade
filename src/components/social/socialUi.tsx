@@ -324,3 +324,16 @@ export function DotsIcon({ className = "h-4 w-4" }: { className?: string }) {
     </svg>
   );
 }
+
+/** Says that private statistics are on screen only because the viewer is an admin. */
+export function AdminViewNote() {
+  const t = useT();
+  return (
+    <p className="flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-xs text-amber-100/90">
+      <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+        {t("social.adminView")}
+      </span>
+      {t("social.adminViewHint")}
+    </p>
+  );
+}
