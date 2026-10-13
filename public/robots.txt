@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /friends
+Disallow: /messages
 
 Sitemap: https://cascade.sheepex.net/sitemap.xml

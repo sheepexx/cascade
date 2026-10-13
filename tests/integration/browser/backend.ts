@@ -189,6 +189,58 @@ export async function startBackend(port = 0): Promise<Backend> {
     }
   };
 
+  const scalarFunctions = new Map<string, boolean>();
+  const returnsScalar = async (fn: string) => {
+    const known = scalarFunctions.get(fn);
+    if (known !== undefined) return known;
+    const { rows } = await db.db.query<{ scalar: boolean }>(
+      `select not p.proretset and t.typtype <> 'c' and p.prorettype <> 'record'::regtype
+                and p.prorettype <> 'void'::regtype as scalar
+         from pg_proc p join pg_type t on t.oid = p.prorettype
+        where p.proname = $1 and p.pronamespace = 'public'::regnamespace
+        limit 1`,
+      [fn],
+    );
+    const scalar = rows[0]?.scalar ?? false;
+    scalarFunctions.set(fn, scalar);
+    return scalar;
+  };
+
+  /**
+   * Postgres Changes for messages: each new or changed row goes to every
+   * window subscribed to its message inbox that may read the row, as
+   * Realtime filters changes through row-level security.
+   */
+  let messageVersions = new Map<string, string>();
+  const announceMessageChanges = async () => {
+    // A database migrated only part of the way has no messages yet.
+    const exists = await db.db.query<{ t: string | null }>("select to_regclass('public.messages')::text as t");
+    if (!exists.rows[0]?.t) return;
+    const { rows } = await db.db.query<Record<string, Json> & { id: string }>(
+      "select id, conversation_id, sender, body, reply_to, created_at, edited_at, deleted_at from public.messages",
+    );
+    for (const row of rows) {
+      const version = `${row.edited_at ?? ""}|${row.deleted_at ?? ""}`;
+      const before = messageVersions.get(row.id);
+      if (before === version) continue;
+      messageVersions.set(row.id, version);
+      for (const connection of connections.values()) {
+        for (const [topic, joined] of connection.joined) {
+          if (joined.kind !== "postgres" || !topic.startsWith("messages-inbox:")) continue;
+          const visible = await asUser(connection.userId, (tx) =>
+            tx.query("select 1 from public.messages where id = $1", [row.id]),
+          );
+          if (!visible.rows.length) continue;
+          push(connection, {
+            type: "postgres",
+            topic,
+            body: { eventType: before === undefined ? "INSERT" : "UPDATE", table: "messages", new: row as Json, old: {} },
+          });
+        }
+      }
+    }
+  };
+
   const remember = async () => {
     const { rows } = await db.db.query<{ id: string; revision: number }>(
       "select id, revision::int as revision from public.projects",
@@ -206,13 +258,20 @@ export async function startBackend(port = 0): Promise<Backend> {
     try {
       const result = await asUser(userId, (tx) => tx.query(sql, names.map((name) => param(args[name]))));
       await announceProjectChanges();
+      await announceMessageChanges();
+      // PostgREST answers a function returning one plain value with the
+      // value itself, not a row.
+      if (await returnsScalar(fn)) {
+        const row = result.rows[0] as Record<string, unknown> | undefined;
+        return { data: row ? (Object.values(row)[0] ?? null) : null };
+      }
       return { data: result.rows };
     } catch (error) {
       return { error: restError(error, fn) };
     }
   };
 
-  type Filter = [string, "eq" | "in", unknown];
+  type Filter = [string, "eq" | "in" | "lt", unknown];
   const table = async (
     userId: string | null,
     request: {
@@ -220,6 +279,8 @@ export async function startBackend(port = 0): Promise<Backend> {
       action: "select" | "update" | "insert";
       columns?: string;
       filters?: Filter[];
+      order?: { column: string; ascending: boolean } | null;
+      limit?: number | null;
       values?: Record<string, unknown>;
       single?: "single" | "maybe" | null;
     },
@@ -235,6 +296,10 @@ export async function startBackend(port = 0): Promise<Backend> {
         params.push((value as unknown[]).map(String));
         return `${column}::text = any($${params.length}::text[])`;
       }
+      if (op === "lt") {
+        params.push(value);
+        return `${column} < $${params.length}`;
+      }
       params.push(String(value));
       return `${column}::text = $${params.length}::text`;
     });
@@ -242,7 +307,14 @@ export async function startBackend(port = 0): Promise<Backend> {
     const list = columns.join(", ");
     let sql: string;
     if (request.action === "select") {
-      sql = `select ${list} from public.${request.table}${whereSql}`;
+      const order = request.order;
+      if (order && !IDENTIFIER.test(order.column)) return { error: { code: "400", message: "bad order" } };
+      const orderSql = order ? ` order by ${order.column} ${order.ascending ? "asc" : "desc"}` : "";
+      const limitSql =
+        typeof request.limit === "number" && Number.isInteger(request.limit) && request.limit > 0
+          ? ` limit ${request.limit}`
+          : "";
+      sql = `select ${list} from public.${request.table}${whereSql}${orderSql}${limitSql}`;
     } else {
       const entries = Object.entries(request.values ?? {});
       if (!entries.every(([key]) => IDENTIFIER.test(key))) return { error: { code: "400", message: "bad values" } };
@@ -371,6 +443,8 @@ export async function startBackend(port = 0): Promise<Backend> {
           failingSends.clear();
           failingRpcs.clear();
           revisions = new Map();
+          messageVersions = new Map();
+          scalarFunctions.clear();
           return send(res, 200, { ok: true });
         }
         case "/__test/user":

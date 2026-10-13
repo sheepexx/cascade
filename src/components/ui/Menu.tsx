@@ -37,11 +37,16 @@ export function Menu({
   items,
   className = "",
   tone = "plain",
+  chevron = true,
+  "aria-label": ariaLabel,
 }: {
   label: ReactNode;
   items: MenuItem[];
   className?: string;
   tone?: keyof typeof TRIGGER_TONES;
+  /** Off for an icon-only trigger such as "more actions". */
+  chevron?: boolean;
+  "aria-label"?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -148,14 +153,18 @@ export function Menu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={ariaLabel}
+        title={ariaLabel}
         className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${TRIGGER_TONES[tone].trigger} ${className}`}
       >
         {label}
-        <ChevronDownIcon
-          className={`h-3 w-3 ${TRIGGER_TONES[tone].chevron} transition-transform duration-[var(--motion-exit)] ${
-            open ? "rotate-180" : ""
-          }`}
-        />
+        {chevron && (
+          <ChevronDownIcon
+            className={`h-3 w-3 ${TRIGGER_TONES[tone].chevron} transition-transform duration-[var(--motion-exit)] ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        )}
       </button>
       {mounted &&
         createPortal(

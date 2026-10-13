@@ -28,6 +28,9 @@ import {
   type ViewState,
 } from "../../../../src/types";
 import { setConnectionLabel, setSupabaseToken } from "../fakeSupabase";
+import { SocialOverlay } from "../../../../src/components/social/SocialOverlay";
+import { getSocialCounts, type SocialCounts } from "../../../../src/lib/social";
+import { parseSocialPath, socialPath, type SocialRoute } from "../../../../src/lib/socialRoute";
 
 /**
  * A page that runs the editor's real collaboration pipeline (the session,
@@ -370,7 +373,58 @@ function AdminRatingsHarness() {
   );
 }
 
+/**
+ * The social overlay as the app opens it, signed in as the page's user. The
+ * route lives in the address bar like the app's; counts refresh after every
+ * action and on a "Refresh counts" button tests can press.
+ */
+function SocialHarness() {
+  const [route, setRoute] = useState<SocialRoute>(
+    // A reload comes back to where the window had moved to.
+    () =>
+      parseSocialPath(location.hash.slice(1)) ??
+      parseSocialPath(params.get("route") ?? "/community") ?? { view: "community" },
+  );
+  const [counts, setCounts] = useState<SocialCounts>({ unread_messages: 0, pending_requests: 0 });
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refreshCounts = useCallback(() => {
+    void getSocialCounts().then(setCounts).catch(() => {});
+  }, []);
+  useEffect(refreshCounts, [refreshCounts]);
+  const navigate = useCallback((next: SocialRoute) => {
+    window.history.replaceState(null, "", `/?${params.toString()}#${socialPath(next)}`);
+    setRoute(next);
+  }, []);
+  return (
+    <div className="min-h-screen bg-ink-900">
+      <button
+        type="button"
+        className="fixed left-2 top-2 z-[70] text-xs text-slate-500"
+        onClick={() => {
+          refreshCounts();
+          setRefreshKey((key) => key + 1);
+        }}
+      >
+        Refresh counts
+      </button>
+      <output data-testid="counts" className="sr-only">{`${counts.unread_messages}/${counts.pending_requests}`}</output>
+      <SocialOverlay
+        open
+        route={route}
+        counts={counts}
+        refreshKey={refreshKey}
+        onNavigate={navigate}
+        onClose={() => {}}
+        onCountsChanged={refreshCounts}
+        onOpenPrivacy={() => {}}
+        onOpenCloudProject={() => {}}
+      />
+    </div>
+  );
+}
+
 function Harness() {
+  if (params.get("mode") === "social") return <SocialHarness />;
   if (params.get("mode") === "audio-setup") return <AudioSetupHarness />;
   if (params.get("mode") === "admin-ratings") return <AdminRatingsHarness />;
   if (params.get("mode") === "feedback-invite") return <FeedbackInviteHarness />;

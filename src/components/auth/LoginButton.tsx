@@ -48,17 +48,24 @@ function preloadCover(url: string): void {
   img.src = url;
 }
 
+export type SocialMenuTarget = "profile" | "friends" | "messages" | "community";
+
 export function AccountControl({
   onOpenMyMaps,
   onOpenPresets,
   onOpenFeedback,
   onOpenAdmin,
+  onOpenSocial,
+  socialBadges,
   compact = false,
 }: {
   onOpenMyMaps: () => void;
   onOpenPresets?: () => void;
   onOpenFeedback: () => void;
   onOpenAdmin: () => void;
+  /** Profile, friends and messages, when the social features are on. */
+  onOpenSocial?: (target: SocialMenuTarget) => void;
+  socialBadges?: { friends: number; messages: number };
   compact?: boolean;
 }) {
   const { user, isAdmin, loading, login, logout } = useAuth();
@@ -243,6 +250,29 @@ export function AccountControl({
               </div>
             </div>
             <div className="pt-1" />
+            {onOpenSocial && (
+              <>
+                <MenuItem onClick={() => choose(() => onOpenSocial("profile"))}>
+                  {t("social.myProfile")}
+                </MenuItem>
+                <MenuItem
+                  onClick={() => choose(() => onOpenSocial("friends"))}
+                  badge={socialBadges?.friends}
+                >
+                  {t("social.friendsTitle")}
+                </MenuItem>
+                <MenuItem
+                  onClick={() => choose(() => onOpenSocial("messages"))}
+                  badge={socialBadges?.messages}
+                >
+                  {t("social.messagesTitle")}
+                </MenuItem>
+                <MenuItem onClick={() => choose(() => onOpenSocial("community"))}>
+                  {t("social.findMappers")}
+                </MenuItem>
+                <div className="my-1 h-px bg-ink-600" />
+              </>
+            )}
             <MenuItem onClick={() => choose(onOpenMyMaps)}>
               {t("account.myMaps")}
             </MenuItem>
@@ -305,20 +335,27 @@ function MenuItem({
   children,
   onClick,
   danger,
+  badge,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   danger?: boolean;
+  badge?: number;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full px-3 py-1.5 text-left text-sm transition hover:bg-ink-600 ${
+      className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm transition hover:bg-ink-600 ${
         danger ? "text-rose-300 hover:text-rose-200" : "text-slate-200"
       }`}
     >
-      {children}
+      <span>{children}</span>
+      {badge ? (
+        <span className="grid min-h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold leading-4 text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
     </button>
   );
 }

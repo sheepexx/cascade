@@ -48,7 +48,9 @@ function result(raw: { data?: unknown; error?: { code: string; message: string }
 class Query implements PromiseLike<Result> {
   private action: "select" | "update" | "insert" = "select";
   private columns = "*";
-  private filters: [string, "eq" | "in", unknown][] = [];
+  private filters: [string, "eq" | "in" | "lt", unknown][] = [];
+  private ordering: { column: string; ascending: boolean } | null = null;
+  private max: number | null = null;
   private values: Record<string, unknown> | undefined;
   private rows: "single" | "maybe" | null = null;
 
@@ -76,7 +78,16 @@ class Query implements PromiseLike<Result> {
     this.filters.push([column, "in", values]);
     return this;
   }
-  order() {
+  lt(column: string, value: unknown) {
+    this.filters.push([column, "lt", value]);
+    return this;
+  }
+  order(column?: string, options?: { ascending?: boolean }) {
+    if (column) this.ordering = { column, ascending: options?.ascending !== false };
+    return this;
+  }
+  limit(count: number) {
+    this.max = count;
     return this;
   }
   single() {
@@ -96,6 +107,8 @@ class Query implements PromiseLike<Result> {
       action: this.action,
       columns: this.columns,
       filters: this.filters,
+      order: this.ordering,
+      limit: this.max,
       values: this.values,
       single: this.rows,
     })

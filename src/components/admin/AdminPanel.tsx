@@ -55,6 +55,7 @@ import {
 } from "../../lib/admin";
 import { LinksTab, UserLinksSection } from "./AdminLinks";
 import { RatingsOverview, UserRatingsSection } from "./AdminRatings";
+import { ReportsTab } from "./AdminReports";
 import { formatBytes, formatMoment } from "./format";
 import {
   listFeedback,
@@ -77,6 +78,7 @@ type Tab =
   | "projects"
   | "links"
   | "feedback"
+  | "reports"
   | "notifications"
   | "settings";
 
@@ -98,7 +100,7 @@ export function AdminPanel({
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-ink-900">
-      {/* Eight tabs never fit a phone. Below `sm` the title and Close take the
+      {/* Nine tabs never fit a phone. Below `sm` the title and Close take the
           first row and the tab strip gets a full-width row of its own that
           scrolls sideways; from `sm` up the three sit on one line as before. */}
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink-600 bg-ink-800 px-3 py-3 sm:flex-nowrap sm:px-5">
@@ -117,6 +119,7 @@ export function AdminPanel({
             "projects",
             "links",
             "feedback",
+            "reports",
             "notifications",
             "settings",
           ] as Tab[]).map((t) => (
@@ -141,6 +144,7 @@ export function AdminPanel({
         {tab === "projects" && <ProjectsTab />}
         {tab === "links" && <LinksTab />}
         {tab === "feedback" && <FeedbackTab />}
+        {tab === "reports" && <ReportsTab />}
         {tab === "notifications" && <NotificationsTab />}
         {tab === "settings" && (
           <SettingsTab invisible={invisible} onToggle={onToggleInvisible} />

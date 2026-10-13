@@ -1,6 +1,17 @@
 import { getSupabase } from "./supabase";
 
-export type NotificationKind = "invite" | "app_update" | "system";
+export type NotificationKind =
+  | "invite"
+  | "app_update"
+  | "system"
+  | "friend_request"
+  | "friend_accept"
+  | "message";
+
+/** Notices from the social features (migration 0041). */
+export function isSocialNotification(kind: NotificationKind): boolean {
+  return kind === "friend_request" || kind === "friend_accept" || kind === "message";
+}
 
 export type InboxNotification = {
   id: string;

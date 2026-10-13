@@ -1,7 +1,7 @@
 {
   "name": "cascade",
   "private": true,
-  "version": "1.2.443",
+  "version": "1.2.444",
   "type": "module",
   "engines": {
     "node": "^22.13.0 || >=24"

@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { AccountControl } from "../components/auth/LoginButton";
+import { AccountControl, type SocialMenuTarget } from "../components/auth/LoginButton";
 import { DesktopDownloadLink } from "../components/DesktopDownloadLink";
 import { IconButton, MenuButton } from "../components/header/HeaderButtons";
 import { LanguagePicker } from "../components/LanguagePicker";
@@ -94,6 +94,7 @@ export function AppHeader({
   setShowHomeConfirm,
   sharedSlug,
   showHeader,
+  social,
   undo,
 }: {
   active: Difficulty;
@@ -158,6 +159,12 @@ export function AppHeader({
   setShowHomeConfirm: Dispatch<SetStateAction<boolean>>;
   sharedSlug: string | null;
   showHeader: boolean;
+  /** Friends and messages, when the social features are on. */
+  social: {
+    unreadMessages: number;
+    pendingRequests: number;
+    open: (target: SocialMenuTarget) => void;
+  } | null;
   undo: () => void;
 }) {
   const t = useT();
@@ -577,6 +584,13 @@ export function AppHeader({
           />
         )}
         {!hasProject && <LanguagePicker compact />}
+        {social && authUser && (
+          <SocialButton
+            unreadMessages={social.unreadMessages}
+            pendingRequests={social.pendingRequests}
+            onOpen={social.open}
+          />
+        )}
         <NotificationInbox
           signedIn={!!authUser}
           notifications={notifications}
@@ -599,8 +613,58 @@ export function AppHeader({
           }
           onOpenFeedback={() => setModal("feedback")}
           onOpenAdmin={() => setModal("admin")}
+          onOpenSocial={social?.open}
+          socialBadges={
+            social
+              ? { friends: social.pendingRequests, messages: social.unreadMessages }
+              : undefined
+          }
         />
       </div>
     </header>
+  );
+}
+
+/**
+ * Friends and messages from the header, next to the inbox. The badge counts
+ * unread messages and friend requests waiting for an answer; a click goes to
+ * whichever needs attention.
+ */
+function SocialButton({
+  unreadMessages,
+  pendingRequests,
+  onOpen,
+}: {
+  unreadMessages: number;
+  pendingRequests: number;
+  onOpen: (target: SocialMenuTarget) => void;
+}) {
+  const t = useT();
+  const total = unreadMessages + pendingRequests;
+  const label =
+    total > 0
+      ? t("social.headerButtonUnread", { count: total })
+      : t("social.headerButton");
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(unreadMessages > 0 ? "messages" : "friends")}
+      aria-label={label}
+      title={label}
+      className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink-500/60 bg-ink-700/60 text-slate-300 transition hover:border-accent/60 hover:bg-ink-700 hover:text-slate-100"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="h-[18px] w-[18px]">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M7.5 18.5 4 20.5V7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v8.5a3 3 0 0 1-3 3H7.5ZM8 9.5h8M8 13h5"
+        />
+      </svg>
+      {total > 0 && (
+        <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold leading-4 text-white shadow-lg shadow-black/30">
+          {total > 99 ? "99+" : total}
+        </span>
+      )}
+    </button>
   );
 }

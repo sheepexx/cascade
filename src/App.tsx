@@ -28,6 +28,11 @@ import {
   type PlaytestRuntimeState,
 } from "./app/usePlaytest";
 import { useFeatureFlags } from "./app/useFeatureFlags";
+import { useMyPrivacy, useSocialPresence, useSocialRoute } from "./app/useSocial";
+import { useMappingActivity } from "./app/useMappingActivity";
+import { noteMappingEvent } from "./lib/mappingEvents";
+import { OpenPlayerContext } from "./components/openPlayerContext";
+import { parseSocialPath, type SocialRoute } from "./lib/socialRoute";
 import { useAccountSettingsSync } from "./app/useAccountSettingsSync";
 import {
   Suspense,
@@ -104,6 +109,7 @@ import {
   loadExternalEdit,
   BackupsModal,
   AdminPanel,
+  SocialOverlay,
   preloadLazyChunks,
   MemoizedManiaEditor,
   MemoizedBottomTimeline,
@@ -314,6 +320,47 @@ export default function App() {
     featureFlags,
     featureFlagsRef,
   } = useFeatureFlags();
+  const {
+    route: socialRoute,
+    navigate: navigateSocial,
+    close: closeSocial,
+  } = useSocialRoute(featureFlags.social);
+  // The overlay keeps showing its last view while it animates closed.
+  const socialLastRouteRef = useRef<SocialRoute | null>(null);
+  if (socialRoute) socialLastRouteRef.current = socialRoute;
+  const socialShownRoute = socialRoute ?? socialLastRouteRef.current;
+  const socialPendingRef = useRef<number | null>(null);
+  const openSocialTarget = useCallback(
+    (target: "profile" | "friends" | "messages" | "community") => {
+      const me = authUserRef.current;
+      if (target === "profile") {
+        if (me) navigateSocial({ view: "profile", name: me.username, tab: "overview" });
+      } else if (target === "friends") {
+        navigateSocial({
+          view: "friends",
+          tab: (socialPendingRef.current ?? 0) > 0 ? "pending" : "all",
+        });
+      } else if (target === "messages") {
+        navigateSocial({ view: "messages", conversationId: null });
+      } else {
+        navigateSocial({ view: "community" });
+      }
+    },
+    [navigateSocial],
+  );
+  const openPlayerProfile = useCallback(
+    (username: string) => navigateSocial({ view: "profile", name: username, tab: "overview" }),
+    [navigateSocial],
+  );
+  const openSocialPath = useCallback(
+    (path: string) => {
+      const route = parseSocialPath(path);
+      if (!route || !featureFlags.social) return false;
+      navigateSocial(route);
+      return true;
+    },
+    [featureFlags.social, navigateSocial],
+  );
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const phoneViewport = usePhoneViewport();
@@ -1549,12 +1596,21 @@ export default function App() {
       });
     }, ms);
   }, [fadeOutMenuMusic]);
+  // The menu's presence channel is open to every signed-in user, so it only
+  // carries what the user shows to everyone.
+  const { privacy: myPrivacy, loaded: myPrivacyLoaded } = useMyPrivacy(
+    authUser,
+    featureFlags.social,
+  );
   const onlinePlayers = useOnlinePresence(
     () => {
+      if (myPrivacy && myPrivacy.activity !== "everyone") return null;
       const title = meta.title.trim();
       return hasProject ? title || null : null;
     },
-    appSettings.hideStatus,
+    appSettings.hideStatus ||
+      !myPrivacyLoaded ||
+      (myPrivacy !== null && myPrivacy.online_status !== "everyone"),
   );
 
   const [aiModReport, setAiModReport] = useState<AiModReport | null>(null);
@@ -1763,6 +1819,26 @@ export default function App() {
     timingPointsRef,
     view,
   });
+  const applyingHistoryHolder = useRef<{ current: boolean } | null>(null);
+  // Declared before useEditHistory so its effect reads the collaborator and
+  // undo flags before that hook's effect clears them.
+  useMappingActivity({
+    authUser,
+    enabled: featureFlags.social,
+    hasProject,
+    cloudProjectId,
+    localProjectId,
+    meta,
+    activeDifficulty: hasProject ? active : null,
+    difficulties,
+    timingPoints,
+    modal,
+    socialOpen: socialRoute !== null,
+    playtesting: playtest.active,
+    playing: audio.isPlaying,
+    isRemoteChange: () =>
+      applyingRemoteRef.current || (applyingHistoryHolder.current?.current ?? false),
+  });
   const {
     applyingHistoryRef,
     canRedo,
@@ -1796,6 +1872,7 @@ export default function App() {
     t,
     timingPoints,
   });
+  applyingHistoryHolder.current = applyingHistoryRef;
   const {
     addOsuDifficulties,
     importArchive,
@@ -2450,7 +2527,20 @@ export default function App() {
     authUserRef,
     cloudProjectIdRef,
     loadCloudProject,
+    openInternal: openSocialPath,
   });
+  const {
+    counts: socialCounts,
+    refreshCounts: refreshSocialCounts,
+    refreshKey: socialRefreshKey,
+  } = useSocialPresence({
+    authUser,
+    enabled: featureFlags.social,
+    notifications,
+    hideStatus: appSettings.hideStatus,
+    activity: hasProject ? meta.title.trim() || null : null,
+  });
+  socialPendingRef.current = socialCounts.pending_requests;
 
   const handlePublishPattern = useCallback(
     (pattern: PatternNote[], keyCount: number) => {
@@ -2502,6 +2592,7 @@ export default function App() {
     setImportError(null);
     setSaveStatus(null);
     logProjectCreated();
+    noteMappingEvent("map_created");
 
     if (loadedAudio) {
       setAutoTimeOpen(true);
@@ -2843,6 +2934,15 @@ export default function App() {
         setModal={setModal}
         setShowHomeConfirm={setShowHomeConfirm}
         sharedSlug={sharedSlug}
+        social={
+          featureFlags.social && authUser
+            ? {
+                unreadMessages: socialCounts.unread_messages,
+                pendingRequests: socialCounts.pending_requests,
+                open: openSocialTarget,
+              }
+            : null
+        }
         showHeader={showHeader}
         undo={undo}
       />
@@ -3048,6 +3148,7 @@ export default function App() {
                 cascadeTag={appSettings.addCascadeTag}
               />
             ) : (
+              <OpenPlayerContext.Provider value={featureFlags.social ? openPlayerProfile : null}>
               <StartScreen
                 music={menuMusic}
                 players={appSettings.showMenuPlayers ? onlinePlayers : []}
@@ -3075,6 +3176,7 @@ export default function App() {
               >
                 <LandingCopy />
               </StartScreen>
+              </OpenPlayerContext.Provider>
             )}
             {hasProject && layoutEditing && !playtest.active && (
               <EditorLayoutOverlay
@@ -3526,6 +3628,15 @@ export default function App() {
       {modalMounted("settings") && (
         <AppSettingsModal
           initialTab={settingsTab}
+          socialEnabled={featureFlags.social}
+          onOpenProfile={
+            authUser
+              ? () => {
+                  close();
+                  navigateSocial({ view: "profile", name: authUser.username, tab: "overview" });
+                }
+              : undefined
+          }
           onAudioSetup={() => { pauseAudio(); setModal("audioSetup"); }}
           keyCount={active.keyCount}
           open={modal === "settings"}
@@ -4109,6 +4220,41 @@ export default function App() {
           unsnappedCount={aiModUnsnapped}
           onResnap={() => setConfirmResnap(true)}
         />
+      )}
+
+      {socialShownRoute && (
+        <Suspense fallback={null}>
+          <SocialOverlay
+            open={socialRoute !== null}
+            route={socialShownRoute}
+            counts={socialCounts}
+            refreshKey={socialRefreshKey}
+            onNavigate={navigateSocial}
+            onClose={closeSocial}
+            onCountsChanged={refreshSocialCounts}
+            onOpenPrivacy={() => {
+              closeSocial();
+              openSettings("Social");
+            }}
+            onOpenCloudProject={(id) => {
+              closeSocial();
+              void loadCloudProject(id);
+            }}
+            onOpenBeatmapset={
+              featureFlags.beatmap_import && import.meta.env.VITE_WORKER_URL
+                ? (setId) => {
+                    closeSocial();
+                    void importFromOsu(`https://osu.ppy.sh/beatmapsets/${setId}`).catch(
+                      (error: unknown) => {
+                        const problem = describeImportFailure(error, t("app.beatmapNotFound"), t);
+                        setImportError(problem.message, problem.details);
+                      },
+                    );
+                  }
+                : undefined
+            }
+          />
+        </Suspense>
       )}
 
       {adminEverOpenedRef.current && modalMounted("admin") && (

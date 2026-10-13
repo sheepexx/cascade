@@ -170,6 +170,11 @@ export const BackupsModal = lazyWithPreload(() =>
   })),
 );
 
+export const SocialOverlay = lazyWithPreload(() =>
+  import("../components/social/SocialOverlay").then((m) => ({
+    default: m.SocialOverlay,
+  })),
+);
 export const AdminPanel = lazyWithPreload(() =>
   import("../components/admin/AdminPanel").then((m) => ({
     default: m.AdminPanel,

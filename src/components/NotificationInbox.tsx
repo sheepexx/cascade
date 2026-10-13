@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { activityLog, useActivityLog } from "../lib/activityLog";
 import { groupInbox, mergeInbox, type InboxGroup, type InboxItem } from "../lib/inboxItems";
-import type { InboxNotification } from "../lib/notifications";
+import { isSocialNotification, type InboxNotification } from "../lib/notifications";
 import { SkeletonRows } from "./ui/Skeleton";
 import { MailIcon } from "./ui/Icons";
 import { ToneIcon } from "./ui/Toast";
@@ -307,7 +307,13 @@ function NotificationRow({
     ((notification.kind === "invite" && !!notification.project_id) ||
       !!notification.action_url);
   const actionLabel =
-    notification?.kind === "invite" ? t("inbox.openMap") : t("inbox.viewUpdate");
+    notification?.kind === "invite"
+      ? t("inbox.openMap")
+      : notification?.kind === "message"
+        ? t("inbox.openChat")
+        : notification?.kind === "friend_request" || notification?.kind === "friend_accept"
+          ? t("inbox.viewProfile")
+          : t("inbox.viewUpdate");
 
   return (
     <li
@@ -377,7 +383,7 @@ function NotificationRow({
             title={new Date(item.createdAt).toLocaleString()}
           >
             {formatRelativeTime(item.createdAt, t)}
-            {notification && notification.kind !== "invite" && notification.actor_username && (
+            {notification && notification.kind !== "invite" && !isSocialNotification(notification.kind) && notification.actor_username && (
               <> · {t("inbox.from", { name: notification.actor_username })}</>
             )}
             {item.source === "activity" && <> · {t("inbox.thisDevice")}</>}

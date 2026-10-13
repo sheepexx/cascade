@@ -289,6 +289,14 @@ The local project list, search and sorting also work without an account.
 - A comments sidebar with unread counts, and notifications for invitations.
 - Background videos stay on your device. They are included in exported `.osz` files but not uploaded with cloud saves or live sessions.
 
+### Profiles, friends and messages
+
+- Every account has a profile at `/user/<osu! username>`: the osu! banner, avatar, country, supporter status and badges, osu! statistics per mode (osu!mania first), mapping counts on osu! and a map library with search, key and status filters and sorting. Links to an old username follow the rename.
+- Friends with requests, a block list and reports, plus username search and a community page with recently active and featured mappers.
+- Private messages between two people, live, with unread counts, replies, edits, deletion, mute and archive.
+- Mapping time: while a map is open and you are editing, Cascade counts active time (it stops after a minute without input, in the background and in unrelated menus), and separately playtesting and listening. The profile shows it per day, per map and per difficulty, next to notes placed, playtests and exports. Only time in Cascade's editor is counted, and the database never credits more time than actually passed, so two open windows count once.
+- Social & privacy settings decide who can send friend requests and messages, and who sees your online status, what you're working on, your mapping statistics and time, and your Cascade projects. The database enforces them.
+
 ### Public share links
 
 - Create a public link from the Share dialog.
@@ -384,6 +392,12 @@ Apply the SQL files in `supabase/migrations` in numeric order when updating the
 database. [docs/R2_MIGRATION.md](docs/R2_MIGRATION.md) covers asset storage in
 Cloudflare R2.
 
+Migrations `0041_social.sql` and `0042_mapping_activity.sql` add profiles,
+friends, messages and mapping time. Apply them, deploy the Worker (it serves
+osu! profile data at `/osu/...` with the app's existing client credentials),
+then deploy the site and turn on **Profiles, friends & messages** under
+Settings in the admin panel. Until the flag is on, none of it shows.
+
 Migration `0038_snapshot_revision_check.sql` makes every chart save name the
 revision it was edited from, so a stale copy can't overwrite a newer save.
 Deploy the app first and apply the migration after: the current app saves
@@ -396,13 +410,13 @@ Cascade is a static single-page app with a small backend around it.
 
 - **Frontend:** React, TypeScript, Vite and Tailwind CSS. The playfield is drawn on an HTML canvas, and audio runs through the Web Audio API.
 - **Supabase:** Postgres for projects, settings and presets, and Realtime for collaboration. There is no Supabase Auth user; the Worker issues the tokens.
-- **Cloudflare Worker:** osu! OAuth, Supabase token minting, the beatmap mirror proxy and access to project and shared-map assets in Cloudflare R2.
+- **Cloudflare Worker:** osu! OAuth, Supabase token minting, public osu! profile data for Cascade profiles, the beatmap mirror proxy and access to project and shared-map assets in Cloudflare R2.
 - **Desktop:** Tauri 2 with a Rust backend for the project folder and version history, native audio, osu! integration, Discord presence and file associations.
 
 | Path | Contents |
 | --- | --- |
 | `src/App.tsx`, `src/app` | The app shell. `src/app` holds its parts: opening, saving and recovering maps, export, hotkeys, the command palette, the header and the notices |
-| `src/components` | React UI. The editor canvas is `ManiaEditor.tsx`, with its drawing, keys and widgets in `editor/`; dialogs are in `menus/` |
+| `src/components` | React UI. The editor canvas is `ManiaEditor.tsx`, with its drawing, keys and widgets in `editor/`; dialogs are in `menus/`; profiles, friends and messages are in `social/` |
 | `src/lib` | Format import and export, timing and SV, playtest scoring, AiMod, star rating, persistence, cloud and collaboration clients, translations |
 | `src/hooks` | Audio playback, waveform, metronome, collaboration and playtest input |
 | `src-tauri` | Rust side of the desktop app |

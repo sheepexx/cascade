@@ -171,6 +171,7 @@ export function buildPaletteCommands({
     { key: "settings.autosave", tab: "General", keywords: "local project" },
     { key: "settings.showMenuPlayers", tab: "General", keywords: "presence online" },
     { key: "settings.hideStatus", tab: "General", keywords: "presence privacy" },
+    { key: "settings.tabSocial", tab: "Social", keywords: "privacy friends messages profile mapping time statistics block" },
     { key: "settings.discordPresence", tab: "General", keywords: "rich status" },
     { key: "settings.resetData", tab: "General", keywords: "erase local" },
     { key: "settings.showDifficultyPanel", tab: "Editor", keywords: "layout sidebar stats" },

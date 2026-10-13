@@ -59,6 +59,7 @@ import { useLocale, type Locale, type MessageKey } from "../../lib/i18n";
 import { LOCALES } from "../../lib/i18n/core";
 import type { EditorKeybinds } from "../../lib/editorKeybinds";
 import { ShortcutsSettings } from "./ShortcutsSettings";
+import { SocialPrivacySettings } from "./SocialPrivacySettings";
 import {
   MAX_UI_SCALE,
   MIN_UI_SCALE,
@@ -68,6 +69,9 @@ import { MENU_ACCENTS } from "../../lib/menuTheme";
 import { siteUrl } from "../../lib/siteAssets";
 
 type Props = {
+  /** Shows the Social & privacy tab (the social feature flag). */
+  socialEnabled?: boolean;
+  onOpenProfile?: () => void;
   onAudioSetup?: () => void;
   initialTab?: SettingsTab;
   open: boolean;
@@ -194,7 +198,7 @@ type Props = {
   accountSyncError: string | null;
 };
 
-const TABS = ["General", "Editor", "Playtest", "Audio", "Export", "Shortcuts"] as const;
+const TABS = ["General", "Editor", "Playtest", "Audio", "Export", "Shortcuts", "Social"] as const;
 export type SettingsTab = (typeof TABS)[number];
 type Tab = SettingsTab;
 
@@ -215,9 +219,12 @@ const TAB_LABELS: Record<Tab, MessageKey> = {
   Audio: "settings.tabAudio",
   Export: "settings.tabExport",
   Shortcuts: "settings.tabShortcuts",
+  Social: "settings.tabSocial",
 };
 
 export function AppSettingsModal({
+  socialEnabled = false,
+  onOpenProfile,
   onAudioSetup,
   initialTab,
   open,
@@ -366,8 +373,8 @@ export function AppSettingsModal({
   const warnings = keybindWarnings(selectedKeybinds);
 
   useEffect(() => {
-    if (open) setTab(initialTab ?? "General");
-  }, [initialTab, open]);
+    if (open) setTab(initialTab === "Social" && !socialEnabled ? "General" : initialTab ?? "General");
+  }, [initialTab, open, socialEnabled]);
 
   const patchPlaytest = (patch: Partial<PlaytestSettings>) => {
     onPlaytest({ ...playtest, ...patch });
@@ -490,7 +497,7 @@ export function AppSettingsModal({
         <SegmentedControl
           value={tab}
           onChange={setTab}
-          options={TABS.map((name) => ({
+          options={TABS.filter((name) => name !== "Social" || socialEnabled).map((name) => ({
             value: name,
             label: t(TAB_LABELS[name]),
           }))}
@@ -1538,6 +1545,7 @@ export function AppSettingsModal({
           </div>
         )}
 
+        {tab === "Social" && socialEnabled && <SocialPrivacySettings onOpenProfile={onOpenProfile} />}
         {tab === "Shortcuts" && (
           <ShortcutsSettings
             keybinds={editorKeybinds}

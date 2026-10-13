@@ -23,11 +23,14 @@ export function useNotificationInbox({
   authUserRef,
   cloudProjectIdRef,
   loadCloudProject,
+  openInternal,
 }: {
   authUser: AuthUser | null;
   authUserRef: MutableRefObject<AuthUser | null>;
   cloudProjectIdRef: MutableRefObject<string | null>;
   loadCloudProject: (id: string) => Promise<void>;
+  /** Opens an in-app path (a profile, a conversation); false when it can't. */
+  openInternal?: (path: string) => boolean;
 }) {
   const [invites, setInvites] = useState<InviteNotice[]>([]);
   const [notifications, setNotifications] = useState<InboxNotification[]>([]);
@@ -263,10 +266,15 @@ export function useNotificationInbox({
         return;
       }
       if (notification.action_url) {
+        // Friend and message notices point inside the app.
+        if (notification.action_url.startsWith("/")) {
+          openInternal?.(notification.action_url);
+          return;
+        }
         window.open(notification.action_url, "_blank", "noopener,noreferrer");
       }
     },
-    [loadCloudProject, markInboxNotificationRead],
+    [loadCloudProject, markInboxNotificationRead, openInternal],
   );
 
   return {

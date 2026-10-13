@@ -6,6 +6,7 @@ import {
   type StorageAuthContext,
   type WorkerEnv,
 } from "./storage";
+import { handleSocialRoute } from "./social";
 
 type DbUser = {
   id: string;
@@ -102,6 +103,16 @@ async function route(
       if (desktopResponse) return desktopResponse;
       const cardResponse = await handleMapCardRoute(req, url, env);
       if (cardResponse) return cardResponse;
+      const socialResponse = await handleSocialRoute(req, url, env, {
+        appToken: () => appAccessToken(env),
+        callerOsuId: async () => {
+          const uid = await sessionUid(req, env);
+          return uid ? ((await fetchUser(env, uid))?.osu_id ?? null) : null;
+        },
+        json: (body, status) => json(body, status, env),
+        ctx,
+      });
+      if (socialResponse) return socialResponse;
       // Parameterized mirror routes can't be switch cases.
       const download = url.pathname.match(/^\/mirror\/(\d{1,10})$/);
       if (download && req.method === "GET") {
@@ -304,12 +315,17 @@ async function handleCallback(
     id: number;
     username: string;
     avatar_url?: string;
+    country_code?: string;
   };
 
   const user = await upsertUser(env, {
     osu_id: me.id,
     username: me.username,
     avatar_url: me.avatar_url ?? null,
+    country_code:
+      typeof me.country_code === "string" && /^[A-Z]{2}$/.test(me.country_code)
+        ? me.country_code
+        : null,
   });
 
   const session = await signSession(env, user.id);
@@ -351,16 +367,21 @@ async function handleSession(req: Request, env: WorkerEnv): Promise<Response> {
   return json({ user, supabaseToken, sessionToken }, 200, env);
 }
 
+async function sessionUid(req: Request, env: WorkerEnv): Promise<string | null> {
+  const cookieToken = getCookie(req, SESSION_COOKIE);
+  const headerToken = bearerToken(req);
+  return (
+    (cookieToken && (await verifySession(env, cookieToken))) ||
+    (headerToken && (await verifySession(env, headerToken))) ||
+    null
+  );
+}
+
 async function storageAuthContext(
   req: Request,
   env: WorkerEnv,
 ): Promise<StorageAuthContext | null> {
-  const cookieToken = getCookie(req, SESSION_COOKIE);
-  const headerToken = bearerToken(req);
-  const uid =
-    (cookieToken && (await verifySession(env, cookieToken))) ||
-    (headerToken && (await verifySession(env, headerToken))) ||
-    null;
+  const uid = await sessionUid(req, env);
   if (!uid) return null;
   const user = await fetchUser(env, uid);
   if (!user) return null;
@@ -403,12 +424,7 @@ async function appAccessToken(env: WorkerEnv): Promise<string | null> {
 }
 
 async function handleCover(req: Request, env: WorkerEnv): Promise<Response> {
-  const cookieToken = getCookie(req, SESSION_COOKIE);
-  const headerToken = bearerToken(req);
-  const uid =
-    (cookieToken && (await verifySession(env, cookieToken))) ||
-    (headerToken && (await verifySession(env, headerToken))) ||
-    null;
+  const uid = await sessionUid(req, env);
   if (!uid) return json({ cover_url: null }, 401, env);
 
   const user = await fetchUser(env, uid);
@@ -447,25 +463,39 @@ type RosterUser = {
 };
 
 async function handleOnlineRoster(env: WorkerEnv): Promise<Response> {
-  const res = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/users?select=id,osu_id,username,avatar_url,last_signed_in_at` +
-      `&order=last_signed_in_at.desc.nullslast&limit=${ROSTER_POOL}`,
-    {
-      headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-    },
-  );
-  if (!res.ok) return json({ users: [] }, 200, env);
-  const rows = (await res.json()) as RosterUser[];
-  const pool = rows.filter(
+  const headers = {
+    apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+  };
+  // roster_pool (migration 0041) leaves out "last seen" for people who only
+  // show their online status to friends. Before it exists, fall back to the
+  // table, which predates that setting.
+  let rows: RosterUser[] = [];
+  const pool = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/roster_pool`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_limit: ROSTER_POOL }),
+  });
+  if (pool.ok) {
+    rows = ((await pool.json()) as (Omit<RosterUser, "last_signed_in_at"> & {
+      last_seen_at: string | null;
+    })[]).map((u) => ({ ...u, last_signed_in_at: u.last_seen_at }));
+  } else {
+    const res = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/users?select=id,osu_id,username,avatar_url,last_signed_in_at` +
+        `&order=last_signed_in_at.desc.nullslast&limit=${ROSTER_POOL}`,
+      { headers },
+    );
+    if (!res.ok) return json({ users: [] }, 200, env);
+    rows = (await res.json()) as RosterUser[];
+  }
+  const candidates = rows.filter(
     (u) =>
       typeof u.username === "string" &&
       typeof u.avatar_url === "string" &&
       u.avatar_url,
   );
-  const users = shuffle(pool).slice(0, ROSTER_LIMIT).map((u) => ({
+  const users = shuffle(candidates).slice(0, ROSTER_LIMIT).map((u) => ({
     id: u.id,
     osu_id: u.osu_id,
     username: u.username,
@@ -495,15 +525,15 @@ function handleLogout(env: WorkerEnv): Response {
 
 async function upsertUser(
   env: WorkerEnv,
-  fields: { osu_id: number; username: string; avatar_url: string | null },
+  fields: {
+    osu_id: number;
+    username: string;
+    avatar_url: string | null;
+    country_code: string | null;
+  },
 ): Promise<DbUser> {
-  const body = {
-    ...fields,
-    last_signed_in_at: new Date().toISOString(),
-  };
-  const res = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/users?on_conflict=osu_id`,
-    {
+  const post = (body: Record<string, unknown>) =>
+    fetch(`${env.SUPABASE_URL}/rest/v1/users?on_conflict=osu_id`, {
       method: "POST",
       headers: {
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -512,8 +542,15 @@ async function upsertUser(
         Prefer: "resolution=merge-duplicates,return=representation",
       },
       body: JSON.stringify(body),
-    },
-  );
+    });
+  const body = { ...fields, last_signed_in_at: new Date().toISOString() };
+  let res = await post(body);
+  // A database without migration 0041 has no country column yet; signing in
+  // must keep working there.
+  if (!res.ok && res.status === 400) {
+    const { country_code: _country, ...rest } = body;
+    res = await post(rest);
+  }
   if (!res.ok) throw new Error(`user upsert failed: ${await res.text()}`);
   const rows = (await res.json()) as DbUser[];
   if (!rows.length) throw new Error("user upsert returned no row");

@@ -9,7 +9,13 @@
     {
       "source": "/card/:file",
       "destination": "https://mania-editor.noahcraft01.workers.dev/card/:file"
-    }
+    },
+    { "source": "/user/:path*", "destination": "/index.html" },
+    { "source": "/friends", "destination": "/index.html" },
+    { "source": "/friends/:tab", "destination": "/index.html" },
+    { "source": "/messages", "destination": "/index.html" },
+    { "source": "/messages/:id", "destination": "/index.html" },
+    { "source": "/community", "destination": "/index.html" }
   ],
   "redirects": [
     {

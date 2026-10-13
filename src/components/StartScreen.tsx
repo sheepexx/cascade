@@ -1,4 +1,5 @@
 import {
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -7,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
+import { OpenPlayerContext } from "./openPlayerContext";
 import { BeatBounce, LoudnessTracker, bounceTransform } from "../lib/beatBounce";
 import {
   AudioPunch,
@@ -1252,6 +1254,7 @@ function FloatingPlayers({
   players: OnlinePlayer[];
   phone: boolean;
 }) {
+  const openPlayer = useContext(OpenPlayerContext);
   const t = useT();
   const limit = FLOAT_MAX_COUNT;
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -1386,16 +1389,27 @@ function FloatingPlayers({
         const online = p.online;
         const color = online ? "#3fdc8c" : "#78818f";
         const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
-        const profileUrl =
-          p.osuId != null
+        const cascadeProfile = openPlayer && !p.id.startsWith("demo-");
+        const profileUrl = cascadeProfile
+          ? `/user/${encodeURIComponent(p.username)}`
+          : p.osuId != null
             ? `https://osu.ppy.sh/users/${p.osuId}`
             : undefined;
         return (
           <a
             key={p.id}
             href={profileUrl}
-            target={profileUrl ? "_blank" : undefined}
+            target={profileUrl && !cascadeProfile ? "_blank" : undefined}
             rel="noopener noreferrer"
+            onClick={
+              cascadeProfile
+                ? (event) => {
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+                    event.preventDefault();
+                    openPlayer(p.username);
+                  }
+                : undefined
+            }
             className="float-player-in group absolute pointer-events-auto transition-[left,top] duration-700 ease-out"
             style={
               {

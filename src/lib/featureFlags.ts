@@ -11,7 +11,8 @@ export type FeatureFlagKey =
   | "beatmap_import"
   | "sv_tools"
   | "playtest"
-  | "desktop_download";
+  | "desktop_download"
+  | "social";
 
 export type FeatureFlags = Record<FeatureFlagKey, boolean>;
 
@@ -23,6 +24,9 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   sv_tools: true,
   playtest: true,
   desktop_download: false,
+  // Off until migration 0041 adds the row, so a database without the social
+  // tables never shows features that would fail.
+  social: false,
 };
 
 /** Labels for the admin panel. */
@@ -34,6 +38,7 @@ export const FEATURE_FLAG_INFO: { key: FeatureFlagKey; label: string }[] = [
   { key: "sv_tools", label: "SV editor" },
   { key: "playtest", label: "Playtest mode" },
   { key: "desktop_download", label: "Desktop app download" },
+  { key: "social", label: "Profiles, friends & messages" },
 ];
 
 const CACHE_KEY = "mania:featureFlags";

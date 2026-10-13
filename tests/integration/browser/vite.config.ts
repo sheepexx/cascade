@@ -7,6 +7,8 @@ const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const swaps = new Map([
   [here("../../../src/lib/supabase.ts"), here("./fakeSupabase.ts")],
   [here("../../../src/lib/storage.ts"), here("./fakeStorage.ts")],
+  [here("../../../src/lib/auth.tsx"), here("./fakeAuth.tsx")],
+  [here("../../../src/lib/osuProfile.ts"), here("./fakeOsuProfile.ts")],
 ]);
 
 /**

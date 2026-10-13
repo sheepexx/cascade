@@ -139,7 +139,7 @@
       </header>
 
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: 12 October 2026</p>
+      <p class="updated">Last updated: 13 October 2026</p>
 
       <p>
         Cascade is an osu!mania beatmap editor at
@@ -255,9 +255,55 @@
       <p>
         Login uses osu!'s official OAuth flow, so we never see your osu!
         password. After you approve, we store your public osu! profile basics
-        in our database: your osu! user id, username and avatar URL. A session
-        cookie keeps you signed in; it identifies your session and nothing
-        else.
+        in our database: your osu! user id, username, avatar URL and country.
+        A session cookie keeps you signed in; it identifies your session and
+        nothing else.
+      </p>
+
+      <h2>Profiles, friends and messages</h2>
+      <p>
+        Everyone who has logged in has a Cascade profile. It shows public osu!
+        information that osu! itself shows on your osu! profile (banner,
+        statistics, badges and beatmaps), fetched from osu!'s API and cached
+        for a few minutes. We keep a short summary of it (country and how many
+        maps you have in each osu! category) so search results can show it.
+      </p>
+      <ul>
+        <li>
+          <strong>Friends and blocks</strong>: who you are friends with, friend
+          requests you send or receive (a declined request is kept for a week
+          so it can't be sent again straight away), and who you block.
+        </li>
+        <li>
+          <strong>Private messages</strong>: the text of messages you send,
+          when you sent, edited or deleted them, and when you last read each
+          conversation. Only you and the other person can read them. Deleting a
+          message removes its text from our database.
+        </li>
+        <li>
+          <strong>Presence</strong>: while Cascade is open we record when you
+          were last active and the title of the map you have open, so friends
+          can see you are online. The "Hide my status" setting stops this.
+        </li>
+        <li>
+          <strong>Mapping time</strong>: while you edit a map, Cascade counts
+          active editing, playtesting and listening time, and simple counts
+          such as notes placed and exports. It is stored per day, per map and
+          per difficulty, together with the map's title and artist. Cascade
+          only measures time in its own editor. You can clear it in Settings,
+          Social.
+        </li>
+        <li>
+          <strong>Reports</strong>: if you report someone, the report and your
+          account are visible to Cascade's admins only.
+        </li>
+      </ul>
+      <p>
+        You decide who sees your online status, what you are working on, your
+        mapping statistics and time, and your Cascade projects (everyone,
+        friends or only you), and who can message you or send friend requests.
+        These choices are enforced by our database for every request, not only
+        by what the app shows.
       </p>
 
       <h2>Cloud saves and community features</h2>
@@ -318,9 +364,16 @@
           in the app.
         </li>
         <li>
+          Messages you sent and your mapping statistics: delete messages in the
+          conversation, and clear your statistics in Settings, Social.
+        </li>
+        <li>
           Your account and everything tied to it: email
           <a href="mailto:contact@sheepex.net">contact@sheepex.net</a> from
           any address, naming your osu! username, and we will remove it.
+          This also removes your friends list, requests, blocks, presence,
+          mapping statistics and the messages you sent; reports you filed
+          stay, without your account attached.
         </li>
         <li>
           Local data: clear this site's data in your browser, or uninstall the
