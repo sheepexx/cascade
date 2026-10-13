@@ -166,7 +166,13 @@ import { InviteNotifications } from "./components/InviteNotifications";
 import { playUiSound, preloadUiSounds } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
 import { useLocale } from "./lib/i18n";
-import { logAnalyticsEvent, setUsageStatsEnabled, trackAppOpened, trackMapping } from "./lib/analytics";
+import {
+  logAnalyticsEvent,
+  setUsageStatsEnabled,
+  trackAppOpened,
+  trackDiscordPresenceVisit,
+  trackMapping,
+} from "./lib/analytics";
 import { useAudio } from "./hooks/useAudio";
 import { useWaveform } from "./hooks/useWaveform";
 import { useHitsounds } from "./hooks/useHitsounds";
@@ -529,6 +535,7 @@ export default function App() {
       () => {},
     );
     trackAppOpened();
+    trackDiscordPresenceVisit();
   }, [authLoading]);
   const {
     cloudSkins,

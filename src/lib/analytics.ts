@@ -29,6 +29,7 @@ export type AnalyticsEventType =
   | "import_from_osu"
   | "sync_to_osu"
   | "discord_click"
+  | "discord_presence_visit"
   | "map_card_shared"
   | MilestoneEvent;
 
@@ -137,6 +138,23 @@ export function trackMapCardShared(how: "copy" | "download" | "share" | "upload"
 /** A Discord link was clicked; `source` says which one. No account attached. */
 export function trackDiscordClick(source: string): void {
   void logAnalyticsEvent("discord_click", null, { source }).catch(() => {});
+}
+
+/** Tag on the button of the desktop app's Discord Rich Presence. */
+export const DISCORD_PRESENCE_REF = "discord_presence";
+
+/**
+ * Counts a visit that came from the Rich Presence button on someone's Discord
+ * profile. The tag comes off the address either way, so a reload or a copied
+ * link doesn't count again.
+ */
+export function trackDiscordPresenceVisit(): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("ref") !== DISCORD_PRESENCE_REF) return;
+  url.searchParams.delete("ref");
+  window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+  void logAnalyticsEvent("discord_presence_visit").catch(() => {});
 }
 
 function browserInfo(): BrowserInfo {

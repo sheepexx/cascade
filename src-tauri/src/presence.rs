@@ -8,6 +8,10 @@ pub const APP_ID: &str = "1546880430970638359";
 pub const LARGE_IMAGE: &str = "cascade";
 pub const LARGE_TEXT: &str = "Cascade";
 pub const MINIMAL_DETAILS: &str = "Using Cascade";
+/// The profile button points at Cascade itself, never the map being edited.
+/// The tag lets the site count visits that came from it.
+pub const BUTTON_LABEL: &str = "Try Cascade";
+pub const BUTTON_URL: &str = "https://cascade.sheepex.net/?ref=discord_presence";
 pub const MAX_FIELD: usize = 128;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -164,7 +168,8 @@ impl Worker {
         let timestamps = activity::Timestamps::new().start(self.started);
         let mut payload = activity::Activity::new()
             .assets(assets)
-            .timestamps(timestamps);
+            .timestamps(timestamps)
+            .buttons(vec![activity::Button::new(BUTTON_LABEL, BUTTON_URL)]);
         if let Some(details) = next.0.as_deref() {
             payload = payload.details(details);
         }
@@ -246,6 +251,13 @@ mod tests {
     fn pads_fields_discord_would_reject_as_too_short() {
         let (details, _) = fields(Mode::Detailed, Some("a"), None);
         assert_eq!(details.unwrap().chars().count(), 2);
+    }
+
+    #[test]
+    fn the_button_leads_to_cascade_and_fits_discords_limit() {
+        // Discord refuses the whole activity over a label past 32 characters.
+        assert!(BUTTON_LABEL.chars().count() <= 32);
+        assert!(BUTTON_URL.starts_with("https://cascade.sheepex.net/"));
     }
 
     #[test]

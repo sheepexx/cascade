@@ -41,7 +41,8 @@ export type AdminStats = {
   exportOsu: number;
   exportOsz: number;
   localProjectsCreated: number;
-  browsers: { browser: string; count: number }[];
+  /** Null until migration 0040 is applied. */
+  browsers: { browser: string; count: number }[] | null;
 };
 
 export type AdminPlatform = "web" | "desktop" | "both" | "unknown";
@@ -385,7 +386,7 @@ export async function getAdminStats(): Promise<AdminStats> {
       .from("analytics_events")
       .select("id", { count: "exact", head: true })
       .eq("event_type", "local_project_created"),
-    supabase.from("analytics_events").select("browser"),
+    supabase.rpc("admin_browser_stats"),
   ]);
 
   for (const result of [
@@ -393,15 +394,8 @@ export async function getAdminStats(): Promise<AdminStats> {
     exportOsuResult,
     exportOszResult,
     localProjectsResult,
-    browserResult,
   ]) {
     if (result.error) throw new Error(result.error.message);
-  }
-
-  const browserCounts = new Map<string, number>();
-  for (const row of browserResult.data ?? []) {
-    const browser = String(row.browser || "Unknown");
-    browserCounts.set(browser, (browserCounts.get(browser) ?? 0) + 1);
   }
 
   return {
@@ -409,9 +403,12 @@ export async function getAdminStats(): Promise<AdminStats> {
     exportOsu: exportOsuResult.count ?? 0,
     exportOsz: exportOszResult.count ?? 0,
     localProjectsCreated: localProjectsResult.count ?? 0,
-    browsers: [...browserCounts.entries()]
-      .map(([browser, count]) => ({ browser, count }))
-      .sort((a, b) => b.count - a.count || a.browser.localeCompare(b.browser)),
+    // Counted in the database: fetching rows stops at 1000 of them.
+    browsers: browserResult.error
+      ? null
+      : ((browserResult.data ?? []) as { browser: string; events: number }[]).map(
+          (row) => ({ browser: row.browser, count: Number(row.events) }),
+        ),
   };
 }
 

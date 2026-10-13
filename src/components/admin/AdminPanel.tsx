@@ -299,7 +299,11 @@ function StatsTab() {
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Browser
             </h2>
-            {stats.browsers.length === 0 ? (
+            {stats.browsers === null ? (
+              <p className="text-sm text-slate-500">
+                Apply migration 0040_browser_stats.sql to count browsers.
+              </p>
+            ) : stats.browsers.length === 0 ? (
               <p className="text-sm text-slate-500">No browser data yet.</p>
             ) : (
               <div className="flex flex-col gap-2">
