@@ -23,6 +23,7 @@ type PeerLite = {
 };
 
 type Props = {
+  mobile?: boolean;
   difficulties: Difficulty[];
   activeId: string;
   onSelect: (id: string) => void;
@@ -43,6 +44,7 @@ type Props = {
 };
 
 export function DifficultySidebar({
+  mobile,
   difficulties,
   activeId,
   onSelect,
@@ -60,6 +62,7 @@ export function DifficultySidebar({
 }: Props) {
   const t = useT();
   const [rateOpen, setRateOpen] = useState(false);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const msdRatings = useMsdRatings(difficulties);
   const active = difficulties.find((d) => d.id === activeId) ?? null;
@@ -132,6 +135,7 @@ export function DifficultySidebar({
           <span className="ml-1.5 font-medium tabular-nums text-slate-500">{difficulties.length}</span>
         </h2>
         <div className="flex items-center gap-0.5">
+          {mobile && <button type="button" aria-pressed={multiSelectMode} onClick={() => setMultiSelectMode(value => !value)} className="rounded-md px-2 text-xs text-slate-300">{t("mobile.select")}</button>}
           <button
             onClick={() => setRateOpen((v) => !v)}
             aria-label={t("diffSidebar.rateChanger")}
@@ -175,6 +179,8 @@ export function DifficultySidebar({
         <div className="flex flex-col gap-px">
           {sorted.map(({ difficulty: d, star }) => (
             <DiffRow
+              mobile={mobile}
+              multiSelect={mobile && multiSelectMode}
               key={d.id}
               difficulty={d}
               star={star}
@@ -194,7 +200,7 @@ export function DifficultySidebar({
         </div>
       </div>
 
-      {stats && stats.notes > 0 && (
+      {stats && (stats.notes > 0 || mobile) && (
         <div className="border-t border-white/[0.06] px-3.5 pb-3 pt-2.5">
           <div className="mb-2 truncate text-xs font-semibold text-slate-300">
             {t("diffSidebar.stats", {
@@ -306,6 +312,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function DiffRow({
+  mobile,
+  multiSelect,
   difficulty,
   star,
   msd,
@@ -320,6 +328,8 @@ function DiffRow({
   onDelete,
   onRename,
 }: {
+  mobile?: boolean;
+  multiSelect?: boolean;
   difficulty: Difficulty;
   star: number;
   msd: MsdRating | null;
@@ -365,7 +375,7 @@ function DiffRow({
 
   return (
     <div
-      onClick={(e) => onSelect(e.ctrlKey || e.metaKey)}
+      onClick={(e) => onSelect(!!multiSelect || e.ctrlKey || e.metaKey)}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
@@ -481,12 +491,13 @@ function DiffRow({
       {/* Row actions stay out of the way until the row is pointed at,
           focused or open. */}
       <div
-        className={`flex items-center gap-0.5 pl-3 transition-[opacity,max-height,margin] duration-[var(--motion-quick)] ${
+        className={`difficulty-row-actions flex flex-wrap items-center gap-0.5 pl-3 transition-[opacity,max-height,margin] duration-[var(--motion-quick)] ${
           active || selected
             ? "mt-1 max-h-6 opacity-100"
             : "max-h-0 overflow-hidden opacity-0 group-hover:mt-1 group-hover:max-h-6 group-hover:opacity-100 group-focus-within:mt-1 group-focus-within:max-h-6 group-focus-within:opacity-100"
         }`}
       >
+        {mobile && <button type="button" onClick={e => { e.stopPropagation(); startEditing(); }} className="rounded px-2 text-xs text-slate-300">{t("common.rename")}</button>}
         <button
           onClick={(e) => {
             e.stopPropagation();

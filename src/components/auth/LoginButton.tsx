@@ -212,8 +212,8 @@ export function AccountControl({
         createPortal(
           <div
             ref={menuRef}
-            style={{ position: "fixed", top: pos.top, right: pos.right }}
-            className={`ui-popover z-[100] w-56 overflow-hidden rounded-xl bg-ink-700 pb-1 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09] ${
+            style={{ position: "fixed", top: pos.top, right: pos.right, maxHeight: Math.max(100, (window.visualViewport?.height ?? window.innerHeight) + (window.visualViewport?.offsetTop ?? 0) - pos.top - 8) }}
+            className={`account-popover ui-popover z-[100] w-56 overflow-hidden rounded-xl bg-ink-700 pb-1 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09] ${
               open ? "menu-pop-in" : "menu-pop-out"
             }`}
           >

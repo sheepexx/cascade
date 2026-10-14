@@ -169,6 +169,98 @@ body {
   background: transparent;
 }
 
+/* Phone chrome reserves the canvas for mapping. Secondary controls use the
+   same dialogs and actions as the desktop, presented as reachable sheets. */
+html[data-phone] #root { height: var(--phone-height, 100dvh); }
+html[data-phone] body { overflow: hidden; overscroll-behavior: none; }
+html[data-phone] .phone-app-header { min-height: 52px; padding-top: env(safe-area-inset-top); }
+.phone-icon-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: var(--radius-md); }
+.phone-icon-button:hover { background: rgb(255 255 255 / 7%); }
+.phone-icon-button:disabled { opacity: .4; }
+.phone-editor-dock { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.phone-editor-dock .phone-mode { min-height: 52px; }
+.phone-editor-dock .phone-mode[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--accent); }
+.phone-editor-dock .phone-selection-button { min-height: 44px; }
+.phone-tool-hint { min-height: 24px; }
+.phone-tool-item { min-height: 52px; overflow-wrap: anywhere; }
+html[data-phone] button:not([role="switch"]):not(.session-intro) { min-height: 44px; min-width: 44px; }
+html[data-phone] button[role="switch"]::after { content: ""; position: absolute; inset: -13px -6px; }
+html[data-phone] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-phone] textarea, html[data-phone] select { min-height: 44px; font-size: 16px; max-width: 100%; }
+html[data-phone] input[type="range"] { min-height: 40px; }
+html[data-phone] .ui-modal-backdrop { bottom: auto; height: var(--phone-height, 100dvh); padding: 8px 0 0 !important; align-items: flex-end !important; overflow: hidden; z-index: 70; }
+html[data-phone] .hold-confirm-backdrop { bottom: auto; height: var(--phone-height, 100dvh); z-index: 80; }
+html[data-phone] .timeline-context-backdrop { bottom: auto; height: var(--phone-height, 100dvh); z-index: 90; }
+html[data-phone] .timeline-context-menu { left: 8px !important; right: 8px; top: auto !important; bottom: max(8px, env(safe-area-inset-bottom)); max-height: calc(var(--phone-height, 100dvh) - 16px); overflow-y: auto; }
+html[data-phone] .ui-btn { min-height: 44px; }
+html[data-phone] .account-popover { overflow-y: auto; }
+html[data-phone] .phone-playtest-keys button { min-width: 0; }
+html[data-phone] .difficulty-row-actions { max-height: none; overflow: visible; opacity: 1; margin-top: 4px; padding-left: 0; }
+html[data-phone] .pack-creator { height: var(--phone-height, 100dvh); padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+html[data-phone] .pack-creator > div > header { height: auto; min-height: 52px; flex-wrap: wrap; padding: 4px 8px; }
+html[data-phone] .pack-creator > div > header > div:last-of-type { flex-wrap: wrap; gap: 4px; }
+html[data-phone] .pack-workspace { overflow-x: hidden; overflow-y: auto; display: block; }
+html[data-phone] .pack-workspace > section, html[data-phone] .pack-workspace > aside { display: none; width: 100%; min-width: 0; min-height: 100%; border: 0; }
+html[data-phone] .pack-creator[data-phone-tab="maps"] .pack-maps,
+html[data-phone] .pack-creator[data-phone-tab="maps"] .pack-map.is-empty,
+html[data-phone] .pack-creator[data-phone-tab="map"] .pack-map,
+html[data-phone] .pack-creator[data-phone-tab="settings"] .pack-settings { display: flex; }
+html[data-phone] .pack-map > div { flex-shrink: 0; padding-left: 16px; padding-right: 16px; }
+html[data-phone] .pack-map .pack-import-target { padding: 24px 12px; }
+html[data-phone] .hud-editor-panel { inset: auto 0 0 !important; width: 100% !important; max-height: 48%; border-radius: 16px 16px 0 0; backdrop-filter: none; background: rgb(var(--ink-900)); }
+html[data-phone] .hud-editor-panel > header { padding: 8px 16px; }
+html[data-phone] .ui-modal { max-width: 100%; max-height: calc(var(--phone-height, 100dvh) - 8px - env(safe-area-inset-top)); border-radius: 16px 16px 0 0; }
+html[data-phone] .ui-modal-header { height: 56px; padding-left: 16px; padding-right: 8px; }
+html[data-phone] .modal-body { overscroll-behavior: contain; padding-left: 16px; padding-right: 16px; }
+html[data-phone] .modal-body:has(> div > nav[role="tablist"]) { padding: 0; }
+html[data-phone] .ui-modal-footer { padding: 10px 16px max(10px, env(safe-area-inset-bottom)); flex-wrap: wrap; }
+html[data-phone] .ui-popover { max-width: calc(100vw - 16px); max-height: calc(var(--phone-height, 100dvh) - 72px); overscroll-behavior: contain; }
+html[data-phone] .phone-save-status { max-width: 90px; overflow: hidden; white-space: nowrap; }
+html[data-phone] .phone-editor-panel .float-chip { position: static; width: 100%; max-width: 100%; transform: none; margin: 0; box-shadow: none; background: transparent; padding: 0; }
+html[data-phone] .phone-editor-panel kbd { display: none; }
+html[data-phone] .phone-editor-panel .selection-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+html[data-phone] .phone-editor-panel .selection-actions > span:first-child { grid-column: 1 / -1; padding: 0 0 8px; }
+html[data-phone] .phone-editor-panel .selection-actions > span:nth-child(2) { display: none; }
+html[data-phone] .phone-editor-panel .selection-actions button { white-space: normal; text-align: center; font-size: 13px; }
+html[data-phone] .phone-editor-panel .note-inspector { width: 100%; }
+html[data-phone] .phone-editor-panel .note-inspector input { width: 100px; }
+html[data-phone] .phone-editor-panel .hitsound-add-button { width: auto; padding: 0 12px; font-family: inherit; }
+html[data-phone] .phone-editor-panel .hitsound-bar-in,
+html[data-phone] .phone-editor-panel .hitsound-bar-out { flex-wrap: wrap; white-space: normal; gap: 12px; animation: none; }
+html[data-phone] .phone-difficulty-browser > div { height: 100%; display: flex; flex-direction: column; }
+html[data-phone] .phone-difficulty-browser > div > div:last-child { flex-shrink: 0; }
+html[data-phone] .phone-statistics .phone-difficulty-browser { overflow-y: auto; }
+html[data-phone] .phone-comparison { flex-direction: column; }
+html[data-phone] .phone-comparison > .editor-main { min-height: 0; }
+html[data-phone] .phone-comparison > .reference-playfield:not([aria-hidden="true"]) { width: 100%; height: 36%; border-left: 0; border-top: 1px solid rgb(var(--ink-700)); }
+html[data-phone] .reference-picker { display: none; }
+html[data-phone] .settings-row { flex-direction: column; align-items: stretch; padding-top: 12px; padding-bottom: 12px; gap: 8px; }
+html[data-phone] .settings-row > div:last-child { width: 100%; min-width: 0; flex-wrap: wrap; }
+html[data-phone] .settings-results { padding-left: 16px; padding-right: 16px; }
+html[data-phone] .settings-results [role="tablist"] { flex-wrap: wrap; }
+html[data-phone] .comments-sidebar { position: fixed; top: env(safe-area-inset-top); width: 100%; height: calc(var(--phone-height, 100dvh) - env(safe-area-inset-top)); z-index: 60; }
+html[data-phone] .social-workspace, html[data-phone] .admin-workspace { bottom: auto; height: var(--phone-height, 100dvh); padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+html[data-phone] .social-content { flex-direction: column; }
+html[data-phone] .social-content > nav { width: 100%; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid rgb(255 255 255 / 6%); padding: 4px 8px; }
+html[data-phone] .social-content > nav > button { width: auto; }
+html[data-phone] .message-workspace { grid-template-columns: minmax(0, 1fr); }
+html[data-phone] .message-workspace > aside { display: flex; }
+html[data-phone] .message-workspace > section { display: none; }
+html[data-phone] .message-workspace[data-conversation="true"] > aside { display: none; }
+html[data-phone] .message-workspace[data-conversation="true"] > section { display: flex; }
+html[data-phone] .command-palette-backdrop { bottom: auto; height: var(--phone-height, 100dvh); padding: 8px 0 0; align-items: flex-end; }
+html[data-phone] .command-palette-panel { max-height: calc(var(--phone-height, 100dvh) - 8px); border-radius: 16px 16px 0 0; }
+html[data-phone] .command-palette-panel kbd { display: none; }
+html[data-phone] .command-palette-panel > div:last-child { display: none; }
+html[data-phone] .command-palette-panel [role="option"] > span { flex-wrap: wrap; }
+html[data-phone] .command-palette-panel [role="option"] > span > span:first-child { white-space: normal; }
+@media (pointer: coarse) and (max-height: 540px) {
+  html[data-phone] .phone-editor-dock:not(.is-focused) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px; }
+  html[data-phone] .phone-editor-dock .phone-selection-button { grid-column: 1 / -1; }
+  html[data-phone] .phone-tool-hint { display: none; }
+  html[data-phone] .phone-save-status { display: none; }
+}
+
 /* The clear button in search fields: a quiet cross in the text colour
    instead of the browser's bright default. */
 input[type="search"]::-webkit-search-cancel-button {

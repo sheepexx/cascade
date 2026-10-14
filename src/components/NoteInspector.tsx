@@ -95,7 +95,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-2">
       <span className="text-slate-500">{label}</span>
       <span className="tabular-nums text-slate-200">{value}</span>
     </div>
@@ -136,7 +136,7 @@ function TimeRow({
   };
 
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-2">
       <span className="text-slate-500">{label}</span>
       <span className="flex items-center gap-1">
         <input
@@ -144,6 +144,7 @@ function TimeRow({
           readOnly={readOnly}
           inputMode="numeric"
           aria-label={label}
+          aria-invalid={refused}
           title={refused ? t("inspector.refused") : formatAiModTime(value)}
           onChange={(e) => setText(e.target.value)}
           onBlur={commit}
@@ -162,6 +163,7 @@ function TimeRow({
         />
         <span className="text-slate-500">ms</span>
       </span>
+      {refused && <span role="alert" className="w-full text-xs text-rose-300">{t("inspector.refused")}</span>}
     </div>
   );
 }

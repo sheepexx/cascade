@@ -1,6 +1,10 @@
 import { useNotificationInbox } from "./app/useNotificationInbox";
 import { useSkins } from "./app/useSkins";
 import { AppHeader } from "./app/AppHeader";
+import { PhoneEditorDock, type PhoneTool } from "./components/mobile/PhoneEditorDock";
+import { PhoneTimeline } from "./components/mobile/PhoneTimeline";
+import { PhonePlaytestControls } from "./components/mobile/PhonePlaytestControls";
+import type { MobileEditorControls } from "./components/editor/editorTypes";
 import { AppToasts } from "./app/AppToasts";
 import { rememberProjectForLogin, takeProjectAfterLogin } from "./lib/loginResume";
 import {
@@ -141,7 +145,7 @@ import type { PatternNote } from "./lib/patterns";
 import { computeStarRating } from "./lib/starRating";
 import { type AccessRole } from "./lib/collab";
 import { type ValidationResult } from "./lib/validation";
-import { Button } from "./components/ui/Controls";
+import { Button, Field, NumberInput } from "./components/ui/Controls";
 import { TimedNotification } from "./components/ui/TimedNotification";
 import { pushClip } from "./lib/clipboardStore";
 import { formatOsuTimestamp } from "./lib/osuTimestamp";
@@ -364,6 +368,11 @@ export default function App() {
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const phoneViewport = usePhoneViewport();
+  const [phoneMenuOpen, setPhoneMenuOpen] = useState(false);
+  const [phonePanel, setPhonePanel] = useState<"difficulties" | "statistics" | "timeline" | null>(null);
+  const [phoneTool, setPhoneTool] = useState<PhoneTool>("move");
+  const [phoneFocus, setPhoneFocus] = useState(false);
+  const phoneEditorRef = useRef<MobileEditorControls>(null);
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const [exitConfirm, setExitConfirm] = useState(false);
   const [pendingDeleteDiffIds, setPendingDeleteDiffIds] = useState<
@@ -977,6 +986,10 @@ export default function App() {
     resumePlaytest,
     skillProfile,
     startPlaytest,
+    togglePlaytestPause,
+    toggleAutoplay,
+    pressTouch,
+    releaseTouch,
   } = usePlaytest({
     active,
     activeNotesRef,
@@ -1078,7 +1091,7 @@ export default function App() {
     !hasDefaultDifficulty;
   const showChrome = hasProject && !zenMode && !playtest.active;
   const diffPanelOpen = appSettings.difficultyPanelOpen !== false;
-  const diffPanelShown = showChrome && diffPanelOpen;
+  const diffPanelShown = showChrome && diffPanelOpen && !phoneViewport;
   const showChromeRef = useRef(showChrome);
   showChromeRef.current = showChrome;
   // During a run the playfield draws on the gameplay clock, the same one the
@@ -1745,6 +1758,7 @@ export default function App() {
     setBookmarkLoopStart,
     setFadeIn,
     setFadeOut,
+    resetTrimAndFades,
     setTrimEnd,
     setTrimStart,
     toggleBookmarkLoop,
@@ -2779,12 +2793,96 @@ export default function App() {
     zenMode,
   });
 
+  const phoneCommands = [
+    ...paletteCommands.map(command => {
+      if (command.id === "undo") return { ...command, label: t("mobile.undo") };
+      if (command.id === "redo") return { ...command, label: t("mobile.redo") };
+      if (command.id === "difficulty-panel") return { ...command, label: t("diffSidebar.title"), run: () => setPhonePanel("difficulties") };
+      if (command.id === "bottom-timeline") return { ...command, label: t("mobile.timeline"), run: () => setPhonePanel("timeline") };
+      if (command.id === "zen") return { ...command, label: phoneFocus ? t("mobile.leaveFocus") : t("mobile.focus"), run: () => setPhoneFocus(value => !value) };
+      return command;
+    }),
+    ...(hasProject ? [
+      { id: "phone-statistics", label: t("mobile.statistics"), group: t("palette.group.view"), run: () => setPhonePanel("statistics") },
+      { id: "phone-selection", label: t("mobile.selectionActions"), group: t("palette.group.edit"), disabled: !selectionRange?.count, run: () => phoneEditorRef.current?.openPanel("selection") },
+      { id: "phone-select-all", label: t("mobile.selectAll"), group: t("palette.group.edit"), run: () => phoneEditorRef.current?.selectAll() },
+      { id: "phone-clear-selection", label: t("mobile.clearSelection"), group: t("palette.group.edit"), disabled: !selectionRange?.count, run: () => phoneEditorRef.current?.clearSelection() },
+      { id: "phone-copy", label: t("common.copy"), group: t("palette.group.edit"), disabled: !selectionRange?.count, run: () => phoneEditorRef.current?.copy() },
+      { id: "phone-cut", label: t("mobile.cut"), group: t("palette.group.edit"), disabled: !canEdit || !selectionRange?.count, run: () => phoneEditorRef.current?.cut() },
+      { id: "phone-clipboard", label: t("mobile.clipboard"), group: t("palette.group.edit"), run: () => phoneEditorRef.current?.openPanel("clipboard") },
+      { id: "phone-hitsounds", label: t("hitsoundBar.title"), group: t("palette.group.edit"), run: () => phoneEditorRef.current?.openPanel("hitsounds") },
+      { id: "phone-playfield", label: t("mobile.view"), group: t("palette.group.view"), run: () => phoneEditorRef.current?.openPanel("view") },
+    ] : []),
+  ];
+  const fullTimeline = (<MemoizedBottomTimeline
+                waveform={waveform}
+                notes={active.notes}
+                timingPoints={activeTimingPoints}
+                selectedTimingIds={modal === "timing" ? timingSelection : undefined}
+                svBpmScroll={appSettings.bpmAffectsScroll}
+                simplified={appSettings.simplifyBottomTimeline}
+                previewTime={active.previewTime}
+                duration={audio.duration}
+                getCurrentTime={getCurrentTime}
+                getVisualCurrentTime={getVisualCurrentTime}
+                isVisualSeekActive={isVisualSeekActive}
+                isPlaying={audio.isPlaying}
+                seekSignal={audio.seekSignal}
+                smoothScrolling={appSettings.smoothScrolling}
+                onSeek={seekAudio}
+                sensitivity={appSettings.waveformSensitivity}
+                onSensitivity={setWaveformSensitivity}
+                revealWaveform={hasProject}
+                peers={collab.peers}
+                comments={activeCommentMarkers}
+                onCommentClick={openTimelineComment}
+                bookmarks={active.bookmarks}
+                bookmarkLabels={active.bookmarkLabels}
+                loopRange={activeBookmarkLoop}
+                loopEnabled={activeBookmarkLoop?.enabled}
+                onSetPreviewPoint={canEdit ? setPreviewPoint : undefined}
+                onAddBookmark={canEdit ? addBookmark : undefined}
+                onRenameBookmark={canEdit ? renameBookmark : undefined}
+                onRemoveBookmark={canEdit ? removeBookmark : undefined}
+                onPreviousBookmark={seekPreviousBookmark}
+                onNextBookmark={seekNextBookmark}
+                onSetLoopStart={setBookmarkLoopStart}
+                onSetLoopEnd={setBookmarkLoopEnd}
+                onToggleLoop={toggleBookmarkLoop}
+                onClearLoop={clearBookmarkLoop}
+                trimStart={active.trimStartMs}
+                trimEnd={active.trimEndMs}
+                fadeIn={active.fadeInMs}
+                fadeOut={active.fadeOutMs}
+                onSetTrimStart={canEdit ? setTrimStart : undefined}
+                onSetTrimEnd={canEdit ? setTrimEnd : undefined}
+                onSetFadeIn={canEdit ? setFadeIn : undefined}
+                onSetFadeOut={canEdit ? setFadeOut : undefined}
+              />);
+  const phoneDifficultyBrowser = (<MemoizedDifficultySidebar
+                  mobile
+                  difficulties={difficulties}
+                  activeId={active.id}
+                  onSelect={(id) => { setActiveId(id); setPhonePanel(null); }}
+                  onAdd={addDifficulty}
+                  onDuplicate={duplicateDifficulty}
+                  onCopy={copyDifficulty}
+                  onDelete={queueDifficultyDelete}
+                  onRename={renameDifficulty}
+                  onCreateRate={createRateDifficulty}
+                  canEdit={canEdit}
+                  timingPoints={activeTimingPoints}
+                  songDurationMs={audio.duration > 0 ? audio.duration : null}
+                  peers={liveEnabled ? collab.peers : undefined}
+                  onFlashColumn={flashColumn}
+                />);
+
   if (packCreatorOpen) packCreatorEverOpenedRef.current = true;
   if (modal === "admin") adminEverOpenedRef.current = true;
 
   return (
     <div
-      className="relative h-full overflow-hidden bg-ink-900"
+      className={`relative h-full overflow-hidden bg-ink-900 ${phoneViewport ? "phone-app" : ""}`}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -2876,6 +2974,7 @@ export default function App() {
       )}
 
       <AppHeader
+        phone={phoneViewport ? { title: hasProject ? displaySong(meta, preferOriginalMetadata) : "Cascade", menuOpen: phoneMenuOpen, onMenuOpen: setPhoneMenuOpen, openDifficulties: () => setPhonePanel("difficulties"), commands: phoneCommands } : undefined}
         active={active}
         appSettings={appSettings}
         askToLogIn={askToLogIn}
@@ -2952,7 +3051,7 @@ export default function App() {
 
       <Suspense fallback={null}>
       <div className="flex min-h-0 flex-1">
-        <div className="relative z-10 shrink-0">
+        {!phoneViewport && <div className="relative z-10 shrink-0">
           <div
             className={`h-full overflow-hidden transition-[width,opacity] duration-300 ease-out ${
               diffPanelShown ? "w-60 opacity-100" : "w-0 opacity-0"
@@ -3008,8 +3107,7 @@ export default function App() {
               </button>
             </div>
           )}
-        </div>
-
+        </div>}
         <main className="flex min-w-0 flex-1 flex-col">
           <div
             className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
@@ -3019,7 +3117,7 @@ export default function App() {
             }`}
             aria-hidden={!showChrome}
           >
-            {showChrome && (
+            {showChrome && !phoneViewport && (
               <TransportBar
                 audio={audio}
                 view={view}
@@ -3037,6 +3135,7 @@ export default function App() {
               />
             )}
           </div>
+          {hasProject && phoneViewport && !playtest.active && !phoneFocus && <p className="phone-tool-hint shrink-0 py-1 text-center text-xs text-slate-400">{t(`mobile.${phoneTool}Hint`)}</p>}
           <HudPreviewViewport
             editing={playtest.hudEditing}
             footer={
@@ -3051,10 +3150,15 @@ export default function App() {
           >
             {(previewScale) => <>
             {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">{t("app.sharedAudio", { reason: audio.nativeAudio.fallbackReason })} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>{t("app.audioSetup")}</button></div>}
-            <div className="flex h-full w-full">
+            <div className={`flex h-full w-full ${phoneViewport && referenceDiff ? "phone-comparison" : ""}`}>
             <div className="editor-main relative min-w-0 flex-1">
             {hasProject ? (
               <MemoizedManiaEditor
+                mobile={phoneViewport}
+                touchMode={phoneTool}
+                controlsRef={phoneEditorRef}
+                onPlaytestTouchPress={pressTouch}
+                onPlaytestTouchRelease={releaseTouch}
                 laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
                 snapColours={appSettings.snapColouredNotes}
                 laneFlash={laneFlash}
@@ -3139,7 +3243,7 @@ export default function App() {
                 waveformTransparency={appSettings.waveformTransparency}
                 onToggleWaveformOverlay={toggleWaveformOverlay}
                 missWindowMs={playtestWindows.hit50}
-                hideHints={playtest.active}
+                hideHints={phoneViewport || playtest.active}
                 songEndMs={audio.duration}
                 trimStartMs={active.trimStartMs}
                 trimEndMs={active.trimEndMs}
@@ -3226,7 +3330,7 @@ export default function App() {
             )}
             </div>
             <div
-              className={`relative h-full shrink-0 overflow-hidden border-l border-ink-700 transition-[width] duration-300 ease-out ${
+              className={`reference-playfield relative h-full shrink-0 overflow-hidden border-l border-ink-700 transition-[width] duration-300 ease-out ${
                 referenceDiff ? "w-1/2" : "w-0"
               }`}
               aria-hidden={!referenceDiff}
@@ -3235,6 +3339,7 @@ export default function App() {
                 <>
                   <div className="pointer-events-none h-full w-full opacity-60">
                     <MemoizedManiaEditor
+                      mobile={phoneViewport}
                       laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
                       snapColours={appSettings.snapColouredNotes}
                       notes={referenceDiff.notes}
@@ -3345,10 +3450,12 @@ export default function App() {
                 onSettings={() => openSettings("Playtest")}
               />
             )}
+            {hasProject && phoneViewport && playtest.active && !playtest.hudEditing && <PhonePlaytestControls keyCount={active.keyCount} paused={playtest.paused} ended={playtest.ended} autoplay={playtest.autoplay} ready={playtest.countdownEndsAt === null && !playtest.paused && !playtest.ended} heldKeys={heldPlaytestKeys} keys={playtestSettings.keybinds[active.keyCount] ?? []} onPause={togglePlaytestPause} onReturn={exitPlaytest} onTools={() => { if (!playtest.paused) togglePlaytestPause(); setPhoneMenuOpen(true); }} onAutoplay={toggleAutoplay} onPress={pressTouch} onRelease={releaseTouch} />}
             {audioFile &&
               hasProject &&
               appSettings.showPpCounter &&
               !zenMode &&
+              !phoneViewport &&
               !playtest.active && (
               <MemoizedPPCounter
                 notes={active.notes}
@@ -3397,14 +3504,14 @@ export default function App() {
 
           <div
             className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
-              showChrome && appSettings.showBottomTimeline
+              !phoneViewport && showChrome && appSettings.showBottomTimeline
                 ? "max-h-[144px] translate-y-0 opacity-100"
                 : "pointer-events-none max-h-0 translate-y-4 opacity-0"
             }`}
             aria-hidden={!showChrome}
           >
             <SkillsetGraph
-              open={showChrome && appSettings.showBottomTimeline && appSettings.showSkillsetGraph}
+              open={!phoneViewport && showChrome && appSettings.showBottomTimeline && appSettings.showSkillsetGraph}
               collapsed={appSettings.skillsetGraphCollapsed}
               onToggleCollapsed={toggleSkillsetGraphCollapsed}
               points={skillsetTimeline}
@@ -3413,59 +3520,43 @@ export default function App() {
               supported={msdSupportsKeyCount(active.keyCount)}
               onSeek={seekAudio}
             />
-            {showChrome && appSettings.showBottomTimeline && (
-              <MemoizedBottomTimeline
-                waveform={waveform}
-                notes={active.notes}
-                timingPoints={activeTimingPoints}
-                selectedTimingIds={modal === "timing" ? timingSelection : undefined}
-                svBpmScroll={appSettings.bpmAffectsScroll}
-                simplified={appSettings.simplifyBottomTimeline}
-                previewTime={active.previewTime}
-                duration={audio.duration}
-                getCurrentTime={getCurrentTime}
-                getVisualCurrentTime={getVisualCurrentTime}
-                isVisualSeekActive={isVisualSeekActive}
-                isPlaying={audio.isPlaying}
-                seekSignal={audio.seekSignal}
-                smoothScrolling={appSettings.smoothScrolling}
-                onSeek={seekAudio}
-                sensitivity={appSettings.waveformSensitivity}
-                onSensitivity={setWaveformSensitivity}
-                revealWaveform={hasProject}
-                peers={collab.peers}
-                comments={activeCommentMarkers}
-                onCommentClick={openTimelineComment}
-                bookmarks={active.bookmarks}
-                bookmarkLabels={active.bookmarkLabels}
-                loopRange={activeBookmarkLoop}
-                loopEnabled={activeBookmarkLoop?.enabled}
-                onSetPreviewPoint={canEdit ? setPreviewPoint : undefined}
-                onAddBookmark={canEdit ? addBookmark : undefined}
-                onRenameBookmark={canEdit ? renameBookmark : undefined}
-                onRemoveBookmark={canEdit ? removeBookmark : undefined}
-                onPreviousBookmark={seekPreviousBookmark}
-                onNextBookmark={seekNextBookmark}
-                onSetLoopStart={setBookmarkLoopStart}
-                onSetLoopEnd={setBookmarkLoopEnd}
-                onToggleLoop={toggleBookmarkLoop}
-                onClearLoop={clearBookmarkLoop}
-                trimStart={active.trimStartMs}
-                trimEnd={active.trimEndMs}
-                fadeIn={active.fadeInMs}
-                fadeOut={active.fadeOutMs}
-                onSetTrimStart={canEdit ? setTrimStart : undefined}
-                onSetTrimEnd={canEdit ? setTrimEnd : undefined}
-                onSetFadeIn={canEdit ? setFadeIn : undefined}
-                onSetFadeOut={canEdit ? setFadeOut : undefined}
-              />
-            )}
+            {!phoneViewport && showChrome && appSettings.showBottomTimeline && fullTimeline}
           </div>
+          {hasProject && phoneViewport && !playtest.active && <>
+            {!phoneFocus && appSettings.showBottomTimeline && <PhoneTimeline waveform={waveform} duration={audio.duration} time={audio.currentTime} onSeek={seekAudio} onOpen={() => setPhonePanel("timeline")} />}
+            <PhoneEditorDock tool={phoneTool} onTool={setPhoneTool} focus={phoneFocus} onFocus={() => setPhoneFocus(value => !value)} audio={audio} hasAudio={!!audioFile} view={view} onView={setView} timingPoints={activeTimingPoints} canEdit={canEdit} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} selectionCount={selectionRange?.count ?? 0} onSelection={() => phoneEditorRef.current?.openPanel("selection")} onTools={() => setPhoneMenuOpen(true)} onTimeline={() => setPhonePanel("timeline")} jumpOpen={jumpToTimeOpen} onJumpOpen={setJumpToTimeOpen} />
+          </>}
         </main>
       </div>
       </Suspense>
 
       </div>
+
+      {phoneViewport && phonePanel && <Modal open title={phonePanel === "difficulties" ? t("diffSidebar.title") : phonePanel === "statistics" ? t("mobile.statistics") : t("mobile.timeline")} onClose={() => setPhonePanel(null)}>
+        {phonePanel === "difficulties" ? <div className="phone-difficulty-browser h-[65dvh]">{phoneDifficultyBrowser}</div> : phonePanel === "statistics" ? <div className="phone-statistics flex flex-col gap-5">
+          <MemoizedPPCounter embedded notes={active.notes} keyCount={active.keyCount} playbackRate={audio.playbackRate} onPlaybackRateChange={setAudioPlaybackRate} />
+          <div className="phone-difficulty-browser h-[55dvh]">{phoneDifficultyBrowser}</div>
+          <SkillsetGraph open collapsed={false} onToggleCollapsed={toggleSkillsetGraphCollapsed} points={skillsetTimeline} duration={audio.duration} keyCount={active.keyCount} supported={msdSupportsKeyCount(active.keyCount)} onSeek={seekAudio} />
+        </div> : <div className="phone-full-timeline flex flex-col gap-5">
+          <p className="text-sm text-slate-400">{t("mobile.timelineHelp")}</p>
+          {fullTimeline}
+          <div className="grid grid-cols-2 gap-2">
+            <Button disabled={!canEdit} onClick={() => setPreviewPoint(audio.getCurrentTime())}>{t("mobile.previewHere")}</Button>
+            <Button disabled={!canEdit} onClick={() => addBookmark(audio.getCurrentTime())}>{t("editor.bookmark")}</Button>
+            <Button onClick={seekPreviousBookmark}>{t("timeline.previousBookmark")}</Button><Button onClick={seekNextBookmark}>{t("timeline.nextBookmark")}</Button>
+            <Button onClick={() => setBookmarkLoopStart(audio.getCurrentTime())}>{t("mobile.loopStart")}</Button><Button onClick={() => setBookmarkLoopEnd(audio.getCurrentTime())}>{t("mobile.loopEnd")}</Button>
+            <Button onClick={toggleBookmarkLoop}>{t("mobile.toggleLoop")}</Button><Button onClick={clearBookmarkLoop}>{t("mobile.clearLoop")}</Button>
+            <Button disabled={!canEdit} onClick={() => setTrimStart(audio.getCurrentTime())}>{t("mobile.trimStart")}</Button><Button disabled={!canEdit} onClick={() => setTrimEnd(audio.getCurrentTime())}>{t("mobile.trimEnd")}</Button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("mobile.trimStartMs")}><NumberInput key={active.trimStartMs ?? 0} defaultValue={active.trimStartMs ?? 0} min={0} disabled={!canEdit} onBlur={e => { if (e.target.value.trim() && Number.isFinite(e.target.valueAsNumber)) setTrimStart(e.target.valueAsNumber); }} className="w-full" /></Field>
+            <Field label={t("mobile.trimEndMs")}><NumberInput key={active.trimEndMs ?? audio.duration} defaultValue={active.trimEndMs ?? audio.duration} min={0} disabled={!canEdit} onBlur={e => { if (e.target.value.trim() && Number.isFinite(e.target.valueAsNumber)) setTrimEnd(e.target.valueAsNumber); }} className="w-full" /></Field>
+            <Field label={t("mobile.fadeInMs")}><NumberInput key={active.fadeInMs ?? 0} defaultValue={active.fadeInMs ?? 0} min={0} disabled={!canEdit} onBlur={e => { if (e.target.value.trim() && Number.isFinite(e.target.valueAsNumber)) setFadeIn(e.target.valueAsNumber); }} className="w-full" /></Field>
+            <Field label={t("mobile.fadeOutMs")}><NumberInput key={active.fadeOutMs ?? 0} defaultValue={active.fadeOutMs ?? 0} min={0} disabled={!canEdit} onBlur={e => { if (e.target.value.trim() && Number.isFinite(e.target.valueAsNumber)) setFadeOut(e.target.valueAsNumber); }} className="w-full" /></Field>
+          </div>
+          <Button disabled={!canEdit} onClick={resetTrimAndFades}>{t("mobile.resetTrim")}</Button>
+        </div>}
+      </Modal>}
 
       <Suspense fallback={null}>
       {modalMounted("newMap") && (
@@ -3901,6 +3992,7 @@ export default function App() {
           preview={
             hasProject ? (
               <MemoizedManiaEditor
+                mobile={phoneViewport}
                 notes={active.notes}
                 keyCount={active.keyCount}
                 timingPoints={activeTimingPoints}

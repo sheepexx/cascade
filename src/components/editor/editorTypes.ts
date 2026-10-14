@@ -5,6 +5,7 @@ import type { prepareNotePaste } from "../../lib/editorClipboard";
 import { type DifficultyClip, type NoteClip } from "../../lib/clipboardStore";
 import { type LaneColourScheme } from "../../lib/laneColours";
 import type { Waveform } from "../../hooks/useWaveform";
+import type { Ref } from "react";
 import { type AudioSeekSignal, type AudioSeekTransition } from "../../lib/audioSeek";
 
 /**
@@ -19,6 +20,11 @@ export type HitsoundSource = {
 };
 
 export type ManiaEditorProps = {
+  mobile?: boolean;
+  touchMode?: "move" | "note" | "select" | "erase";
+  controlsRef?: Ref<MobileEditorControls>;
+  onPlaytestTouchPress?: (pointerId: number, column: number, stamp: number) => void;
+  onPlaytestTouchRelease?: (pointerId: number, stamp: number) => void;
   patternTitle?: string;
   difficultyName?: string;
   notes: ManiaNote[];
@@ -129,6 +135,16 @@ export type ManiaEditorProps = {
   ) => void;
   /** Remappable notefield shortcuts; falls back to the defaults. */
   editorKeybinds?: EditorKeybinds;
+};
+
+export type MobileEditorControls = {
+  openPanel: (panel: "selection" | "clipboard" | "hitsounds" | "view") => void;
+  selectAll: () => void;
+  clearSelection: () => void;
+  copy: () => void;
+  cut: () => void;
+  paste: () => void;
+  delete: () => void;
 };
 
 export type DragState = {

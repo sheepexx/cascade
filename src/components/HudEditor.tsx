@@ -1068,7 +1068,7 @@ export function LayoutPanel({
   return createPortal(
     <aside
       aria-label={title}
-      className="hud-panel-in fixed inset-y-0 left-0 z-[120] flex flex-col border-r border-white/10 bg-ink-900/95 shadow-[12px_0_40px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl"
+      className="hud-editor-panel hud-panel-in fixed inset-y-0 left-0 z-[120] flex flex-col border-r border-white/10 bg-ink-900/95 shadow-[12px_0_40px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl"
       style={{ width: HUD_PANEL_WIDTH }}
       onKeyDown={(e) => e.stopPropagation()}
     >

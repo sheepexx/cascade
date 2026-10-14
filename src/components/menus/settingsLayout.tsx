@@ -13,6 +13,7 @@ import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
 import { SectionHeading } from "../ui/Controls";
 import { useT } from "../../lib/i18n";
 import { matchesSearch } from "../../lib/settingsSearch";
+import { usePhoneViewport } from "../../hooks/usePhoneViewport";
 
 /**
  * The settings workspace's building blocks. A setting is a row: its name on
@@ -231,7 +232,7 @@ export function SettingRow({
         hoveredRef.current = false;
       }}
       onFocusCapture={publish}
-      className={`flex min-h-[2.75rem] gap-x-4 gap-y-2 py-1.5 transition-opacity ${
+      className={`settings-row flex min-h-[2.75rem] gap-x-4 gap-y-2 py-1.5 transition-opacity ${
         stacked ? "flex-col justify-center py-2.5" : "items-center"
       } ${disabled ? "opacity-45" : ""} ${indent ? "ml-1 border-l border-white/[0.08] pl-4" : ""}`}
     >
@@ -265,6 +266,9 @@ export function SettingTip({
   children: ReactNode;
 }) {
   const pane = useSettingsInfo();
+  const phone = usePhoneViewport();
+  const t = useT();
+  if (phone) return <span>{children}{text && <span className="mt-1 block text-xs leading-relaxed text-slate-400">{text}</span>}{diagram && <details className="mt-1"><summary className="flex min-h-11 cursor-pointer items-center text-xs text-slate-300">{t("mobile.illustration")}</summary><span className="block max-w-[200px]"><SettingDiagram name={diagram} value={value} /></span></details>}</span>;
   if (pane || (!text && !diagram)) return <span>{children}</span>;
   return (
     <Tooltip

@@ -103,7 +103,7 @@ export function AdminPanel({
   if (!open || !isAdmin) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-ink-900">
+    <div className="admin-workspace fixed inset-0 z-[60] flex flex-col bg-ink-900">
       {/* Nine tabs never fit a phone. Below `sm` the title and Close take the
           first row and the tab strip gets a full-width row of its own that
           scrolls sideways; from `sm` up the three sit on one line as before. */}

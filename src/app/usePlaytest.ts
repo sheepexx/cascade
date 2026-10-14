@@ -666,7 +666,7 @@ export function usePlaytest({
     () => normalizeEditorKeybinds(appSettings.editorKeybinds),
     [appSettings.editorKeybinds],
   );
-  const { heldKeys: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef } =
+  const { heldKeys: heldPlaytestKeys, pressedColumnsRef: playtestPressedColumnsRef, pressTouch, releaseTouch } =
     usePlaytestInput({
       active: playtest.active && !playtest.hudEditing && playtest.countdownEndsAt === null,
       paused: playtest.paused,
@@ -829,5 +829,9 @@ export function usePlaytest({
     resumePlaytest,
     skillProfile,
     startPlaytest,
+    togglePlaytestPause,
+    toggleAutoplay,
+    pressTouch,
+    releaseTouch,
   };
 }

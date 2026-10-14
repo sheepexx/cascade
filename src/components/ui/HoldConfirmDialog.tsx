@@ -76,7 +76,7 @@ export function HoldConfirmDialog({
   if (!mounted) return null;
   return (
     <div
-      className={`fixed inset-0 z-[60] flex items-center justify-center bg-[rgb(5_5_8/0.66)] p-4 ${
+      className={`hold-confirm-backdrop fixed inset-0 z-[60] flex items-center justify-center bg-[rgb(5_5_8/0.66)] p-4 ${
         closing ? "modal-backdrop-out pointer-events-none" : "modal-backdrop-in"
       }`}
       onMouseDown={(e) => {

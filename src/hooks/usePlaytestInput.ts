@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * The keys held down, for the key overlay. Kept out of React state so a key
@@ -76,6 +76,7 @@ export function usePlaytestInput({
   const [heldKeys] = useState(createHeldKeysStore);
   const heldRef = useRef<Set<string>>(new Set());
   const pressedColumnsRef = useRef<Set<number>>(new Set());
+  const touchesRef = useRef(new Map<number, number>());
 
   const codeToColumn = useMemo(() => {
     const map = new Map<string, number>();
@@ -104,6 +105,43 @@ export function usePlaytestInput({
     onScrollSpeed,
     paused,
   };
+
+  const publishHeld = useCallback(() => {
+    const codes = new Set(heldRef.current);
+    for (const column of touchesRef.current.values()) codes.add(keybinds[keyCount]?.[column] || `Touch${column + 1}`);
+    heldKeys.set(codes);
+  }, [heldKeys, keybinds, keyCount]);
+  const releaseTouch = useCallback((pointerId: number, stamp: number) => {
+    const column = touchesRef.current.get(pointerId);
+    if (column === undefined) return;
+    touchesRef.current.delete(pointerId);
+    const stillHeld = [...touchesRef.current.values()].includes(column) || [...heldRef.current].some(code => codeToColumn.get(code) === column);
+    if (!stillHeld) {
+      pressedColumnsRef.current.delete(column);
+      if (!handlers.current.paused) handlers.current.onRelease(column, stamp);
+    }
+    publishHeld();
+  }, [codeToColumn, publishHeld]);
+  const pressTouch = useCallback((pointerId: number, column: number, stamp: number) => {
+    if (!active || handlers.current.paused || column < 0 || column >= keyCount) return;
+    if (touchesRef.current.get(pointerId) === column) return;
+    releaseTouch(pointerId, stamp);
+    const alreadyHeld = pressedColumnsRef.current.has(column);
+    touchesRef.current.set(pointerId, column);
+    pressedColumnsRef.current.add(column);
+    if (!alreadyHeld) handlers.current.onPress(column, stamp);
+    publishHeld();
+  }, [active, keyCount, releaseTouch, publishHeld]);
+  const clearInput = useCallback(() => {
+    if (!handlers.current.paused) for (const column of pressedColumnsRef.current) handlers.current.onRelease(column, performance.now());
+    touchesRef.current.clear();
+    heldRef.current.clear();
+    pressedColumnsRef.current.clear();
+    heldKeys.set(new Set());
+  }, [heldKeys]);
+  useEffect(() => {
+    if (!active || paused) clearInput();
+  }, [active, paused, clearInput]);
 
 
   useEffect(() => {
@@ -157,10 +195,11 @@ export function usePlaytestInput({
       e.preventDefault();
       e.stopImmediatePropagation();
       if (h.paused || e.repeat || heldRef.current.has(e.code)) return;
+      const alreadyHeld = pressedColumnsRef.current.has(column);
       heldRef.current.add(e.code);
       pressedColumnsRef.current.add(column);
-      h.onPress(column, e.timeStamp);
-      heldKeys.set(new Set(heldRef.current));
+      if (!alreadyHeld) h.onPress(column, e.timeStamp);
+      publishHeld();
     };
 
     const up = (e: KeyboardEvent) => {
@@ -177,7 +216,7 @@ export function usePlaytestInput({
       e.stopImmediatePropagation();
       if (!heldRef.current.has(e.code)) return;
       heldRef.current.delete(e.code);
-      let stillHeld = false;
+      let stillHeld = [...touchesRef.current.values()].includes(column);
       for (const code of heldRef.current) {
         if (codeToColumn.get(code) === column) {
           stillHeld = true;
@@ -185,15 +224,12 @@ export function usePlaytestInput({
         }
       }
       if (!stillHeld) pressedColumnsRef.current.delete(column);
-      if (!h.paused) h.onRelease(column, e.timeStamp);
-      heldKeys.set(new Set(heldRef.current));
+      if (!h.paused && !stillHeld) h.onRelease(column, e.timeStamp);
+      publishHeld();
     };
 
     const blur = () => {
-      if (!heldRef.current.size) return;
-      heldRef.current = new Set();
-      pressedColumnsRef.current = new Set();
-      heldKeys.set(new Set());
+      clearInput();
     };
 
     window.addEventListener("keydown", down, true);
@@ -204,7 +240,7 @@ export function usePlaytestInput({
       window.removeEventListener("keyup", up, true);
       window.removeEventListener("blur", blur);
     };
-  }, [active, codeToColumn, heldKeys, quickRestartCode, scrollSpeedDownCode, scrollSpeedUpCode]);
+  }, [active, codeToColumn, heldKeys, quickRestartCode, scrollSpeedDownCode, scrollSpeedUpCode, clearInput, publishHeld]);
 
-  return { heldKeys: heldKeys as HeldKeysStore, pressedColumnsRef };
+  return { heldKeys: heldKeys as HeldKeysStore, pressedColumnsRef, pressTouch, releaseTouch };
 }

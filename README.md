@@ -21,7 +21,9 @@ The same editor is also available as a desktop app built with Tauri. On Windows,
 
 The main menu plays a random song from your local projects, and the logo reacts to its beat. Press C to pause, V to skip and X to go back.
 
-Mapping needs a keyboard and a mouse. On a phone, Cascade shows an overview page and asks you to open it on a computer.
+On a phone, the editor uses a full-width playfield and a toolbar at the bottom. **Move** drags through the song without changing notes; **Note** places taps or long notes when dragged; **Select** selects notes or a box; **Erase** removes tapped notes. Pinch the playfield to zoom. Undo and redo are always reachable.
+
+**All tools** opens the editor's tools, file actions, settings, account and notifications, with search. Difficulties, selection actions, the clipboard, hitsounds, statistics and the full timeline open as sheets over the chart. **Focus mode** replaces the four tool buttons with one tool picker. Pack Creator has Maps, Selected map and Pack settings tabs. In playtests, touch the lanes or the numbered pads; pause, autoplay and returning to the editor have buttons.
 
 ## Feature overview
 

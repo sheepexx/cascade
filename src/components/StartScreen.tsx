@@ -159,11 +159,13 @@ const SIDE_FLASH_RIGHT =
   "linear-gradient(to left, rgba(255,250,240,0.3), rgba(255,250,240,0))";
 
 function PhoneStart({
+  actions,
   music,
   players,
   children,
   menuBackgroundUrl,
 }: {
+  actions: MenuAction[];
   music: MenuMusic;
   players?: OnlinePlayer[];
   children?: ReactNode;
@@ -198,13 +200,13 @@ function PhoneStart({
             </p>
           </div>
 
-          <div className="mx-auto mt-8 max-w-md rounded-2xl border border-white/10 bg-ink-800/80 p-5 text-center backdrop-blur-sm">
-            <p className="text-base font-semibold text-slate-100">
-              {t("mobile.desktopTitle")}
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              {t("mobile.desktopBody")}
-            </p>
+          <div className="mx-auto mb-8 mt-7 max-w-md">
+            <p className="mb-4 text-center text-sm text-slate-300">{t("mobile.start")}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {actions.map(action => <button type="button" key={action.id} onClick={action.onClick} className="phone-start-action flex min-h-24 flex-col items-center justify-center gap-3 rounded-xl bg-ink-800/95 px-3 py-4 text-sm font-semibold text-slate-100 ring-1 ring-white/[0.08] hover:bg-ink-700">
+                <span className="[&_svg]:h-6 [&_svg]:w-6" style={{ color: action.color }}>{action.icon}</span>{action.label}
+              </button>)}
+            </div>
           </div>
         </div>
 
@@ -469,6 +471,7 @@ export function StartScreen({
   if (phone) {
     return (
       <PhoneStart
+        actions={[...left, ...right]}
         music={music}
         players={players}
         menuBackgroundUrl={menuBackgroundUrl}

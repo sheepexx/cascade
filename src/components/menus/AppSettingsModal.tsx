@@ -16,6 +16,7 @@ import type { MenuBackgroundMode } from "../../types";
 import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { useAuth } from "../../lib/auth";
+import { usePhoneViewport } from "../../hooks/usePhoneViewport";
 import { isDesktopApp } from "../../lib/pwa";
 import { eraseLocalData } from "../../lib/resetLocalData";
 import {
@@ -1599,8 +1600,9 @@ function SettingsWorkspace({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [tab, searching]);
 
-  const stacked = width > 0 && width < 600;
-  const pane = !wideContent && width >= 920;
+  const phone = usePhoneViewport();
+  const stacked = phone || (width > 0 && width < 600);
+  const pane = !phone && !wideContent && width >= 920;
 
   const search = (
     <label className={`relative block shrink-0 ${stacked ? "mx-2 mt-2" : "mb-2"}`}>

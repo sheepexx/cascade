@@ -106,7 +106,9 @@ export function Tooltip({
       if (e.key === "Escape") hide();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const outside = (e: PointerEvent) => { if (!anchorRef.current?.contains(e.target as Node)) hide(); };
+    document.addEventListener("pointerdown", outside);
+    return () => { window.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", outside); };
   }, [open, hide]);
 
   return (
@@ -115,7 +117,11 @@ export function Tooltip({
         ref={anchorRef}
         tabIndex={0}
         aria-describedby={open ? id : undefined}
-        onMouseEnter={() => show(false)}
+        onMouseEnter={() => { if (!window.matchMedia("(pointer: coarse)").matches) show(false); }}
+        onPointerDown={e => {
+          if (e.pointerType === "mouse" || (e.target as HTMLElement).closest("button,input,textarea,select,a")) return;
+          show(true);
+        }}
         onMouseLeave={hide}
         onFocus={() => show(true)}
         onBlur={hide}

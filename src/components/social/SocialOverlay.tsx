@@ -153,7 +153,7 @@ export function SocialOverlay({
       // A view of its own rather than a window over the editor: profiles,
       // friends and messages get the whole screen, and Back returns to the
       // map exactly as it was left (the editor stays mounted underneath).
-      className={`fixed inset-0 z-[60] flex items-stretch bg-ink-900 ${
+      className={`social-workspace fixed inset-0 z-[60] flex items-stretch bg-ink-900 ${
         closing ? "pointer-events-none modal-backdrop-out" : "modal-backdrop-in"
       }`}
     >
@@ -193,7 +193,7 @@ export function SocialOverlay({
           </button>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <div className="social-content flex min-h-0 flex-1 flex-col md:flex-row">
           <nav
             aria-label={t("social.navigation")}
             className="no-scrollbar flex shrink-0 gap-px overflow-x-auto border-b border-white/[0.06] px-2 py-1.5 md:w-56 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:p-2"

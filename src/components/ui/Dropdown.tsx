@@ -88,17 +88,19 @@ export function Dropdown<T extends string | number>({
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const menuHeight = menuRef.current?.offsetHeight ?? 0;
-    const below = window.innerHeight - rect.bottom;
+    const viewportTop = window.visualViewport?.offsetTop ?? 0;
+    const viewportBottom = viewportTop + (window.visualViewport?.height ?? window.innerHeight);
+    const below = viewportBottom - rect.bottom;
     const flip = below < menuHeight + 8 && rect.top > below;
     setPos({
-      top: flip ? Math.max(8, rect.top - menuHeight - 4) : rect.bottom + 4,
+      top: Math.max(viewportTop + 8, Math.min(viewportBottom - menuHeight - 8, flip ? rect.top - menuHeight - 4 : rect.bottom + 4)),
       left: Math.max(
         8,
         Math.min(rect.left, window.innerWidth - rect.width - 8),
       ),
       width: rect.width,
     });
-  }, [open]);
+  }, [open, mounted]);
 
   // A long list (snap has 49 entries) opens on the current value instead of at
   // the top, so the choice in effect is the one under the pointer.

@@ -38,6 +38,7 @@ function testBackend(): Plugin {
 
 export default defineConfig({
   root: here("./harness"),
+  publicDir: here("../../../public"),
   plugins: [testBackend(), react()],
   define: { __APP_VERSION__: JSON.stringify("integration") },
   // The editor's Tailwind setup lives at the repository root.

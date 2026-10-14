@@ -7,6 +7,7 @@ import { useT } from "../lib/i18n";
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
 
 type Props = {
+  embedded?: boolean;
   notes: ManiaNote[];
   keyCount: number;
   playbackRate: number;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function PPCounter({
+  embedded,
   notes,
   keyCount,
   playbackRate,
@@ -29,7 +31,7 @@ export function PPCounter({
   }, [deferredNotes, keyCount]);
 
   return (
-    <div className="absolute bottom-3 right-3 flex select-none items-stretch gap-1.5 transition-opacity duration-300">
+    <div className={`${embedded ? "flex flex-wrap" : "absolute bottom-3 right-3 flex"} select-none items-stretch gap-1.5 transition-opacity duration-300`}>
       <div className="float-chip flex items-center gap-2 py-1 pl-2.5 pr-1">
         <span className="text-2xs font-medium text-slate-400">{t("pp.speed")}</span>
         <div className="flex gap-0.5 rounded-md bg-black/30 p-0.5">

@@ -370,8 +370,10 @@ Content is capped at `max-w-[44rem]` so labels and controls stay close.
 
 ## 9. Responsive behaviour
 
-Cascade is desktop-first; mapping needs a keyboard and mouse, and phones get
-the overview page.
+Desktop and phone use the same editor actions. A narrow touch screen, including
+a phone in landscape, gets a full-width playfield and a thumb toolbar. Phone
+styles key off `html[data-phone]`; the hook also tracks the visible viewport so
+the keyboard and browser bars do not hide a sheet's controls.
 
 - Use the interface-scale-aware variants `uimd:`, `uilg:`, `uixl:` for chrome
   that depends on available space, since the interface scale changes the root
@@ -381,8 +383,19 @@ the overview page.
   vertical list above 600px, a horizontal scroller below.
 - Social: navigation rail on `md` and up, a horizontal strip below; messages
   show one pane at a time on narrow screens.
-- Pack Creator scrolls horizontally rather than squeezing its three areas
-  below their minimum widths.
+- On phones, All tools browses and searches the same commands as the desktop
+  palette. File actions, account controls and notifications remain available.
+- Difficulties, selection, clipboard, hitsounds, statistics and the timeline
+  open as sheets. Sheets preserve the mounted canvas and use the shared Modal.
+- Move navigates; Note places taps or drags long notes; Select toggles notes or
+  boxes empty space; Erase removes a tapped note. Pinch zooms without committing
+  a provisional note. Pointer cancellation never commits an edit.
+- Phone controls have 44px targets; editable fields use at least 16px type.
+  Sheets do not open the software keyboard until a field is tapped. Labels
+  explain touch actions; desktop keyboard hints stay in desktop chrome.
+- Phone focus mode keeps a tool picker, undo, playback, time and All tools.
+- Pack Creator scrolls horizontally on desktop and switches between Maps,
+  Selected map and Pack settings on phones, retaining each pane's state.
 - No horizontal page scroll at any width; dropdowns and menus flip and clamp to
   the viewport.
 

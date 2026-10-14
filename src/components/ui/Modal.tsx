@@ -6,6 +6,8 @@ import { MOTION } from "../../lib/motion";
 import { playUiSound } from "../../lib/uiSounds";
 import type { CSSProperties } from "react";
 import { useT } from "../../lib/i18n";
+import { usePhoneViewport } from "../../hooks/usePhoneViewport";
+import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
@@ -41,15 +43,17 @@ export function Modal({
   height = "",
   center = true,
   slideUp = false,
-  modeless = false,
+  modeless: allowModeless = false,
   accent,
   bodyClassName = "px-5 py-4 [scrollbar-gutter:stable]",
 }: Props) {
   const t = useT();
+  const phone = usePhoneViewport();
+  const modeless = allowModeless && !phone;
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   const titleId = useId();
-  const panelRef = useDialog(open && mounted && !modeless);
+  const panelRef = useDialog(open && mounted && !modeless, !phone);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(
     null,
   );
@@ -127,7 +131,7 @@ export function Modal({
 
   if (!mounted) return null;
 
-  return (
+  const surface = (
     <div
       // Centred by default. `center={false}` pins the top edge instead, for a
       // dialog whose height keeps changing while it is open.
@@ -142,7 +146,7 @@ export function Modal({
           ? "pointer-events-none z-40 modal-backdrop-out"
           : "z-50 modal-backdrop-in"
       }`}
-      onMouseDown={(e) => {
+      onPointerDown={(e) => {
         if (!modeless && e.target === e.currentTarget) onClose();
       }}
     >
@@ -254,4 +258,5 @@ export function Modal({
       </div>
     </div>
   );
+  return phone ? createPortal(surface, document.body) : surface;
 }

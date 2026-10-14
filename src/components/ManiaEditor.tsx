@@ -3,12 +3,15 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from "react";
 import {
   SNAP_OPTIONS,
+  MAX_SCROLL_SPEED,
+  MIN_SCROLL_SPEED,
   uid,
   HITSOUND_WHISTLE,
   HITSOUND_FINISH,
@@ -63,6 +66,9 @@ import {
   withoutNoteCollisions,
 } from "../lib/noteCollision";
 import { NoteInspector } from "./NoteInspector";
+import { EditorPanel } from "./mobile/EditorPanel";
+import { Button, Toggle, Field } from "./ui/Controls";
+import { Modal } from "./ui/Modal";
 import {
   mirrorColumns,
   reverseTime,
@@ -169,6 +175,7 @@ const EMPTY_DRAG_IMAGE =
 let shownBackground: { key: string; img: HTMLImageElement } | null = null;
 
 export function ManiaEditor(props: ManiaEditorProps) {
+  const [mobilePanel, setMobilePanel] = useState<"selection" | "clipboard" | "hitsounds" | "view" | null>(null);
   const [interactionMode, setInteractionMode] = useState<InteractionMode>("edit");
   const interactionModeRef = useRef<InteractionMode>("edit");
   interactionModeRef.current = interactionMode;
@@ -401,7 +408,9 @@ export function ManiaEditor(props: ManiaEditorProps) {
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(
     new Map(),
   );
-  const scrubRef = useRef<{ time: number; lastMidY: number } | null>(null);
+  const scrubRef = useRef<{ time: number; lastMidY: number; distance?: number; speed?: number } | null>(null);
+  const touchSessionRef = useRef(false);
+  const touchTapRef = useRef<{ x: number; y: number; toggle?: string; erase?: string } | null>(null);
 
   const clearClipDrag = useCallback(() => {
     draggedClipRef.current = null;
@@ -1018,10 +1027,11 @@ export function ManiaEditor(props: ManiaEditorProps) {
     const { width } = sizeRef.current;
     const keys = propsRef.current.keyCount;
     const scale = smoothScaleRef.current || 1;
-    const laneWidth = Math.max(
+    const requestedLaneWidth = Math.max(
       18,
       Math.min(64, Math.floor((width - 40) / keys)),
     ) * scale;
+    const laneWidth = propsRef.current.mobile ? Math.min(requestedLaneWidth, Math.max(1, width - 16) / keys) : requestedLaneWidth;
     const playfieldWidth = laneWidth * keys;
     const originX = Math.floor((width - playfieldWidth) / 2);
     return { laneWidth, playfieldWidth, originX };
@@ -1999,11 +2009,13 @@ export function ManiaEditor(props: ManiaEditorProps) {
     };
   };
 
-  const findNoteAt = (x: number, y: number): ManiaNote | null => {
+  const findNoteAt = (x: number, y: number, tolerance = 0): ManiaNote | null => {
     const { notes, keyCount } = propsRef.current;
     const col = columnAtX(x);
     if (col < 0) return null;
     const { laneWidth, originX } = laneGeometry();
+    let nearest: ManiaNote | null = null;
+    let nearestDistance = Infinity;
     for (let i = notes.length - 1; i >= 0; i--) {
       const n = notes[i];
       if (n.column !== col || n.column >= keyCount) continue;
@@ -2012,13 +2024,15 @@ export function ManiaEditor(props: ManiaEditorProps) {
         bounds &&
         x >= bounds.x &&
         x <= bounds.x + bounds.w &&
-        y >= bounds.y &&
-        y <= bounds.y + bounds.h
+        y >= bounds.y - tolerance &&
+        y <= bounds.y + bounds.h + tolerance
       ) {
-        return n;
+        const distance = Math.max(bounds.y - y, y - bounds.y - bounds.h, 0);
+        if (distance === 0) return n;
+        if (distance < nearestDistance) { nearest = n; nearestDistance = distance; }
       }
     }
-    return null;
+    return nearest;
   };
 
   // The far end of a long note, which drags to lengthen or shorten it. The
@@ -2039,10 +2053,10 @@ export function ManiaEditor(props: ManiaEditorProps) {
       if (!bounds) continue;
       const yEnd = timeToY(n.endTime);
       const inward = Math.min(
-        LN_TAIL_GRAB_PX,
+        propsRef.current.mobile && touchSessionRef.current ? 18 : LN_TAIL_GRAB_PX,
         Math.abs(timeToY(n.startTime) - yEnd) / 2,
       );
-      const outward = LN_TAIL_GRAB_PX / 2;
+      const outward = propsRef.current.mobile && touchSessionRef.current ? 12 : LN_TAIL_GRAB_PX / 2;
       const onTail = up
         ? y >= yEnd - inward && y <= Math.max(yEnd, bounds.y + bounds.h) + outward
         : y <= yEnd + inward && y >= Math.min(yEnd, bounds.y) - outward;
@@ -2189,8 +2203,8 @@ export function ManiaEditor(props: ManiaEditorProps) {
     e.preventDefault();
     focusCanvas();
     const { x, y } = localPoint(e);
-    if (props.readOnly && !(e.shiftKey || shiftActiveRef.current)) return;
-    const hit = findNoteAt(x, y);
+    if (props.readOnly && !(e.shiftKey || shiftActiveRef.current || (props.mobile && props.touchMode === "select"))) return;
+    const hit = findNoteAt(x, y, props.mobile && touchSessionRef.current ? 14 : 0);
     if (
       e.shiftKey ||
       shiftActiveRef.current ||
@@ -2447,6 +2461,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
   };
 
   const onContextMenu = (e: React.MouseEvent) => {
+    if (e.target !== canvasRef.current) return;
     e.preventDefault();
     if (props.playtestMode || props.readOnly) return;
     const { x, y } = localPoint(e);
@@ -2465,6 +2480,10 @@ export function ManiaEditor(props: ManiaEditorProps) {
     for (const p of pts.values()) sum += p.y;
     return pts.size ? sum / pts.size : 0;
   };
+  const pointerDistance = (pts: Map<number, { x: number; y: number }>) => {
+    const [a, b] = [...pts.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
 
   const onPointerDown = (e: React.PointerEvent) => {
     markDirty();
@@ -2479,7 +2498,14 @@ export function ManiaEditor(props: ManiaEditorProps) {
       }
       return;
     }
-    if (props.playtestMode) return;
+    if (props.playtestMode) {
+      if (props.mobile) {
+        e.preventDefault();
+        const column = columnAtX(localPoint(e).x);
+        if (column >= 0) { e.currentTarget.setPointerCapture(e.pointerId); props.onPlaytestTouchPress?.(e.pointerId, column, e.timeStamp); }
+      }
+      return;
+    }
     e.preventDefault();
     const pts = activePointersRef.current;
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -2488,20 +2514,52 @@ export function ManiaEditor(props: ManiaEditorProps) {
     } catch {
     }
     if (pts.size >= 2) {
+      touchSessionRef.current = true;
+      touchTapRef.current = null;
       dragRef.current = null;
       moveDragRef.current = null;
       selectionDragRef.current = null;
       scrubRef.current = {
         time: propsRef.current.getCurrentTime(),
         lastMidY: averagePointerY(pts),
+        distance: pointerDistance(pts),
+        speed: propsRef.current.view.scrollSpeed,
       };
       return;
+    }
+    if (props.mobile) {
+      touchSessionRef.current = true;
+      touchTapRef.current = { x: e.clientX, y: e.clientY };
+      if (props.touchMode === "move" || !props.touchMode) {
+        scrubRef.current = { time: propsRef.current.getCurrentTime(), lastMidY: e.clientY };
+        return;
+      }
+      const { x, y } = localPoint(e);
+      const hit = findNoteAt(x, y, 14);
+      if (props.touchMode === "erase") {
+        if (hit && !props.readOnly) touchTapRef.current.erase = hit.id;
+        return;
+      }
+      interactionModeRef.current = props.touchMode === "select" ? "select" : "edit";
+      if (props.touchMode === "select" && hit) {
+        const ids = new Set(selectedNoteIdsRef.current);
+        if (ids.has(hit.id)) touchTapRef.current.toggle = hit.id;
+        else { ids.add(hit.id); setSelection(ids); }
+      }
     }
     onMouseDown(e);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     markDirty();
+    if (props.playtestMode && props.mobile && e.pointerType !== "mouse") {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        const column = columnAtX(localPoint(e).x);
+        if (column >= 0) props.onPlaytestTouchPress?.(e.pointerId, column, e.timeStamp);
+        else props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp);
+      }
+      return;
+    }
     if (e.pointerType === "mouse") {
       onMouseMove(e);
       return;
@@ -2509,7 +2567,11 @@ export function ManiaEditor(props: ManiaEditorProps) {
     const pts = activePointersRef.current;
     if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const scrub = scrubRef.current;
-    if (scrub && pts.size >= 2) {
+    if (scrub && pts.size > 0) {
+      if (props.mobile && pts.size >= 2 && scrub.distance && scrub.speed) {
+        const speed = Math.round(Math.max(MIN_SCROLL_SPEED, Math.min(MAX_SCROLL_SPEED, scrub.speed * pointerDistance(pts) / scrub.distance)));
+        if (speed !== propsRef.current.view.scrollSpeed) propsRef.current.onView({ ...propsRef.current.view, scrollSpeed: speed });
+      }
       const midY = averagePointerY(pts);
       const dy = midY - scrub.lastMidY;
       scrub.lastMidY = midY;
@@ -2519,11 +2581,13 @@ export function ManiaEditor(props: ManiaEditorProps) {
       scheduleInteractiveSeek(scrub.time, "scrub");
       return;
     }
+    if (props.mobile && (props.touchMode === "erase" || (touchTapRef.current && Math.hypot(e.clientX - touchTapRef.current.x, e.clientY - touchTapRef.current.y) < 8))) return;
     onMouseMove(e);
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
     markDirty();
+    if (props.playtestMode && props.mobile && e.pointerType !== "mouse") { props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp); return; }
     if (e.pointerType === "mouse") {
       if (boxSelectCapturedRef.current) {
         boxSelectCapturedRef.current = false;
@@ -2542,17 +2606,36 @@ export function ManiaEditor(props: ManiaEditorProps) {
     } catch {
     }
     if (scrubRef.current) {
-      if (pts.size < 2) {
+      if (pts.size === 0) {
         flushInteractiveSeek();
         scrubRef.current = null;
+        touchSessionRef.current = false;
+      } else {
+        scrubRef.current.lastMidY = averagePointerY(pts);
+        scrubRef.current.distance = pts.size >= 2 ? pointerDistance(pts) : undefined;
+        scrubRef.current.speed = propsRef.current.view.scrollSpeed;
       }
       return;
     }
+    if (props.mobile && touchTapRef.current) {
+      const tap = touchTapRef.current;
+      // Apply the release position even if the browser coalesced the last
+      // move: a quick drag still places a hold or moves the selection.
+      if (Math.hypot(e.clientX - tap.x, e.clientY - tap.y) >= 8) onMouseMove(e);
+      touchTapRef.current = null;
+      if (Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 8) {
+        if (tap.erase && !props.readOnly) propsRef.current.onDeleteNote(tap.erase);
+        if (tap.toggle) { const ids = new Set(selectedNoteIdsRef.current); ids.delete(tap.toggle); setSelection(ids); }
+      }
+      if (props.touchMode === "erase") { touchSessionRef.current = false; return; }
+    }
+    touchSessionRef.current = false;
     onMouseUp(e);
   };
 
   const onPointerCancel = (e: React.PointerEvent) => {
     markDirty();
+    if (props.playtestMode && props.mobile && e.pointerType !== "mouse") { props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp); return; }
     if (e.pointerType === "mouse") {
       if (boxSelectCapturedRef.current) {
         boxSelectCapturedRef.current = false;
@@ -2564,6 +2647,11 @@ export function ManiaEditor(props: ManiaEditorProps) {
     activePointersRef.current.delete(e.pointerId);
     if (scrubRef.current) flushInteractiveSeek();
     scrubRef.current = null;
+    touchTapRef.current = null;
+    touchSessionRef.current = false;
+    dragRef.current = null;
+    moveDragRef.current = null;
+    selectionDragRef.current = null;
     if (activePointersRef.current.size === 0) onMouseLeave();
   };
 
@@ -2735,6 +2823,14 @@ export function ManiaEditor(props: ManiaEditorProps) {
         : -1
       : props.currentSampleSet;
 
+  useImperativeHandle(props.controlsRef, () => ({
+    openPanel: (panel) => { setMobilePanel(panel); if (panel === "hitsounds") setHitsoundMode(true); },
+    selectAll: () => setSelection(new Set(propsRef.current.notes.map(n => n.id))),
+    clearSelection: () => setSelection(new Set()),
+    copy: () => { copySelection(); }, cut: cutSelection, paste, delete: deleteSelection,
+  }));
+  const closeMobilePanel = () => { if (mobilePanel === "hitsounds") setHitsoundMode(false); setMobilePanel(null); };
+
   return (
     <div
       ref={wrapRef}
@@ -2762,6 +2858,10 @@ export function ManiaEditor(props: ManiaEditorProps) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
+        onLostPointerCapture={e => {
+          if (props.playtestMode && props.mobile && e.pointerType !== "mouse") props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp);
+          else if (activePointersRef.current.has(e.pointerId)) onPointerCancel(e);
+        }}
         onPointerLeave={onPointerLeave}
         onWheel={onWheel}
         onDragOver={onClipDragOver}
@@ -2788,7 +2888,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
       {/* A read-only editor is an embedded view — a reference difficulty, or
           the skin dialog's preview — where there is nothing to switch between. */}
-      {!props.playtestMode && !props.readOnly && (
+      {!props.mobile && !props.playtestMode && !props.readOnly && (
         <div className="float-chip absolute left-3 top-11 z-20 flex select-none items-center gap-0.5 p-0.5 text-xs">
           {(["edit", "select"] as const).map((mode) => (
             <button
@@ -2826,8 +2926,9 @@ export function ManiaEditor(props: ManiaEditorProps) {
         </div>
       )}
 
+      <EditorPanel mobile={props.mobile} open={mobilePanel === "selection"} title={t("mobile.selectionActions")} onClose={closeMobilePanel}>
       {selectionCount > 0 && !props.playtestMode && (
-        <div className="float-chip absolute left-1/2 top-3 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 select-none flex-wrap items-center justify-center gap-0.5 p-0.5 text-xs text-slate-200">
+        <div className="selection-actions float-chip absolute left-1/2 top-3 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 select-none flex-wrap items-center justify-center gap-0.5 p-0.5 text-xs text-slate-200">
           <span className="px-2 font-medium tabular-nums text-yellow-200">
             {t("editor.selected", { count: selectionCount })}
           </span>
@@ -2837,24 +2938,24 @@ export function ManiaEditor(props: ManiaEditorProps) {
             title={t("editor.copySelection")}
             onClick={copySelection}
           />
-          <SelectionActionButton label={t("editor.image")} title={t("editor.copyImage")} onClick={openPatternImage} />
+          <SelectionActionButton label={props.mobile ? t("patternImage.title") : t("editor.image")} title={t("editor.copyImage")} onClick={openPatternImage} />
           <SelectionActionButton
-            label="←"
+            label={props.mobile ? t("editor.moveLeft").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "←"}
             title={t("editor.moveLeft")}
             onClick={() => nudgeSelection("left")}
           />
           <SelectionActionButton
-            label="−t"
+            label={props.mobile ? t("editor.moveEarlier").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "−t"}
             title={t("editor.moveEarlier")}
             onClick={() => nudgeSelection("earlier")}
           />
           <SelectionActionButton
-            label="+t"
+            label={props.mobile ? t("editor.moveLater").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "+t"}
             title={t("editor.moveLater")}
             onClick={() => nudgeSelection("later")}
           />
           <SelectionActionButton
-            label="→"
+            label={props.mobile ? t("editor.moveRight").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "→"}
             title={t("editor.moveRight")}
             onClick={() => nudgeSelection("right")}
           />
@@ -2874,12 +2975,12 @@ export function ManiaEditor(props: ManiaEditorProps) {
             onClick={shuffleSelection}
           />
           <SelectionActionButton
-            label="½"
+            label={props.mobile ? t("editor.halveTitle").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "½"}
             title={t("editor.halveTitle")}
             onClick={() => scaleSelection(0.5)}
           />
           <SelectionActionButton
-            label="2×"
+            label={props.mobile ? t("editor.doubleTitle").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "2×"}
             title={t("editor.doubleTitle")}
             onClick={() => scaleSelection(2)}
           />
@@ -2900,8 +3001,11 @@ export function ManiaEditor(props: ManiaEditorProps) {
           onRetime={retimeNote}
         />
       )}
+      {props.mobile && selectionCount > 0 && <div className="grid grid-cols-2 gap-2"><Button onClick={cutSelection} disabled={props.readOnly}>{t("mobile.cut")}</Button><Button onClick={() => setSelection(new Set())}>{t("mobile.clearSelection")}</Button></div>}
+      </EditorPanel>
 
-      {!props.playtestMode && !props.hideClipboard && (clipboard || history.length > 0) && (
+      <EditorPanel mobile={props.mobile} open={mobilePanel === "clipboard"} title={t("mobile.clipboard")} onClose={closeMobilePanel}>
+      {!props.playtestMode && !props.hideClipboard && (clipboard || history.length > 0 || props.mobile) && (
         <div className="float-chip absolute right-3 top-14 w-48 select-none p-2 text-xs text-slate-300">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="font-medium text-slate-200">{t("editor.clipboard")}</span>
@@ -2950,7 +3054,7 @@ className="h-6 rounded-md bg-white/[0.06] px-2 text-2xs font-medium text-slate-2
                 </span>
                 <SnapBadge pattern={clipboard.notes} />
               </div>
-              {!props.readOnly && (
+              {!props.readOnly && !props.mobile && (
                 <span className="text-center text-2xs text-slate-500">{t("editor.dragOntoPlayfield")}</span>
               )}
               <button
@@ -3034,7 +3138,9 @@ className="h-6 rounded-md bg-white/[0.06] px-2 text-2xs font-medium text-slate-2
           )}
         </div>
       )}
+      </EditorPanel>
 
+      <EditorPanel mobile={props.mobile} open={mobilePanel === "hitsounds"} title={t("hitsoundBar.title")} onClose={closeMobilePanel}>
       {hitsoundBarMounted && !props.zenMode && (
         <div
           className={`float-chip absolute bottom-3 left-1/2 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 whitespace-nowrap px-2 py-1 text-xs text-slate-200 ${
@@ -3065,19 +3171,19 @@ className="h-6 rounded-md bg-white/[0.06] px-2 text-2xs font-medium text-slate-2
           <span className="h-4 w-px bg-white/[0.08]" />
           <div className="flex gap-1">
             <HitsoundAddBtn
-              label="W"
+              label={props.mobile ? t("hitsoundBar.whistle").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "W"}
               title={t("hitsoundBar.whistle")}
               active={toolbarHasAddition(HITSOUND_WHISTLE)}
               onClick={() => toggleAddition(HITSOUND_WHISTLE)}
             />
             <HitsoundAddBtn
-              label="F"
+              label={props.mobile ? t("hitsoundBar.finish").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "F"}
               title={t("hitsoundBar.finish")}
               active={toolbarHasAddition(HITSOUND_FINISH)}
               onClick={() => toggleAddition(HITSOUND_FINISH)}
             />
             <HitsoundAddBtn
-              label="C"
+              label={props.mobile ? t("hitsoundBar.clap").replace(/\s*[(（][^()（）]*[)）]\s*$/, "") : "C"}
               title={t("hitsoundBar.clap")}
               active={toolbarHasAddition(HITSOUND_CLAP)}
               onClick={() => toggleAddition(HITSOUND_CLAP)}
@@ -3119,9 +3225,18 @@ className="h-6 rounded-md bg-white/[0.06] px-2 text-2xs font-medium text-slate-2
             </>
           )}
           <span className="h-4 w-px bg-white/[0.08]" />
-          <span className="pr-1 text-2xs text-slate-500">{t("hitsoundBar.exit")}</span>
+          {!props.mobile && <span className="pr-1 text-2xs text-slate-500">{t("hitsoundBar.exit")}</span>}
         </div>
       )}
+      </EditorPanel>
+      {props.mobile && <Modal open={mobilePanel === "view"} title={t("mobile.view")} onClose={closeMobilePanel}>
+        <div className="flex flex-col gap-5">
+          <Field label={t("mobile.receptors")}><Toggle checked={receptorsOn} onChange={setReceptorsOn} aria-label={t("mobile.receptors")} /></Field>
+          <Button onClick={() => { props.onToggleWaveformOverlay?.(); }}>{t("settings.waveformOnLane")}</Button>
+          <Button onClick={() => { setSelection(new Set(propsRef.current.notes.map(n => n.id))); setMobilePanel("selection"); }}>{t("mobile.selectAll")}</Button>
+          <p className="text-sm leading-relaxed text-slate-300">{t("mobile.helpBody")}</p>
+        </div>
+      </Modal>}
     </div>
   );
 }

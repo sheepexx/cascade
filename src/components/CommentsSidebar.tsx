@@ -196,7 +196,7 @@ export function CommentsSidebar({
 
   return (
     <div
-      className={`absolute right-0 top-0 z-40 flex h-full w-80 flex-col border-l border-white/[0.06] bg-ink-900 ${
+      className={`comments-sidebar absolute right-0 top-0 z-40 flex h-full w-80 flex-col border-l border-white/[0.06] bg-ink-900 ${
         open ? "" : "hidden"
       }`}
     >

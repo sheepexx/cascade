@@ -21,7 +21,7 @@ function focusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function useDialog(open: boolean) {
+export function useDialog(open: boolean, focusFirst = true) {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export function useDialog(open: boolean) {
     const restoreTo = document.activeElement as HTMLElement | null;
     const panel = panelRef.current;
 
-    const first = panel ? focusable(panel)[0] : null;
+    const first = focusFirst && panel ? focusable(panel)[0] : null;
     (first ?? panel)?.focus({ preventScroll: true });
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -59,7 +59,7 @@ export function useDialog(open: boolean) {
       openDialogs = Math.max(0, openDialogs - 1);
       restoreTo?.focus?.({ preventScroll: true });
     };
-  }, [open]);
+  }, [open, focusFirst]);
 
   return panelRef;
 }

@@ -159,7 +159,7 @@ export function MessagesView({
     setConversations((prev) => prev?.map((c) => (c.id === id ? { ...c, ...patch } : c)) ?? prev);
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 overflow-hidden md:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
+    <div data-conversation={!!conversationId} className="message-workspace grid h-full min-h-0 grid-cols-1 overflow-hidden md:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
       <aside
         className={`min-h-0 flex-col border-white/[0.06] md:flex md:border-r ${conversationId ? "hidden" : "flex"}`}
         aria-label={t("social.conversations")}

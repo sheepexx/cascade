@@ -1,31 +1,48 @@
-import { useEffect, useState } from "react";
-
-const PHONE_MAX_WIDTH = 720;
+import { useLayoutEffect, useSyncExternalStore } from "react";
 
 function isPhoneViewport(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia?.("(pointer: coarse)").matches === true &&
-    window.innerWidth < PHONE_MAX_WIDTH
-  );
+  return typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches &&
+    (window.innerWidth < 720 || (window.innerWidth < 1100 && window.innerHeight < 540));
 }
 
-/**
- * True on a narrow touch screen. The start screen swaps to its phone layout on
- * this, and the app header stays visible on it so sign-in, the account menu and
- * the admin panel remain reachable without the radial menu phones never open.
- */
-export function usePhoneViewport(): boolean {
-  const [phone, setPhone] = useState(isPhoneViewport);
-  useEffect(() => {
-    const update = () => setPhone(isPhoneViewport());
-    update();
+function syncViewport() {
+  const phone = isPhoneViewport();
+  const root = document.documentElement;
+  if (root.hasAttribute("data-phone") !== phone) root.toggleAttribute("data-phone", phone);
+  const height = phone ? `${window.visualViewport?.height ?? window.innerHeight}px` : "";
+  if (root.style.getPropertyValue("--phone-height") === height) return;
+  if (height) root.style.setProperty("--phone-height", height);
+  else root.style.removeProperty("--phone-height");
+}
+
+const listeners = new Set<() => void>();
+let removeListeners: (() => void) | null = null;
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  if (!removeListeners) {
+    const update = () => { syncViewport(); for (const notify of listeners) notify(); };
+    const pointer = window.matchMedia("(pointer: coarse)");
     window.addEventListener("resize", update);
     window.addEventListener("orientationchange", update);
-    return () => {
+    pointer.addEventListener("change", update);
+    window.visualViewport?.addEventListener("resize", update);
+    update();
+    removeListeners = () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
+      pointer.removeEventListener("change", update);
+      window.visualViewport?.removeEventListener("resize", update);
     };
-  }, []);
+  }
+  return () => {
+    listeners.delete(listener);
+    if (!listeners.size) { removeListeners?.(); removeListeners = null; }
+  };
+}
+
+/** One viewport subscription shared by the editor and its sheets. */
+export function usePhoneViewport(): boolean {
+  const phone = useSyncExternalStore(subscribe, isPhoneViewport, () => false);
+  useLayoutEffect(syncViewport, [phone]);
   return phone;
 }

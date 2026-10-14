@@ -159,7 +159,7 @@ export function NotificationInbox({
             ref={panelRef}
             role="dialog"
             aria-label={t("inbox.label")}
-            style={{ position: "fixed", top: pos.top, right: pos.right }}
+            style={{ position: "fixed", top: pos.top, right: pos.right, maxHeight: Math.max(100, (window.visualViewport?.height ?? window.innerHeight) + (window.visualViewport?.offsetTop ?? 0) - pos.top - 8) }}
             className="ui-popover menu-pop-in z-[110] flex max-h-[min(36rem,calc(100vh-5rem))] w-96 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl bg-ink-700 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]"
           >
             <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-2.5">

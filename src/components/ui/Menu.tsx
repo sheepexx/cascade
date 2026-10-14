@@ -92,13 +92,12 @@ export function Menu({
     const right = Math.min(Math.max(8, window.innerWidth - rect.right), maxRight);
     // A trigger near the bottom of the window, like the hitsound toolbar,
     // opens its menu upward when there is more room above.
-    const roomBelow = window.innerHeight - rect.bottom - 8;
-    const roomAbove = rect.top - 8;
+    const viewportTop = window.visualViewport?.offsetTop ?? 0;
+    const viewportBottom = viewportTop + (window.visualViewport?.height ?? window.innerHeight);
+    const roomBelow = viewportBottom - rect.bottom - 8;
+    const roomAbove = rect.top - viewportTop - 8;
     setPos(
-      (height > roomBelow || rect.top > window.innerHeight * 0.75) &&
-        roomAbove > Math.max(roomBelow, height)
-        ? { bottom: window.innerHeight - rect.top + 4, right }
-        : { top: rect.bottom + 4, right },
+      { top: Math.max(viewportTop + 8, Math.min(viewportBottom - height - 8, height > roomBelow && roomAbove > roomBelow ? rect.top - height - 4 : rect.bottom + 4)), right },
     );
   }, [open, mounted]);
 

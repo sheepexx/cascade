@@ -1,4 +1,4 @@
-import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
+import { StrictMode, Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AudioSetupModal } from "../../../../src/components/menus/AudioSetupModal";
 import { Dropdown, type DropdownOption } from "../../../../src/components/ui/Dropdown";
@@ -42,6 +42,7 @@ import { parseSocialPath, socialPath, type SocialRoute } from "../../../../src/l
  */
 
 const params = new URLSearchParams(location.search);
+const EditorApp = lazy(() => import("../../../../src/App"));
 
 function token(userId: string): string {
   const encode = (value: object) =>
@@ -479,6 +480,7 @@ function AdminMappingHarness() {
 }
 
 function Harness() {
+  if (params.get("mode") === "phone-editor") return <Suspense fallback={null}><EditorApp /></Suspense>;
   if (params.get("mode") === "social") return <SocialHarness />;
   if (params.get("mode") === "admin-mapping") return <AdminMappingHarness />;
   if (params.get("mode") === "audio-setup") return <AudioSetupHarness />;

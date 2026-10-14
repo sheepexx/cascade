@@ -264,7 +264,13 @@ export function useTimelineEdits({
     [commitDiffFields, activeIdRef, difficultiesRef, durationRef],
   );
 
+  const resetTrimAndFades = useCallback(() => {
+    if (!canEditRef.current) return;
+    commitDiffFields({ trimStartMs: null, trimEndMs: null, fadeInMs: null, fadeOutMs: null });
+  }, [canEditRef, commitDiffFields]);
+
   return {
+    resetTrimAndFades,
     addBookmark,
     clearBookmarkLoop,
     removeBookmark,

@@ -17,7 +17,8 @@ export function HitsoundAddBtn({
     <button
       onClick={onClick}
       title={title}
-      className={`h-6 w-6 rounded font-mono text-xs font-semibold transition ${
+      aria-pressed={active}
+      className={`hitsound-add-button h-6 w-6 rounded font-mono text-xs font-semibold transition ${
         active
           ? "bg-emerald-400/90 text-ink-950"
           : "bg-white/[0.06] text-slate-300 hover:bg-white/[0.1] hover:text-slate-50"

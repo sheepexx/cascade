@@ -43,6 +43,7 @@ import type { ProgressReport } from "../lib/progress";
 import { MOTION } from "../lib/motion";
 import { MENU_ACCENTS } from "../lib/menuTheme";
 import { useT } from "../lib/i18n";
+import { usePhoneViewport } from "../hooks/usePhoneViewport";
 
 const EXIT_MS = MOTION.exit;
 
@@ -109,6 +110,8 @@ export function PackCreator({
   cascadeTag?: boolean;
 }) {
   const t = useT();
+  const phone = usePhoneViewport();
+  const [phoneTab, setPhoneTab] = useState<"maps" | "map" | "settings">("maps");
   const { user } = useAuth();
   const [metadata, setMetadata] = useState<PackMetadata>(DEFAULT_PACK_METADATA);
   const [settings, setSettings] = useState<PackCreatorSettings>(
@@ -416,7 +419,8 @@ export function PackCreator({
 
   return (
     <div
-      className={`fixed inset-0 z-40 flex flex-col bg-ink-900 ${
+      data-phone-tab={phoneTab}
+      className={`pack-creator fixed inset-0 z-40 flex flex-col bg-ink-900 ${
         closing ? "pointer-events-none modal-backdrop-out" : "modal-backdrop-in"
       }`}
       onDragEnter={(e) => {
@@ -558,11 +562,14 @@ export function PackCreator({
           </p>
         )}
 
-        <div className="flex min-h-0 flex-1 overflow-x-auto">
+        {phone && <nav className="phone-pack-tabs flex shrink-0 gap-1 border-b border-white/[0.06] p-2" aria-label={t("menu.packCreator")}>
+          {(["maps", "map", "settings"] as const).map(tab => <button type="button" key={tab} aria-pressed={phoneTab === tab} onClick={() => setPhoneTab(tab)} className={`min-w-0 flex-1 rounded-md px-2 text-sm ${phoneTab === tab ? "bg-white/[0.09] text-slate-50" : "text-slate-400"}`}>{t(`mobile.pack${tab === "maps" ? "Maps" : tab === "map" ? "Map" : "Settings"}`)}</button>)}
+        </nav>}
+        <div className="pack-workspace flex min-h-0 flex-1 overflow-x-auto">
           {/* Maps: what goes into the pack. Until there is anything to list,
               the work area's drop target does this job alone. */}
           {(hasItems || excluded.length > 0 || importProblems.length > 0) && (
-          <section className="flex min-h-0 w-72 shrink-0 flex-col border-r border-white/[0.06]">
+          <section className="pack-maps flex min-h-0 w-72 shrink-0 flex-col border-r border-white/[0.06]">
             <AreaHeader
               label={t("pack.step1")}
               right={
@@ -615,7 +622,7 @@ export function PackCreator({
                       >
                         <button
                           type="button"
-                          onClick={() => setSelectedId(item.id)}
+                          onClick={() => { setSelectedId(item.id); if (phone) setPhoneTab("map"); }}
                           className="min-w-0 flex-1 rounded-md py-1.5 pl-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
                         >
                           <MarqueeText
@@ -687,7 +694,7 @@ export function PackCreator({
           {/* The work area. Empty, it is one large place to drop maps; with
               maps in, it reviews the selected one, and once validated the
               findings sit on top where they cannot be missed. */}
-          <section className="flex min-h-0 min-w-[22rem] flex-1 flex-col">
+          <section className={`pack-map flex min-h-0 min-w-[22rem] flex-1 flex-col ${!hasItems ? "is-empty" : ""}`}>
             {!hasItems ? (
               <div className="grid flex-1 place-items-center p-8">
                 <div
@@ -744,7 +751,7 @@ export function PackCreator({
           </section>
 
           {/* The pack itself: the metadata every difficulty shares. */}
-          <aside className="flex min-h-0 w-80 shrink-0 flex-col border-l border-white/[0.06] bg-black/10">
+          <aside className="pack-settings flex min-h-0 w-80 shrink-0 flex-col border-l border-white/[0.06] bg-black/10">
             <AreaHeader label={t("pack.step2")} />
             <div className="min-h-0 flex-1 overflow-y-auto pb-4">
               <Group title={t("pack.basics")}>

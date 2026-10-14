@@ -23,6 +23,7 @@ import {
   type BookmarkLoopRange,
 } from "../lib/bookmarks";
 import { useT } from "../lib/i18n";
+import { usePhoneViewport } from "../hooks/usePhoneViewport";
 
 const HEIGHT = 96;
 const AVATAR_R = 9;
@@ -187,6 +188,10 @@ export function BottomTimeline({
   onSetFadeOut,
   selectedTimingIds,
 }: Props) {
+  const phone = usePhoneViewport();
+  const holdTimer = useRef<number | undefined>(undefined);
+  const heldPointerStart = useRef({ x: 0, y: 0 });
+  useEffect(() => () => window.clearTimeout(holdTimer.current), []);
   const t = useT();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -1267,7 +1272,7 @@ export function BottomTimeline({
         seekRafRef.current = requestAnimationFrame(flushSeek);
       }
     };
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       if (trimDragRef.current) {
         applyTrimDrag(trimDragRef.current, e.clientX);
         return;
@@ -1282,7 +1287,7 @@ export function BottomTimeline({
         if (dragMovedRef.current) scheduleSeek(e.clientX);
       }
     };
-    const onUp = (e: MouseEvent) => {
+    const onUp = (e: PointerEvent) => {
       if (draggingRef.current) {
         pendingSeekXRef.current = null;
         cancelAnimationFrame(seekRafRef.current);
@@ -1301,14 +1306,14 @@ export function BottomTimeline({
         trimHoverRef.current = null;
       }
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
     return () => {
       pendingSeekXRef.current = null;
       cancelAnimationFrame(seekRafRef.current);
       seekRafRef.current = 0;
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
   }, [seekFromEvent, applyTrimDrag]);
 
@@ -1320,10 +1325,27 @@ export function BottomTimeline({
     >
       <canvas
         ref={canvasRef}
-        className="block h-full w-full cursor-pointer"
-        onMouseDown={onMouseDown}
-        onMouseMove={onCanvasMove}
-        onMouseLeave={clearTip}
+        className="block h-full w-full cursor-pointer touch-none"
+        aria-label={t("mobile.timeline")}
+        onPointerDown={e => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          e.currentTarget.setPointerCapture(e.pointerId);
+          heldPointerStart.current = { x: e.clientX, y: e.clientY };
+          onMouseDown(e);
+          if (e.pointerType !== "mouse") holdTimer.current = window.setTimeout(() => {
+            draggingRef.current = false;
+            trimDragRef.current = null;
+            onCanvasContextMenu(e);
+          }, 500);
+        }}
+        onPointerMove={e => {
+          if (Math.hypot(e.clientX - heldPointerStart.current.x, e.clientY - heldPointerStart.current.y) > 8) window.clearTimeout(holdTimer.current);
+          onCanvasMove(e);
+        }}
+        onPointerUp={() => window.clearTimeout(holdTimer.current)}
+        onPointerCancel={() => { window.clearTimeout(holdTimer.current); draggingRef.current = false; trimDragRef.current = null; pendingSeekXRef.current = null; }}
+        onPointerLeave={clearTip}
         onContextMenu={onCanvasContextMenu}
       />
       {tip && (
@@ -1462,20 +1484,20 @@ export function BottomTimeline({
       {menu &&
         createPortal(
         <div
-          className="fixed inset-0 z-50"
-          onMouseDown={() => setMenu(null)}
+          className="timeline-context-backdrop fixed inset-0 z-50"
+          onPointerDown={() => setMenu(null)}
           onContextMenu={(e) => {
             e.preventDefault();
             setMenu(null);
           }}
         >
           <div
-            className="menu-pop-in absolute min-w-[12rem] overflow-hidden rounded-xl bg-ink-700 p-1 text-sm text-slate-200 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]"
+            className="timeline-context-menu menu-pop-in absolute min-w-[12rem] overflow-hidden rounded-xl bg-ink-700 p-1 text-sm text-slate-200 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]"
             style={{
               left: Math.min(menu.x, window.innerWidth - 208),
               top: Math.min(menu.y, window.innerHeight - 292),
             }}
-            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <div className="px-2.5 pb-1 pt-1 font-mono text-2xs text-slate-500">
               {formatTimestamp(menu.ms)}
@@ -1500,7 +1522,7 @@ export function BottomTimeline({
                   </label>
                   <div className="flex gap-1">
                     <input
-                      autoFocus
+                      autoFocus={!phone}
                       value={bookmarkDraft}
                       maxLength={80}
                       onChange={(e) => setBookmarkDraft(e.target.value)}

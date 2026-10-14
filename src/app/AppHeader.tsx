@@ -30,6 +30,9 @@ import type { OsuStatus } from "../lib/osuDesktop";
 import { isDesktopApp } from "../lib/pwa";
 import type { AppSettings, Difficulty } from "../types";
 import type { ModalId } from "./appTypes";
+import { PhoneIcon } from "../components/mobile/PhoneIcon";
+import { PhoneMenu } from "../components/mobile/PhoneMenu";
+import type { PaletteCommand } from "../components/ui/CommandPalette";
 
 /**
  * The bar along the top of the editor: the File and More menus, undo, redo and
@@ -37,6 +40,7 @@ import type { ModalId } from "./appTypes";
  * account button. Zen mode and playtests hide it.
  */
 export function AppHeader({
+  phone,
   active,
   appSettings,
   askToLogIn,
@@ -102,6 +106,7 @@ export function AppHeader({
   social,
   undo,
 }: {
+  phone?: { title: string; menuOpen: boolean; onMenuOpen: (open: boolean) => void; openDifficulties: () => void; commands: PaletteCommand[] };
   active: Difficulty;
   appSettings: AppSettings;
   askToLogIn: (reason: AccountReason) => void;
@@ -173,6 +178,27 @@ export function AppHeader({
   undo: () => void;
 }) {
   const t = useT();
+  if (phone) return <>
+    {showHeader && <header className={`phone-app-header z-30 flex shrink-0 items-center gap-1 border-b border-white/[0.06] bg-ink-900 px-2 ${!hasProject ? "absolute inset-x-0 top-0" : ""}`}>
+      <button type="button" className="phone-icon-button" aria-label={hasProject ? t("diffSidebar.title") : t("home.returnTitle")} onClick={hasProject ? phone.openDifficulties : undefined}>
+        {hasProject ? <PhoneIcon name="layers" /> : <img src={`${import.meta.env.BASE_URL}favicon.png?v=3`} alt="Cascade" className="h-7 w-7 rounded-full" />}
+      </button>
+      <button type="button" className="min-w-0 flex-1 py-1 text-left" onClick={() => phone.onMenuOpen(true)} aria-label={t("mobile.allTools")}>
+        <span className="block truncate font-display text-sm font-semibold text-slate-100">{phone.title}</span>
+        <span className="block truncate text-xs text-slate-400">{hasProject ? `${active.name} · ${active.keyCount}K${!canEdit ? ` · ${t("nav.viewOnly")}` : ""}` : "VSRG Editor"}</span>
+      </button>
+      {hasProject && saveStatus && <button type="button" className="phone-save-status flex h-11 items-center gap-1 px-1 text-xs" onClick={() => void handleSave()} aria-label={saveStatus === "error" ? t("file.saveFailed") : t("file.saveLocally")}>
+        <span className={`h-1.5 w-1.5 rounded-full ${saveStatus === "error" ? "bg-rose-400" : saveStatus === "saving" ? "animate-pulse bg-amber-300" : "bg-emerald-400"}`} /><span>{saveStatus === "saving" ? t("file.saving") : saveStatus === "saved" ? t("file.saved") : t("file.saveFailed")}</span>
+      </button>}
+      <button type="button" className="phone-icon-button" aria-label={t("mobile.allTools")} onClick={() => phone.onMenuOpen(true)}><PhoneIcon name="more" /></button>
+    </header>}
+    <PhoneMenu open={phone.menuOpen} onClose={() => phone.onMenuOpen(false)} commands={phone.commands}>
+      <LanguagePicker compact />
+      {social && authUser && <SocialButton unreadMessages={social.unreadMessages} pendingRequests={social.pendingRequests} onOpen={target => { phone.onMenuOpen(false); social.open(target); }} />}
+      <NotificationInbox signedIn={!!authUser} notifications={notifications} loading={notificationsLoading} error={notificationsError} onRefresh={refreshNotifications} onOpen={n => { phone.onMenuOpen(false); openInboxNotification(n); }} onMarkRead={markInboxNotificationRead} onMarkUnread={markInboxNotificationUnread} onMarkAllRead={markInboxAllRead} onDismiss={dismissInboxNotification} />
+      <AccountControl compact onOpenMyMaps={() => { phone.onMenuOpen(false); setModal("myMaps"); }} onOpenPresets={appSettings.showPatternTools ? () => { phone.onMenuOpen(false); setModal("presets"); } : undefined} onOpenFeedback={() => { phone.onMenuOpen(false); setModal("feedback"); }} onOpenAdmin={() => { phone.onMenuOpen(false); setModal("admin"); }} onOpenSocial={social ? target => { phone.onMenuOpen(false); social.open(target); } : undefined} socialBadges={social ? { friends: social.pendingRequests, messages: social.unreadMessages } : undefined} />
+    </PhoneMenu>
+  </>;
   const fileMenu = (
     <Menu
       label={t("nav.file")}
