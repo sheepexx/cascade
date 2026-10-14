@@ -352,6 +352,8 @@ function ConversationPane({
   const channelRef = useRef<RealtimeChannel | null>(null);
   const lastTypingSent = useRef(0);
   const typingTimer = useRef<number | undefined>(undefined);
+  const sendsInFlight = useRef(new Set<string>());
+  const deferredOwnMessages = useRef(new Map<string, Message>());
 
   const markRead = useCallback(() => {
     if (document.visibilityState !== "visible") return;
@@ -385,6 +387,13 @@ function ConversationPane({
 
   useEffect(() => {
     if (!incoming || incoming.message.conversation_id !== conversation.id) return;
+    // Realtime may beat the send response. Keep our echoes until that
+    // response replaces the temporary row with its server id; merging
+    // them sooner would show both copies. Other people's messages stay live.
+    if (incoming.message.sender === me.id && sendsInFlight.current.size > 0) {
+      deferredOwnMessages.current.set(incoming.message.id, incoming.message);
+      return;
+    }
     const el = scrollRef.current;
     stickToBottom.current = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 120;
     setMessages((prev) => mergeMessages(prev, [incoming.message]));
@@ -475,7 +484,7 @@ function ConversationPane({
       }
       return;
     }
-    const tempId = `pending-${Date.now()}`;
+    const tempId = `pending-${crypto.randomUUID()}`;
     const optimistic: Pending = {
       id: tempId,
       conversation_id: conversation.id,
@@ -487,6 +496,7 @@ function ConversationPane({
       deleted_at: null,
       pending: true,
     };
+    sendsInFlight.current.add(tempId);
     stickToBottom.current = true;
     setMessages((prev) => [...prev, optimistic]);
     if (!gifUrl) setDraft("");
@@ -498,6 +508,13 @@ function ConversationPane({
     } catch (e) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true } : m)));
       notice({ tone: "error", text: errorText(e, t("social.sendFailed")) });
+    } finally {
+      sendsInFlight.current.delete(tempId);
+      if (sendsInFlight.current.size === 0 && deferredOwnMessages.current.size > 0) {
+        const echoes = [...deferredOwnMessages.current.values()];
+        deferredOwnMessages.current.clear();
+        setMessages((prev) => mergeMessages(prev, echoes));
+      }
     }
   };
 

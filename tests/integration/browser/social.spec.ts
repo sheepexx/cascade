@@ -31,6 +31,53 @@ test.beforeEach(async () => {
   await backend("/__test/reset");
 });
 
+test("a realtime echo before the send response never duplicates a message", async ({ browser }) => {
+  const alice = await user("alice");
+  const bob = await user("bob");
+  const { data: conversation } = await rpcAs(alice, "open_conversation", { p_user: bob });
+  await rpcAs(bob, "send_message", { p_conversation: conversation, p_body: "ready", p_reply_to: null });
+  const a = await open(browser, alice, "alice", `/messages/${conversation}`);
+  const b = await open(browser, bob, "bob", `/messages/${conversation}`);
+  await expect(a.getByRole("log").getByText("ready", { exact: true })).toBeVisible();
+  await expect(b.getByRole("log").getByText("ready", { exact: true })).toBeVisible();
+
+  const releases: (() => void)[] = [];
+  await a.route("**/rpc", async (route) => {
+    if (route.request().postDataJSON().fn !== "send_message") return route.continue();
+    // Commit and deliver the realtime event, but hold the HTTP acknowledgement.
+    const response = await route.fetch();
+    await new Promise<void>((resolve) => releases.push(resolve));
+    await route.fulfill({ response });
+  });
+
+  const body = "same message twice on purpose";
+  const mine = a.getByRole("log").getByText(body, { exact: true });
+  const theirs = b.getByRole("log").getByText(body, { exact: true });
+  const box = a.getByRole("textbox", { name: "Message bob" });
+  try {
+    for (let count = 1; count <= 2; count++) {
+      await box.fill(body);
+      await box.press("Enter");
+      await expect.poll(() => releases.length).toBe(count);
+      await expect(theirs).toHaveCount(count);
+      // A reply through the same realtime stream proves the echo reached Alice.
+      const reply = `received ${count}`;
+      await rpcAs(bob, "send_message", { p_conversation: conversation, p_body: reply, p_reply_to: null });
+      await expect(a.getByRole("log").getByText(reply, { exact: true })).toBeVisible();
+      await expect(mine).toHaveCount(count);
+
+      releases[count - 1]();
+      await expect(a.getByRole("log").getByRole("button", { name: "Edit", exact: true })).toHaveCount(count);
+      await expect(mine).toHaveCount(count);
+    }
+    await a.reload();
+    await expect(mine).toHaveCount(2);
+  } finally {
+    for (const release of releases) release();
+    await a.unrouteAll({ behavior: "wait" });
+  }
+});
+
 test("two mappers become friends, chat live, and a block stops both sides", async ({ browser }) => {
   const alice = await user("alice");
   const bob = await user("bob");
@@ -195,9 +242,14 @@ test("a profile leads with mapping, shows badges up top and imports maps", async
   await expect(a.getByText("#12,345")).toBeVisible();
   await expect(a.getByText("4,568pp")).toBeVisible();
   // Every number in a row of tiles sits on one line, even under a label that wraps.
-  const numberTop = (label: string) =>
-    a.getByText(label, { exact: true }).locator("xpath=following-sibling::div[1]").evaluate((el) => el.getBoundingClientRect().top);
-  expect(await numberTop("Guest difficulties")).toBe(await numberTop("Nominated"));
+  // Measure together so the overlay's entrance animation cannot move
+  // between the two reads.
+  const numberTops = await a.getByText("Guest difficulties", { exact: true })
+    .or(a.getByText("Nominated", { exact: true }))
+    .locator("xpath=following-sibling::div[1]")
+    .evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().top));
+  expect(numberTops).toHaveLength(2);
+  expect(numberTops[0]).toBe(numberTops[1]);
   await expect(a.getByText("Accuracy")).toHaveCount(0);
   await shot(a, "profile-overview");
 
