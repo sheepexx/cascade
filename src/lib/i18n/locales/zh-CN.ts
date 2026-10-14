@@ -46,6 +46,7 @@ export const zhCN: PartialCatalog = {
   "mobile.clearSelection": "清除选择",
   "mobile.cut": "剪切所选音符",
   "mobile.start": "创建、编辑和分享谱面",
+  "mobile.about": "关于 Cascade",
   "mobile.searchTools": "搜索工具与设置",
   "mobile.help": "触控操作",
   "mobile.pausePlaytest": "暂停或继续试玩",

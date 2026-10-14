@@ -46,6 +46,7 @@ export const de: PartialCatalog = {
   "mobile.clearSelection": "Auswahl aufheben",
   "mobile.cut": "Auswahl ausschneiden",
   "mobile.start": "Maps erstellen, bearbeiten und teilen",
+  "mobile.about": "Über Cascade",
   "mobile.searchTools": "Werkzeuge und Einstellungen suchen",
   "mobile.help": "Touch-Steuerung",
   "mobile.pausePlaytest": "Testspiel pausieren oder fortsetzen",

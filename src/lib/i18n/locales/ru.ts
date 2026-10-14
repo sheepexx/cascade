@@ -46,6 +46,7 @@ export const ru: PartialCatalog = {
   "mobile.clearSelection": "Снять выделение",
   "mobile.cut": "Вырезать выделение",
   "mobile.start": "Создавайте, редактируйте и делитесь картами",
+  "mobile.about": "О Cascade",
   "mobile.searchTools": "Поиск инструментов и настроек",
   "mobile.help": "Сенсорное управление",
   "mobile.pausePlaytest": "Приостановить или продолжить тест",

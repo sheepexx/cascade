@@ -289,10 +289,16 @@ test("the phone start screen fits one screen and the menu's popovers stay on it"
   await page.getByRole("button", { name: "Skip Cascade intro", exact: true }).click();
   const importMap = page.getByRole("button", { name: "Import map", exact: true });
   await expect(importMap).toBeVisible();
-  // No song picture behind the actions and no page copy below them.
+  // No song picture behind the actions, and the page copy stays folded: in
+  // the page for search engines without adding anything to scroll.
   expect(await importMap.evaluate(el => { const scroller = el.closest(".overflow-y-auto")!; return scroller.scrollHeight - scroller.clientHeight; })).toBeLessThanOrEqual(0);
-  await expect(page.getByRole("heading", { name: "Free Online osu!mania Editor & Map Viewer" })).toHaveCount(0);
   await expect(page.locator('[style*="background-image: url"]')).toHaveCount(0);
+  const heading = page.getByRole("heading", { name: "Free Online osu!mania Editor & Map Viewer" });
+  await expect(page.locator("h1", { hasText: "Free Online osu!mania Editor" })).toBeAttached();
+  await expect(heading).toBeHidden();
+  await page.getByText("About Cascade", { exact: true }).click();
+  await expect(heading).toBeVisible();
+  await page.getByText("About Cascade", { exact: true }).click();
 
   await page.getByRole("button", { name: "All tools", exact: true }).last().click();
   const menu = page.getByRole("dialog", { name: "All tools", exact: true });

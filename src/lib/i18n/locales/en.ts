@@ -44,6 +44,7 @@ export const en = {
   "mobile.clearSelection": "Clear selection",
   "mobile.cut": "Cut selection",
   "mobile.start": "Create, edit and share maps",
+  "mobile.about": "About Cascade",
   "mobile.searchTools": "Search tools and settings",
   "mobile.help": "Touch controls",
   "mobile.pausePlaytest": "Pause or resume playtest",

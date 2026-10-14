@@ -46,6 +46,7 @@ export const ptBR: PartialCatalog = {
   "mobile.clearSelection": "Limpar seleção",
   "mobile.cut": "Recortar seleção",
   "mobile.start": "Crie, edite e compartilhe mapas",
+  "mobile.about": "Sobre o Cascade",
   "mobile.searchTools": "Buscar ferramentas e configurações",
   "mobile.help": "Controles de toque",
   "mobile.pausePlaytest": "Pausar ou continuar teste",

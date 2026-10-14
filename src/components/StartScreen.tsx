@@ -158,9 +158,16 @@ const SIDE_FLASH_LEFT =
 const SIDE_FLASH_RIGHT =
   "linear-gradient(to left, rgba(255,250,240,0.3), rgba(255,250,240,0))";
 
-/** Phones get one screen of actions: no song, no picture behind it and none
- *  of the page copy below, which the static page already carries. */
-function PhoneStart({ actions }: { actions: MenuAction[] }) {
+/** Phones get one screen of actions: no song and no picture behind it. The
+ *  page copy stays folded under "About Cascade", so it costs no scrolling but
+ *  is still in the page for search engines, which index the phone layout. */
+function PhoneStart({
+  actions,
+  children,
+}: {
+  actions: MenuAction[];
+  children?: ReactNode;
+}) {
   const t = useT();
   return (
     <div className="h-full overflow-y-auto font-display">
@@ -190,6 +197,15 @@ function PhoneStart({ actions }: { actions: MenuAction[] }) {
             </button>)}
           </div>
         </div>
+
+        {children && (
+          <details className="mx-auto mt-6 w-full max-w-md">
+            <summary className="mx-auto w-fit cursor-pointer list-none rounded-md px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-300 [&::-webkit-details-marker]:hidden">
+              {t("mobile.about")}
+            </summary>
+            {children}
+          </details>
+        )}
       </div>
     </div>
   );
@@ -447,7 +463,7 @@ export function StartScreen({
   );
   const menuCenter = compactBanner ? `${compactCenter}px` : "50%";
 
-  if (phone) return <PhoneStart actions={[...left, ...right]} />;
+  if (phone) return <PhoneStart actions={[...left, ...right]}>{children}</PhoneStart>;
 
   return (
     <div className="no-scrollbar h-full overflow-y-auto font-display">
