@@ -195,7 +195,6 @@ html[data-phone] .timeline-context-menu { left: 8px !important; right: 8px; top:
 html[data-phone] .ui-btn { min-height: 44px; }
 html[data-phone] .account-popover { overflow-y: auto; }
 html[data-phone] .phone-playtest-keys button { min-width: 0; }
-html[data-phone] .difficulty-row-actions { max-height: none; overflow: visible; opacity: 1; margin-top: 4px; padding-left: 0; }
 html[data-phone] .pack-creator { height: var(--phone-height, 100dvh); padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
 html[data-phone] .pack-creator > div > header { height: auto; min-height: 52px; flex-wrap: wrap; padding: 4px 8px; }
 html[data-phone] .pack-creator > div > header > div:last-of-type { flex-wrap: wrap; gap: 4px; }

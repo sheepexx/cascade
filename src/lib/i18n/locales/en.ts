@@ -660,7 +660,6 @@ export const en = {
   "sampleMaps.osuMap": "osu! Map",
   "sampleMaps.mappedBy": "mapped by {name}",
 
-  "account.myMaps": "My Maps",
   "account.feedback": "Feedback",
   "account.admin": "Admin",
   "account.logOut": "Log out",
@@ -753,6 +752,8 @@ export const en = {
     "Set a background image or a muted background video, like ranked osu! maps",
   "landing.do9": "Real osu! hitsounds and `.osk` skin support",
   "landing.do10": "Realtime collaborative mapping with live comments",
+  "landing.do11":
+    "Map on your phone or tablet: a mobile osu!mania editor with touch controls for notes, long notes and playtesting",
   "landing.faqTitle": "osu!mania editor FAQ",
   "landing.faqQ1": "Is Cascade free to use?",
   "landing.faqA1":
@@ -772,6 +773,9 @@ export const en = {
   "landing.faqQ6": "Can I combine multiple maps into one .osz pack?",
   "landing.faqA6":
     "Yes. The Pack Creator on the start menu merges several beatmaps into a single .osz song pack with shared metadata, mapper credits, and generated difficulty names, for local play.",
+  "landing.faqQ7": "Can I use Cascade on my phone?",
+  "landing.faqA7":
+    "Yes. Cascade works as a mobile osu!mania editor on phones and tablets: place notes and long notes by touch, switch difficulties, playtest with on-screen keys and export, all in the mobile browser.",
   "landing.guidesTitle": "Guides",
   "landing.guide1": "How to make an osu!mania map online",
   "landing.guide2": "Convert osu!mania, StepMania, Quaver and Malody charts",
@@ -2336,15 +2340,6 @@ export const en = {
   "importModal.downloading": "Downloading…",
   "importModal.dropHint": "You can also drop files anywhere on the page.",
   "importModal.dropInfo": "Drag a map file, an audio file or a song folder onto the page. With a map open, dropping .osu files of the same song adds them as difficulties, no audio file needed.",
-  "myMaps.loadFailed": "Failed to load maps.",
-  "myMaps.deleteFailed": "Failed to delete.",
-  "myMaps.loading": "Loading your maps",
-  "myMaps.empty": "No saved maps yet. Use “Save to cloud” to store the current project.",
-  "myMaps.shared": "Shared",
-  "myMaps.mappedBy": "mapped by {name}",
-  "myMaps.deleteHint": "Delete this saved map",
-  "myMaps.deleteTitle": "Delete saved map?",
-  "myMaps.deleteBody": "This saved map and all of its stored files will be permanently deleted from Cloudflare R2 and Supabase Storage. This can't be undone.",
   "presets.loadFailed": "Failed to load presets.",
   "presets.title": "Pattern presets",
   "presets.allKeys": "Show all key counts",

@@ -5,7 +5,7 @@ import { backend } from "./support";
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 test.beforeEach(async () => { await backend("/__test/reset"); });
 
-async function openEditor(page: Page) {
+async function openEditor(page: Page, moreVersions: string[] = []) {
   await page.goto("/?mode=phone-editor&styled=1");
   await page.getByRole("button", { name: "Skip Cascade intro", exact: true }).click();
   await page.getByRole("button", { name: "Import map", exact: true }).click();
@@ -18,7 +18,7 @@ async function openEditor(page: Page) {
   audio.writeUInt32LE(rate, 24); audio.writeUInt32LE(rate * 2, 28); audio.writeUInt16LE(2, 32); audio.writeUInt16LE(16, 34);
   audio.write("data", 36); audio.writeUInt32LE(samples * 2, 40);
   zip.file("song.wav", audio);
-  zip.file("phone.osu", `osu file format v14
+  const osu = `osu file format v14
 [General]
 AudioFilename: song.wav
 Mode: 3
@@ -37,7 +37,9 @@ HPDrainRate: 5
 64,192,1000,1,0,0:0:0:0:
 192,192,1500,1,0,0:0:0:0:
 320,192,2000,128,0,2750:0:0:0:0:
-`);
+`;
+  zip.file("phone.osu", osu);
+  for (const version of moreVersions) zip.file(`${version}.osu`, osu.replace("Version: Normal", `Version: ${version}`));
   await page.getByRole("dialog").locator('input[type="file"]').first().setInputFiles({ name: "phone.osz", mimeType: "application/zip", buffer: await zip.generateAsync({ type: "nodebuffer" }) });
   await expect(page.getByRole("toolbar", { name: "Editor controls" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Play audio", exact: true })).toBeEnabled();
@@ -50,6 +52,11 @@ async function command(page: Page, label: string) {
   await menu.getByRole("searchbox", { name: "Search actions and settings" }).fill(label);
   await menu.getByRole("button", { name: label, exact: true }).first().click();
   await expect(menu).not.toBeVisible();
+}
+
+/** Lets a sheet finish sliding in, so a tap inside it does not land mid-move. */
+async function settle(page: Page) {
+  await page.evaluate(() => Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => undefined))));
 }
 
 async function noteCount(page: Page) {
@@ -273,4 +280,58 @@ test("phone sheets stay inside the visible viewport when the keyboard reduces it
   await menu.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeVisible();
   await expect.poll(async () => { const rect = (await page.getByRole("dialog", { name: "Settings", exact: true }).boundingBox())!; return rect.y + rect.height; }).toBeLessThanOrEqual(431);
+});
+
+test("the phone start screen fits one screen and the menu's popovers stay on it", async ({ page }) => {
+  const { id } = await backend<{ id: string }>("/__test/user", { username: "phone_mapper" });
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(`/?mode=phone-editor&styled=1&user=${id}&name=phone_mapper`);
+  await page.getByRole("button", { name: "Skip Cascade intro", exact: true }).click();
+  const importMap = page.getByRole("button", { name: "Import map", exact: true });
+  await expect(importMap).toBeVisible();
+  // No song picture behind the actions and no page copy below them.
+  expect(await importMap.evaluate(el => { const scroller = el.closest(".overflow-y-auto")!; return scroller.scrollHeight - scroller.clientHeight; })).toBeLessThanOrEqual(0);
+  await expect(page.getByRole("heading", { name: "Free Online osu!mania Editor & Map Viewer" })).toHaveCount(0);
+  await expect(page.locator('[style*="background-image: url"]')).toHaveCount(0);
+
+  await page.getByRole("button", { name: "All tools", exact: true }).last().click();
+  const menu = page.getByRole("dialog", { name: "All tools", exact: true });
+  await expect(menu).toBeVisible();
+  await settle(page);
+  const account = page.locator(".account-popover");
+  for (const [trigger, popover] of [
+    [menu.getByRole("button", { name: "Language", exact: true }), page.getByRole("menu")],
+    [menu.getByRole("button", { name: /Notifications/ }).first(), page.getByRole("dialog", { name: "Notification inbox", exact: true })],
+    [menu.getByRole("button", { name: "phone_mapper" }), account],
+  ] as const) {
+    await trigger.click();
+    await expect(popover).toBeVisible();
+    await settle(page);
+    const box = (await popover.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(320);
+    if (popover === account) {
+      await expect(account.getByText("Feedback", { exact: true })).toBeVisible();
+      await expect(account.getByText("My Maps", { exact: true })).toHaveCount(0);
+      await expect(account.getByText("Presets", { exact: true })).toHaveCount(0);
+    }
+    await trigger.click();
+    await expect(popover).toBeHidden();
+  }
+});
+
+test("difficulties sit side by side and are renamed from the bar under them", async ({ page }) => {
+  await openEditor(page, ["Hard"]);
+  await page.getByRole("button", { name: "Difficulties", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "Difficulties", exact: true });
+  const cards = panel.locator('[role="button"][aria-pressed]');
+  await expect(cards).toHaveCount(2);
+  await settle(page);
+  const [first, second] = [(await cards.nth(0).boundingBox())!, (await cards.nth(1).boundingBox())!];
+  expect(second.y).toBe(first.y);
+  expect(second.x).toBeGreaterThanOrEqual(first.x + first.width);
+  await panel.getByRole("button", { name: "Rename", exact: true }).click();
+  await panel.getByRole("textbox", { name: "Rename", exact: true }).fill("Expert");
+  await panel.getByRole("textbox", { name: "Rename", exact: true }).press("Enter");
+  await expect(page.getByText("Expert · 4K", { exact: true })).toBeVisible();
 });

@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import { ChevronDownIcon } from "./Icons";
 import { MOTION } from "../../lib/motion";
+import { popoverRight } from "./popoverPlacement";
 
 export type MenuItem =
   | {
@@ -86,10 +87,8 @@ export function Menu({
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const width = menuRef.current?.offsetWidth ?? 0;
     const height = menuRef.current?.offsetHeight ?? 0;
-    const maxRight = Math.max(8, window.innerWidth - width - 8);
-    const right = Math.min(Math.max(8, window.innerWidth - rect.right), maxRight);
+    const right = popoverRight(rect, menuRef.current?.offsetWidth ?? 0);
     // A trigger near the bottom of the window, like the hitsound toolbar,
     // opens its menu upward when there is more room above.
     const viewportTop = window.visualViewport?.offsetTop ?? 0;

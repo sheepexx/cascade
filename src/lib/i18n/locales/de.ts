@@ -659,7 +659,6 @@ export const de: PartialCatalog = {
   "sampleMaps.osuMap": "osu!-Map",
   "sampleMaps.mappedBy": "gemappt von {name}",
 
-  "account.myMaps": "Meine Maps",
   "account.feedback": "Feedback",
   "account.admin": "Admin",
   "account.logOut": "Abmelden",
@@ -753,6 +752,8 @@ export const de: PartialCatalog = {
     "Hintergrundbild oder stummes Hintergrundvideo setzen, wie bei ranked osu!-Maps",
   "landing.do9": "Echte osu!-Hitsounds und Unterstützung für `.osk`-Skins",
   "landing.do10": "Gemeinsames Mappen in Echtzeit mit Live-Kommentaren",
+  "landing.do11":
+    "Auf Handy oder Tablet mappen: ein mobiler osu!mania-Editor mit Touch-Steuerung für Noten, Long Notes und Testspielen",
   "landing.faqTitle": "FAQ zum osu!mania-Editor",
   "landing.faqQ1": "Ist Cascade kostenlos?",
   "landing.faqA1":
@@ -772,6 +773,9 @@ export const de: PartialCatalog = {
   "landing.faqQ6": "Kann ich mehrere Maps zu einem .osz-Pack zusammenfassen?",
   "landing.faqA6":
     "Ja. Der Pack Creator im Startmenü fügt mehrere Beatmaps zu einem einzigen .osz-Songpack zusammen, mit gemeinsamen Metadaten, Mapper-Credits und generierten Difficulty-Namen, für das lokale Spielen.",
+  "landing.faqQ7": "Kann ich Cascade auf dem Handy benutzen?",
+  "landing.faqA7":
+    "Ja. Cascade funktioniert als mobiler osu!mania-Editor auf Handys und Tablets: Noten und Long Notes per Touch setzen, Schwierigkeiten wechseln, mit Bildschirmtasten testspielen und exportieren, alles im mobilen Browser.",
   "landing.guidesTitle": "Anleitungen",
   "landing.guide1": "Wie man online eine osu!mania-Map erstellt",
   "landing.guide2":
@@ -2283,15 +2287,6 @@ export const de: PartialCatalog = {
   "importModal.downloading": "Wird heruntergeladen…",
   "importModal.dropHint": "Du kannst Dateien auch irgendwo auf der Seite ablegen.",
   "importModal.dropInfo": "Ziehe eine Map-Datei, eine Audiodatei oder einen Song-Ordner auf die Seite. Ist eine Map geöffnet, werden abgelegte .osu-Dateien desselben Songs als Schwierigkeiten hinzugefügt – ohne Audiodatei.",
-  "myMaps.loadFailed": "Maps konnten nicht geladen werden.",
-  "myMaps.deleteFailed": "Löschen fehlgeschlagen.",
-  "myMaps.loading": "Deine Maps werden geladen",
-  "myMaps.empty": "Noch keine gespeicherten Maps. Nutze „In der Cloud speichern“, um das aktuelle Projekt zu sichern.",
-  "myMaps.shared": "Geteilt",
-  "myMaps.mappedBy": "gemappt von {name}",
-  "myMaps.deleteHint": "Diese gespeicherte Map löschen",
-  "myMaps.deleteTitle": "Gespeicherte Map löschen?",
-  "myMaps.deleteBody": "Diese gespeicherte Map und alle zugehörigen Dateien werden dauerhaft aus Cloudflare R2 und Supabase Storage gelöscht. Das kann nicht rückgängig gemacht werden.",
   "presets.loadFailed": "Vorlagen konnten nicht geladen werden.",
   "presets.title": "Muster-Vorlagen",
   "presets.allKeys": "Alle Tastenanzahlen anzeigen",

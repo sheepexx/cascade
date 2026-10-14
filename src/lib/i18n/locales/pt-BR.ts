@@ -659,7 +659,6 @@ export const ptBR: PartialCatalog = {
   "sampleMaps.osuMap": "Mapa do osu!",
   "sampleMaps.mappedBy": "mapeado por {name}",
 
-  "account.myMaps": "Meus mapas",
   "account.feedback": "Feedback",
   "account.admin": "Admin",
   "account.logOut": "Sair",
@@ -753,6 +752,8 @@ export const ptBR: PartialCatalog = {
     "Definir uma imagem de fundo ou um vídeo de fundo sem som, como nos mapas ranked do osu!",
   "landing.do9": "Hitsounds reais do osu! e suporte a skins `.osk`",
   "landing.do10": "Mapeamento colaborativo em tempo real com comentários ao vivo",
+  "landing.do11":
+    "Mapeie no celular ou tablet: um editor de osu!mania mobile com controles por toque para notas, long notes e testes",
   "landing.faqTitle": "Perguntas frequentes sobre o editor de osu!mania",
   "landing.faqQ1": "O Cascade é gratuito?",
   "landing.faqA1":
@@ -772,6 +773,9 @@ export const ptBR: PartialCatalog = {
   "landing.faqQ6": "Posso juntar vários mapas em um pack .osz?",
   "landing.faqA6":
     "Sim. O Pack Creator no menu inicial junta vários beatmaps em um único song pack .osz, com metadados compartilhados, créditos de cada mapper e nomes de dificuldade gerados, para jogar localmente.",
+  "landing.faqQ7": "Posso usar o Cascade no celular?",
+  "landing.faqA7":
+    "Sim. O Cascade funciona como um editor de osu!mania mobile em celulares e tablets: coloque notas e long notes por toque, troque de dificuldade, teste com teclas na tela e exporte, tudo no navegador do celular.",
   "landing.guidesTitle": "Guias",
   "landing.guide1": "Como fazer um mapa de osu!mania online",
   "landing.guide2":
@@ -2282,15 +2286,6 @@ export const ptBR: PartialCatalog = {
   "importModal.downloading": "Baixando…",
   "importModal.dropHint": "Você também pode soltar arquivos em qualquer lugar da página.",
   "importModal.dropInfo": "Arraste um arquivo de mapa, um arquivo de áudio ou uma pasta de música para a página. Com um mapa aberto, soltar arquivos .osu da mesma música os adiciona como dificuldades, sem precisar de áudio.",
-  "myMaps.loadFailed": "Falha ao carregar os mapas.",
-  "myMaps.deleteFailed": "Falha ao excluir.",
-  "myMaps.loading": "Carregando seus mapas",
-  "myMaps.empty": "Nenhum mapa salvo ainda. Use “Salvar na nuvem” para guardar o projeto atual.",
-  "myMaps.shared": "Compartilhado",
-  "myMaps.mappedBy": "mapeado por {name}",
-  "myMaps.deleteHint": "Excluir este mapa salvo",
-  "myMaps.deleteTitle": "Excluir mapa salvo?",
-  "myMaps.deleteBody": "Este mapa salvo e todos os seus arquivos serão excluídos permanentemente do Cloudflare R2 e do Supabase Storage. Isso não pode ser desfeito.",
   "presets.loadFailed": "Falha ao carregar as predefinições.",
   "presets.title": "Predefinições de padrões",
   "presets.allKeys": "Mostrar todas as quantidades de teclas",

@@ -158,59 +158,38 @@ const SIDE_FLASH_LEFT =
 const SIDE_FLASH_RIGHT =
   "linear-gradient(to left, rgba(255,250,240,0.3), rgba(255,250,240,0))";
 
-function PhoneStart({
-  actions,
-  music,
-  players,
-  children,
-  menuBackgroundUrl,
-}: {
-  actions: MenuAction[];
-  music: MenuMusic;
-  players?: OnlinePlayer[];
-  children?: ReactNode;
-  menuBackgroundUrl?: string | null;
-}) {
+/** Phones get one screen of actions: no song, no picture behind it and none
+ *  of the page copy below, which the static page already carries. */
+function PhoneStart({ actions }: { actions: MenuAction[] }) {
   const t = useT();
   return (
     <div className="h-full overflow-y-auto font-display">
-      <div className="relative min-h-full overflow-hidden">
-        <MenuBackground
-          url={menuBackgroundUrl ?? music.track?.backgroundUrl ?? null}
-          players={players ?? []}
-          phone
-          open={false}
-        />
-
-        {/* Clears the floating header, which on phones is the only way to
-            reach sign-in and the account menu. */}
-        <div className="relative px-5 pt-24">
-          <div className="flex flex-col items-center text-center">
-            <img
-              src="/logo.png?v=3"
-              alt=""
-              aria-hidden
-              className="h-24 w-24 drop-shadow-[0_0_28px_rgba(244,90,90,0.35)]"
-            />
-            <p className="mt-4 text-2xl font-bold tracking-tight text-white">
-              Cascade
-            </p>
-            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-accent">
-              VSRG Editor
-            </p>
-          </div>
-
-          <div className="mx-auto mb-8 mt-7 max-w-md">
-            <p className="mb-4 text-center text-sm text-slate-300">{t("mobile.start")}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {actions.map(action => <button type="button" key={action.id} onClick={action.onClick} className="phone-start-action flex min-h-24 flex-col items-center justify-center gap-3 rounded-xl bg-ink-800/95 px-3 py-4 text-sm font-semibold text-slate-100 ring-1 ring-white/[0.08] hover:bg-ink-700">
-                <span className="[&_svg]:h-6 [&_svg]:w-6" style={{ color: action.color }}>{action.icon}</span>{action.label}
-              </button>)}
-            </div>
-          </div>
+      {/* The top padding clears the floating header, which on phones is the
+          only way to reach sign-in and the account menu. */}
+      <div className="flex min-h-full flex-col justify-center px-5 pb-6 pt-[calc(4.5rem+env(safe-area-inset-top))]">
+        <div className="flex flex-col items-center text-center">
+          <img
+            src="/logo.png?v=3"
+            alt=""
+            aria-hidden
+            className="h-20 w-20 drop-shadow-[0_0_28px_rgba(244,90,90,0.35)]"
+          />
+          <p className="mt-3 text-2xl font-bold tracking-tight text-white">
+            Cascade
+          </p>
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-accent">
+            VSRG Editor
+          </p>
         </div>
 
-        {children}
+        <div className="mx-auto mt-6 w-full max-w-md">
+          <p className="mb-4 text-center text-sm text-slate-400">{t("mobile.start")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {actions.map(action => <button type="button" key={action.id} onClick={action.onClick} className="phone-start-action flex min-h-20 flex-col items-center justify-center gap-2.5 rounded-xl bg-ink-800 px-3 py-3 text-sm font-semibold text-slate-100 ring-1 ring-white/[0.08] hover:bg-ink-700">
+              <span className="[&_svg]:h-6 [&_svg]:w-6" style={{ color: action.color }}>{action.icon}</span>{action.label}
+            </button>)}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -468,18 +447,7 @@ export function StartScreen({
   );
   const menuCenter = compactBanner ? `${compactCenter}px` : "50%";
 
-  if (phone) {
-    return (
-      <PhoneStart
-        actions={[...left, ...right]}
-        music={music}
-        players={players}
-        menuBackgroundUrl={menuBackgroundUrl}
-      >
-        {children}
-      </PhoneStart>
-    );
-  }
+  if (phone) return <PhoneStart actions={[...left, ...right]} />;
 
   return (
     <div className="no-scrollbar h-full overflow-y-auto font-display">

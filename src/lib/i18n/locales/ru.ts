@@ -673,7 +673,6 @@ export const ru: PartialCatalog = {
   "sampleMaps.osuMap": "Карта osu!",
   "sampleMaps.mappedBy": "автор {name}",
 
-  "account.myMaps": "Мои карты",
   "account.feedback": "Обратная связь",
   "account.admin": "Админ",
   "account.logOut": "Выйти",
@@ -767,6 +766,8 @@ export const ru: PartialCatalog = {
     "Ставить фоновое изображение или беззвучное фоновое видео, как в ranked-картах osu!",
   "landing.do9": "Настоящие хитсаунды osu! и поддержка скинов `.osk`",
   "landing.do10": "Совместное маппинг в реальном времени с живыми комментариями",
+  "landing.do11":
+    "Маппинг на телефоне или планшете: мобильный редактор osu!mania с сенсорным управлением для нот, длинных нот и тестовой игры",
   "landing.faqTitle": "FAQ по редактору osu!mania",
   "landing.faqQ1": "Cascade бесплатный?",
   "landing.faqA1":
@@ -786,6 +787,9 @@ export const ru: PartialCatalog = {
   "landing.faqQ6": "Можно ли собрать несколько карт в один .osz-пак?",
   "landing.faqA6":
     "Да. Pack Creator в стартовом меню объединяет несколько битмапов в один .osz-сборник с общими метаданными, указанием мапперов и сгенерированными названиями сложностей, для локальной игры.",
+  "landing.faqQ7": "Можно ли пользоваться Cascade на телефоне?",
+  "landing.faqA7":
+    "Да. Cascade работает как мобильный редактор osu!mania на телефонах и планшетах: ставь обычные и длинные ноты касанием, переключай сложности, тестируй карту с экранными клавишами и экспортируй её прямо в мобильном браузере.",
   "landing.guidesTitle": "Руководства",
   "landing.guide1": "Как сделать карту osu!mania онлайн",
   "landing.guide2":
@@ -2412,15 +2416,6 @@ export const ru: PartialCatalog = {
   "importModal.downloading": "Загрузка…",
   "importModal.dropHint": "Файлы также можно перетащить в любое место страницы.",
   "importModal.dropInfo": "Перетащите на страницу файл карты, аудиофайл или папку песни. Если карта открыта, файлы .osu той же песни добавятся как сложности — аудиофайл не нужен.",
-  "myMaps.loadFailed": "Не удалось загрузить карты.",
-  "myMaps.deleteFailed": "Не удалось удалить.",
-  "myMaps.loading": "Загрузка ваших карт",
-  "myMaps.empty": "Сохранённых карт пока нет. Нажмите «Сохранить в облако», чтобы сохранить текущий проект.",
-  "myMaps.shared": "Общая",
-  "myMaps.mappedBy": "маппер: {name}",
-  "myMaps.deleteHint": "Удалить эту сохранённую карту",
-  "myMaps.deleteTitle": "Удалить сохранённую карту?",
-  "myMaps.deleteBody": "Эта карта и все её файлы будут навсегда удалены из Cloudflare R2 и Supabase Storage. Это действие нельзя отменить.",
   "presets.loadFailed": "Не удалось загрузить пресеты.",
   "presets.title": "Пресеты паттернов",
   "presets.allKeys": "Показать все раскладки",

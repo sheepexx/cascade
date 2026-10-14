@@ -383,8 +383,12 @@ the keyboard and browser bars do not hide a sheet's controls.
   vertical list above 600px, a horizontal scroller below.
 - Social: navigation rail on `md` and up, a horizontal strip below; messages
   show one pane at a time on narrow screens.
+- The phone start screen is one screen of actions: no menu music, background
+  or landing copy (the static page carries that copy for search engines).
 - On phones, All tools browses and searches the same commands as the desktop
   palette. File actions, account controls and notifications remain available.
+- Difficulties sit two to a row on phones; their actions share one bar under
+  the grid instead of growing each card.
 - Difficulties, selection, clipboard, hitsounds, statistics and the timeline
   open as sheets. Sheets preserve the mounted canvas and use the shared Modal.
 - Move navigates; Note places taps or drags long notes; Select toggles notes or
@@ -397,7 +401,8 @@ the keyboard and browser bars do not hide a sheet's controls.
 - Pack Creator scrolls horizontally on desktop and switches between Maps,
   Selected map and Pack settings on phones, retaining each pane's state.
 - No horizontal page scroll at any width; dropdowns and menus flip and clamp to
-  the viewport.
+  the viewport. Right-aligned popovers use `popoverRight` so a trigger near the
+  left edge cannot push them off screen.
 
 ---
 

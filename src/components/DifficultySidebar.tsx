@@ -90,14 +90,14 @@ export function DifficultySidebar({
     }
   };
 
-  const handleRowDelete = (id: string) => {
-    let ids =
-      selected.has(id) && selected.size > 0 ? Array.from(selected) : [id];
+  const deleteDifficulties = (ids: string[]) => {
     if (ids.length >= difficulties.length) {
       ids = ids.filter((x) => x !== activeId);
     }
     if (ids.length) onDelete(ids);
   };
+  const handleRowDelete = (id: string) =>
+    deleteDifficulties(selected.has(id) ? Array.from(selected) : [id]);
   // The stats and the star-sorted list trail an edit by a render: they cost
   // tens of milliseconds on a huge map, and the playfield should show the
   // new note first.
@@ -128,7 +128,7 @@ export function DifficultySidebar({
   );
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-white/[0.06] bg-ink-900">
+    <aside className={`flex h-full shrink-0 flex-col bg-ink-900 ${mobile ? "w-full" : "w-60 border-r border-white/[0.06]"}`}>
       <div className="flex h-10 shrink-0 items-center justify-between pl-3.5 pr-2">
         <h2 className="text-xs font-semibold text-slate-300">
           {t("diffSidebar.title")}
@@ -176,7 +176,8 @@ export function DifficultySidebar({
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
-        <div className="flex flex-col gap-px">
+        {/* Phones show the difficulties side by side, two to a row. */}
+        <div className={mobile ? "grid grid-cols-2 gap-1.5" : "flex flex-col gap-px"}>
           {sorted.map(({ difficulty: d, star }) => (
             <DiffRow
               mobile={mobile}
@@ -199,6 +200,19 @@ export function DifficultySidebar({
           ))}
         </div>
       </div>
+
+      {mobile && active && (
+        <PhoneDiffActions
+          key={active.id}
+          difficulty={active}
+          selectionCount={selected.size}
+          canDelete={difficulties.length > 1}
+          onRename={(name) => onRename(active.id, name)}
+          onCopy={() => onCopy(active.id)}
+          onDuplicate={() => onDuplicate(active.id)}
+          onDelete={() => deleteDifficulties(selected.size ? Array.from(selected) : [active.id])}
+        />
+      )}
 
       {stats && (stats.notes > 0 || mobile) && (
         <div className="border-t border-white/[0.06] px-3.5 pb-3 pt-2.5">
@@ -387,8 +401,8 @@ function DiffRow({
       tabIndex={0}
       aria-pressed={selected}
       data-active={active}
-      className={`hit-line-left group cursor-pointer rounded-md px-2.5 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 ${
-        active ? "bg-white/[0.06]" : "hover:bg-white/[0.035]"
+      className={`hit-line-left group min-w-0 cursor-pointer rounded-md px-2.5 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+        active ? "bg-white/[0.06]" : mobile ? "bg-white/[0.025]" : "hover:bg-white/[0.035]"
       } ${selected ? "!bg-sky-400/[0.08] ring-1 ring-inset ring-sky-400/45" : ""}`}
     >
       <div className="flex items-center gap-2">
@@ -483,21 +497,22 @@ function DiffRow({
             </span>
           )}
         </span>
-        <span className="truncate text-2xs text-slate-500">
-          {starTier(star)}
-        </span>
+        {!mobile && (
+          <span className="truncate text-2xs text-slate-500">
+            {starTier(star)}
+          </span>
+        )}
       </div>
 
       {/* Row actions stay out of the way until the row is pointed at,
-          focused or open. */}
-      <div
-        className={`difficulty-row-actions flex flex-wrap items-center gap-0.5 pl-3 transition-[opacity,max-height,margin] duration-[var(--motion-quick)] ${
+          focused or open. Phones keep them in one bar under the grid. */}
+      {!mobile && <div
+        className={`flex items-center gap-0.5 pl-3 transition-[opacity,max-height,margin] duration-[var(--motion-quick)] ${
           active || selected
             ? "mt-1 max-h-6 opacity-100"
             : "max-h-0 overflow-hidden opacity-0 group-hover:mt-1 group-hover:max-h-6 group-hover:opacity-100 group-focus-within:mt-1 group-focus-within:max-h-6 group-focus-within:opacity-100"
         }`}
       >
-        {mobile && <button type="button" onClick={e => { e.stopPropagation(); startEditing(); }} className="rounded px-2 text-xs text-slate-300">{t("common.rename")}</button>}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -536,7 +551,87 @@ function DiffRow({
               : t("common.delete")}
           </button>
         )}
+      </div>}
+    </div>
+  );
+}
+
+const PHONE_ACTION_CLASS =
+  "rounded-md bg-white/[0.04] px-1 text-xs text-slate-300 transition hover:bg-white/[0.08] hover:text-slate-100 disabled:opacity-40";
+
+/** The row actions on phones, for the open difficulty or, while selecting,
+ *  for the selected ones. */
+function PhoneDiffActions({
+  difficulty,
+  selectionCount,
+  canDelete,
+  onRename,
+  onCopy,
+  onDuplicate,
+  onDelete,
+}: {
+  difficulty: Difficulty;
+  selectionCount: number;
+  canDelete: boolean;
+  onRename: (name: string) => void;
+  onCopy: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  const t = useT();
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commit = () => {
+    const name = draft?.trim();
+    if (name && name !== difficulty.name) onRename(name);
+    setDraft(null);
+  };
+
+  if (draft !== null) {
+    return (
+      <div className="flex shrink-0 gap-1.5 border-t border-white/[0.06] px-1.5 py-2">
+        <input
+          autoFocus
+          value={draft}
+          aria-label={t("common.rename")}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") commit();
+            else if (e.key === "Escape") setDraft(null);
+          }}
+          className="min-w-0 flex-1 rounded-md bg-black/30 px-2 text-slate-100 outline-none ring-1 ring-accent/70"
+        />
+        <button type="button" onClick={commit} className={`${PHONE_ACTION_CLASS} px-3`}>
+          {t("common.save")}
+        </button>
       </div>
+    );
+  }
+
+  return (
+    <div className="grid shrink-0 grid-cols-4 gap-1 border-t border-white/[0.06] px-1.5 py-2">
+      <button type="button" onClick={() => setDraft(difficulty.name)} className={PHONE_ACTION_CLASS}>
+        {t("common.rename")}
+      </button>
+      <button type="button" onClick={onCopy} title={t("diffSidebar.copyTitle")} className={PHONE_ACTION_CLASS}>
+        {t("common.copy")}
+      </button>
+      <button type="button" onClick={onDuplicate} className={PHONE_ACTION_CLASS}>
+        {t("common.duplicate")}
+      </button>
+      <button
+        type="button"
+        disabled={!canDelete}
+        onClick={onDelete}
+        data-no-uisound=""
+        className={`${PHONE_ACTION_CLASS} hover:bg-rose-500/10 hover:text-rose-300`}
+      >
+        {selectionCount
+          ? t("diffSidebar.deleteMany", { count: selectionCount })
+          : t("common.delete")}
+      </button>
     </div>
   );
 }

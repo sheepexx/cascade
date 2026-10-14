@@ -196,7 +196,7 @@ export function AppHeader({
       <LanguagePicker compact />
       {social && authUser && <SocialButton unreadMessages={social.unreadMessages} pendingRequests={social.pendingRequests} onOpen={target => { phone.onMenuOpen(false); social.open(target); }} />}
       <NotificationInbox signedIn={!!authUser} notifications={notifications} loading={notificationsLoading} error={notificationsError} onRefresh={refreshNotifications} onOpen={n => { phone.onMenuOpen(false); openInboxNotification(n); }} onMarkRead={markInboxNotificationRead} onMarkUnread={markInboxNotificationUnread} onMarkAllRead={markInboxAllRead} onDismiss={dismissInboxNotification} />
-      <AccountControl compact onOpenMyMaps={() => { phone.onMenuOpen(false); setModal("myMaps"); }} onOpenPresets={appSettings.showPatternTools ? () => { phone.onMenuOpen(false); setModal("presets"); } : undefined} onOpenFeedback={() => { phone.onMenuOpen(false); setModal("feedback"); }} onOpenAdmin={() => { phone.onMenuOpen(false); setModal("admin"); }} onOpenSocial={social ? target => { phone.onMenuOpen(false); social.open(target); } : undefined} socialBadges={social ? { friends: social.pendingRequests, messages: social.unreadMessages } : undefined} />
+      <AccountControl compact onOpenFeedback={() => { phone.onMenuOpen(false); setModal("feedback"); }} onOpenAdmin={() => { phone.onMenuOpen(false); setModal("admin"); }} onOpenSocial={social ? target => { phone.onMenuOpen(false); social.open(target); } : undefined} socialBadges={social ? { friends: social.pendingRequests, messages: social.unreadMessages } : undefined} />
     </PhoneMenu>
   </>;
   const fileMenu = (
@@ -640,12 +640,6 @@ export function AppHeader({
         />
         <AccountControl
           compact
-          onOpenMyMaps={() => setModal("myMaps")}
-          onOpenPresets={
-            appSettings.showPatternTools
-              ? () => setModal("presets")
-              : undefined
-          }
           onOpenFeedback={() => setModal("feedback")}
           onOpenAdmin={() => setModal("admin")}
           onOpenSocial={social?.open}

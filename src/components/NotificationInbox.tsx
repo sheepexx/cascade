@@ -8,6 +8,7 @@ import { MailIcon } from "./ui/Icons";
 import { ToneIcon } from "./ui/Toast";
 import { buttonClass } from "./ui/buttonStyles";
 import { HEADER_BADGE, HEADER_ICON_BUTTON } from "./header/HeaderButtons";
+import { popoverRight } from "./ui/popoverPlacement";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
 
 const GROUP_LABELS: Record<InboxGroup, MessageKey> = {
@@ -72,7 +73,7 @@ export function NotificationInbox({
     const rect = buttonRef.current.getBoundingClientRect();
     setPos({
       top: rect.bottom + 6,
-      right: Math.max(8, window.innerWidth - rect.right),
+      right: popoverRight(rect, panelRef.current?.offsetWidth ?? 0),
     });
   }, [open]);
 

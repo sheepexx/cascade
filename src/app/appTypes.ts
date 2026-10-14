@@ -18,7 +18,6 @@ export type ModalId =
   | "tools"
   | "mapCard"
   | "aimod"
-  | "myMaps"
   | "presets"
   | "publishPreset"
   | "feedback"

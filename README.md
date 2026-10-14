@@ -19,11 +19,11 @@ You do not need to install anything or create an account. Projects are saved in 
 
 The same editor is also available as a desktop app built with Tauri. On Windows, the desktop app can also work with your osu! installation directly.
 
-The main menu plays a random song from your local projects, and the logo reacts to its beat. Press C to pause, V to skip and X to go back.
+The main menu plays a random song from your local projects, and the logo reacts to its beat. Press C to pause, V to skip and X to go back. On a phone the menu is a plain grid of actions, with no song or background.
 
 On a phone, the editor uses a full-width playfield and a toolbar at the bottom. **Move** drags through the song without changing notes; **Note** places taps or long notes when dragged; **Select** selects notes or a box; **Erase** removes tapped notes. Pinch the playfield to zoom. Undo and redo are always reachable.
 
-**All tools** opens the editor's tools, file actions, settings, account and notifications, with search. Difficulties, selection actions, the clipboard, hitsounds, statistics and the full timeline open as sheets over the chart. **Focus mode** replaces the four tool buttons with one tool picker. Pack Creator has Maps, Selected map and Pack settings tabs. In playtests, touch the lanes or the numbered pads; pause, autoplay and returning to the editor have buttons.
+**All tools** opens the editor's tools, file actions, settings, account and notifications, with search. Difficulties, selection actions, the clipboard, hitsounds, statistics and the full timeline open as sheets over the chart. The Difficulties sheet shows two difficulties per row, with Rename, Copy, Duplicate and Delete under them for the open one. **Focus mode** replaces the four tool buttons with one tool picker. Pack Creator has Maps, Selected map and Pack settings tabs. In playtests, touch the lanes or the numbered pads; pause, autoplay and returning to the editor have buttons.
 
 ## Feature overview
 

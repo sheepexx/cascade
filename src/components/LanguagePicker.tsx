@@ -5,6 +5,7 @@ import { LOCALES } from "../lib/i18n/core";
 import { MOTION } from "../lib/motion";
 import { ChevronDownIcon, CheckIcon } from "./ui/Icons";
 import { POPOVER_CLASS, POPOVER_ITEM_CLASS } from "./ui/Menu";
+import { popoverRight } from "./ui/popoverPlacement";
 
 /** Opens and closes with the same pop as the editor's File/Edit menus. */
 export function LanguagePicker({ compact = false }: { compact?: boolean }) {
@@ -36,9 +37,9 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
     const rect = triggerRef.current.getBoundingClientRect();
     setPos({
       top: rect.bottom + 4,
-      right: Math.max(8, window.innerWidth - rect.right),
+      right: popoverRight(rect, menuRef.current?.offsetWidth ?? 0),
     });
-  }, [open]);
+  }, [open, mounted]);
 
   useEffect(() => {
     if (!open) return;

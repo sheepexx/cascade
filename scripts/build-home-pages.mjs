@@ -53,8 +53,8 @@ const HEAD = {
   },
 };
 
-const DO_KEYS = Array.from({ length: 10 }, (_, i) => `landing.do${i + 1}`);
-const FAQ_KEYS = Array.from({ length: 6 }, (_, i) => [
+const DO_KEYS = Array.from({ length: 11 }, (_, i) => `landing.do${i + 1}`);
+const FAQ_KEYS = Array.from({ length: 7 }, (_, i) => [
   `landing.faqQ${i + 1}`,
   `landing.faqA${i + 1}`,
 ]);

@@ -635,7 +635,6 @@ export const zhCN: PartialCatalog = {
   "sampleMaps.osuMap": "osu! 谱面",
   "sampleMaps.mappedBy": "谱师：{name}",
 
-  "account.myMaps": "我的谱面",
   "account.feedback": "反馈",
   "account.admin": "管理",
   "account.logOut": "退出登录",
@@ -723,6 +722,8 @@ export const zhCN: PartialCatalog = {
   "landing.do8": "像上架的 osu! 谱面一样设置背景图片或静音背景视频",
   "landing.do9": "真实的 osu! 打击音效，并支持 `.osk` 皮肤",
   "landing.do10": "实时协作制谱，并带实时评论",
+  "landing.do11":
+    "在手机或平板上制谱：支持触屏操作的移动端 osu!mania 编辑器，可放置单点和长条并试玩",
   "landing.faqTitle": "osu!mania 编辑器常见问题",
   "landing.faqQ1": "Cascade 是免费的吗？",
   "landing.faqA1":
@@ -742,6 +743,9 @@ export const zhCN: PartialCatalog = {
   "landing.faqQ6": "可以把多张谱面合并成一个 .osz 曲包吗？",
   "landing.faqA6":
     "可以。开始菜单里的 Pack Creator 会把多张谱面合并成一个 .osz 曲包，共用元数据、保留各自的作者署名并生成难度名，适合本地游玩。",
+  "landing.faqQ7": "可以在手机上使用 Cascade 吗？",
+  "landing.faqA7":
+    "可以。Cascade 在手机和平板上就是一个移动端 osu!mania 编辑器：用触屏放置单点和长条、切换难度、用屏幕按键试玩并导出，全部在手机浏览器里完成。",
   "landing.guidesTitle": "指南",
   "landing.guide1": "如何在线制作 osu!mania 谱面",
   "landing.guide2": "转换 osu!mania、StepMania、Quaver 和 Malody 谱面",
@@ -2171,15 +2175,6 @@ export const zhCN: PartialCatalog = {
   "importModal.downloading": "正在下载…",
   "importModal.dropHint": "也可以将文件拖到页面任意位置。",
   "importModal.dropInfo": "将谱面文件、音频文件或歌曲文件夹拖到页面上。打开谱面时，拖入同一首歌的 .osu 文件会将其添加为难度，无需音频文件。",
-  "myMaps.loadFailed": "加载谱面失败。",
-  "myMaps.deleteFailed": "删除失败。",
-  "myMaps.loading": "正在加载你的谱面",
-  "myMaps.empty": "还没有已保存的谱面。使用“保存到云端”来保存当前项目。",
-  "myMaps.shared": "已共享",
-  "myMaps.mappedBy": "作者：{name}",
-  "myMaps.deleteHint": "删除此已保存的谱面",
-  "myMaps.deleteTitle": "删除已保存的谱面？",
-  "myMaps.deleteBody": "此已保存的谱面及其所有文件将从 Cloudflare R2 和 Supabase Storage 中永久删除。此操作无法撤销。",
   "presets.loadFailed": "加载预设失败。",
   "presets.title": "配置预设",
   "presets.allKeys": "显示所有键数",

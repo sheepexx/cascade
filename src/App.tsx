@@ -97,7 +97,6 @@ import {
   AiModModal,
   WelcomeModal,
   SampleMapsModal,
-  MyMapsModal,
   ImportModal,
   NewMapModal,
   PresetBrowserModal,
@@ -1583,8 +1582,9 @@ export default function App() {
     [patchDifficulty],
   );
 
+  // Phones keep the menu quiet: no song starts under a one-screen menu.
   const menuMusicEnabled =
-    appSettings.menuMusicEnabled && !hasProject && !packCreatorOpen && !sharedSlug;
+    appSettings.menuMusicEnabled && !phoneViewport && !hasProject && !packCreatorOpen && !sharedSlug;
   const menuMusic = useMenuMusic(
     menuMusicEnabled,
     osuLive.running,
@@ -3666,13 +3666,6 @@ export default function App() {
           onClose={close}
           onBack={() => setModal("welcome")}
           onSelect={loadSampleMap}
-        />
-      )}
-      {modalMounted("myMaps") && (
-        <MyMapsModal
-          open={modal === "myMaps"}
-          onClose={close}
-          onSelect={(id) => void loadCloudProject(id)}
         />
       )}
       {modalMounted("presets") && (

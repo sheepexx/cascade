@@ -20,6 +20,7 @@ const LANDING_DO_KEYS = [
   "landing.do8",
   "landing.do9",
   "landing.do10",
+  "landing.do11",
 ] as const;
 
 const LANDING_FAQ_KEYS = [
@@ -29,6 +30,7 @@ const LANDING_FAQ_KEYS = [
   ["landing.faqQ4", "landing.faqA4"],
   ["landing.faqQ5", "landing.faqA5"],
   ["landing.faqQ6", "landing.faqA6"],
+  ["landing.faqQ7", "landing.faqA7"],
 ] as const;
 
 const LANDING_GUIDES = [

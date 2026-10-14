@@ -8,6 +8,7 @@ import { ChevronDownIcon, DiscordIcon } from "../ui/Icons";
 import { DISCORD_INVITE, siteUrl } from "../../lib/siteAssets";
 import { trackDiscord } from "../../lib/discordLink";
 import { MOTION } from "../../lib/motion";
+import { popoverRight } from "../ui/popoverPlacement";
 
 const WORKER = import.meta.env.VITE_WORKER_URL;
 // The account menu shares the menu-pop exit, so it unmounts on the same beat.
@@ -51,16 +52,12 @@ function preloadCover(url: string): void {
 export type SocialMenuTarget = "profile" | "friends" | "messages" | "community";
 
 export function AccountControl({
-  onOpenMyMaps,
-  onOpenPresets,
   onOpenFeedback,
   onOpenAdmin,
   onOpenSocial,
   socialBadges,
   compact = false,
 }: {
-  onOpenMyMaps: () => void;
-  onOpenPresets?: () => void;
   onOpenFeedback: () => void;
   onOpenAdmin: () => void;
   /** Profile, friends and messages, when the social features are on. */
@@ -85,9 +82,9 @@ export function AccountControl({
     const rect = ref.current.getBoundingClientRect();
     setPos({
       top: rect.bottom + 4,
-      right: Math.max(8, window.innerWidth - rect.right),
+      right: popoverRight(rect, menuRef.current?.offsetWidth ?? 0),
     });
-  }, [open]);
+  }, [open, mounted]);
 
   useEffect(() => {
     if (open) {
@@ -273,14 +270,6 @@ export function AccountControl({
                 </MenuItem>
                 <div className="mx-2.5 my-1 h-px bg-white/[0.07]" />
               </>
-            )}
-            <MenuItem onClick={() => choose(onOpenMyMaps)}>
-              {t("account.myMaps")}
-            </MenuItem>
-            {onOpenPresets && (
-              <MenuItem onClick={() => choose(onOpenPresets)}>
-                {t("nav.presets")}
-              </MenuItem>
             )}
             <MenuItem onClick={() => choose(onOpenFeedback)}>
               {t("account.feedback")}

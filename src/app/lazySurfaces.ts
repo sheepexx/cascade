@@ -97,11 +97,6 @@ export const SampleMapsModal = lazyWithPreload(() =>
     default: m.SampleMapsModal,
   })),
 );
-export const MyMapsModal = lazyWithPreload(() =>
-  import("../components/menus/MyMapsModal").then((m) => ({
-    default: m.MyMapsModal,
-  })),
-);
 export const ImportModal = lazyWithPreload(() =>
   import("../components/menus/ImportModal").then((m) => ({
     default: m.ImportModal,
@@ -207,7 +202,6 @@ export function preloadLazyChunks(): Promise<unknown> {
       TransportBar,
       WelcomeModal,
       SampleMapsModal,
-      MyMapsModal,
       ImportModal,
       NewMapModal,
     ].map((component) => component.preload()),
