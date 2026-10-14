@@ -106,6 +106,14 @@ export const ru: PartialCatalog = {
   "share.removeFailed": "Не удалось убрать.",
 
   "settings.title": "Настройки",
+
+  "settings.savingPrivacy": "Сохранение и конфиденциальность",
+
+  "settings.infoEmpty": "Наведите на настройку, чтобы узнать, что она делает.",
+
+  "settings.search": "Поиск настроек",
+
+  "settings.searchEmpty": "Нет настроек по запросу «{query}».",
   "settings.tabGeneral": "Общие",
   "settings.interfaceSounds": "Звуки интерфейса",
   "settings.playback": "Воспроизведение",
@@ -2080,6 +2088,7 @@ export const ru: PartialCatalog = {
   "shortcuts.target.playfield": "размер игрового поля",
   "shortcuts.target.volume": "громкость музыки",
   "shortcuts.editable": "Выделенные клавиши можно переназначить",
+  "shortcuts.filter": "Поиск сочетаний клавиш",
   "shortcuts.editableInfo": "Щёлкните по выделенной клавише и нажмите новую. Backspace возвращает значение по умолчанию, Esc отменяет.",
   "shortcuts.resetAll": "Сбросить всё",
   "shortcuts.snapFree": "Включить свободную привязку.",

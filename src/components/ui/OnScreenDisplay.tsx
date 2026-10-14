@@ -90,7 +90,7 @@ export function OnScreenDisplay({
     <div
       role="status"
       aria-live="polite"
-      className={`pointer-events-none fixed z-[190] w-[11rem] max-w-[calc(100vw-2rem)] rounded-xl border border-white/10 bg-ink-900/85 px-3.5 pb-3 pt-2.5 text-center shadow-[0_16px_40px_-14px_rgba(0,0,0,0.85)] backdrop-blur-md ${
+      className={`pointer-events-none fixed z-[190] w-[11rem] max-w-[calc(100vw-2rem)] float-chip px-3.5 pb-3 pt-2.5 text-center ${
         position ? "" : "left-1/2 top-[18%]"
       }`}
       style={{ ...PHASE_STYLE[phase], ...(position ? { left: position.x, top: position.y } : null) }}

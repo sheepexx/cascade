@@ -132,7 +132,7 @@ export function AiModModal({
             <Button variant="accent" onClick={onRefresh}>
               {t("aimodUi.refresh")}
             </Button>
-            <span className="mx-1 h-5 w-px bg-white/10" />
+            <span className="mx-1 h-4 w-px bg-white/[0.08]" />
             <Toggle
               id="aimod-all-difficulties"
               size="sm"
@@ -144,7 +144,7 @@ export function AiModModal({
               {t("aimodUi.allDiffs")}
             </label>
           </div>
-          <div className="flex gap-6 rounded-xl border border-white/10 bg-ink-700/40 px-4 py-2 text-sm">
+          <div className="flex gap-6 text-sm">
             <Summary
               label={t("aimodUi.scope")}
               value={allDifficulties ? t("bgScope.mapset") : activeDiffName}
@@ -162,7 +162,7 @@ export function AiModModal({
           </div>
         </div>
 
-        {report && <section className="rounded-xl border border-teal-300/20 bg-teal-300/5 p-4">
+        {report && <section className="border-y border-white/[0.06] py-4">
           <div className="flex items-start justify-between gap-4"><div><h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">{t("aimodUi.readiness")} <InfoTip content={<>
             <p className="m-0">{t("aimodUi.info1")}</p>
             <p className="mt-2">{t("aimodUi.info2")}</p>
@@ -170,30 +170,35 @@ export function AiModModal({
             <p className="mt-2">{t("aimodUi.info4")}</p>
           </>} /></h3>
             <p className={`mt-1 text-xs ${report.errors ? "text-amber-200" : "text-teal-200"}`}>{report.errors ? t("aimodUi.structural", { count: report.errors }) : t("aimodUi.noBlockers")}</p></div>
-            <div className="text-right"><strong className="text-xl text-teal-100">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-xs text-slate-500"> / 100</span>}</strong><p className="text-[10px] text-slate-400">{t("aimodUi.score")}</p></div>
+            <div className="text-right"><strong className="font-display text-3xl font-bold tabular-nums text-teal-200">{report.quality.score ?? "—"}{report.quality.score !== null && <span className="text-sm font-medium text-slate-500"> / 100</span>}</strong><p className="text-xs text-slate-400">{t("aimodUi.score")}</p></div>
           </div>
-          <ul className="mt-3 flex flex-col gap-2">{report.quality.difficulties.map(d => <li key={d.id} className="rounded-lg bg-black/15 p-2 text-xs">
-            <div className="flex justify-between gap-3"><span className="text-slate-200">{d.name} <span className="whitespace-nowrap text-[10px] text-slate-500">{t("aimodUi.judgedAs", { tier: d.tier })}</span></span><span className="text-teal-200">{d.score === null ? t("aimodUi.tooFew") : `${d.score}/100`}</span></div>
-            <p className="mt-1 text-[10px] text-slate-500">
+          <ul className="mt-3 flex flex-col divide-y divide-white/[0.05]">{report.quality.difficulties.map(d => <li key={d.id} className="py-2 text-xs">
+            <div className="flex justify-between gap-3"><span className="text-slate-200">{d.name} <span className="whitespace-nowrap text-2xs text-slate-500">{t("aimodUi.judgedAs", { tier: d.tier })}</span></span><span className="font-medium tabular-nums text-teal-200">{d.score === null ? t("aimodUi.tooFew") : `${d.score}/100`}</span></div>
+            <p className="mt-0.5 text-2xs text-slate-500">
               {d.comparison.bucket === null ? t("aimodUi.noComparable") : d.comparison.outliers.length ? t("aimodUi.aboveRange", { list: d.comparison.outliers.map(o => o.label).join(", ") }) : t("aimodUi.withinRange")}
             </p>
           </li>)}</ul>
         </section>}
-        <div className="flex flex-wrap gap-1 border-b border-white/10 pb-2">
+        <div role="tablist" className="flex flex-wrap gap-x-1 border-b border-white/[0.07]">
           {TABS.map((entry) => {
             const count = entry === "All" ? scoped.length : byCategory.get(entry) ?? 0;
             const activeTab = entry === tab;
             return (
               <button
                 key={entry}
+                type="button"
+                role="tab"
+                aria-selected={activeTab}
                 onClick={() => setTab(entry)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                className={`hit-line-bottom px-2 pb-2 pt-1 text-xs font-medium transition ${
                   activeTab
-                    ? "bg-accent/90 text-white"
-                    : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                    ? "text-slate-50"
+                    : count
+                      ? "text-slate-300 hover:text-slate-50"
+                      : "text-slate-500 hover:text-slate-300"
                 }`}
               >
-                {t(TAB_LABELS[entry])} ({count})
+                {t(TAB_LABELS[entry])} <span className="tabular-nums text-slate-500">{count}</span>
               </button>
             );
           })}
@@ -208,7 +213,7 @@ export function AiModModal({
                 : t("aimodUi.noIssuesCategory")}
           </p>
         ) : (
-          <ul className="flex flex-col divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10">
+          <ul className="-mx-2 flex flex-col divide-y divide-white/[0.05]">
             {shown.map((issue) => {
               const details = issue.details ?? [];
               const visible = expanded[issue.id] ?? 0;
@@ -217,7 +222,7 @@ export function AiModModal({
               const hidden = details.length - listed.length;
               const untracked = (issue.count ?? details.length) - details.length;
               return (
-                <li key={issue.id} className="bg-ink-700/30">
+                <li key={issue.id} className="rounded-md transition hover:bg-white/[0.025]">
                   <div className="flex items-start gap-3 px-3 py-2 text-sm">
                     <span
                       className={`mt-0.5 shrink-0 ${
@@ -252,7 +257,7 @@ export function AiModModal({
                         <span className="flex-1 text-slate-200 transition duration-150 hover:text-white">
                           {label(issue)}
                         </span>
-                        <span className="shrink-0 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-slate-300">
+                        <span className="shrink-0 rounded-sm bg-white/[0.07] px-1.5 py-px text-[11px] font-medium tabular-nums text-slate-300">
                           {issue.count ?? details.length}
                         </span>
                       </button>
@@ -270,7 +275,7 @@ export function AiModModal({
                     )}
                   </div>
                   {isOpen && (
-                    <ul className="flex flex-col border-t border-white/5 bg-ink-800/50 px-3 py-1.5 pl-9">
+                    <ul className="flex flex-col px-3 pb-2 pl-9">
                       {listed.map((d, i) => (
                         <li
                           key={`${issue.id}_${i}`}
@@ -338,10 +343,10 @@ function Summary({
         : "text-slate-200";
   return (
     <div className="flex flex-col leading-tight">
-      <span className="text-[10px] uppercase tracking-wide text-slate-500">
+      <span className="text-2xs text-slate-500">
         {label}
       </span>
-      <span className={`font-medium ${color}`}>{value}</span>
+      <span className={`font-semibold tabular-nums ${color}`}>{value}</span>
     </div>
   );
 }

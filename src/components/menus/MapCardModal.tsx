@@ -359,7 +359,7 @@ export function MapCardModal({
           </MapCardExport>
         </div>
 
-        <div className="flex flex-col divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-ink-700/25 uimd:order-1 uimd:w-80 uimd:shrink-0">
+        <div className="flex flex-col divide-y divide-white/[0.06] rounded-lg bg-white/[0.02] ring-1 ring-inset ring-white/[0.06] uimd:order-1 uimd:w-80 uimd:shrink-0">
           {difficulties.length > 1 && (
             <PanelSection title={t("mapCard.difficulty")}>
               <Dropdown

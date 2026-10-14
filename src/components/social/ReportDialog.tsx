@@ -69,7 +69,7 @@ export function ReportDialog({
       <div className="flex flex-col gap-4">
         <p className="text-sm text-slate-400">{t("social.reportHint")}</p>
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{t("social.reportReason")}</span>
+          <span className="text-xs font-medium text-slate-300">{t("social.reportReason")}</span>
           <Dropdown
             className="w-full"
             aria-label={t("social.reportReason")}
@@ -79,13 +79,13 @@ export function ReportDialog({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{t("social.reportDetails")}</span>
+          <span className="text-xs font-medium text-slate-300">{t("social.reportDetails")}</span>
           <textarea
             value={details}
             maxLength={1000}
             rows={4}
             onChange={(e) => setDetails(e.target.value)}
-            className="resize-none rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+            className="resize-none rounded-md bg-black/25 px-3 py-2 text-sm text-slate-100 ring-1 ring-inset ring-white/[0.08] outline-none transition placeholder:text-slate-500 hover:ring-white/[0.14] focus:bg-black/35 focus:ring-accent/70"
           />
           <span className="self-end text-[11px] tabular-nums text-slate-500">{details.length}/1000</span>
         </label>

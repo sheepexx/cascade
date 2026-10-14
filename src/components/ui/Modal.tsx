@@ -23,6 +23,8 @@ type Props = {
   modeless?: boolean;
   /** Carries the colour of the action that opened this surface. */
   accent?: string;
+  /** Replaces the body's padding, for a dialog that lays out its own panes. */
+  bodyClassName?: string;
 };
 
 const EXIT_MS = MOTION.exit;
@@ -41,6 +43,7 @@ export function Modal({
   slideUp = false,
   modeless = false,
   accent,
+  bodyClassName = "px-5 py-4 [scrollbar-gutter:stable]",
 }: Props) {
   const t = useT();
   const [mounted, setMounted] = useState(open);
@@ -128,9 +131,9 @@ export function Modal({
     <div
       // Centred by default. `center={false}` pins the top edge instead, for a
       // dialog whose height keeps changing while it is open.
-      className={`fixed inset-0 flex justify-center bg-ink-900/72 p-4 backdrop-blur-md ${
+      className={`ui-modal-backdrop fixed inset-0 flex justify-center bg-[rgb(5_5_8/0.66)] p-4 ${
         modeless
-          ? "pointer-events-none overflow-visible !bg-transparent !p-0 !backdrop-blur-none"
+          ? "pointer-events-none overflow-visible !bg-transparent !p-0"
           : slideUp
             ? "overflow-hidden"
             : "overflow-y-auto"
@@ -168,7 +171,7 @@ export function Modal({
           aria-labelledby={titleId}
           tabIndex={-1}
           style={accent ? ({ "--modal-accent": accent } as CSSProperties) : undefined}
-          className={`flex max-h-[84vh] ${height} w-full ${modeless ? "" : width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] outline-none ${
+          className={`ui-modal flex max-h-[calc(100vh-2rem)] ${height} w-full ${modeless ? "" : width} flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[var(--shadow-float)] outline-none ring-1 ring-white/[0.08] ${
             closing
               ? slideUp
                 ? "modal-panel-up-out"
@@ -179,7 +182,7 @@ export function Modal({
           }`}
         >
           <header
-            className={`modal-header relative flex items-center justify-between border-b border-white/10 bg-ink-700 px-5 py-3.5 ${
+            className={`ui-modal-header relative flex h-12 shrink-0 items-center justify-between gap-3 pl-5 pr-3 ${
               modeless ? "cursor-move select-none" : ""
             }`}
             onPointerDown={(event) => {
@@ -197,7 +200,18 @@ export function Modal({
             }}
           >
             <div className="flex min-w-0 items-center gap-2.5">
-              <h2 id={titleId} className="text-sm font-semibold text-slate-100">
+              {accent && (
+                // The colour of the menu tile or tool that opened this
+                // surface, as a small lane marker rather than a wash.
+                <span
+                  aria-hidden
+                  className="ui-modal-tick h-3.5 w-[3px] shrink-0 rounded-full bg-[var(--modal-accent)]"
+                />
+              )}
+              <h2
+                id={titleId}
+                className="ui-modal-title truncate font-display text-[0.9375rem] font-semibold text-slate-50"
+              >
                 {title}
               </h2>
               {headerExtra}
@@ -205,40 +219,34 @@ export function Modal({
             <button
               type="button"
               onClick={onClose}
-              className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition duration-[var(--motion-quick)] hover:bg-white/10 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition duration-[var(--motion-quick)] hover:bg-white/[0.07] hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
               aria-label={t("common.close")}
             >
               <CloseIcon className="h-4 w-4" />
             </button>
-            {accent && (
-              <span
-                aria-hidden
-                className="absolute inset-x-0 bottom-0 h-0.5 bg-[var(--modal-accent)] shadow-[0_0_16px_var(--modal-accent)]"
-              />
-            )}
           </header>
           <div className="relative flex min-h-0 flex-1 flex-col">
             <div
               ref={bodyRef}
-              className="modal-body min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-gutter:stable]"
+              className={`modal-body min-h-0 flex-1 overflow-y-auto ${bodyClassName}`}
             >
               {children}
             </div>
             <div
               aria-hidden
-              className={`pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-ink-800 to-transparent transition-opacity duration-[var(--motion-exit)] ${
+              className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-white/[0.08] transition-opacity duration-[var(--motion-exit)] ${
                 edges.top ? "opacity-100" : "opacity-0"
               }`}
             />
             <div
               aria-hidden
-              className={`pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink-800 to-transparent transition-opacity duration-[var(--motion-exit)] ${
+              className={`pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-ink-800 to-transparent transition-opacity duration-[var(--motion-exit)] ${
                 edges.bottom ? "opacity-100" : "opacity-0"
               }`}
             />
           </div>
           {footer && (
-            <footer className="flex justify-end gap-2 border-t border-white/10 bg-ink-700 px-5 py-3.5">
+            <footer className="ui-modal-footer flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-3">
               {footer}
             </footer>
           )}
@@ -247,4 +255,3 @@ export function Modal({
     </div>
   );
 }
-

@@ -62,7 +62,7 @@ export function AudioSetupModal({ exclusive, onExclusive, currentOffset, onApply
     <p className="mt-2 text-[11px] text-slate-400">{t("audioSetup.exclusiveHint")}</p>
     <p role="status" className="mt-3 text-xs text-teal-200">{loading ? t("audioSetup.opening") : audio.nativeAudio.selected ? t("audioSetup.deviceBuffer", { device: audio.nativeAudio.device ?? "", ms: audio.nativeAudio.latencyMs?.toFixed(1) ?? "" }) : t("audioSetup.sharedStatus")}</p>
     {audio.nativeAudio.fallbackReason && <p role="alert" className="mt-2 rounded-lg bg-amber-300/10 p-3 text-xs text-amber-200">{audio.nativeAudio.fallbackReason} {t("audioSetup.sharedActive")}</p>}
-    <div className="flex items-center gap-1.5 my-5 rounded-xl border border-white/10 bg-white/[0.025] p-4">
+    <div className="flex items-center gap-1.5 my-5 rounded-lg bg-white/[0.025] ring-1 ring-inset ring-white/[0.06] p-4">
       <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">{t("audioSetup.findOffset")}<InfoTip content={<>
         <p className="m-0">{t("audioSetup.info1")}</p>
         <p className="mt-2">{t("audioSetup.info2")}</p>

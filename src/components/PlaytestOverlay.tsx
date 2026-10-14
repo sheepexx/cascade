@@ -182,7 +182,7 @@ export function PlaytestOverlay({
         className="right-4"
         style={{ top: (settings.rate ?? 1) !== 1 ? "5.25rem" : "3.375rem" }}
       >
-        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 rounded-xl border border-white/10 bg-ink-900/55 px-3 py-2 text-[11px] text-slate-300 shadow-xl backdrop-blur">
+        <div className="float-chip grid grid-cols-2 gap-x-3 gap-y-0.5 px-3 py-2 text-[11px] text-slate-300">
           <Counts counts={state.judgements} />
         </div>
       </HudItem>

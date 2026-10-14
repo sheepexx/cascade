@@ -111,7 +111,7 @@ export function MapCardPreview({
   return (
     <figure className="flex flex-col gap-2">
       <div
-        className="rounded-2xl border border-white/10 bg-ink-900/80 p-3 transition-[background] duration-500 uimd:px-6 uimd:py-7"
+        className="rounded-lg bg-black/30 p-3 ring-1 ring-inset ring-white/[0.05] transition-[background] duration-500 uimd:px-6 uimd:py-7"
         style={{
           backgroundImage: `radial-gradient(90% 70% at 50% 0%, ${mapCardRgba(accent, 0.13)}, transparent 70%)`,
         }}

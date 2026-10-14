@@ -14,9 +14,9 @@ type Props = {
 };
 
 const KEY_PRESETS = [4, 5, 6, 7, 8, 9, 10] as const;
-const LABEL = "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
+const LABEL = "text-xs font-semibold text-slate-200";
 // The cards are ink-700/40 over the modal; slider thumbs ring in that colour.
-const CARD_SURFACE = { "--slider-surface": "#1a1a23" } as CSSProperties;
+const CARD_SURFACE = { "--slider-surface": "#14141a" } as CSSProperties;
 
 type Windows = ReturnType<typeof maniaJudgementWindows>;
 const JUDGEMENTS: { key: keyof Windows; label: string; color: string }[] = [
@@ -83,11 +83,11 @@ export function DifficultyModal({
           />
         </label>
 
-        <section className="rounded-xl border border-white/10 bg-ink-700/40 p-4">
+        <section className="border-t border-white/[0.06] pt-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <span className={LABEL}>{t("diffModal.keys")}</span>
-              <p className="mt-1 text-[11px] leading-snug text-slate-500">
+              <p className="mt-1 text-xs leading-snug text-slate-500">
                 {t("diffModal.keysHint")}
               </p>
             </div>
@@ -99,7 +99,7 @@ export function DifficultyModal({
               >
                 −
               </StepButton>
-              <span className="w-14 text-center text-2xl font-bold tabular-nums text-slate-50">
+              <span className="w-14 text-center font-display text-2xl font-bold tabular-nums text-slate-50">
                 {shownKeys}K
               </span>
               <StepButton
@@ -118,17 +118,17 @@ export function DifficultyModal({
             counts={laneCounts}
           />
 
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap gap-0.5 self-start rounded-lg bg-black/25 p-0.5 ring-1 ring-inset ring-white/[0.06]">
             {KEY_PRESETS.map((keys) => (
               <button
                 key={keys}
                 type="button"
                 onClick={() => chooseKeys(keys)}
                 aria-pressed={keys === shownKeys}
-                className={`rounded-lg border px-2.5 py-1 text-xs font-semibold tabular-nums transition duration-[var(--motion-quick)] active:scale-95 ${
+                className={`h-7 rounded-md px-2.5 text-xs font-semibold tabular-nums transition duration-[var(--motion-quick)] ${
                   keys === shownKeys
-                    ? "border-accent/60 bg-accent/90 text-white"
-                    : "border-white/10 bg-ink-700/60 text-slate-300 hover:bg-ink-600 hover:text-slate-100"
+                    ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                    : "text-slate-400 hover:text-slate-100"
                 }`}
               >
                 {keys}K
@@ -139,7 +139,7 @@ export function DifficultyModal({
           {pendingKeys !== null && (
             <div
               role="alert"
-              className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100"
+              className="mt-3 flex flex-wrap items-center gap-2 rounded-md bg-rose-500/10 px-3 py-2 text-xs text-rose-100 ring-1 ring-inset ring-rose-400/30"
             >
               <span className="min-w-0 flex-1">
                 {pendingKeys + 1 === keyCount
@@ -167,7 +167,7 @@ export function DifficultyModal({
           )}
         </section>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-x-8 gap-y-6 border-t border-white/[0.06] pt-4 sm:grid-cols-2">
           <StatCard
             label={t("diffModal.hp")}
             value={hp}
@@ -255,10 +255,10 @@ function StatCard({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-white/10 bg-ink-700/40 p-4">
+    <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
         <span className={LABEL}>{label}</span>
-        <span className="text-2xl font-bold leading-none tabular-nums text-slate-50">
+        <span className="font-display text-2xl font-bold leading-none tabular-nums text-slate-50">
           {value.toFixed(1)}
         </span>
       </div>
@@ -342,7 +342,7 @@ function StepButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-ink-600/70 text-lg leading-none text-slate-200 transition duration-[var(--motion-quick)] hover:bg-ink-500/80 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 disabled:active:scale-100"
+      className="grid h-7 w-7 place-items-center rounded-md bg-white/[0.06] text-base leading-none text-slate-200 ring-1 ring-inset ring-white/[0.07] transition duration-[var(--motion-quick)] hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-35"
     >
       {children}
     </button>

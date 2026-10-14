@@ -1,7 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
 import { AccountControl, type SocialMenuTarget } from "../components/auth/LoginButton";
 import { DesktopDownloadLink } from "../components/DesktopDownloadLink";
-import { IconButton, MenuButton } from "../components/header/HeaderButtons";
+import {
+  HEADER_BADGE,
+  HEADER_ICON_BUTTON,
+  IconButton,
+  MenuButton,
+} from "../components/header/HeaderButtons";
 import { LanguagePicker } from "../components/LanguagePicker";
 import type { AccountReason } from "../components/menus/AccountPromptModal";
 import type { SettingsTab } from "../components/menus/AppSettingsModal";
@@ -168,24 +173,150 @@ export function AppHeader({
   undo: () => void;
 }) {
   const t = useT();
+  const fileMenu = (
+    <Menu
+      label={t("nav.file")}
+      items={[
+        {
+          label: t("file.newOpen"),
+          onClick: () => setModal("welcome"),
+        },
+        {
+          label:
+            saveStatus === "saving"
+              ? t("file.saving")
+              : t("file.saveLocally"),
+          hint: "Ctrl+S",
+          disabled: saveStatus === "saving",
+          onClick: () => void handleSave(),
+        },
+        {
+          label:
+            cloudSaveStatus === "saving"
+              ? t("file.saving")
+              : t("file.saveToCloud"),
+          title:
+            !authUser && !featureFlags.cloud_accounts
+              ? t("file.logInFirst")
+              : undefined,
+          disabled:
+            !canEdit ||
+            cloudSaveStatus === "saving" ||
+            (!authUser && !featureFlags.cloud_accounts),
+          onClick: () =>
+            authUser ? void handleCloudSave() : askToLogIn("cloudSave"),
+        },
+        { separator: true },
+        {
+          label: t("file.exportOsu"),
+          disabled: !canExport,
+          onClick: handleExportOsu,
+        },
+        {
+          label: t("file.exportOsz"),
+          disabled: !canExport || exporting,
+          onClick: handleExportOsz,
+        },
+        {
+          label: t("file.exportSm"),
+          disabled: !canExport,
+          onClick: handleExportSm,
+        },
+        {
+          label: t("file.exportQua"),
+          disabled:
+            !canExport ||
+            (active.keyCount !== 4 && active.keyCount !== 7),
+          title:
+            active.keyCount !== 4 && active.keyCount !== 7
+              ? t("app.quaverKeys")
+              : undefined,
+          onClick: handleExportQua,
+        },
+        {
+          label: t("file.exportMcz"),
+          disabled: !canExport || exporting || !hasMalodyDifficulty,
+          title: !hasMalodyDifficulty
+            ? t("malody.maxKeys", { count: MALODY_MAX_KEYS })
+            : undefined,
+          onClick: handleExportMcz,
+        },
+        { separator: true },
+        {
+          label: t("file.mapCard"),
+          onClick: () => openMapCard(),
+        },
+        {
+          label: t("file.backups"),
+          onClick: () => setModal("backups"),
+        },
+        ...(isDesktopApp()
+          ? [
+              { separator: true as const },
+              {
+                label: t("file.versionHistory"),
+                disabled: !hasProject,
+                onClick: () => setModal("versionHistory"),
+              },
+              {
+                label: t("file.editExternally"),
+                title: t("file.editExternallyHint"),
+                disabled: !hasProject || !canEdit,
+                onClick: () => void beginExternalEdit(),
+              },
+            ]
+          : []),
+        ...(osuApp?.supported
+          ? [
+              { separator: true as const },
+              {
+                label: t("file.importIntoOsu"),
+                disabled: !canExport || osuBusy || exporting,
+                title: !osuApp.installed
+                  ? t("osu.notInstalled")
+                  : undefined,
+                onClick: handleSendToOsu,
+              },
+              {
+                label: t("file.syncToOsu"),
+                disabled: !canExport || osuBusy || exporting,
+                title: t("file.syncToOsuHint"),
+                onClick: handleSyncToOsu,
+              },
+              {
+                label: t("file.importFromOsu"),
+                disabled: osuBusy || importingMap,
+                title: !osuApp.running
+                  ? t("osu.notRunning")
+                  : undefined,
+                onClick: () => void handleLoadFromOsu(),
+              },
+            ]
+          : []),
+      ]}
+    />
+  );
   return (
     <header
-      className={`z-30 flex items-center justify-between gap-2 overflow-hidden border-white/10 bg-ink-800/65 px-3 shadow-[0_10px_35px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[max-height,padding,opacity,transform] duration-300 ease-out uixl:gap-4 uixl:px-5 ${
+      // Solid chrome on a hairline, in the editor and over the main menu alike.
+      className={`app-header z-30 flex items-center justify-between gap-2 overflow-hidden border-white/[0.06] bg-ink-900 px-2 transition-[max-height,padding,opacity,transform] duration-300 ease-out uixl:gap-3 uixl:px-3 ${
         hasProject ? "" : "absolute inset-x-0 top-0"
       } ${
         showHeader
-          ? "max-h-20 translate-y-0 border-b py-2.5 opacity-100"
+          ? "max-h-14 translate-y-0 border-b py-1.5 opacity-100"
           : "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
       }`}
       aria-hidden={!showHeader}
       {...({ inert: !showHeader ? "" : undefined } as { inert?: string })}
     >
-      <div className="flex min-w-0 items-center gap-2 uixl:gap-4">
-        <div className="flex shrink-0 items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-1 uixl:gap-2">
+        <div className="flex shrink-0 items-center">
           <button
             type="button"
             onClick={() => hasProject && setShowHomeConfirm(true)}
-            className="flex items-center gap-2.5 rounded-md transition hover:opacity-80"
+            className={`flex h-8 items-center gap-2 rounded-md pl-1 pr-2 transition ${
+              hasProject ? "hover:bg-white/[0.07]" : ""
+            }`}
             title={hasProject ? t("home.returnTitle") : undefined}
             data-no-uisound=""
           >
@@ -194,9 +325,9 @@ export function AppHeader({
               alt="Cascade"
               draggable={false}
               onDragStart={(e) => e.preventDefault()}
-              className="h-8 w-8 select-none rounded-lg object-cover"
+              className="h-6 w-6 select-none rounded-full object-cover"
             />
-            <span className="hidden text-sm font-semibold text-slate-100 uimd:inline">
+            <span className="hidden font-display text-[0.9375rem] font-bold text-slate-50 uimd:inline">
               Cascade
             </span>
           </button>
@@ -211,38 +342,42 @@ export function AppHeader({
           aria-hidden={!hasProject}
           {...({ inert: !hasProject ? "" : undefined } as { inert?: string })}
         >
-          <nav className="flex items-center gap-1 whitespace-nowrap">
-            <MenuButton onClick={() => setModal("mapSettings")}>
+          <nav className="flex items-center gap-0.5 whitespace-nowrap">
+            <span className="mx-1 h-4 w-px bg-white/[0.08]" />
+            {fileMenu}
+            <MenuButton active={modal === "mapSettings"} onClick={() => setModal("mapSettings")}>
               {t("nav.mapSettings")}
             </MenuButton>
-            <MenuButton onClick={() => setModal("timing")}>
+            <MenuButton active={modal === "timing"} onClick={() => setModal("timing")}>
               {t("nav.timing")}
             </MenuButton>
             {featureFlags.sv_tools && (
-              <MenuButton onClick={() => setModal("sv")}>
+              <MenuButton active={modal === "sv"} onClick={() => setModal("sv")}>
                 {t("nav.sv")}
               </MenuButton>
             )}
-            <MenuButton onClick={() => setModal("difficulty")}>
+            <MenuButton active={modal === "difficulty"} onClick={() => setModal("difficulty")}>
               {t("nav.difficulty")}
             </MenuButton>
-            <div className="hidden items-center gap-1 uixl:flex">
-              <MenuButton onClick={() => setModal("tools")}>
+            <div className="hidden items-center gap-0.5 uixl:flex">
+              <MenuButton active={modal === "tools"} onClick={() => setModal("tools")}>
                 {t("nav.tools")}
               </MenuButton>
-              <MenuButton onClick={openAiMod}>{t("nav.aiMod")}</MenuButton>
+              <MenuButton active={modal === "aimod"} onClick={openAiMod}>
+                {t("nav.aiMod")}
+              </MenuButton>
               {appSettings.showPatternTools && (
-                <MenuButton onClick={() => setModal("presets")}>
+                <MenuButton active={modal === "presets"} onClick={() => setModal("presets")}>
                   {t("nav.presets")}
                 </MenuButton>
               )}
-              <MenuButton onClick={() => setModal("skin")}>
+              <MenuButton active={modal === "skin"} onClick={() => setModal("skin")}>
                 {t("nav.skin")}
               </MenuButton>
-              <MenuButton onClick={() => openSettings()}>
+              <MenuButton active={modal === "settings"} onClick={() => openSettings()}>
                 {t("nav.settings")}
               </MenuButton>
-              <span className="mx-1 h-5 w-px bg-white/10" />
+              <span className="mx-1 h-4 w-px bg-white/[0.08]" />
               <HistoryPopover
                 open={historyPanel}
                 onOpenChange={setHistoryPanel}
@@ -272,7 +407,6 @@ export function AppHeader({
             <div className="uixl:hidden">
               <Menu
                 label={t("nav.more")}
-                className="!px-2.5"
                 items={[
                   {
                     label: t("nav.tools"),
@@ -318,7 +452,7 @@ export function AppHeader({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1 uixl:gap-1.5">
         <div
           className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
             hasProject
@@ -327,9 +461,9 @@ export function AppHeader({
           }`}
           aria-hidden={!hasProject}
         >
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <div className="flex items-center gap-1 whitespace-nowrap">
             {cloudProjectId && myRole === "viewer" && (
-              <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+              <span className="rounded-sm bg-amber-500/15 px-1.5 py-0.5 text-2xs font-medium text-amber-300">
                 {t("nav.viewOnly")}
               </span>
             )}
@@ -355,7 +489,7 @@ export function AppHeader({
               >
                 <CommentIcon className="h-4 w-4" />
                 {commentUnreadCount > 0 && (
-                  <span className="absolute right-0 top-0 grid min-h-3 min-w-3 place-items-center rounded-full bg-accent px-0.5 text-[8px] font-bold leading-3 text-ink-900">
+                  <span className={HEADER_BADGE}>
                     {commentUnreadCount > 9 ? "9+" : commentUnreadCount}
                   </span>
                 )}
@@ -376,12 +510,9 @@ export function AppHeader({
                     ? `${t("file.saveFailed")}: ${saveErrorDetail}`
                     : undefined
                 }
-                className={`hidden h-8 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium transition uilg:flex uixl:px-2.5 ${
-                  saveStatus === "saving"
-                    ? "border-amber-400/15 bg-amber-400/5 text-amber-200"
-                    : saveStatus === "saved"
-                      ? "border-emerald-400/15 bg-emerald-400/5 text-emerald-200"
-                      : "border-red-400/20 bg-red-400/10 text-red-200"
+                // Status as text beside a dot: present, never a badge.
+                className={`hidden h-8 items-center gap-1.5 px-2 text-xs transition uilg:flex ${
+                  saveStatus === "error" ? "text-rose-300" : "text-slate-400"
                 }`}
               >
                 <span
@@ -402,133 +533,11 @@ export function AppHeader({
                 </span>
               </div>
             )}
-            <Menu
-              label={t("nav.file")}
-              tone="accent"
-              items={[
-                {
-                  label: t("file.newOpen"),
-                  onClick: () => setModal("welcome"),
-                },
-                {
-                  label:
-                    saveStatus === "saving"
-                      ? t("file.saving")
-                      : t("file.saveLocally"),
-                  hint: "Ctrl+S",
-                  disabled: saveStatus === "saving",
-                  onClick: () => void handleSave(),
-                },
-                {
-                  label:
-                    cloudSaveStatus === "saving"
-                      ? t("file.saving")
-                      : t("file.saveToCloud"),
-                  title:
-                    !authUser && !featureFlags.cloud_accounts
-                      ? t("file.logInFirst")
-                      : undefined,
-                  disabled:
-                    !canEdit ||
-                    cloudSaveStatus === "saving" ||
-                    (!authUser && !featureFlags.cloud_accounts),
-                  onClick: () =>
-                    authUser ? void handleCloudSave() : askToLogIn("cloudSave"),
-                },
-                { separator: true },
-                {
-                  label: t("file.exportOsu"),
-                  disabled: !canExport,
-                  onClick: handleExportOsu,
-                },
-                {
-                  label: t("file.exportOsz"),
-                  disabled: !canExport || exporting,
-                  onClick: handleExportOsz,
-                },
-                {
-                  label: t("file.exportSm"),
-                  disabled: !canExport,
-                  onClick: handleExportSm,
-                },
-                {
-                  label: t("file.exportQua"),
-                  disabled:
-                    !canExport ||
-                    (active.keyCount !== 4 && active.keyCount !== 7),
-                  title:
-                    active.keyCount !== 4 && active.keyCount !== 7
-                      ? t("app.quaverKeys")
-                      : undefined,
-                  onClick: handleExportQua,
-                },
-                {
-                  label: t("file.exportMcz"),
-                  disabled: !canExport || exporting || !hasMalodyDifficulty,
-                  title: !hasMalodyDifficulty
-                    ? t("malody.maxKeys", { count: MALODY_MAX_KEYS })
-                    : undefined,
-                  onClick: handleExportMcz,
-                },
-                { separator: true },
-                {
-                  label: t("file.mapCard"),
-                  onClick: () => openMapCard(),
-                },
-                {
-                  label: t("file.backups"),
-                  onClick: () => setModal("backups"),
-                },
-                ...(isDesktopApp()
-                  ? [
-                      { separator: true as const },
-                      {
-                        label: t("file.versionHistory"),
-                        disabled: !hasProject,
-                        onClick: () => setModal("versionHistory"),
-                      },
-                      {
-                        label: t("file.editExternally"),
-                        title: t("file.editExternallyHint"),
-                        disabled: !hasProject || !canEdit,
-                        onClick: () => void beginExternalEdit(),
-                      },
-                    ]
-                  : []),
-                ...(osuApp?.supported
-                  ? [
-                      { separator: true as const },
-                      {
-                        label: t("file.importIntoOsu"),
-                        disabled: !canExport || osuBusy || exporting,
-                        title: !osuApp.installed
-                          ? t("osu.notInstalled")
-                          : undefined,
-                        onClick: handleSendToOsu,
-                      },
-                      {
-                        label: t("file.syncToOsu"),
-                        disabled: !canExport || osuBusy || exporting,
-                        title: t("file.syncToOsuHint"),
-                        onClick: handleSyncToOsu,
-                      },
-                      {
-                        label: t("file.importFromOsu"),
-                        disabled: osuBusy || importingMap,
-                        title: !osuApp.running
-                          ? t("osu.notRunning")
-                          : undefined,
-                        onClick: () => void handleLoadFromOsu(),
-                      },
-                    ]
-                  : []),
-              ]}
-            />
           </div>
         </div>
         {liveEnabled && (
           <span
-            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-ink-700/42 px-2 py-1 text-[11px] font-medium shadow-sm backdrop-blur-xl"
+            className="flex h-8 items-center gap-1.5 px-2 text-xs"
             title={
               collab.status === "connected"
                 ? t("collab.live")
@@ -546,7 +555,7 @@ export function AppHeader({
                     : "bg-rose-500"
               }`}
             />
-            <span className="text-slate-300">{t("app.live")}</span>
+            <span className="text-slate-400">{t("app.live")}</span>
           </span>
         )}
         {liveEnabled && collab.peers.length > 0 && (
@@ -557,7 +566,7 @@ export function AppHeader({
             {collab.peers.slice(0, 5).map((p) => (
               <span
                 key={p.id}
-                className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border-2 bg-ink-700/70 text-[10px] font-semibold text-slate-100 shadow-sm backdrop-blur"
+                className="grid h-6 w-6 place-items-center overflow-hidden rounded-full border-2 bg-ink-600 text-[10px] font-semibold text-slate-100"
                 style={{ borderColor: p.color }}
                 title={p.username}
               >
@@ -651,7 +660,7 @@ function SocialButton({
       onClick={() => onOpen(unreadMessages > 0 ? "messages" : "friends")}
       aria-label={label}
       title={label}
-      className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink-500/60 bg-ink-700/60 text-slate-300 transition hover:border-accent/60 hover:bg-ink-700 hover:text-slate-100"
+      className={HEADER_ICON_BUTTON}
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="h-[18px] w-[18px]">
         <path
@@ -661,7 +670,7 @@ function SocialButton({
         />
       </svg>
       {total > 0 && (
-        <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold leading-4 text-white shadow-lg shadow-black/30">
+        <span className={HEADER_BADGE}>
           {total > 99 ? "99+" : total}
         </span>
       )}

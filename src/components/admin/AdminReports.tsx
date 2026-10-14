@@ -33,7 +33,7 @@ export function ReportsTab() {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">User reports</h2>
+        <h2 className="text-xs font-semibold text-slate-300">User reports</h2>
         <div className="flex rounded-lg border border-white/10 p-0.5 text-xs">
           {(["open", "resolved"] as const).map((value) => (
             <button
@@ -58,7 +58,7 @@ export function ReportsTab() {
       {items && items.length > 0 && (
         <ul className="flex flex-col gap-2">
           {items.map((report) => (
-            <li key={report.id} className="flex gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
+            <li key={report.id} className="flex gap-3 rounded-lg bg-white/[0.03] p-3">
               {report.reported_avatar_url ? (
                 <img src={report.reported_avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
               ) : (

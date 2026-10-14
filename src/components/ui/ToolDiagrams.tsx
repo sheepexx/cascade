@@ -28,7 +28,7 @@ function Frame({ children }: { children: ReactNode }) {
       viewBox={`0 0 ${W} ${H}`}
       role="img"
       aria-hidden="true"
-      className="block w-full rounded-lg bg-[#14141c]"
+      className="block w-full rounded-md bg-black/30"
     >
       {children}
     </svg>

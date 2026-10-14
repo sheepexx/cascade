@@ -180,7 +180,7 @@ function SkillsetStrip({
           aria-expanded={!collapsed}
           aria-label={toggleLabel}
           title={toggleLabel}
-          className="flex items-center gap-1 rounded px-1 py-px font-semibold uppercase tracking-wide text-slate-500 transition duration-[var(--motion-quick)] hover:bg-white/10 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="flex items-center gap-1 rounded px-1 py-px font-medium text-slate-400 transition duration-[var(--motion-quick)] hover:bg-white/[0.07] hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
         >
           <ChevronDownIcon
             className={`h-3 w-3 transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] motion-reduce:transition-none ${

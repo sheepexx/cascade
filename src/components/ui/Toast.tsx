@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useT } from "../../lib/i18n";
 import { CloseIcon } from "./Icons";
 import { TimedNotification } from "./TimedNotification";
+import { buttonClass } from "./buttonStyles";
 
 export type ToastTone = "info" | "success" | "warning" | "error" | "progress";
 
@@ -14,31 +15,35 @@ export type ToastAction = {
   keepOpen?: boolean;
 };
 
+// Every notice shares one raised surface; the tone lives in the icon and the
+// countdown bar, so a success does not shout and an error is still plain.
+const SHELL = "border-white/[0.09] bg-ink-700 text-slate-200";
+
 const TONES: Record<ToastTone, { shell: string; progress: string; icon: string }> = {
   info: {
-    shell: "border-white/10 bg-ink-800/95 text-slate-200 backdrop-blur-xl",
+    shell: SHELL,
     progress: "bg-accent",
     icon: "bg-accent/15 text-accent",
   },
   progress: {
-    shell: "border-white/10 bg-ink-800/95 text-slate-200 backdrop-blur-xl",
+    shell: SHELL,
     progress: "bg-accent",
     icon: "",
   },
   success: {
-    shell: "border-emerald-500/40 bg-emerald-950/90 text-emerald-200",
+    shell: SHELL,
     progress: "bg-emerald-400",
     icon: "bg-emerald-400/15 text-emerald-300",
   },
   warning: {
-    shell: "border-amber-400/40 bg-ink-800/95 text-amber-100 backdrop-blur-xl",
+    shell: `${SHELL} !border-amber-400/25`,
     progress: "bg-amber-400",
     icon: "bg-amber-400/15 text-amber-300",
   },
   error: {
-    shell: "border-red-500/40 bg-red-950/90 text-red-200",
-    progress: "bg-red-400",
-    icon: "bg-red-400/15 text-red-300",
+    shell: `${SHELL} !border-rose-400/30`,
+    progress: "bg-rose-400",
+    icon: "bg-rose-400/15 text-rose-300",
   },
 };
 
@@ -124,7 +129,7 @@ export function Toast({
       showProgress={showProgress}
       live={tone === "error" ? "assertive" : "polite"}
       progressClassName={style.progress}
-      className={`pointer-events-auto max-w-full rounded-lg border py-2 pb-3 pl-3 text-sm shadow-lg ${
+      className={`pointer-events-auto max-w-full rounded-xl border py-2 pb-3 pl-3 text-sm shadow-[var(--shadow-float)] ${
         canClose ? "pr-9" : "pr-4"
       } ${style.shell}`}
     >
@@ -152,11 +157,7 @@ export function Toast({
                       onClose?.();
                       dismiss();
                     }}
-                    className={
-                      action.primary
-                        ? "rounded-md bg-accent/90 px-2.5 py-1 text-xs font-semibold text-white transition duration-150 hover:bg-accent-soft/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] disabled:opacity-60"
-                        : "rounded-md border border-white/15 px-2.5 py-1 text-xs font-medium text-current transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:opacity-60"
-                    }
+                    className={buttonClass(action.primary ? "accent" : "primary", "sm")}
                   >
                     {action.label}
                   </button>

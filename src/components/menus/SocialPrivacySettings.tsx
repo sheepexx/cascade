@@ -13,7 +13,7 @@ import { Button } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { Skeleton } from "../ui/Skeleton";
-import { Tooltip } from "../ui/Tooltip";
+import { SettingRow, SettingsExtra, SettingsSection } from "./settingsLayout";
 
 type Row = {
   key: keyof PrivacySettings;
@@ -72,7 +72,7 @@ export function SocialPrivacySettings({ onOpenProfile }: { onOpenProfile?: () =>
 
   if (!user) {
     return (
-      <div className="flex flex-col items-start gap-3 rounded-xl border border-white/10 bg-ink-700/30 p-4">
+      <div className="flex flex-col items-start gap-3">
         <p className="text-sm text-slate-300">{t("privacy.signedOut")}</p>
         <Button variant="accent" onClick={login}>{t("startModal.loginWithOsu")}</Button>
       </div>
@@ -97,8 +97,7 @@ export function SocialPrivacySettings({ onOpenProfile }: { onOpenProfile?: () =>
 
   const rows = (list: Row[]) =>
     list.map((row) => (
-      <div key={row.key} className="flex items-center justify-between gap-3 text-sm text-slate-200">
-        <Tooltip content={<p className="m-0">{t(row.hint)}</p>}>{t(row.label)}</Tooltip>
+      <SettingRow key={row.key} label={t(row.label)} tip={t(row.hint)}>
         {settings ? (
           <Dropdown<PrivacyLevel>
             size="sm"
@@ -109,44 +108,39 @@ export function SocialPrivacySettings({ onOpenProfile }: { onOpenProfile?: () =>
             options={row.levels.map((level) => ({ value: level, label: t(LEVEL_LABELS[level]) }))}
           />
         ) : (
-          <Skeleton className="h-8 w-36 rounded-lg" />
+          <Skeleton className="h-7 w-36 rounded-md" />
         )}
-      </div>
+      </SettingRow>
     ));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-xl text-xs leading-5 text-slate-400">{t("privacy.intro")}</p>
+    <div className="flex flex-col">
+      <SettingsExtra className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-xl text-xs leading-relaxed text-slate-400">{t("privacy.intro")}</p>
         <div className="flex items-center gap-2">
-          {saving && <span className="text-[11px] text-slate-500">{t("file.saving")}</span>}
+          {saving && <span className="text-xs text-slate-500">{t("file.saving")}</span>}
           {onOpenProfile && (
-            <Button variant="primary" className="px-2.5 py-1 text-xs" onClick={onOpenProfile}>
+            <Button variant="primary" size="sm" onClick={onOpenProfile}>
               {t("privacy.viewProfile")}
             </Button>
           )}
         </div>
-      </div>
-      {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("privacy.whoCanContact")}</h3>
-        <div className="flex flex-col gap-3">{rows(CONTACT)}</div>
-      </section>
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("privacy.whoCanSee")}</h3>
-        <div className="flex flex-col gap-3">{rows(VISIBILITY)}</div>
-        <p className="mt-3 text-[11px] leading-4 text-slate-500">{t("privacy.hideStatusNote")}</p>
-      </section>
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("privacy.mappingTimeTitle")}</h3>
-        <p className="text-xs leading-5 text-slate-400">{t("privacy.mappingTimeExplainer")}</p>
-        <div className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-200">
-          <Tooltip content={<p className="m-0">{t("privacy.clearStatsHint")}</p>}>{t("privacy.clearStats")}</Tooltip>
-          <Button variant="primary" className="px-2.5 py-1 text-xs" disabled={cleared} onClick={() => setClearOpen(true)}>
+      </SettingsExtra>
+      {error && <p role="alert" className="mb-4 text-sm text-rose-300">{error}</p>}
+      <SettingsSection title={t("privacy.whoCanContact")}>{rows(CONTACT)}</SettingsSection>
+      <SettingsSection title={t("privacy.whoCanSee")}>
+        {rows(VISIBILITY)}
+        <SettingsExtra>
+          <p className="py-2.5 text-xs leading-relaxed text-slate-500">{t("privacy.hideStatusNote")}</p>
+        </SettingsExtra>
+      </SettingsSection>
+      <SettingsSection title={t("privacy.mappingTimeTitle")} description={t("privacy.mappingTimeExplainer")}>
+        <SettingRow label={t("privacy.clearStats")} tip={t("privacy.clearStatsHint")}>
+          <Button variant="primary" size="sm" disabled={cleared} onClick={() => setClearOpen(true)}>
             {cleared ? t("privacy.cleared") : t("privacy.clear")}
           </Button>
-        </div>
-      </section>
+        </SettingRow>
+      </SettingsSection>
       <HoldConfirmDialog
         open={clearOpen}
         title={t("privacy.clearConfirmTitle")}

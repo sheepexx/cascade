@@ -209,6 +209,7 @@ export function SkinModal({
         />
 
         <SegmentedControl
+          variant="tabs"
           value={tab}
           onChange={setTab}
           options={TABS}
@@ -218,7 +219,7 @@ export function SkinModal({
         {error && (
           <p
             role="alert"
-            className="rounded-md border border-red-500/40 bg-red-950/50 px-3 py-2 text-xs text-red-200"
+            className="rounded-md bg-rose-500/[0.08] ring-1 ring-inset ring-rose-400/25 px-3 py-2 text-xs text-red-200"
           >
             {error}
           </p>
@@ -291,9 +292,9 @@ function SectionHeading({
 }) {
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <h3 className="flex items-center gap-1.5 font-display text-[0.875rem] font-semibold text-slate-100">
         {children}
-        {tip && <InfoTip className="normal-case tracking-normal" content={tip} />}
+        {tip && <InfoTip content={tip} />}
       </h3>
       {action}
     </div>
@@ -317,7 +318,7 @@ function SkinPreview({
   preview?: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-ink-600 bg-ink-700/40">
+    <section className="overflow-hidden rounded-md bg-white/[0.03]">
       <div className="flex items-baseline justify-between gap-2 px-3 py-2">
         <span
           className="truncate text-sm font-medium text-slate-100"
@@ -529,7 +530,7 @@ function LookTab({
         <SectionHeading tip="The glow drawn under a column as a note is hit. Skins that draw their own hit lighting will want this off. It applies to the editor and to playtest.">
           Playfield
         </SectionHeading>
-        <label className="flex items-center justify-between gap-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2.5">
+        <label className="flex items-center justify-between gap-3 rounded-md bg-white/[0.03] px-3 py-2.5">
           <span className="text-sm text-slate-200">Hit light</span>
           <Toggle checked={hitLight} onChange={onHitLight} aria-label="Hit light" />
         </label>
@@ -584,7 +585,7 @@ function HitsoundTab({
         <SectionHeading tip="Which skin the editor plays hitsounds from. A skin with no samples of its own falls back to the bundled ones.">
           Hitsound source
         </SectionHeading>
-        <div className="mb-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2">
+        <div className="mb-3 rounded-md bg-white/[0.03] px-3 py-2">
           <div className="flex items-baseline justify-between gap-2">
             <span className="truncate text-sm font-medium text-slate-100">
               {activeName}
@@ -732,7 +733,7 @@ function LibraryTab({
               return (
                 <div
                   key={saved.name}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/[0.03] px-3 py-2"
                 >
                   <div className="min-w-32 flex-1">
                     <p
@@ -769,7 +770,7 @@ function LibraryTab({
                       onClick={() => onRemoveSaved(saved)}
                       aria-label={`Remove ${saved.name} from this device`}
                       title="Remove this saved import. The skin in use stays active."
-                      className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-ink-600/75 text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="grid h-8 w-8 place-items-center rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/[0.07] text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {deleting ? <BusyDots /> : <TrashIcon />}
                     </button>
@@ -797,10 +798,10 @@ function LibraryTab({
               return (
                 <div
                   key={slot}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-md bg-white/[0.03] px-3 py-2"
                 >
                   <div className="min-w-0">
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <div className="text-2xs font-medium text-slate-500">
                       Slot {slot}
                     </div>
                     <div
@@ -823,7 +824,7 @@ function LibraryTab({
                         type="button"
                         disabled={cloudBusy !== null}
                         onClick={() => onDownloadCloud(cloudSkin)}
-                        className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-ink-600/75 text-sky-300 transition hover:bg-ink-500/85 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="grid h-8 w-8 place-items-center rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/[0.07] text-sky-300 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label={`Download ${cloudSkin.filename} from cloud`}
                         title="Download and apply this skin"
                       >
@@ -835,7 +836,7 @@ function LibraryTab({
                       </button>
                     )}
                     <label
-                      className={`inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-2.5 text-xs font-medium text-slate-200 transition hover:bg-ink-500/85 ${
+                      className={`inline-flex h-8 cursor-pointer items-center justify-center rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/[0.07] px-2.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.1] ${
                         cloudBusy !== null ? "pointer-events-none opacity-40" : ""
                       }`}
                     >
@@ -861,7 +862,7 @@ function LibraryTab({
                         type="button"
                         disabled={cloudBusy !== null}
                         onClick={() => onDeleteCloud(cloudSkin)}
-                        className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-ink-600/75 text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="grid h-8 w-8 place-items-center rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/[0.07] text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label={`Delete ${cloudSkin.filename} from cloud`}
                         title="Delete this cloud skin"
                       >
@@ -907,10 +908,11 @@ function SkinRow({
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
-      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+      data-active={active}
+      className={`hit-line-left flex items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
         active
-          ? "border-accent bg-accent/10 text-slate-100"
-          : "border-ink-600 bg-ink-700/40 text-slate-200 hover:bg-ink-600/60"
+          ? "bg-white/[0.07] text-slate-50"
+          : "text-slate-200 hover:bg-white/[0.04]"
       }`}
     >
       <span className="flex min-w-0 items-center gap-2">
@@ -919,7 +921,7 @@ function SkinRow({
         </span>
         {badges}
       </span>
-      <span className="ml-2 shrink-0 text-[11px] text-slate-400">
+      <span className={`ml-2 shrink-0 text-xs ${active ? "font-medium text-slate-300" : "text-slate-500"}`}>
         {loading ? "Loading…" : active ? "Active" : "Use"}
       </span>
     </button>
@@ -947,7 +949,7 @@ function Badge({
 
 function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2 text-xs text-slate-400">
+    <p className="rounded-md bg-white/[0.03] px-3 py-2 text-xs text-slate-400">
       {children}
     </p>
   );
@@ -1057,7 +1059,7 @@ function OsuSkinsSection({
           {shown.map((name) => (
             <div
               key={name}
-              className="flex items-center justify-between gap-3 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-md bg-white/[0.03] px-3 py-2"
             >
               <span className="truncate text-xs text-slate-200" title={name}>
                 {name}

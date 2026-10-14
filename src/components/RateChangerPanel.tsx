@@ -16,6 +16,7 @@ import {
   type RateCreateOptions,
 } from "../lib/rateChange";
 import { Slider, Toggle } from "./ui/Controls";
+import { buttonClass } from "./ui/buttonStyles";
 import { useT } from "../lib/i18n";
 
 const EXIT_MS = 180;
@@ -143,10 +144,10 @@ export function RateChangerPanel({
   };
 
   const fieldClass = (bad: boolean) =>
-    `min-w-0 rounded-lg border bg-ink-700/65 px-2 py-1.5 text-sm tabular-nums text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition focus:ring-1 disabled:cursor-not-allowed disabled:opacity-40 ${
+    `min-w-0 h-7 rounded-md bg-black/25 px-2 text-sm tabular-nums text-slate-100 ring-1 ring-inset outline-none transition disabled:cursor-not-allowed disabled:opacity-40 ${
       bad
-        ? "border-red-400/70 focus:border-red-400/70 focus:ring-red-400/40"
-        : "border-white/10 focus:border-accent/70 focus:ring-accent/40"
+        ? "ring-rose-400/70"
+        : "ring-white/[0.08] hover:ring-white/[0.14] focus:ring-accent/70"
     }`;
 
   if (!mounted) return null;
@@ -154,15 +155,15 @@ export function RateChangerPanel({
   return (
     <div className="rate-panel-reveal shrink-0" data-open={open && !closing}>
       <div
-        className={`border-b border-white/10 bg-white/[0.02] px-3 py-3 ${
+        className={`mx-1.5 mb-2 rounded-lg bg-white/[0.03] px-3 py-3 ring-1 ring-inset ring-white/[0.05] ${
           closing ? "rate-panel-out" : "rate-panel-in"
         }`}
       >
         <div className="mb-2.5 flex items-baseline justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          <span className="text-xs font-semibold text-slate-300">
             {t("rate.title")}
           </span>
-          <span className="text-lg font-semibold tabular-nums leading-none text-accent">
+          <span className="font-display text-lg font-bold tabular-nums leading-none text-slate-50">
             {formatRateDisplay(rate)}x
           </span>
         </div>
@@ -240,11 +241,11 @@ export function RateChangerPanel({
             }}
             className={`flex-1 ${fieldClass(invalid === "bpm")}`}
           />
-          <span className="text-[10px] font-medium text-slate-500">BPM</span>
+          <span className="text-2xs font-medium text-slate-500">BPM</span>
         </div>
 
         {invalid && (
-          <p className="mt-1.5 text-[10px] leading-tight text-red-300/90">
+          <p className="mt-1.5 text-2xs leading-tight text-rose-300">
             {invalid === "rate"
               ? t("rate.invalidRate", { min: formatRate(RATE_MIN), max: formatRate(RATE_MAX) })
               : t("rate.invalidBpm", { min: Math.round(baseBpm * RATE_MIN), max: Math.round(baseBpm * RATE_MAX) })}
@@ -260,10 +261,10 @@ export function RateChangerPanel({
                 type="button"
                 disabled={!canEdit}
                 onClick={() => commitRate(preset)}
-                className={`rounded-md border px-1 py-1 text-[11px] font-medium tabular-nums transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`h-6 rounded text-[11px] font-medium tabular-nums transition disabled:cursor-not-allowed disabled:opacity-40 ${
                   selected
-                    ? "border-accent/70 bg-accent/20 text-slate-100"
-                    : "border-white/10 bg-ink-700/45 text-slate-300 hover:border-white/20 hover:bg-ink-600/70"
+                    ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                    : "bg-black/20 text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
                 }`}
               >
                 {formatRate(preset)}x
@@ -295,7 +296,7 @@ export function RateChangerPanel({
         </div>
 
         {preview && (
-          <div className="mt-2.5 flex flex-col gap-1 rounded-lg border border-white/10 bg-ink-900/45 px-2.5 py-2 text-[11px]">
+          <div className="mt-2.5 flex flex-col gap-1 border-t border-white/[0.06] pt-2.5 text-[11px]">
             <PreviewRow label="BPM" from={preview.bpmBefore} to={preview.bpmAfter} />
             {preview.lengthBefore && preview.lengthAfter && (
               <PreviewRow
@@ -320,13 +321,13 @@ export function RateChangerPanel({
           type="button"
           disabled={disabled}
           onClick={() => create()}
-          className="mt-2.5 w-full rounded-lg border border-accent-deep/40 bg-accent/90 px-3 py-2 text-[12px] font-medium text-white shadow-sm backdrop-blur-sm transition hover:bg-accent-soft/95 disabled:cursor-not-allowed disabled:opacity-40"
+          className={buttonClass("accent", "sm", "mt-2.5 w-full")}
         >
           {t("rate.create")}
         </button>
 
         {neutral && (
-          <p className="mt-1.5 text-center text-[10px] leading-tight text-slate-500">
+          <p className="mt-1.5 text-center text-2xs leading-tight text-slate-500">
             {t("rate.neutral")}
           </p>
         )}

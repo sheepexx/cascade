@@ -58,7 +58,7 @@ export function PackBrowserModal({
                 key={`${song.info.dirName}-${i}`}
                 type="button"
                 onClick={() => onImport(song)}
-                className="group flex flex-col rounded-xl border border-ink-500/60 bg-ink-700/40 p-4 text-left transition hover:border-accent/70 hover:bg-ink-700"
+                className="group flex flex-col rounded-lg bg-white/[0.03] p-4 text-left transition hover:bg-white/[0.06]"
               >
                 <div className="mb-2 flex items-center gap-2">
                   <SampleMapsIcon className="h-5 w-5 shrink-0 text-slate-400" />

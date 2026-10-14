@@ -196,7 +196,7 @@ export function CommentsSidebar({
 
   return (
     <div
-      className={`absolute right-0 top-0 z-40 flex h-full w-80 flex-col border-l border-ink-600 bg-ink-800/95 backdrop-blur ${
+      className={`absolute right-0 top-0 z-40 flex h-full w-80 flex-col border-l border-white/[0.06] bg-ink-900 ${
         open ? "" : "hidden"
       }`}
     >
@@ -534,7 +534,7 @@ function CommentBody({
           (c.author_username ?? t("comments.unknown"))
         )}
         {isHost && (
-          <span className="rounded bg-accent/20 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent">
+          <span className="rounded bg-accent/20 px-1 py-0.5 text-2xs font-semibold text-accent">
             {t("comments.host")}
           </span>
         )}

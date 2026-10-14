@@ -32,7 +32,7 @@ export function InviteNotifications({
           resetKey={n.projectId}
           onDismiss={() => onIgnore(n)}
           progressClassName="bg-accent"
-          className="flex flex-col gap-3 rounded-xl border border-white/10 bg-ink-800/95 p-3 pb-4 shadow-2xl backdrop-blur-2xl"
+          className="flex flex-col gap-3 rounded-xl border border-white/[0.09] bg-ink-700 shadow-[var(--shadow-float)] p-3 pb-4"
         >
           {({ dismiss }) => (
             <>

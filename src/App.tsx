@@ -3052,7 +3052,7 @@ export default function App() {
             {(previewScale) => <>
             {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">{t("app.sharedAudio", { reason: audio.nativeAudio.fallbackReason })} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>{t("app.audioSetup")}</button></div>}
             <div className="flex h-full w-full">
-            <div className="relative min-w-0 flex-1">
+            <div className="editor-main relative min-w-0 flex-1">
             {hasProject ? (
               <MemoizedManiaEditor
                 laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
@@ -3195,6 +3195,35 @@ export default function App() {
                 onDone={() => setLayoutEditing(false)}
               />
             )}
+            {hasProject && !zenMode && !playtest.active && eligibleRefs.length > 0 && (
+              // Sits in the editor's left tool column, under the edit/select
+              // switch; the selection panel moves down to make room for it
+              // (see .editor-main in index.css).
+              <div className="reference-picker float-chip absolute left-3 top-[5.25rem] z-30 p-0.5">
+                <Menu
+                  className="!h-6 !px-2 !text-xs"
+                  label={
+                    referenceDiff ? t("app.refShort", { name: referenceDiff.name }) : t("app.reference")
+                  }
+                  items={[
+                    ...eligibleRefs.map((d) => ({
+                      label: `${d.name} (${d.keyCount}K)`,
+                      onClick: () => setReferenceId(d.id),
+                    })),
+                    ...(referenceDiff
+                      ? [
+                          { separator: true as const },
+                          {
+                            label: t("app.referenceOff"),
+                            danger: true,
+                            onClick: () => setReferenceId(null),
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              </div>
+            )}
             </div>
             <div
               className={`relative h-full shrink-0 overflow-hidden border-l border-ink-700 transition-[width] duration-300 ease-out ${
@@ -3327,31 +3356,6 @@ export default function App() {
                 playbackRate={audio.playbackRate}
                 onPlaybackRateChange={setAudioPlaybackRate}
               />
-            )}
-            {hasProject && !zenMode && !playtest.active && eligibleRefs.length > 0 && (
-              <div className="absolute left-3 top-[5.5rem] z-30 rounded-lg border border-white/10 bg-ink-900/62 shadow-xl shadow-black/20 backdrop-blur-xl">
-                <Menu
-                  label={
-                    referenceDiff ? t("app.refShort", { name: referenceDiff.name }) : t("app.reference")
-                  }
-                  items={[
-                    ...eligibleRefs.map((d) => ({
-                      label: `${d.name} (${d.keyCount}K)`,
-                      onClick: () => setReferenceId(d.id),
-                    })),
-                    ...(referenceDiff
-                      ? [
-                          { separator: true as const },
-                          {
-                            label: t("app.referenceOff"),
-                            danger: true,
-                            onClick: () => setReferenceId(null),
-                          },
-                        ]
-                      : []),
-                  ]}
-                />
-              </div>
             )}
             {cloudProjectId && authUser && (
               <CommentsSidebar

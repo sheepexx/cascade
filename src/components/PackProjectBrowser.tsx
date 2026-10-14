@@ -17,7 +17,7 @@ import { buildOsz } from "../lib/oszExport";
 import { sanitizePackFilename } from "../lib/packCreator";
 import { normalizeTimingPoints, type LoadedFile } from "../types";
 import { SampleMapsIcon } from "./ui/StartIcons";
-import { AsyncImage, SkeletonCards } from "./ui/Skeleton";
+import { AsyncImage, SkeletonListRows } from "./ui/Skeleton";
 import { useT } from "../lib/i18n";
 import { t as tr } from "../lib/i18n/core";
 
@@ -226,11 +226,11 @@ export function PackProjectBrowser({
 
       <BrowserSection title={t("packBrowser.local")} hint={t("packBrowser.localHint")}>
         {localProjects === null ? (
-          <SkeletonCards count={3} label={t("packBrowser.loadingLocal")} />
+          <SkeletonListRows count={4} columns label={t("packBrowser.loadingLocal")} />
         ) : localProjects.length === 0 ? (
           <p className="text-sm text-slate-500">{t("packBrowser.noLocal")}</p>
         ) : (
-          <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="skeleton-swap-in grid gap-x-3 gap-y-0.5 sm:grid-cols-2">
             {localProjects.map((p) => (
               <SelectableCard
                 key={p.id}
@@ -250,7 +250,7 @@ export function PackProjectBrowser({
 
       <BrowserSection title={t("packBrowser.cloud")} hint={t("packBrowser.cloudHint")}>
         {!user ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-4 py-3">
             <span className="text-sm text-slate-400">
               {t("packBrowser.loginHint")}
             </span>
@@ -259,11 +259,11 @@ export function PackProjectBrowser({
             </Button>
           </div>
         ) : cloudProjects === null ? (
-          <SkeletonCards count={3} label={t("packBrowser.loadingCloud")} />
+          <SkeletonListRows count={4} columns label={t("packBrowser.loadingCloud")} />
         ) : cloudProjects.length === 0 ? (
           <p className="text-sm text-slate-500">{t("packBrowser.noCloud")}</p>
         ) : (
-          <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="skeleton-swap-in grid gap-x-3 gap-y-0.5 sm:grid-cols-2">
             {cloudProjects.map((p) => (
               <SelectableCard
                 key={p.id}
@@ -295,11 +295,11 @@ function BrowserSection({
 }) {
   return (
     <section className="mt-2 [&+&]:mt-6">
-      <div className="mb-3 flex items-baseline gap-2 border-b border-white/10 pb-1.5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+      <div className="mb-2 flex items-baseline gap-2">
+        <h3 className="font-display text-[0.875rem] font-semibold text-slate-100">
           {title}
         </h3>
-        {hint && <span className="ml-auto text-[11px] text-slate-500">{hint}</span>}
+        {hint && <span className="ml-auto text-xs text-slate-500">{hint}</span>}
       </div>
       {children}
     </section>
@@ -327,40 +327,46 @@ function SelectableCard({
 }) {
   const t = useT();
   return (
+    // The same row as the project lists elsewhere, with a check box at the
+    // front: picking several maps is the point of this list.
     <button
       type="button"
       onClick={onToggle}
       disabled={disabled}
       aria-pressed={selected}
-      className={`group relative flex flex-col overflow-hidden rounded-xl border text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`group flex items-center gap-3 rounded-lg p-1.5 pr-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
         selected
-          ? "border-emerald-400/80 bg-emerald-400/10"
-          : "border-ink-500/60 bg-ink-700/40 hover:border-accent/70 hover:bg-ink-700"
+          ? "bg-emerald-400/[0.08] ring-1 ring-inset ring-emerald-400/40"
+          : "hover:bg-white/[0.045]"
       }`}
     >
-      <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-600">
+      <span
+        aria-hidden
+        className={`ml-1 grid h-4 w-4 shrink-0 place-items-center rounded-sm text-[10px] ring-1 ring-inset transition ${
+          selected ? "bg-emerald-500 text-white ring-emerald-400" : "bg-black/30 text-transparent ring-white/25"
+        }`}
+        title={selected ? t("packBrowser.selected") : undefined}
+      >
+        ✓
+      </span>
+      <div className="relative aspect-[16/9] w-[5.5rem] shrink-0 overflow-hidden rounded-md bg-ink-600 ring-1 ring-inset ring-white/[0.06]">
         <AsyncImage
           src={thumbUrl}
           pending={thumbPending}
           className="h-full w-full object-cover"
           fallback={
             <div className="grid h-full w-full place-items-center text-slate-600">
-              <SampleMapsIcon className="h-8 w-8" />
+              <SampleMapsIcon className="h-5 w-5" />
             </div>
           }
         />
-        {selected && (
-          <span className="absolute right-2 top-2 rounded-md bg-emerald-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
-            {t("packBrowser.selected")} ✓
-          </span>
-        )}
       </div>
-      <div className="flex flex-col gap-0.5 p-3">
-        <div className="truncate text-sm font-semibold text-slate-100">{title}</div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="truncate font-display text-[0.875rem] font-semibold text-slate-100">{title}</div>
         {subtitle && (
           <div className="truncate text-xs text-slate-400">{subtitle}</div>
         )}
-        {note && <div className="truncate text-[11px] text-slate-500">{note}</div>}
+        {note && <div className="truncate text-2xs text-slate-500">{note}</div>}
       </div>
     </button>
   );

@@ -142,7 +142,7 @@ export function SettingsModal({
           t={t}
         />
 
-        <SegmentedControl value={shownTab} onChange={setTab} options={tabs} />
+        <SegmentedControl variant="tabs" value={shownTab} onChange={setTab} options={tabs} />
 
         {shownTab === "batch" && batch && (
           <BatchApplyPanel
@@ -265,18 +265,18 @@ export function SettingsModal({
             </Group>
 
             {isSm && onSmMeta && (
-              <section className="flex flex-col gap-3 rounded-xl border border-pink-500/20 bg-pink-500/5 p-4">
+              <section className="flex flex-col gap-3 border-t border-white/[0.06] pt-4">
                 <div className="flex items-center gap-2">
                   <img
                     src="/etterna-logo.png"
                     alt="Etterna"
                     className="h-4 w-4 object-contain opacity-80"
                   />
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wide text-pink-300">
+                  <h3 className="font-display text-[0.875rem] font-semibold text-slate-100">
                     {t("mapSettings.smFields")}
                   </h3>
                 </div>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-slate-400">
                   {t("mapSettings.smFieldsHint")}
                 </p>
 
@@ -365,7 +365,7 @@ export function SettingsModal({
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  <span className="text-xs font-medium text-slate-300">
                     {t("mapSettings.smSelectable")}
                   </span>
                   <SegmentedControl
@@ -575,7 +575,7 @@ function MapHero({
 }) {
   const title = meta.title.trim() || t("mapSettings.untitled");
   return (
-    <div className="relative h-40 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-ink-700">
+    <div className="relative h-40 shrink-0 overflow-hidden rounded-lg bg-ink-700 ring-1 ring-inset ring-white/[0.06]">
       {background ? (
         <img
           src={background.url}
@@ -596,12 +596,12 @@ function MapHero({
       <div className="absolute inset-x-4 bottom-3.5 flex items-end gap-3">
         <div className="min-w-0 flex-1">
           {meta.artist.trim() && (
-            <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-accent-soft">
+            <p className="truncate text-xs font-medium text-slate-200">
               {meta.artist}
             </p>
           )}
           <p
-            className="truncate text-xl font-bold leading-tight text-white"
+            className="truncate font-display text-xl font-bold leading-tight text-white"
             title={title}
           >
             {title}
@@ -612,7 +612,7 @@ function MapHero({
             </p>
           )}
         </div>
-        <label className="shrink-0 cursor-pointer rounded-lg border border-white/15 bg-ink-900/60 px-2.5 py-1.5 text-xs font-medium text-slate-100 backdrop-blur-md transition duration-[var(--motion-quick)] hover:bg-ink-800/85 focus-within:ring-2 focus-within:ring-accent/60 active:scale-[0.98]">
+        <label className="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md bg-black/55 px-2.5 text-xs font-medium text-slate-100 ring-1 ring-inset ring-white/15 transition duration-[var(--motion-quick)] hover:bg-black/70 focus-within:ring-2 focus-within:ring-accent/60">
           {background
             ? t("mapSettings.replaceImage")
             : t("mapSettings.uploadImage")}
@@ -634,9 +634,10 @@ function MapHero({
 
 function Group({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-white/10 bg-ink-700/30 p-4">
+    // A group of fields under a heading, divided from the next by a hairline.
+    <section className="flex flex-col gap-3 border-t border-white/[0.06] pt-4 first:border-t-0 first:pt-0">
       {title && (
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <h3 className="font-display text-[0.875rem] font-semibold text-slate-100">
           {title}
         </h3>
       )}
@@ -671,14 +672,14 @@ function AssetTile({
   children?: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-white/10 bg-ink-700/30 p-3">
+    <section className="border-t border-white/[0.06] pt-3 first:border-t-0 first:pt-0">
       <div className="flex items-center gap-3">
-        <div className="grid h-14 w-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-ink-900/60 text-slate-500">
+        <div className="grid h-14 w-24 shrink-0 place-items-center overflow-hidden rounded-md bg-black/30 text-slate-500 ring-1 ring-inset ring-white/[0.06]">
           {preview ?? icon}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+            <h3 className="font-display text-sm font-semibold text-slate-100">{title}</h3>
             {badge}
           </div>
           <p
@@ -692,7 +693,7 @@ function AssetTile({
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {onRemove && (
-            <Button onClick={onRemove} className="px-2.5 py-1.5 text-xs">
+            <Button size="sm" onClick={onRemove}>
               {removeLabel}
             </Button>
           )}

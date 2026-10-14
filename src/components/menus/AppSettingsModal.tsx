@@ -1,11 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Modal } from "../ui/Modal";
-import {
-  Button,
-  SegmentedControl,
-  Slider,
-  Toggle,
-} from "../ui/Controls";
+import { Button, INPUT_CLASS, SegmentedControl, Slider, Toggle } from "../ui/Controls";
+import { buttonClass } from "../ui/buttonStyles";
 import { Dropdown } from "../ui/Dropdown";
 import { MAX_PLAYTEST_RATE, MIN_PLAYTEST_RATE } from "../../lib/playtestJudgements";
 import { formatBytes } from "../../lib/progress";
@@ -17,7 +13,6 @@ import {
 } from "../../lib/interfaceFeel";
 import type { CloudMenuBackground } from "../../lib/accountCloud";
 import type { MenuBackgroundMode } from "../../types";
-import { Tooltip } from "../ui/Tooltip";
 import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { useAuth } from "../../lib/auth";
@@ -55,11 +50,21 @@ import {
   parsePlaytestSkinValue,
   playtestSkinValue,
 } from "../../lib/playtestSkin";
-import { useLocale, type Locale, type MessageKey } from "../../lib/i18n";
+import { useLocale, useT, type Locale, type MessageKey } from "../../lib/i18n";
 import { LOCALES } from "../../lib/i18n/core";
 import type { EditorKeybinds } from "../../lib/editorKeybinds";
 import { ShortcutsSettings } from "./ShortcutsSettings";
 import { SocialPrivacySettings } from "./SocialPrivacySettings";
+import {
+  SettingRow,
+  SettingsExtra,
+  SettingsInfoPane,
+  SettingsInfoProvider,
+  SettingsSearchScope,
+  SettingsSection,
+  SliderValue,
+} from "./settingsLayout";
+import { searchWords } from "../../lib/settingsSearch";
 import {
   MAX_UI_SCALE,
   MIN_UI_SCALE,
@@ -352,6 +357,11 @@ export function AppSettingsModal({
   const { locale, setLocale, t } = useLocale();
   const { user, login } = useAuth();
   const [tab, setTab] = useState<Tab>("General");
+  const [query, setQuery] = useState("");
+  const words = useMemo(() => searchWords(query), [query]);
+  const searching = words.length > 0;
+  // Searching lists every category; otherwise only the open one renders.
+  const show = (name: Tab) => searching || tab === name;
   const [keyMode, setKeyMode] = useState(() =>
     keyCount >= 1 && keyCount <= 18 ? keyCount : 4,
   );
@@ -374,6 +384,7 @@ export function AppSettingsModal({
 
   useEffect(() => {
     if (open) setTab(initialTab === "Social" && !socialEnabled ? "General" : initialTab ?? "General");
+    if (open) setQuery("");
   }, [initialTab, open, socialEnabled]);
 
   const patchPlaytest = (patch: Partial<PlaytestSettings>) => {
@@ -474,14 +485,17 @@ export function AppSettingsModal({
       ? [...savedSkinNames, playtest.skin.fileName]
       : savedSkinNames;
 
+  const visibleTabs = TABS.filter((name) => name !== "Social" || socialEnabled);
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={t("settings.title")}
       accent={MENU_ACCENTS.settings}
-      width="max-w-4xl"
-      height="h-[84vh]"
+      width="max-w-6xl"
+      height="h-[min(88vh,50rem)]"
+      bodyClassName="p-0 !overflow-hidden"
       headerExtra={
         accountSyncStatus ? (
           <AccountSyncIndicator
@@ -491,39 +505,33 @@ export function AppSettingsModal({
         ) : null
       }
     >
-      {/* One height for every tab (set on the Modal above), so switching
-          tabs never moves the tab bar out from under the pointer. */}
-      <div className="flex flex-col gap-5">
-        <SegmentedControl
-          value={tab}
-          onChange={setTab}
-          options={TABS.filter((name) => name !== "Social" || socialEnabled).map((name) => ({
-            value: name,
-            label: t(TAB_LABELS[name]),
-          }))}
-        />
-
-        {tab === "General" && (
-          <div className="flex flex-col gap-6">
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.language")}
-              </h3>
-              <Dropdown
-                className="w-full"
-                aria-label={t("settings.language")}
-                value={locale}
-                options={LOCALES.map((option) => ({
-                  value: option.code,
-                  label: option.nativeName,
-                }))}
-                onChange={(next: Locale) => setLocale(next)}
-              />
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.interface")}
-              </h3>
+      <SettingsWorkspace
+        tab={tab}
+        onTab={(next) => {
+          setTab(next);
+          setQuery("");
+        }}
+        tabs={visibleTabs}
+        wideContent={!searching && tab === "Shortcuts"}
+        query={query}
+        onQuery={setQuery}
+        searching={searching}
+      >
+        {show("General") && (
+          <SettingsCategory name="General" words={words}>
+            <SettingsSection title={t("settings.interface")}>
+              <SettingRow label={t("settings.language")}>
+                <Dropdown
+                  className="w-48"
+                  aria-label={t("settings.language")}
+                  value={locale}
+                  options={LOCALES.map((option) => ({
+                    value: option.code,
+                    label: option.nativeName,
+                  }))}
+                  onChange={(next: Locale) => setLocale(next)}
+                />
+              </SettingRow>
               <SliderRow
                 label={t("settings.uiScale")}
                 tip={t("settings.uiScaleHint")}
@@ -537,14 +545,9 @@ export function AppSettingsModal({
                 commitOnRelease
                 onChange={onUiScale}
               />
-              <div className="mt-4">
-                <span className="text-sm text-slate-200">
-                  <Tip text={t("settings.altWheelHint")}>
-                    {t("settings.altWheelAction")}
-                  </Tip>
-                </span>
+              <SettingRow label={t("settings.altWheelAction")} tip={t("settings.altWheelHint")}>
                 <Dropdown
-                  className="mt-2 w-full"
+                  className="w-48"
                   aria-label={t("settings.altWheelAction")}
                   value={altWheelAction}
                   options={ALT_WHEEL_OPTIONS.map((option) => ({
@@ -553,23 +556,19 @@ export function AppSettingsModal({
                   }))}
                   onChange={onAltWheelAction}
                 />
-              </div>
-              <div className="mt-4">
-                <SettingToggle
-                  label={t("settings.shortcutNotices")}
-                  tip={t("settings.shortcutNoticesHint")}
-                  checked={shortcutNoticesEnabled}
-                  onChange={onShortcutNoticesEnabled}
-                />
-              </div>
-              <div className="mt-3">
-                <SettingToggle
-                  label={t("settings.preferOriginalMetadata")}
-                  tip={t("settings.preferOriginalMetadataHint")}
-                  checked={preferOriginalMetadata}
-                  onChange={onPreferOriginalMetadata}
-                />
-              </div>
+              </SettingRow>
+              <SettingToggle
+                label={t("settings.shortcutNotices")}
+                tip={t("settings.shortcutNoticesHint")}
+                checked={shortcutNoticesEnabled}
+                onChange={onShortcutNoticesEnabled}
+              />
+              <SettingToggle
+                label={t("settings.preferOriginalMetadata")}
+                tip={t("settings.preferOriginalMetadataHint")}
+                checked={preferOriginalMetadata}
+                onChange={onPreferOriginalMetadata}
+              />
               <SliderRow
                 label={t("settings.holdConfirm")}
                 tip={t("settings.holdConfirmHint")}
@@ -592,416 +591,359 @@ export function AppSettingsModal({
                 commitOnRelease
                 onChange={onParallaxStrength}
               />
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.mainMenu")}
-              </h3>
-              <div className="flex flex-col gap-3">
-                <SettingToggle
-                  label={t("settings.menuMusic")}
-                  tip={t("settings.menuMusicHint")}
-                  checked={menuMusicEnabled}
-                  onChange={onMenuMusicEnabled}
-                />
-                <SettingToggle
-                  label={t("settings.logoSkinHitsounds")}
-                  tip={t("settings.logoSkinHitsoundsHint")}
-                  checked={logoSkinHitsounds}
-                  onChange={onLogoSkinHitsounds}
-                />
-                <SettingToggle
-                  label={t("settings.menuTips")}
-                  tip={t("settings.menuTipsHint")}
-                  checked={menuTipsEnabled}
-                  onChange={onMenuTipsEnabled}
-                />
-                <SettingToggle
-                  label={t("settings.sessionIntro")}
-                  tip={t("settings.sessionIntroHint")}
-                  checked={introEnabled}
-                  onChange={onIntroEnabled}
-                />
-                <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-sm text-slate-200">
-                      <Tip text={t("settings.menuBackgroundHint")}>
-                        {t("settings.menuBackground")}
-                      </Tip>
-                    </span>
-                    <SegmentedControl
-                      className="w-56"
-                      value={menuBackgroundMode}
-                      onChange={onMenuBackgroundMode}
-                      options={[
-                        {
-                          value: "song",
-                          label: t("settings.menuBackgroundSong"),
-                        },
-                        {
-                          value: "custom",
-                          label: t("settings.menuBackgroundCustom"),
-                        },
-                      ]}
-                    />
-                  </div>
+            </SettingsSection>
 
-                  {!user ? (
-                    <p className="rounded-lg border border-white/10 bg-ink-700/40 px-3 py-2 text-[11px] text-slate-400">
-                      {t("settings.menuBackgroundSignIn")}
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-ink-700/40 p-2.5">
-                      <div className="grid h-12 w-20 shrink-0 place-items-center overflow-hidden rounded-md border border-white/10 bg-ink-900/60">
-                        {menuBackgroundUrl ? (
-                          <img
-                            src={menuBackgroundUrl}
-                            alt=""
-                            aria-hidden
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-[10px] text-slate-600">—</span>
-                        )}
+            <SettingsSection title={t("settings.mainMenu")}>
+              <SettingToggle
+                label={t("settings.menuMusic")}
+                tip={t("settings.menuMusicHint")}
+                checked={menuMusicEnabled}
+                onChange={onMenuMusicEnabled}
+              />
+              <SettingToggle
+                label={t("settings.logoSkinHitsounds")}
+                tip={t("settings.logoSkinHitsoundsHint")}
+                checked={logoSkinHitsounds}
+                onChange={onLogoSkinHitsounds}
+              />
+              <SettingToggle
+                label={t("settings.menuTips")}
+                tip={t("settings.menuTipsHint")}
+                checked={menuTipsEnabled}
+                onChange={onMenuTipsEnabled}
+              />
+              <SettingToggle
+                label={t("settings.sessionIntro")}
+                tip={t("settings.sessionIntroHint")}
+                checked={introEnabled}
+                onChange={onIntroEnabled}
+              />
+              <SettingRow
+                label={t("settings.menuBackground")}
+                tip={t("settings.menuBackgroundHint")}
+              >
+                <SegmentedControl
+                  size="sm"
+                  className="w-52"
+                  value={menuBackgroundMode}
+                  onChange={onMenuBackgroundMode}
+                  options={[
+                    {
+                      value: "song",
+                      label: t("settings.menuBackgroundSong"),
+                    },
+                    {
+                      value: "custom",
+                      label: t("settings.menuBackgroundCustom"),
+                    },
+                  ]}
+                />
+              </SettingRow>
+              <SettingsExtra
+                keywords={[t("settings.menuBackground"), t("settings.menuBackgroundHint")]}
+                className="flex flex-col gap-2 py-3"
+              >
+                {!user ? (
+                  <p className="text-xs leading-relaxed text-slate-400">
+                    {t("settings.menuBackgroundSignIn")}
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-12 w-20 shrink-0 place-items-center overflow-hidden rounded-md bg-black/30 ring-1 ring-inset ring-white/[0.08]">
+                      {menuBackgroundUrl ? (
+                        <img
+                          src={menuBackgroundUrl}
+                          alt=""
+                          aria-hidden
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xs text-slate-600">—</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className="truncate text-xs text-slate-200"
+                        title={menuBackground?.filename}
+                      >
+                        {menuBackground?.filename ??
+                          t("settings.menuBackgroundEmpty")}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className="truncate text-xs text-slate-200"
-                          title={menuBackground?.filename}
-                        >
-                          {menuBackground?.filename ??
-                            t("settings.menuBackgroundEmpty")}
-                        </div>
-                        <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
-                          {menuBackground
-                            ? `${menuBackground.width}×${menuBackground.height} · ${formatBytes(
-                                menuBackground.bytes,
-                              )}`
-                            : formatMenuBackgroundRules()}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <label
-                          className={`inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-ink-600/75 px-2.5 text-xs font-medium text-slate-200 transition duration-[var(--motion-quick)] hover:bg-ink-500/85 ${
-                            menuBackgroundBusy
-                              ? "pointer-events-none opacity-40"
-                              : ""
-                          }`}
-                        >
-                          {menuBackgroundBusy
-                            ? "…"
-                            : menuBackground
-                              ? t("settings.menuBackgroundReplace")
-                              : t("settings.menuBackgroundUpload")}
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/avif"
-                            className="hidden"
-                            disabled={menuBackgroundBusy}
-                            onChange={(event) => {
-                              const file = event.target.files?.[0];
-                              if (file) void onUploadMenuBackground(file);
-                              event.target.value = "";
-                            }}
-                          />
-                        </label>
-                        {menuBackground && (
-                          <Button
-                            className="px-2 py-1 text-xs"
-                            disabled={menuBackgroundBusy}
-                            onClick={() => void onRemoveMenuBackground()}
-                          >
-                            {t("settings.menuBackgroundRemove")}
-                          </Button>
-                        )}
+                      <div className="mt-0.5 text-2xs leading-snug text-slate-500">
+                        {menuBackground
+                          ? `${menuBackground.width}×${menuBackground.height} · ${formatBytes(
+                              menuBackground.bytes,
+                            )}`
+                          : formatMenuBackgroundRules()}
                       </div>
                     </div>
-                  )}
-
-                  {menuBackgroundError && (
-                    <p className="text-[11px] text-rose-300">
-                      {menuBackgroundError}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.performance")}
-              </h3>
-              <div className="flex flex-col gap-3">
-                <SettingToggle
-                  label={t("settings.performanceMode")}
-                  tip={t("settings.performanceModeHint")}
-                  checked={performanceMode}
-                  onChange={onPerformanceMode}
-                />
-              </div>
-              {performanceMode && (
-                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                  {t("settings.performanceModeNote")}
-                </p>
-              )}
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.localSave")}
-              </h3>
-              <div className="flex flex-col gap-3">
-                <SettingToggle
-                  label={t("settings.autosave")}
-                  tip={t("settings.autosaveHint")}
-                  checked={localAutosaveEnabled}
-                  onChange={onLocalAutosaveEnabled}
-                />
-              </div>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.privacy")}
-              </h3>
-              <div className="flex flex-col gap-3">
-                <SettingToggle
-                  label={t("settings.usageStats")}
-                  tip={t("settings.usageStatsHint")}
-                  checked={shareUsageStats}
-                  onChange={onShareUsageStats}
-                />
-              </div>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.presence")}
-              </h3>
-              <div className="flex flex-col gap-3">
-                {user ? (
-                  <SettingToggle
-                    label={t("settings.showMenuPlayers")}
-                    tip={t("settings.presenceHint")}
-                    checked={showMenuPlayers}
-                    onChange={onShowMenuPlayers}
-                  />
-                ) : (
-                  <SettingSignIn
-                    label={t("settings.showMenuPlayers")}
-                    tip={t("settings.presenceSignedOut")}
-                    action={t("startModal.loginWithOsu")}
-                    onLogin={login}
-                  />
-                )}
-                <SettingToggle
-                  label={t("settings.hideStatus")}
-                  checked={hideStatus}
-                  onChange={onHideStatus}
-                  disabled={!user}
-                />
-              </div>
-              {isDesktopApp() && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between gap-3 text-sm text-slate-200">
-                    <Tip text={t("settings.discordPresenceHint")}>{t("settings.discordPresence")}</Tip>
-                    <Dropdown
-                      className="w-40"
-                      aria-label={t("settings.discordPresence")}
-                      value={discordPresence}
-                      options={[
-                        { value: "detailed", label: t("settings.discordDetailed") },
-                        { value: "activity", label: t("settings.discordActivity") },
-                        { value: "minimal", label: t("settings.discordMinimal") },
-                        { value: "off", label: t("settings.discordOff") },
-                      ]}
-                      onChange={onDiscordPresence}
-                    />
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <label
+                        className={buttonClass(
+                          "primary",
+                          "sm",
+                          `cursor-pointer ${menuBackgroundBusy ? "pointer-events-none opacity-40" : ""}`,
+                        )}
+                      >
+                        {menuBackgroundBusy
+                          ? "…"
+                          : menuBackground
+                            ? t("settings.menuBackgroundReplace")
+                            : t("settings.menuBackgroundUpload")}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/avif"
+                          className="hidden"
+                          disabled={menuBackgroundBusy}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) void onUploadMenuBackground(file);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {menuBackground && (
+                        <Button
+                          size="sm"
+                          disabled={menuBackgroundBusy}
+                          onClick={() => void onRemoveMenuBackground()}
+                        >
+                          {t("settings.menuBackgroundRemove")}
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
+                {menuBackgroundError && (
+                  <p className="text-xs text-rose-300">{menuBackgroundError}</p>
+                )}
+              </SettingsExtra>
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.performance")}>
+              <SettingToggle
+                label={t("settings.performanceMode")}
+                tip={t("settings.performanceModeHint")}
+                checked={performanceMode}
+                onChange={onPerformanceMode}
+              />
+              {performanceMode && (
+                <SettingsExtra keywords={[t("settings.performanceMode")]}>
+                  <p className="py-2.5 text-xs leading-relaxed text-slate-400">
+                    {t("settings.performanceModeNote")}
+                  </p>
+                </SettingsExtra>
               )}
-            </section>
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.savingPrivacy")}>
+              <SettingToggle
+                label={t("settings.autosave")}
+                tip={t("settings.autosaveHint")}
+                checked={localAutosaveEnabled}
+                onChange={onLocalAutosaveEnabled}
+              />
+              <SettingToggle
+                label={t("settings.usageStats")}
+                tip={t("settings.usageStatsHint")}
+                checked={shareUsageStats}
+                onChange={onShareUsageStats}
+              />
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.presence")}>
+              {user ? (
+                <SettingToggle
+                  label={t("settings.showMenuPlayers")}
+                  tip={t("settings.presenceHint")}
+                  checked={showMenuPlayers}
+                  onChange={onShowMenuPlayers}
+                />
+              ) : (
+                <SettingRow
+                  label={t("settings.showMenuPlayers")}
+                  tip={t("settings.presenceSignedOut")}
+                >
+                  <Button variant="accent" size="sm" onClick={login}>
+                    {t("startModal.loginWithOsu")}
+                  </Button>
+                </SettingRow>
+              )}
+              <SettingToggle
+                label={t("settings.hideStatus")}
+                checked={hideStatus}
+                onChange={onHideStatus}
+                disabled={!user}
+              />
+              {isDesktopApp() && (
+                <SettingRow
+                  label={t("settings.discordPresence")}
+                  tip={t("settings.discordPresenceHint")}
+                >
+                  <Dropdown
+                    className="w-44"
+                    aria-label={t("settings.discordPresence")}
+                    value={discordPresence}
+                    options={[
+                      { value: "detailed", label: t("settings.discordDetailed") },
+                      { value: "activity", label: t("settings.discordActivity") },
+                      { value: "minimal", label: t("settings.discordMinimal") },
+                      { value: "off", label: t("settings.discordOff") },
+                    ]}
+                    onChange={onDiscordPresence}
+                  />
+                </SettingRow>
+              )}
+            </SettingsSection>
+
             {isDesktopApp() && (
-              <section>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {t("settings.osuIntegration")}
-                </h3>
+              <SettingsSection title={t("settings.osuIntegration")}>
                 <SettingToggle
                   label={t("settings.osuListener")}
                   tip={t("settings.osuListenerHint")}
                   checked={osuListenerEnabled}
                   onChange={onOsuListenerEnabled}
                 />
-              </section>
+                <OsuFolderRow />
+              </SettingsSection>
             )}
-            <OsuFolderSection />
             <LegalSection />
             <ResetDataSection />
-          </div>
+          </SettingsCategory>
         )}
 
-        {tab === "Editor" && (
-          <div className="flex flex-col gap-8">
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.layout")}
-              </h3>
-              <div className="flex flex-col gap-4">
-                <SettingToggle
-                  label={t("settings.showDifficultyPanel")} tip={t("settings.layoutHint")} diagram="difficultyPanel"
-                  checked={difficultyPanelOpen}
-                  onChange={onDifficultyPanelOpen}
-                />
-                <SettingToggle
-                  label={t("settings.showBottomTimeline")} tip={t("settings.layoutHint")} diagram="bottomTimeline"
-                  checked={showBottomTimeline}
-                  onChange={onShowBottomTimeline}
-                />
-                <div className="ml-3 border-l border-white/10 pl-3">
-                  <SettingToggle
-                    label={t("settings.simplifyBottomTimeline")}
-                    tip={t("settings.simplifyBottomTimelineHint")}
-                    checked={simplifyBottomTimeline}
-                    disabled={!showBottomTimeline}
-                    onChange={onSimplifyBottomTimeline}
-                  />
-                </div>
-                <SettingToggle
-                  label={t("settings.showPpCounter")} tip={t("settings.layoutHint")} diagram="ppPanel"
-                  checked={showPpCounter}
-                  onChange={onShowPpCounter}
-                />
-                <SettingToggle
-                  label={t("settings.showPatternTools")} tip={t("settings.layoutHint")}
-                  checked={showPatternTools}
-                  onChange={onShowPatternTools}
-                />
-                <SettingToggle
-                  label={t("settings.showSkillsetGraph")}
-                  tip={t("settings.showSkillsetGraphHint")}
-                  checked={showSkillsetGraph}
-                  disabled={!showBottomTimeline}
-                  onChange={onShowSkillsetGraph}
-                />
-              </div>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.playfield")}
-              </h3>
-              <div className="flex flex-col gap-4">
-                <SettingToggle
-                  label={t("settings.colourblindLanes")}
-                  tip={t("settings.colourblindLanesHint")}
-                  checked={colourblindLanes}
-                  onChange={onColourblindLanes}
-                />
-                <SettingToggle
-                  label={t("settings.snapColouredNotes")}
-                  tip={t("settings.snapColouredNotesHint")}
-                  checked={snapColouredNotes}
-                  onChange={onSnapColouredNotes}
-                />
-                <SliderRow
-                  label={t("settings.backgroundDim")}
-                  tip={t("settings.playfieldHint")}
-                  diagram="backgroundDim"
-                  diagramValue={dimBackground}
-                  display={`${Math.round(dimBackground)}%`}
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={dimBackground}
-                  onChange={onDimBackground}
-                />
-                <SliderRow
-                  label={t("settings.backgroundBlur")}
-                  tip={t("settings.backgroundBlurHint")}
-                  display={`${Math.round(backgroundBlur)}px`}
-                  min={0}
-                  max={40}
-                  step={1}
-                  value={backgroundBlur}
-                  onChange={onBackgroundBlur}
-                />
-                <SliderRow
-                  label={t("settings.sizeZoom")}
-                  tip={t("settings.playfieldHint")}
-                  diagram="sizeZoom"
-                  diagramValue={playfieldScale * 100}
-                  display={`${Math.round(playfieldScale * 100)}%`}
-                  min={0.5}
-                  max={2.5}
-                  step={0.05}
-                  value={playfieldScale}
-                  onChange={onPlayfieldScale}
-                />
-                <SliderRow
-                  label={t("settings.noteHeight")}
-                  tip={t("settings.noteHeightHint")}
-                  diagram="noteHeight"
-                  diagramValue={noteHeightScale * 100}
-                  display={`${Math.round(noteHeightScale * 100)}%`}
-                  min={0.75}
-                  max={2}
-                  step={0.05}
-                  value={noteHeightScale}
-                  onChange={onNoteHeightScale}
-                />
-                <div className="flex flex-col gap-4">
-                  <SettingToggle
-                    label={t("settings.waveformOnLane")}
-                    tip={t("settings.waveformHint")}
-                    diagram="waveform"
-                    checked={showWaveform}
-                    onChange={onShowWaveform}
-                  />
-                  <SliderRow
-                    label={t("settings.waveformTransparency")}
-                    tip={t("settings.waveformTransparencyHint")}
-                    display={`${Math.round(waveformTransparency)}%`}
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={waveformTransparency}
-                    disabled={!showWaveform}
-                    onChange={onWaveformTransparency}
-                  />
-                  <SettingToggle
-                    label={t("settings.timingLines")}
-                    tip={t("settings.timingLinesHint")}
-                    diagram="timingLines"
-                    checked={showTimingLines}
-                    onChange={onShowTimingLines}
-                  />
-                </div>
-              </div>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.scrolling")}
-              </h3>
-              <div className="flex flex-col gap-4">
-                <SettingToggle
-                  label={t("settings.smoothScrolling")}
-                  tip={t("settings.smoothScrollingHint")}
-                  diagram="smoothScrolling"
-                  checked={smoothScrolling}
-                  onChange={onSmoothScrolling}
-                />
-                <SettingToggle
-                  label={t("settings.svPreview")}
-                  tip={t("settings.svPreviewHint")}
-                  diagram="svPreview"
-                  checked={svPreviewPlayback}
-                  onChange={onSvPreviewPlayback}
-                />
-                <SettingToggle
-                  label={t("settings.bpmAffectsScroll")}
-                  tip={t("settings.bpmAffectsScrollHint")}
-                  diagram="bpmScroll"
-                  checked={bpmAffectsScroll}
-                  onChange={onBpmAffectsScroll}
-                />
-              </div>
-              <div className="mt-4 flex items-center justify-between gap-3 text-sm text-slate-200">
-                <Tip text={t("settings.scrollDirectionHint")} diagram="scrollDirection">{t("settings.scrollDirection")}</Tip>
+        {show("Editor") && (
+          <SettingsCategory name="Editor" words={words}>
+            <SettingsSection title={t("settings.layout")}>
+              <SettingToggle
+                label={t("settings.showDifficultyPanel")} tip={t("settings.layoutHint")} diagram="difficultyPanel"
+                checked={difficultyPanelOpen}
+                onChange={onDifficultyPanelOpen}
+              />
+              <SettingToggle
+                label={t("settings.showBottomTimeline")} tip={t("settings.layoutHint")} diagram="bottomTimeline"
+                checked={showBottomTimeline}
+                onChange={onShowBottomTimeline}
+              />
+              <SettingToggle
+                indent
+                label={t("settings.simplifyBottomTimeline")}
+                tip={t("settings.simplifyBottomTimelineHint")}
+                checked={simplifyBottomTimeline}
+                disabled={!showBottomTimeline}
+                onChange={onSimplifyBottomTimeline}
+              />
+              <SettingToggle
+                indent
+                label={t("settings.showSkillsetGraph")}
+                tip={t("settings.showSkillsetGraphHint")}
+                checked={showSkillsetGraph}
+                disabled={!showBottomTimeline}
+                onChange={onShowSkillsetGraph}
+              />
+              <SettingToggle
+                label={t("settings.showPpCounter")} tip={t("settings.layoutHint")} diagram="ppPanel"
+                checked={showPpCounter}
+                onChange={onShowPpCounter}
+              />
+              <SettingToggle
+                label={t("settings.showPatternTools")} tip={t("settings.layoutHint")}
+                checked={showPatternTools}
+                onChange={onShowPatternTools}
+              />
+            </SettingsSection>
+            <SettingsSection title={t("settings.playfield")}>
+              <SettingToggle
+                label={t("settings.colourblindLanes")}
+                tip={t("settings.colourblindLanesHint")}
+                checked={colourblindLanes}
+                onChange={onColourblindLanes}
+              />
+              <SettingToggle
+                label={t("settings.snapColouredNotes")}
+                tip={t("settings.snapColouredNotesHint")}
+                checked={snapColouredNotes}
+                onChange={onSnapColouredNotes}
+              />
+              <SliderRow
+                label={t("settings.backgroundDim")}
+                tip={t("settings.playfieldHint")}
+                diagram="backgroundDim"
+                diagramValue={dimBackground}
+                display={`${Math.round(dimBackground)}%`}
+                min={0}
+                max={100}
+                step={1}
+                value={dimBackground}
+                onChange={onDimBackground}
+              />
+              <SliderRow
+                label={t("settings.backgroundBlur")}
+                tip={t("settings.backgroundBlurHint")}
+                display={`${Math.round(backgroundBlur)}px`}
+                min={0}
+                max={40}
+                step={1}
+                value={backgroundBlur}
+                onChange={onBackgroundBlur}
+              />
+              <SliderRow
+                label={t("settings.sizeZoom")}
+                tip={t("settings.playfieldHint")}
+                diagram="sizeZoom"
+                diagramValue={playfieldScale * 100}
+                display={`${Math.round(playfieldScale * 100)}%`}
+                min={0.5}
+                max={2.5}
+                step={0.05}
+                value={playfieldScale}
+                onChange={onPlayfieldScale}
+              />
+              <SliderRow
+                label={t("settings.noteHeight")}
+                tip={t("settings.noteHeightHint")}
+                diagram="noteHeight"
+                diagramValue={noteHeightScale * 100}
+                display={`${Math.round(noteHeightScale * 100)}%`}
+                min={0.75}
+                max={2}
+                step={0.05}
+                value={noteHeightScale}
+                onChange={onNoteHeightScale}
+              />
+              <SettingToggle
+                label={t("settings.waveformOnLane")}
+                tip={t("settings.waveformHint")}
+                diagram="waveform"
+                checked={showWaveform}
+                onChange={onShowWaveform}
+              />
+              <SliderRow
+                indent
+                label={t("settings.waveformTransparency")}
+                tip={t("settings.waveformTransparencyHint")}
+                display={`${Math.round(waveformTransparency)}%`}
+                min={0}
+                max={100}
+                step={1}
+                value={waveformTransparency}
+                disabled={!showWaveform}
+                onChange={onWaveformTransparency}
+              />
+              <SettingToggle
+                label={t("settings.timingLines")}
+                tip={t("settings.timingLinesHint")}
+                diagram="timingLines"
+                checked={showTimingLines}
+                onChange={onShowTimingLines}
+              />
+            </SettingsSection>
+            <SettingsSection title={t("settings.scrolling")}>
+              <SettingRow
+                label={t("settings.scrollDirection")}
+                tip={t("settings.scrollDirectionHint")}
+                diagram="scrollDirection"
+              >
                 <button
                   type="button"
                   onClick={() => onUpscroll(!upscroll)}
@@ -1010,17 +952,9 @@ export function AppSettingsModal({
                       ? t("settings.upscroll")
                       : t("settings.downscroll"),
                   })}
-                  className="flex items-center gap-1.5 rounded-lg border border-ink-500/60 bg-ink-600 px-2.5 py-1 text-xs font-medium text-slate-200 shadow-sm transition hover:border-accent/60 hover:bg-ink-500"
+                  className={buttonClass("primary", "sm", "w-32 justify-between")}
                 >
-                  <span
-                    aria-hidden
-                    className={`inline-block leading-none transition-transform duration-300 ease-[var(--ease-emphasized)] ${
-                      upscroll ? "-rotate-180" : "rotate-0"
-                    }`}
-                  >
-                    ↓
-                  </span>
-                  <span className="relative inline-flex w-[5.25rem] justify-center overflow-hidden py-0.5">
+                  <span className="relative inline-flex flex-1 justify-start overflow-hidden">
                     <span
                       key={upscroll ? "up" : "down"}
                       className={`whitespace-nowrap ${
@@ -1032,257 +966,273 @@ export function AppSettingsModal({
                         : t("settings.downscrollLabel")}
                     </span>
                   </span>
+                  <span
+                    aria-hidden
+                    className={`inline-block leading-none text-slate-400 transition-transform duration-300 ease-[var(--ease-emphasized)] ${
+                      upscroll ? "-rotate-180" : "rotate-0"
+                    }`}
+                  >
+                    ↓
+                  </span>
                 </button>
-              </div>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("nav.timing")}
-              </h3>
-              <div className="flex flex-col gap-4">
-                <SettingToggle
-                  label={t("settings.moveNotesWithTiming")}
-                  tip={t("settings.moveNotesWithTimingHint")}
-                  checked={moveNotesWithTiming}
-                  onChange={onMoveNotesWithTiming}
-                />
-              </div>
-            </section>
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.longNotes")}
-              </h3>
-              <div className="flex flex-col gap-4">
-                <SliderRow
-                  label={t("settings.bodyWidth")}
-                  tip={t("settings.bodyWidthHint")}
-                  diagram="bodyWidth"
-                  diagramValue={longNoteBodyScale * 100}
-                  display={`${Math.round(longNoteBodyScale * 100)}%`}
-                  min={0.5}
-                  max={1.5}
-                  step={0.05}
-                  value={longNoteBodyScale}
-                  onChange={onLongNoteBodyScale}
-                />
-              </div>
-            </section>
-          </div>
+              </SettingRow>
+              <SettingToggle
+                label={t("settings.smoothScrolling")}
+                tip={t("settings.smoothScrollingHint")}
+                diagram="smoothScrolling"
+                checked={smoothScrolling}
+                onChange={onSmoothScrolling}
+              />
+              <SettingToggle
+                label={t("settings.svPreview")}
+                tip={t("settings.svPreviewHint")}
+                diagram="svPreview"
+                checked={svPreviewPlayback}
+                onChange={onSvPreviewPlayback}
+              />
+              <SettingToggle
+                label={t("settings.bpmAffectsScroll")}
+                tip={t("settings.bpmAffectsScrollHint")}
+                diagram="bpmScroll"
+                checked={bpmAffectsScroll}
+                onChange={onBpmAffectsScroll}
+              />
+            </SettingsSection>
+            <SettingsSection title={t("nav.timing")}>
+              <SettingToggle
+                label={t("settings.moveNotesWithTiming")}
+                tip={t("settings.moveNotesWithTimingHint")}
+                checked={moveNotesWithTiming}
+                onChange={onMoveNotesWithTiming}
+              />
+            </SettingsSection>
+            <SettingsSection title={t("settings.longNotes")}>
+              <SliderRow
+                label={t("settings.bodyWidth")}
+                tip={t("settings.bodyWidthHint")}
+                diagram="bodyWidth"
+                diagramValue={longNoteBodyScale * 100}
+                display={`${Math.round(longNoteBodyScale * 100)}%`}
+                min={0.5}
+                max={1.5}
+                step={0.05}
+                value={longNoteBodyScale}
+                onChange={onLongNoteBodyScale}
+              />
+            </SettingsSection>
+          </SettingsCategory>
         )}
 
-        {tab === "Playtest" && (
-          <div className="flex flex-col gap-7">
-            <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <div aria-hidden="true" className="w-28 shrink-0">
+        {show("Playtest") && (
+          <SettingsCategory name="Playtest" words={words}>
+            <SettingsExtra
+              keywords={[t("settings.hudEditorTitle"), t("settings.hudEditorDesc")]}
+              className="mb-7 flex items-center gap-5 border-b border-white/[0.06] pb-6"
+            >
+              <div aria-hidden="true" className="w-32 shrink-0 [&_svg]:mt-0">
                 <SettingDiagram name="hud" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-semibold text-slate-100">{t("settings.hudEditorTitle")}</h3>
+                <h3 className="font-display text-sm font-semibold text-slate-100">{t("settings.hudEditorTitle")}</h3>
                 <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("settings.hudEditorDesc")}</p>
-                <Button variant="accent" className="mt-3" disabled={!onOpenHudEditor} onClick={onOpenHudEditor}>
-                  {t("settings.hudEditorOpen")}
-                </Button>
-                {!onOpenHudEditor && <p className="mt-2 text-[11px] text-slate-500">{t("settings.hudEditorNeedsMap")}</p>}
-              </div>
-            </div>
-            <section>
-              <SectionTitle>{t("settings.ptGameplay")}</SectionTitle>
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3 text-sm text-slate-200">
-                    <Tip text={t("settings.rateHint")}>{t("settings.rate")}</Tip>
-                    <div className="ml-auto flex flex-wrap justify-end gap-1">
-                      {PLAYTEST_RATES.map((r) => {
-                        const on = Math.abs((playtest.rate ?? 1) - r) < 0.001;
-                        return (
-                          <button
-                            key={r}
-                            type="button"
-                            aria-pressed={on}
-                            onClick={() => patchPlaytest({ rate: r })}
-                            className={`rounded-md px-2 py-1 text-xs font-medium tabular-nums transition duration-[var(--motion-quick)] ${
-                              on
-                                ? "bg-accent text-white shadow-sm"
-                                : "bg-ink-700/70 text-slate-300 hover:bg-ink-600 hover:text-slate-100"
-                            }`}
-                          >
-                            {r}×
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <NumberBox
-                      label={t("settings.rate")}
-                      value={playtest.rate ?? 1}
-                      min={MIN_PLAYTEST_RATE}
-                      max={MAX_PLAYTEST_RATE}
-                      step={0.05}
-                      unit="×"
-                      onChange={(rate) => patchPlaytest({ rate })}
-                    />
-                  </div>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <Button variant="accent" size="sm" disabled={!onOpenHudEditor} onClick={onOpenHudEditor}>
+                    {t("settings.hudEditorOpen")}
+                  </Button>
+                  {!onOpenHudEditor && <span className="text-xs text-slate-500">{t("settings.hudEditorNeedsMap")}</span>}
                 </div>
               </div>
-            </section>
-
-            <section>
-              <SectionTitle>
-                <Tip text={t("settings.autoplayHint")}>{t("settings.autoplay")}</Tip>
-              </SectionTitle>
-              <div className="flex flex-col gap-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1 text-sm text-slate-200">
-                    <Tip
-                      text={t("settings.danHint", {
-                        keys: DAN_LADDERS[ladders.regular].keyCount,
-                      })}
-                    >
-                      {t("settings.danRegular")}
-                    </Tip>
-                    <Dropdown
-                      className="w-full"
-                      aria-label={t("settings.danRegular")}
-                      value={regularLevel}
-                      options={DAN_LADDERS[ladders.regular].levels.map(
-                        (lvl, i) => ({ value: i, label: lvl.label }),
-                      )}
-                      onChange={(level) => setDanSkill(level, lnLevel)}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 text-sm text-slate-200">
-                    <span>{t("settings.danLn")}</span>
-                    <Dropdown
-                      className="w-full"
-                      aria-label={t("settings.danLn")}
-                      value={lnLevel}
-                      options={DAN_LADDERS[ladders.ln].levels.map((lvl, i) => ({
-                        value: i,
-                        label: lvl.label,
-                      }))}
-                      onChange={(level) => setDanSkill(regularLevel, level)}
-                    />
-                  </div>
+            </SettingsExtra>
+            <SettingsSection title={t("settings.ptGameplay")}>
+              <SettingRow label={t("settings.rate")} tip={t("settings.rateHint")}>
+                <div className="flex flex-wrap justify-end gap-0.5 rounded-md bg-black/25 p-0.5 ring-1 ring-inset ring-white/[0.06]">
+                  {PLAYTEST_RATES.map((r) => {
+                    const on = Math.abs((playtest.rate ?? 1) - r) < 0.001;
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => patchPlaytest({ rate: r })}
+                        className={`h-6 rounded px-1.5 text-xs font-medium tabular-nums transition duration-[var(--motion-quick)] ${
+                          on
+                            ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                            : "text-slate-400 hover:text-slate-100"
+                        }`}
+                      >
+                        {r}×
+                      </button>
+                    );
+                  })}
                 </div>
-                <SettingToggle
-                  label={t("settings.humanize")}
-                  tip={t("settings.humanizeHint")}
-                  checked={playtest.humanize.enabled}
-                  onChange={setHumanizeEnabled}
+                <NumberBox
+                  label={t("settings.rate")}
+                  value={playtest.rate ?? 1}
+                  min={MIN_PLAYTEST_RATE}
+                  max={MAX_PLAYTEST_RATE}
+                  step={0.05}
+                  unit="×"
+                  onChange={(rate) => patchPlaytest({ rate })}
                 />
-                {playtest.humanize.enabled && (
-                  <div className="flex flex-col gap-4 border-l border-white/10 pl-3">
-                    <SliderRow
-                      label={t("settings.humanizeJitter")}
-                      tip={t("settings.humanizeJitterHint")}
-                      value={playtest.humanize.jitterMs}
-                      min={0}
-                      max={60}
-                      step={1}
-                      display={(v) => `${v} ms`}
-                      onChange={(jitterMs) => patchHumanize({ jitterMs })}
-                    />
-                    <SliderRow
-                      label={t("settings.humanizeBias")}
-                      tip={t("settings.humanizeBiasHint")}
-                      value={playtest.humanize.biasMs}
-                      min={-40}
-                      max={40}
-                      step={1}
-                      display={(v) => `${v > 0 ? "+" : ""}${v} ms`}
-                      onChange={(biasMs) => patchHumanize({ biasMs })}
-                    />
-                    <SliderRow
-                      label={t("settings.humanizeSlipChance")}
-                      tip={t("settings.humanizeSlipChanceHint")}
-                      value={Math.round(playtest.humanize.slipChance * 1000) / 10}
-                      min={0}
-                      max={35}
-                      step={0.5}
-                      display={(v) => `${v.toFixed(1)}%`}
-                      onChange={(v) => patchHumanize({ slipChance: v / 100 })}
-                    />
-                    <SliderRow
-                      label={t("settings.humanizeMissChance")}
-                      value={Math.round(playtest.humanize.missChance * 1000) / 10}
-                      min={0}
-                      max={10}
-                      step={0.1}
-                      display={(v) => `${v.toFixed(1)}%`}
-                      onChange={(v) => patchHumanize({ missChance: v / 100 })}
-                    />
-                    <SliderRow
-                      label={t("settings.humanizeReleaseJitter")}
-                      tip={t("settings.humanizeReleaseJitterHint")}
-                      value={playtest.humanize.releaseJitterMs}
-                      min={0}
-                      max={80}
-                      step={1}
-                      display={(v) => `${v} ms`}
-                      onChange={(releaseJitterMs) => patchHumanize({ releaseJitterMs })}
-                    />
-                    <div className="flex items-center gap-3 text-sm text-slate-200">
-                      <Tip text={t("settings.humanizeSeedHint")}>{t("settings.humanizeSeed")}</Tip>
-                      {playtest.humanize.seed === 0 && (
-                        <span className="text-[11px] text-slate-500">
-                          {t("settings.humanizeSeedRandom")}
-                        </span>
-                      )}
-                      <NumberBox
-                        label={t("settings.humanizeSeed")}
-                        value={playtest.humanize.seed}
-                        min={0}
-                        max={999999}
-                        step={1}
-                        onChange={(seed) => patchHumanize({ seed: Math.floor(seed) })}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
+              </SettingRow>
+            </SettingsSection>
 
-            <section>
-              <SectionTitle>{t("settings.ptAppearance")}</SectionTitle>
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3 text-sm text-slate-200">
-                  <Tip text={t("settings.playtestSkinHint")}>{t("settings.playtestSkin")}</Tip>
-                  <Dropdown
-                    className="ml-auto w-56"
-                    aria-label={t("settings.playtestSkin")}
-                    value={playtestSkinValue(playtest.skin)}
-                    options={[
-                      { value: "", label: t("settings.playtestSkinEditor") },
-                      { value: "none", label: t("settings.playtestSkinDefault") },
-                      ...PRESET_SKINS.map((preset) => ({
-                        value: playtestSkinValue({
-                          source: "preset" as const,
-                          fileName: preset.fileName,
-                        }),
-                        label: preset.name,
-                        group: t("settings.playtestSkinPresets"),
-                      })),
-                      ...savedSkinOptions.map((name) => ({
-                        value: playtestSkinValue({
-                          source: "saved" as const,
-                          fileName: name,
-                        }),
-                        label: name.replace(/\.osk$/i, ""),
-                        group: t("settings.playtestSkinSaved"),
-                      })),
-                    ]}
-                    onChange={(value) =>
-                      patchPlaytest({ skin: parsePlaytestSkinValue(value) })
-                    }
+            <SettingsSection title={t("settings.autoplay")} description={undefined}>
+              <SettingRow
+                label={t("settings.danRegular")}
+                tip={t("settings.danHint", {
+                  keys: DAN_LADDERS[ladders.regular].keyCount,
+                })}
+              >
+                <Dropdown
+                  className="w-44"
+                  aria-label={t("settings.danRegular")}
+                  value={regularLevel}
+                  options={DAN_LADDERS[ladders.regular].levels.map(
+                    (lvl, i) => ({ value: i, label: lvl.label }),
+                  )}
+                  onChange={(level) => setDanSkill(level, lnLevel)}
+                />
+              </SettingRow>
+              <SettingRow label={t("settings.danLn")} tip={t("settings.autoplayHint")}>
+                <Dropdown
+                  className="w-44"
+                  aria-label={t("settings.danLn")}
+                  value={lnLevel}
+                  options={DAN_LADDERS[ladders.ln].levels.map((lvl, i) => ({
+                    value: i,
+                    label: lvl.label,
+                  }))}
+                  onChange={(level) => setDanSkill(regularLevel, level)}
+                />
+              </SettingRow>
+              <SettingToggle
+                label={t("settings.humanize")}
+                tip={t("settings.humanizeHint")}
+                checked={playtest.humanize.enabled}
+                onChange={setHumanizeEnabled}
+              />
+              {playtest.humanize.enabled && (
+                <>
+                  <SliderRow
+                    indent
+                    label={t("settings.humanizeJitter")}
+                    tip={t("settings.humanizeJitterHint")}
+                    value={playtest.humanize.jitterMs}
+                    min={0}
+                    max={60}
+                    step={1}
+                    display={(v) => `${v} ms`}
+                    onChange={(jitterMs) => patchHumanize({ jitterMs })}
                   />
-                </div>
-              </div>
-            </section>
+                  <SliderRow
+                    indent
+                    label={t("settings.humanizeBias")}
+                    tip={t("settings.humanizeBiasHint")}
+                    value={playtest.humanize.biasMs}
+                    min={-40}
+                    max={40}
+                    step={1}
+                    display={(v) => `${v > 0 ? "+" : ""}${v} ms`}
+                    onChange={(biasMs) => patchHumanize({ biasMs })}
+                  />
+                  <SliderRow
+                    indent
+                    label={t("settings.humanizeSlipChance")}
+                    tip={t("settings.humanizeSlipChanceHint")}
+                    value={Math.round(playtest.humanize.slipChance * 1000) / 10}
+                    min={0}
+                    max={35}
+                    step={0.5}
+                    display={(v) => `${v.toFixed(1)}%`}
+                    onChange={(v) => patchHumanize({ slipChance: v / 100 })}
+                  />
+                  <SliderRow
+                    indent
+                    label={t("settings.humanizeMissChance")}
+                    value={Math.round(playtest.humanize.missChance * 1000) / 10}
+                    min={0}
+                    max={10}
+                    step={0.1}
+                    display={(v) => `${v.toFixed(1)}%`}
+                    onChange={(v) => patchHumanize({ missChance: v / 100 })}
+                  />
+                  <SliderRow
+                    indent
+                    label={t("settings.humanizeReleaseJitter")}
+                    tip={t("settings.humanizeReleaseJitterHint")}
+                    value={playtest.humanize.releaseJitterMs}
+                    min={0}
+                    max={80}
+                    step={1}
+                    display={(v) => `${v} ms`}
+                    onChange={(releaseJitterMs) => patchHumanize({ releaseJitterMs })}
+                  />
+                  <SettingRow
+                    indent
+                    label={t("settings.humanizeSeed")}
+                    tip={t("settings.humanizeSeedHint")}
+                  >
+                    {playtest.humanize.seed === 0 && (
+                      <span className="text-xs text-slate-500">
+                        {t("settings.humanizeSeedRandom")}
+                      </span>
+                    )}
+                    <NumberBox
+                      label={t("settings.humanizeSeed")}
+                      value={playtest.humanize.seed}
+                      min={0}
+                      max={999999}
+                      step={1}
+                      onChange={(seed) => patchHumanize({ seed: Math.floor(seed) })}
+                    />
+                  </SettingRow>
+                </>
+              )}
+            </SettingsSection>
 
-            <section>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <SectionTitle inline>{t("settings.keybinds")}</SectionTitle>
+            <SettingsSection title={t("settings.ptAppearance")}>
+              <SettingRow label={t("settings.playtestSkin")} tip={t("settings.playtestSkinHint")}>
+                <Dropdown
+                  className="w-52"
+                  aria-label={t("settings.playtestSkin")}
+                  value={playtestSkinValue(playtest.skin)}
+                  options={[
+                    { value: "", label: t("settings.playtestSkinEditor") },
+                    { value: "none", label: t("settings.playtestSkinDefault") },
+                    ...PRESET_SKINS.map((preset) => ({
+                      value: playtestSkinValue({
+                        source: "preset" as const,
+                        fileName: preset.fileName,
+                      }),
+                      label: preset.name,
+                      group: t("settings.playtestSkinPresets"),
+                    })),
+                    ...savedSkinOptions.map((name) => ({
+                      value: playtestSkinValue({
+                        source: "saved" as const,
+                        fileName: name,
+                      }),
+                      label: name.replace(/\.osk$/i, ""),
+                      group: t("settings.playtestSkinSaved"),
+                    })),
+                  ]}
+                  onChange={(value) =>
+                    patchPlaytest({ skin: parsePlaytestSkinValue(value) })
+                  }
+                />
+              </SettingRow>
+            </SettingsSection>
+
+            <SettingsSection
+              title={t("settings.keybinds")}
+              description={
+                capturing !== null ? t("settings.keybindsCapturing") : t("settings.keybindsHint")
+              }
+              action={
                 <Dropdown
                   size="sm"
+                  className="w-20"
                   value={keyMode}
                   aria-label={t("settings.keyMode")}
                   options={Array.from({ length: 18 }, (_, i) => ({
@@ -1294,60 +1244,64 @@ export function AppSettingsModal({
                     setKeyMode(keys);
                   }}
                 />
-              </div>
-              <div
-                className="grid gap-1.5"
-                style={{ gridTemplateColumns: `repeat(${Math.min(keyMode, 9)}, minmax(0, 1fr))` }}
+              }
+            >
+              <SettingsExtra
+                keywords={[t("settings.keybinds"), t("settings.keybindsHint")]}
+                className="py-3"
               >
-                {Array.from({ length: keyMode }, (_, i) => (
-                  <button
-                    key={i}
-                    ref={(el) => {
-                      laneButtonRefs.current[i] = el;
-                    }}
-                    type="button"
-                    // Space binds a lane and then clicks whichever lane is
-                    // listening next; that click must not restart capture.
-                    onClick={() => {
-                      if (capturing === i) return;
-                      setCaptureQueue(
-                        Array.from({ length: keyMode - i }, (_, offset) => i + offset),
-                      );
-                    }}
-                    onBlur={() => {
-                      if (captureQueueRef.current[0] === i) stopCapture();
-                    }}
-                    onKeyDown={(e) => {
-                      if (capturing !== i) return;
-                      e.preventDefault();
-                      if (e.key === "Escape") stopCapture();
-                      else if (e.key === "Backspace" || e.key === "Delete") {
-                        clearLane(i);
-                      } else captureKey(e.code);
-                    }}
-                    className={`flex min-h-[3rem] flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-sm font-semibold transition ${
-                      capturing === i
-                        ? "border-accent/80 bg-accent/20 text-slate-100"
-                        : !selectedKeybinds[i]
-                          ? "border-amber-400/50 bg-ink-700/60 text-amber-200 hover:border-accent/50"
-                          : "border-white/10 bg-ink-700/60 text-slate-200 hover:border-accent/50"
-                    }`}
-                  >
-                    <span className="text-[10px] font-medium text-slate-500">{i + 1}</span>
-                    <span className="truncate">
-                      {capturing === i ? "…" : keyLabel(selectedKeybinds[i] || "")}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {capturing !== null ? t("settings.keybindsCapturing") : t("settings.keybindsHint")}
-              </p>
-              {warnings.length > 0 && (
-                <p className="mt-1 text-[11px] text-amber-300">{warnings.join(" · ")}</p>
-              )}
-              <div className="mt-4 flex items-center gap-3 text-sm text-slate-200">
-                <Tip text={t("settings.quickRestartHint")}>{t("settings.quickRestartKey")}</Tip>
+                <div
+                  className="grid gap-1.5"
+                  style={{ gridTemplateColumns: `repeat(${Math.min(keyMode, 9)}, minmax(0, 1fr))` }}
+                >
+                  {Array.from({ length: keyMode }, (_, i) => (
+                    <button
+                      key={i}
+                      ref={(el) => {
+                        laneButtonRefs.current[i] = el;
+                      }}
+                      type="button"
+                      // Space binds a lane and then clicks whichever lane is
+                      // listening next; that click must not restart capture.
+                      onClick={() => {
+                        if (capturing === i) return;
+                        setCaptureQueue(
+                          Array.from({ length: keyMode - i }, (_, offset) => i + offset),
+                        );
+                      }}
+                      onBlur={() => {
+                        if (captureQueueRef.current[0] === i) stopCapture();
+                      }}
+                      onKeyDown={(e) => {
+                        if (capturing !== i) return;
+                        e.preventDefault();
+                        if (e.key === "Escape") stopCapture();
+                        else if (e.key === "Backspace" || e.key === "Delete") {
+                          clearLane(i);
+                        } else captureKey(e.code);
+                      }}
+                      // Each lane is drawn as a key with a lane number above
+                      // it: the binding is the thing being edited.
+                      className={`flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 font-mono text-sm font-semibold shadow-[inset_0_-2px_0_rgb(0_0_0/0.35)] ring-1 ring-inset transition ${
+                        capturing === i
+                          ? "bg-accent/15 text-slate-50 ring-accent/70"
+                          : !selectedKeybinds[i]
+                            ? "bg-amber-400/[0.06] text-amber-200 ring-amber-400/40 hover:ring-amber-300/60"
+                            : "bg-white/[0.05] text-slate-100 ring-white/[0.09] hover:bg-white/[0.08] hover:ring-white/20"
+                      }`}
+                    >
+                      <span className="font-sans text-2xs font-medium text-slate-500">{i + 1}</span>
+                      <span className="max-w-full truncate">
+                        {capturing === i ? "…" : keyLabel(selectedKeybinds[i] || "")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {warnings.length > 0 && (
+                  <p className="mt-2 text-xs text-amber-300">{warnings.join(" · ")}</p>
+                )}
+              </SettingsExtra>
+              <SettingRow label={t("settings.quickRestartKey")} tip={t("settings.quickRestartHint")}>
                 <button
                   type="button"
                   onClick={() => setCapturingRestart(true)}
@@ -1364,215 +1318,414 @@ export function AppSettingsModal({
                       setCapturingRestart(false);
                     }
                   }}
-                  className={`ml-auto min-w-[5.5rem] shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                    capturingRestart
-                      ? "border-accent/80 bg-accent/20 text-slate-100"
-                      : "border-white/10 bg-ink-700/60 text-slate-200 hover:border-accent/50"
+                  className={`keycap keycap-editable !h-7 min-w-[5.5rem] !px-3 !text-xs transition ${
+                    capturingRestart ? "!bg-accent/15 !text-slate-50 outline outline-1 outline-offset-1 outline-accent/70" : "hover:!bg-white/[0.1]"
                   }`}
                 >
                   {capturingRestart ? t("settings.pressKey") : keyLabel(playtest.quickRestartKey)}
                 </button>
-              </div>
-            </section>
-
-          </div>
+              </SettingRow>
+            </SettingsSection>
+          </SettingsCategory>
         )}
 
-        {tab === "Audio" && (
-          <div className="flex flex-col gap-6">
+        {show("Audio") && (
+          <SettingsCategory name="Audio" words={words}>
             {onAudioSetup && (
-              <section>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {t("settings.audioOutput")}
-                </h3>
-                <Button variant="primary" onClick={onAudioSetup}>
-                  {t("settings.audioSetup")}
-                </Button>
-                <p className="mt-2 text-[11px] text-slate-500">
-                  {t("settings.audioSetupHint")}
-                </p>
-              </section>
+              <SettingsSection title={t("settings.audioOutput")}>
+                <SettingRow label={t("settings.audioSetup")} tip={t("settings.audioSetupHint")}>
+                  <Button variant="primary" size="sm" onClick={onAudioSetup}>
+                    {t("settings.calibrate")}
+                  </Button>
+                </SettingRow>
+              </SettingsSection>
             )}
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.volume")}
-              </h3>
-              <div className="flex flex-col gap-4">
-                <SliderRow
-                  label={t("settings.masterVolume")}
-                  tip={t("settings.masterVolumeHint")}
-                  display={`${Math.round(masterVolume * 100)}%`}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={masterVolume}
-                  onChange={onMasterVolume}
-                />
-                <SliderRow
-                  label={t("settings.musicVolume")}
-                  tip={t("settings.musicVolumeHint")}
-                  display={`${Math.round(musicVolume * 100)}%`}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={musicVolume}
-                  onChange={onMusicVolume}
-                />
-                <SliderRow
-                  label={t("settings.effectsVolume")}
-                  tip={t("settings.hitsoundVolumeHint")}
-                  display={`${Math.round(hitsoundVolume * 100)}%`}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={hitsoundVolume}
-                  onChange={onHitsoundVolume}
-                />
-                <SliderRow
-                  label={t("settings.unfocusedVolume")}
-                  tip={t("settings.unfocusedVolumeHint")}
-                  display={`${Math.round(unfocusedVolume * 100)}%`}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={unfocusedVolume}
-                  onChange={onUnfocusedVolume}
-                />
-              </div>
-            </section>
+            <SettingsSection title={t("settings.volume")}>
+              <SliderRow
+                label={t("settings.masterVolume")}
+                tip={t("settings.masterVolumeHint")}
+                display={`${Math.round(masterVolume * 100)}%`}
+                min={0}
+                max={1}
+                step={0.01}
+                value={masterVolume}
+                onChange={onMasterVolume}
+              />
+              <SliderRow
+                label={t("settings.musicVolume")}
+                tip={t("settings.musicVolumeHint")}
+                display={`${Math.round(musicVolume * 100)}%`}
+                min={0}
+                max={1}
+                step={0.01}
+                value={musicVolume}
+                onChange={onMusicVolume}
+              />
+              <SliderRow
+                label={t("settings.effectsVolume")}
+                tip={t("settings.hitsoundVolumeHint")}
+                display={`${Math.round(hitsoundVolume * 100)}%`}
+                min={0}
+                max={1}
+                step={0.01}
+                value={hitsoundVolume}
+                onChange={onHitsoundVolume}
+              />
+              <SliderRow
+                label={t("settings.unfocusedVolume")}
+                tip={t("settings.unfocusedVolumeHint")}
+                display={`${Math.round(unfocusedVolume * 100)}%`}
+                min={0}
+                max={1}
+                step={0.01}
+                value={unfocusedVolume}
+                onChange={onUnfocusedVolume}
+              />
+            </SettingsSection>
 
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.playback")}
-              </h3>
+            <SettingsSection title={t("settings.playback")}>
               <SettingToggle
                 label={t("settings.keepPitch")}
                 tip={t("settings.keepPitchHint")}
                 checked={keepPitchWhenSlowed}
                 onChange={onKeepPitchWhenSlowed}
               />
-            </section>
-
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.hitsounds")}
-              </h3>
               <SettingToggle
                 label={t("settings.playHitsounds")}
                 tip={t("settings.hitsoundsHint")}
                 checked={hitsoundsEnabled}
                 onChange={onHitsoundsEnabled}
               />
-            </section>
+            </SettingsSection>
 
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.interfaceSounds")}
-              </h3>
+            <SettingsSection title={t("settings.interfaceSounds")}>
               <SettingToggle
                 label={t("settings.uiSounds")}
                 tip={t("settings.uiSoundsHint")}
                 checked={uiSoundsEnabled}
                 onChange={onUiSoundsEnabled}
               />
-              <div className="mt-3">
-                <SliderRow
-                  label={t("settings.volume")}
-                  display={`${Math.round(uiSoundVolume * 100)}%`}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={uiSoundVolume}
-                  disabled={!uiSoundsEnabled}
-                  onChange={onUiSoundVolume}
-                />
-              </div>
-            </section>
-          </div>
+              <SliderRow
+                indent
+                label={t("settings.volume")}
+                display={`${Math.round(uiSoundVolume * 100)}%`}
+                min={0}
+                max={1}
+                step={0.01}
+                value={uiSoundVolume}
+                disabled={!uiSoundsEnabled}
+                onChange={onUiSoundVolume}
+              />
+            </SettingsSection>
+          </SettingsCategory>
         )}
 
-        {tab === "Export" && (
-          <div className="flex flex-col gap-6">
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.backgroundImages")}
-              </h3>
+        {show("Export") && (
+          <SettingsCategory name="Export" words={words}>
+            <SettingsSection title={t("settings.backgroundImages")}>
               <SettingToggle
                 label={t("settings.convertPng")}
                 tip={t("settings.convertPngHint")}
                 checked={exportPngBackgroundsAsJpeg}
                 onChange={onExportPngBackgroundsAsJpeg}
               />
+              <SliderRow
+                indent
+                label={t("settings.jpegQuality")}
+                tip={t("settings.jpegQualityHint")}
+                display={`${Math.round(exportJpegQuality * 100)}%`}
+                min={0.5}
+                max={1}
+                step={0.01}
+                value={exportJpegQuality}
+                disabled={!exportPngBackgroundsAsJpeg}
+                onChange={onExportJpegQuality}
+              />
+            </SettingsSection>
 
-              <div className="mt-4">
-                <SliderRow
-                  label={t("settings.jpegQuality")}
-                  tip={t("settings.jpegQualityHint")}
-                  display={`${Math.round(exportJpegQuality * 100)}%`}
-                  min={0.5}
-                  max={1}
-                  step={0.01}
-                  value={exportJpegQuality}
-                  disabled={!exportPngBackgroundsAsJpeg}
-                  onChange={onExportJpegQuality}
-                />
-              </div>
-            </section>
-
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.mapTags")}
-              </h3>
+            <SettingsSection title={t("settings.mapTags")}>
               <SettingToggle
                 label={t("settings.cascadeTag")}
                 tip={t("settings.cascadeTagHint")}
                 checked={addCascadeTag}
                 onChange={onAddCascadeTag}
               />
-            </section>
+            </SettingsSection>
 
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t("settings.mapCard")}
-              </h3>
+            <SettingsSection title={t("settings.mapCard")}>
               <SettingToggle
                 label={t("settings.mapCardPrompt")}
                 tip={t("settings.mapCardPromptHint")}
                 checked={offerMapCardAfterExport}
                 onChange={onOfferMapCardAfterExport}
               />
-            </section>
-          </div>
+            </SettingsSection>
+          </SettingsCategory>
         )}
 
-        {tab === "Social" && socialEnabled && <SocialPrivacySettings onOpenProfile={onOpenProfile} />}
-        {tab === "Shortcuts" && (
-          <ShortcutsSettings
-            keybinds={editorKeybinds}
-            onKeybinds={onEditorKeybinds}
-            altWheelAction={altWheelAction}
-            customSnapDivisors={customSnapDivisors}
-            onCustomSnapDivisors={onCustomSnapDivisors}
-          />
+        {show("Social") && socialEnabled && (
+          <SettingsCategory name="Social" words={words}>
+            <SocialPrivacySettings onOpenProfile={onOpenProfile} />
+          </SettingsCategory>
         )}
-      </div>
+        {show("Shortcuts") && (
+          <SettingsCategory name="Shortcuts" words={words}>
+            <ShortcutsSettings
+              keybinds={editorKeybinds}
+              onKeybinds={onEditorKeybinds}
+              altWheelAction={altWheelAction}
+              customSnapDivisors={customSnapDivisors}
+              onCustomSnapDivisors={onCustomSnapDivisors}
+              query={searching ? query : undefined}
+            />
+          </SettingsCategory>
+        )}
+        {searching && (
+          <p className="settings-empty py-10 text-center text-sm text-slate-500">
+            {t("settings.searchEmpty", { query: query.trim() })}
+          </p>
+        )}
+      </SettingsWorkspace>
     </Modal>
+  );
+}
+
+/**
+ * One category's settings. While searching it gets its own heading, so the
+ * results read as a list grouped by where each setting lives, and a query
+ * naming the category ("audio") lists all of it.
+ */
+function SettingsCategory({
+  name,
+  words,
+  children,
+}: {
+  name: Tab;
+  words: string[];
+  children: ReactNode;
+}) {
+  const t = useT();
+  const label = t(TAB_LABELS[name]);
+  if (!words.length) return <>{children}</>;
+  return (
+    <SettingsSearchScope words={words} title={label}>
+      <div className="settings-group mb-10">
+        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold text-slate-50">
+          <svg
+            viewBox="0 0 16 16"
+            aria-hidden
+            className="h-4 w-4 shrink-0 text-slate-500"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {TAB_ICONS[name]}
+          </svg>
+          {label}
+        </h2>
+        {children}
+      </div>
+    </SettingsSearchScope>
+  );
+}
+
+/** Line icons for the category rail, drawn on a 16px grid. */
+const TAB_ICONS: Record<Tab, ReactNode> = {
+  General: <path d="M3 4.5h6m3 0h1M3 8h2m3 0h5M3 11.5h7m3 0h0M10.5 3v3M6.5 6.5v3M11.5 10v3" />,
+  Editor: <path d="M3.5 2.5v11M8 2.5v11M12.5 2.5v11M4.5 5h2.5M9 9h2.5M4.5 11.5h2.5" />,
+  Playtest: <path d="M5 3.2v9.6L12.5 8 5 3.2Z" />,
+  Audio: <path d="M3 6.2h2.2L8.5 3.5v9L5.2 9.8H3V6.2Zm8 -.7a3.5 3.5 0 0 1 0 5" />,
+  Export: <path d="M8 2.5v7m0-7L5.5 5M8 2.5 10.5 5M3.5 9v3.5h9V9" />,
+  Shortcuts: <path d="M2.5 4.5h11v7h-11v-7Zm2 2h1m2 0h1m2 0h1M5 9.5h6" />,
+  Social: <path d="M6 7.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-3.5 5a3.5 3.5 0 0 1 7 0m1-5a1.75 1.75 0 1 0 0-3.5M11 9a3 3 0 0 1 2.5 3" />,
+};
+
+/**
+ * The settings workspace: categories down the left, rows in the middle and,
+ * when there is room, the info pane on the right.
+ */
+function SettingsWorkspace({
+  tab,
+  onTab,
+  tabs,
+  wideContent,
+  query,
+  onQuery,
+  searching,
+  children,
+}: {
+  tab: Tab;
+  onTab: (tab: Tab) => void;
+  tabs: Tab[];
+  /** Lets a table (shortcuts) use the width the info pane would take. */
+  wideContent: boolean;
+  query: string;
+  onQuery: (query: string) => void;
+  searching: boolean;
+  children: ReactNode;
+}) {
+  const t = useT();
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [width, setWidth] = useState(0);
+
+  // Ctrl/Cmd+F finds a setting, as it would on a page.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    const node = layoutRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) =>
+      setWidth(entry.contentRect.width),
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [tab, searching]);
+
+  const stacked = width > 0 && width < 600;
+  const pane = !wideContent && width >= 920;
+
+  const search = (
+    <label className={`relative block shrink-0 ${stacked ? "mx-2 mt-2" : "mb-2"}`}>
+      <svg
+        viewBox="0 0 16 16"
+        aria-hidden
+        className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      >
+        <path d="m13.5 13.5-3-3m1.5-3.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z" />
+      </svg>
+      <input
+        ref={searchRef}
+        type="search"
+        value={query}
+        onChange={(event) => onQuery(event.target.value)}
+        onKeyDown={(event) => {
+          // Esc clears a search first; a second Esc closes Settings.
+          if (event.key === "Escape" && query) {
+            event.preventDefault();
+            event.stopPropagation();
+            onQuery("");
+          }
+        }}
+        placeholder={t("settings.search")}
+        aria-label={t("settings.search")}
+        className={`${INPUT_CLASS} h-8 w-full py-0 pl-8 pr-2`}
+      />
+    </label>
+  );
+
+  return (
+    <div
+      ref={layoutRef}
+      className={`flex h-full min-h-0 border-t border-white/[0.06] ${stacked ? "flex-col" : ""}`}
+    >
+      {stacked && search}
+      <nav
+        role="tablist"
+        aria-orientation={stacked ? "horizontal" : "vertical"}
+        aria-label={t("settings.title")}
+        className={
+          stacked
+            ? "no-scrollbar flex shrink-0 gap-0.5 overflow-x-auto border-b border-white/[0.06] px-2 py-1.5"
+            : "flex w-52 shrink-0 flex-col gap-px overflow-y-auto border-r border-white/[0.06] bg-black/10 p-2"
+        }
+      >
+        {!stacked && search}
+        {tabs.map((name) => {
+          const active = !searching && name === tab;
+          return (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onTab(name)}
+              className={`hit-line-left flex h-8 shrink-0 items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+                active
+                  ? "bg-white/[0.07] font-medium text-slate-50"
+                  : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
+              }`}
+            >
+              <svg
+                viewBox="0 0 16 16"
+                aria-hidden
+                className={`h-4 w-4 shrink-0 ${active ? "text-slate-200" : "text-slate-500"}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {TAB_ICONS[name]}
+              </svg>
+              <span className="truncate">{t(TAB_LABELS[name])}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <SettingsInfoProvider enabled={pane} resetKey={tab}>
+        <div
+          ref={scrollRef}
+          role="tabpanel"
+          className="min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]"
+        >
+          <div
+            className={`settings-results px-6 pb-10 pt-5 uilg:px-8 ${wideContent ? "" : "max-w-[44rem]"} ${
+              searching ? "settings-searching" : ""
+            }`}
+          >
+            {!searching && (
+              <h2 className="mb-4 font-display text-lg font-bold text-slate-50">
+                {t(TAB_LABELS[tab])}
+              </h2>
+            )}
+            {children}
+          </div>
+        </div>
+        {pane && (
+          <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/[0.06] px-5 pt-[4.25rem]">
+            <SettingsInfoPane />
+          </aside>
+        )}
+      </SettingsInfoProvider>
+    </div>
   );
 }
 
 function LegalSection() {
   const { t } = useLocale();
   return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {t("settings.legal")}
-      </h3>
-      <div className="flex flex-wrap gap-4 text-xs">
+    <SettingsSection title={t("settings.legal")}>
+      <SettingsExtra
+        keywords={[t("settings.terms"), t("startModal.privacyPolicy")]}
+        className="flex flex-wrap gap-4 py-3 text-sm"
+      >
         <a
           href={siteUrl("terms")}
           target="_blank"
           rel="noreferrer"
-          className="text-accent-soft underline-offset-2 hover:underline"
+          className="text-slate-300 underline decoration-white/20 underline-offset-4 transition hover:text-slate-50 hover:decoration-white/50"
         >
           {t("settings.terms")}
         </a>
@@ -1580,12 +1733,12 @@ function LegalSection() {
           href={siteUrl("privacy")}
           target="_blank"
           rel="noreferrer"
-          className="text-accent-soft underline-offset-2 hover:underline"
+          className="text-slate-300 underline decoration-white/20 underline-offset-4 transition hover:text-slate-50 hover:decoration-white/50"
         >
           {t("startModal.privacyPolicy")}
         </a>
-      </div>
-    </section>
+      </SettingsExtra>
+    </SettingsSection>
   );
 }
 
@@ -1602,23 +1755,17 @@ function ResetDataSection() {
   };
 
   return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {t("settings.resetData")}
-      </h3>
-      <p className="text-xs leading-relaxed text-slate-400">
-        {t("settings.resetDataHint")}
-      </p>
-      <div className="mt-3">
-        <button
-          type="button"
+    <SettingsSection title={t("settings.resetData")}>
+      <SettingRow label={t("settings.resetDataButton")} tip={t("settings.resetDataHint")}>
+        <Button
+          variant="danger"
+          size="sm"
           onClick={() => setConfirming(true)}
           disabled={busy}
-          className="rounded-lg border border-rose-500/50 bg-rose-600/20 px-3 py-2 text-sm font-medium text-rose-300 transition hover:bg-rose-600/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           {t("settings.resetDataButton")}
-        </button>
-      </div>
+        </Button>
+      </SettingRow>
       <HoldConfirmDialog
         open={confirming}
         title={t("settings.resetDataConfirmTitle")}
@@ -1628,11 +1775,11 @@ function ResetDataSection() {
         onConfirm={run}
         onCancel={() => setConfirming(false)}
       />
-    </section>
+    </SettingsSection>
   );
 }
 
-function OsuFolderSection() {
+function OsuFolderRow() {
   const { t } = useLocale();
   const [status, setStatus] = useState<OsuStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1663,27 +1810,30 @@ function OsuFolderSection() {
   };
 
   return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        <Tip text={t("settings.osuFolderHint")}>{t("settings.osuFolder")}</Tip>
-      </h3>
-      <p className="break-all text-sm text-slate-200">
-        {status.root ?? (
-          <span className="text-slate-500">{t("settings.osuFolderMissing")}</span>
-        )}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button onClick={() => run(osuChooseRoot)} disabled={busy}>
-          {t("settings.osuFolderChoose")}
-        </Button>
-        {status.chosen && (
-          <Button onClick={() => run(osuForgetRoot)} disabled={busy}>
-            {t("settings.osuFolderReset")}
+    <SettingRow
+      stacked
+      label={t("settings.osuFolder")}
+      tip={t("settings.osuFolderHint")}
+    >
+      <div className="flex w-full flex-col gap-2">
+        <p className="break-all font-mono text-xs text-slate-300">
+          {status.root ?? (
+            <span className="font-sans text-slate-500">{t("settings.osuFolderMissing")}</span>
+          )}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="primary" size="sm" onClick={() => run(osuChooseRoot)} disabled={busy}>
+            {t("settings.osuFolderChoose")}
           </Button>
-        )}
+          {status.chosen && (
+            <Button size="sm" onClick={() => run(osuForgetRoot)} disabled={busy}>
+              {t("settings.osuFolderReset")}
+            </Button>
+          )}
+        </div>
+        {error && <p className="text-xs text-rose-300">{error}</p>}
       </div>
-      {error && <p className="mt-2 text-[11px] text-rose-400">{error}</p>}
-    </section>
+    </SettingRow>
   );
 }
 
@@ -1705,7 +1855,9 @@ function AccountSyncIndicator({
           : t("accountSync.ready");
   return (
     <span
-      className="flex w-[7.75rem] shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-ink-700/60 px-2 py-1 text-[11px] font-medium text-slate-300"
+      className={`flex shrink-0 items-center gap-1.5 text-xs ${
+        status === "error" ? "text-rose-300" : "text-slate-500"
+      }`}
       title={error ?? label}
     >
       <span
@@ -1723,22 +1875,6 @@ function AccountSyncIndicator({
 }
 
 const PLAYTEST_RATES = [0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2];
-
-function SectionTitle({
-  children,
-  inline = false,
-}: {
-  children: React.ReactNode;
-  inline?: boolean;
-}) {
-  return (
-    <h3
-      className={`${inline ? "" : "mb-3 "}text-xs font-semibold uppercase tracking-wide text-slate-400`}
-    >
-      {children}
-    </h3>
-  );
-}
 
 /**
  * A number field that lets a value be typed in full (a minus sign, a
@@ -1769,7 +1905,7 @@ function NumberBox({
     onChange(Math.min(max, Math.max(min, next)));
   };
   return (
-    <label className="flex w-24 shrink-0 items-center rounded-lg border border-white/10 bg-ink-700/65 pr-2 transition focus-within:border-accent/60">
+    <label className="flex h-7 w-20 shrink-0 items-center rounded-md bg-black/25 pr-2 ring-1 ring-inset ring-white/[0.08] transition hover:ring-white/[0.14] focus-within:ring-accent/70">
       <input
         type="number"
         inputMode="decimal"
@@ -1783,15 +1919,12 @@ function NumberBox({
           commit(e.target.value);
         }}
         onBlur={() => setDraft(null)}
-        className="w-full min-w-0 bg-transparent px-2 py-1.5 text-right text-sm tabular-nums text-slate-100 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="w-full min-w-0 bg-transparent px-2 text-right text-xs tabular-nums text-slate-100 outline-none [appearance:textfield] focus-visible:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       {unit && <span className="text-xs text-slate-500">{unit}</span>}
     </label>
   );
 }
-
-/** A setting with a slider for quick changes and a box for exact values. */
-
 
 function SettingToggle({
   label,
@@ -1800,6 +1933,7 @@ function SettingToggle({
   checked,
   onChange,
   disabled = false,
+  indent = false,
 }: {
   label: string;
   tip?: string;
@@ -1807,53 +1941,21 @@ function SettingToggle({
   checked: boolean;
   onChange: (value: boolean) => void;
   disabled?: boolean;
+  indent?: boolean;
 }) {
   return (
-    <div
-      className={`flex items-center justify-between gap-3 text-sm text-slate-200 ${
-        disabled ? "opacity-45" : ""
-      }`}
-    >
-      <Tip text={tip} diagram={diagram}>
-        {label}
-      </Tip>
+    <SettingRow label={label} tip={tip} diagram={diagram} disabled={disabled} indent={indent}>
       <Toggle
         checked={checked}
         disabled={disabled}
         onChange={onChange}
         aria-label={label}
       />
-    </div>
+    </SettingRow>
   );
 }
 
-function SettingSignIn({
-  label,
-  tip,
-  action,
-  onLogin,
-}: {
-  label: string;
-  tip?: string;
-  action: string;
-  onLogin: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm text-slate-200">
-      <span className="opacity-45">
-        <Tip text={tip}>{label}</Tip>
-      </span>
-      <Button
-        variant="accent"
-        onClick={onLogin}
-        className="whitespace-nowrap px-2.5 py-1 text-xs"
-      >
-        {action}
-      </Button>
-    </div>
-  );
-}
-
+/** A setting with a slider for quick changes and its value beside it. */
 function SliderRow({
   label,
   tip,
@@ -1865,6 +1967,7 @@ function SliderRow({
   step,
   value,
   disabled = false,
+  indent = false,
   commitOnRelease = false,
   onChange,
 }: {
@@ -1878,6 +1981,7 @@ function SliderRow({
   step: number;
   value: number;
   disabled?: boolean;
+  indent?: boolean;
   /** Hold the value locally while dragging and apply it on release. */
   commitOnRelease?: boolean;
   onChange: (value: number) => void;
@@ -1891,18 +1995,14 @@ function SliderRow({
   const shown = draft ?? value;
 
   return (
-    <div
-      className={`flex items-center gap-3 text-sm text-slate-200 ${
-        disabled ? "opacity-45" : ""
-      }`}
+    <SettingRow
+      label={label}
+      tip={tip}
+      diagram={diagram}
+      diagramValue={draft !== null && diagramValue !== undefined ? draft : diagramValue}
+      disabled={disabled}
+      indent={indent}
     >
-      <Tip
-        text={tip}
-        diagram={diagram}
-        value={draft !== null && diagramValue !== undefined ? draft : diagramValue}
-      >
-        {label}
-      </Tip>
       <Slider
         aria-label={label}
         min={min}
@@ -1916,37 +2016,9 @@ function SliderRow({
           setDraft(null);
           onChange(next);
         }}
-        className="ml-auto w-40 shrink-0 uimd:w-56"
+        className="w-36 shrink-0 uimd:w-44"
       />
-      <span className="w-14 shrink-0 text-right font-medium tabular-nums text-slate-200">
-        {typeof display === "function" ? display(shown) : display}
-      </span>
-    </div>
-  );
-}
-
-function Tip({
-  text,
-  diagram,
-  value,
-  children,
-}: {
-  text?: string;
-  diagram?: DiagramName;
-  value?: number;
-  children: React.ReactNode;
-}) {
-  if (!text && !diagram) return <span>{children}</span>;
-  return (
-    <Tooltip
-      content={
-        <>
-          {text && <p className="m-0">{text}</p>}
-          {diagram && <SettingDiagram name={diagram} value={value} />}
-        </>
-      }
-    >
-      {children}
-    </Tooltip>
+      <SliderValue>{typeof display === "function" ? display(shown) : display}</SliderValue>
+    </SettingRow>
   );
 }

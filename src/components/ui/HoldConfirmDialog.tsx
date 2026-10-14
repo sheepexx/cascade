@@ -76,7 +76,7 @@ export function HoldConfirmDialog({
   if (!mounted) return null;
   return (
     <div
-      className={`fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/72 p-4 backdrop-blur-md ${
+      className={`fixed inset-0 z-[60] flex items-center justify-center bg-[rgb(5_5_8/0.66)] p-4 ${
         closing ? "modal-backdrop-out pointer-events-none" : "modal-backdrop-in"
       }`}
       onMouseDown={(e) => {
@@ -89,17 +89,18 @@ export function HoldConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[0_28px_90px_rgba(0,0,0,0.56)] outline-none ring-1 ring-rose-500/20 ${
+        className={`flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-ink-800 shadow-[var(--shadow-float)] outline-none ring-1 ring-white/[0.08] ${
           closing ? "modal-panel-out" : "modal-panel-in"
         }`}
       >
-        <header className="border-b border-white/10 bg-ink-700 px-5 py-3.5">
-          <h2 id={titleId} className="text-sm font-semibold text-slate-100">
+        <header className="flex items-center gap-2.5 px-5 pt-4">
+          <span aria-hidden className="h-3.5 w-[3px] shrink-0 rounded-full bg-rose-500" />
+          <h2 id={titleId} className="font-display text-[0.9375rem] font-semibold text-slate-50">
             {shown.title}
           </h2>
         </header>
-        <div className="px-5 py-4 text-sm text-slate-300">{shown.message}</div>
-        <footer className="flex justify-end gap-2 border-t border-white/10 bg-ink-700 px-5 py-3.5">
+        <div className="px-5 pb-5 pt-2 text-sm leading-relaxed text-slate-300">{shown.message}</div>
+        <footer className="flex justify-end gap-2 border-t border-white/[0.06] px-5 py-3">
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
             {t("common.cancel")}
           </Button>
@@ -113,7 +114,7 @@ export function HoldConfirmDialog({
             disabled={busy}
             title={t("holdConfirm.title")}
             fillClassName="bg-gradient-to-r from-rose-500 via-rose-400 to-rose-300"
-            className="rounded-lg border border-rose-700/50 bg-rose-600/90 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-8 rounded-md bg-rose-600 px-3 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? "…" : shown.confirmLabel}
           </HoldToDelete>

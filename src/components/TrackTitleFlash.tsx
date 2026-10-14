@@ -78,7 +78,7 @@ export function TrackTitleFlash({
       onAnimationEnd={(e) => {
         if (e.target === e.currentTarget) setShown(null);
       }}
-      className="track-title-flash menu-legible pointer-events-none absolute right-6 top-[4.75rem] z-10 max-w-[min(26rem,60vw)] text-right text-white"
+      className="track-title-flash menu-legible font-display pointer-events-none absolute right-6 top-[4.75rem] z-10 max-w-[min(26rem,60vw)] text-right text-white"
     >
       <p className="truncate text-lg font-light leading-tight">{shown.title}</p>
       {shown.artist && <p className="truncate text-xs font-light text-slate-200">{shown.artist}</p>}

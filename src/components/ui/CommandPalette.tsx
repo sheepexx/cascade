@@ -111,7 +111,7 @@ export function CommandPalette({
 
   return createPortal(
     <div
-      className={`command-palette-backdrop fixed inset-0 z-[300] flex justify-center bg-ink-900/65 px-4 pt-[min(16vh,9rem)] backdrop-blur-md ${
+      className={`command-palette-backdrop fixed inset-0 z-[300] flex justify-center bg-[rgb(5_5_8/0.6)] px-4 pt-[min(16vh,9rem)] ${
         closing ? "is-closing" : ""
       }`}
       onMouseDown={(event) => {
@@ -124,7 +124,7 @@ export function CommandPalette({
         aria-modal="true"
         aria-label={t("palette.title")}
         tabIndex={-1}
-        className={`command-palette-panel flex h-fit max-h-[min(68vh,38rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink-800/95 shadow-[0_30px_100px_rgba(0,0,0,0.68)] outline-none ${
+        className={`ui-popover command-palette-panel flex h-fit max-h-[min(68vh,38rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-ink-700 shadow-[var(--shadow-float)] outline-none ring-1 ring-white/[0.09] ${
           closing ? "is-closing" : ""
         }`}
         onKeyDown={(event) => {
@@ -143,8 +143,8 @@ export function CommandPalette({
           }
         }}
       >
-        <label className="flex items-center gap-3 border-b border-white/10 px-4">
-          <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 shrink-0 text-cyan-300">
+        <label className="flex items-center gap-3 border-b border-white/[0.07] px-4">
+          <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 shrink-0 text-slate-400">
             <path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
           <input
@@ -155,12 +155,12 @@ export function CommandPalette({
             aria-label={t("palette.searchLabel")}
             autoComplete="off"
             spellCheck={false}
-            className="h-14 min-w-0 flex-1 bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-500"
+            className="h-12 min-w-0 flex-1 bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-500 focus-visible:outline-none"
           />
-          <kbd className="rounded-md border border-white/10 bg-ink-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">{t("palette.esc")}</kbd>
+          <kbd className="keycap">{t("palette.esc")}</kbd>
         </label>
 
-        <div role="listbox" className="min-h-0 overflow-y-auto p-2">
+        <div role="listbox" className="min-h-0 overflow-y-auto p-1.5">
           {results.length ? (
             results.map((command, index) => (
               <button
@@ -171,31 +171,26 @@ export function CommandPalette({
                 disabled={command.disabled}
                 onMouseMove={() => setSelected(index)}
                 onClick={() => run(command)}
-                className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors disabled:opacity-35 ${
-                  selected === index ? "bg-cyan-300/12 text-white" : "text-slate-300 hover:bg-white/5"
+                data-active={selected === index}
+                className={`hit-line-left group flex min-h-[2.25rem] w-full items-center gap-3 rounded-md px-3 py-1.5 text-left transition-colors disabled:opacity-35 ${
+                  selected === index ? "bg-white/[0.07] text-slate-50" : "text-slate-300"
                 }`}
               >
-                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm ${
-                  selected === index ? "bg-cyan-300/15 text-cyan-200" : "bg-white/5 text-slate-400"
-                }`}>
-                  {command.icon ?? <span aria-hidden>›</span>}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{command.label}</span>
-                    {command.isNew && showNewBadge(command.id, newSeen, recents) && (
-                      <span className="shrink-0 rounded-full bg-accent/20 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-accent">
-                        {t("palette.new")}
-                      </span>
-                    )}
+                {command.icon && (
+                  <span className="grid h-5 w-5 shrink-0 place-items-center text-slate-400">
+                    {command.icon}
                   </span>
-                  <span className="block truncate text-[11px] text-slate-500">{command.group}</span>
-                </span>
-                {command.hint && (
-                  <kbd className="shrink-0 rounded-md border border-white/10 bg-black/15 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
-                    {command.hint}
-                  </kbd>
                 )}
+                <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                  <span className="truncate text-sm font-medium">{command.label}</span>
+                  {command.isNew && showNewBadge(command.id, newSeen, recents) && (
+                    <span className="shrink-0 self-center rounded-sm bg-accent/15 px-1 text-[10px] font-semibold text-accent">
+                      {t("palette.new")}
+                    </span>
+                  )}
+                  <span className="ml-auto shrink-0 truncate text-xs text-slate-500">{command.group}</span>
+                </span>
+                {command.hint && <kbd className="keycap shrink-0">{command.hint}</kbd>}
               </button>
             ))
           ) : (
@@ -204,10 +199,10 @@ export function CommandPalette({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-4 border-t border-white/10 px-4 py-2 text-[10px] text-slate-500">
-          <span><kbd className="font-mono text-slate-400">↑↓</kbd> {t("palette.navigate")}</span>
-          <span><kbd className="font-mono text-slate-400">{t("palette.enter")}</kbd> {t("palette.run")}</span>
-          <span className="ml-auto">Ctrl K</span>
+        <div className="flex items-center gap-4 border-t border-white/[0.07] px-4 py-2 text-2xs text-slate-500">
+          <span className="flex items-center gap-1.5"><kbd className="keycap">↑↓</kbd> {t("palette.navigate")}</span>
+          <span className="flex items-center gap-1.5"><kbd className="keycap">{t("palette.enter")}</kbd> {t("palette.run")}</span>
+          <span className="ml-auto flex items-center gap-1"><kbd className="keycap">Ctrl</kbd><kbd className="keycap">K</kbd></span>
         </div>
       </div>
     </div>,

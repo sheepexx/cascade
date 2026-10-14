@@ -1315,7 +1315,7 @@ export function BottomTimeline({
   return (
     <div
       ref={wrapRef}
-      className="group relative w-full border-t border-ink-600 bg-ink-800"
+      className="group relative w-full border-t border-white/[0.06] bg-ink-900"
       style={{ height: HEIGHT }}
     >
       <canvas
@@ -1328,7 +1328,7 @@ export function BottomTimeline({
       />
       {tip && (
         <div
-          className="pointer-events-none absolute z-20 w-56 -translate-x-1/2 rounded-lg border border-ink-500/70 bg-ink-900/95 px-2.5 py-1.5 shadow-xl"
+          className="pointer-events-none absolute z-20 w-56 -translate-x-1/2 rounded-lg bg-ink-700 px-2.5 py-1.5 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]"
           style={{
             left: Math.min(
               sizeRef.current.width - 116,
@@ -1340,7 +1340,7 @@ export function BottomTimeline({
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-200">
             <span className="truncate">{tip.author}</span>
             {tip.resolved && (
-              <span className="rounded bg-ink-600 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-400">
+              <span className="rounded-sm bg-emerald-400/10 px-1 py-px text-[10px] font-medium text-emerald-300">
                 {t("timeline.resolved")}
               </span>
             )}
@@ -1377,7 +1377,7 @@ export function BottomTimeline({
         >
           <div
             key={peerTip.username}
-            className="pfp-pop-in absolute bottom-full left-0 mb-1.5 flex -translate-x-1/2 flex-col items-center gap-1.5 rounded-xl border border-ink-500/70 bg-ink-900/95 px-3 py-2.5 shadow-2xl"
+            className="pfp-pop-in absolute bottom-full left-0 mb-1.5 flex -translate-x-1/2 flex-col items-center gap-1.5 rounded-xl bg-ink-700 px-3 py-2.5 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]"
           >
             <span
               className="grid h-14 w-14 place-items-center overflow-hidden rounded-full border-2 bg-ink-700/70 text-lg font-semibold text-slate-100 shadow-md"
@@ -1406,7 +1406,7 @@ export function BottomTimeline({
       </div>
 
       {!!bookmarks?.length && (
-        <div className="absolute bottom-1.5 left-2 z-10 flex items-center gap-0.5 rounded-md border border-white/10 bg-ink-900/85 p-0.5 text-[10px] shadow-lg backdrop-blur">
+        <div className="float-chip absolute bottom-1.5 left-2 z-10 flex items-center gap-0.5 p-0.5 text-[10px]">
           <button
             type="button"
             onClick={onPreviousBookmark}
@@ -1470,14 +1470,14 @@ export function BottomTimeline({
           }}
         >
           <div
-            className="absolute min-w-[12rem] overflow-hidden rounded-lg border border-ink-500/70 bg-ink-900/95 py-1 text-sm text-slate-200 shadow-2xl backdrop-blur"
+            className="menu-pop-in absolute min-w-[12rem] overflow-hidden rounded-xl bg-ink-700 p-1 text-sm text-slate-200 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]"
             style={{
               left: Math.min(menu.x, window.innerWidth - 208),
               top: Math.min(menu.y, window.innerHeight - 292),
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-3 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            <div className="px-2.5 pb-1 pt-1 font-mono text-2xs text-slate-500">
               {formatTimestamp(menu.ms)}
             </div>
             {onSetPreviewPoint && (
@@ -1492,7 +1492,7 @@ export function BottomTimeline({
             )}
             {((menu.bookmark === null && onAddBookmark) ||
               (menu.bookmark !== null && onRenameBookmark)) && (
-                <div className="border-t border-white/10 px-2 py-2">
+                <div className="mt-1 border-t border-white/[0.07] px-1.5 pb-1 pt-2">
                   <label className="mb-1 block text-[10px] text-slate-500">
                     {menu.bookmark === null
                       ? t("timeline.bookmarkNameOptional")
@@ -1586,7 +1586,7 @@ function MenuItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-accent hover:text-white"
+      className="flex w-full items-center gap-2 rounded-md px-2.5 py-1 text-left transition-colors hover:bg-white/[0.07]"
     >
       {children}
     </button>

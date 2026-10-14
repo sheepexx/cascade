@@ -43,9 +43,9 @@ export function MappingActivity({
 
   if (!stats) {
     return (
-      <div className="flex flex-col gap-4">
-        <Skeleton className="h-24 rounded-2xl" />
-        <Skeleton className="h-40 rounded-2xl" />
+      <div className="flex flex-col gap-8">
+        <Skeleton className="h-24 rounded-md" />
+        <Skeleton className="h-40 rounded-md" />
       </div>
     );
   }
@@ -89,10 +89,10 @@ export function MappingActivity({
     : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       {stats.admin_override && <AdminViewNote />}
       {stats.totals && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
           <StatTile label={t("social.mappingTime")} value={formatDuration(stats.totals.edit)} hint={t("social.allTime")} />
           {periods && (
             <>
@@ -116,7 +116,7 @@ export function MappingActivity({
         </SectionCard>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-x-10 gap-y-8 lg:grid-cols-2">
         {stats.totals && stats.calendar && (
           <SectionCard title={t("social.weeklyMappingTime")}>
             <WeeklyBars calendar={stats.calendar} today={today} />
@@ -124,7 +124,7 @@ export function MappingActivity({
         )}
         {stats.counters && (
           <SectionCard title={t("social.whatGotDone")}>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
               <StatTile label={t("social.notesPlaced")} value={fmt(stats.counters.notes_placed)} />
               <StatTile label={t("social.notesDeleted")} value={fmt(stats.counters.notes_deleted)} />
               <StatTile label={t("social.timingChanges")} value={fmt(stats.counters.timing_changes)} />
@@ -155,11 +155,11 @@ export function MappingActivity({
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                     <div
-                      className="h-full rounded-full bg-accent/80"
+                      className="h-full rounded-full bg-accent"
                       style={{ width: `${Math.max(3, ((project.edit ?? 0) / max) * 100)}%` }}
                     />
                   </div>
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     {t("social.lastEdited", { when: relativeTime(project.last_active_at, t) })}
                   </span>
                 </li>
@@ -169,7 +169,7 @@ export function MappingActivity({
         </SectionCard>
       )}
 
-      <p className="px-1 text-[11px] leading-4 text-slate-500">
+      <p className="text-xs leading-relaxed text-slate-500">
         {t("social.cascadeOnlyHint")} {since && t("social.recordedSince", { date: since })}
         {isSelf && (
           <>
@@ -261,7 +261,7 @@ export function ActivityCalendar({ calendar, today }: { calendar: NonNullable<Ma
           </div>
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
         <span aria-live="polite" className="min-h-4 tabular-nums text-slate-400">
           {hover ? describe(hover) : ""}
         </span>

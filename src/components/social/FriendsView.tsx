@@ -64,7 +64,7 @@ export function FriendsView({
   return (
     <div className="flex flex-col gap-4">
       <SegmentedControl
-        className="no-scrollbar overflow-x-auto [&_button]:whitespace-nowrap"
+        variant="tabs"
         value={tab}
         onChange={(next) => onNavigate({ view: "friends", tab: next }, true)}
         options={[
@@ -88,7 +88,7 @@ export function FriendsView({
         lists.blocked.length === 0 ? (
           <EmptyState title={t("social.noBlocked")} body={t("social.noBlockedHint")} />
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col divide-y divide-white/[0.05]">
             {lists.blocked.map((user) => (
               <PersonRow
                 key={user.id}
@@ -119,8 +119,10 @@ function TabLabel({ text, count, badge = false }: { text: string; count?: number
       {text}
       {count !== undefined && (
         <span
-          className={`min-w-[1.1rem] rounded-full px-1 text-[10px] font-bold leading-4 tabular-nums ${
-            badge ? "bg-accent text-white" : "bg-white/10 text-slate-300"
+          className={`tabular-nums ${
+            badge
+              ? "min-w-[1.1rem] rounded-full bg-accent px-1 text-[10px] font-bold leading-4 text-white"
+              : "text-xs font-medium text-slate-500"
           }`}
         >
           {count}
@@ -155,7 +157,7 @@ function FriendList({
     );
   }
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col divide-y divide-white/[0.05]">
       {friends.map((user) => (
         <PersonRow
           key={user.id}
@@ -187,13 +189,13 @@ function PendingLists({
     return <EmptyState icon={<PeopleIcon />} title={t("social.noPending")} body={t("social.noPendingHint")} />;
   }
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-7">
       {lists.incoming.length > 0 && (
         <section aria-label={t("social.incoming")}>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h3 className="mb-1 text-xs font-semibold text-slate-300">
             {t("social.incoming")} · {lists.incoming.length}
           </h3>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col divide-y divide-white/[0.05]">
             {lists.incoming.map((user) => (
               <PersonRow
                 key={user.id}
@@ -208,10 +210,10 @@ function PendingLists({
       )}
       {lists.outgoing.length > 0 && (
         <section aria-label={t("social.outgoing")}>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h3 className="mb-1 text-xs font-semibold text-slate-300">
             {t("social.outgoing")} · {lists.outgoing.length}
           </h3>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col divide-y divide-white/[0.05]">
             {lists.outgoing.map((user) => (
               <PersonRow
                 key={user.id}

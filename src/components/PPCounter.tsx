@@ -29,38 +29,43 @@ export function PPCounter({
   }, [deferredNotes, keyCount]);
 
   return (
-    <div className="absolute bottom-3 right-3 flex select-none items-stretch gap-2 transition-opacity duration-300">
-      <div className="flex items-center gap-1.5 rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 shadow-xl shadow-black/25 backdrop-blur-xl">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">
-          {t("pp.speed")}
-        </span>
-        <div className="flex overflow-hidden rounded-md border border-white/10">
-          {PLAYBACK_RATES.map((rate) => (
-            <button
-              key={rate}
-              onClick={() => onPlaybackRateChange(rate)}
-              className={`px-2 py-0.5 text-xs font-medium transition ${
-                Math.abs(playbackRate - rate) < 0.001
-                  ? "bg-accent/90 text-white shadow-inner shadow-white/10"
-                  : "bg-ink-700/70 text-slate-300 hover:bg-white/10"
-              }`}
-            >
-              {Math.round(rate * 100)}%
-            </button>
-          ))}
+    <div className="absolute bottom-3 right-3 flex select-none items-stretch gap-1.5 transition-opacity duration-300">
+      <div className="float-chip flex items-center gap-2 py-1 pl-2.5 pr-1">
+        <span className="text-2xs font-medium text-slate-400">{t("pp.speed")}</span>
+        <div className="flex gap-0.5 rounded-md bg-black/30 p-0.5">
+          {PLAYBACK_RATES.map((rate) => {
+            const on = Math.abs(playbackRate - rate) < 0.001;
+            // Anything below full speed is lit in the accent: it is a state
+            // the mapper must not forget they are in.
+            const slowed = on && rate < 1;
+            return (
+              <button
+                key={rate}
+                onClick={() => onPlaybackRateChange(rate)}
+                aria-pressed={on}
+                className={`h-6 rounded px-2 text-xs font-medium tabular-nums transition ${
+                  slowed
+                    ? "bg-accent text-white"
+                    : on
+                      ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                      : "text-slate-400 hover:text-slate-100"
+                }`}
+              >
+                {Math.round(rate * 100)}%
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="pointer-events-none flex flex-col justify-center rounded-md border border-white/10 bg-ink-900/62 px-3 py-1.5 text-right shadow-xl shadow-black/25 backdrop-blur-xl">
-        <div className="flex items-baseline justify-end gap-1.5">
-          <span className="text-base font-bold leading-none tabular-nums text-slate-100">
+      <div className="float-chip pointer-events-none flex flex-col justify-center px-3 py-1 text-right">
+        <div className="flex items-baseline justify-end gap-1">
+          <span className="font-display text-lg font-bold leading-none tabular-nums text-slate-50">
             {Math.round(pp)}
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">
-            pp
-          </span>
+          <span className="text-2xs font-semibold text-slate-400">pp</span>
         </div>
-        <div className="mt-0.5 text-[10px] text-slate-500">{t("pp.maxSs")}</div>
+        <div className="mt-0.5 text-[10px] leading-none text-slate-500">{t("pp.maxSs")}</div>
       </div>
     </div>
   );

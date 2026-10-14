@@ -105,6 +105,14 @@ export const zhCN: PartialCatalog = {
   "share.removeFailed": "移除失败。",
 
   "settings.title": "设置",
+
+  "settings.savingPrivacy": "保存与隐私",
+
+  "settings.infoEmpty": "将指针移到某项设置上，即可查看它的作用。",
+
+  "settings.search": "搜索设置",
+
+  "settings.searchEmpty": "没有与“{query}”匹配的设置。",
   "settings.tabGeneral": "通用",
   "settings.interfaceSounds": "界面音效",
   "settings.playback": "播放",
@@ -1860,6 +1868,7 @@ export const zhCN: PartialCatalog = {
   "shortcuts.target.playfield": "游玩区域大小",
   "shortcuts.target.volume": "音乐音量",
   "shortcuts.editable": "高亮的按键可以修改",
+  "shortcuts.filter": "筛选快捷键",
   "shortcuts.editableInfo": "点击高亮按键，然后按下新按键。Backspace 恢复默认，Esc 取消。",
   "shortcuts.resetAll": "全部重置",
   "shortcuts.snapFree": "设为自由吸附。",

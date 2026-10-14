@@ -126,7 +126,7 @@ export function PublishPresetModal({
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3 rounded-lg border border-ink-600 bg-ink-700/40 p-3">
+          <div className="flex items-center gap-3 rounded-md bg-white/[0.03] p-3">
             {pattern && pattern.length ? (
               <PatternPreview
                 pattern={pattern}
@@ -143,7 +143,7 @@ export function PublishPresetModal({
               {pattern && <SnapBadge pattern={pattern} />}
             </div>
           </div>
-          <div className="rounded-lg border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
+          <div className="rounded-md bg-amber-400/[0.06] ring-1 ring-inset ring-amber-400/20 px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
             {t("publishPreset.rankNote")}
           </div>
           <div className="grid grid-cols-2 gap-2">

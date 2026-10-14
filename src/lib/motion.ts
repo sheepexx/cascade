@@ -3,9 +3,9 @@
  * CSS custom properties in index.css.
  */
 export const MOTION = {
-  quick: 120,
-  enter: 280,
-  exit: 200,
+  quick: 110,
+  enter: 200,
+  exit: 150,
   scene: 520,
   tooltipDelay: 380,
 } as const;

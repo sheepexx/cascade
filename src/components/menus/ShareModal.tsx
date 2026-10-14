@@ -103,7 +103,7 @@ export function ShareModal({
         <div className="flex flex-col gap-4">
           <div className="flex items-end gap-2">
             <label className="flex flex-1 flex-col gap-1">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <span className="text-xs font-medium text-slate-300">
                 {t("share.inviteLabel")}
               </span>
               <TextInput
@@ -132,8 +132,8 @@ export function ShareModal({
           {error && <p className="text-sm text-rose-400">{error}</p>}
 
           {canPublish && onPublish && (
-            <div className="rounded-xl border border-ink-500/60 bg-ink-800/60 p-3">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="rounded-lg bg-white/[0.03] p-3">
+              <div className="mb-2 text-xs font-semibold text-slate-300">
                 {t("share.publicLink")}
               </div>
               {publicUrl ? (
@@ -176,7 +176,7 @@ export function ShareModal({
           )}
 
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="mb-2 text-xs font-semibold text-slate-300">
               {t("share.collaborators")}
             </div>
             {!list && (
@@ -195,7 +195,7 @@ export function ShareModal({
                 {list.map((c) => (
                   <li
                     key={c.user_id}
-                    className="flex items-center gap-3 rounded-lg border border-ink-600 bg-ink-700/40 p-2"
+                    className="flex items-center gap-3 rounded-md bg-white/[0.03] p-2"
                   >
                     {c.avatar_url && (
                       <img

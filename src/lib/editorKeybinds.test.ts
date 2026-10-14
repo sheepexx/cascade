@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   DEFAULT_EDITOR_KEYBINDS,
   editorKeyLabel,
+  editorKeybindConflictActions,
   editorKeybindConflicts,
   matchesBind,
   normalizeEditorKeybinds,
@@ -105,6 +106,19 @@ describe("editorKeybindConflicts", () => {
     expect(warnings[0]).toContain("Space");
     expect(warnings[0]).toContain("playPause");
     expect(warnings[0]).toContain("addBookmark");
+  });
+});
+
+describe("editorKeybindConflictActions", () => {
+  it("is empty for the defaults", () => {
+    expect(editorKeybindConflictActions(DEFAULT_EDITOR_KEYBINDS).size).toBe(0);
+  });
+
+  it("names every action that shares a key in one context", () => {
+    const binds = { ...DEFAULT_EDITOR_KEYBINDS, addBookmark: "Space" };
+    expect([...editorKeybindConflictActions(binds)].sort()).toEqual(
+      ["addBookmark", "playPause"],
+    );
   });
 });
 

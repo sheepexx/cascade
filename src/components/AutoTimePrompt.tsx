@@ -55,7 +55,7 @@ export function AutoTimePrompt({
             ? "bg-slate-400"
             : "bg-accent"
       }
-      className="fixed bottom-24 left-1/2 z-50 flex items-center gap-4 rounded-2xl border border-white/10 bg-ink-800/90 py-4 pb-5 pl-5 pr-4 shadow-2xl shadow-black/40 backdrop-blur-xl"
+      className="fixed bottom-24 left-1/2 z-50 flex items-center gap-4 rounded-xl border border-white/[0.09] bg-ink-700 shadow-[var(--shadow-float)] py-4 pb-5 pl-5 pr-4"
     >
       {({ dismiss }) => (
         <>

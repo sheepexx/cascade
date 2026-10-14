@@ -2,21 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens. DESIGN_SYSTEM.md is the reference; tailwind.config.js holds
+   the same values as utility scales. */
 :root {
   color-scheme: dark;
 
-  --motion-quick: 120ms;
-  --motion-enter: 280ms;
-  --motion-exit: 200ms;
+  /* Motion: short and decisive. Keep JS unmount timers (src/lib/motion.ts)
+     in step. */
+  --motion-quick: 110ms;
+  --motion-enter: 200ms;
+  --motion-exit: 150ms;
   --motion-scene: 520ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-overshoot: cubic-bezier(0.2, 1.35, 0.35, 1);
   --ease-exit: cubic-bezier(0.55, 0, 1, 0.45);
 
+  /* Surfaces, from the canvas well up to floating layers. */
+  --surface-canvas: #09090d;
+  --surface-ground: #0d0d12;
+  --surface-panel: #14141a;
+  --surface-raised: #1b1b23;
+
+  /* Hairlines. Borders only where they separate something. */
+  --line-soft: rgb(255 255 255 / 6%);
+  --line: rgb(255 255 255 / 9%);
+  --line-strong: rgb(255 255 255 / 15%);
+
+  --accent: #e86868;
+  --focus-ring: rgb(232 104 104 / 65%);
+  --shadow-float: 0 18px 48px -12px rgb(0 0 0 / 72%), 0 2px 8px rgb(0 0 0 / 28%);
+
   --font-osu: "Quicksand", "Inter", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+
+  /* The scales tailwind.config.js reads. Colours are RGB channels so the
+     opacity modifiers keep working. */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --font-display: var(--font-osu);
+
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+
+  --text-xs: 0.75rem;
+  --leading-xs: 1.125rem;
+  --text-sm: 0.8125rem;
+  --leading-sm: 1.25rem;
+  --text-base: 0.9375rem;
+  --leading-base: 1.4rem;
+  --text-lg: 1.0625rem;
+  --leading-lg: 1.5rem;
+
+  --ink-950: 9 9 13;
+  --ink-900: 13 13 18;
+  --ink-800: 20 20 26;
+  --ink-700: 27 27 35;
+  --ink-600: 36 36 46;
+  --ink-500: 47 47 59;
+  --ink-400: 62 62 76;
+
+  --slate-50: 247 247 250;
+  --slate-100: 237 237 242;
+  --slate-200: 220 220 228;
+  --slate-300: 192 191 204;
+  --slate-400: 158 157 173;
+  --slate-500: 131 130 154;
+  --slate-600: 94 93 112;
+  --slate-700: 65 64 79;
+  --slate-800: 43 43 54;
+  --slate-900: 24 24 31;
+  --slate-950: 12 12 17;
 }
 
 html,
@@ -24,6 +87,20 @@ body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+/* Inter with the single-storey a (closer to Quicksand's friendliness) and
+   tabular figures everywhere: numbers in Cascade are data, and they should
+   not shuffle sideways while a value changes. */
+html {
+  font-feature-settings: "cv11" 1, "calt" 1;
+  font-variant-numeric: tabular-nums;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(232 104 104 / 32%);
+  color: #fff;
 }
 
 /* The one plain opacity fade, shared by every backdrop, overlay and background
@@ -47,8 +124,14 @@ body.fade-out {
 }
 
 body {
-  @apply bg-ink-900 text-slate-200 font-sans antialiased;
-  background-color: #0b0b10;
+  @apply bg-ink-900 text-sm text-slate-200 font-sans antialiased;
+  background-color: var(--surface-ground);
+}
+
+/* Cascade's display voice: dialog and page titles, song titles, usernames
+   and the main menu. Slightly tighter than Quicksand's default spacing. */
+.font-display {
+  letter-spacing: -0.005em;
 }
 
 #root,
@@ -65,6 +148,7 @@ body {
   user-select: text;
 }
 
+/* Thin, inset scrollbars that stay out of the way until reached for. */
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -73,11 +157,34 @@ body {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: #33333f;
-  border-radius: 8px;
+  background: rgb(255 255 255 / 10%);
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #44444f;
+  background-color: rgb(255 255 255 / 20%);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* The clear button in search fields: a quiet cross in the text colour
+   instead of the browser's bright default. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 0.75rem;
+  width: 0.75rem;
+  margin-left: 0.25rem;
+  cursor: pointer;
+  background: currentColor;
+  opacity: 0.45;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4l-8 8' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4l-8 8' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+input[type="search"]::-webkit-search-cancel-button:hover {
+  opacity: 0.85;
 }
 
 /* Scrolls without showing a bar. The main menu's credits sit just below the
@@ -96,9 +203,18 @@ textarea {
   transition-timing-function: var(--ease-emphasized);
 }
 
-#root button:focus,
+/* One focus treatment for anything that does not draw its own: a ring in the
+   accent, only for keyboard focus. `:where` keeps it at zero specificity so a
+   component's own focus-visible utilities still win. */
+#root button:focus:not(:focus-visible),
 #root input[type="range"]:focus {
   outline: none;
+}
+@layer base {
+  :where(body) :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 /* Pictures never start a native drag with the browser's translucent ghost.
@@ -112,8 +228,8 @@ img {
    never overhangs the ends; --p is the position, 0..1. A ring in the colour
    of the surface behind (--slider-surface) separates it from the fill. */
 .ui-slider {
-  --thumb: 18px;
-  --track: 6px;
+  --thumb: 14px;
+  --track: 4px;
   position: relative;
   display: flex;
   align-items: center;
@@ -125,8 +241,8 @@ img {
   -webkit-tap-highlight-color: transparent;
 }
 .ui-slider[data-size="sm"] {
-  --thumb: 14px;
-  --track: 4px;
+  --thumb: 12px;
+  --track: 3px;
 }
 .ui-slider[aria-disabled="true"] {
   cursor: not-allowed;
@@ -142,13 +258,14 @@ img {
 }
 .ui-slider-track {
   right: 0;
-  background: rgb(255 255 255 / 9%);
+  background: rgb(255 255 255 / 10%);
 }
 .ui-slider-fill {
   width: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p));
-  background: var(--slider-fill, #e86868);
-  transition: width 200ms var(--ease-emphasized);
+  background: var(--slider-fill, var(--accent));
+  transition: width 160ms var(--ease-emphasized);
 }
+/* A light thumb reads as the thing to grab; the fill carries the colour. */
 .ui-slider-thumb {
   position: absolute;
   top: 50%;
@@ -157,13 +274,13 @@ img {
   height: var(--thumb);
   margin: calc(var(--thumb) / -2) 0 0 calc(var(--thumb) / -2);
   border-radius: 9999px;
-  background: var(--slider-fill, #e86868);
+  background: #f1f0f6;
   box-shadow:
-    0 0 0 3px var(--slider-surface, #16161d),
-    0 2px 8px 3px rgb(0 0 0 / 30%);
+    0 0 0 1px rgb(0 0 0 / 35%),
+    0 1px 3px rgb(0 0 0 / 45%);
   pointer-events: none;
   transition:
-    left 200ms var(--ease-emphasized),
+    left 160ms var(--ease-emphasized),
     transform var(--motion-quick) var(--ease-standard),
     box-shadow var(--motion-quick) var(--ease-standard);
 }
@@ -175,19 +292,21 @@ img {
     transform var(--motion-quick) var(--ease-standard),
     box-shadow var(--motion-quick) var(--ease-standard);
 }
-.ui-slider:not([aria-disabled="true"]):hover .ui-slider-thumb {
-  transform: scale(1.1);
+.ui-slider:not([aria-disabled="true"]):hover .ui-slider-track {
+  background: rgb(255 255 255 / 14%);
+}
+.ui-slider:focus-visible {
+  outline: none;
 }
 .ui-slider:focus-visible .ui-slider-thumb {
   box-shadow:
-    0 0 0 3px var(--slider-surface, #16161d),
-    0 0 0 6px rgb(232 104 104 / 45%);
+    0 0 0 1px rgb(0 0 0 / 35%),
+    0 0 0 4px var(--focus-ring);
 }
 .ui-slider[data-active] .ui-slider-thumb {
-  transform: scale(1.2);
   box-shadow:
-    0 0 0 3px var(--slider-surface, #16161d),
-    0 0 0 8px rgb(232 104 104 / 22%);
+    0 0 0 1px rgb(0 0 0 / 35%),
+    0 0 0 5px rgb(232 104 104 / 24%);
 }
 
 /* The main-menu bar: each side is clipped at the logo's centre and slides
@@ -221,16 +340,14 @@ img {
   transition: width 200ms var(--ease-emphasized);
 }
 
+/* Dialogs arrive with a short lift and no bounce: a tool responding, not a
+   toy. */
 @keyframes modal-panel-in {
-  0% {
+  from {
     opacity: 0;
-    transform: translateY(12px) scale(0.955);
+    transform: translateY(6px) scale(0.985);
   }
-  72% {
-    opacity: 1;
-    transform: translateY(-2px) scale(1.006);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
@@ -242,18 +359,15 @@ img {
   }
   to {
     opacity: 0;
-    transform: translateY(8px) scale(0.97);
+    transform: translateY(4px) scale(0.99);
   }
 }
 
 @keyframes modal-panel-up-in {
-  0% {
+  from {
     transform: translateY(100vh);
   }
-  72% {
-    transform: translateY(-8px);
-  }
-  100% {
+  to {
     transform: translateY(0);
   }
 }
@@ -285,26 +399,113 @@ img {
   animation: modal-panel-up-out var(--motion-exit) var(--ease-standard) forwards;
 }
 
-.modal-header {
-  background:
-    linear-gradient(100deg,
-      color-mix(in srgb, var(--modal-accent, #292933) 72%, #14141c) 0%,
-      color-mix(in srgb, var(--modal-accent, #292933) 28%, #22222c) 62%,
-      #22222c 100%);
-}
-
-/* Dialog content reads a step larger than the dense editor chrome around it:
-   each small text size used inside a modal goes up by about a pixel. Only the
-   size moves, so any leading a paragraph sets for itself still applies. */
+/* Dialog content never drops below 11px: the dense chrome of the editor can
+   afford 10px labels, a form someone reads cannot. */
 .modal-body .text-\[10px\] { font-size: 0.6875rem; }
-.modal-body .text-\[11px\] { font-size: 0.75rem; }
-.modal-body .text-xs { font-size: 0.8125rem; }
-.modal-body .text-sm { font-size: 0.9375rem; }
 
 .segmented-pill {
   transition:
     left var(--motion-enter) var(--ease-emphasized),
     width var(--motion-enter) var(--ease-emphasized);
+}
+
+/* The "hit line": Cascade's selection mark. A 2px bar in the accent, the way
+   notes land on the judgement line, set on the edge that faces the content
+   it selects. Vertical lists use the left edge, tab rows the bottom. */
+.hit-line-left,
+.hit-line-bottom {
+  position: relative;
+}
+.hit-line-left::before,
+.hit-line-bottom::before {
+  content: "";
+  position: absolute;
+  background: var(--hit-line, var(--accent));
+  border-radius: 2px;
+  opacity: 0;
+  transition:
+    opacity var(--motion-quick) var(--ease-standard),
+    transform var(--motion-enter) var(--ease-emphasized);
+}
+.hit-line-left::before {
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 2px;
+  transform: scaleY(0.4);
+}
+.hit-line-bottom::before {
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: -1px;
+  height: 2px;
+  transform: scaleX(0.4);
+}
+.hit-line-left[data-active="true"]::before,
+.hit-line-bottom[data-active="true"]::before,
+.hit-line-left[aria-selected="true"]::before,
+.hit-line-bottom[aria-selected="true"]::before,
+.hit-line-left[aria-current="page"]::before {
+  opacity: 1;
+  transform: none;
+}
+
+/* Tools that float over the playfield (mode switch, selection bar, speed,
+   pp, clipboard). Solid enough to read over any background art, no blur so
+   the canvas behind keeps its frame rate. */
+.float-chip {
+  background: rgb(12 12 17 / 90%);
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 8%),
+    0 8px 24px -8px rgb(0 0 0 / 65%);
+}
+
+/* Settings search: categories and sections with no matching rows drop out,
+   and the empty message shows only when nothing matched at all. */
+.settings-searching .settings-section:not(:has([data-setting], [data-shortcut])),
+.settings-group:not(:has([data-setting], [data-shortcut])) {
+  display: none;
+}
+.settings-results:has([data-setting], [data-shortcut]) > .settings-empty {
+  display: none;
+}
+
+/* The editor's left tool column: edit/select switch, then the reference
+   picker when there is one, then the selection panel. The picker lives in
+   App and the panel in the editor, so the panel steps down below the picker
+   whenever it is there instead of sliding under it. */
+.editor-main:has(> .reference-picker) .note-inspector {
+  top: 7.5rem;
+}
+
+/* Keyboard keys: a small plate with a heavier bottom edge, the one place a
+   control is drawn as a physical object. */
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding: 0 0.375rem;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 7%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 9%),
+    inset 0 -2px 0 rgb(0 0 0 / 35%);
+  font-family: theme("fontFamily.mono");
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  color: rgb(var(--slate-200));
+  white-space: nowrap;
+}
+/* A key the reader can rebind: its lower edge lit in the accent, like a
+   receptor waiting for a note. */
+.keycap-editable {
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 9%),
+    inset 0 -2px 0 rgb(232 104 104 / 70%);
 }
 
 @keyframes hold-charge {
@@ -371,12 +572,11 @@ img {
 }
 
 @keyframes menu-pop-in {
-  0% { opacity: 0; transform: translateY(-8px) scale(0.96); }
-  72% { opacity: 1; transform: translateY(1px) scale(1.005); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes menu-pop-out {
-  to { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 0; transform: translateY(-3px) scale(0.99); }
 }
 .menu-pop-in { transform-origin: top right; animation: menu-pop-in var(--motion-enter) var(--ease-emphasized) both; }
 .menu-pop-out { pointer-events: none; transform-origin: top right; animation: menu-pop-out var(--motion-exit) var(--ease-standard) both; }
@@ -1152,11 +1352,11 @@ img {
 @keyframes tooltip-in {
   from {
     opacity: 0;
-    transform: translateY(-3px) scale(0.97);
+    transform: translateY(-2px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 .tooltip-in {
@@ -1165,12 +1365,11 @@ img {
 
 /* Ctrl+K command surface. */
 @keyframes command-palette-in {
-  0% { opacity: 0; transform: translateY(-20px) scale(0.965); }
-  72% { opacity: 1; transform: translateY(2px) scale(1.004); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(-8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes command-palette-out {
-  to { opacity: 0; transform: translateY(-14px) scale(0.98); }
+  to { opacity: 0; transform: translateY(-6px) scale(0.99); }
 }
 .command-palette-backdrop { animation: fade-in var(--motion-enter) var(--ease-standard) both; }
 .command-palette-panel { animation: command-palette-in var(--motion-enter) var(--ease-emphasized) both; }
@@ -1424,6 +1623,239 @@ canvas[data-pointer-focus]:focus-visible {
   .osu-banner-slot[data-state="out"] {
     animation-duration: 1ms;
   }
+}
+
+/* ------------------------------------------------------------------------
+   Classic design: not offered in Settings at the moment. Nothing sets the
+   attribute today; putting data-theme="classic" on <html> turns it on.
+   Cascade's earlier look for those who prefer it: Quicksand everywhere,
+   rounder corners, the previous palette, glassy chrome and popovers,
+   gradient dialog headers with the tool's glow line, coral-filled tabs and
+   pills, uppercase section labels and a springier entrance. Layouts stay the
+   same; only the visual layer changes. New interface needs no work here as
+   long as it uses the shared tokens and primitives.
+   ------------------------------------------------------------------------ */
+:root[data-theme="classic"] {
+  --font-sans: var(--font-osu);
+  --motion-enter: 280ms;
+
+  --radius-sm: 0.125rem;
+  --radius: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.7rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.35rem;
+  --radius-3xl: 1.75rem;
+
+  --text-xs: 0.75rem;
+  --leading-xs: 1rem;
+  --text-sm: 0.875rem;
+  --leading-sm: 1.25rem;
+  --text-base: 1rem;
+  --leading-base: 1.5rem;
+  --text-lg: 1.125rem;
+  --leading-lg: 1.75rem;
+
+  --ink-950: 11 11 16;
+  --ink-900: 15 15 20;
+  --ink-800: 22 22 29;
+  --ink-700: 29 29 39;
+  --ink-600: 39 39 51;
+  --ink-500: 51 51 63;
+  --ink-400: 68 68 79;
+
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-900: 15 23 42;
+  --slate-950: 2 6 23;
+
+  --surface-ground: #0b0b10;
+  --shadow-float: 0 28px 90px rgb(0 0 0 / 56%);
+  font-feature-settings: normal;
+  font-variant-numeric: normal;
+}
+:root[data-theme="classic"] .font-display {
+  letter-spacing: normal;
+}
+
+/* Chrome: a translucent, blurred bar with a soft drop shadow. */
+:root[data-theme="classic"] .app-header {
+  background-color: rgb(22 22 29 / 65%);
+  border-color: rgb(255 255 255 / 10%);
+  box-shadow: 0 10px 35px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(24px);
+}
+
+/* Dialogs: blurred backdrop, a header washed in the tool's colour with a
+   glowing line under it, and darker header and footer bands. */
+:root[data-theme="classic"] .ui-modal-backdrop:not(.\!bg-transparent) {
+  background-color: rgb(15 15 20 / 72%);
+  backdrop-filter: blur(12px);
+}
+:root[data-theme="classic"] .ui-modal-header {
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--modal-accent, #292933) 72%, #14141c) 0%,
+    color-mix(in srgb, var(--modal-accent, #292933) 28%, #22222c) 62%,
+    #22222c 100%
+  );
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+:root[data-theme="classic"] [style*="--modal-accent"] > .ui-modal-header::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--modal-accent);
+  box-shadow: 0 0 16px var(--modal-accent);
+}
+:root[data-theme="classic"] .ui-modal-tick {
+  display: none;
+}
+:root[data-theme="classic"] .ui-modal-title {
+  font-size: 0.875rem;
+}
+:root[data-theme="classic"] .ui-modal-footer {
+  background-color: rgb(var(--ink-700));
+  border-color: rgb(255 255 255 / 10%);
+}
+
+/* Buttons: a filled coral primary and bordered plates. */
+:root[data-theme="classic"] .ui-btn {
+  border-radius: var(--radius-lg);
+}
+:root[data-theme="classic"] .ui-btn-accent {
+  background-color: rgb(232 104 104 / 90%);
+  box-shadow: inset 0 0 0 1px rgb(193 77 77 / 40%);
+  font-weight: 500;
+}
+:root[data-theme="classic"] .ui-btn-accent:hover:not(:disabled) {
+  background-color: rgb(244 138 138 / 95%);
+}
+:root[data-theme="classic"] .ui-btn-primary {
+  background-color: rgb(39 39 51 / 75%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+}
+:root[data-theme="classic"] .ui-btn-primary:hover:not(:disabled) {
+  background-color: rgb(51 51 63 / 85%);
+}
+
+/* Fields: the lighter, raised wells. */
+:root[data-theme="classic"] .ui-input {
+  background-color: rgb(29 29 39 / 65%);
+  border-radius: var(--radius-lg);
+}
+
+/* Popovers, menus and tooltips: frosted glass. */
+:root[data-theme="classic"] .ui-popover {
+  background-color: rgb(22 22 29 / 85%);
+  backdrop-filter: blur(40px);
+}
+
+/* Tool chips over the playfield. */
+:root[data-theme="classic"] .float-chip {
+  background: rgb(22 22 29 / 85%);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+}
+
+/* Segmented controls and tabs: the coral pill. */
+:root[data-theme="classic"] .ui-segmented,
+:root[data-theme="classic"] .ui-tabs {
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background-color: rgb(29 29 39 / 40%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+}
+:root[data-theme="classic"] .ui-segmented-pill {
+  top: 0.25rem;
+  bottom: 0.25rem;
+  border-radius: var(--radius-lg);
+  background-color: rgb(232 104 104 / 90%);
+  box-shadow: none;
+}
+:root[data-theme="classic"] .ui-segment,
+:root[data-theme="classic"] .ui-tab {
+  border-radius: var(--radius-lg);
+}
+:root[data-theme="classic"] .ui-segment[aria-selected="true"] {
+  color: #fff;
+}
+:root[data-theme="classic"] .ui-tab {
+  flex: 1 0 auto;
+  padding: 0.375rem 0.75rem;
+}
+:root[data-theme="classic"] .ui-tab[aria-selected="true"] {
+  background-color: rgb(232 104 104 / 90%);
+  color: #fff;
+}
+
+/* Selection: a coral outline in place of the hit line. */
+:root[data-theme="classic"] .hit-line-left::before,
+:root[data-theme="classic"] .hit-line-bottom::before {
+  display: none;
+}
+:root[data-theme="classic"] .hit-line-left[data-active="true"],
+:root[data-theme="classic"] .hit-line-left[aria-selected="true"],
+:root[data-theme="classic"] .hit-line-left[aria-current="page"] {
+  box-shadow: inset 0 0 0 1px rgb(232 104 104 / 70%);
+}
+
+/* Section labels in small capitals. */
+:root[data-theme="classic"] .ui-section-title {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: rgb(var(--slate-400));
+}
+
+/* Explanations are marked on every label, not only on hover. */
+:root[data-theme="classic"] .ui-tip-anchor {
+  text-decoration-color: rgb(255 255 255 / 20%);
+}
+
+/* Sliders: the coral thumb with a ring in the surface colour. */
+:root[data-theme="classic"] .ui-slider-thumb {
+  background: var(--slider-fill, var(--accent));
+  box-shadow:
+    0 0 0 3px var(--slider-surface, #16161d),
+    0 2px 8px 3px rgb(0 0 0 / 30%);
+}
+
+:root[data-theme="classic"] *::-webkit-scrollbar-thumb {
+  background: #33333f;
+  border: 0;
+  border-radius: 8px;
+}
+
+/* The springier entrance dialogs, menus and the palette used to have. */
+@keyframes modal-panel-in-classic {
+  0% { opacity: 0; transform: translateY(12px) scale(0.955); }
+  72% { opacity: 1; transform: translateY(-2px) scale(1.006); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes menu-pop-in-classic {
+  0% { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  72% { opacity: 1; transform: translateY(1px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+:root[data-theme="classic"] .modal-panel-in {
+  animation-name: modal-panel-in-classic;
+}
+:root[data-theme="classic"] .menu-pop-in,
+:root[data-theme="classic"] .command-palette-panel:not(.is-closing) {
+  animation-name: menu-pop-in-classic;
 }
 
 :root[data-performance="on"] *,

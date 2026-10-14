@@ -27,7 +27,9 @@ import { sharedMapUrl } from "../../lib/sharedMap";
 import { formatLength } from "../../lib/shareCard";
 import { starColor, starTextOn } from "../../lib/starRating";
 import { Dropdown } from "../ui/Dropdown";
-import { SkeletonCards } from "../ui/Skeleton";
+import { SkeletonListRows } from "../ui/Skeleton";
+import { INPUT_CLASS } from "../ui/Controls";
+import { buttonClass } from "../ui/buttonStyles";
 import {
   EmptyState,
   ErrorLine,
@@ -171,7 +173,7 @@ export function MapLibrary({
   const filtering = query.trim() !== "" || keys !== null;
   const total = active ? categoryCount(counts, active) : null;
 
-  if (countsLoading) return <SkeletonCards count={6} columns="sm:grid-cols-2 xl:grid-cols-3" />;
+  if (countsLoading) return <SkeletonListRows count={6} thumb="banner" columns />;
   if (!active) {
     return (
       <EmptyState
@@ -183,7 +185,7 @@ export function MapLibrary({
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label={t("social.mapCategories")} className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+      <div role="tablist" aria-label={t("social.mapCategories")} className="no-scrollbar flex gap-1 overflow-x-auto border-b border-white/[0.07]">
         {categories.map((value) => {
           const count = categoryCount(counts, value) ?? (value === "cascade" ? projects.length : null);
           return (
@@ -193,14 +195,12 @@ export function MapLibrary({
               role="tab"
               aria-selected={active === value}
               onClick={() => setCategory(value)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
-                active === value
-                  ? "border-accent/50 bg-accent/15 text-slate-50"
-                  : "border-white/10 bg-ink-700/40 text-slate-300 hover:bg-ink-700 hover:text-slate-100"
+              className={`hit-line-bottom flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 pb-2 pt-1 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+                active === value ? "text-slate-50" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               {t(CATEGORY_LABELS[value])}
-              {count !== null && <span className="tabular-nums text-slate-500">{count}</span>}
+              {count !== null && <span className="text-xs tabular-nums text-slate-500">{count}</span>}
             </button>
           );
         })}
@@ -219,7 +219,7 @@ export function MapLibrary({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("social.searchMapsPlaceholder")}
-                className="w-full rounded-lg border border-white/10 bg-ink-700/65 py-2 pl-9 pr-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+                className={`${INPUT_CLASS} w-full pl-9`}
               />
             </label>
             <div className="flex gap-2">
@@ -253,14 +253,14 @@ export function MapLibrary({
           {sourceError && loadedSets.length === 0 ? (
             <ErrorLine message={sourceError} onRetry={() => types.forEach((type) => loadSource(type, true))} />
           ) : loading && loadedSets.length === 0 ? (
-            <SkeletonCards count={6} columns="sm:grid-cols-2 xl:grid-cols-3" />
+            <SkeletonListRows count={6} thumb="banner" columns />
           ) : visible.length === 0 ? (
             <EmptyState
               title={filtering ? t("social.noMatchingMaps") : t("social.noMapsInCategory")}
               body={filtering && hasMore ? t("social.searchLoadedOnly") : undefined}
             />
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid gap-x-6 gap-y-px lg:grid-cols-2">
               {visible.map((set) => (
                 <li key={set.id}>
                   <BeatmapsetCard
@@ -318,109 +318,97 @@ function BeatmapsetCard({
   const cover = set.covers.card2x ?? set.covers.card ?? set.covers.cover;
   const guest = set.user_id !== owner;
 
+  // A row: the card art as a thumbnail, title and artist beside it, the
+  // facts a mapper scans for (keys, stars, length) on one line under them.
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-white/[0.07] bg-ink-700/40 transition duration-200 hover:-translate-y-0.5 hover:border-white/15 hover:bg-ink-700/70 hover:shadow-[0_14px_36px_rgba(0,0,0,0.35)] motion-reduce:hover:translate-y-0">
-      <div className="relative aspect-[2.86/1] overflow-hidden bg-ink-600">
+    <article className="group relative flex items-center gap-3 rounded-lg p-1.5 pr-2.5 transition hover:bg-white/[0.04]">
+      <div className="relative aspect-[2.86/1] w-36 shrink-0 overflow-hidden rounded-md bg-ink-600 ring-1 ring-inset ring-white/[0.06] max-sm:w-24">
         {cover && (
           <img
             src={cover}
             alt=""
             loading="lazy"
             draggable={false}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03] motion-reduce:group-hover:scale-100"
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04] motion-reduce:group-hover:scale-100"
           />
         )}
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-ink-900/25 to-transparent" />
         <span
-          className={`absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+          className={`absolute bottom-1 left-1 rounded-sm px-1 text-[9px] font-bold uppercase ${
             STATUS_STYLES[set.status] ?? STATUS_STYLES.pending
           }`}
         >
           {t(STATUS_LABELS[set.status] ?? "social.statusPending")}
         </span>
-        {stars && (
-          <span
-            className="absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular-nums"
-            style={{ background: starColor(stars.max), color: starTextOn(stars.max) }}
-            title={t("social.starRange", { min: stars.min.toFixed(2), max: stars.max.toFixed(2) })}
-          >
-            ★ {stars.min === stars.max ? stars.max.toFixed(2) : `${stars.min.toFixed(1)}–${stars.max.toFixed(1)}`}
-          </span>
-        )}
-        <div className="absolute inset-x-3 bottom-2 min-w-0">
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
           <a
             href={beatmapsetUrl(set.id)}
             target="_blank"
             rel="noreferrer"
-            className="block truncate text-sm font-semibold text-white drop-shadow after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+            className="truncate font-display text-[0.9375rem] font-semibold text-slate-50 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
             title={set.title}
           >
             {set.title}
           </a>
-          <p className="truncate text-xs text-slate-300 drop-shadow">{set.artist}</p>
+          <ExternalIcon className="pointer-events-none hidden h-3 w-3 shrink-0 text-slate-500 group-hover:block" />
         </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-3">
-        <p className="truncate text-[11px] text-slate-400">
-          {guest ? t("social.guestOn", { name: set.creator }) : t("social.mappedBy", { name: set.creator })}
+        <p className="truncate text-xs text-slate-400">
+          {set.artist}
+          <span className="text-slate-600"> · </span>
+          <span className="text-slate-500">
+            {guest ? t("social.guestOn", { name: set.creator }) : t("social.mappedBy", { name: set.creator })}
+          </span>
         </p>
-        <div className="flex flex-wrap gap-1">
-          {keys.map((k) => (
-            <Chip key={k}>{k}K</Chip>
-          ))}
-          {set.bpm ? <Chip>{Math.round(set.bpm)} BPM</Chip> : null}
-          {length && <Chip>{length}</Chip>}
-          <Chip title={t("social.difficultyCountHint")}>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-2xs tabular-nums text-slate-500">
+          {stars && (
+            <span
+              className="rounded-full px-1.5 font-bold"
+              style={{ background: starColor(stars.max), color: starTextOn(stars.max) }}
+              title={t("social.starRange", { min: stars.min.toFixed(2), max: stars.max.toFixed(2) })}
+            >
+              ★ {stars.min === stars.max ? stars.max.toFixed(2) : `${stars.min.toFixed(1)}–${stars.max.toFixed(1)}`}
+            </span>
+          )}
+          {keys.length > 0 && <span className="font-medium text-slate-300">{keys.map((k) => `${k}K`).join(" ")}</span>}
+          {set.bpm ? <span>{Math.round(set.bpm)} BPM</span> : null}
+          {length && <span>{length}</span>}
+          <span title={t("social.difficultyCountHint")}>
             {t("social.difficulties", { count: set.beatmaps.length })}
             {mania > 0 && mania !== set.beatmaps.length ? ` · ${mania} mania` : ""}
-          </Chip>
-        </div>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1 text-[11px] text-slate-500">
-          <span className="flex min-w-0 items-center gap-2.5 tabular-nums">
-            <span title={t("social.playCount")}>▶ {fmt(set.play_count)}</span>
-            <span title={t("social.favourites")}>♥ {fmt(set.favourite_count)}</span>
           </span>
+          <span title={t("social.playCount")}>▶ {fmt(set.play_count)}</span>
+          <span title={t("social.favourites")}>♥ {fmt(set.favourite_count)}</span>
           {date > 0 && (
             <span className="truncate" title={new Date(date).toLocaleString(locale)}>
               {set.ranked_date ? t("social.rankedWhen", { when: relativeTime(set.ranked_date, t) }) : t("social.updatedWhen", { when: relativeTime(new Date(date).toISOString(), t) })}
             </span>
           )}
         </div>
-        {(cascadeSeconds !== null || onOpenInCascade) && (
-          <div className="relative z-[1] flex items-center justify-between gap-2 border-t border-white/[0.06] pt-2.5">
-            {cascadeSeconds !== null ? (
-              <span className="min-w-0 truncate text-[11px] font-medium text-accent-soft" title={t("social.cascadeTimeHint")}>
-                {t("social.timeInCascade", { time: formatDuration(cascadeSeconds) })}
-              </span>
-            ) : (
-              <span />
-            )}
-            {onOpenInCascade && (
-              <button
-                type="button"
-                onClick={() => onOpenInCascade(set.id)}
-                title={t("social.importHint")}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-accent-deep/40 bg-accent/90 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
-                </svg>
-                {t("social.importToCascade")}
-              </button>
-            )}
-          </div>
+        {cascadeSeconds !== null && (
+          <p className="mt-0.5 truncate text-2xs font-medium text-accent-soft" title={t("social.cascadeTimeHint")}>
+            {t("social.timeInCascade", { time: formatDuration(cascadeSeconds) })}
+          </p>
         )}
       </div>
-      <ExternalIcon className="pointer-events-none absolute right-2 top-9 hidden h-3.5 w-3.5 text-white/70 group-hover:block" />
+      {onOpenInCascade && (
+        <button
+          type="button"
+          onClick={() => onOpenInCascade(set.id)}
+          title={t("social.importHint")}
+          className={buttonClass(
+            "primary",
+            "sm",
+            "relative z-[1] shrink-0 opacity-70 group-hover:opacity-100 focus-visible:opacity-100",
+          )}
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
+          </svg>
+          {t("social.importToCascade")}
+        </button>
+      )}
     </article>
-  );
-}
-
-function Chip({ children, title }: { children: React.ReactNode; title?: string }) {
-  return (
-    <span title={title} className="rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[11px] tabular-nums text-slate-300">
-      {children}
-    </span>
   );
 }
 
@@ -435,7 +423,7 @@ function CascadeProjects({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-slate-500">{t("social.cascadeProjectsHint")}</p>
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
         {projects.map((project) => {
           const open =
             project.project_id
@@ -447,15 +435,15 @@ function CascadeProjects({
           // project_id only comes back for the owner and for admins.
           return (
             <li key={project.project_key}>
-              <div className="flex h-full flex-col gap-2 rounded-xl border border-white/[0.07] bg-ink-700/40 p-3.5 transition hover:border-white/15 hover:bg-ink-700/70">
+              <div className="flex h-full flex-col gap-2 rounded-lg border-t border-white/[0.06] px-1 pt-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-100">
+                    <p className="truncate font-display text-[0.9375rem] font-semibold text-slate-50">
                       {project.title || t("common.untitled")}
                     </p>
                     {project.artist && <p className="truncate text-xs text-slate-400">{project.artist}</p>}
                   </div>
-                  <span className="shrink-0 rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft">
+                  <span className="shrink-0 rounded-sm bg-accent/15 px-1 py-px text-[10px] font-semibold text-accent-soft">
                     {project.created_in_cascade ? t("social.createdInCascade") : t("social.editedInCascade")}
                   </span>
                 </div>

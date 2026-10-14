@@ -76,16 +76,16 @@ export function NewMapModal({ open, onClose, onCreate, banner }: Props) {
             setDragging(false);
             choose(event.dataTransfer.files[0]);
           }}
-          className={`flex min-h-44 flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 text-center transition ${
+          className={`flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed px-6 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
             dragging
-              ? "border-accent bg-accent/10"
+              ? "border-accent/80 bg-accent/[0.07]"
               : audio
-                ? "border-emerald-400/50 bg-emerald-400/5"
-                : "border-ink-500 bg-ink-700/35 hover:border-accent/70 hover:bg-ink-700/60"
+                ? "border-emerald-400/50 bg-emerald-400/[0.05]"
+                : "border-white/[0.14] hover:border-white/25 hover:bg-white/[0.02]"
           }`}
         >
-          <MusicNoteIcon className="h-8 w-8 text-slate-400" />
-          <span className="mt-3 text-sm font-semibold text-slate-100">
+          <MusicNoteIcon className={`h-7 w-7 ${audio ? "text-emerald-300" : "text-slate-500"}`} />
+          <span className="mt-3 font-display text-[0.9375rem] font-semibold text-slate-100">
             {audio ? audio.name : t("newMap.chooseAudio")}
           </span>
           <span className="mt-1 text-xs text-slate-500">

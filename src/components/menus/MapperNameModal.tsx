@@ -74,7 +74,7 @@ export function MapperNameModal({
         </Field>
 
         {onLogin && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-4 py-3">
             <span className="text-sm text-slate-400">
               {t("mapperName.loginHint")}
             </span>

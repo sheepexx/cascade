@@ -74,19 +74,19 @@ export function MyMapsModal({
         </p>
       )}
       {maps && maps.length > 0 && (
-        <ul className="skeleton-swap-in flex flex-col gap-2">
+        <ul className="skeleton-swap-in -mx-2 flex flex-col divide-y divide-white/[0.05]">
           {maps.map((m) => (
             <li
               key={m.id}
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-500/60 bg-ink-700/40 p-3"
+              className="group flex flex-wrap items-center gap-3 rounded-lg px-2 py-2.5 transition hover:bg-white/[0.035]"
             >
               <div className="min-w-0 flex-1 basis-48">
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-semibold text-slate-100">
+                  <span className="truncate font-display text-[0.875rem] font-semibold text-slate-100">
                     {m.title || t("common.untitled")}
                   </span>
                   {user && m.owner !== user.id && (
-                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                    <span className="rounded-sm bg-accent/15 px-1 text-[10px] font-semibold text-accent-soft">
                       {t("myMaps.shared")}
                     </span>
                   )}
@@ -95,15 +95,16 @@ export function MyMapsModal({
                   {m.artist}
                   {m.creator ? ` · ${t("myMaps.mappedBy", { name: m.creator })}` : ""}
                 </div>
-                <div className="mt-0.5 text-[11px] text-slate-500">
+                <div className="mt-0.5 text-2xs text-slate-500">
                   {t("packBrowser.savedOn", { date: new Date(m.updated_at).toLocaleString() })}
                 </div>
               </div>
               {/* Kept together so the pair wraps below the details on a phone
                   instead of squeezing the title down to a few characters. */}
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1">
                 <Button
-                  variant="accent"
+                  variant="primary"
+                  size="sm"
                   onClick={() => onSelect(m.id)}
                   disabled={busyId !== null}
                 >
@@ -111,6 +112,8 @@ export function MyMapsModal({
                 </Button>
                 {user && m.owner === user.id && (
                   <Button
+                    size="sm"
+                    className="hover:!bg-rose-500/15 hover:!text-rose-300"
                     onClick={() => setConfirmId(m.id)}
                     disabled={busyId !== null}
                     title={t("myMaps.deleteHint")}

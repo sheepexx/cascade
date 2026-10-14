@@ -32,7 +32,7 @@ export function BackgroundScopeModal({
         <div className="grid gap-2">
           <button
             onClick={() => onChoose("mapset")}
-            className="rounded-xl border border-ink-500/60 bg-ink-700 px-4 py-3 text-left transition hover:border-accent/60 hover:bg-ink-600"
+            className="rounded-lg bg-white/[0.04] px-4 py-3 text-left ring-1 ring-inset ring-white/[0.06] transition hover:bg-white/[0.07] hover:ring-white/[0.12]"
           >
             <div className="text-sm font-semibold text-slate-100">
               {t("bgScope.mapset")}
@@ -43,7 +43,7 @@ export function BackgroundScopeModal({
           </button>
           <button
             onClick={() => onChoose("difficulty")}
-            className="rounded-xl border border-ink-500/60 bg-ink-700 px-4 py-3 text-left transition hover:border-accent/60 hover:bg-ink-600"
+            className="rounded-lg bg-white/[0.04] px-4 py-3 text-left ring-1 ring-inset ring-white/[0.06] transition hover:bg-white/[0.07] hover:ring-white/[0.12]"
           >
             <div className="text-sm font-semibold text-slate-100">
               {t("bgScope.difficulty")}

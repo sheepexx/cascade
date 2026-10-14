@@ -106,6 +106,14 @@ export const de: PartialCatalog = {
   "share.removeFailed": "Entfernen fehlgeschlagen.",
 
   "settings.title": "Einstellungen",
+
+  "settings.savingPrivacy": "Speichern und Datenschutz",
+
+  "settings.infoEmpty": "Zeige auf eine Einstellung, um zu sehen, was sie bewirkt.",
+
+  "settings.search": "Einstellungen durchsuchen",
+
+  "settings.searchEmpty": "Keine Einstellung passt zu „{query}“.",
   "settings.tabGeneral": "Allgemein",
   "settings.interfaceSounds": "Oberflächenklänge",
   "settings.playback": "Wiedergabe",
@@ -1965,6 +1973,7 @@ export const de: PartialCatalog = {
   "shortcuts.target.playfield": "Spielfeldgröße",
   "shortcuts.target.volume": "Musiklautstärke",
   "shortcuts.editable": "Hervorgehobene Tasten sind änderbar",
+  "shortcuts.filter": "Tastenkürzel filtern",
   "shortcuts.editableInfo": "Klicke auf eine hervorgehobene Taste und drücke dann die neue Taste. Rücktaste stellt den Standard wieder her, Esc bricht ab.",
   "shortcuts.resetAll": "Alle zurücksetzen",
   "shortcuts.snapFree": "Freies Raster setzen.",

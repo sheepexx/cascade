@@ -172,7 +172,7 @@ export function BackupsModal({
           <>
             {listing.unsaved.length > 0 && (
               <section className="flex flex-col gap-1.5">
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-amber-300/80">
+                <h3 className="text-xs font-semibold text-amber-300/80">
                   {t("backups.unsavedTitle")}
                 </h3>
                 <ul className="flex flex-col gap-1.5">
@@ -224,7 +224,7 @@ export function BackupsModal({
             {projectOpen && (
               <section className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  <h3 className="text-xs font-semibold text-slate-400">
                     {t("backups.thisMap")}
                   </h3>
                   <Button onClick={() => void backupNow()} disabled={busy !== null}>
@@ -249,7 +249,7 @@ export function BackupsModal({
                   type="button"
                   onClick={() => setShowOthers((v) => !v)}
                   aria-expanded={showOthers}
-                  className="flex items-center gap-1.5 self-start text-xs font-semibold uppercase tracking-widest text-slate-500 transition hover:text-slate-300"
+                  className="flex items-center gap-1.5 self-start text-xs font-semibold text-slate-400 transition hover:text-slate-300"
                 >
                   <span
                     aria-hidden

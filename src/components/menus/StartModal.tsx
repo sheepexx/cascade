@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
-import { Button } from "../ui/Controls";
+import { Button, INPUT_CLASS } from "../ui/Controls";
+import { buttonClass } from "../ui/buttonStyles";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { DiscordIcon } from "../ui/Icons";
 import {
   AsyncImage,
-  SkeletonBanners,
-  SkeletonCards,
+  SkeletonListRows,
 } from "../ui/Skeleton";
 import { starColor, starTextOn } from "../../lib/starRating";
 import { useAuth } from "../../lib/auth";
@@ -430,89 +430,53 @@ export function WelcomeModal({
         slideUp={projectsOnly}
       >
       {firstRun && !projectsOnly && (
-        <div className="mb-4 rounded-xl border border-accent/40 bg-accent/10 p-4">
-          <p className="text-sm font-semibold text-slate-100">
-            {t("startModal.welcome")}
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-300">
-            {t("startModal.welcomeBody")}
-          </p>
-          <div className="mt-3">
-            <Button variant="accent" onClick={onTryMaps}>
-              {t("startModal.trySample")}
-            </Button>
+        <div className="mb-4 flex items-center gap-4 border-b border-white/[0.06] pb-4">
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-[0.9375rem] font-semibold text-slate-50">
+              {t("startModal.welcome")}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+              {t("startModal.welcomeBody")}
+            </p>
           </div>
+          <Button variant="accent" onClick={onTryMaps} className="shrink-0">
+            {t("startModal.trySample")}
+          </Button>
         </div>
       )}
-      <div className={`grid gap-3 sm:grid-cols-2 ${projectsOnly ? "hidden" : ""}`}>
-        <button
-          type="button"
+      <div className={`-mx-1.5 grid gap-x-2 gap-y-0.5 sm:grid-cols-2 ${projectsOnly ? "hidden" : ""}`}>
+        <ActionTile
           onClick={onNewMap}
-          className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
-        >
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
-            <NewMapIcon className="h-6 w-6" />
-          </span>
-          <span className="text-sm font-semibold text-slate-100">
-            {t("startModal.newMap")}
-          </span>
-          <span className="text-xs text-slate-400">
-            {t("startModal.newMapDesc")}
-          </span>
-        </button>
-        <button
-          type="button"
+          icon={<NewMapIcon className="h-[18px] w-[18px]" />}
+          title={t("startModal.newMap")}
+          description={t("startModal.newMapDesc")}
+        />
+        <ActionTile
           onClick={onTryMaps}
-          className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
-        >
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
-            <SampleMapsIcon className="h-6 w-6" />
-          </span>
-          <span className="text-sm font-semibold text-slate-100">
-            {t("startModal.tryMaps")}
-          </span>
-          <span className="text-xs text-slate-400">
-            {t("startModal.tryMapsDesc")}
-          </span>
-        </button>
+          icon={<SampleMapsIcon className="h-[18px] w-[18px]" />}
+          title={t("startModal.tryMaps")}
+          description={t("startModal.tryMapsDesc")}
+        />
         {onImportSmPack && (
-          <button
-            type="button"
+          <ActionTile
             onClick={onImportSmPack}
-            className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
-          >
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
-              <SmPackIcon className="h-6 w-6" />
-            </span>
-            <span className="text-sm font-semibold text-slate-100">
-              {t("startModal.importSmPack")}
-            </span>
-            <span className="text-xs text-slate-400">
-              {t("startModal.importSmPackDesc")}
-            </span>
-          </button>
+            icon={<SmPackIcon className="h-[18px] w-[18px]" />}
+            title={t("startModal.importSmPack")}
+            description={t("startModal.importSmPackDesc")}
+          />
         )}
         {onPackCreator && (
-          <button
-            type="button"
+          <ActionTile
             onClick={onPackCreator}
-            className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-5 text-left transition hover:border-accent/70 hover:bg-ink-700"
-          >
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
-              <PackCreatorIcon className="h-6 w-6" />
-            </span>
-            <span className="text-sm font-semibold text-slate-100">
-              {t("startModal.packCreator")}
-            </span>
-            <span className="text-xs text-slate-400">
-              {t("startModal.packCreatorDesc")}
-            </span>
-          </button>
+            icon={<PackCreatorIcon className="h-[18px] w-[18px]" />}
+            title={t("startModal.packCreator")}
+            description={t("startModal.packCreatorDesc")}
+          />
         )}
       </div>
 
       {onImportFromOsu && !projectsOnly && (
-        <div className="mt-3 rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3">
+        <div className="mt-4 border-t border-white/[0.06] pt-4">
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -526,10 +490,10 @@ export function WelcomeModal({
               }}
               placeholder={t("startModal.osuLinkPlaceholder")}
               disabled={osuImporting}
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-accent/70 focus:ring-1 focus:ring-accent/40 disabled:opacity-50"
+              className={`${INPUT_CLASS} min-w-0 flex-1`}
             />
             <Button
-              variant="accent"
+              variant="primary"
               disabled={osuImporting || !osuLink.trim()}
               onClick={() => void runOsuImport()}
               className="whitespace-nowrap"
@@ -539,7 +503,7 @@ export function WelcomeModal({
                 : t("startModal.importFromOsu")}
             </Button>
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-500">
+          <p className="mt-1.5 text-xs text-slate-500">
             {t("startModal.osuImportHint")}
           </p>
           {osuImportError && (
@@ -554,16 +518,20 @@ export function WelcomeModal({
           target="_blank"
           rel="noreferrer"
           onClick={() => trackDiscord("start_modal")}
-          className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-[#5865F2]/70 hover:bg-ink-700 hover:text-white"
+          className="mt-3 inline-flex h-8 items-center gap-2 rounded-md px-2 text-sm text-slate-300 transition hover:bg-white/[0.06] hover:text-slate-50"
         >
-          <DiscordIcon className="h-5 w-5 text-[#5865F2]" />
+          <DiscordIcon className="h-4 w-4 text-[#5865F2]" />
           {t("startModal.joinDiscord")}
         </a>
       )}
 
       {!user && accountsEnabled && (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-700/30 px-4 py-3">
-          <span className="text-sm text-slate-400">
+        <div
+          className={`flex items-center justify-between gap-3 ${
+            projectsOnly ? "" : "mt-4 border-t border-white/[0.06] pt-4"
+          }`}
+        >
+          <span className="text-xs leading-relaxed text-slate-400">
             {t("startModal.loginPrompt")}{" "}
             <a
               href={siteUrl("terms")}
@@ -582,7 +550,7 @@ export function WelcomeModal({
               {t("startModal.privacyPolicy")}
             </a>
           </span>
-          <Button variant="accent" onClick={login} className="whitespace-nowrap">
+          <Button variant="accent" size="sm" onClick={login} className="whitespace-nowrap">
             {t("startModal.loginWithOsu")}
           </Button>
         </div>
@@ -618,7 +586,7 @@ export function WelcomeModal({
         }
       >
         {localProjects === null ? (
-          <SkeletonCards count={cardCounts.local} label={t("common.loading")} />
+          <SkeletonListRows count={cardCounts.local} columns label={t("common.loading")} />
         ) : sortedLocal.length === 0 ? (
           <SectionMessage>
             {localProjects.length === 0
@@ -692,7 +660,7 @@ export function WelcomeModal({
           }
         >
           {projects === null ? (
-            <SkeletonCards count={cardCounts.cloud} label={t("common.loading")} />
+            <SkeletonListRows count={cardCounts.cloud} columns label={t("common.loading")} />
           ) : owned.length === 0 ? (
             <SectionMessage>
               {query.trim()
@@ -806,7 +774,7 @@ export function WelcomeModal({
             onClick={() => setShowArchived((v) => !v)}
             className="mb-3 flex w-full items-baseline gap-2 border-b border-white/10 pb-1.5 text-left"
           >
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+            <span className="text-xs font-semibold text-slate-300">
               {t("startModal.archived")}
             </span>
             <span className="grid min-w-[1.25rem] place-items-center rounded-full bg-ink-600 px-1.5 text-[10px] font-semibold text-slate-300">
@@ -910,26 +878,29 @@ function BrowseToolbar({
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
       <div className="relative min-w-[12rem] flex-1">
+        <svg viewBox="0 0 16 16" aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+          <path d="m13.5 13.5-3-3m1.5-3.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z" />
+        </svg>
         <input
           type="search"
           value={query}
           onChange={(e) => onQuery(e.target.value)}
           placeholder={t("startModal.searchPlaceholder")}
           aria-label={t("startModal.searchLabel")}
-          className="w-full rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+          className={`${INPUT_CLASS} w-full pl-8`}
         />
       </div>
-      <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-ink-700/45 p-1">
+      <div className="flex items-center gap-0.5 rounded-lg bg-black/25 p-0.5 ring-1 ring-inset ring-white/[0.06]">
         {BROWSE_SORTS.map((option) => (
           <button
             key={option}
             type="button"
             onClick={() => onSort(option)}
             aria-pressed={sort === option}
-            className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+            className={`h-7 rounded-md px-2.5 text-xs font-medium transition ${
               sort === option
-                ? "bg-accent/85 text-white"
-                : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                : "text-slate-400 hover:text-slate-200"
             }`}
           >
             {labels[option]}
@@ -937,6 +908,35 @@ function BrowseToolbar({
         ))}
       </div>
     </div>
+  );
+}
+
+/** One way to start: an icon, a name and a line saying what it does. */
+function ActionTile({
+  onClick,
+  icon,
+  title,
+  description,
+}: {
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex items-start gap-3 rounded-lg p-2.5 text-left transition hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
+    >
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-white/[0.05] text-slate-300 ring-1 ring-inset ring-white/[0.06] transition group-hover:bg-accent/15 group-hover:text-accent-soft">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block font-display text-[0.875rem] font-semibold text-slate-100">{title}</span>
+        <span className="block text-xs leading-snug text-slate-400">{description}</span>
+      </span>
+    </button>
   );
 }
 
@@ -975,17 +975,17 @@ function Section({
 }) {
   return (
     <section className="mt-6">
-      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-white/10 pb-1.5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+      <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <h3 className="font-display text-[0.875rem] font-semibold text-slate-100">
           {title}
         </h3>
         {count != null && (
-          <span className="grid min-w-[1.25rem] place-items-center rounded-full bg-ink-600 px-1.5 text-[10px] font-semibold text-slate-300">
+          <span className="text-xs font-medium tabular-nums text-slate-500">
             {count}
           </span>
         )}
         {hint && (
-          <span className="ml-auto text-[11px] text-slate-500">{hint}</span>
+          <span className="ml-auto text-xs text-slate-500">{hint}</span>
         )}
         {actions && (
           <div className={`flex items-center gap-1 ${hint ? "" : "ml-auto"}`}>
@@ -1014,11 +1014,7 @@ function SectionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-        danger
-          ? "border-rose-500/50 bg-rose-600/20 text-rose-300 hover:bg-rose-600/40 hover:text-white"
-          : "border-white/10 bg-ink-600/60 text-slate-300 hover:bg-ink-500/70 hover:text-slate-100"
-      }`}
+      className={buttonClass(danger ? "danger" : "ghost", "sm", "h-6")}
     >
       {children}
     </button>
@@ -1070,13 +1066,13 @@ function SelectCheck({ checked }: { checked: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`pointer-events-none grid h-7 w-7 place-items-center rounded-lg border text-sm shadow backdrop-blur transition ${
+      className={`pointer-events-none grid h-4 w-4 place-items-center rounded-sm text-sm ring-1 ring-inset transition ${
         checked
-          ? "border-sky-300/80 bg-sky-500/90 text-white"
-          : "border-white/25 bg-ink-900/70 text-transparent"
+          ? "bg-sky-500 text-white ring-sky-400"
+          : "bg-black/30 text-transparent ring-white/25"
       }`}
     >
-      <CheckIcon className="h-4 w-4" />
+      <CheckIcon className="h-3 w-3" />
     </span>
   );
 }
@@ -1097,12 +1093,12 @@ function CheckIcon({ className }: { className?: string }) {
 }
 
 function SectionMessage({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-slate-500">{children}</p>;
+  return <p className="py-2 text-sm text-slate-500">{children}</p>;
 }
 
 function CardGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="skeleton-swap-in grid gap-x-3 gap-y-0.5 sm:grid-cols-2">
       {children}
     </div>
   );
@@ -1134,66 +1130,74 @@ function ProjectCard({
   onOpen: (additive: boolean) => void;
 }) {
   const t = useT();
+  // A row, not a card: the artwork identifies the map at a glance, the text
+  // beside it is what the eye reads down a list.
   return (
     <div
-      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-ink-700/40 transition hover:bg-ink-700 ${
+      className={`group relative flex items-center rounded-lg transition ${
         selected
-          ? "border-sky-400/80 ring-2 ring-sky-400/60"
-          : "border-ink-500/60 hover:border-accent/70"
+          ? "bg-sky-400/[0.08] ring-1 ring-inset ring-sky-400/50"
+          : "hover:bg-white/[0.045]"
       }`}
     >
       <button
         type="button"
         onClick={(e) => onOpen(e.ctrlKey || e.metaKey)}
-        className="flex flex-col text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1.5 pr-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
       >
-        <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-600">
+        <div className="relative aspect-[16/9] w-[5.5rem] shrink-0 overflow-hidden rounded-md bg-ink-600 ring-1 ring-inset ring-white/[0.06]">
           <AsyncImage
             src={thumbUrl}
             pending={thumbPending}
             className="h-full w-full object-cover"
             fallback={
               <div className="grid h-full w-full place-items-center text-slate-600">
-                <SampleMapsIcon className="h-8 w-8" />
+                <SampleMapsIcon className="h-5 w-5" />
               </div>
             }
           />
-          {sourceFormat === "qua" || sourceFormat === "mc" ? (
-            <span className="absolute left-2 top-2 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
-              {sourceFormat}
-            </span>
-          ) : sourceFormat ? (
-            <img
-              src={asset(`${sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`)}
-              alt={sourceFormat === "sm" ? t("start.etternaMap") : t("start.osuMap")}
-              className="absolute left-2 top-2 h-5 w-5 object-contain drop-shadow-md opacity-90"
-            />
-          ) : null}
-          {badge && (
-            <span className={`absolute ${sourceFormat ? "left-8" : "left-2"} top-2 rounded-md bg-accent/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow`}>
-              {badge}
-            </span>
-          )}
           {participants && participants.length > 0 && (
-            <div className="absolute bottom-2 right-2">
-              <AvatarStack participants={participants} />
+            <div className="absolute bottom-0.5 right-0.5">
+              <AvatarStack participants={participants} max={3} />
             </div>
           )}
         </div>
-        <div className="flex flex-col gap-0.5 p-3">
-          <div className="truncate text-sm font-semibold text-slate-100">
-            {title}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-display text-[0.875rem] font-semibold text-slate-100">
+              {title}
+            </span>
+            {badge && (
+              <span className="shrink-0 rounded-sm bg-accent/15 px-1 text-[10px] font-semibold text-accent-soft">
+                {badge}
+              </span>
+            )}
           </div>
           {subtitle && (
             <div className="truncate text-xs text-slate-400">{subtitle}</div>
           )}
           {note && (
-            <div className="truncate text-[11px] text-slate-500">{note}</div>
+            <div className="flex min-w-0 items-center gap-1.5 text-2xs text-slate-500">
+              {sourceFormat === "qua" || sourceFormat === "mc" ? (
+                <span className="shrink-0 rounded-sm bg-emerald-500/15 px-1 text-[9px] font-semibold uppercase text-emerald-300">
+                  {sourceFormat}
+                </span>
+              ) : sourceFormat ? (
+                <img
+                  src={asset(`${sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`)}
+                  alt={sourceFormat === "sm" ? t("start.etternaMap") : t("start.osuMap")}
+                  className="h-3 w-3 shrink-0 object-contain opacity-70"
+                />
+              ) : null}
+              <span className="truncate">{note}</span>
+            </div>
           )}
         </div>
       </button>
       {actions && (
-        <div className="absolute right-2 top-2 z-10 flex gap-1">{actions}</div>
+        <div className="flex shrink-0 items-center gap-0.5 pr-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+          {actions}
+        </div>
       )}
     </div>
   );
@@ -1223,10 +1227,10 @@ function CardActionButton({
         e.stopPropagation();
         onClick();
       }}
-      className={`grid h-7 w-7 place-items-center rounded-lg bg-ink-900/75 text-sm text-slate-200 shadow backdrop-blur transition disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`grid h-7 w-7 place-items-center rounded-md text-sm text-slate-400 transition disabled:cursor-not-allowed disabled:opacity-50 ${
         danger
-          ? "hover:bg-rose-600/85 hover:text-white"
-          : "hover:bg-accent/85 hover:text-white"
+          ? "hover:bg-rose-500/15 hover:text-rose-300"
+          : "hover:bg-white/[0.08] hover:text-slate-100"
       }`}
     >
       {busy ? "…" : icon}
@@ -1249,7 +1253,7 @@ function AvatarStack({
         <Avatar key={p.user_id} participant={p} />
       ))}
       {extra > 0 && (
-        <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-ink-800 bg-ink-600 text-[9px] font-semibold text-slate-200 shadow">
+        <span className="grid h-5 w-5 place-items-center rounded-full border-2 border-ink-800 bg-ink-600 text-[8px] font-semibold text-slate-200">
           +{extra}
         </span>
       )}
@@ -1266,12 +1270,12 @@ function Avatar({ participant }: { participant: ProjectParticipant }) {
       src={participant.avatar_url}
       alt={name}
       title={title}
-      className="h-6 w-6 rounded-full border-2 border-ink-800 object-cover shadow"
+      className="h-5 w-5 rounded-full border-2 border-ink-800 object-cover"
     />
   ) : (
     <span
       title={title}
-      className="grid h-6 w-6 place-items-center rounded-full border-2 border-ink-800 bg-ink-500 text-[9px] font-semibold text-slate-100 shadow"
+      className="grid h-5 w-5 place-items-center rounded-full border-2 border-ink-800 bg-ink-500 text-[8px] font-semibold text-slate-100"
     >
       {name.slice(0, 1).toUpperCase()}
     </span>
@@ -1301,7 +1305,7 @@ function DeleteAction({
         e.stopPropagation();
         onClick();
       }}
-      className="grid h-7 w-7 place-items-center rounded-lg bg-ink-900/75 text-sm text-slate-200 shadow backdrop-blur transition hover:bg-rose-600/85 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+      className="grid h-7 w-7 place-items-center rounded-md text-sm text-slate-400 transition hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {busy ? (
         "…"
@@ -1370,78 +1374,98 @@ export function SampleMapsModal({
         </p>
       )}
       {!maps && error === null && (
-        <SkeletonBanners count={4} label={t("sampleMaps.loading")} />
+        <SkeletonListRows count={5} thumb="banner" label={t("sampleMaps.loading")} />
       )}
       {maps && (
-        <div className="skeleton-swap-in grid gap-3 sm:grid-cols-2">
+        <ul className="skeleton-swap-in -mx-2 flex flex-col">
           {maps.map((map) => {
             const stars = map.difficulties.map((d) => d.stars);
             const maxStars = stars.length ? Math.max(...stars) : 0;
+            const minStars = stars.length ? Math.min(...stars) : 0;
+            const keyCounts = [...new Set(map.difficulties.map((d) => d.keyCount))].sort((a, b) => a - b);
+            const etterna = map.osz.endsWith(".sm") || map.osz.endsWith(".zip");
             return (
-              <button
-                key={map.id}
-                type="button"
-                onClick={() => onSelect(map)}
-                className="group flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40 text-left transition hover:border-accent/70 hover:bg-ink-700"
-              >
-                <div className="relative aspect-[3.5/1] w-full overflow-hidden bg-ink-600">
-                  <AsyncImage
-                    src={map.banner ? asset(map.banner) : undefined}
-                    className="h-full w-full object-cover"
-                    fallback={
-                      <div className="grid h-full w-full place-items-center text-slate-500">
-                        <SampleMapsIcon className="h-7 w-7" />
-                      </div>
-                    }
-                  />
-                  <img
-                    src={asset(`${map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? "etterna-logo" : "osu-logo"}.png`)}
-                    alt={map.osz.endsWith(".sm") || map.osz.endsWith(".zip") ? t("sampleMaps.etternaMap") : t("sampleMaps.osuMap")}
-                    className="absolute left-2 top-2 h-5 w-5 object-contain drop-shadow-md opacity-90"
-                  />
-                  <span
-                    className="absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[11px] font-semibold shadow"
-                    style={{
-                      backgroundColor: starColor(maxStars),
-                      color: starTextOn(maxStars),
-                    }}
-                  >
-                    ★ {maxStars.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2 p-3">
-                  <div>
-                    <div className="truncate text-sm font-semibold text-slate-100">
+              <li key={map.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(map)}
+                  className="group flex w-full items-center gap-3.5 rounded-lg p-2 text-left transition hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
+                >
+                  <div className="relative aspect-[3.5/1] w-40 shrink-0 overflow-hidden rounded-md bg-ink-600 ring-1 ring-inset ring-white/[0.06] max-sm:w-28">
+                    <AsyncImage
+                      src={map.banner ? asset(map.banner) : undefined}
+                      className="h-full w-full object-cover transition-transform duration-500 ease-[var(--ease-emphasized)] group-hover:scale-[1.04]"
+                      fallback={
+                        <div className="grid h-full w-full place-items-center text-slate-500">
+                          <SampleMapsIcon className="h-5 w-5" />
+                        </div>
+                      }
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-display text-[0.9375rem] font-semibold leading-5 text-slate-50">
                       {map.title}
                     </div>
-                    <div className="truncate text-xs text-slate-400">
-                      {map.artist}
-                    </div>
-                    <div className="mt-0.5 truncate text-[11px] text-slate-500">
-                      {t("sampleMaps.mappedBy", { name: map.creator })}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {map.difficulties.map((d, i) => (
-                      <span
-                        key={i}
-                        title={`${d.name} · ${d.keyCount}K · ${d.stars.toFixed(2)}★`}
-                        className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                        style={{
-                          backgroundColor: starColor(d.stars),
-                          color: starTextOn(d.stars),
-                        }}
-                      >
-                        {d.keyCount}K {d.stars.toFixed(1)}
+                    <div className="flex min-w-0 items-center gap-1.5 text-xs text-slate-400">
+                      <span className="truncate">{map.artist}</span>
+                      <span className="shrink-0 text-slate-600">·</span>
+                      <img
+                        src={asset(`${etterna ? "etterna-logo" : "osu-logo"}.png`)}
+                        alt={etterna ? t("sampleMaps.etternaMap") : t("sampleMaps.osuMap")}
+                        title={etterna ? t("sampleMaps.etternaMap") : t("sampleMaps.osuMap")}
+                        className="h-3 w-3 shrink-0 object-contain opacity-70"
+                      />
+                      <span className="truncate text-slate-500">
+                        {t("sampleMaps.mappedBy", { name: map.creator })}
                       </span>
-                    ))}
+                    </div>
+                    <DifficultySpread difficulties={map.difficulties} />
                   </div>
-                </div>
-              </button>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className="rounded-full px-1.5 py-px text-[11px] font-bold tabular-nums"
+                      style={{
+                        backgroundColor: starColor(maxStars),
+                        color: starTextOn(maxStars),
+                      }}
+                    >
+                      ★ {maxStars.toFixed(2)}
+                    </span>
+                    <span className="text-2xs tabular-nums text-slate-500">
+                      {keyCounts.map((k) => `${k}K`).join(" ")}
+                      {map.difficulties.length > 1 && ` · ${minStars.toFixed(1)}–${maxStars.toFixed(1)}`}
+                    </span>
+                  </div>
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </Modal>
+  );
+}
+
+/**
+ * Every difficulty of a set as one tick in its star colour, easiest first: a
+ * spread reads at a glance whether a set has two difficulties or twelve.
+ */
+function DifficultySpread({
+  difficulties,
+}: {
+  difficulties: { name: string; keyCount: number; stars: number }[];
+}) {
+  const sorted = [...difficulties].sort((a, b) => a.stars - b.stars);
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-[3px]">
+      {sorted.map((d, i) => (
+        <span
+          key={i}
+          title={`${d.name} · ${d.keyCount}K · ${d.stars.toFixed(2)}★`}
+          className="h-1.5 w-4 rounded-full ring-1 ring-inset ring-white/15"
+          style={{ backgroundColor: starColor(d.stars) }}
+        />
+      ))}
+    </div>
   );
 }

@@ -90,7 +90,7 @@ export function SessionIntro({
       type="button"
       onClick={finish}
       data-playing={musicPlaying ? "true" : "false"}
-      className={`session-intro fixed inset-0 z-[500] grid cursor-pointer place-items-center overflow-hidden bg-ink-900 text-white ${
+      className={`session-intro fixed inset-0 z-[500] grid cursor-pointer place-items-center overflow-hidden bg-ink-900 font-display text-white ${
         started ? "is-started" : ""
       } ${
         leaving ? "is-leaving" : ""

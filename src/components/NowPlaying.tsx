@@ -66,7 +66,7 @@ export function NowPlaying({
   if (!track) return null;
 
   return (
-    <div className="relative hidden min-w-0 max-w-[200px] overflow-hidden rounded-full border border-white/10 bg-ink-700/42 py-1 pl-3 pr-1 shadow-sm backdrop-blur-xl md:block lg:max-w-[280px]">
+    <div className="relative hidden h-8 min-w-0 max-w-[200px] overflow-hidden rounded-md bg-white/[0.04] py-1 pl-2.5 pr-1 ring-1 ring-inset ring-white/[0.06] md:flex md:items-center lg:max-w-[280px]">
       <div className="flex min-w-0 items-center gap-2">
         <span
           className={`shrink-0 text-[11px] text-accent-soft ${

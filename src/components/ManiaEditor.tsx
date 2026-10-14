@@ -2789,17 +2789,17 @@ export function ManiaEditor(props: ManiaEditorProps) {
       {/* A read-only editor is an embedded view — a reference difficulty, or
           the skin dialog's preview — where there is nothing to switch between. */}
       {!props.playtestMode && !props.readOnly && (
-        <div className="absolute left-3 top-12 z-20 flex select-none rounded-lg border border-white/10 bg-ink-800/90 p-1 text-[11px] shadow-lg backdrop-blur">
+        <div className="float-chip absolute left-3 top-11 z-20 flex select-none items-center gap-0.5 p-0.5 text-xs">
           {(["edit", "select"] as const).map((mode) => (
             <button
               key={mode}
               type="button"
               aria-pressed={interactionMode === mode}
               onClick={() => setInteractionMode(mode)}
-              className={`rounded-md px-2.5 py-1 font-medium capitalize transition ${
+              className={`h-6 rounded-md px-2.5 font-medium capitalize transition ${
                 interactionMode === mode
-                  ? "bg-accent/25 text-accent"
-                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                  ? "bg-white/[0.11] text-slate-50"
+                  : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
               }`}
               title={
                 mode === "edit"
@@ -2810,28 +2810,28 @@ export function ManiaEditor(props: ManiaEditorProps) {
               {mode === "edit" ? t("editor.editMode") : t("editor.selectMode")}
             </button>
           ))}
-          <span className="self-center px-1 text-[9px] text-slate-600">Q</span>
+          <kbd className="keycap mx-1 !h-4 !min-w-4 !px-1 !text-[9px] !text-slate-500">Q</kbd>
         </div>
       )}
 
       {!props.hideHints && !props.playtestMode && (
         <div
-          className={`pointer-events-none absolute left-3 top-3 select-none rounded-md border px-3 py-1.5 text-xs font-medium shadow-lg transition-[opacity,transform] duration-150 ${
-            receptorsOn
-              ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
-              : "border-slate-400/25 bg-ink-800/70 text-slate-200"
-          }`}
+          className="float-chip pointer-events-none absolute left-3 top-3 flex h-7 select-none items-center gap-2 px-2.5 text-xs text-slate-300 transition-[opacity,transform] duration-150"
         >
+          <span
+            aria-hidden
+            className={`h-1.5 w-1.5 rounded-full ${receptorsOn ? "bg-emerald-400" : "bg-slate-600"}`}
+          />
           {receptorsOn ? t("editor.receptorsOn") : t("editor.receptorsOff")}
         </div>
       )}
 
       {selectionCount > 0 && !props.playtestMode && (
-        <div className="absolute left-1/2 top-3 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 select-none flex-wrap items-center justify-center gap-1 rounded-lg border border-yellow-300/30 bg-ink-800/92 p-1 text-[11px] text-slate-200 shadow-xl backdrop-blur">
-          <span className="font-medium text-yellow-200">
+        <div className="float-chip absolute left-1/2 top-3 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 select-none flex-wrap items-center justify-center gap-0.5 p-0.5 text-xs text-slate-200">
+          <span className="px-2 font-medium tabular-nums text-yellow-200">
             {t("editor.selected", { count: selectionCount })}
           </span>
-          <span className="mx-0.5 h-4 w-px bg-white/10" />
+          <span className="mx-0.5 h-4 w-px bg-white/[0.08]" />
           <SelectionActionButton
             label={t("common.copy")}
             title={t("editor.copySelection")}
@@ -2902,7 +2902,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
       )}
 
       {!props.playtestMode && !props.hideClipboard && (clipboard || history.length > 0) && (
-        <div className="absolute right-3 top-14 w-44 select-none rounded-lg border border-ink-600 bg-ink-800/90 p-2 text-xs text-slate-300 shadow-xl backdrop-blur">
+        <div className="float-chip absolute right-3 top-14 w-48 select-none p-2 text-xs text-slate-300">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="font-medium text-slate-200">{t("editor.clipboard")}</span>
             <div className="flex items-center gap-1.5">
@@ -2912,24 +2912,24 @@ export function ManiaEditor(props: ManiaEditorProps) {
                   clearClipboard();
                   setClipboardStatus("");
                 }}
-                className="rounded px-1 py-0.5 text-[10px] text-slate-500 transition hover:bg-ink-600 hover:text-slate-200"
+                className="rounded px-1 py-0.5 text-2xs text-slate-500 transition hover:bg-white/[0.07] hover:text-slate-200"
                 title={t("editor.clearClipboardTitle")}
               >
                 {t("editor.clear")}
               </button>
-              <span className="text-[10px] text-slate-500">Ctrl+V</span>
+              <kbd className="keycap !h-4 !text-[9px] !text-slate-500">Ctrl+V</kbd>
             </div>
           </div>
           {clipboard?.kind === "difficulty" ? (
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-start gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5">
+              <div className="flex items-start gap-2 rounded-md bg-yellow-400/[0.06] p-1.5 ring-1 ring-inset ring-yellow-300/30">
                 <DifficultyClipLabel clip={clipboard} detailed />
               </div>
               <button
                 type="button"
                 onClick={paste}
                 disabled={props.readOnly || !props.onPasteDifficulty}
-                className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-ink-600 disabled:opacity-40"
+className="h-6 rounded-md bg-white/[0.06] px-2 text-2xs font-medium text-slate-200 transition hover:bg-white/[0.1] disabled:opacity-40"
                 title={t("editor.addDifficultyTitle")}
               >
                 {t("editor.addToMap")}
@@ -2942,22 +2942,22 @@ export function ManiaEditor(props: ManiaEditorProps) {
                 onDragStart={(e) => onClipDragStart(e, clipboard)}
                 onDragEnd={clearClipDrag}
                 title={t("editor.dragClipTitle")}
-                className={`flex items-center gap-2 rounded-md border border-yellow-300/40 bg-yellow-500/5 p-1.5 ${props.readOnly ? "" : "cursor-grab active:cursor-grabbing"}`}
+                className={`flex items-center gap-2 rounded-md bg-yellow-400/[0.06] p-1.5 ring-1 ring-inset ring-yellow-300/30 ${props.readOnly ? "" : "cursor-grab active:cursor-grabbing"}`}
               >
                 <ClipThumb clip={clipboard} keyCount={props.keyCount} />
-                <span className="min-w-0 text-[10px] text-slate-400">
+                <span className="min-w-0 text-2xs text-slate-400">
                   {t("editor.noteCount", { count: clipboard.notes.length })}
                 </span>
                 <SnapBadge pattern={clipboard.notes} />
               </div>
               {!props.readOnly && (
-                <span className="text-center text-[10px] text-slate-400">{t("editor.dragOntoPlayfield")}</span>
+                <span className="text-center text-2xs text-slate-500">{t("editor.dragOntoPlayfield")}</span>
               )}
               <button
                 type="button"
                 onClick={paste}
                 disabled={props.readOnly}
-                className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-ink-600 disabled:opacity-40"
+className="h-6 rounded-md bg-white/[0.06] px-2 text-2xs font-medium text-slate-200 transition hover:bg-white/[0.1] disabled:opacity-40"
                 title={t("editor.pasteAtPlayheadTitle")}
               >
                 {t("editor.pasteAtPlayhead")}
@@ -2971,7 +2971,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
                       props.keyCount,
                     )
                   }
-                  className="rounded-md border border-ink-600 bg-ink-700/60 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:border-accent/60 hover:bg-ink-600"
+className="h-6 rounded-md bg-white/[0.06] px-2 text-2xs font-medium text-slate-200 transition hover:bg-white/[0.1] disabled:opacity-40"
                   title={t("editor.saveAsPresetTitle")}
                 >
                   {t("editor.saveAsPreset")}
@@ -2979,12 +2979,12 @@ export function ManiaEditor(props: ManiaEditorProps) {
               )}
             </div>
           ) : (
-            <p className="text-[11px] text-slate-500">{t("editor.nothingCopied")}</p>
+            <p className="text-xs text-slate-500">{t("editor.nothingCopied")}</p>
           )}
 
           {history.length > 1 && (
             <>
-              <div className="mb-1 mt-2.5 text-[10px] uppercase tracking-wide text-slate-500">
+              <div className="mb-1 mt-2.5 text-2xs font-medium text-slate-500">
                 {t("editor.pasteboard")}
               </div>
               <div className="flex flex-col gap-1">
@@ -3010,16 +3010,16 @@ export function ManiaEditor(props: ManiaEditorProps) {
                           : t("editor.difficultyReady", { name: item.difficulty.name || t("editor.difficulty") }),
                       );
                     }}
-                    className={`flex min-h-[30px] items-center gap-2 rounded-md border px-1.5 py-1 text-left transition ${
+                    className={`flex min-h-[30px] items-center gap-2 rounded-md px-1.5 py-1 text-left ring-1 ring-inset transition ${
                       item.id === clipboard?.id
-                        ? "border-yellow-300/50 bg-yellow-500/10"
-                        : "border-ink-600 bg-ink-700/40 hover:border-slate-500"
+                        ? "bg-yellow-400/[0.08] ring-yellow-300/40"
+                        : "bg-white/[0.03] ring-white/[0.05] hover:bg-white/[0.06]"
                     }`}
                   >
                     {item.kind === "notes" ? (
                       <>
                         <ClipThumb clip={item} keyCount={props.keyCount} small />
-                        <span className="min-w-0 flex-1 text-[10px] text-slate-400">
+                        <span className="min-w-0 flex-1 text-2xs text-slate-400">
                           {t("editor.noteCount", { count: item.notes.length })}
                         </span>
                         <SnapBadge pattern={item.notes} />
@@ -3037,20 +3037,20 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
       {hitsoundBarMounted && !props.zenMode && (
         <div
-          className={`absolute bottom-3 left-1/2 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center whitespace-nowrap gap-2 rounded-lg border border-ink-600 bg-ink-800/90 px-2.5 py-1.5 text-xs text-slate-200 shadow-xl backdrop-blur ${
+          className={`float-chip absolute bottom-3 left-1/2 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 whitespace-nowrap px-2 py-1 text-xs text-slate-200 ${
             hitsoundBarClosing ? "hitsound-bar-out" : "hitsound-bar-in"
           }`}
         >
-          <span className="font-medium text-slate-300">{t("hitsoundBar.title")}</span>
-          <div className="flex gap-1">
+          <span className="pl-1 font-medium text-slate-300">{t("hitsoundBar.title")}</span>
+          <div className="flex gap-0.5 rounded-md bg-black/25 p-0.5">
             {SAMPLE_SET_NAMES.map((name, s) => (
               <button
                 key={name}
                 onClick={() => setSampleSet(s)}
-                className={`rounded px-2 py-0.5 capitalize transition ${
+                className={`h-5 rounded px-2 capitalize transition ${
                   toolbarSampleSet === s
-                    ? "bg-accent text-ink-900"
-                    : "bg-ink-700 text-slate-300 hover:bg-ink-600"
+                    ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                    : "text-slate-400 hover:text-slate-100"
                 }`}
                 title={
                   s === 0
@@ -3062,7 +3062,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
               </button>
             ))}
           </div>
-          <span className="text-slate-600">·</span>
+          <span className="h-4 w-px bg-white/[0.08]" />
           <div className="flex gap-1">
             <HitsoundAddBtn
               label="W"
@@ -3083,17 +3083,17 @@ export function ManiaEditor(props: ManiaEditorProps) {
               onClick={() => toggleAddition(HITSOUND_CLAP)}
             />
           </div>
-          <span className="text-[10px] text-slate-500">
+          <span className="text-2xs text-slate-500">
             {selectionCount > 0
               ? t("hitsoundBar.selected", { count: selectionCount })
               : t("hitsoundBar.newNotes")}
           </span>
           {props.onCopyHitsounds && (props.hitsoundSources?.length ?? 0) > 0 && (
             <>
-              <span className="text-slate-600">·</span>
+              <span className="h-4 w-px bg-white/[0.08]" />
               <Menu
                 label={t("hitsoundBar.copy")}
-                className="!rounded !bg-ink-700 !px-2 !py-0.5 !text-xs hover:!bg-ink-600"
+                className="!h-6 !px-2 !text-xs"
                 items={[
                   ...(props.onCopyHitsoundsToAll
                     ? [
@@ -3118,8 +3118,8 @@ export function ManiaEditor(props: ManiaEditorProps) {
               />
             </>
           )}
-          <span className="text-slate-600">·</span>
-          <span className="text-[10px] text-slate-500">{t("hitsoundBar.exit")}</span>
+          <span className="h-4 w-px bg-white/[0.08]" />
+          <span className="pr-1 text-2xs text-slate-500">{t("hitsoundBar.exit")}</span>
         </div>
       )}
     </div>

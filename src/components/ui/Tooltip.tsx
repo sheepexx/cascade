@@ -121,7 +121,7 @@ export function Tooltip({
         onBlur={hide}
         className={`cursor-help outline-none transition-colors ${
           underline
-            ? "decoration-white/20 decoration-dotted underline-offset-4 hover:decoration-slate-400 focus-visible:decoration-accent [text-decoration-line:underline]"
+            ? "ui-tip-anchor decoration-transparent decoration-dotted underline-offset-[5px] hover:decoration-slate-500 focus-visible:decoration-accent [text-decoration-line:underline]"
             : ""
         } ${className}`}
       >
@@ -135,15 +135,15 @@ export function Tooltip({
             role="tooltip"
             ref={bubbleRef}
             style={{ position: "fixed", left: pos.left, top: pos.top }}
-            className="tooltip-in pointer-events-none z-[400] w-max max-w-[19rem] rounded-xl border border-white/10 bg-ink-800 px-3 py-2.5 text-[11px] leading-relaxed text-slate-300 shadow-[0_18px_44px_rgba(0,0,0,0.6)]"
+            className="ui-popover tooltip-in pointer-events-none z-[400] w-max max-w-[19rem] rounded-lg border border-white/[0.09] bg-ink-700 px-2.5 py-2 text-xs leading-relaxed text-slate-200 shadow-[var(--shadow-float)]"
           >
             <span
               aria-hidden
               style={{ left: pos.arrow }}
-              className={`absolute h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-white/10 bg-ink-800 ${
+              className={`absolute h-2 w-2 -translate-x-1/2 rotate-45 border-white/[0.09] bg-ink-700 ${
                 pos.placement === "bottom"
-                  ? "-top-[6px] border-l border-t"
-                  : "-bottom-[6px] border-b border-r"
+                  ? "-top-[5px] border-l border-t"
+                  : "-bottom-[5px] border-b border-r"
               }`}
             />
             {content}
@@ -167,7 +167,7 @@ export function InfoTip({
       <span
         role="img"
         aria-label={t("tooltip.moreInfo")}
-        className="inline-flex h-3.5 w-3.5 select-none items-center justify-center rounded-full border border-white/20 text-[9px] font-semibold leading-none text-slate-400 transition-colors hover:border-white/45 hover:text-slate-200"
+        className="inline-flex h-3.5 w-3.5 select-none items-center justify-center rounded-full text-[9px] font-semibold leading-none text-slate-500 ring-1 ring-inset ring-white/20 transition-colors hover:text-slate-200 hover:ring-white/40"
       >
         i
       </span>

@@ -159,7 +159,7 @@ function EmojiPanel({ onEmoji }: { onEmoji: (emoji: string) => void }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("social.searchEmoji")}
           aria-label={t("social.searchEmoji")}
-          className="w-full rounded-lg border border-white/10 bg-ink-700/65 px-2.5 py-1.5 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+          className="w-full rounded-md bg-black/25 px-2.5 py-1.5 text-xs text-slate-100 ring-1 ring-inset ring-white/[0.08] outline-none transition placeholder:text-slate-500 hover:ring-white/[0.14] focus:bg-black/35 focus:ring-accent/70"
         />
       </div>
       {!query && groups && (
@@ -215,7 +215,7 @@ function GroupJump({ icon, label, onClick }: { icon: string; label: string; onCl
 function EmojiSection({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
     <section data-group={id} className="[content-visibility:auto] [contain-intrinsic-size:auto_12rem]">
-      <h4 className="sticky top-0 z-10 bg-ink-800/95 px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+      <h4 className="sticky top-0 z-10 bg-ink-800/95 px-1 py-1 text-2xs font-semibold text-slate-400">
         {label}
       </h4>
       {children}
@@ -295,7 +295,7 @@ function GifPanel({ userId, onGif }: { userId: string; onGif: (gif: Gif, query: 
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("social.searchKlipy")}
           aria-label={t("social.searchKlipy")}
-          className="w-full rounded-lg border border-white/10 bg-ink-700/65 px-2.5 py-1.5 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+          className="w-full rounded-md bg-black/25 px-2.5 py-1.5 text-xs text-slate-100 ring-1 ring-inset ring-white/[0.08] outline-none transition placeholder:text-slate-500 hover:ring-white/[0.14] focus:bg-black/35 focus:ring-accent/70"
         />
       </div>
       <div

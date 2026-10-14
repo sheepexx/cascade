@@ -40,7 +40,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
           value={value}
           aria-label={label}
           onFocus={(event) => event.currentTarget.select()}
-          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-900/60 px-2.5 py-1.5 font-mono text-[11px] text-slate-200 outline-none transition duration-[var(--motion-quick)] focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+          className="min-w-0 flex-1 rounded-md bg-black/25 px-2.5 py-1.5 font-mono text-[11px] text-slate-200 outline-none ring-1 ring-inset ring-white/[0.08] transition duration-[var(--motion-quick)] focus:ring-accent/70"
         />
         <Button
           variant={state === "copied" ? "primary" : "ghost"}

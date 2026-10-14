@@ -255,8 +255,8 @@ function StatsTab() {
           <DesktopDownloadSection stats={downloads} />
           <AppVersionSection stats={versions} />
           <StorageStatsSection stats={storage} error={storageError} />
-          <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
+            <h2 className="mb-3 text-xs font-semibold text-slate-300">
               Feature usage
             </h2>
             {!events && (
@@ -271,7 +271,7 @@ function StatsTab() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[26rem] text-sm">
                   <thead>
-                    <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="text-left text-xs text-slate-500">
                       <th className="pb-2 font-medium">Event</th>
                       <th className="pb-2 text-right font-medium">7 days</th>
                       <th className="pb-2 text-right font-medium">30 days</th>
@@ -303,8 +303,8 @@ function StatsTab() {
               </div>
             )}
           </section>
-          <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
+            <h2 className="mb-3 text-xs font-semibold text-slate-300">
               Browser
             </h2>
             {stats.browsers === null ? (
@@ -337,8 +337,8 @@ function StatsTab() {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-ink-600 bg-ink-800 p-4">
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg bg-white/[0.03] p-4">
+      <div className="text-xs font-medium text-slate-400">
         {label}
       </div>
       <div className="mt-2 text-2xl font-semibold text-slate-100">{value}</div>
@@ -383,8 +383,8 @@ function AdminSection({
   children: ReactNode;
 }) {
   return (
-    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
+      <h2 className="mb-3 text-xs font-semibold text-slate-300">
         {title}
       </h2>
       {children}
@@ -405,8 +405,8 @@ function percent(part: number, whole: number): string {
  */
 function UsageSection({ usage }: { usage: AdminUsage | null | "missing" }) {
   return (
-    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-      <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
+      <h2 className="mb-1 text-xs font-semibold text-slate-300">
         Retention and funnel
       </h2>
       <p className="mb-3 text-[11px] text-slate-500">
@@ -422,7 +422,7 @@ function UsageSection({ usage }: { usage: AdminUsage | null | "missing" }) {
         <div className="flex flex-col gap-5">
           <FunnelRow funnel={usage.funnel} />
           <div>
-            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="mb-2 text-xs font-semibold text-slate-400">
               Came back on day 1 / 7 / 30, by week of first open
             </h3>
             {usage.retention.length === 0 ? (
@@ -458,7 +458,7 @@ function UsageSection({ usage }: { usage: AdminUsage | null | "missing" }) {
           </div>
           <div className="grid gap-5 md:grid-cols-2">
             <div>
-              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <h3 className="mb-2 text-xs font-semibold text-slate-400">
                 Weekly active mappers
               </h3>
               {usage.mappers.length === 0 ? (
@@ -475,7 +475,7 @@ function UsageSection({ usage }: { usage: AdminUsage | null | "missing" }) {
               )}
             </div>
             <div>
-              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <h3 className="mb-2 text-xs font-semibold text-slate-400">
                 Discord clicks, last 30 days
               </h3>
               {usage.discord.length === 0 ? (
@@ -509,7 +509,7 @@ function FunnelRow({ funnel }: { funnel: AdminFunnel | null }) {
     : [];
   return (
     <div>
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+      <h3 className="mb-2 text-xs font-semibold text-slate-400">
         New browsers in the last 30 days
       </h3>
       {!funnel || funnel.opened === 0 ? (
@@ -542,7 +542,7 @@ function AdminTable<T>({
     <div className="overflow-x-auto">
       <table className="w-full min-w-[26rem] text-sm">
         <thead>
-          <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+          <tr className="text-left text-xs text-slate-500">
             {columns.map((col) => (
               <th
                 key={col.label}
@@ -1075,7 +1075,7 @@ function UsersTab() {
       {rows && rows.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-xs uppercase tracking-wide text-slate-500">
+            <thead className="text-xs text-slate-500">
               <tr>
                 {USER_COLUMNS.map((col) => (
                   <th
@@ -1116,7 +1116,7 @@ function UsersTab() {
                         {u.username}
                       </span>
                       {u.is_admin && (
-                        <span className="shrink-0 rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase text-accent">
+                        <span className="shrink-0 rounded bg-accent/15 px-1 py-0.5 text-2xs font-semibold text-accent">
                           admin
                         </span>
                       )}
@@ -1267,7 +1267,7 @@ function UserDetail({
         <div className="ml-auto flex items-center gap-2">
           <PlatformBadge platform={userPlatform(user)} />
           {user.is_admin && (
-            <span className="rounded bg-accent/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-accent">
+            <span className="rounded bg-accent/15 px-2 py-1 text-2xs font-semibold text-accent">
               admin
             </span>
           )}
@@ -1296,7 +1296,7 @@ function UserDetail({
         <StatCard label="Web events" value={Number(user.web_events)} />
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-ink-600 bg-ink-800 px-4 py-3 text-[11px] text-slate-500">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-white/[0.03] px-4 py-3 text-[11px] text-slate-500">
         <span>storage {formatBytes(Number(user.storage_bytes))}</span>
         <span>last event {formatMoment(user.last_event_at)}</span>
         <span>last client {user.last_platform ?? "unknown"}</span>
@@ -1310,8 +1310,8 @@ function UserDetail({
 
       <UserMappingSection userId={user.id} username={user.username} />
 
-      <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
+        <h2 className="mb-3 text-xs font-semibold text-slate-300">
           Feature usage
         </h2>
         {!events && !error && (
@@ -1327,7 +1327,7 @@ function UserDetail({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[26rem] text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr className="text-left text-xs text-slate-500">
                   <th className="pb-2 font-medium">Event</th>
                   <th className="pb-2 text-right font-medium">7 days</th>
                   <th className="pb-2 text-right font-medium">30 days</th>
@@ -1361,8 +1361,8 @@ function UserDetail({
         )}
       </section>
 
-      <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
+        <h2 className="mb-3 text-xs font-semibold text-slate-300">
           Maps
         </h2>
         {!projects && (
@@ -1408,10 +1408,10 @@ function StorageStatsSection({
   error: string | null;
 }) {
   return (
-    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+    <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="text-xs font-semibold text-slate-300">
             Physical storage
           </h2>
           <p className="mt-1 text-xs text-slate-500">
@@ -1420,7 +1420,7 @@ function StorageStatsSection({
         </div>
         {stats && (
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wide text-slate-500">
+            <div className="text-xs text-slate-500">
               Total used
             </div>
             <div className="font-mono text-sm font-semibold text-slate-200">
@@ -1719,7 +1719,7 @@ function FeatureFlagsSection() {
     FEATURE_FLAG_INFO.find((f) => f.key === key)?.label ?? key;
 
   return (
-    <section className="rounded-xl border border-ink-600 bg-ink-800 p-5">
+    <section className="rounded-lg bg-white/[0.03] p-5">
       <h2 className="text-sm font-semibold text-slate-100">Feature flags</h2>
       <p className="mt-1 text-sm text-slate-400">
         Kill switches for every user, no redeploy needed. Clients fail open: if
@@ -1786,7 +1786,7 @@ function SettingsTab({
   return (
     <div className="flex max-w-xl flex-col gap-5">
       <FeatureFlagsSection />
-      <section className="rounded-xl border border-ink-600 bg-ink-800 p-5">
+      <section className="rounded-lg bg-white/[0.03] p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold text-slate-100">
@@ -1859,7 +1859,7 @@ function FeedbackTab() {
   return (
     <div>
       <RatingsOverview />
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Messages</h2>
+      <h2 className="mb-3 text-xs font-semibold text-slate-300">Messages</h2>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!items && !error && (
         <SkeletonRows
@@ -1877,7 +1877,7 @@ function FeedbackTab() {
           {items.map((item) => (
             <article
               key={item.id}
-              className="rounded-xl border border-ink-600 bg-ink-800 p-4"
+              className="rounded-lg bg-white/[0.03] p-4"
             >
               <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                 {item.author_osu_id ? (
@@ -1893,7 +1893,7 @@ function FeedbackTab() {
                   <span>{item.author_username ?? "unknown"}</span>
                 )}
                 <span>{new Date(item.created_at).toLocaleString()}</span>
-                <span className="rounded bg-ink-600 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-300">
+                <span className="rounded bg-ink-600 px-1.5 py-0.5 text-2xs text-slate-300">
                   {item.status}
                 </span>
               </div>
@@ -1970,7 +1970,7 @@ function NotificationsTab() {
 
   return (
     <div className="max-w-2xl">
-      <section className="rounded-xl border border-ink-600 bg-ink-800 p-5">
+      <section className="rounded-lg bg-white/[0.03] p-5">
         <h2 className="text-sm font-semibold text-slate-100">
           Publish app update
         </h2>
@@ -1982,7 +1982,7 @@ function NotificationsTab() {
 
         <div className="mt-5 grid gap-4">
           <label className="grid gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            <span className="text-xs font-medium text-slate-300">
               Title
             </span>
             <TextInput
@@ -1994,7 +1994,7 @@ function NotificationsTab() {
           </label>
 
           <label className="grid gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            <span className="text-xs font-medium text-slate-300">
               Message
             </span>
             <textarea
@@ -2009,7 +2009,7 @@ function NotificationsTab() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-1">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <span className="text-xs font-medium text-slate-300">
                 Version / unique key
               </span>
               <TextInput
@@ -2020,7 +2020,7 @@ function NotificationsTab() {
               />
             </label>
             <label className="grid gap-1">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <span className="text-xs font-medium text-slate-300">
                 Optional link
               </span>
               <TextInput

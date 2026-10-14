@@ -106,6 +106,14 @@ export const ptBR: PartialCatalog = {
   "share.removeFailed": "Falha ao remover.",
 
   "settings.title": "Configurações",
+
+  "settings.savingPrivacy": "Salvamento e privacidade",
+
+  "settings.infoEmpty": "Aponte para uma configuração para ver o que ela faz.",
+
+  "settings.search": "Buscar configurações",
+
+  "settings.searchEmpty": "Nenhuma configuração corresponde a “{query}”.",
   "settings.tabGeneral": "Geral",
   "settings.interfaceSounds": "Sons da interface",
   "settings.playback": "Reprodução",
@@ -1964,6 +1972,7 @@ export const ptBR: PartialCatalog = {
   "shortcuts.target.playfield": "tamanho do campo",
   "shortcuts.target.volume": "volume da música",
   "shortcuts.editable": "As teclas destacadas são editáveis",
+  "shortcuts.filter": "Filtrar atalhos",
   "shortcuts.editableInfo": "Clique em uma tecla destacada e pressione a nova tecla. Backspace restaura o padrão, Esc cancela.",
   "shortcuts.resetAll": "Redefinir tudo",
   "shortcuts.snapFree": "Definir ajuste livre.",

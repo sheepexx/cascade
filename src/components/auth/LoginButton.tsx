@@ -160,12 +160,12 @@ export function AccountControl({
   }, [open]);
 
   if (loading) {
-    return <Skeleton className="h-9 w-24 rounded-lg" />;
+    return <Skeleton className="h-8 w-24 rounded-md" />;
   }
 
   if (!user) {
     return (
-      <Button variant="accent" onClick={login} className="whitespace-nowrap">
+      <Button variant="accent" onClick={login} className="h-7 whitespace-nowrap px-2.5">
         {t("startModal.loginWithOsu")}
       </Button>
     );
@@ -181,8 +181,9 @@ export function AccountControl({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 rounded-lg border border-ink-500/60 bg-ink-700/60 transition hover:border-accent/60 hover:bg-ink-700 ${
-          compact ? "px-2 py-1" : "px-2.5 py-1.5"
+        aria-expanded={open}
+        className={`flex h-8 items-center gap-2 rounded-md transition hover:bg-white/[0.07] aria-expanded:bg-white/[0.09] ${
+          compact ? "pl-1 pr-1.5" : "pl-1.5 pr-2"
         }`}
         title={user.username}
       >
@@ -190,14 +191,14 @@ export function AccountControl({
           <img
             src={user.avatar_url}
             alt=""
-            className="h-6 w-6 rounded-full object-cover"
+            className="h-6 w-6 rounded-full object-cover ring-1 ring-white/10"
           />
         ) : (
-          <span className="grid h-6 w-6 place-items-center rounded-full bg-ink-600 text-xs">
+          <span className="grid h-6 w-6 place-items-center rounded-full bg-ink-500 text-xs font-semibold">
             {user.username.slice(0, 1).toUpperCase()}
           </span>
         )}
-        <span className="max-w-[8rem] truncate text-sm font-medium text-slate-100">
+        <span className="max-w-[8rem] truncate font-display text-sm font-semibold text-slate-100">
           {user.username}
         </span>
         <ChevronDownIcon
@@ -212,7 +213,7 @@ export function AccountControl({
           <div
             ref={menuRef}
             style={{ position: "fixed", top: pos.top, right: pos.right }}
-            className={`z-[100] w-52 overflow-hidden rounded-xl border border-ink-500/60 bg-ink-800 pb-1 shadow-2xl ${
+            className={`ui-popover z-[100] w-56 overflow-hidden rounded-xl bg-ink-700 pb-1 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09] ${
               open ? "menu-pop-in" : "menu-pop-out"
             }`}
           >
@@ -231,25 +232,25 @@ export function AccountControl({
                   }}
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-ink-800 via-ink-800/45 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-ink-700 via-ink-700/45 to-transparent" />
               <div className="absolute inset-x-3 bottom-2 flex items-center gap-2">
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}
                     alt=""
-                    className="h-7 w-7 rounded-full object-cover ring-2 ring-ink-800"
+                    className="h-8 w-8 rounded-full object-cover ring-2 ring-ink-700"
                   />
                 ) : (
-                  <span className="grid h-7 w-7 place-items-center rounded-full bg-ink-600 text-xs ring-2 ring-ink-800">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-ink-500 text-xs ring-2 ring-ink-700">
                     {user.username.slice(0, 1).toUpperCase()}
                   </span>
                 )}
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100 drop-shadow">
+                <span className="min-w-0 flex-1 truncate font-display text-[0.9375rem] font-bold text-slate-50 drop-shadow">
                   {user.username}
                 </span>
               </div>
             </div>
-            <div className="pt-1" />
+            <div className="pt-1.5" />
             {onOpenSocial && (
               <>
                 <MenuItem onClick={() => choose(() => onOpenSocial("profile"))}>
@@ -270,7 +271,7 @@ export function AccountControl({
                 <MenuItem onClick={() => choose(() => onOpenSocial("community"))}>
                   {t("social.findMappers")}
                 </MenuItem>
-                <div className="my-1 h-px bg-ink-600" />
+                <div className="mx-2.5 my-1 h-px bg-white/[0.07]" />
               </>
             )}
             <MenuItem onClick={() => choose(onOpenMyMaps)}>
@@ -288,7 +289,7 @@ export function AccountControl({
               href={DISCORD_INVITE}
               target="_blank"
               rel="noreferrer"
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-slate-200 transition hover:bg-ink-600"
+              className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-md px-2.5 py-1 text-left text-sm text-slate-200 transition hover:bg-white/[0.07]"
               onClick={() => {
                 trackDiscord("account_menu");
                 setOpen(false);
@@ -302,12 +303,12 @@ export function AccountControl({
                 {t("account.admin")}
               </MenuItem>
             )}
-            <div className="my-1 h-px bg-ink-600" />
+            <div className="mx-2.5 my-1 h-px bg-white/[0.07]" />
             <a
               href={siteUrl("terms")}
               target="_blank"
               rel="noreferrer"
-              className="block w-full px-3 py-1.5 text-left text-sm text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"
+              className="mx-1 block w-[calc(100%-0.5rem)] rounded-md px-2.5 py-1 text-left text-xs text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-200"
               onClick={() => setOpen(false)}
             >
               {t("settings.terms")}
@@ -316,7 +317,7 @@ export function AccountControl({
               href={siteUrl("privacy")}
               target="_blank"
               rel="noreferrer"
-              className="block w-full px-3 py-1.5 text-left text-sm text-slate-400 transition hover:bg-ink-600 hover:text-slate-200"
+              className="mx-1 block w-[calc(100%-0.5rem)] rounded-md px-2.5 py-1 text-left text-xs text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-200"
               onClick={() => setOpen(false)}
             >
               {t("startModal.privacyPolicy")}
@@ -346,13 +347,13 @@ function MenuItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm transition hover:bg-ink-600 ${
+      className={`mx-1 flex w-[calc(100%-0.5rem)] items-center justify-between gap-2 rounded-md px-2.5 py-1 text-left text-sm transition hover:bg-white/[0.07] ${
         danger ? "text-rose-300 hover:text-rose-200" : "text-slate-200"
       }`}
     >
       <span>{children}</span>
       {badge ? (
-        <span className="grid min-h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold leading-4 text-white">
+        <span className="grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold leading-none text-white">
           {badge > 99 ? "99+" : badge}
         </span>
       ) : null}

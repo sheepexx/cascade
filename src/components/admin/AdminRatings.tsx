@@ -111,8 +111,8 @@ export function RatingsOverview() {
   const answers = ratings?.filter((r) => r.question === shown) ?? [];
 
   return (
-    <section className="mb-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Ratings</h2>
+    <section className="mb-6 rounded-lg bg-white/[0.03] p-4">
+      <h2 className="mb-3 text-xs font-semibold text-slate-300">Ratings</h2>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       {!ratings && !error && <SkeletonRows count={2} lines={2} action={false} label="Loading ratings" />}
       {ratings && ratings.length === 0 && <p className="text-sm text-slate-400">No ratings yet.</p>}
@@ -181,8 +181,8 @@ export function UserRatingsSection({ userId }: { userId: string }) {
   }, [userId]);
 
   return (
-    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Ratings</h2>
+    <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
+      <h2 className="mb-3 text-xs font-semibold text-slate-300">Ratings</h2>
       {error && <p className="text-sm text-rose-400">{error}</p>}
       {!ratings && !error && <SkeletonRows count={1} lines={2} action={false} label="Loading ratings" />}
       {ratings && ratings.length === 0 && (

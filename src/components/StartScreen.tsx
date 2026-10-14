@@ -171,7 +171,7 @@ function PhoneStart({
 }) {
   const t = useT();
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto font-display">
       <div className="relative min-h-full overflow-hidden">
         <MenuBackground
           url={menuBackgroundUrl ?? music.track?.backgroundUrl ?? null}
@@ -479,7 +479,7 @@ export function StartScreen({
   }
 
   return (
-    <div className="no-scrollbar h-full overflow-y-auto">
+    <div className="no-scrollbar h-full overflow-y-auto font-display">
       <div
         className="relative grid min-h-full place-items-center overflow-hidden"
         style={{

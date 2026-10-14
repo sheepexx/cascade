@@ -98,7 +98,7 @@ export function FeedbackModal({
               onChange={(e) => setBody(e.target.value)}
               maxLength={4000}
               rows={7}
-              className="resize-none rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/10 outline-none transition focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+              className="resize-none rounded-md bg-black/25 px-3 py-2 text-sm text-slate-100 ring-1 ring-inset ring-white/[0.08] outline-none transition placeholder:text-slate-500 hover:ring-white/[0.14] focus:bg-black/35 focus:ring-accent/70"
             />
           </Field>
           <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500">

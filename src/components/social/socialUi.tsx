@@ -1,12 +1,13 @@
 import { useState, type ReactNode } from "react";
+import { buttonClass } from "../ui/buttonStyles";
 import { useT } from "../../lib/i18n";
 import { relativeTime } from "./socialUtils";
 import { countryFlagUrl, type Presence, type ProfileCard } from "../../lib/social";
 
 /**
  * Small pieces every social view shares: avatars, flags, presence, user rows
- * and the cards sections sit in. They use the same surfaces as the rest of
- * Cascade (ink panels, white/10 borders, the accent for what needs a click).
+ * and the sections a page is built from. Sections are not cards: they are
+ * separated by space and a heading, the way the rest of Cascade is.
  */
 
 export function Avatar({
@@ -44,13 +45,13 @@ export function Avatar({
           draggable={false}
           onError={() => setFailed(true)}
           className={`h-full w-full rounded-full bg-ink-700 object-cover ${
-            ring ? "ring-4 ring-ink-800 shadow-[0_10px_30px_rgba(0,0,0,0.45)]" : ""
+            ring ? "ring-4 ring-ink-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)]" : "ring-1 ring-white/[0.08]"
           }`}
         />
       ) : (
         <span
-          className={`grid h-full w-full place-items-center rounded-full bg-ink-600 font-semibold text-slate-200 ${
-            ring ? "ring-4 ring-ink-800" : ""
+          className={`grid h-full w-full place-items-center rounded-full bg-ink-600 font-display font-bold text-slate-200 ${
+            ring ? "ring-4 ring-ink-900" : ""
           }`}
         >
           {name.slice(0, 1).toUpperCase()}
@@ -59,7 +60,7 @@ export function Avatar({
       {presence?.online && (
         <span
           aria-hidden
-          className={`absolute bottom-0 right-0 rounded-full border-ink-800 bg-emerald-400 ${dot}`}
+          className={`absolute bottom-0 right-0 rounded-full border-ink-900 bg-emerald-400 ${dot}`}
         />
       )}
     </span>
@@ -75,8 +76,8 @@ export function AdminBadge({ compact = false }: { compact?: boolean }) {
   return (
     <span
       title={t("social.adminTitle")}
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/15 font-semibold text-accent-soft ring-1 ring-inset ring-accent/30 ${
-        compact ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-[11px]"
+      className={`inline-flex shrink-0 items-center gap-1 rounded-sm bg-accent/15 font-semibold text-accent-soft ${
+        compact ? "px-1 py-px text-[10px]" : "px-1.5 py-0.5 text-[11px]"
       }`}
     >
       <svg viewBox="0 0 24 24" aria-hidden className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} fill="currentColor">
@@ -138,7 +139,7 @@ export function UserRow({
   children?: ReactNode;
 }) {
   return (
-    <li className="group flex items-center gap-3 rounded-xl border border-white/[0.06] bg-ink-700/35 p-2.5 transition hover:border-white/10 hover:bg-ink-700/60">
+    <li className="group flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-white/[0.04]">
       <button
         type="button"
         onClick={onOpen}
@@ -147,7 +148,7 @@ export function UserRow({
         <Avatar url={user.avatar_url} name={user.username} presence={user.presence} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold text-slate-100">{user.username}</span>
+            <span className="truncate font-display text-[0.9375rem] font-semibold text-slate-50">{user.username}</span>
             {user.is_admin && <AdminBadge compact />}
             <Flag code={user.country_code} className="h-3" />
           </span>
@@ -176,11 +177,7 @@ export function SmallButton({
   title?: string;
   "aria-label"?: string;
 }) {
-  const tones = {
-    plain: "border-white/10 bg-ink-600/60 text-slate-200 hover:bg-ink-500/80",
-    accent: "border-accent-deep/40 bg-accent/90 text-white hover:bg-accent-soft/95",
-    danger: "border-transparent text-rose-300 hover:bg-rose-500/10 hover:text-rose-200",
-  }[tone];
+  const variant = ({ plain: "primary", accent: "accent", danger: "ghost" } as const)[tone];
   return (
     <button
       type="button"
@@ -188,7 +185,11 @@ export function SmallButton({
       disabled={disabled}
       title={title}
       aria-label={ariaLabel}
-      className={`inline-flex min-h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${tones}`}
+      className={buttonClass(
+        variant,
+        "sm",
+        tone === "danger" ? "text-rose-300 hover:!bg-rose-500/10 hover:!text-rose-200" : "",
+      )}
     >
       {children}
     </button>
@@ -207,11 +208,11 @@ export function SectionCard({
   className?: string;
 }) {
   return (
-    <section className={`rounded-2xl border border-white/[0.07] bg-ink-700/30 p-4 sm:p-5 ${className}`}>
+    <section className={className}>
       {(title || aside) && (
-        <header className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+        <header className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-2">
           {title && (
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
+            <h3 className="font-display text-[0.9375rem] font-semibold text-slate-100">{title}</h3>
           )}
           {aside}
         </header>
@@ -239,12 +240,12 @@ export function StatTile({
   title?: string;
 }) {
   return (
-    <div className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-0 rounded-xl bg-ink-800/60 px-3 py-2.5" title={title}>
-      <div className="text-[11px] font-medium uppercase leading-tight tracking-wide text-slate-500 [overflow-wrap:anywhere]">
+    <div className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-0 py-1" title={title}>
+      <div className="text-xs leading-tight text-slate-400 [overflow-wrap:anywhere]">
         {label}
       </div>
-      <div className="mt-1 truncate text-lg font-semibold tabular-nums text-slate-100">{value}</div>
-      {hint && <div className="mt-0.5 truncate text-[11px] text-slate-500">{hint}</div>}
+      <div className="mt-1 truncate font-display text-2xl font-bold leading-tight tabular-nums text-slate-50">{value}</div>
+      {hint && <div className="mt-0.5 truncate text-xs text-slate-500">{hint}</div>}
     </div>
   );
 }
@@ -262,11 +263,9 @@ export function EmptyState({
 }) {
   return (
     <div className="grid place-items-center px-6 py-12 text-center">
-      {icon && (
-        <span className="grid h-12 w-12 place-items-center rounded-full bg-ink-700 text-slate-400">{icon}</span>
-      )}
-      <p className="mt-3 text-sm font-medium text-slate-300">{title}</p>
-      {body && <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">{body}</p>}
+      {icon && <span className="text-slate-600 [&_svg]:h-7 [&_svg]:w-7">{icon}</span>}
+      <p className="mt-3 font-display text-[0.9375rem] font-semibold text-slate-200">{title}</p>
+      {body && <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-400">{body}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -356,8 +355,8 @@ export function DotsIcon({ className = "h-4 w-4" }: { className?: string }) {
 export function AdminViewNote() {
   const t = useT();
   return (
-    <p className="flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-xs text-amber-100/90">
-      <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+    <p className="flex items-center gap-2 rounded-md bg-amber-400/[0.06] px-3 py-2 text-xs text-amber-100/90 ring-1 ring-inset ring-amber-400/20">
+      <span className="rounded-sm bg-amber-400/20 px-1 py-px text-[10px] font-semibold text-amber-200">
         {t("social.adminView")}
       </span>
       {t("social.adminViewHint")}

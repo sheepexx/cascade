@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { useLocale } from "../lib/i18n";
 import { LOCALES } from "../lib/i18n/core";
 import { MOTION } from "../lib/motion";
-import { ChevronDownIcon } from "./ui/Icons";
+import { ChevronDownIcon, CheckIcon } from "./ui/Icons";
+import { POPOVER_CLASS, POPOVER_ITEM_CLASS } from "./ui/Menu";
 
 /** Opens and closes with the same pop as the editor's File/Edit menus. */
 export function LanguagePicker({ compact = false }: { compact?: boolean }) {
@@ -81,12 +82,12 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
         aria-label={t("settings.language")}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex items-center gap-1.5 rounded-lg border border-ink-500/60 bg-ink-700/60 text-slate-200 transition duration-[var(--motion-quick)] hover:border-accent/60 hover:bg-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${
-          compact ? "px-2 py-1" : "px-2.5 py-1.5"
+        className={`flex h-8 items-center gap-1.5 rounded-md text-slate-300 transition duration-[var(--motion-quick)] hover:bg-white/[0.07] hover:text-slate-50 aria-expanded:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+          compact ? "px-2" : "px-2.5"
         }`}
       >
         <GlobeIcon className="h-4 w-4 text-slate-400" />
-        <span className="text-sm font-medium uppercase">
+        <span className="text-xs font-semibold uppercase">
           {current.code.split("-")[0]}
         </span>
         <ChevronDownIcon
@@ -102,7 +103,7 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
             ref={menuRef}
             role="menu"
             style={{ position: "fixed", top: pos.top, right: pos.right }}
-            className={`z-[100] w-48 overflow-hidden rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl ${
+            className={`z-[100] w-48 overflow-hidden ${POPOVER_CLASS} ${
               closing ? "menu-pop-out" : "menu-pop-in"
             }`}
           >
@@ -116,15 +117,13 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
                   setLocale(option.code);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition duration-[var(--motion-quick)] hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none active:bg-white/15 ${
-                  option.code === locale ? "text-accent" : "text-slate-200"
+                className={`${POPOVER_ITEM_CLASS} ${
+                  option.code === locale ? "bg-white/[0.05] text-slate-50" : "text-slate-200"
                 }`}
               >
                 <span>{option.nativeName}</span>
                 {option.code === locale && (
-                  <span className="text-xs" aria-hidden>
-                    ✓
-                  </span>
+                  <CheckIcon className="h-3.5 w-3.5 shrink-0 text-accent" />
                 )}
               </button>
             ))}

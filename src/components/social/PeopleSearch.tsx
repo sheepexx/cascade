@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { INPUT_CLASS } from "../ui/Controls";
 import { useT } from "../../lib/i18n";
 import { searchUsers, type ProfileCard, type Relationship } from "../../lib/social";
 import type { SocialRoute } from "../../lib/socialRoute";
@@ -91,7 +92,7 @@ export function PeopleSearch({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={placeholder ?? t("social.searchPeoplePlaceholder")}
           aria-describedby="people-search-status"
-          className="w-full rounded-xl border border-white/10 bg-ink-700/65 py-2.5 pl-9 pr-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-accent/70 focus:ring-1 focus:ring-accent/40"
+          className={`${INPUT_CLASS} h-10 w-full pl-9 text-base`}
         />
       </label>
       <p id="people-search-status" className="sr-only" aria-live="polite">
@@ -106,7 +107,7 @@ export function PeopleSearch({
         <EmptyState title={t("social.noResults", { query: debounced })} body={t("social.noResultsHint")} />
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col divide-y divide-white/[0.05]">
             {results.map((user) => (
               <UserRow
                 key={user.id}

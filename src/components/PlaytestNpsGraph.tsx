@@ -185,7 +185,7 @@ export function PlaytestNpsGraph({
           : "pointer-events-none absolute bottom-28 left-3 top-52 z-30"
       }
     >
-      <div className="h-full rounded-xl border border-white/10 bg-ink-900/55 shadow-xl shadow-black/25 backdrop-blur-xl">
+      <div className="float-chip h-full">
         <canvas ref={canvasRef} className="block" />
       </div>
     </div>

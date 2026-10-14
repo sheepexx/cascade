@@ -45,18 +45,23 @@ function ToolCard({
   children: ReactNode;
 }) {
   return (
+    // A tool is a row: what it does, drawn small on the left, and how to run
+    // it on the right. Every tool's action has the same weight; none of them
+    // is this dialog's one primary action.
     <section
       aria-label={title}
-      className="flex flex-col rounded-xl border border-ink-500/60 bg-ink-700/40 p-3"
+      className="flex gap-4 border-t border-white/[0.06] py-4 first:border-t-0 first:pt-1"
     >
-      <ToolDiagram name={image} />
-      <div className="mt-3 flex items-center gap-1.5 text-sm font-medium text-slate-200">
-        {title}
-        <InfoTip content={info} />
+      <div className="w-36 shrink-0 max-sm:w-24">
+        <ToolDiagram name={image} />
       </div>
-      <p className="mt-1 text-[11px] leading-snug text-slate-500">{status}</p>
-      <div className="mt-auto flex flex-wrap items-end gap-2 pt-3">
-        {children}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-1.5 font-display text-[0.9375rem] font-semibold text-slate-100">
+          {title}
+          <InfoTip content={info} />
+        </div>
+        <p className="mt-0.5 text-xs leading-snug text-slate-400">{status}</p>
+        <div className="mt-3 flex flex-wrap items-end gap-2">{children}</div>
       </div>
     </section>
   );
@@ -95,11 +100,11 @@ export function ToolsModal({
   return (
     <Modal open={open} onClose={onClose} title={t("nav.tools")} width="max-w-2xl">
       <div className="flex flex-col gap-3">
-        <p className="text-[11px] text-slate-500">
+        <p className="text-xs tabular-nums text-slate-500">
           {t("tools.activeSummary", { rice: riceCount, holds: holdCount })}
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col">
           <ToolCard
             title={t("mapCard.title")}
             image="mapCard"
@@ -108,7 +113,7 @@ export function ToolsModal({
               noteTotal === 0 ? t("mapCard.toolNoNotes") : t("mapCard.toolIdle")
             }
           >
-            <Button variant="accent" onClick={onMapCard}>
+            <Button variant="primary" onClick={onMapCard}>
               {t("mapCard.create")}
             </Button>
           </ToolCard>
@@ -136,7 +141,7 @@ export function ToolsModal({
               />
             </Field>
             <Button
-              variant="accent"
+              variant="primary"
               onClick={() => onFullLong(lnTicks)}
               disabled={noteTotal === 0}
             >
@@ -154,7 +159,7 @@ export function ToolsModal({
                 : t("tools.fullRcStatus", { count: holdCount })
             }
           >
-            <Button variant="accent" onClick={onFullRice} disabled={holdCount === 0}>
+            <Button variant="primary" onClick={onFullRice} disabled={holdCount === 0}>
               {t("common.apply")}
             </Button>
           </ToolCard>
@@ -182,7 +187,7 @@ export function ToolsModal({
               />
             </Field>
             <Button
-              variant="accent"
+              variant="primary"
               onClick={() => onSelectionLong(lnTicks)}
               disabled={selectionTotal === 0}
             >
@@ -216,7 +221,7 @@ export function ToolsModal({
               />
             </Field>
             <Button
-              variant="accent"
+              variant="primary"
               onClick={() => onShiftLnEnds(endShiftMs)}
               disabled={selectionHolds === 0 || endShiftMs === 0}
             >
@@ -257,7 +262,7 @@ export function ToolsModal({
             }
           >
             <Button
-              variant="accent"
+              variant="primary"
               onClick={onCropToBrackets}
               disabled={!trimActive || cropTotal === 0}
             >

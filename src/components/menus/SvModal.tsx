@@ -71,8 +71,9 @@ const TABS: { value: Tab; label: MessageKey }[] = [
 
 const DENSITIES = [1, 2, 4, 8, 16] as const;
 
-const CARD = "rounded-xl border border-white/10 bg-ink-700/40 p-4";
-const LABEL = "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
+// Groups are divided by a hairline, not boxed: the dialog is one surface.
+const CARD = "border-t border-white/[0.06] pt-4 first:border-t-0 first:pt-0 [[role=tablist]+&]:border-t-0 [[role=tablist]+&]:pt-1";
+const LABEL = "text-xs font-semibold text-slate-200";
 
 const EASING_PARTS: Record<SvEasing, [string, "in" | "out" | "inOut"] | null> = {
   linear: null,
@@ -410,7 +411,7 @@ export function SvModal({
   const bookmarkPicker = (onPick: (ms: number) => void, id: string) =>
     bookmarkOptions.length > 0 ? (
       <Menu
-        className="shrink-0 rounded-lg border border-white/10 bg-ink-700/65 !px-2 !py-2"
+        className="!h-8 shrink-0 bg-black/25 !px-2 ring-1 ring-inset ring-white/[0.08]"
         label={
           <span aria-label={id === "from" ? t("sv.fromBookmarkFrom") : t("sv.fromBookmarkTo")} title={t("sv.fromBookmark")}>
             <BookmarkIcon className="block h-5 w-5 text-slate-300" />
@@ -510,6 +511,7 @@ export function SvModal({
     >
       <div className="flex flex-col gap-4">
         <SegmentedControl
+          variant="tabs"
           value={tab}
           onChange={(next) => {
             setTab(next);
@@ -751,13 +753,13 @@ export function SvModal({
             )}
 
             {tab === "normalize" && (
-              <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3 text-xs leading-snug text-slate-300">
+              <p className="rounded-md bg-emerald-500/[0.06] p-3 text-xs leading-snug text-slate-300 ring-1 ring-inset ring-emerald-500/20">
                 {t("sv.normalizeNote")}
               </p>
             )}
 
             {tab !== "remove" && (
-              <label className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 text-xs text-slate-300">
+              <label className="flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3 text-sm text-slate-200">
                 {t("sv.restore")}
                 <Toggle
                   checked={restoreAtEnd}
@@ -772,9 +774,9 @@ export function SvModal({
           </div>
         </section>
 
-        <section className="rounded-xl border border-white/10 bg-ink-800/60 p-3">
+        <section className="rounded-lg bg-black/30 p-3 ring-1 ring-inset ring-white/[0.05]">
           <canvas ref={canvasRef} className="block h-[120px] w-full" />
-          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
+          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-2xs text-slate-500">
             <span className="inline-flex items-center gap-1">
               <span className="inline-block h-0.5 w-4 bg-slate-400/60" />
               {t("sv.current")}

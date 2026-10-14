@@ -25,7 +25,7 @@ export function RecoveryPrompt({
       durationMs={null}
       resetKey={offer?.projectId ?? null}
       showProgress={false}
-      className="pointer-events-auto flex w-full max-w-full items-start gap-3 rounded-xl border border-accent/30 bg-ink-800/95 px-4 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur-xl"
+      className="pointer-events-auto flex w-full max-w-full items-start gap-3 rounded-xl border border-white/[0.09] bg-ink-700 shadow-[var(--shadow-float)] px-4 py-3 text-sm text-slate-200"
     >
       <span
         aria-hidden

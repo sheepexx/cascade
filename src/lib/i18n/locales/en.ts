@@ -63,6 +63,14 @@ export const en = {
   "share.removeFailed": "Failed to remove.",
 
   "settings.title": "Settings",
+
+  "settings.savingPrivacy": "Saving and privacy",
+
+  "settings.infoEmpty": "Point at a setting to see what it does.",
+
+  "settings.search": "Search settings",
+
+  "settings.searchEmpty": "No settings match “{query}”.",
   "settings.tabGeneral": "General",
   "settings.tabEditor": "Editor",
   "settings.tabPlaytest": "Playtest",
@@ -2018,6 +2026,7 @@ export const en = {
   "shortcuts.target.playfield": "playfield size",
   "shortcuts.target.volume": "music volume",
   "shortcuts.editable": "Highlighted keys are editable",
+  "shortcuts.filter": "Filter shortcuts",
   "shortcuts.editableInfo": "Click a highlighted key, then press the new key. Backspace restores the default, Esc cancels.",
   "shortcuts.resetAll": "Reset all",
   "shortcuts.snapFree": "Set Free snap.",

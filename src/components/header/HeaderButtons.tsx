@@ -1,17 +1,42 @@
 import type { ReactNode } from "react";
 
+/**
+ * The header's icon buttons: quiet until hovered, lit while their popover is
+ * open. Shared by undo/redo, the inbox, friends and messages.
+ */
+export const HEADER_ICON_BUTTON =
+  "relative grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-400 transition duration-[var(--motion-quick)] " +
+  "hover:bg-white/[0.07] hover:text-slate-100 aria-expanded:bg-white/[0.09] aria-expanded:text-slate-50 " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " +
+  "disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent";
+
+/** A count on a header icon, cut out of the bar with a ring in its colour. */
+export const HEADER_BADGE =
+  "absolute right-0 top-0 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent px-[3px] text-[9px] font-bold leading-none text-white ring-2 ring-ink-900";
+
+/**
+ * One entry in the editor's menu bar. `active` marks the tool whose window
+ * is open, so the bar always says where you are.
+ */
 export function MenuButton({
   children,
   onClick,
+  active = false,
 }: {
   children: ReactNode;
   onClick: () => void;
+  active?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md px-3 py-1.5 text-sm text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98]"
+      aria-pressed={active}
+      className={`h-7 rounded-md px-2.5 text-sm transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+        active
+          ? "bg-white/[0.09] text-slate-50"
+          : "text-slate-300 hover:bg-white/[0.07] hover:text-slate-100"
+      }`}
     >
       {children}
     </button>
@@ -35,7 +60,7 @@ export function IconButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="relative grid h-8 w-8 place-items-center rounded-md text-base text-slate-300 transition duration-150 hover:bg-white/10 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100"
+      className={HEADER_ICON_BUTTON}
     >
       {children}
     </button>

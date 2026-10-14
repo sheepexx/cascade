@@ -35,18 +35,18 @@ function Chip({
       aria-label={hint ? `${label}. ${hint}` : label}
       title={hint}
       onClick={() => onChange(!checked)}
-      className={`flex min-h-[2rem] items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[12px] leading-tight transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${
+      className={`flex min-h-[2rem] items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs leading-tight transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
         wide ? "col-span-2" : ""
       } ${
         checked
-          ? "border-accent/35 bg-accent/10 text-slate-100"
-          : "border-white/[0.08] bg-white/[0.02] text-slate-500 hover:border-white/20 hover:text-slate-300"
+          ? "text-slate-100 hover:bg-white/[0.04]"
+          : "text-slate-500 hover:bg-white/[0.04] hover:text-slate-300"
       }`}
     >
       <span
         aria-hidden
-        className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-[4px] border transition-colors duration-[var(--motion-quick)] ${
-          checked ? "border-accent bg-accent text-white" : "border-white/25"
+        className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-sm border transition-colors duration-[var(--motion-quick)] ${
+          checked ? "border-accent bg-accent text-white" : "border-white/25 bg-black/20"
         }`}
       >
         {checked && <CheckIcon className="h-2.5 w-2.5" />}

@@ -59,8 +59,9 @@ const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
 const OFFSET_NUDGES = [-10, -5, -1, 1, 5, 10] as const;
 const TAP_MIN = 3;
 
-const CARD = "rounded-xl border border-white/10 bg-ink-700/40 p-4";
-const LABEL = "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
+// Groups are divided by a hairline, not boxed: the dialog is one surface.
+const CARD = "border-t border-white/[0.06] pt-4 first:border-t-0 first:pt-0 [[role=tablist]+&]:border-t-0 [[role=tablist]+&]:pt-1";
+const LABEL = "text-xs font-semibold text-slate-200";
 
 type Pane = "points" | "bpm";
 
@@ -351,6 +352,7 @@ export const TimingModal = memo(function TimingModal({
         />
 
         <SegmentedControl
+          variant="tabs"
           value={pane}
           onChange={setPane}
           options={[
@@ -450,6 +452,7 @@ export const TimingModal = memo(function TimingModal({
             )}
 
             <SegmentedControl
+              size="sm"
               value={pointTab}
               onChange={(kind) => {
                 setPointTab(kind);
@@ -464,14 +467,14 @@ export const TimingModal = memo(function TimingModal({
               ]}
             />
 
-            <p className="text-[11px] leading-snug text-slate-500">
+            <p className="text-xs leading-snug text-slate-500">
               {pointTab === "red"
                 ? t("timing.uninheritedHint")
                 : t("timing.inheritedHint")}
             </p>
 
             {selectedPointIds.size > 0 && (
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-accent/25 bg-accent/5 px-3 py-2 text-xs text-slate-300">
+              <div className="flex flex-wrap items-center gap-2 rounded-md bg-white/[0.04] px-3 py-2 text-xs text-slate-300 ring-1 ring-inset ring-white/[0.07]">
                 <span className="font-medium">
                   {t("editor.selected", { count: selectedPointIds.size })}
                 </span>
@@ -486,7 +489,8 @@ export const TimingModal = memo(function TimingModal({
                   aria-label={t("timing.selectedShiftLabel")}
                 />
                 <Button
-                  className="px-2 py-1 text-xs"
+                  size="sm"
+                  variant="primary"
                   onClick={() => {
                     shiftSelectedPoints(selectedPointShift);
                     setSelectedPointShift(0);
@@ -497,16 +501,16 @@ export const TimingModal = memo(function TimingModal({
                 <button
                   type="button"
                   onClick={() => setSelectedPointIds(new Set())}
-                  className="ml-auto text-[11px] text-slate-500 transition duration-[var(--motion-quick)] hover:text-slate-300"
+                  className="ml-auto text-xs text-slate-500 transition duration-[var(--motion-quick)] hover:text-slate-300"
                 >
                   {t("timing.clear")}
                 </button>
               </div>
             )}
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
               {visiblePoints.length === 0 ? (
-                <p className="rounded-xl border border-white/10 bg-ink-700/40 px-3 py-6 text-center text-xs text-slate-500">
+                <p className="px-3 py-6 text-center text-xs text-slate-500">
                   {pointTab === "red" ? t("timing.noUninherited") : t("timing.noInherited")}
                 </p>
               ) : (
@@ -691,20 +695,22 @@ function Transport({
 }) {
   const t = useT();
   return (
-    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-white/10 bg-ink-700/40 px-3 py-2.5">
+    // The listening controls the timing workflow lives in: a strip of tools
+    // on a darker well, like a transport bar.
+    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg bg-black/25 px-2 py-2 ring-1 ring-inset ring-white/[0.05]">
       <button
         type="button"
         onClick={onToggle}
         title={t("timing.spaceKey")}
-        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-ink-600/70 px-3 py-1.5 text-xs font-medium text-slate-200 transition duration-[var(--motion-quick)] hover:bg-ink-500/80 active:scale-[0.98]"
+        className="inline-flex h-7 items-center gap-2 rounded-md bg-white/[0.07] pl-2.5 pr-1.5 text-xs font-medium text-slate-100 ring-1 ring-inset ring-white/[0.07] transition duration-[var(--motion-quick)] hover:bg-white/[0.11]"
       >
-        <span className="inline-flex w-14 justify-center">
+        <span className="inline-flex min-w-[3.5rem] justify-start">
           {isPlaying ? `❚❚ ${t("nowPlaying.pause")}` : `▶ ${t("nowPlaying.play")}`}
         </span>
-        <span className="text-[10px] text-slate-500">{t("timing.spaceKey")}</span>
+        <kbd className="keycap !h-[1.125rem] !text-[10px]">{t("timing.spaceKey")}</kbd>
       </button>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-0.5 rounded-md bg-black/20 p-0.5">
         {PLAYBACK_RATES.map((rate) => {
           const active = Math.abs(playbackRate - rate) < 0.001;
           return (
@@ -713,10 +719,12 @@ function Transport({
               type="button"
               onClick={() => onSetPlaybackRate(rate)}
               aria-pressed={active}
-              className={`rounded-lg border px-2 py-1 text-[11px] font-semibold tabular-nums transition duration-[var(--motion-quick)] active:scale-95 ${
+              className={`h-6 rounded px-2 text-[11px] font-semibold tabular-nums transition duration-[var(--motion-quick)] ${
                 active
-                  ? "border-accent/60 bg-accent/90 text-white"
-                  : "border-white/10 bg-ink-700/60 text-slate-300 hover:bg-ink-600 hover:text-slate-100"
+                  ? rate < 1
+                    ? "bg-accent text-white"
+                    : "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                  : "text-slate-400 hover:text-slate-100"
               }`}
             >
               {Math.round(rate * 100)}%
@@ -742,7 +750,7 @@ function Transport({
           return (
             <span
               key={i}
-              className="h-5 w-5 rounded-md border transition-all duration-150 ease-out"
+              className="h-4 w-4 rounded-sm border transition-all duration-150 ease-out"
               style={{
                 backgroundColor: active ? colour : "transparent",
                 borderColor: active ? colour : "#33333f",
@@ -759,13 +767,13 @@ function Transport({
 
 function Nudges({ onNudge }: { onNudge: (delta: number) => void }) {
   return (
-    <div className="flex overflow-hidden rounded-lg border border-white/10">
+    <div className="flex gap-px overflow-hidden rounded-md bg-black/25 p-0.5 ring-1 ring-inset ring-white/[0.06]">
       {OFFSET_NUDGES.map((delta) => (
         <button
           key={delta}
           type="button"
           onClick={() => onNudge(delta)}
-          className="bg-ink-700/60 px-2 py-1 text-[11px] font-medium tabular-nums text-slate-300 transition duration-[var(--motion-quick)] hover:bg-ink-600 hover:text-slate-100"
+          className="h-6 rounded px-2 font-mono text-[11px] font-medium tabular-nums text-slate-300 transition duration-[var(--motion-quick)] hover:bg-white/[0.08] hover:text-slate-50"
         >
           {delta > 0 ? `+${delta}` : delta}
         </button>
@@ -782,7 +790,7 @@ function Confidence({ value }: { value: number }) {
       : value >= 0.3
         ? [t("timing.plausible"), "text-amber-300"]
         : [t("timing.uncertain"), "text-rose-300"];
-  return <span className={`text-[11px] ${tone}`}>{label}</span>;
+  return <span className={`text-xs ${tone}`}>{label}</span>;
 }
 
 function PointRow({
@@ -814,14 +822,12 @@ function PointRow({
   const red = p.uninherited;
   return (
     <div
-      className={`overflow-hidden rounded-xl border transition-colors duration-[var(--motion-quick)] ${
-        red
-          ? selected
-            ? "border-rose-400/70 bg-rose-950/30"
-            : "border-white/10 bg-ink-700/40 hover:border-rose-400/40"
-          : selected
-            ? "border-emerald-400/70 bg-emerald-950/30"
-            : "border-white/10 bg-ink-700/40 hover:border-emerald-400/40"
+      className={`overflow-hidden rounded-md transition-colors duration-[var(--motion-quick)] ${
+        selected
+          ? red
+            ? "bg-rose-500/[0.09] ring-1 ring-inset ring-rose-400/40"
+            : "bg-emerald-500/[0.08] ring-1 ring-inset ring-emerald-400/40"
+          : "bg-white/[0.025] hover:bg-white/[0.05]"
       }`}
     >
       <div
@@ -858,9 +864,9 @@ function PointRow({
             ? `${formatUiNumber(p.bpm)} BPM · ${p.meter}/4`
             : `${formatUiNumber(p.sv)}× SV`}
         </span>
-        <span className="text-[10px] text-slate-500">{t("timing.volShort", { volume: p.volume })}</span>
+        <span className="text-2xs tabular-nums text-slate-500">{t("timing.volShort", { volume: p.volume })}</span>
         {p.kiai && (
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-200">
+          <span className="rounded-sm bg-amber-500/15 px-1 py-px text-[10px] font-semibold text-amber-200">
             Kiai
           </span>
         )}

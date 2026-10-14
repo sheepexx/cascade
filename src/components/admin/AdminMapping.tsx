@@ -27,9 +27,9 @@ export function UserMappingSection({ userId, username }: { userId: string; usern
   const empty = stats && !stats.counters?.active_days && !stats.projects?.length;
 
   return (
-    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+    <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mapping in Cascade</h2>
+        <h2 className="text-xs font-semibold text-slate-300">Mapping in Cascade</h2>
         <a
           href={`/user/${encodeURIComponent(username)}/activity`}
           target="_blank"
@@ -63,7 +63,7 @@ export function UserMappingSection({ userId, username }: { userId: string; usern
             <div className="overflow-x-auto">
               <table className="w-full min-w-[34rem] text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="text-left text-xs text-slate-500">
                     <th className="pb-2 font-medium">Map</th>
                     <th className="pb-2 text-right font-medium">Editing</th>
                     <th className="pb-2 text-right font-medium">Playtest</th>
@@ -100,7 +100,7 @@ export function UserMappingSection({ userId, username }: { userId: string; usern
 function Tile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-ink-600 bg-ink-900/40 px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-2xs text-slate-500">{label}</div>
       <div className="mt-0.5 font-mono text-sm text-slate-100">{value}</div>
     </div>
   );

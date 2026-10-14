@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_PACK_METADATA,
   DEFAULT_PACK_SETTINGS,
@@ -28,8 +28,9 @@ import {
 } from "../lib/smPackImport";
 import { MAX_KEYS, MIN_KEYS } from "../types";
 import { Button, Field, TextInput, Toggle } from "./ui/Controls";
+import { buttonClass } from "./ui/buttonStyles";
 import { Dropdown } from "./ui/Dropdown";
-import { CloseIcon } from "./ui/Icons";
+import { ChevronDownIcon, CloseIcon, ErrorIcon, WarningIcon } from "./ui/Icons";
 import { PackCreatorItem } from "./PackCreatorItem";
 import { PackCreatorValidation } from "./PackCreatorValidation";
 import { PackProjectBrowser } from "./PackProjectBrowser";
@@ -45,18 +46,24 @@ import { useT } from "../lib/i18n";
 
 const EXIT_MS = MOTION.exit;
 
-function StepHeader({ n, label }: { n: number; label: string }) {
+/** A column's title in the tool: what this area is for. */
+function AreaHeader({
+  label,
+  right,
+}: {
+  label: string;
+  right?: React.ReactNode;
+}) {
   return (
-    <div className="mb-2.5 flex items-center gap-2.5 px-0.5">
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-bold text-accent-soft">
-        {n}
-      </span>
-      <h3 className="text-sm font-semibold text-slate-100">{label}</h3>
+    <div className="flex h-10 shrink-0 items-center justify-between gap-2 px-4">
+      <h3 className="font-display text-[0.875rem] font-semibold text-slate-100">{label}</h3>
+      {right}
     </div>
   );
 }
 
-function Panel({
+/** A group of fields inside a column, divided from the next by a hairline. */
+function Group({
   title,
   badge,
   right,
@@ -68,16 +75,24 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-ink-800/70 p-3.5">
-      <div className="mb-3 flex items-center gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-          {title}
-        </h3>
+    <section className="border-t border-white/[0.06] px-4 py-4 first:border-t-0">
+      <div className="mb-3 flex min-h-[1.25rem] items-center gap-2">
+        <h4 className="text-xs font-semibold text-slate-300">{title}</h4>
         {badge}
-        {right && <span className="ml-auto">{right}</span>}
+        {right && <span className="ml-auto flex items-center">{right}</span>}
       </div>
       {children}
-    </div>
+    </section>
+  );
+}
+
+/** A caution under a field, for a choice that may make a pack unrankable. */
+function Caution({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex gap-2 text-xs leading-relaxed text-amber-200/90">
+      <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -353,6 +368,52 @@ export function PackCreator({
     metadata.artistMode !== "various" ||
     settings.creatorFieldMode !== "pack-append-mapper";
 
+  const ratio = Math.round((exportProgress?.ratio ?? 0) * 100);
+  const hasItems = items.length > 0;
+  const status = !validation
+    ? null
+    : validation.errors.length > 0
+      ? "errors"
+      : validation.warnings.length > 0
+        ? "warnings"
+        : "ready";
+
+  const importButton = (large: boolean) => (
+    <label
+      className={buttonClass(
+        large ? "accent" : "primary",
+        large ? "md" : "sm",
+        `cursor-pointer ${importing ? "pointer-events-none opacity-50" : ""}`,
+      )}
+    >
+      <PackageIcon className="h-4 w-4" />
+      {importing ? t("pack.importing") : t("pack.importOsz")}
+      <input
+        type="file"
+        accept=".osz,.zip,application/zip"
+        multiple
+        className="hidden"
+        disabled={importing}
+        onChange={(e) => {
+          void importFiles(Array.from(e.target.files ?? []));
+          e.target.value = "";
+        }}
+      />
+    </label>
+  );
+  const browseButton = (large: boolean) => (
+    <Button
+      variant={large ? "primary" : "ghost"}
+      size={large ? "md" : "sm"}
+      onClick={() => setBrowseOpen(true)}
+      disabled={importing}
+      title={t("pack.browseHint")}
+    >
+      <FolderIcon className="h-4 w-4" />
+      {t("pack.browse")}
+    </Button>
+  );
+
   return (
     <div
       className={`fixed inset-0 z-40 flex flex-col bg-ink-900 ${
@@ -382,115 +443,180 @@ export function PackCreator({
           closing ? "modal-panel-out" : "modal-panel-in"
         }`}
       >
-        <header
-          className="modal-header relative flex items-center gap-3 border-b border-white/10 bg-ink-800/80 px-4 py-2.5"
-          style={{ "--modal-accent": MENU_ACCENTS.packCreator } as CSSProperties}
-        >
-          <Button variant="ghost" onClick={onClose} className="shrink-0">
+        <header className="relative flex h-12 shrink-0 items-center gap-3 border-b border-white/[0.06] pl-2 pr-3">
+          <Button variant="ghost" size="sm" onClick={onClose} className="shrink-0">
             ← {t("common.back")}
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-slate-100">
+          <span className="h-4 w-px bg-white/[0.08]" />
+          <span
+            aria-hidden
+            className="h-3.5 w-[3px] shrink-0 rounded-full"
+            style={{ backgroundColor: MENU_ACCENTS.packCreator }}
+          />
+          <div className="flex min-w-0 items-baseline gap-2.5">
+            <h2 className="shrink-0 font-display text-[0.9375rem] font-semibold text-slate-50">
               Pack Creator
             </h2>
-            <p className="truncate text-[11px] text-white/75">
+            <p className="hidden truncate text-xs text-slate-500 uimd:block">
               {t("pack.subtitle")}
             </p>
           </div>
-          <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-[var(--modal-accent)] shadow-[0_0_16px_var(--modal-accent)]" />
-        </header>
 
-        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-4">
-          <section className="flex min-h-0 w-[330px] shrink-0 flex-col">
-            <StepHeader n={1} label={t("pack.step1")} />
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
-            <div className="grid grid-cols-2 gap-2">
-              <label
-                className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-3 py-4 text-center transition ${
-                  dragActive
-                    ? "border-accent/80 bg-accent/10"
-                    : "border-ink-500/70 bg-ink-800/60 hover:border-accent/50"
-                }`}
-              >
-                <PackageIcon className="h-5 w-5 text-slate-300" />
-                <span className="text-xs font-semibold text-slate-100">
-                  {importing ? t("pack.importing") : t("pack.importOsz")}
+          {/* Where the pack stands and what leaves Cascade: the count, the
+              file it becomes and the two actions that check and build it. */}
+          <div className="ml-auto flex min-w-0 items-center gap-3">
+            {hasItems && (
+              <div className="hidden min-w-0 flex-col items-end leading-tight uilg:flex">
+                <span className="text-xs font-medium tabular-nums text-slate-200">
+                  {t("pack.mapCount", { count: items.length })}
+                  {settings.placeholderEnabled ? ` + ${t("pack.thumbnailShort")}` : ""}
                 </span>
-                <span className="text-[10px] text-slate-500">
-                  {t("pack.orDrop")}
-                </span>
-                <input
-                  type="file"
-                  accept=".osz,.zip,application/zip"
-                  multiple
-                  className="hidden"
-                  disabled={importing}
-                  onChange={(e) => {
-                    void importFiles(Array.from(e.target.files ?? []));
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => setBrowseOpen(true)}
-                disabled={importing}
-                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-ink-500/70 bg-ink-800/60 px-3 py-4 text-center transition hover:border-accent/50 hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <FolderIcon className="h-5 w-5 text-slate-300" />
-                <span className="text-xs font-semibold text-slate-100">
-                  {t("pack.browse")}
-                </span>
-                <span className="text-[10px] text-slate-500">
-                  {t("pack.browseHint")}
-                </span>
-              </button>
-            </div>
-
-            {importProblems.length > 0 && (
-              <div className="rounded-lg border border-amber-400/25 bg-amber-400/10 p-2.5">
-                <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-amber-100/90">
-                  {importProblems.map((p, i) => (
-                    <li key={i}>{p}</li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={() => setImportProblems([])}
-                  className="mt-1 text-[11px] text-amber-300 hover:underline"
+                <span
+                  className="max-w-[22rem] truncate font-mono text-2xs text-slate-500"
+                  title={packOszFilename(metadata)}
                 >
-                  {t("pack.dismiss")}
-                </button>
+                  {packOszFilename(metadata)}
+                </span>
+              </div>
+            )}
+            {validation && (
+              <span
+                className="flex items-center gap-2.5 text-xs font-medium tabular-nums"
+                title={[
+                  validation.errors.length ? `${validation.errors.length} · ${t("packValidation.errors")}` : "",
+                  validation.warnings.length ? `${validation.warnings.length} · ${t("aimodUi.warnings")}` : "",
+                ]
+                  .filter(Boolean)
+                  .join("\n")}
+              >
+                {status === "ready" ? (
+                  <span className="flex items-center gap-1.5 text-emerald-300">
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    {t("packValidation.ready")}
+                  </span>
+                ) : (
+                  <>
+                    {validation.errors.length > 0 && (
+                      <span className="flex items-center gap-1 text-rose-300">
+                        <ErrorIcon className="h-3.5 w-3.5" />
+                        {validation.errors.length}
+                      </span>
+                    )}
+                    {validation.warnings.length > 0 && (
+                      <span className="flex items-center gap-1 text-amber-300">
+                        <WarningIcon className="h-3.5 w-3.5" />
+                        {validation.warnings.length}
+                      </span>
+                    )}
+                  </>
+                )}
+              </span>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={runValidation}
+              disabled={importing || !hasItems}
+            >
+              {t("pack.validate")}
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              className="min-w-[7.5rem]"
+              onClick={() => void exportPack()}
+              disabled={exporting || importing || !hasItems}
+            >
+              {exporting ? (
+                <span className="tabular-nums">
+                  {t("pack.exporting")} {ratio}%
+                </span>
+              ) : (
+                t("file.exportOsz")
+              )}
+            </Button>
+          </div>
+          {exporting && (
+            <div
+              className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-white/[0.06]"
+              role="progressbar"
+              aria-valuenow={ratio}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={exportProgress?.label ?? t("app.exporting")}
+            >
+              <div
+                className="h-full bg-accent transition-[width] duration-200 ease-out"
+                style={{ width: `${ratio}%` }}
+              />
+            </div>
+          )}
+        </header>
+        {exporting && exportProgress?.label && (
+          <p className="shrink-0 truncate border-b border-white/[0.06] px-4 py-1.5 text-2xs text-slate-500">
+            {exportProgress.label}
+          </p>
+        )}
+
+        <div className="flex min-h-0 flex-1 overflow-x-auto">
+          {/* Maps: what goes into the pack. Until there is anything to list,
+              the work area's drop target does this job alone. */}
+          {(hasItems || excluded.length > 0 || importProblems.length > 0) && (
+          <section className="flex min-h-0 w-72 shrink-0 flex-col border-r border-white/[0.06]">
+            <AreaHeader
+              label={t("pack.step1")}
+              right={
+                hasItems ? (
+                  <span className="text-xs tabular-nums text-slate-500">{items.length}</span>
+                ) : undefined
+              }
+            />
+            {hasItems && (
+              <div className="flex shrink-0 flex-wrap gap-1 px-3 pb-2">
+                {importButton(false)}
+                {browseButton(false)}
               </div>
             )}
 
-            <Panel
-              title={t("pack.imported")}
-              badge={
-                <span className="grid min-w-[1.25rem] place-items-center rounded-full bg-ink-600 px-1.5 text-[10px] font-semibold text-slate-300">
-                  {items.length}
-                </span>
-              }
-            >
-              {items.length === 0 ? (
-                <p className="text-xs text-slate-500">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-3">
+              {importProblems.length > 0 && (
+                <div className="mx-3 mb-2 rounded-md bg-amber-400/[0.07] p-2.5 ring-1 ring-inset ring-amber-400/20">
+                  <ul className="space-y-1 text-xs leading-snug text-amber-100/90">
+                    {importProblems.map((p, i) => (
+                      <li key={i} className="flex gap-1.5">
+                        <WarningIcon className="mt-0.5 h-3 w-3 shrink-0 text-amber-300" />
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => setImportProblems([])}
+                    className="mt-1.5 text-xs font-medium text-amber-300 hover:text-amber-200"
+                  >
+                    {t("pack.dismiss")}
+                  </button>
+                </div>
+              )}
+
+              {!hasItems ? (
+                <p className="px-4 text-xs leading-relaxed text-slate-500">
                   {t("pack.importedEmpty")}
                 </p>
               ) : (
-                <ul className="flex flex-col gap-1.5">
+                <ul className="flex flex-col gap-px px-1.5">
                   {items.map((item) => (
                     <li key={item.id}>
                       <div
-                        className={`group flex items-center gap-2 rounded-lg border px-2.5 py-2 transition ${
-                          item.id === selectedId
-                            ? "border-accent/70 bg-accent/10"
-                            : "border-white/10 bg-ink-700/40 hover:bg-ink-700"
+                        data-active={item.id === selectedId}
+                        className={`hit-line-left group flex items-center gap-1 rounded-md transition ${
+                          item.id === selectedId ? "bg-white/[0.07]" : "hover:bg-white/[0.035]"
                         }`}
                       >
                         <button
                           type="button"
                           onClick={() => setSelectedId(item.id)}
-                          className="min-w-0 flex-1 text-left"
+                          className="min-w-0 flex-1 rounded-md py-1.5 pl-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
                         >
                           <MarqueeText
                             text={
@@ -498,9 +624,11 @@ export function PackCreator({
                               item.originalTitle ||
                               item.originalOsuFilename
                             }
-                            className="text-xs font-semibold text-slate-100"
+                            className={`text-sm font-medium ${
+                              item.id === selectedId ? "text-slate-50" : "text-slate-200"
+                            }`}
                           />
-                          <span className="block truncate text-[11px] text-slate-500">
+                          <span className="block truncate text-2xs text-slate-500">
                             {item.originalArtist} · {item.originalCreator} ·{" "}
                             {item.parsedOsu.keyCount}K
                             {item.nonMania ? ` · ${t("pack.notMania")}` : ""}
@@ -509,8 +637,9 @@ export function PackCreator({
                         <button
                           type="button"
                           title={t("pack.removeFromPack")}
+                          aria-label={t("pack.removeFromPack")}
                           onClick={() => removeItem(item.id)}
-                          className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-300 opacity-40 transition hover:bg-rose-600/80 hover:text-white group-hover:opacity-100"
+                          className="mr-1 grid h-6 w-6 shrink-0 place-items-center rounded text-slate-500 opacity-0 transition hover:bg-rose-500/15 hover:text-rose-300 focus-visible:opacity-100 group-hover:opacity-100"
                         >
                           <CloseIcon className="h-3.5 w-3.5" />
                         </button>
@@ -519,376 +648,352 @@ export function PackCreator({
                   ))}
                 </ul>
               )}
-            </Panel>
 
-            {excluded.length > 0 && (
-              <Panel title={t("pack.skipped")}>
-                <ul className="flex flex-col gap-1.5">
-                  {excluded.map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex items-center gap-2 rounded-lg border border-amber-400/20 bg-amber-400/5 px-2.5 py-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-medium text-slate-200">
-                          {item.originalTitle} [{item.originalVersion}]
-                        </span>
-                        <span className="block truncate text-[11px] text-slate-500">
-                          {t("pack.mode", { mode: item.parsedOsu.mode })} · {item.sourceFileName}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => includeExcluded(item.id)}
-                        className="shrink-0 rounded-md border border-amber-400/40 px-2 py-1 text-[11px] font-medium text-amber-200 transition hover:bg-amber-400/15"
+              {excluded.length > 0 && (
+                <div className="mt-4 px-1.5">
+                  <h4 className="mb-1 px-2.5 text-xs font-semibold text-slate-400">
+                    {t("pack.skipped")}
+                  </h4>
+                  <ul className="flex flex-col gap-px">
+                    {excluded.map((item) => (
+                      <li
+                        key={item.id}
+                        className="flex items-center gap-2 rounded-md px-2.5 py-1.5"
                       >
-                        {t("pack.includeAnyway")}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </Panel>
-            )}
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-medium text-slate-300">
+                            {item.originalTitle} [{item.originalVersion}]
+                          </span>
+                          <span className="block truncate text-2xs text-slate-500">
+                            {t("pack.mode", { mode: item.parsedOsu.mode })} · {item.sourceFileName}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="h-6 shrink-0 text-2xs text-amber-200 hover:!bg-amber-400/10"
+                          onClick={() => includeExcluded(item.id)}
+                        >
+                          {t("pack.includeAnyway")}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </section>
+          )}
 
-          <section className="flex min-h-0 w-[330px] shrink-0 flex-col">
-            <StepHeader n={2} label={t("pack.step2")} />
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
-            <Panel title={t("pack.basics")}>
-              <div className="flex flex-col gap-3">
-                <Field label={t("pack.title")}>
-                  <TextInput
-                    value={metadata.title}
-                    onChange={(e) => {
-                      setMetadata((m) => ({ ...m, title: e.target.value }));
-                      setValidation(null);
-                    }}
-                    placeholder={t("pack.titlePlaceholder")}
-                  />
-                </Field>
-                <Field label={t("pack.creator")}>
-                  <TextInput
-                    value={metadata.creator}
-                    onChange={(e) => {
-                      setMetadata((m) => ({ ...m, creator: e.target.value }));
-                      setValidation(null);
-                    }}
-                    placeholder={t("pack.creatorPlaceholder")}
-                  />
-                </Field>
-                <Field label={t("pack.tags")} hint={t("pack.tagsHint")}>
-                  <TextInput
-                    value={tagsText}
-                    onChange={(e) => {
-                      setTagsText(e.target.value);
-                      setMetadata((m) => ({
-                        ...m,
-                        tags: e.target.value.split(/\s+/).filter(Boolean),
-                      }));
-                    }}
-                    placeholder={t("pack.tagsPlaceholder")}
-                  />
-                </Field>
-                <p className="text-[11px] text-slate-500">
-                  {t("pack.basicsHint")}{" "}
-                  <span className="text-slate-300">Various Artists</span>{t("pack.basicsHintAfter")}
-                </p>
-              </div>
-            </Panel>
-
-            <Panel
-              title={t("pack.advanced")}
-              badge={
-                advancedActive ? (
-                  <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft">
-                    {t("pack.modified")}
-                  </span>
-                ) : undefined
-              }
-              right={
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="text-[11px] text-slate-400 transition hover:text-slate-200"
+          {/* The work area. Empty, it is one large place to drop maps; with
+              maps in, it reviews the selected one, and once validated the
+              findings sit on top where they cannot be missed. */}
+          <section className="flex min-h-0 min-w-[22rem] flex-1 flex-col">
+            {!hasItems ? (
+              <div className="grid flex-1 place-items-center p-8">
+                <div
+                  className={`flex w-full max-w-lg flex-col items-center rounded-2xl border border-dashed px-8 py-14 text-center transition ${
+                    dragActive
+                      ? "border-accent/70 bg-accent/[0.06]"
+                      : "border-white/[0.12]"
+                  }`}
                 >
-                  {showAdvanced ? `${t("pack.hide")} ▲` : `${t("pack.show")} ▼`}
-                </button>
-              }
-            >
-              {!showAdvanced ? (
-                <p className="text-xs text-slate-500">
-                  {t("pack.advancedHint")}
-                </p>
-              ) : (
+                  <span className="grid h-12 w-12 place-items-center rounded-xl bg-white/[0.05] text-slate-300 ring-1 ring-inset ring-white/[0.07]">
+                    <PackageIcon className="h-6 w-6" />
+                  </span>
+                  <h3 className="mt-4 font-display text-lg font-bold text-slate-50">
+                    {t("pack.step1")}
+                  </h3>
+                  <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-slate-400">
+                    {t("pack.importedEmpty")}
+                  </p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-2">
+                    {importButton(true)}
+                    {browseButton(true)}
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500">{t("pack.orDrop")}</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <AreaHeader label={t("pack.step3")} />
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8">
+                  <div className="max-w-2xl">
+                    {validation && (
+                      <div className="mb-6">
+                        <PackCreatorValidation result={validation} />
+                      </div>
+                    )}
+                    {selected ? (
+                      <PackCreatorItem
+                        item={selected}
+                        onChange={(patch) => updateItem(selected.id, patch)}
+                        onRemove={() => removeItem(selected.id)}
+                      />
+                    ) : (
+                      <p className="text-sm text-slate-500">{t("pack.selectedHint")}</p>
+                    )}
+                    {!validation && (
+                      <div className="mt-8 border-t border-white/[0.06] pt-4">
+                        <PackCreatorValidation result={null} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* The pack itself: the metadata every difficulty shares. */}
+          <aside className="flex min-h-0 w-80 shrink-0 flex-col border-l border-white/[0.06] bg-black/10">
+            <AreaHeader label={t("pack.step2")} />
+            <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+              <Group title={t("pack.basics")}>
                 <div className="flex flex-col gap-3">
-                  <Field
-                    label={t("pack.artistMode")}
-                    hint={t("pack.artistModeHint")}
-                  >
-                    <Dropdown
-                      className="w-full"
-                      aria-label={t("pack.artistMode")}
-                      value={metadata.artistMode}
-                      options={[
-                        { value: "various", label: t("pack.artistVarious") },
-                        {
-                          value: "original-per-map",
-                          label: t("pack.artistOriginal"),
-                        },
-                        {
-                          value: "custom-shared",
-                          label: t("pack.artistCustom"),
-                        },
-                      ]}
-                      onChange={(artistMode: PackArtistMode) => {
-                        setMetadata((m) => ({ ...m, artistMode }));
+                  <Field label={t("pack.title")}>
+                    <TextInput
+                      value={metadata.title}
+                      onChange={(e) => {
+                        setMetadata((m) => ({ ...m, title: e.target.value }));
                         setValidation(null);
                       }}
+                      placeholder={t("pack.titlePlaceholder")}
                     />
                   </Field>
-                  {metadata.artistMode === "custom-shared" && (
-                    <Field label={t("pack.artistCustom")}>
+                  <Field label={t("pack.creator")}>
+                    <TextInput
+                      value={metadata.creator}
+                      onChange={(e) => {
+                        setMetadata((m) => ({ ...m, creator: e.target.value }));
+                        setValidation(null);
+                      }}
+                      placeholder={t("pack.creatorPlaceholder")}
+                    />
+                  </Field>
+                  <Field label={t("pack.tags")} hint={t("pack.tagsHint")}>
+                    <TextInput
+                      value={tagsText}
+                      onChange={(e) => {
+                        setTagsText(e.target.value);
+                        setMetadata((m) => ({
+                          ...m,
+                          tags: e.target.value.split(/\s+/).filter(Boolean),
+                        }));
+                      }}
+                      placeholder={t("pack.tagsPlaceholder")}
+                    />
+                  </Field>
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    {t("pack.basicsHint")}{" "}
+                    <span className="text-slate-300">Various Artists</span>{t("pack.basicsHintAfter")}
+                  </p>
+                </div>
+              </Group>
+
+              <Group
+                title={t("pack.advanced")}
+                badge={
+                  advancedActive ? (
+                    <span className="rounded-sm bg-accent/15 px-1 text-[10px] font-semibold text-accent-soft">
+                      {t("pack.modified")}
+                    </span>
+                  ) : undefined
+                }
+                right={
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    aria-expanded={showAdvanced}
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-slate-400 transition hover:bg-white/[0.06] hover:text-slate-100"
+                  >
+                    {showAdvanced ? t("pack.hide") : t("pack.show")}
+                    <ChevronDownIcon
+                      className={`h-3 w-3 transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                }
+              >
+                {!showAdvanced ? (
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    {t("pack.advancedHint")}
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <Field
+                      label={t("pack.artistMode")}
+                      hint={t("pack.artistModeHint")}
+                    >
+                      <Dropdown
+                        className="w-full"
+                        aria-label={t("pack.artistMode")}
+                        value={metadata.artistMode}
+                        options={[
+                          { value: "various", label: t("pack.artistVarious") },
+                          {
+                            value: "original-per-map",
+                            label: t("pack.artistOriginal"),
+                          },
+                          {
+                            value: "custom-shared",
+                            label: t("pack.artistCustom"),
+                          },
+                        ]}
+                        onChange={(artistMode: PackArtistMode) => {
+                          setMetadata((m) => ({ ...m, artistMode }));
+                          setValidation(null);
+                        }}
+                      />
+                    </Field>
+                    {metadata.artistMode === "custom-shared" && (
+                      <Field label={t("pack.artistCustom")}>
+                        <TextInput
+                          value={metadata.customSharedArtist ?? ""}
+                          onChange={(e) =>
+                            setMetadata((m) => ({
+                              ...m,
+                              customSharedArtist: e.target.value || undefined,
+                            }))
+                          }
+                        />
+                      </Field>
+                    )}
+                    {metadata.artistMode !== "various" && (
+                      <Caution>{t("pack.artistWarning")}</Caution>
+                    )}
+
+                    <Field
+                      label={t("pack.creatorMode")}
+                      hint={t("pack.creatorModeHint")}
+                    >
+                      <Dropdown
+                        className="w-full"
+                        aria-label={t("pack.creatorMode")}
+                        value={settings.creatorFieldMode}
+                        options={[
+                          {
+                            value: "pack-append-mapper",
+                            label: t("pack.creatorAppend"),
+                          },
+                          { value: "pack", label: t("pack.creatorPack") },
+                          { value: "original", label: t("pack.creatorOriginal") },
+                        ]}
+                        onChange={(creatorFieldMode: PackCreatorFieldMode) => {
+                          setSettings((s) => ({ ...s, creatorFieldMode }));
+                          setValidation(null);
+                        }}
+                      />
+                    </Field>
+                    {settings.creatorFieldMode === "original" && (
+                      <Caution>{t("pack.creatorWarning")}</Caution>
+                    )}
+
+                    <Field label={t("pack.titleUnicode")}>
                       <TextInput
-                        value={metadata.customSharedArtist ?? ""}
+                        value={metadata.titleUnicode ?? ""}
                         onChange={(e) =>
                           setMetadata((m) => ({
                             ...m,
-                            customSharedArtist: e.target.value || undefined,
+                            titleUnicode: e.target.value || undefined,
                           }))
                         }
                       />
                     </Field>
-                  )}
-                  {metadata.artistMode !== "various" && (
-                    <p className="rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
-                      {t("pack.artistWarning")}
-                    </p>
-                  )}
-
-                  <Field
-                    label={t("pack.creatorMode")}
-                    hint={t("pack.creatorModeHint")}
-                  >
-                    <Dropdown
-                      className="w-full"
-                      aria-label={t("pack.creatorMode")}
-                      value={settings.creatorFieldMode}
-                      options={[
-                        {
-                          value: "pack-append-mapper",
-                          label: t("pack.creatorAppend"),
-                        },
-                        { value: "pack", label: t("pack.creatorPack") },
-                        { value: "original", label: t("pack.creatorOriginal") },
-                      ]}
-                      onChange={(creatorFieldMode: PackCreatorFieldMode) => {
-                        setSettings((s) => ({ ...s, creatorFieldMode }));
-                        setValidation(null);
-                      }}
-                    />
-                  </Field>
-                  {settings.creatorFieldMode === "original" && (
-                    <p className="rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
-                      {t("pack.creatorWarning")}
-                    </p>
-                  )}
-
-                  <Field label={t("pack.titleUnicode")}>
-                    <TextInput
-                      value={metadata.titleUnicode ?? ""}
-                      onChange={(e) =>
-                        setMetadata((m) => ({
-                          ...m,
-                          titleUnicode: e.target.value || undefined,
-                        }))
-                      }
-                    />
-                  </Field>
-                  <Field label={t("pack.source")}>
-                    <TextInput
-                      value={metadata.source ?? ""}
-                      onChange={(e) =>
-                        setMetadata((m) => ({
-                          ...m,
-                          source: e.target.value || undefined,
-                        }))
-                      }
-                    />
-                  </Field>
-                  <label className="flex items-center justify-between gap-3 text-xs text-slate-300">
-                    {t("pack.keepTags")}
-                    <Toggle
-                      size="sm"
-                      checked={settings.keepOriginalTags}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, keepOriginalTags: v }))
-                      }
-                    />
-                  </label>
-                </div>
-              )}
-            </Panel>
-
-            <Panel
-              title={t("pack.thumbnail")}
-              badge={
-                <code className="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] text-slate-300">
-                  &lt;Delete
-                </code>
-              }
-              right={
-                <Toggle
-                  size="sm"
-                  checked={settings.placeholderEnabled}
-                  onChange={(v) =>
-                    setSettings((s) => ({ ...s, placeholderEnabled: v }))
-                  }
-                  aria-label={t("pack.thumbnailLabel")}
-                />
-              }
-            >
-              {settings.placeholderEnabled ? (
-                <div className="flex flex-col gap-2.5">
-                  <Field label={t("pack.audioSource")}>
-                    <Dropdown
-                      className="w-full"
-                      aria-label={t("pack.audioSource")}
-                      value={settings.placeholderAudioItemId ?? ""}
-                      options={[
-                        { value: "", label: t("pack.selectSong") },
-                        ...items.map((it) => ({
-                          value: it.id,
-                          label: `${it.songDisplayName || it.originalTitle} · ${it.originalAudioFilename}`,
-                        })),
-                      ]}
-                      onChange={(id) =>
-                        setSettings((s) => ({
-                          ...s,
-                          placeholderAudioItemId: id || null,
-                        }))
-                      }
-                    />
-                  </Field>
-                  <Field label={t("pack.keyCount", { min: MIN_KEYS, max: MAX_KEYS })}>
-                    <TextInput
-                      type="number"
-                      min={MIN_KEYS}
-                      max={MAX_KEYS}
-                      value={settings.placeholderKeyCount}
-                      onChange={(e) => {
-                        const v = Math.round(Number(e.target.value));
-                        setSettings((s) => ({
-                          ...s,
-                          placeholderKeyCount: Number.isFinite(v) ? v : 4,
-                        }));
-                        setValidation(null);
-                      }}
-                      className="w-24"
-                    />
-                  </Field>
-                  <p className="break-all text-[11px] text-slate-500">
-                    {placeholderFilename}
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    {t("pack.thumbnailOn")}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500">
-                  {t("pack.thumbnailOff")}
-                </p>
-              )}
-            </Panel>
-            </div>
-          </section>
-
-          <section className="flex min-h-0 min-w-[340px] flex-1 flex-col">
-            <StepHeader n={3} label={t("pack.step3")} />
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-1">
-            <Panel title={t("pack.selected")}>
-              {selected ? (
-                <PackCreatorItem
-                  item={selected}
-                  onChange={(patch) => updateItem(selected.id, patch)}
-                  onRemove={() => removeItem(selected.id)}
-                />
-              ) : (
-                <p className="text-xs text-slate-500">
-                  {items.length === 0
-                    ? t("pack.selectedEmpty")
-                    : t("pack.selectedHint")}
-                </p>
-              )}
-            </Panel>
-
-            <Panel title={t("pack.validation")}>
-              <PackCreatorValidation result={validation} />
-            </Panel>
-            </div>
-
-            <div className="mt-3 shrink-0 rounded-xl border border-white/10 bg-ink-800 p-3.5">
-              <div className="mb-2.5 flex items-baseline justify-between gap-3 text-xs">
-                <span className="shrink-0 font-medium text-slate-300">
-                  {t("pack.mapCount", { count: items.length })}
-                  {settings.placeholderEnabled && items.length > 0
-                    ? ` + ${t("pack.thumbnailShort")}`
-                    : ""}
-                </span>
-                <span
-                  className="truncate text-slate-500"
-                  title={packOszFilename(metadata)}
-                >
-                  {items.length > 0 ? packOszFilename(metadata) : ""}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={runValidation}
-                  disabled={importing || items.length === 0}
-                >
-                  {t("pack.validate")}
-                </Button>
-                <Button
-                  variant="accent"
-                  className="flex-1"
-                  onClick={() => void exportPack()}
-                  disabled={exporting || importing || items.length === 0}
-                >
-                  {exporting ? (
-                    <span className="tabular-nums">
-                      {t("pack.exporting")}{" "}
-                      {Math.round((exportProgress?.ratio ?? 0) * 100)}%
-                    </span>
-                  ) : (
-                    t("file.exportOsz")
-                  )}
-                </Button>
-              </div>
-              {exporting && (
-                <div className="mt-2 flex flex-col gap-1">
-                  <div
-                    className="h-1 w-full overflow-hidden rounded-full bg-white/10"
-                    role="progressbar"
-                    aria-valuenow={Math.round((exportProgress?.ratio ?? 0) * 100)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={exportProgress?.label ?? t("app.exporting")}
-                  >
-                    <div
-                      className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
-                      style={{
-                        width: `${Math.round((exportProgress?.ratio ?? 0) * 100)}%`,
-                      }}
-                    />
+                    <Field label={t("pack.source")}>
+                      <TextInput
+                        value={metadata.source ?? ""}
+                        onChange={(e) =>
+                          setMetadata((m) => ({
+                            ...m,
+                            source: e.target.value || undefined,
+                          }))
+                        }
+                      />
+                    </Field>
+                    <label className="flex items-center justify-between gap-3 text-xs text-slate-300">
+                      {t("pack.keepTags")}
+                      <Toggle
+                        size="sm"
+                        checked={settings.keepOriginalTags}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, keepOriginalTags: v }))
+                        }
+                      />
+                    </label>
                   </div>
-                  <p className="h-4 truncate text-[11px] leading-4 text-slate-300/40">
-                    {exportProgress?.label ?? ""}
+                )}
+              </Group>
+
+              <Group
+                title={t("pack.thumbnail")}
+                badge={
+                  <code className="rounded-sm bg-white/[0.06] px-1 font-mono text-[10px] text-slate-400">
+                    &lt;Delete
+                  </code>
+                }
+                right={
+                  <Toggle
+                    size="sm"
+                    checked={settings.placeholderEnabled}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, placeholderEnabled: v }))
+                    }
+                    aria-label={t("pack.thumbnailLabel")}
+                  />
+                }
+              >
+                {settings.placeholderEnabled ? (
+                  <div className="flex flex-col gap-3">
+                    <Field label={t("pack.audioSource")}>
+                      <Dropdown
+                        className="w-full"
+                        aria-label={t("pack.audioSource")}
+                        value={settings.placeholderAudioItemId ?? ""}
+                        options={[
+                          { value: "", label: t("pack.selectSong") },
+                          ...items.map((it) => ({
+                            value: it.id,
+                            label: `${it.songDisplayName || it.originalTitle} · ${it.originalAudioFilename}`,
+                          })),
+                        ]}
+                        onChange={(id) =>
+                          setSettings((s) => ({
+                            ...s,
+                            placeholderAudioItemId: id || null,
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field label={t("pack.keyCount", { min: MIN_KEYS, max: MAX_KEYS })}>
+                      <TextInput
+                        type="number"
+                        min={MIN_KEYS}
+                        max={MAX_KEYS}
+                        value={settings.placeholderKeyCount}
+                        onChange={(e) => {
+                          const v = Math.round(Number(e.target.value));
+                          setSettings((s) => ({
+                            ...s,
+                            placeholderKeyCount: Number.isFinite(v) ? v : 4,
+                          }));
+                          setValidation(null);
+                        }}
+                        className="w-20"
+                      />
+                    </Field>
+                    <p className="break-all font-mono text-2xs leading-relaxed text-slate-500">
+                      {placeholderFilename}
+                    </p>
+                    <p className="text-xs leading-relaxed text-slate-500">
+                      {t("pack.thumbnailOn")}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    {t("pack.thumbnailOff")}
                   </p>
-                </div>
-              )}
+                )}
+              </Group>
             </div>
-          </section>
+          </aside>
         </div>
       </div>
 

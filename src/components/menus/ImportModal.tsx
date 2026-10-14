@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Modal } from "../ui/Modal";
-import { Button } from "../ui/Controls";
+import { Button, INPUT_CLASS } from "../ui/Controls";
 import { FolderIcon, ImportIcon } from "../ui/StartIcons";
 import { InfoTip } from "../ui/Tooltip";
 import { MENU_ACCENTS } from "../../lib/menuTheme";
@@ -46,7 +46,7 @@ export function ImportModal({
     <Modal open={open} title={t("importModal.title")} onClose={onClose} width="max-w-lg" accent={MENU_ACCENTS.import}>
       <div className="flex flex-col gap-3">
         {banner}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="-mx-1.5 grid gap-1 sm:grid-cols-2">
           <ImportCard
             icon={<ImportIcon className="h-6 w-6" />}
             title={t("importModal.mapFile")}
@@ -76,7 +76,7 @@ export function ImportModal({
         />
 
         {onImportFromOsu && (
-          <div className="rounded-xl border border-ink-500/60 bg-ink-700/40 px-4 py-3">
+          <div className="border-t border-white/[0.06] pt-4">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -90,10 +90,10 @@ export function ImportModal({
                 }}
                 placeholder={t("importModal.linkPlaceholder")}
                 disabled={busy}
-                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-700/65 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-accent/70 focus:ring-1 focus:ring-accent/40 disabled:opacity-50"
+                className={`${INPUT_CLASS} min-w-0 flex-1`}
               />
               <Button
-                variant="accent"
+                variant="primary"
                 disabled={busy || !link.trim()}
                 onClick={() => void runLinkImport()}
                 className="whitespace-nowrap"
@@ -105,7 +105,7 @@ export function ImportModal({
           </div>
         )}
 
-        <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+        <p className="flex items-center gap-1.5 text-xs text-slate-500">
           {t("importModal.dropHint")}
           <InfoTip content={t("importModal.dropInfo")} />
         </p>
@@ -129,13 +129,15 @@ function ImportCard({
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-start gap-2 rounded-xl border border-ink-500/60 bg-ink-700/40 p-4 text-left transition hover:border-accent/70 hover:bg-ink-700"
+      className="group flex items-start gap-3 rounded-lg p-2.5 text-left transition hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
     >
-      <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-600 text-slate-200 transition group-hover:bg-accent/20 group-hover:text-accent">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-white/[0.05] text-slate-300 ring-1 ring-inset ring-white/[0.06] transition group-hover:bg-accent/15 group-hover:text-accent-soft [&_svg]:h-[18px] [&_svg]:w-[18px]">
         {icon}
       </span>
-      <span className="text-sm font-semibold text-slate-100">{title}</span>
-      <span className="text-xs text-slate-400">{hint}</span>
+      <span className="min-w-0">
+        <span className="block font-display text-[0.875rem] font-semibold text-slate-100">{title}</span>
+        <span className="block text-xs leading-snug text-slate-400">{hint}</span>
+      </span>
     </button>
   );
 }

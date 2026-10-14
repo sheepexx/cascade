@@ -123,10 +123,10 @@ export function MapCardBackgroundControls({
               role="radio"
               aria-checked={selected}
               onClick={() => onChange({ backgroundMode: mode.value })}
-              className={`group flex flex-col gap-1.5 rounded-[10px] border p-1 text-left transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.97] ${
+              className={`group flex flex-col gap-1.5 rounded-lg border p-1 text-left transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
                 selected
-                  ? "border-accent/70 bg-accent/10 shadow-[0_0_0_1px_rgba(232,104,104,0.25),0_6px_18px_-8px_rgba(232,104,104,0.45)]"
-                  : "border-white/[0.08] bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]"
+                  ? "border-accent/70 bg-white/[0.05]"
+                  : "border-white/[0.07] hover:border-white/20 hover:bg-white/[0.03]"
               }`}
             >
               <span

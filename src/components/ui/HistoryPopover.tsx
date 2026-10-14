@@ -133,11 +133,11 @@ export function HistoryPopover({
             role="group"
             aria-label={t("undoHistory.title")}
             style={{ position: "fixed", left: pos.left, top: pos.top }}
-            className="tooltip-in z-[200] w-72 rounded-xl border border-white/10 bg-ink-800/90 p-2 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl"
+            className="ui-popover tooltip-in z-[200] w-72 rounded-xl border border-white/[0.09] bg-ink-700 shadow-[var(--shadow-float)] p-1.5"
             onMouseEnter={cancel}
             onMouseLeave={() => schedule(false, CLOSE_DELAY_MS)}
           >
-            <p className="px-1.5 pb-1.5 text-[10px] uppercase tracking-wide text-slate-500">
+            <p className="px-1.5 pb-1.5 text-2xs text-slate-500">
               {live ? t("undoHistory.session") : t("undoHistory.title")}
             </p>
             <ol className="flex max-h-72 flex-col gap-0.5 overflow-auto">
@@ -169,7 +169,7 @@ export function HistoryPopover({
                     />
                     <span className="flex-1 truncate">{label}</span>
                     {index === current && (
-                      <span className="shrink-0 text-[9px] uppercase tracking-wide text-teal-200/70">
+                      <span className="shrink-0 text-2xs text-teal-200/70">
                         {t("undoHistory.now")}
                       </span>
                     )}

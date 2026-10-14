@@ -68,58 +68,35 @@ export function SkeletonText({
   );
 }
 
-export function SkeletonCards({
-  count = 3,
-  columns = "sm:grid-cols-2 lg:grid-cols-3",
-  label,
-}: {
-  count?: number;
-  columns?: string;
-  label?: string;
-}) {
-  return (
-    <Group label={label} className={`grid gap-3 ${columns}`}>
-      {range(count).map((i) => (
-        <div
-          key={i}
-          className="flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40"
-        >
-          <Skeleton step={i} className="aspect-[16/9] w-full" />
-          <div className="flex flex-col gap-2 p-3">
-            <Skeleton step={i} className="h-3.5 w-3/5 rounded" />
-            <Skeleton step={i} className="h-3 w-4/5 rounded" />
-            <Skeleton step={i} className="h-2.5 w-2/5 rounded" />
-          </div>
-        </div>
-      ))}
-    </Group>
-  );
-}
-
-export function SkeletonBanners({
+/** Placeholder rows for the map and project lists: artwork then two lines. */
+export function SkeletonListRows({
   count = 4,
+  thumb = "wide",
+  columns = false,
   label,
 }: {
   count?: number;
+  /** "banner" for osu! banners (3.5:1), "wide" for 16:9 backgrounds. */
+  thumb?: "banner" | "wide";
+  columns?: boolean;
   label?: string;
 }) {
   return (
-    <Group label={label} className="grid gap-3 sm:grid-cols-2">
+    <Group
+      label={label}
+      className={`grid gap-x-3 gap-y-0.5 ${columns ? "sm:grid-cols-2" : ""}`}
+    >
       {range(count).map((i) => (
-        <div
-          key={i}
-          className="flex flex-col overflow-hidden rounded-xl border border-ink-500/60 bg-ink-700/40"
-        >
-          <Skeleton step={i} className="aspect-[3.5/1] w-full" />
-          <div className="flex flex-col gap-2 p-3">
+        <div key={i} className="flex items-center gap-3 p-1.5">
+          <Skeleton
+            step={i}
+            className={`shrink-0 rounded-md ${
+              thumb === "banner" ? "aspect-[3.5/1] w-40" : "aspect-[16/9] w-[5.5rem]"
+            }`}
+          />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <Skeleton step={i} className="h-3.5 w-1/2 rounded" />
-            <Skeleton step={i} className="h-3 w-2/5 rounded" />
-            <Skeleton step={i} className="h-2.5 w-1/3 rounded" />
-            <div className="mt-1 flex gap-1">
-              {range(3).map((chip) => (
-                <Skeleton key={chip} step={i} className="h-4 w-12 rounded" />
-              ))}
-            </div>
+            <Skeleton step={i} className="h-2.5 w-2/5 rounded" />
           </div>
         </div>
       ))}
@@ -147,7 +124,7 @@ export function SkeletonRows({
       {range(count).map((i) => (
         <div
           key={i}
-          className="flex items-center gap-3 rounded-xl border border-ink-500/60 bg-ink-700/40 p-3"
+          className="flex items-center gap-3 rounded-lg bg-white/[0.025] p-3"
         >
           {avatar && (
             <Skeleton step={i} className="h-8 w-8 shrink-0 rounded-full" />
@@ -186,7 +163,7 @@ export function SkeletonMediaCards({
       {range(count).map((i) => (
         <div
           key={i}
-          className="flex gap-3 rounded-xl border border-ink-500/60 bg-ink-700/40 p-3"
+          className="flex gap-3 rounded-lg bg-white/[0.025] p-3"
         >
           <Skeleton
             step={i}
@@ -221,7 +198,7 @@ export function SkeletonTable({
   return (
     <Group label={label} className="flex flex-col gap-3">
       <div
-        className="grid gap-3 border-b border-ink-600 pb-2"
+        className="grid gap-3 border-b border-white/[0.07] pb-2"
         style={template}
       >
         {range(columns).map((col) => (
@@ -258,7 +235,7 @@ export function SkeletonStats({
       {range(count).map((i) => (
         <div
           key={i}
-          className="rounded-xl border border-ink-600 bg-ink-800 p-4"
+          className="rounded-lg bg-white/[0.025] p-4"
         >
           <Skeleton step={i} className="h-2.5 w-20 rounded" />
           <Skeleton step={i} className="mt-3 h-7 w-16 rounded" />

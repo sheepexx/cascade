@@ -1,10 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Slider, Toggle } from "../ui/Controls";
 
-export const CARD_LABEL =
-  "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
+export const CARD_LABEL = "text-xs font-semibold text-slate-200";
 
-const SECTION_SURFACE = { "--slider-surface": "#1a1a23" } as CSSProperties;
+const SECTION_SURFACE = { "--slider-surface": "#14141a" } as CSSProperties;
 
 export function CardSection({
   title,
@@ -19,7 +18,7 @@ export function CardSection({
     <section
       aria-label={title}
       style={SECTION_SURFACE}
-      className="flex flex-col gap-3 rounded-xl border border-white/10 bg-ink-700/40 p-3.5"
+      className="flex flex-col gap-3 rounded-lg bg-white/[0.03] p-3.5"
     >
       <div className="flex min-h-[1.25rem] items-center justify-between gap-2">
         <h3 className={CARD_LABEL}>{title}</h3>

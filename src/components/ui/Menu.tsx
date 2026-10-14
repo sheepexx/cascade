@@ -22,15 +22,25 @@ export type MenuItem =
 
 const TRIGGER_TONES = {
   plain: {
-    trigger: "text-slate-300 hover:bg-white/10 hover:text-slate-100",
+    trigger:
+      "text-slate-300 hover:bg-white/[0.07] hover:text-slate-100 aria-expanded:bg-white/[0.09] aria-expanded:text-slate-50",
     chevron: "text-slate-500",
   },
-  // Filled with the Cascade accent so a menu people hunt for stands out.
   accent: {
-    trigger: "bg-accent/90 font-medium text-white shadow-sm hover:bg-accent-soft/95",
+    trigger: "bg-accent font-medium text-white hover:bg-[#ee7676]",
     chevron: "text-white/80",
   },
 };
+
+/** The floating surface shared by menus, dropdown lists and pickers. */
+export const POPOVER_CLASS =
+  "ui-popover rounded-xl bg-ink-700 p-1 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]";
+
+/** One row in a menu or list. */
+export const POPOVER_ITEM_CLASS =
+  "flex w-full min-h-[1.75rem] items-center justify-between gap-3 rounded-md px-2.5 py-1 text-left text-sm " +
+  "transition-colors duration-[var(--motion-quick)] hover:bg-white/[0.07] focus-visible:bg-white/[0.07] " +
+  "focus-visible:outline-none active:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
 
 export function Menu({
   label,
@@ -155,7 +165,7 @@ export function Menu({
         aria-expanded={open}
         aria-label={ariaLabel}
         title={ariaLabel}
-        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-[0.98] ${TRIGGER_TONES[tone].trigger} ${className}`}
+        className={`flex h-7 items-center gap-1 rounded-md px-2.5 text-sm transition duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${TRIGGER_TONES[tone].trigger} ${className}`}
       >
         {label}
         {chevron && (
@@ -172,11 +182,11 @@ export function Menu({
             ref={menuRef}
             style={{ position: "fixed", top: pos.top, bottom: pos.bottom, right: pos.right }}
             role="menu"
-            className={`z-[100] w-52 overflow-hidden rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl ${closing ? "menu-pop-out" : "menu-pop-in"}`}
+            className={`z-[100] min-w-[13rem] max-w-[20rem] overflow-y-auto ${POPOVER_CLASS} ${closing ? "menu-pop-out" : "menu-pop-in"}`}
           >
             {items.map((item, i) =>
               "separator" in item ? (
-                <div key={i} role="separator" className="my-1 h-px bg-white/10" />
+                <div key={i} role="separator" className="mx-1.5 my-1 h-px bg-white/[0.07]" />
               ) : (
                 <button
                   key={i}
@@ -188,13 +198,13 @@ export function Menu({
                     setOpen(false);
                     item.onClick();
                   }}
-                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition duration-[var(--motion-quick)] hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none active:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
+                  className={`${POPOVER_ITEM_CLASS} ${
                     item.danger ? "text-rose-300" : "text-slate-200"
                   }`}
                 >
-                  <span>{item.label}</span>
+                  <span className="truncate">{item.label}</span>
                   {item.hint && (
-                    <span className="ml-3 font-mono text-[10px] text-slate-500">
+                    <span className="shrink-0 font-mono text-2xs text-slate-500">
                       {item.hint}
                     </span>
                   )}

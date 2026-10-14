@@ -95,7 +95,7 @@ export function PresetBrowserModal({
         />
       </div>
 
-      <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
+      <div className="mb-4 rounded-md bg-amber-400/[0.06] ring-1 ring-inset ring-amber-400/20 px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
         {t("presets.rankNote")}
       </div>
 
@@ -117,7 +117,7 @@ export function PresetBrowserModal({
           {filtered.map((p) => (
             <div
               key={p.id}
-              className="flex gap-3 rounded-xl border border-ink-500/60 bg-ink-700/40 p-3"
+              className="flex gap-3 rounded-lg bg-white/[0.03] p-3"
             >
               <PatternPreview
                 pattern={p.pattern}

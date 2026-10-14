@@ -37,7 +37,7 @@ export function MapCardExport({
   return (
     <section
       aria-label={t("mapCard.export")}
-      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-ink-700/25 p-4"
+      className="flex flex-col gap-4 rounded-lg bg-white/[0.02] ring-1 ring-inset ring-white/[0.06] p-4"
     >
       <div className="flex min-h-[1.25rem] items-center justify-between gap-3">
         <h3 className={CARD_LABEL}>{t("mapCard.export")}</h3>

@@ -210,6 +210,23 @@ export function editorKeyLabel(code: string): string {
   }
 }
 
+/** The actions caught in a clash, so the shortcut list can mark each one. */
+export function editorKeybindConflictActions(binds: EditorKeybinds): Set<EditorAction> {
+  const clashing = new Set<EditorAction>();
+  for (const group of CONFLICT_GROUPS) {
+    const byCode = new Map<string, EditorAction[]>();
+    for (const action of group) {
+      const code = binds[action];
+      if (!code) continue;
+      byCode.set(code, [...(byCode.get(code) ?? []), action]);
+    }
+    for (const actions of byCode.values()) {
+      if (actions.length > 1) for (const action of actions) clashing.add(action);
+    }
+  }
+  return clashing;
+}
+
 export function editorKeybindConflicts(binds: EditorKeybinds): string[] {
   const warnings: string[] = [];
   for (const group of CONFLICT_GROUPS) {

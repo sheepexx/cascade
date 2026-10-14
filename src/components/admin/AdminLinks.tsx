@@ -492,9 +492,9 @@ export function UserLinksSection({
   );
 
   return (
-    <section className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-4">
+    <section className="mt-6 rounded-lg bg-white/[0.03] p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <h2 className="text-xs font-semibold text-slate-300">
           Links
         </h2>
         {sorted && sorted.length > 0 && (

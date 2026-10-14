@@ -197,7 +197,7 @@ export function ProfileView({
 
   return (
     <div className="flex flex-col">
-      <div className="relative overflow-hidden rounded-2xl bg-ink-700">
+      <div className="relative overflow-hidden rounded-xl bg-ink-700">
         <div className="relative aspect-[3.2/1] max-h-[260px] min-h-[132px] w-full">
           <div
             aria-hidden
@@ -215,7 +215,7 @@ export function ProfileView({
               }`}
             />
           )}
-          <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink-800 via-ink-800/35 to-ink-900/10" />
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink-900 via-ink-900/35 to-ink-900/10" />
         </div>
       </div>
 
@@ -223,11 +223,11 @@ export function ProfileView({
         <Avatar url={profile.avatar_url} name={profile.username} size="xl" ring presence={profile.presence} />
         <div className="min-w-0 flex-1 sm:pb-1.5">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <h2 className="truncate text-2xl font-bold leading-tight text-slate-50">{profile.username}</h2>
+            <h2 className="truncate font-display text-3xl font-bold leading-tight text-slate-50">{profile.username}</h2>
             {profile.is_admin && <AdminBadge />}
             {(osu?.is_supporter ?? profile.osu?.is_supporter) && (
               <span
-                className="inline-flex items-center gap-1 rounded-full bg-pink-500/15 px-2 py-0.5 text-[11px] font-semibold text-pink-300"
+                className="inline-flex items-center gap-1 rounded-sm bg-pink-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-pink-300"
                 title={t("social.supporter")}
               >
                 <HeartIcon className="h-3 w-3" />
@@ -235,7 +235,7 @@ export function ProfileView({
               </span>
             )}
             {osu?.title && (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+              <span className="rounded-sm bg-white/[0.08] px-1.5 py-0.5 text-[11px] font-medium text-slate-300">
                 {osu.title}
               </span>
             )}
@@ -303,9 +303,9 @@ export function ProfileView({
         )}
       </dl>
 
-      <div className="mt-5 px-0 sm:px-3">
+      <div className="mt-6">
         <SegmentedControl
-          className="max-w-md"
+          variant="tabs"
           value={tab}
           onChange={(next) => onNavigate({ view: "profile", name: profile.username, tab: next }, true)}
           options={[
@@ -316,7 +316,7 @@ export function ProfileView({
         />
       </div>
 
-      <div className="mt-4 sm:px-3">
+      <div className="mt-6">
         {tab === "overview" && (
           <OsuOverview
             profile={profile}
@@ -499,9 +499,9 @@ function ProfileSkeleton() {
   const t = useT();
   return (
     <div role="status" aria-busy="true" aria-label={t("common.loading")} className="flex flex-col">
-      <Skeleton className="aspect-[3.2/1] max-h-[260px] min-h-[132px] w-full rounded-2xl" />
+      <Skeleton className="aspect-[3.2/1] max-h-[260px] min-h-[132px] w-full rounded-xl" />
       <div className="-mt-14 flex items-end gap-4 px-6">
-        <Skeleton className="h-28 w-28 rounded-full ring-4 ring-ink-800" />
+        <Skeleton className="h-28 w-28 rounded-full ring-4 ring-ink-900" />
         <div className="flex flex-1 flex-col gap-2 pb-2">
           <Skeleton className="h-6 w-48 rounded" />
           <Skeleton className="h-3.5 w-32 rounded" />
@@ -509,7 +509,7 @@ function ProfileSkeleton() {
       </div>
       <div className="mt-8 grid gap-3 px-3 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} step={i} className="h-24 rounded-2xl" />
+          <Skeleton key={i} step={i} className="h-24 rounded-lg" />
         ))}
       </div>
     </div>

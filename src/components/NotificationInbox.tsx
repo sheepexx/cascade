@@ -6,6 +6,8 @@ import { isSocialNotification, type InboxNotification } from "../lib/notificatio
 import { SkeletonRows } from "./ui/Skeleton";
 import { MailIcon } from "./ui/Icons";
 import { ToneIcon } from "./ui/Toast";
+import { buttonClass } from "./ui/buttonStyles";
+import { HEADER_BADGE, HEADER_ICON_BUTTON } from "./header/HeaderButtons";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
 
 const GROUP_LABELS: Record<InboxGroup, MessageKey> = {
@@ -141,15 +143,11 @@ export function NotificationInbox({
         aria-expanded={open}
         title={t("inbox.title")}
         onClick={() => setOpen((value) => !value)}
-        className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition ${
-          open
-            ? "border-accent/70 bg-ink-700 text-slate-100"
-            : "border-ink-500/60 bg-ink-700/60 text-slate-300 hover:border-accent/60 hover:bg-ink-700 hover:text-slate-100"
-        }`}
+        className={HEADER_ICON_BUTTON}
       >
         <BellIcon />
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold leading-4 text-white shadow-lg shadow-black/30">
+          <span className={HEADER_BADGE}>
             {unread > 99 ? "99+" : unread}
           </span>
         )}
@@ -162,14 +160,14 @@ export function NotificationInbox({
             role="dialog"
             aria-label={t("inbox.label")}
             style={{ position: "fixed", top: pos.top, right: pos.right }}
-            className="z-[110] flex max-h-[min(36rem,calc(100vh-5rem))] w-96 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-ink-500/70 bg-ink-800/[0.98] shadow-2xl backdrop-blur-2xl"
+            className="ui-popover menu-pop-in z-[110] flex max-h-[min(36rem,calc(100vh-5rem))] w-96 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl bg-ink-700 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]"
           >
-            <div className="flex items-center justify-between gap-3 border-b border-ink-600 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-2.5">
               <div>
-                <h2 className="text-sm font-semibold text-slate-100">
+                <h2 className="font-display text-[0.9375rem] font-semibold text-slate-50">
                   {t("inbox.title")}
                 </h2>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-2xs text-slate-500">
                   {unread > 0
                     ? t("inbox.unread", { count: unread })
                     : t("inbox.caughtUp")}
@@ -179,7 +177,7 @@ export function NotificationInbox({
                 <div
                   role="group"
                   aria-label={t("inbox.filterLabel")}
-                  className="flex rounded-lg border border-white/10 p-0.5 text-[11px]"
+                  className="flex rounded-md bg-black/25 p-0.5 text-2xs ring-1 ring-inset ring-white/[0.06]"
                 >
                   {([false, true] as const).map((only) => (
                     <button
@@ -187,9 +185,9 @@ export function NotificationInbox({
                       type="button"
                       aria-pressed={unreadOnly === only}
                       onClick={() => setUnreadOnly(only)}
-                      className={`rounded-md px-2 py-0.5 font-medium transition ${
+                      className={`rounded px-2 py-0.5 font-medium transition ${
                         unreadOnly === only
-                          ? "bg-white/10 text-slate-100"
+                          ? "bg-ink-500 text-slate-50"
                           : "text-slate-400 hover:text-slate-200"
                       }`}
                     >
@@ -201,7 +199,7 @@ export function NotificationInbox({
                   <button
                     type="button"
                     onClick={markAllRead}
-                    className="rounded-md px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent/10 hover:text-accent-soft"
+                    className="rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/[0.07] hover:text-slate-50"
                   >
                     {t("inbox.markAll")}
                   </button>
@@ -221,7 +219,7 @@ export function NotificationInbox({
               )}
 
               {showAccountError && (
-                <div className="border-b border-ink-600/80 px-4 py-3 text-center">
+                <div className="border-b border-white/[0.06] px-4 py-3 text-center">
                   <div className="text-sm font-medium text-rose-300">
                     {t("inbox.unavailable")}
                   </div>
@@ -229,7 +227,7 @@ export function NotificationInbox({
                   <button
                     type="button"
                     onClick={() => void onRefresh()}
-                    className="mt-2 rounded-lg bg-ink-600 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-ink-500"
+                    className={`mt-2 ${buttonClass("primary", "sm")}`}
                   >
                     {t("audioSetup.tryAgain")}
                   </button>
@@ -238,10 +236,10 @@ export function NotificationInbox({
 
               {!(signedIn && loading && items.length === 0) && shown.length === 0 && (
                 <div className="grid place-items-center px-6 py-10 text-center">
-                  <span className="grid h-11 w-11 place-items-center rounded-full bg-ink-700 text-slate-400">
+                  <span className="text-slate-600">
                     <BellIcon />
                   </span>
-                  <div className="mt-3 text-sm font-medium text-slate-300">
+                  <div className="mt-2 text-sm font-medium text-slate-300">
                     {unreadOnly && items.length > 0 ? t("inbox.noUnread") : t("inbox.empty")}
                   </div>
                   {!(unreadOnly && items.length > 0) && (
@@ -254,10 +252,10 @@ export function NotificationInbox({
 
               {groups.map(({ group, items: groupItems }) => (
                 <section key={group} aria-label={t(GROUP_LABELS[group])}>
-                  <h3 className="sticky top-0 z-[1] border-b border-ink-600/60 bg-ink-800/95 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 backdrop-blur">
+                  <h3 className="sticky top-0 z-[1] bg-ink-700 px-4 pb-1 pt-2.5 text-2xs font-medium text-slate-500">
                     {t(GROUP_LABELS[group])}
                   </h3>
-                  <ul className="divide-y divide-ink-600/80">
+                  <ul className="divide-y divide-white/[0.05]">
                     {groupItems.map((item) => (
                       <NotificationRow
                         key={item.key}
@@ -276,7 +274,7 @@ export function NotificationInbox({
               ))}
             </div>
             {!signedIn && items.length > 0 && (
-              <p className="border-t border-ink-600 px-4 py-2 text-[11px] text-slate-500">
+              <p className="border-t border-white/[0.07] px-4 py-2 text-2xs text-slate-500">
                 {t("inbox.signedOutHint")}
               </p>
             )}
@@ -318,7 +316,7 @@ function NotificationRow({
   return (
     <li
       className={`relative flex gap-3 px-4 py-3 transition ${
-        item.read ? "bg-transparent" : "bg-accent/[0.055]"
+        item.read ? "bg-transparent" : "bg-white/[0.025]"
       }`}
     >
       {!item.read && (
@@ -351,7 +349,7 @@ function NotificationRow({
           <button
             type="button"
             onClick={onDismiss}
-            className="-mr-1 -mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-base text-slate-500 transition hover:bg-white/10 hover:text-slate-200"
+            className="-mr-1.5 -mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-md text-base text-slate-500 transition hover:bg-white/[0.07] hover:text-slate-200"
             aria-label={t("inbox.dismissLabel", { title: item.title })}
             title={t("pack.dismiss")}
           >
@@ -379,7 +377,7 @@ function NotificationRow({
         )}
         <div className="mt-2 flex items-center justify-between gap-2">
           <span
-            className="min-w-0 truncate text-[10px] text-slate-500"
+            className="min-w-0 truncate text-2xs text-slate-500"
             title={new Date(item.createdAt).toLocaleString()}
           >
             {formatRelativeTime(item.createdAt, t)}
@@ -394,7 +392,7 @@ function NotificationRow({
                 type="button"
                 aria-expanded={expanded}
                 onClick={() => setExpanded((value) => !value)}
-                className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
+                className="rounded-md px-2 py-1 text-2xs font-medium text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-200"
               >
                 {expanded ? t("toast.hideDetails") : t("toast.showDetails")}
               </button>
@@ -402,7 +400,7 @@ function NotificationRow({
             <button
               type="button"
               onClick={() => onSetRead(!item.read)}
-              className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
+              className="rounded-md px-2 py-1 text-2xs font-medium text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-200"
             >
               {item.read ? t("inbox.markUnread") : t("inbox.markRead")}
             </button>
@@ -410,7 +408,7 @@ function NotificationRow({
               <button
                 type="button"
                 onClick={onOpen}
-                className="rounded-md bg-accent/90 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-soft"
+                className={buttonClass("accent", "sm", "h-6 text-2xs")}
               >
                 {actionLabel}
               </button>
@@ -423,7 +421,7 @@ function NotificationRow({
 }
 
 const ACTIVITY_ICON = {
-  info: "bg-cyan-400/10 text-cyan-300",
+  info: "bg-white/[0.06] text-slate-300",
   success: "bg-emerald-400/15 text-emerald-300",
   warning: "bg-amber-400/15 text-amber-300",
   error: "bg-red-400/15 text-red-300",

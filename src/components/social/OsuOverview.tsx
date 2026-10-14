@@ -51,8 +51,8 @@ export function OsuOverview({
   const fmt = useNumberFormat();
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,17rem)]">
-      <div className="flex min-w-0 flex-col gap-4">
+    <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)]">
+      <div className="flex min-w-0 flex-col gap-8">
         <SectionCard
           title={t("social.mappingOnOsu")}
           aside={
@@ -60,9 +60,9 @@ export function OsuOverview({
               <button
                 type="button"
                 onClick={onShowMaps}
-                className="rounded-md px-1.5 py-0.5 text-xs font-medium text-accent transition hover:bg-accent/10 hover:text-accent-soft"
+                className="rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-400 transition hover:bg-white/[0.06] hover:text-slate-50"
               >
-                {t("social.seeMaps")}
+                {t("social.seeMaps")} <span aria-hidden>→</span>
               </button>
             ) : null
           }
@@ -70,14 +70,14 @@ export function OsuOverview({
           {error && !osu ? (
             <ErrorLine message={error} onRetry={onRetry} />
           ) : !osu ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
               {Array.from({ length: 8 }, (_, i) => (
-                <Skeleton key={i} step={i} className="h-[66px] rounded-xl" />
+                <Skeleton key={i} step={i} className="h-[52px] rounded-md" />
               ))}
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
                 <StatTile label={t("social.statusRanked")} value={fmt(osu.counts.ranked)} />
                 <StatTile label={t("social.statusLoved")} value={fmt(osu.counts.loved)} />
                 <StatTile label={t("social.statusPending")} value={fmt(osu.counts.pending)} />
@@ -102,10 +102,11 @@ export function OsuOverview({
         <CascadeSummary stats={stats} isSelf={profile.is_self} onShowActivity={onShowActivity} />
       </div>
 
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-8">
         <SectionCard title={t("social.osuPlayer")}>
           <SegmentedControl
-            className="mb-3 text-xs [&_button]:px-1.5 [&_button]:py-1 [&_button]:text-xs"
+            size="sm"
+            className="mb-4"
             value={mode}
             onChange={onMode}
             options={(Object.keys(MODE_LABELS) as OsuMode[]).map((value) => ({
@@ -127,7 +128,7 @@ function PlayerStats({ osu, loading, mode }: { osu: OsuProfile | null; loading: 
     return (
       <div className="flex flex-col gap-2">
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} step={i} className="h-[58px] rounded-xl" />
+          <Skeleton key={i} step={i} className="h-[52px] rounded-md" />
         ))}
       </div>
     );
@@ -137,7 +138,7 @@ function PlayerStats({ osu, loading, mode }: { osu: OsuProfile | null; loading: 
     return <p className="py-3 text-sm text-slate-500">{t("social.noPlaysInMode")}</p>;
   }
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-y-4">
       <StatTile
         label={t("social.globalRank")}
         value={s.global_rank ? `#${fmt(s.global_rank)}` : "–"}
@@ -232,21 +233,21 @@ function CascadeSummary({
           <button
             type="button"
             onClick={onShowActivity}
-            className="rounded-md px-1.5 py-0.5 text-xs font-medium text-accent transition hover:bg-accent/10 hover:text-accent-soft"
+            className="rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-400 transition hover:bg-white/[0.06] hover:text-slate-50"
           >
-            {t("social.seeActivity")}
+            {t("social.seeActivity")} <span aria-hidden>→</span>
           </button>
         ) : null
       }
     >
       {!stats ? (
-        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-32 rounded-md" />
       ) : hidden ? (
         <p className="text-sm text-slate-500">{isSelf ? t("social.statsPrivateSelf") : t("social.statsPrivate")}</p>
       ) : (
         <div className="flex flex-col gap-4">
           {stats.admin_override && <AdminViewNote />}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
             {stats.totals && <StatTile label={t("social.mappingTime")} value={formatDuration(stats.totals.edit)} />}
             {periods && <StatTile label={t("social.last7Days")} value={formatDuration(periods.week)} />}
             {stats.counters && <StatTile label={t("social.mapsEdited")} value={fmt(stats.counters.maps_edited)} />}
@@ -258,7 +259,7 @@ function CascadeSummary({
           {stats.calendar && stats.calendar.length > 0 && <ActivityCalendar calendar={stats.calendar} today={today} />}
         </div>
       )}
-      <p className="mt-3 text-[11px] leading-4 text-slate-500">{t("social.cascadeOnlyHint")}</p>
+      <p className="mt-4 text-xs leading-relaxed text-slate-500">{t("social.cascadeOnlyHint")}</p>
     </SectionCard>
   );
 }

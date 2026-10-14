@@ -7,7 +7,9 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDownIcon } from "./Icons";
+import { CheckIcon, ChevronDownIcon } from "./Icons";
+import { INPUT_CLASS } from "./Controls";
+import { POPOVER_CLASS, POPOVER_ITEM_CLASS } from "./Menu";
 import { dropdownKeyTarget } from "./dropdownKeys";
 import { MOTION } from "../../lib/motion";
 
@@ -23,8 +25,8 @@ export type DropdownOption<T extends string | number> = {
 };
 
 const DIMS = {
-  sm: { field: "py-1.5 pl-2.5 pr-7 text-xs", icon: "right-2 h-3 w-3" },
-  md: { field: "py-2 pl-3 pr-8 text-sm", icon: "right-2.5 h-3.5 w-3.5" },
+  sm: { field: "h-7 py-0 pl-2 pr-6 text-xs", icon: "right-1.5 h-3 w-3" },
+  md: { field: "h-8 py-0 pl-2.5 pr-7 text-sm", icon: "right-2 h-3.5 w-3.5" },
 } as const;
 
 /**
@@ -176,7 +178,7 @@ export function Dropdown<T extends string | number>({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
-        className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-white/10 bg-ink-700/65 ${dims.field} text-left text-slate-100 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition duration-[var(--motion-quick)] hover:border-white/20 hover:bg-ink-600/70 focus-visible:border-accent/70 focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45`}
+        className={`${INPUT_CLASS} flex w-full min-w-0 items-center justify-between gap-2 ${dims.field} text-left aria-expanded:ring-white/[0.18] focus-visible:ring-accent/70`}
       >
         <span className="min-w-0 truncate">{selected?.label ?? ""}</span>
       </button>
@@ -198,7 +200,7 @@ export function Dropdown<T extends string | number>({
               left: pos.left,
               minWidth: pos.width,
             }}
-            className={`z-[200] max-h-[min(18rem,60vh)] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-ink-800/82 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl ${
+            className={`z-[200] max-h-[min(18rem,60vh)] overflow-y-auto overscroll-contain ${POPOVER_CLASS} ${
               closing ? "menu-pop-out" : "menu-pop-in"
             }`}
           >
@@ -208,7 +210,7 @@ export function Dropdown<T extends string | number>({
               // <optgroup> of the selects this replaced used to draw.
               const heading =
                 option.group && option.group !== options[index - 1]?.group ? (
-                  <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  <div className="px-2.5 pb-1 pt-2 text-2xs font-medium text-slate-500">
                     {option.group}
                   </div>
                 ) : null;
@@ -227,24 +229,22 @@ export function Dropdown<T extends string | number>({
                     setOpen(false);
                     triggerRef.current?.focus();
                   }}
-                  className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-sm transition duration-[var(--motion-quick)] focus-visible:outline-none ${
+                  className={`${POPOVER_ITEM_CLASS} ${
                     option.disabled
-                      ? "cursor-not-allowed text-slate-600"
-                      : `hover:bg-white/10 focus-visible:bg-white/10 active:bg-white/15 ${
-                          active ? "text-accent" : "text-slate-200"
-                        }`
+                      ? "!cursor-not-allowed text-slate-600 hover:bg-transparent"
+                      : active
+                        ? "bg-white/[0.05] text-slate-50"
+                        : "text-slate-200"
                   }`}
                 >
                   <span className="min-w-0 truncate">{option.label}</span>
                   {option.hint ? (
-                    <span className="shrink-0 font-mono text-[10px] text-slate-500">
+                    <span className="shrink-0 font-mono text-2xs text-slate-500">
                       {option.hint}
                     </span>
                   ) : (
                     active && (
-                      <span className="shrink-0 text-xs" aria-hidden>
-                        ✓
-                      </span>
+                      <CheckIcon className="h-3.5 w-3.5 shrink-0 text-accent" />
                     )
                   )}
                 </button>

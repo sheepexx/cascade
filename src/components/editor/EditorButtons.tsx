@@ -17,10 +17,10 @@ export function HitsoundAddBtn({
     <button
       onClick={onClick}
       title={title}
-      className={`w-6 rounded py-0.5 font-semibold transition ${
+      className={`h-6 w-6 rounded font-mono text-xs font-semibold transition ${
         active
-          ? "bg-emerald-500/80 text-ink-900"
-          : "bg-ink-700 text-slate-300 hover:bg-ink-600"
+          ? "bg-emerald-400/90 text-ink-950"
+          : "bg-white/[0.06] text-slate-300 hover:bg-white/[0.1] hover:text-slate-50"
       }`}
     >
       {label}
@@ -44,10 +44,10 @@ export function SelectionActionButton({
       type="button"
       title={title}
       onClick={onClick}
-      className={`rounded px-1.5 py-1 text-[10px] font-medium transition ${
+      className={`h-6 rounded-md px-2 text-xs font-medium transition ${
         danger
           ? "text-rose-300 hover:bg-rose-500/15 hover:text-rose-200"
-          : "text-slate-300 hover:bg-white/10 hover:text-white"
+          : "text-slate-300 hover:bg-white/[0.08] hover:text-slate-50"
       }`}
     >
       {label}

@@ -125,21 +125,21 @@ export function DifficultySidebar({
   );
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-white/10 bg-ink-800/45 shadow-[10px_0_30px_rgba(0,0,0,0.12)] backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] px-4 py-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-white/[0.06] bg-ink-900">
+      <div className="flex h-10 shrink-0 items-center justify-between pl-3.5 pr-2">
+        <h2 className="text-xs font-semibold text-slate-300">
           {t("diffSidebar.title")}
-          <span className="ml-1.5 text-slate-500">{difficulties.length}</span>
+          <span className="ml-1.5 font-medium tabular-nums text-slate-500">{difficulties.length}</span>
         </h2>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={() => setRateOpen((v) => !v)}
             aria-label={t("diffSidebar.rateChanger")}
             aria-expanded={rateOpen}
-            className={`grid h-6 w-6 place-items-center rounded-md border shadow-sm backdrop-blur-sm transition ${
+            className={`grid h-7 w-7 place-items-center rounded-md transition ${
               rateOpen
-                ? "border-accent/70 bg-accent/20 text-slate-100"
-                : "border-white/10 bg-ink-600/70 text-slate-200 hover:bg-ink-500/85"
+                ? "bg-white/[0.09] text-slate-50"
+                : "text-slate-400 hover:bg-white/[0.07] hover:text-slate-100"
             }`}
             title={t("diffSidebar.rateChanger")}
           >
@@ -148,10 +148,12 @@ export function DifficultySidebar({
           <button
             onClick={onAdd}
             aria-label={t("diffSidebar.addDifficulty")}
-            className="grid h-6 w-6 place-items-center rounded-md border border-white/10 bg-ink-600/70 text-slate-200 shadow-sm backdrop-blur-sm transition hover:bg-ink-500/85"
+            className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-100"
             title={t("diffSidebar.addDifficulty")}
           >
-            +
+            <svg viewBox="0 0 16 16" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round">
+              <path d="M8 3v10M3 8h10" />
+            </svg>
           </button>
         </div>
       </div>
@@ -169,8 +171,8 @@ export function DifficultySidebar({
         onClose={() => setRateOpen(false)}
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        <div className="flex flex-col gap-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+        <div className="flex flex-col gap-px">
           {sorted.map(({ difficulty: d, star }) => (
             <DiffRow
               key={d.id}
@@ -193,13 +195,13 @@ export function DifficultySidebar({
       </div>
 
       {stats && stats.notes > 0 && (
-        <div className="border-t border-white/10 bg-white/[0.02] px-4 py-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        <div className="border-t border-white/[0.06] px-3.5 pb-3 pt-2.5">
+          <div className="mb-2 truncate text-xs font-semibold text-slate-300">
             {t("diffSidebar.stats", {
               name: active?.name || t("diffSidebar.active"),
             })}
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
             <Stat label="BPM" value={bpmLabel} />
             <Stat label={t("diffSidebar.notes")} value={String(stats.notes)} />
             <Stat label="LN" value={`${Math.round(stats.lnRatio * 100)}%`} />
@@ -254,7 +256,7 @@ function ColumnHistogram({
   const leftPct = Math.round(handBalance * 100);
   return (
     <div className="mt-2.5">
-      <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500">
+      <div className="mb-1 flex items-center justify-between text-2xs text-slate-500">
         <span>{t("diffSidebar.columns")}</span>
         <span
           className="tabular-nums"
@@ -274,7 +276,7 @@ function ColumnHistogram({
               disabled={!onFlashColumn}
               aria-label={label}
               title={label}
-              className="group/bar relative flex-1 rounded-t-sm bg-accent/60 transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:brightness-125 disabled:cursor-default"
+              className="group/bar relative flex-1 rounded-t-sm bg-slate-500/55 transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:brightness-125 disabled:cursor-default"
               style={{ height: `${Math.max(4, (count / max) * 100)}%` }}
             />
           );
@@ -374,15 +376,14 @@ function DiffRow({
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      className={`group cursor-pointer rounded-lg border px-3 py-2.5 transition ${
-        active
-          ? "border-accent/70 bg-ink-600/72 shadow-lg shadow-black/15"
-          : "border-transparent bg-ink-700/32 hover:border-white/10 hover:bg-ink-700/58"
-      } ${selected ? "ring-2 ring-sky-400/70" : ""}`}
+      data-active={active}
+      className={`hit-line-left group cursor-pointer rounded-md px-2.5 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+        active ? "bg-white/[0.06]" : "hover:bg-white/[0.035]"
+      } ${selected ? "!bg-sky-400/[0.08] ring-1 ring-inset ring-sky-400/45" : ""}`}
     >
       <div className="flex items-center gap-2">
         <span
-          className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/30"
+          className="h-2 w-2 shrink-0 rounded-full"
           style={{ backgroundColor: color }}
         />
         {editing ? (
@@ -399,7 +400,7 @@ function DiffRow({
               if (e.key === "Enter") commit();
               else if (e.key === "Escape") cancel();
             }}
-            className="min-w-0 flex-1 rounded border border-accent/70 bg-ink-800 px-1 py-0.5 text-sm font-medium text-slate-100 outline-none"
+            className="min-w-0 flex-1 rounded bg-black/30 px-1 py-px text-sm font-medium text-slate-100 outline-none ring-1 ring-accent/70"
           />
         ) : (
           <MarqueeText
@@ -409,11 +410,11 @@ function DiffRow({
               startEditing();
             }}
             title={t("diffSidebar.doubleClickRename")}
-            className="min-w-0 flex-1 text-sm font-medium text-slate-100"
+            className={`min-w-0 flex-1 text-sm font-medium ${active ? "text-slate-50" : "text-slate-200"}`}
           />
         )}
         {(difficulty.sourceFormat === "qua" || difficulty.sourceFormat === "mc") && (
-          <span className="ml-1.5 flex-shrink-0 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+          <span className="ml-1 flex-shrink-0 rounded-sm bg-white/[0.06] px-1 text-[9px] font-semibold uppercase text-slate-400">
             {difficulty.sourceFormat}
           </span>
         )}
@@ -421,7 +422,7 @@ function DiffRow({
           <img
             src={`/${difficulty.sourceFormat === "sm" ? "etterna-logo" : "osu-logo"}.png`}
             alt={difficulty.sourceFormat}
-            className="ml-1.5 h-3.5 w-3.5 object-contain opacity-70 flex-shrink-0"
+            className="ml-1 h-3.5 w-3.5 flex-shrink-0 object-contain opacity-60"
             title={
               difficulty.sourceFormat === "sm"
                 ? t("sampleMaps.etternaMap")
@@ -450,40 +451,49 @@ function DiffRow({
             ))}
           </span>
         )}
-        <span className="text-[10px] text-slate-500">{difficulty.keyCount}K</span>
+        <span className="text-2xs font-medium tabular-nums text-slate-500">{difficulty.keyCount}K</span>
       </div>
 
-      <div className="mt-1 flex items-center justify-between gap-1.5 pl-5">
-        <span className="flex min-w-0 items-center gap-1.5">
+      <div className="mt-1 flex items-center justify-between gap-1.5 pl-4">
+        <span className="flex min-w-0 items-center gap-2">
           <span
-            className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold"
+            className="shrink-0 whitespace-nowrap rounded-full px-1.5 py-px text-[11px] font-bold tabular-nums"
             style={{ backgroundColor: color, color: starTextOn(star) }}
           >
             ★ {star.toFixed(2)}
           </span>
           {msdSupportsKeyCount(difficulty.keyCount) && msd && msd.overall > 0 && (
             <span
-              className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-ink-900/70 px-2 py-0.5 text-[11px] font-bold"
+              className="shrink-0 whitespace-nowrap text-[11px] font-semibold tabular-nums"
               style={{ color: msdColor(msd.overall) }}
               title={msdTooltip(msd, difficulty.keyCount)}
             >
-              {msd.overall.toFixed(2)} MSD
+              {msd.overall.toFixed(2)}
+              <span className="ml-0.5 text-[9px] font-medium opacity-70">MSD</span>
             </span>
           )}
         </span>
-        <span className="truncate text-[10px] text-slate-500">
+        <span className="truncate text-2xs text-slate-500">
           {starTier(star)}
         </span>
       </div>
 
-      <div className="mt-1.5 flex items-center gap-2 pl-5">
+      {/* Row actions stay out of the way until the row is pointed at,
+          focused or open. */}
+      <div
+        className={`flex items-center gap-0.5 pl-3 transition-[opacity,max-height,margin] duration-[var(--motion-quick)] ${
+          active || selected
+            ? "mt-1 max-h-6 opacity-100"
+            : "max-h-0 overflow-hidden opacity-0 group-hover:mt-1 group-hover:max-h-6 group-hover:opacity-100 group-focus-within:mt-1 group-focus-within:max-h-6 group-focus-within:opacity-100"
+        }`}
+      >
         <button
           onClick={(e) => {
             e.stopPropagation();
             onCopy();
           }}
           title={t("diffSidebar.copyTitle")}
-          className="text-[10px] text-slate-400 transition duration-150 hover:text-slate-200"
+          className="rounded px-1 py-0.5 text-2xs text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-100"
         >
           {t("common.copy")}
         </button>
@@ -492,7 +502,7 @@ function DiffRow({
             e.stopPropagation();
             onDuplicate();
           }}
-          className="text-[10px] text-slate-400 transition duration-150 hover:text-slate-200"
+          className="rounded px-1 py-0.5 text-2xs text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-100"
         >
           {t("common.duplicate")}
         </button>
@@ -508,7 +518,7 @@ function DiffRow({
                 ? t("diffSidebar.deleteManyTitle", { count: selectionCount })
                 : t("diffSidebar.deleteOneTitle")
             }
-            className="rounded px-1 py-0.5 text-[10px] text-slate-400 transition duration-150 hover:text-red-300"
+            className="rounded px-1 py-0.5 text-2xs text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300"
           >
             {selected && selectionCount > 1
               ? t("diffSidebar.deleteMany", { count: selectionCount })
