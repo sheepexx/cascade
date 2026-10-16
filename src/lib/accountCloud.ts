@@ -4,6 +4,7 @@ import { isLocale } from "./i18n/core";
 import { getSupabase } from "./supabase";
 import { normalizePlaytestTiming } from "./playtestClock";
 import { normalizeHudLayout } from "./hudLayout";
+import { normalizeMapOverviewLayout } from "./mapOverview";
 import {
   deleteUserMenuBackground,
   deleteUserSkin,
@@ -118,6 +119,8 @@ export function normalizeAccountSettings(
           ? rawApp.snapPreset
           : DEFAULT_APP_SETTINGS.snapPreset,
         customSnapDivisors: normalizeCustomDivisors(rawApp.customSnapDivisors),
+        showMapOverview: rawApp.showMapOverview === true,
+        mapOverview: normalizeMapOverviewLayout(rawApp.mapOverview),
         playtest: {
           ...normalizePlaytestTiming(
             { ...DEFAULT_APP_SETTINGS.playtest, ...rawPlaytest },

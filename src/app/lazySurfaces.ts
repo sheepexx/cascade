@@ -34,6 +34,11 @@ export const PPCounter = lazyWithPreload(() =>
 export const TransportBar = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.TransportBar })),
 );
+// Its own chunk, fetched the first time the overview is turned on: it is off
+// by default, so most sessions never load it.
+export const MapOverview = lazyWithPreload(() =>
+  import("../components/MapOverview").then((m) => ({ default: m.MapOverview })),
+);
 export const SharedMapPage = lazyWithPreload(() =>
   import("../components/SharedMapPage").then((m) => ({
     default: m.SharedMapPage,
@@ -246,3 +251,4 @@ export const MemoizedBottomTimeline = memo(BottomTimeline);
 export const MemoizedDifficultySidebar = memo(DifficultySidebar);
 export const MemoizedPPCounter = memo(PPCounter);
 export const MemoizedPlaytestNpsGraph = memo(PlaytestNpsGraph);
+export const MemoizedMapOverview = memo(MapOverview);

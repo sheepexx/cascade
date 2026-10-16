@@ -11,6 +11,21 @@ import { parseOsuFile } from "../osuImport";
 import { validateProject } from "../validation";
 import { packNotes } from "../recovery";
 import { DEFAULT_SONG_META, type Difficulty, type ManiaNote } from "../../types";
+import { notesByTime } from "../notesMemo";
+import {
+  overviewBars,
+  overviewColumns,
+  overviewGrid,
+  overviewSpan,
+  paintOverviewRaster,
+  rasterizeOverview,
+  stripRows,
+  stripStart,
+  visibleStrips,
+} from "../mapOverview";
+
+/** Stands in for a canvas: painting runs, only the drawing is skipped. */
+const countingContext = { fillStyle: "", globalAlpha: 1, fillRect: () => {} };
 
 /**
  * How Cascade's per-edit, import and export work scales with chart size.
@@ -66,6 +81,22 @@ describe("editor work at scale", () => {
       record("Map stats, edited difficulty", "once per edit, deferred", median(() => computeMapStats(notes.slice(), difficulty.keyCount), repeat));
       record("Unsnapped count", "with AiMod open", median(() => countUnsnapped(notes, timingPoints), repeat));
       record("NPS series", "every edit", median(() => computeNpsSeries(notes), repeat));
+      // The map overview's note layer, without the canvas: what an edit costs
+      // with the panel open (in its default size) after the shared sort.
+      const overviewIndex = notesByTime(notes);
+      const span = overviewSpan(overviewIndex, 0);
+      const bars = overviewBars(timingPoints);
+      const drawStrips = (layout: { mode: "fit" | "scroll"; zoom: number }) => {
+        const grid = overviewGrid(span, bars, { width: 312, height: 314 }, 7, layout, false);
+        const [first, last] = visibleStrips(grid, 0, 312);
+        let raster = null;
+        for (let strip = first; strip <= last; strip++) {
+          raster = rasterizeOverview(overviewIndex, 7, stripStart(grid, strip), stripStart(grid, strip) + grid.stripMs, stripRows(grid, strip, 2), 628, 2, () => 0, raster);
+          paintOverviewRaster(countingContext, raster, overviewColumns(0, grid.stripWidth * 2, 7, 2), ["#fff"]);
+        }
+      };
+      record("Map overview, whole map (fit)", "every edit, overview open", median(() => drawStrips({ mode: "fit", zoom: 48 }), repeat));
+      record("Map overview, scrolled view", "every scroll step", median(() => drawStrips({ mode: "scroll", zoom: 48 }), repeat));
       record("Recovery copy, note objects (before)", "edit pause", median(() => structuredClone(difficulty), repeat));
       record("Recovery copy, packed (now)", "edit pause", median(() => structuredClone({ ...difficulty, notes: [], packedNotes: packNotes(difficulty.notes) }), repeat));
       const text = buildOsuFile({ meta: DEFAULT_SONG_META, difficulty, timingPoints, audioFilename: "audio.mp3" });

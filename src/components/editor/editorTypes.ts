@@ -7,6 +7,7 @@ import { type LaneColourScheme } from "../../lib/laneColours";
 import type { Waveform } from "../../hooks/useWaveform";
 import type { Ref } from "react";
 import { type AudioSeekSignal, type AudioSeekTransition } from "../../lib/audioSeek";
+import type { EditorViewportChannel } from "../../lib/editorViewport";
 
 /**
  * Types the editor's component and its hooks share.
@@ -108,6 +109,8 @@ export type ManiaEditorProps = {
   playfieldBoundsRef?: {
     current: { left: number; width: number; hitY: number; height: number } | null;
   };
+  /** Receives the time range on screen each frame, for the map overview. */
+  viewportChannel?: EditorViewportChannel;
   /** Long notes let go or missed, drawn dimmed as they scroll by. */
   droppedIdsRef?: { readonly current: { has(id: string): boolean } };
   waveformOverlay?: Waveform | null;

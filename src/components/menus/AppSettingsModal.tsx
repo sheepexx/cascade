@@ -103,6 +103,8 @@ type Props = {
   showPpCounter: boolean;
   showSkillsetGraph: boolean;
   onShowSkillsetGraph: (value: boolean) => void;
+  showMapOverview: boolean;
+  onShowMapOverview: (value: boolean) => void;
   colourblindLanes: boolean;
   onColourblindLanes: (value: boolean) => void;
   snapColouredNotes: boolean;
@@ -256,6 +258,8 @@ export function AppSettingsModal({
   showPpCounter,
   showSkillsetGraph,
   onShowSkillsetGraph,
+  showMapOverview,
+  onShowMapOverview,
   colourblindLanes,
   onColourblindLanes,
   snapColouredNotes,
@@ -841,6 +845,13 @@ export function AppSettingsModal({
                 checked={showSkillsetGraph}
                 disabled={!showBottomTimeline}
                 onChange={onShowSkillsetGraph}
+              />
+              <SettingToggle
+                label={t("settings.showMapOverview")}
+                tip={t("settings.showMapOverviewHint")}
+                diagram="mapOverview"
+                checked={showMapOverview}
+                onChange={onShowMapOverview}
               />
               <SettingToggle
                 label={t("settings.showPpCounter")} tip={t("settings.layoutHint")} diagram="ppPanel"

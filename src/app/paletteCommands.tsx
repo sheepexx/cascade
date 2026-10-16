@@ -177,6 +177,7 @@ export function buildPaletteCommands({
     { key: "settings.showDifficultyPanel", tab: "Editor", keywords: "layout sidebar stats" },
     { key: "settings.showBottomTimeline", tab: "Editor", keywords: "layout sv" },
     { key: "settings.simplifyBottomTimeline", tab: "Editor" },
+    { key: "settings.showMapOverview", tab: "Editor", keywords: "minimap whole chart preview navigate grid" },
     { key: "settings.showPpCounter", tab: "Editor", keywords: "speed" },
     { key: "settings.showPatternTools", tab: "Editor", keywords: "presets" },
     { key: "settings.showSkillsetGraph", tab: "Editor", keywords: "msd minacalc etterna stream jack chordjack difficulty graph" },
@@ -379,6 +380,13 @@ export function buildPaletteCommands({
             label: appSettings.showBottomTimeline ? t("app.hideBottomTimeline") : t("app.showBottomTimeline"),
             group: t("palette.group.view"),
             run: () => setAppSettings((value) => ({ ...value, showBottomTimeline: !value.showBottomTimeline })),
+          },
+          {
+            id: "map-overview",
+            label: appSettings.showMapOverview ? t("app.hideMapOverview") : t("app.showMapOverview"),
+            group: t("palette.group.view"),
+            keywords: "minimap whole chart preview navigate grid",
+            run: () => setAppSettings((value) => ({ ...value, showMapOverview: !value.showMapOverview })),
           },
           {
             id: "playfield-layout",

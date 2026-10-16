@@ -78,6 +78,7 @@ import {
 import { useMenuMusic } from "./hooks/useMenuMusic";
 import { dialogIsOpen } from "./hooks/useDialog";
 import type { AudioSeekTransition } from "./lib/audioSeek";
+import { createEditorViewportChannel } from "./lib/editorViewport";
 import {
   loadEditorWorkspace,
   CommentsSidebar,
@@ -119,6 +120,7 @@ import {
   MemoizedDifficultySidebar,
   MemoizedPPCounter,
   MemoizedPlaytestNpsGraph,
+  MemoizedMapOverview,
 } from "./app/lazySurfaces";
 import {
   hasDraggedFiles,
@@ -222,6 +224,7 @@ import {
   type BackgroundScope,
   type Difficulty,
   type LoadedFile,
+  type MapOverviewLayout,
   type SongMeta,
   type TimingPoint,
   type ViewState,
@@ -1089,6 +1092,21 @@ export default function App() {
     timingPoints[0]?.bpm !== 120 ||
     !hasDefaultDifficulty;
   const showChrome = hasProject && !zenMode && !playtest.active;
+  // A floating desktop tool: the phone layout keeps its screen for the chart,
+  // and the layout editor wants the playfield clear.
+  const mapOverviewShown =
+    showChrome && !phoneViewport && !layoutEditing && appSettings.showMapOverview;
+  // Carries the playfield's visible range to the overview each frame.
+  const [editorViewport] = useState(createEditorViewportChannel);
+  const patchMapOverview = useCallback(
+    (patch: Partial<MapOverviewLayout>) =>
+      setAppSettings((s) => ({ ...s, mapOverview: { ...s.mapOverview, ...patch } })),
+    [setAppSettings],
+  );
+  const closeMapOverview = useCallback(
+    () => setAppSettings((s) => ({ ...s, showMapOverview: false })),
+    [setAppSettings],
+  );
   const diffPanelOpen = appSettings.difficultyPanelOpen !== false;
   const diffPanelShown = showChrome && diffPanelOpen && !phoneViewport;
   const showChromeRef = useRef(showChrome);
@@ -3233,6 +3251,7 @@ export default function App() {
                 readOnly={!canEdit}
                 playtestMode={playtest.active}
                 playfieldBoundsRef={playfieldBoundsRef}
+                viewportChannel={mapOverviewShown ? editorViewport : undefined}
                 heldLnIdsRef={playtestHoldingView}
                 consumedIdsRef={playtestHiddenView}
                 droppedIdsRef={playtestDroppedView}
@@ -3396,6 +3415,29 @@ export default function App() {
               )}
             </div>
             </div>
+            {mapOverviewShown && (
+              // Its own boundary: loading the chunk must not blank the editor.
+              <Suspense fallback={null}>
+                <MemoizedMapOverview
+                  notes={active.notes}
+                  keyCount={active.keyCount}
+                  timingPoints={activeTimingPoints}
+                  durationMs={audio.duration}
+                  upscroll={appSettings.upscroll}
+                  snapDivisor={view.snapDivisor}
+                  snapColours={appSettings.snapColouredNotes}
+                  laneColourScheme={appSettings.colourblindLanes ? "colourblind" : "default"}
+                  selectedIds={selectionRange?.ids ?? null}
+                  viewport={editorViewport}
+                  getCurrentTime={getEditorCurrentTime}
+                  playfieldBoundsRef={playfieldBoundsRef}
+                  layout={appSettings.mapOverview}
+                  onLayout={patchMapOverview}
+                  onSeek={seekAudio}
+                  onClose={closeMapOverview}
+                />
+              </Suspense>
+            )}
             {hasProject && playtest.active && (
               <PlaytestOverlay
                 editing={playtest.hudEditing}
@@ -3789,6 +3831,10 @@ export default function App() {
           moveNotesWithTiming={appSettings.moveNotesWithTiming}
           onMoveNotesWithTiming={(v) =>
             setAppSettings((s) => ({ ...s, moveNotesWithTiming: v }))
+          }
+          showMapOverview={appSettings.showMapOverview}
+          onShowMapOverview={(v) =>
+            setAppSettings((s) => ({ ...s, showMapOverview: v }))
           }
           showPpCounter={appSettings.showPpCounter}
           onShowPpCounter={(v) =>
