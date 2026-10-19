@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   CAPABILITIES,
   compareCharts,
@@ -73,7 +74,7 @@ function walk(dir: string, out: Source[], depth = 0): void {
 }
 
 function corpus(): Source[] {
-  const root = new URL("../../", import.meta.url).pathname.replace(/\/$/, "");
+  const root = fileURLToPath(new URL("../../", import.meta.url)).replace(/\/$/, "");
   const sources: Source[] = [];
   walk(`${root}/src/lib/fixtures`, sources);
   walk(`${root}/public/maps`, sources);
