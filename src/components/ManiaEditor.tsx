@@ -1159,7 +1159,9 @@ export function ManiaEditor(props: ManiaEditorProps) {
     if (!canvas) return;
     let ctx = ctxRef.current;
     if (!ctx || ctx.canvas !== canvas) {
-      ctx = canvas.getContext("2d");
+      // Every frame paints an opaque background. Avoid a full-size alpha
+      // surface and blend pass, especially on WebKitGTK's compositor.
+      ctx = canvas.getContext("2d", { alpha: false });
       ctxRef.current = ctx;
     }
     if (!ctx) return;
@@ -1183,8 +1185,6 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, height);
-
     ctx.fillStyle = "#0f0f14";
     ctx.fillRect(0, 0, width, height);
 

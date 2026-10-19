@@ -431,8 +431,11 @@ name = "cascade"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "cc",
  "discord-rich-presence",
+ "gtk",
  "minisign-verify 0.2.5",
+ "pkg-config",
  "rosu-mem",
  "serde",
  "serde_json",
@@ -444,6 +447,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "wasapi",
+ "webkit2gtk",
  "windows 0.48.0",
  "winreg 0.56.0",
  "zip 8.6.0",
@@ -5378,8 +5382,6 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 [[package]]
 name = "wry"
 version = "0.57.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a819957a01b3119af85e638a38d242af76dbc87d130dca67bfd0441072e21ff0"
 dependencies = [
  "base64 0.22.1",
  "block2",
@@ -5395,6 +5397,7 @@ dependencies = [
  "javascriptcore-rs",
  "jni 0.21.1",
  "libc",
+ "libloading",
  "ndk",
  "objc2",
  "objc2-app-kit",

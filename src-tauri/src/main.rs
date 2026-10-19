@@ -11,6 +11,7 @@ mod native_audio;
 mod osu;
 mod portable;
 mod presence;
+mod rendering;
 mod vault;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -186,8 +187,10 @@ fn presence_update(
 }
 
 fn main() {
+    rendering::prepare();
     portable::take_over(std::env::args());
     tauri::Builder::default()
+        .on_page_load(rendering::page_loaded)
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             let paths = launch::launch_paths(argv);
             if launch::queue(app.state::<launch::Pending>().inner(), paths) {
@@ -237,6 +240,7 @@ fn main() {
             external_edit::external_edit_finish
         ])
         .setup(|app| {
+            rendering::configure(app.handle())?;
             if let Ok(dir) = app.path().app_log_dir() {
                 install_crash_log(dir, app.package_info().version.to_string());
             }
@@ -244,6 +248,9 @@ fn main() {
             launch::queue(app.state::<launch::Pending>().inner(), paths);
             osu::spawn_watcher(app.handle().clone());
             std::thread::spawn(portable::sweep);
+            if let Some(window) = app.get_webview_window("main") {
+                window.show()?;
+            }
             if std::env::var("CASCADE_DEVTOOLS").is_ok() {
                 if let Some(window) = app.get_webview_window("main") {
                     window.open_devtools();

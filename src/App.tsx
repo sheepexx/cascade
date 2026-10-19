@@ -2914,7 +2914,7 @@ export default function App() {
         } ${
           modalAtmosphereActive && !appSettings.performanceMode
             ? "scale-[0.992] blur-[2px] opacity-75"
-            : "scale-100 blur-0 opacity-100"
+            : "transform-none filter-none opacity-100"
         }`}
       >
       {isDragging && (

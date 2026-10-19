@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "public", "skin", "worker", "scripts", "tests/integration/.results"] },
+  { ignores: ["dist", "node_modules", "public", "skin", "worker", "scripts", "src-tauri/target", "src-tauri/vendor", "tests/integration/.results"] },
   {
     // The integration suite: Node for the backend and Playwright specs, a
     // browser for the harness page.

@@ -13,6 +13,7 @@
     "windows": [
       {
         "label": "main",
+        "visible": false,
         "title": "Cascade",
         "width": 1440,
         "height": 900,
@@ -56,6 +57,11 @@
     "copyright": "sheepex",
     "publisher": "sheepex",
     "homepage": "https://cascade.sheepex.net",
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    },
     "fileAssociations": [
       {
         "ext": ["osz"],

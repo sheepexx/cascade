@@ -53,6 +53,11 @@ jobs:
             libxdo-dev \
             libssl-dev \
             libgtk-3-dev \
+            libdrm-dev \
+            gstreamer1.0-tools \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-libav \
             patchelf \
             build-essential \
             file
@@ -86,6 +91,19 @@ jobs:
           VITE_KLIPY_APP_KEY: ${{ vars.VITE_KLIPY_APP_KEY }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Verify AppImage media bundle
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          image=$(realpath "src-tauri/target/release/bundle/appimage/Cascade_${{ steps.version.outputs.value }}_amd64.AppImage")
+          check_script="$PWD/scripts/check-appimage-media.sh"
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT
+          cd "$work"
+          "$image" --appimage-extract > /dev/null
+          bash "$check_script" "$work/squashfs-root"
 
       - name: Collect installers
         shell: bash
