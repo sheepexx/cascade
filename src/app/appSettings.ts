@@ -11,6 +11,7 @@ import { normalizePlaytestTiming } from "../lib/playtestClock";
 import { normalizePlaytestKeybinds } from "../lib/playtestKeybinds";
 import { normalizeHudLayout } from "../lib/hudLayout";
 import { normalizePlaytestSkin } from "../lib/playtestSkin";
+import { normalizeMapOverviewLayout } from "../lib/mapOverview";
 
 export function normalizeHumanize(
   saved: Partial<HumanizeSettings> | undefined,
@@ -62,6 +63,8 @@ export function normalizeAppSettings(
     altWheelAction: isAltWheelAction(prefs?.altWheelAction)
       ? prefs.altWheelAction
       : DEFAULT_APP_SETTINGS.altWheelAction,
+    showMapOverview: prefs?.showMapOverview === true,
+    mapOverview: normalizeMapOverviewLayout(prefs?.mapOverview),
     playtest: {
       ...normalizePlaytestTiming(
         { ...DEFAULT_APP_SETTINGS.playtest, ...(playtestPrefs ?? {}) },

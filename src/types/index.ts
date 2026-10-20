@@ -452,6 +452,28 @@ export function isAltWheelAction(value: unknown): value is AltWheelAction {
 /** "song" follows the menu music's art; "custom" uses the account's upload. */
 export type MenuBackgroundMode = "song" | "custom";
 
+/**
+ * Where the map overview panel sits in the editor area, in CSS pixels. `x` is
+ * measured from the edge named by `side`, so a panel kept on the right stays
+ * there when the window is resized.
+ */
+export type MapOverviewRect = {
+  side: "left" | "right";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type MapOverviewLayout = {
+  /** "fit" squeezes the whole map into the panel; "scroll" keeps `zoom`. */
+  mode: "fit" | "scroll";
+  /** Scrollable mode's scale, in pixels per second of map time. */
+  zoom: number;
+  /** null until the panel is first moved or resized; it then has a default spot. */
+  rect: MapOverviewRect | null;
+};
+
 export type AppSettings = {
   waveformSensitivity: number;
   uiScale: number;
@@ -495,6 +517,9 @@ export type AppSettings = {
   showSkillsetGraph: boolean;
   /** The graph is folded to its header row until the user opens it. */
   skillsetGraphCollapsed: boolean;
+  /** The floating overview of the whole chart. Off until the mapper turns it on. */
+  showMapOverview: boolean;
+  mapOverview: MapOverviewLayout;
   /** Default-skin notes use a palette that stays distinct for colour blindness. */
   /** The glow under a column as a note is hit. Some skins draw their own. */
   hitLight: boolean;
@@ -678,6 +703,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showPatternTools: true,
   showSkillsetGraph: true,
   skillsetGraphCollapsed: true,
+  showMapOverview: false,
+  mapOverview: { mode: "fit", zoom: 48, rect: null },
   hitLight: true,
   colourblindLanes: false,
   snapColouredNotes: false,

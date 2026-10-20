@@ -51,6 +51,7 @@ On a phone, the editor uses a full-width playfield and a toolbar at the bottom. 
 - Snap divisors up to 1/16, or free placement. Number keys change the snap, and 0 switches to free placement.
 - Smooth scrolling that glides between snap lines instead of jumping.
 - Waveform timeline at the bottom with BPM, SV, kiai, preview point and bookmark markers. Press W to also draw the waveform over the lanes, which helps when checking offset.
+- A map overview, turned on in Settings → Editor or from the command palette, floats over the editor with the whole chart cut into strips side by side, the way SDVX and Malody editors preview a chart: every note in its column, long notes at full length, bar lines, the playhead and the part of the map on screen. Click or drag in it to move there, or drag the highlighted part to move the view. **Fit** shows the whole map at once; **Scroll** keeps a zoom (Ctrl + wheel, or − and +) and scrolls sideways. Drag its header to move it and its edges to resize it.
 - Receptors (R), zen mode (Tab) to hide every panel, and a hitsound edit mode (H).
 - A reference view that shows another difficulty next to the one you are editing.
 - Upscroll or downscroll, background dim, note height, long note body width, interface scale and a performance mode for slower machines. These only change what you see in the editor.

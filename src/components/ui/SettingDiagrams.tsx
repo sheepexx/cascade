@@ -16,6 +16,7 @@ export type DiagramName =
   | "difficultyPanel"
   | "bottomTimeline"
   | "ppPanel"
+  | "mapOverview"
   | "backgroundDim"
   | "sizeZoom"
   | "noteHeight"
@@ -184,6 +185,27 @@ export function SettingDiagram({
           <Playfield x={40} width={56} />
           <rect x={106} y={4} width={26} height={H - 26} rx={2} fill={LINE} />
           <Highlight x={4} y={H - 18} width={W - 8} height={14} />
+        </Frame>
+      );
+    case "mapOverview":
+      return (
+        <Frame>
+          <rect x={4} y={4} width={26} height={H - 8} rx={2} fill={LINE} />
+          <Playfield x={38} width={52} />
+          <Highlight x={98} y={6} width={34} height={H - 12} />
+          {/* The chart in strips side by side: staircases, a hold, the playhead. */}
+          {[0, 1, 2].map((strip) => (
+            <g key={strip}>
+              <rect x={100 + strip * 10.5} y={9} width={9} height={H - 18} fill={WELL} opacity={0.7} />
+              {[0, 1, 2, 3, 0, 1, 2, 3].map((column, i) => (
+                <g key={i}>
+                  {note(100.5 + strip * 10.5 + column * 2.1, 60 - i * 6, 1.8, 1.5, column % 2 ? NOTE_ALT : NOTE)}
+                </g>
+              ))}
+            </g>
+          ))}
+          <rect x={111.2 + 2.1 * 2} y={12} width={1} height={16} fill={NOTE} opacity={0.6} />
+          <rect x={110} y={38} width={10} height={1.5} fill={ACCENT} />
         </Frame>
       );
     case "ppPanel":

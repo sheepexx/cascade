@@ -31,6 +31,8 @@ import {
   stepToSnap,
 } from "../lib/timing";
 import { buildSvMap, svPositionAt, svTimeAt } from "../lib/sv";
+import { firstNoteFrom, notesByTime } from "../lib/notesMemo";
+import { publishEditorViewport } from "../lib/editorViewport";
 import { notesToPattern } from "../lib/patterns";
 import {
   NOTE_CLIP_DRAG_TYPE,
@@ -1107,17 +1109,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
     [timeToY],
   );
 
-  const sortedNotes = useMemo(() => {
-    const list = [...props.notes].sort((a, b) => a.startTime - b.startTime);
-    let maxDur = 0;
-    for (const n of list) {
-      if (n.endTime !== undefined) {
-        const d = n.endTime - n.startTime;
-        if (d > maxDur) maxDur = d;
-      }
-    }
-    return { list, maxDur };
-  }, [props.notes]);
+  const sortedNotes = useMemo(() => notesByTime(props.notes), [props.notes]);
   const sortedNotesRef = useRef(sortedNotes);
   sortedNotesRef.current = sortedNotes;
 
@@ -1143,16 +1135,6 @@ export function ManiaEditor(props: ManiaEditorProps) {
   const overlayPeaksRef = useRef(overlayPeaks);
   overlayPeaksRef.current = overlayPeaks;
 
-  const firstNoteFrom = useCallback((list: ManiaNote[], t: number) => {
-    let lo = 0;
-    let hi = list.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (list[mid].startTime < t) lo = mid + 1;
-      else hi = mid;
-    }
-    return lo;
-  }, []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1420,6 +1402,8 @@ export function ManiaEditor(props: ManiaEditorProps) {
     const edgeTimeB = yToTime(height);
     const topTime = Math.max(edgeTimeA, edgeTimeB);
     const bottomTime = Math.min(edgeTimeA, edgeTimeB);
+    const viewportChannel = propsRef.current.viewportChannel;
+    if (viewportChannel) publishEditorViewport(viewportChannel, bottomTime, topTime, ct);
     // A near-frozen SV region (0.01x) inflates the visible time window up to
     // 100x; skip grid lines rather than stroke thousands of them per frame.
     const gridOverload =
@@ -1887,7 +1871,6 @@ export function ManiaEditor(props: ManiaEditorProps) {
     ctx.restore();
   }, [
     columnAtX,
-    firstNoteFrom,
     laneColor,
     laneGeometry,
     liveCurrentTime,
