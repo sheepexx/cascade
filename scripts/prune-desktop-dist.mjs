@@ -10,6 +10,7 @@ const DROP_FILES = [
   "sw.js",
   "sw.js.map",
   "registerSW.js",
+  "404.js",
 ];
 const DROP_PATTERNS = [/^og.*\.(png|jpg)$/, /^workbox-.*\.js$/, /\.html$/];
 

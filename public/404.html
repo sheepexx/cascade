@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="robots" content="noindex" />
+    <title>Combo break (404) | Cascade</title>
+    <meta name="description" content="This page isn't in the beatmap." />
+    <style>
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/quicksand-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/quicksand-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/quicksand-latin-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/quicksand-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/quicksand-latin-ext-700-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/quicksand-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+      :root {
+        color-scheme: dark;
+        --bg: #0b0b10;
+        --well: #09090d;
+        --text: #e6e8ee;
+        --muted: #9aa0ad;
+        --faint: #6b7180;
+        --accent: #e86868;
+        --accent-soft: #f48a8a;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--muted);
+        font-family: "Quicksand", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--accent-soft); text-underline-offset: 4px; }
+      a:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 4px; }
+      .shell { display: flex; flex-direction: column; min-height: 100%; max-width: 860px; margin: 0 auto; padding: 26px 24px 40px; }
+      .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-weight: 700; font-size: 1.1rem; text-decoration: none; }
+      .brand img { width: 32px; height: 32px; }
+      .stage { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 56px; padding: 40px 0; }
+      .eyebrow { margin: 0 0 14px; color: var(--accent); font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; }
+      h1 { margin: 0 0 14px; color: var(--text); font-size: clamp(2rem, 5.5vw, 2.9rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.035em; }
+      .lede { margin: 0; max-width: 30rem; font-size: 1.05rem; }
+      code { padding: 1px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.06); color: var(--text); font-family: var(--mono); font-size: 0.85em; word-break: break-all; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 9px 18px; border: 1px solid #33333f; border-radius: 8px; color: var(--text); background: #1d1d27; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: background 0.15s ease, border-color 0.15s ease; }
+      .btn:hover { background: #272733; border-color: #44444f; }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #0b0b10; }
+      .btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
+      .play { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 0; }
+      .play canvas { display: block; width: 232px; height: 440px; border-radius: 14px; background: var(--well); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 30px 60px -30px rgba(0, 0, 0, 0.9); touch-action: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+      .play figcaption { max-width: 232px; color: var(--faint); font-size: 0.8rem; line-height: 1.5; text-align: center; }
+      .play figcaption strong { color: var(--muted); font-weight: 600; }
+      .play figcaption strong:not([hidden]) { display: block; margin-top: 4px; }
+      kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 1.35rem; height: 1.35rem; padding: 0 0.35rem; border-radius: 4px; background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09), inset 0 -2px 0 rgba(0, 0, 0, 0.35); color: #c0bfcc; font-family: var(--mono); font-size: 0.6875rem; }
+      .touch-only { display: none; }
+      .no-js .play { display: none; }
+      @media (pointer: coarse) {
+        .key-only { display: none; }
+        .touch-only { display: inline; }
+      }
+      @media (max-width: 720px) {
+        .shell { padding: 20px 16px 32px; }
+        .stage { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 32px 0 0; }
+        .play canvas { width: min(232px, 100%); height: 360px; }
+      }
+      @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <a class="brand" href="/"><img src="/favicon.png?v=3" alt="" />Cascade</a>
+
+      <section class="stage">
+        <div>
+          <p class="eyebrow">404 · NOT FOUND</p>
+          <h1>Combo broken at 404x</h1>
+          <p class="lede">
+            There's no note at <code data-path>this address</code>. It was
+            deleted, moved, or never mapped in the first place.
+          </p>
+          <div class="actions">
+            <a class="btn primary" href="/">Open the editor</a>
+            <a class="btn" href="/docs">Read the docs</a>
+          </div>
+        </div>
+
+        <figure class="play">
+          <canvas
+            data-playfield
+            role="img"
+            aria-label="An autoplay run on a four-lane playfield misses a note and breaks its 404 combo. Press D, F, J and K, or tap the lanes, to play."
+          ></canvas>
+          <figcaption>
+            <span class="key-only">Press <kbd>D</kbd> <kbd>F</kbd> <kbd>J</kbd> <kbd>K</kbd> to take over from autoplay.</span>
+            <span class="touch-only">Tap the lanes to take over from autoplay.</span>
+            <strong data-best hidden></strong>
+          </figcaption>
+        </figure>
+      </section>
+    </main>
+    <script src="/404.js" defer></script>
+  </body>
+</html>
