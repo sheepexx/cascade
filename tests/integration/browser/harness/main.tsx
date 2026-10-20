@@ -239,7 +239,10 @@ function CollabHarness({ user }: { user: AuthUser }) {
       refs.difficulties.current.find((d) => d.id === refs.activeId.current)?.notes.find((n) => n.id === id);
     window.harness = {
       state: () => ({
+        // Loading the chart and joining its channel can finish before the
+        // separate access-role request. Permission checks need all three.
         ready:
+          myRole !== null &&
           !!refs.difficulties.current.length &&
           latest.current.session.collab.status === "connected" &&
           latest.current.session.cloudSync.revision !== null,
