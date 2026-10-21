@@ -242,6 +242,25 @@ describe("createPlaybackClock", () => {
     expect(Number.isFinite(clock.read(7, -3, 21))).toBe(true);
   });
 
+  it("holds still rather than stepping back after the backend stalls", () => {
+    const clock = createPlaybackClock();
+    const frame = 1000 / 60;
+    let prev = -Infinity;
+    let behind = 0;
+    for (let i = 0; i < 240; i++) {
+      const wall = i * frame;
+      // The audio clock freezes for 150ms a second in, then carries on from
+      // where it stopped, so it ends up that far behind the wall clock.
+      if (wall > 1000 && wall < 1150) behind = wall - 1000;
+      const source = Math.floor((wall - behind) / 10) * 10 / 1000;
+      const out = clock.read(source, 1, wall);
+      expect(out).toBeGreaterThanOrEqual(prev);
+      prev = out;
+    }
+    // And it has caught up with the audio again rather than staying ahead.
+    expect(Math.abs(prev - (239 * frame - 150) / 1000)).toBeLessThan(0.02);
+  });
+
   it("stays monotonic while playing forward", () => {
     const clock = createPlaybackClock();
     const frame = 1000 / 144;

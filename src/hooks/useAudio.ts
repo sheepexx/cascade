@@ -23,21 +23,23 @@ import type {
 } from "../lib/audioSeek";
 import { createSeekVisualClock } from "../lib/seekVisualClock";
 import {
-  HANDOFF_CROSSFADE_SECONDS,
-  HANDOFF_GIVE_UP_MS,
-  HANDOFF_LOCK_FRAMES,
-  HANDOFF_LOCK_SECONDS,
-  HANDOFF_MAX_SEEKS,
-  HANDOFF_RESEEK_SECONDS,
-  HANDOFF_STARTUP_GUESS_SECONDS,
-  handoffCatchUpRate,
-  learnHandoffStartup,
-} from "../lib/pitchHandoff";
+  SongVoice,
+  loadStretchSong,
+  type StretchSongHandle,
+} from "../lib/timeStretchEngine";
+import {
+  easeOutCubic,
+  positionAt,
+  rateAt,
+  type RateTransition,
+} from "../lib/rateTransition";
 import { useNativeAudio } from "./useNativeAudio";
 import { supportsExclusiveAudio } from "../lib/nativeAudio";
 
 const RATE_RAMP_SECONDS = 0.34;
 const CLOCK_UI_INTERVAL_MS = 100;
+/** Crossfade when a buffer source hands over to a SongVoice mid-play. */
+const VOICE_SWAP_SECONDS = 0.02;
 
 const MIN_EFFECTIVE_RATE = 0.0625;
 const MAX_EFFECTIVE_RATE = 8;
@@ -48,13 +50,14 @@ const clampTimeScale = (scale: number): number =>
 const clampEffectiveRate = (rate: number): number =>
   Math.max(MIN_EFFECTIVE_RATE, Math.min(MAX_EFFECTIVE_RATE, rate));
 
-type RateTransition = {
-  startCtxTime: number;
-  startPosition: number;
-  from: number;
-  to: number;
-  duration: number;
-};
+/**
+ * What a decoded song plays through. A buffer source follows its playbackRate
+ * param; a SongVoice is handed the playback model itself and keeps the pitch
+ * by itself whenever it should. `gain` is per voice, so two can crossfade.
+ */
+type WebVoice =
+  | { kind: "buffer"; source: AudioBufferSourceNode; gain: GainNode }
+  | { kind: "song"; source: SongVoice; gain: GainNode };
 
 export type AudioRegion = {
   startMs?: number;
@@ -63,11 +66,6 @@ export type AudioRegion = {
   fadeOutMs?: number;
   loop?: boolean;
 };
-
-const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
-
-const easeOutCubicIntegral = (t: number): number =>
-  1.5 * t * t - t * t * t + 0.25 * t * t * t * t;
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
@@ -113,21 +111,20 @@ export function useAudio(
   const gainRef = useRef<GainNode | null>(null);
   const filterRef = useRef<BiquadFilterNode | null>(null);
   const fadeGainRef = useRef<GainNode | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const voiceRef = useRef<WebVoice | null>(null);
   const bufferRef = useRef<AudioBuffer | null>(buffer ?? null);
   const positionRef = useRef(0);
   const startCtxTimeRef = useRef(0);
   const startOffsetRef = useRef(0);
   const audibleStartPositionRef = useRef(0);
   const manualStopRef = useRef(false);
-  // The buffer engine's clock: the Web Audio context ticks once per render
-  // quantum, so the raw reading repeats for several frames at a high refresh
-  // rate.
+  // The Web Audio clock: the context ticks once per render quantum, so the
+  // raw reading repeats for several frames at a high refresh rate.
   const clockRef = useRef(createPlaybackClock());
-  // The media element's clock. Its currentTime is a snapshot refreshed once
-  // per task, so on a busy page it arrives a varying amount stale; pulling the
-  // playhead toward each reading made the playfield jitter during pitch-kept
-  // slow playback.
+  // The media element's clock, for playback before the song has decoded. Its
+  // currentTime is a snapshot refreshed once per task, so on a busy page it
+  // arrives a varying amount stale; pulling the playhead toward each reading
+  // made the playfield jitter.
   const elementClockRef = useRef(createSteadyClock());
   const seekVisualClockRef = useRef(createSeekVisualClock());
 
@@ -146,6 +143,9 @@ export function useAudio(
   });
   const playbackRateRef = useRef(1);
   const rateTransitionRef = useRef<RateTransition | null>(null);
+  // The rate changes of the last moment, oldest first, so the playhead can
+  // look back one output latency to what is being heard.
+  const transitionHistoryRef = useRef<RateTransition[]>([]);
   const elementVolumeRafRef = useRef<number | null>(null);
   const elementRateRafRef = useRef<number | null>(null);
   const ambientDuckedRef = useRef(false);
@@ -162,30 +162,49 @@ export function useAudio(
   const timeScaleRef = useRef(scale);
   timeScaleRef.current = scale;
 
-  // AudioBufferSourceNode.playbackRate has no pitch correction, so preserving
-  // pitch means handing playback to the media element, which time-stretches
-  // natively. Costs output-latency compensation; see `webAudioActive`.
-  // Slowing the transport below 100% takes the same route when
-  // keepPitchWhenSlowed is on. Exclusive output cannot time-stretch, and
-  // reopening the device on every speed change would stall playback, so it
-  // keeps its engine and slowed audio still plays lower there.
-  const pitchLocked =
-    preservePitch ||
-    (keepPitchWhenSlowed &&
-      playbackRate < 1 &&
-      !(exclusive && supportsExclusiveAudio()));
+  // AudioBufferSourceNode.playbackRate has no pitch correction, so where the
+  // pitch may need keeping the decoded song plays through a SongVoice
+  // instead: the song on the audio thread, resampled just like the buffer
+  // source or time-stretched, switching between the two on the very block
+  // the rate crosses `stretchBelow`. One position drives both, on the Web
+  // Audio clock, so the switch is instant and the playhead never moves.
+  // Slowing the transport below 100% keeps the pitch when keepPitchWhenSlowed
+  // is on. Exclusive output cannot time-stretch, and reopening the device on
+  // every speed change would stall playback, so it keeps its engine and
+  // slowed audio still plays lower there.
+  const keepsPitchOnExclusive = !(exclusive && supportsExclusiveAudio());
+  const pitchCapable =
+    preservePitch || (keepPitchWhenSlowed && keepsPitchOnExclusive);
+  const pitchLockedAt = (rate: number): boolean =>
+    preservePitch || (pitchCapable && rate < 1);
+  const pitchLocked = pitchLockedAt(playbackRate);
   const preservePitchRef = useRef(pitchLocked);
   preservePitchRef.current = pitchLocked;
-  // The engine actually playing. It trails `pitchLocked` while the element is
-  // getting ready to take over, so until then everything keeps reading the
-  // buffer engine. See `armPitchHandoff`.
-  const appliedPitchRef = useRef(pitchLocked);
-  const cancelPitchHandoffRef = useRef<(() => void) | null>(null);
-  const armPitchHandoffRef = useRef<() => void>(() => {});
+  // setPlaybackRate needs the answer for its new rate before React renders.
+  const pitchLockedAtRef = useRef(pitchLockedAt);
+  pitchLockedAtRef.current = pitchLockedAt;
+  // The same rule in effective rate, for SongVoice: user rate 1 is the
+  // difficulty's own rate.
+  const stretchBelow = preservePitch
+    ? Number.POSITIVE_INFINITY
+    : pitchCapable
+      ? scale
+      : 0;
+  const stretchBelowRef = useRef(stretchBelow);
+  stretchBelowRef.current = stretchBelow;
 
-  /** Whether the buffer-source engine (rather than the element) drives playback. */
+  // The decoded song as loaded onto the audio thread for SongVoice.
+  const stretchSongRef = useRef<StretchSongHandle | null>(null);
+  // AudioWorklet is missing outside secure contexts and in old browsers. Only
+  // then does pitch-kept playback fall back to the media element, which
+  // stretches natively but cannot be held in sync as tightly.
+  const stretchUnavailableRef = useRef(false);
+  const elementEngineRef = useRef(false);
+  const syncEngineRef = useRef<() => void>(() => {});
+
+  /** Whether the Web Audio engine (rather than the element) drives playback. */
   const webAudioActive = useCallback(
-    (): boolean => bufferRef.current !== null && !appliedPitchRef.current,
+    (): boolean => bufferRef.current !== null && !elementEngineRef.current,
     [],
   );
 
@@ -275,7 +294,7 @@ export function useAudio(
     [effectivePower, rampElementVolume, targetFilterFrequency],
   );
 
-  const ensureCtx = useCallback((): AudioContext | null => {
+  const createCtx = useCallback((): AudioContext | null => {
     let ctx = ctxRef.current;
     if (!ctx) {
       const Ctor =
@@ -304,16 +323,18 @@ export function useAudio(
       filterRef.current = filter;
       fadeGainRef.current = fadeGain;
     }
-    if (ctx.state === "suspended") void ctx.resume();
     return ctx;
   }, [effectivePower, targetFilterFrequency]);
 
+  const ensureCtx = useCallback((): AudioContext | null => {
+    const ctx = createCtx();
+    if (ctx?.state === "suspended") void ctx.resume();
+    return ctx;
+  }, [createCtx]);
+
   const rateAtCtxTime = useCallback((ctxTime: number): number => {
     const tr = rateTransitionRef.current;
-    if (!tr) return effectiveRate();
-    if (tr.duration <= 0) return tr.to;
-    const t = clamp01((ctxTime - tr.startCtxTime) / tr.duration);
-    return tr.from + (tr.to - tr.from) * easeOutCubic(t);
+    return tr ? rateAt(tr, ctxTime) : effectiveRate();
   }, [effectiveRate]);
 
   const syncLivePlaybackRate = useCallback((): number => {
@@ -323,43 +344,12 @@ export function useAudio(
 
   const positionAtCtxTime = useCallback((ctxTime: number): number => {
     const tr = rateTransitionRef.current;
-    if (!tr) {
-      return (
-        startOffsetRef.current +
-        (ctxTime - startCtxTimeRef.current) * effectiveRate()
-      );
-    }
-    if (tr.duration <= 0) {
-      return tr.startPosition + (ctxTime - tr.startCtxTime) * tr.to;
-    }
-    const elapsed = Math.max(0, ctxTime - tr.startCtxTime);
-    if (elapsed <= tr.duration) {
-      const t = elapsed / tr.duration;
-      return (
-        tr.startPosition +
-        tr.from * elapsed +
-        (tr.to - tr.from) * tr.duration * easeOutCubicIntegral(t)
-      );
-    }
-    const transitioned =
-      tr.from * tr.duration +
-      (tr.to - tr.from) * tr.duration * easeOutCubicIntegral(1);
-    return tr.startPosition + transitioned + tr.to * (elapsed - tr.duration);
+    if (tr) return positionAt(tr, ctxTime);
+    return (
+      startOffsetRef.current +
+      (ctxTime - startCtxTimeRef.current) * effectiveRate()
+    );
   }, [effectiveRate]);
-
-  const webPosition = useCallback((): number => {
-    const ctx = ctxRef.current;
-    if (sourceRef.current && ctx) {
-      return clockRef.current.read(
-        positionAtCtxTime(ctx.currentTime),
-        // Instantaneous rate, so extrapolation stays right mid rate-ramp.
-        syncLivePlaybackRate(),
-        performance.now(),
-      );
-    }
-    clockRef.current.reset();
-    return positionRef.current;
-  }, [positionAtCtxTime, syncLivePlaybackRate]);
 
   const outputLatencyMs = useCallback(() => {
     const ctx = ctxRef.current;
@@ -371,31 +361,62 @@ export function useAudio(
     return lat * 1000;
   }, []);
 
-  const audibleWebPosition = useCallback(
-    (sourceSeconds: number): number =>
-      latencyCompensatedPosition(
-        sourceSeconds,
-        outputLatencyMs() / 1000,
-        syncLivePlaybackRate(),
-        audibleStartPositionRef.current,
-      ),
-    [outputLatencyMs, syncLivePlaybackRate],
+  // The context clock, smoothed into a per-frame one. Smoothing the clock
+  // rather than the song position keeps every position read off it exact
+  // through a rate ramp.
+  const smoothCtxTime = useCallback(
+    (ctx: AudioContext): number =>
+      clockRef.current.read(ctx.currentTime, 1, performance.now()),
+    [],
   );
+
+  /**
+   * Song seconds being heard at context time `ctxTime`: what was rendered one
+   * output latency before. Read off the rate that was in force back then, so
+   * a ramp moves the playhead exactly as it moves the sound. Taking
+   * `latency × rate` off the present position instead lurched the playfield
+   * forward on slowing down and back on speeding up, by up to a tenth of a
+   * second on Bluetooth headphones.
+   */
+  const positionHeardAt = useCallback(
+    (ctxTime: number): number => {
+      const t = ctxTime - outputLatencyMs() / 1000;
+      const history = transitionHistoryRef.current;
+      let i = history.length - 1;
+      while (i > 0 && history[i].startCtxTime > t) i--;
+      const heard = history[i] ? positionAt(history[i], t) : positionAtCtxTime(t);
+      return Math.max(audibleStartPositionRef.current, heard);
+    },
+    [outputLatencyMs, positionAtCtxTime],
+  );
+
+  const webPosition = useCallback((): number => {
+    const ctx = ctxRef.current;
+    if (voiceRef.current && ctx) return positionAtCtxTime(smoothCtxTime(ctx));
+    clockRef.current.reset();
+    return positionRef.current;
+  }, [positionAtCtxTime, smoothCtxTime]);
+
+  const audibleWebPosition = useCallback((): number => {
+    const ctx = ctxRef.current;
+    if (voiceRef.current && ctx) return positionHeardAt(smoothCtxTime(ctx));
+    return positionRef.current;
+  }, [positionHeardAt, smoothCtxTime]);
 
   const stopWeb = useCallback(
     (savePosition: boolean) => {
-      cancelPitchHandoffRef.current?.();
-      const source = sourceRef.current;
-      if (!source) return;
+      const voice = voiceRef.current;
+      if (!voice) return;
       if (savePosition) positionRef.current = webPosition();
       manualStopRef.current = true;
-      source.onended = null;
+      voice.source.onended = null;
       try {
-        source.stop();
+        voice.source.stop();
       } catch {
       }
-      source.disconnect();
-      sourceRef.current = null;
+      voice.source.disconnect();
+      voice.gain.disconnect();
+      voiceRef.current = null;
     },
     [webPosition],
   );
@@ -442,11 +463,19 @@ export function useAudio(
     [effectiveRate],
   );
 
-  const startWeb = useCallback((): boolean => {
+  /**
+   * Starts the decoded song from `positionRef`, through a SongVoice once the
+   * song is on the audio thread. `fadeInSeconds` and `initialRate` let a voice
+   * swap pick up seamlessly from the voice before.
+   */
+  const startWeb = useCallback((
+    fadeInSeconds = 0,
+    initialRate = effectiveRate(),
+  ): boolean => {
     const audioBuffer = bufferRef.current;
     const ctx = ensureCtx();
-    const gain = gainRef.current;
-    if (!audioBuffer || !ctx || !gain) return false;
+    const output = fadeGainRef.current ?? filterRef.current ?? gainRef.current;
+    if (!audioBuffer || !ctx || !output) return false;
     stopWeb(false);
     clockRef.current.reset();
 
@@ -467,34 +496,62 @@ export function useAudio(
       Math.min(positionRef.current, currentTimeRef.current / 1000),
     );
 
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.playbackRate.value = effectiveRate();
-    source.connect(fadeGainRef.current ?? filterRef.current ?? gain);
+    const startAt = ctx.currentTime;
+    const transition: RateTransition = {
+      startCtxTime: startAt,
+      startPosition: positionRef.current,
+      from: initialRate,
+      to: initialRate,
+      duration: 0,
+    };
+    const gain = ctx.createGain();
+    if (fadeInSeconds > 0) {
+      gain.gain.setValueAtTime(0, startAt);
+      gain.gain.linearRampToValueAtTime(1, startAt + fadeInSeconds);
+    }
+    const song = stretchSongRef.current;
+    let voice: WebVoice | null = null;
+    if (song && song.ctx === ctx && song.buffer === audioBuffer) {
+      try {
+        voice = {
+          kind: "song",
+          source: new SongVoice(song, stretchBelowRef.current),
+          gain,
+        };
+      } catch (err) {
+        // Plain playback still works without the worklet.
+        console.warn("Song voice failed to start:", err);
+      }
+    }
+    if (!voice) {
+      const node = ctx.createBufferSource();
+      node.buffer = audioBuffer;
+      node.playbackRate.value = initialRate;
+      voice = { kind: "buffer", source: node, gain };
+    }
+    voice.source.connect(gain);
+    gain.connect(output);
     scheduleFadeEnvelope(ctx, positionRef.current, durMs);
-    source.onended = () => {
+    voice.source.onended = () => {
       seekVisualClockRef.current.cancel();
-      sourceRef.current = null;
+      voiceRef.current = null;
+      gain.disconnect();
       positionRef.current = durMs / 1000;
       currentTimeRef.current = durMs;
       setCurrentTime(durMs);
       setIsPlaying(false);
     };
     startOffsetRef.current = positionRef.current;
-    startCtxTimeRef.current = ctx.currentTime;
-    rateTransitionRef.current = {
-      startCtxTime: ctx.currentTime,
-      startPosition: positionRef.current,
-      from: effectiveRate(),
-      to: effectiveRate(),
-      duration: 0,
-    };
+    startCtxTimeRef.current = startAt;
+    rateTransitionRef.current = transition;
+    transitionHistoryRef.current = [transition];
     manualStopRef.current = false;
-    source.start(0, positionRef.current);
-    sourceRef.current = source;
-    // Restarted while the element was getting ready (a seek or a loop), so
-    // aim it again from the new position.
-    if (preservePitchRef.current) armPitchHandoffRef.current();
+    if (voice.kind === "song") {
+      voice.source.start(0, transition);
+    } else {
+      voice.source.start(0, positionRef.current);
+    }
+    voiceRef.current = voice;
     return true;
   }, [duration, effectiveRate, ensureCtx, scheduleFadeEnvelope, stopWeb]);
 
@@ -532,13 +589,37 @@ export function useAudio(
     if (!buffer) return;
     hasKnownDurationRef.current = true;
     setDuration(buffer.duration * 1000);
-    const audio = audioRef.current;
-    if (audio && !audio.paused && !preservePitchRef.current) {
-      positionRef.current = audio.currentTime;
-      audio.pause();
-      if (startWebRef.current()) setIsPlaying(true);
-    }
+    // Started before the song decoded: move off the element now it has.
+    syncEngineRef.current();
   }, [buffer]);
+
+  // Copy the song onto the audio thread as soon as it decodes, so the first
+  // slow-down already has the stretch ready instead of waiting on it.
+  useEffect(() => {
+    if (!buffer || !pitchCapable) return;
+    const ctx = createCtx();
+    if (!ctx) return;
+    let cancelled = false;
+    let loaded: StretchSongHandle | null = null;
+    void loadStretchSong(ctx, buffer).then((song) => {
+      if (cancelled) {
+        song?.release();
+        return;
+      }
+      if (song) {
+        loaded = song;
+        stretchSongRef.current = song;
+      } else {
+        stretchUnavailableRef.current = true;
+      }
+      syncEngineRef.current();
+    });
+    return () => {
+      cancelled = true;
+      if (loaded && stretchSongRef.current === loaded) stretchSongRef.current = null;
+      loaded?.release();
+    };
+  }, [buffer, pitchCapable, createCtx]);
 
   useEffect(() => {
     if (typeof knownDurationMs === "number" && knownDurationMs > 0) {
@@ -645,9 +726,10 @@ export function useAudio(
   }, [isPlaying, webPosition, stopWeb, webAudioActive]);
 
   const play = useCallback(() => {
-    // With the buffer engine silent there is nothing to hand over, so start
-    // straight on the engine the pitch setting asks for.
-    if (!sourceRef.current) appliedPitchRef.current = preservePitchRef.current;
+    if (!voiceRef.current) {
+      elementEngineRef.current =
+        preservePitchRef.current && stretchUnavailableRef.current;
+    }
     const region = regionRef.current;
     if (region) {
       const startMs = Math.max(0, region.startMs ?? 0);
@@ -680,21 +762,18 @@ export function useAudio(
   const pause = useCallback(() => {
     const now = performance.now();
     const audio = audioRef.current;
-    const webWasPlaying = sourceRef.current !== null;
+    const webWasPlaying = voiceRef.current !== null;
     const visualWasMoving = seekVisualClockRef.current.active(now);
     const liveRate = syncLivePlaybackRate();
     const latencySeconds = outputLatencyMs() / 1000;
     let resumePosition = positionRef.current;
     let liveAudioPosition = currentTimeRef.current / 1000;
 
-    if (webWasPlaying) {
-      resumePosition = webPosition();
-      liveAudioPosition = latencyCompensatedPosition(
-        resumePosition,
-        latencySeconds,
-        liveRate,
-        audibleStartPositionRef.current,
-      );
+    const ctx = ctxRef.current;
+    if (webWasPlaying && ctx) {
+      const at = smoothCtxTime(ctx);
+      resumePosition = positionAtCtxTime(at);
+      liveAudioPosition = positionHeardAt(at);
     } else if (audio && !audio.paused) {
       resumePosition = elementClockRef.current.read(
         audio.currentTime,
@@ -744,14 +823,12 @@ export function useAudio(
       audio.currentTime = resumePosition;
     }
 
-    const frozenAudioPosition = webWasPlaying
-      ? latencyCompensatedPosition(
-          resumePosition,
-          latencySeconds,
-          liveRate,
-          visualWasMoving ? regionStart : audibleStartPositionRef.current,
-        )
-      : resumePosition;
+    // The playhead stops on what was being heard.
+    const frozenAudioPosition = !webWasPlaying
+      ? resumePosition
+      : visualWasMoving
+        ? latencyCompensatedPosition(resumePosition, latencySeconds, liveRate, regionStart)
+        : Math.min(liveAudioPosition, resumePosition);
     const frozenAudioMs = frozenAudioPosition * 1000;
     setCurrentTime(frozenAudioMs);
     currentTimeRef.current = frozenAudioMs;
@@ -759,14 +836,16 @@ export function useAudio(
   }, [
     duration,
     outputLatencyMs,
+    positionAtCtxTime,
+    positionHeardAt,
+    smoothCtxTime,
     stopWeb,
     syncLivePlaybackRate,
-    webPosition,
   ]);
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
-    const playing = sourceRef.current !== null || !!audio && !audio.paused;
+    const playing = voiceRef.current !== null || !!audio && !audio.paused;
     if (playing) pause();
     else play();
   }, [play, pause]);
@@ -807,31 +886,37 @@ export function useAudio(
   const retargetRate = useCallback(
     (target: number, rampSeconds: number) => {
       const ctx = ctxRef.current;
-      const source = sourceRef.current;
-      if (source && ctx) {
+      const voice = voiceRef.current;
+      if (voice && ctx) {
         const now = ctx.currentTime;
         const from = rateAtCtxTime(now);
         const startPosition = positionAtCtxTime(now);
         positionRef.current = startPosition;
         startOffsetRef.current = startPosition;
         startCtxTimeRef.current = now;
-        rateTransitionRef.current = {
+        const transition: RateTransition = {
           startCtxTime: now,
           startPosition,
           from,
           to: target,
           duration: rampSeconds,
         };
-        source.playbackRate.cancelScheduledValues(now);
-        source.playbackRate.setValueAtTime(from, now);
-        if (rampSeconds > 0) {
-          source.playbackRate.setValueCurveAtTime(
-            playbackCurve(from, target),
-            now,
-            rampSeconds,
-          );
+        rateTransitionRef.current = transition;
+        const history = transitionHistoryRef.current;
+        history.push(transition);
+        // Only the last moment is ever looked back on.
+        while (history.length > 1 && history[1].startCtxTime < now - 2) history.shift();
+        if (voice.kind === "song") {
+          voice.source.follow(transition);
         } else {
-          source.playbackRate.setValueAtTime(target, now);
+          const rate = voice.source.playbackRate;
+          rate.cancelScheduledValues(now);
+          rate.setValueAtTime(from, now);
+          if (rampSeconds > 0) {
+            rate.setValueCurveAtTime(playbackCurve(from, target), now, rampSeconds);
+          } else {
+            rate.setValueAtTime(target, now);
+          }
         }
       } else {
         rateTransitionRef.current = null;
@@ -851,6 +936,11 @@ export function useAudio(
       );
       playbackRateRef.current = clamped;
       setPlaybackRateState(clamped);
+      // A SongVoice switches to keeping the pitch by itself. A buffer source
+      // still playing makes way for one here rather than a render later, so
+      // the new voice takes the whole ramp.
+      preservePitchRef.current = pitchLockedAtRef.current(clamped);
+      syncEngineRef.current();
     },
     [retargetRate],
   );
@@ -892,13 +982,13 @@ export function useAudio(
 
   const getCurrentTime = useCallback(() => {
     const audioMs = (() => {
-      if (webAudioActive() && sourceRef.current) {
-        return audibleWebPosition(webPosition()) * 1000;
+      if (webAudioActive() && voiceRef.current) {
+        return audibleWebPosition() * 1000;
       }
       const audio = audioRef.current;
       if (!webAudioActive() && audio && !audio.paused) {
-        // Pitch-kept playback runs on the media element, read through its
-        // own steady clock at the rate the element is actually playing.
+        // The media element, read through its own steady clock at the rate
+        // the element is actually playing.
         return (
           elementClockRef.current.read(
             audio.currentTime,
@@ -911,7 +1001,6 @@ export function useAudio(
     })();
     return audioMs / timeScaleRef.current;
   }, [
-    webPosition,
     audibleWebPosition,
     webAudioActive,
   ]);
@@ -933,227 +1022,164 @@ export function useAudio(
   }, []);
 
   /**
-   * Stops the buffer engine over `seconds` instead of cutting it, so the
-   * element taking over can fade in across it.
+   * Stops the playing voice over `seconds` instead of cutting it, so the
+   * voice taking over can fade in across it.
    */
-  const fadeOutWeb = useCallback(
-    (seconds: number) => {
-      const ctx = ctxRef.current;
-      const source = sourceRef.current;
-      if (!ctx || !source) return;
-      positionRef.current = webPosition();
-      manualStopRef.current = true;
-      sourceRef.current = null;
-      const fade = ctx.createGain();
-      fade.connect(
-        fadeGainRef.current ?? filterRef.current ?? gainRef.current ?? ctx.destination,
-      );
-      const now = ctx.currentTime;
-      fade.gain.setValueAtTime(1, now);
-      fade.gain.linearRampToValueAtTime(0, now + seconds);
-      // Rewired within one task, so the graph switches between render quanta
-      // without a click.
-      source.disconnect();
-      source.connect(fade);
-      source.onended = () => {
-        source.disconnect();
-        fade.disconnect();
-      };
-      try {
-        source.stop(now + seconds);
-      } catch {
-        // Already stopped.
-      }
-    },
-    [webPosition],
-  );
+  const fadeOutWeb = useCallback((seconds: number) => {
+    const ctx = ctxRef.current;
+    const voice = voiceRef.current;
+    if (!ctx || !voice) return;
+    manualStopRef.current = true;
+    voiceRef.current = null;
+    const now = ctx.currentTime;
+    const level = voice.gain.gain;
+    level.cancelScheduledValues(now);
+    level.setValueAtTime(level.value, now);
+    level.linearRampToValueAtTime(0, now + seconds);
+    voice.source.onended = () => {
+      voice.source.disconnect();
+      voice.gain.disconnect();
+    };
+    try {
+      voice.source.stop(now + seconds);
+    } catch {
+      // Already stopped.
+    }
+  }, []);
 
-  // How long a paused element takes to start playing, learned from each
-  // handoff so the next one is aimed closer.
-  const handoffStartupRef = useRef(HANDOFF_STARTUP_GUESS_SECONDS);
-
-  // Moving onto the pitch-preserving element used to stop the buffer engine
-  // and start the element, so the song went quiet until the element really
-  // played, and the playhead waited with it. Now the element starts muted
-  // beside the buffer engine, aimed where that will be once it has started,
-  // runs a touch fast or slow until the two line up, and they crossfade.
-  const armPitchHandoff = useCallback(() => {
+  // Pitch-kept playback used to hand the song over to the media element,
+  // which took up to two seconds to line up, playing the slowed song at the
+  // wrong pitch meanwhile, and then drifted, because its currentTime could not
+  // be trusted after a seek. A SongVoice now switches by itself, on the
+  // context clock, so this only steps in when the engine itself must change.
+  /**
+   * Puts playback on the engine the pitch setting calls for, keeping the
+   * playhead where it is. Does nothing when playback already is there, so it
+   * is safe to call whenever something it depends on may have changed.
+   */
+  const syncEngine = useCallback(() => {
     const audio = audioRef.current;
     const ctx = ctxRef.current;
-    const source = sourceRef.current;
-    if (!audio || !ctx || !source || cancelPitchHandoffRef.current) return;
-
-    const startedAt = performance.now();
-    let frame = 0;
-    let seeks = 0;
-    let lastSeen = Number.NaN;
-    let moving = false;
-    let lined = 0;
-
-    const release = () => {
-      cancelAnimationFrame(frame);
-      if (cancelPitchHandoffRef.current === cancel) {
-        cancelPitchHandoffRef.current = null;
-      }
+    const buffer = bufferRef.current;
+    const pitch = preservePitchRef.current;
+    const voice = voiceRef.current;
+    // The element only needs its pitch flag to follow; its rate may be
+    // mid-ramp, so that is left alone.
+    const flagElement = (preserve: boolean) => {
+      if (audio) applyRate(audio, audio.playbackRate || effectiveRate(), preserve);
     };
-    const cancel = () => {
-      release();
-      // Called off before the swap: the muted element must not play on.
-      if (!appliedPitchRef.current) audio.pause();
-      audio.muted = false;
-    };
-    cancelPitchHandoffRef.current = cancel;
+    if (!buffer) {
+      flagElement(pitch);
+      return;
+    }
+    const wantElement = pitch && stretchUnavailableRef.current;
+    const elementPlaying = !voice && !!audio && !audio.paused;
+    if (!voice && !elementPlaying) {
+      // Stopped: the next play starts on whichever engine fits.
+      elementEngineRef.current = wantElement;
+      flagElement(pitch);
+      return;
+    }
 
-    const bufferPosition = () => audibleWebPosition(webPosition());
-    // Both engines follow the same rate ramp; nudging waits until it is over.
-    const rateSettled = () => {
-      const tr = rateTransitionRef.current;
-      return (
-        elementRateRafRef.current === null &&
-        (!tr || ctx.currentTime - tr.startCtxTime >= tr.duration)
-      );
-    };
-
-    const aim = () => {
-      seeks += 1;
-      moving = false;
-      lined = 0;
-      applyRate(audio, effectiveRate(), true);
-      audio.muted = true;
-      // Where the buffer engine will be heard once the element has started,
-      // mid rate-ramp included.
-      audio.currentTime = latencyCompensatedPosition(
-        positionAtCtxTime(ctx.currentTime + handoffStartupRef.current),
-        outputLatencyMs() / 1000,
-        effectiveRate(),
-      );
-      lastSeen = audio.currentTime;
-      void audio.play().catch(() => {});
-    };
-
-    const commit = () => {
-      release();
-      if (sourceRef.current !== source || !preservePitchRef.current) {
-        cancel();
-        return;
-      }
-      const now = performance.now();
-      const previousVisual = seekVisualClockRef.current.read(getCurrentTime(), now);
-      const playing = moving && !audio.paused && !audio.seeking;
-      fadeOutWeb(HANDOFF_CROSSFADE_SECONDS);
-      appliedPitchRef.current = true;
-      applyRate(audio, effectiveRate(), true);
-      if (playing) {
-        positionRef.current = audio.currentTime;
-      } else {
-        // Never got going: start it where the buffer engine left off.
-        audio.currentTime = positionRef.current;
-        void audio.play().catch(() => {});
-      }
-      audio.volume = 0;
-      audio.muted = false;
-      rampElementVolume(effectivePower(), HANDOFF_CROSSFADE_SECONDS);
-      elementClockRef.current.reset();
-      // Whatever gap is left between the engines glides away instead of
-      // jumping the playfield.
+    const now = performance.now();
+    const previousVisual = seekVisualClockRef.current.read(getCurrentTime(), now);
+    // Whatever the clocks' smoothing still disagrees by glides away instead
+    // of jumping the playfield.
+    const glide = () =>
       seekVisualClockRef.current.begin(previousVisual, getCurrentTime(), "smooth", now);
+    const keepAudibleRunning = () => {
+      audibleStartPositionRef.current =
+        Math.max(0, regionRef.current?.startMs ?? 0) / 1000;
     };
 
-    const step = () => {
-      frame = requestAnimationFrame(step);
-      if (sourceRef.current !== source || !preservePitchRef.current) {
-        cancel();
+    if (voice && ctx) {
+      if (wantElement) {
+        if (!audio) return;
+        const heard = audibleWebPosition();
+        stopWeb(false);
+        elementEngineRef.current = true;
+        positionRef.current = heard;
+        applyRate(audio, effectiveRate(), true);
+        audio.currentTime = heard;
+        elementClockRef.current.reset();
+        void audio.play().catch(() => {});
+        glide();
         return;
       }
-      const overdue = performance.now() - startedAt > HANDOFF_GIVE_UP_MS;
-      const position = audio.currentTime;
-      if (!moving) {
-        if (audio.paused || audio.seeking || position === lastSeen) {
-          if (overdue) commit();
-          return;
-        }
-        moving = true;
-        if (seeks === 1) {
-          handoffStartupRef.current = learnHandoffStartup(
-            handoffStartupRef.current,
-            position - bufferPosition(),
-            effectiveRate(),
-          );
-        }
-      }
-      const gap = position - bufferPosition();
+      // A SongVoice keeps the pitch by itself. Only a buffer source, started
+      // before the song reached the audio thread, has to make way for one.
+      const song = stretchSongRef.current;
+      const at = ctx.currentTime;
+      const liveRate = rateAtCtxTime(at);
+      const pitchWanted = pitch || liveRate < stretchBelowRef.current - 1e-9;
       if (
-        Math.abs(gap) > HANDOFF_RESEEK_SECONDS &&
-        seeks < HANDOFF_MAX_SEEKS &&
-        !overdue
+        voice.kind === "song" ||
+        !pitchWanted ||
+        !song ||
+        song.ctx !== ctx ||
+        song.buffer !== buffer
       ) {
-        aim();
         return;
       }
-      if (!rateSettled() && !overdue) return;
-      lined = Math.abs(gap) <= HANDOFF_LOCK_SECONDS ? lined + 1 : 0;
-      if (lined >= HANDOFF_LOCK_FRAMES || overdue) {
-        commit();
-        return;
+      const transition = rateTransitionRef.current;
+      const rampLeft = transition
+        ? transition.startCtxTime + transition.duration - at
+        : 0;
+      positionRef.current = positionAtCtxTime(at);
+      fadeOutWeb(VOICE_SWAP_SECONDS);
+      if (!startWeb(VOICE_SWAP_SECONDS, liveRate)) return;
+      // Carry on whatever rate ramp the old voice was partway through.
+      const target = effectiveRate();
+      if (Math.abs(target - liveRate) > 1e-6) {
+        retargetRate(target, Math.max(0, rampLeft));
       }
-      applyRate(audio, handoffCatchUpRate(gap, effectiveRate()), true);
-    };
+      keepAudibleRunning();
+      glide();
+      return;
+    }
 
-    aim();
-    frame = requestAnimationFrame(step);
+    if (!audio) return;
+    if (wantElement) {
+      flagElement(true);
+      return;
+    }
+    // On the element because playback began before the song decoded, or
+    // because pitch-kept playback had no worklet: back onto Web Audio.
+    positionRef.current = elementClockRef.current.read(
+      audio.currentTime,
+      audio.playbackRate,
+      now,
+    );
+    elementEngineRef.current = false;
+    audio.pause();
+    if (startWeb()) {
+      keepAudibleRunning();
+      glide();
+      setIsPlaying(true);
+    }
   }, [
     audibleWebPosition,
-    effectivePower,
     effectiveRate,
     fadeOutWeb,
     getCurrentTime,
-    outputLatencyMs,
     positionAtCtxTime,
-    rampElementVolume,
-    webPosition,
+    rateAtCtxTime,
+    retargetRate,
+    startWeb,
+    stopWeb,
   ]);
-  armPitchHandoffRef.current = armPitchHandoff;
+  syncEngineRef.current = syncEngine;
 
-  // Flipping pitch preservation swaps playback engines, keeping the playhead
-  // where it is.
+  // The transport rate, the keep-pitch setting or the difficulty's pitch flag
+  // changed.
   useEffect(() => {
-    if (!pitchLocked) cancelPitchHandoffRef.current?.();
-    if (appliedPitchRef.current === pitchLocked) return;
-    const audio = audioRef.current;
+    syncEngine();
+  }, [pitchLocked, syncEngine]);
 
-    if (pitchLocked && sourceRef.current) {
-      armPitchHandoff();
-      return;
-    }
-
-    // The buffer engine starts the instant it is asked, so coming back needs
-    // no run-up.
-    if (!pitchLocked && audio && !audio.paused && bufferRef.current) {
-      const now = performance.now();
-      const previousVisual = seekVisualClockRef.current.read(getCurrentTime(), now);
-      positionRef.current = elementClockRef.current.read(
-        audio.currentTime,
-        audio.playbackRate,
-        now,
-      );
-      appliedPitchRef.current = false;
-      audio.pause();
-      if (startWebRef.current()) {
-        // Glide over the output latency rather than holding the playhead
-        // still until the buffer engine's audible position catches up.
-        audibleStartPositionRef.current =
-          Math.max(0, regionRef.current?.startMs ?? 0) / 1000;
-        seekVisualClockRef.current.begin(previousVisual, getCurrentTime(), "smooth", now);
-        setIsPlaying(true);
-      }
-      return;
-    }
-
-    // Stopped, or the element is the only engine because the song has not
-    // decoded yet: only the element's pitch flag needs to follow.
-    appliedPitchRef.current = pitchLocked;
-    if (audio) applyRate(audio, effectiveRate(), pitchLocked);
-  }, [pitchLocked, armPitchHandoff, effectiveRate, getCurrentTime]);
+  useEffect(() => {
+    const voice = voiceRef.current;
+    if (voice?.kind === "song") voice.source.setStretchBelow(stretchBelow);
+  }, [stretchBelow]);
 
   const seek = useCallback(
     (mapMs: number, transition: AudioSeekTransition = "instant") => {
@@ -1179,7 +1205,7 @@ export function useAudio(
       elementClockRef.current.reset();
 
       if (webAudioActive()) {
-        const wasPlaying = sourceRef.current !== null;
+        const wasPlaying = voiceRef.current !== null;
         stopWeb(false);
         positionRef.current = clamped / 1000;
         currentTimeRef.current = clamped;
@@ -1219,7 +1245,6 @@ export function useAudio(
 
   useEffect(() => {
     return () => {
-      cancelPitchHandoffRef.current?.();
       stopWeb(false);
       if (elementVolumeRafRef.current !== null) {
         cancelAnimationFrame(elementVolumeRafRef.current);

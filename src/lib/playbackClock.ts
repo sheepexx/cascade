@@ -62,6 +62,10 @@ export function createPlaybackClock(): PlaybackClock {
   let lastSource = 0;
   let pos = 0;
   let perf = 0;
+  // The last value handed out. After the backend stalls for a moment the
+  // extrapolation has run ahead of it; easing back would step the playfield
+  // backwards, so it holds still until the real clock catches up instead.
+  let shown = 0;
 
   return {
     reset() {
@@ -85,18 +89,21 @@ export function createPlaybackClock(): PlaybackClock {
         lastSource = source;
         pos = source;
         perf = now;
+        shown = source;
         return source;
       }
 
       if (source > lastSource) {
-        pos = predicted + (source - predicted) * BLEND;
+        pos = Math.max(predicted + (source - predicted) * BLEND, shown);
         lastSource = source;
         perf = now;
+        shown = pos;
         return pos;
       }
 
       // Source has not ticked yet: keep moving on the wall clock.
-      return predicted;
+      shown = Math.max(shown, predicted);
+      return shown;
     },
   };
 }
