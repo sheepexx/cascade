@@ -3150,6 +3150,13 @@ export default function App() {
                         )
                     : undefined
                 }
+                onPlaytest={
+                  featureFlags.playtest
+                    ? () => startPlaytest(getCurrentTime())
+                    : undefined
+                }
+                playtestDisabled={!audioFile}
+                playtestKey={editorKeyLabel(editorKeybinds.playtestToggle)}
               />
             )}
           </div>

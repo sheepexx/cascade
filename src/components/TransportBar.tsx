@@ -11,8 +11,9 @@ import type { AudioController } from "../hooks/useAudio";
 import { formatOsuClock, osuEditLink } from "../lib/osuTimestamp";
 import { formatTime, parseTimestamp } from "../lib/timing";
 import { useT } from "../lib/i18n";
-import { Slider } from "./ui/Controls";
+import { Button, Slider } from "./ui/Controls";
 import { Dropdown, type DropdownOption } from "./ui/Dropdown";
+import { PlayIcon } from "./ui/Icons";
 type Props = {
   audio: AudioController;
   view: ViewState;
@@ -21,6 +22,12 @@ type Props = {
   onJumpOpenChange: (open: boolean) => void;
   /** The selected notes as an osu! timestamp, while there is a selection. */
   getSelectionTimestamp?: () => string | null;
+  /** Starts a playtest from the playhead; the button is hidden without it. */
+  onPlaytest?: () => void;
+  /** No audio is loaded, so there is nothing to play along to. */
+  playtestDisabled?: boolean;
+  /** The playtest keybind's label, for the tooltip. */
+  playtestKey?: string;
 };
 
 export function TransportBar({
@@ -30,6 +37,9 @@ export function TransportBar({
   jumpOpen,
   onJumpOpenChange,
   getSelectionTimestamp,
+  onPlaytest,
+  playtestDisabled = false,
+  playtestKey,
 }: Props) {
   const { currentTime } = audio;
   const [jumpDraft, setJumpDraft] = useState("");
@@ -85,9 +95,28 @@ export function TransportBar({
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 border-b border-white/[0.06] bg-ink-900 px-3 py-1.5 uixl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] uixl:gap-4 uixl:px-3">
-      {/* Keeps the time readout centred in the three-column layout; volume
-          lives in the Alt+wheel rings and Settings → Audio. */}
-      <div aria-hidden className="order-1 min-w-0" />
+      {/* Same width as the right column so the time readout stays centred in
+          the three-column layout; volume lives in the Alt+wheel rings and
+          Settings → Audio. */}
+      <div className="order-1 flex min-w-0 items-center">
+        {onPlaytest && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => onPlaytest()}
+            disabled={playtestDisabled}
+            title={
+              playtestDisabled
+                ? t("transport.playtestNoAudio")
+                : t("transport.playtestTitle", { key: playtestKey ?? "" })
+            }
+            className="pl-2"
+          >
+            <PlayIcon className="h-3.5 w-3.5 text-accent" />
+            {t("transport.playtest")}
+          </Button>
+        )}
+      </div>
 
       <div className="order-3 col-span-2 flex items-center justify-center gap-1.5 uixl:order-2 uixl:col-span-1">
         {jumpOpen ? (
