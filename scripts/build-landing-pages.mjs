@@ -162,7 +162,7 @@ function render(page, locale) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=4" />
     <link rel="canonical" href="${url}" />
 ${alternates((code) => docsUrl(page.slug, code))}
     <meta name="theme-color" content="#0b0d12" />
@@ -199,7 +199,7 @@ ${STYLE}
   <body>
     <main>
       <header>
-        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <img src="/favicon.png?v=4" alt="Cascade logo" />
         <a href="/">Cascade</a>
       </header>
 
@@ -300,7 +300,7 @@ ${g.entries
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=4" />
     <link rel="canonical" href="${url}" />
 ${alternates(docsHubUrl)}
     <meta name="theme-color" content="#0b0d12" />
@@ -333,7 +333,7 @@ ${HUB_STYLE}
   <body>
     <main>
       <header>
-        <img src="/favicon.png?v=3" alt="Cascade logo" />
+        <img src="/favicon.png?v=4" alt="Cascade logo" />
         <a href="/">Cascade</a>
       </header>
 

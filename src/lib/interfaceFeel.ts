@@ -7,8 +7,8 @@
  * Zero is deliberately not allowed — the hold is the safeguard.
  *
  * Parallax strength scales how far the menu and the editor background drift
- * with the pointer. 100% is what Cascade has always done; 0% pins everything
- * still for anyone who finds the movement distracting.
+ * with the pointer. 100% drifts 1.2 times as far as the original setting did;
+ * 0% pins everything still for anyone who finds the movement distracting.
  */
 export const DEFAULT_HOLD_CONFIRM_MS = 750;
 export const MIN_HOLD_CONFIRM_MS = 200;
@@ -48,6 +48,10 @@ export function setParallaxStrength(value: number): void {
   parallax = clampParallaxStrength(value);
 }
 
+/** Every parallax was strengthened by this much, keeping the setting's
+ *  percentages as they were. */
+const PARALLAX_BOOST = 1.2;
+
 export function parallaxScale(): number {
-  return parallax;
+  return parallax * PARALLAX_BOOST;
 }

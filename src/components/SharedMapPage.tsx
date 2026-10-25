@@ -301,7 +301,7 @@ export function SharedMapPage({
             href="/"
             className="mb-10 flex items-center gap-3 self-start text-slate-300 transition hover:text-white"
           >
-            <img src="/favicon.png?v=3" alt="" aria-hidden className="h-8 w-8 rounded-lg" />
+            <img src="/favicon.png?v=4" alt="" aria-hidden className="h-8 w-8 rounded-lg" />
             <span className="text-base font-bold">Cascade</span>
           </a>
 

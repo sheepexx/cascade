@@ -181,7 +181,7 @@ export function AppHeader({
   if (phone) return <>
     {showHeader && <header className={`phone-app-header z-30 flex shrink-0 items-center gap-1 border-b border-white/[0.06] bg-ink-900 px-2 ${!hasProject ? "absolute inset-x-0 top-0" : ""}`}>
       <button type="button" className="phone-icon-button" aria-label={hasProject ? t("diffSidebar.title") : t("home.returnTitle")} onClick={hasProject ? phone.openDifficulties : undefined}>
-        {hasProject ? <PhoneIcon name="layers" /> : <img src={`${import.meta.env.BASE_URL}favicon.png?v=3`} alt="Cascade" className="h-7 w-7 rounded-full" />}
+        {hasProject ? <PhoneIcon name="layers" /> : <img src={`${import.meta.env.BASE_URL}favicon.png?v=4`} alt="Cascade" className="h-7 w-7 rounded-full" />}
       </button>
       <button type="button" className="min-w-0 flex-1 py-1 text-left" onClick={() => phone.onMenuOpen(true)} aria-label={t("mobile.allTools")}>
         <span className="block truncate font-display text-sm font-semibold text-slate-100">{phone.title}</span>
@@ -329,7 +329,7 @@ export function AppHeader({
         hasProject ? "" : "absolute inset-x-0 top-0"
       } ${
         showHeader
-          ? "max-h-14 translate-y-0 border-b py-1.5 opacity-100"
+          ? "max-h-14 translate-y-0 border-b py-2.5 opacity-100"
           : "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
       }`}
       aria-hidden={!showHeader}
@@ -347,7 +347,7 @@ export function AppHeader({
             data-no-uisound=""
           >
             <img
-              src={`${import.meta.env.BASE_URL}favicon.png?v=3`}
+              src={`${import.meta.env.BASE_URL}favicon.png?v=4`}
               alt="Cascade"
               draggable={false}
               onDragStart={(e) => e.preventDefault()}

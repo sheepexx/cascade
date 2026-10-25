@@ -177,7 +177,7 @@ export function SocialOverlay({
             <svg viewBox="0 0 16 16" aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 3.5 5.5 8l4.5 4.5" />
             </svg>
-            <img src={`${import.meta.env.BASE_URL}favicon.png?v=3`} alt="" aria-hidden className="h-5 w-5 rounded-full" />
+            <img src={`${import.meta.env.BASE_URL}favicon.png?v=4`} alt="" aria-hidden className="h-5 w-5 rounded-full" />
             <span className="font-display font-bold text-slate-100">Cascade</span>
           </button>
           <span className="h-4 w-px bg-white/[0.08]" />

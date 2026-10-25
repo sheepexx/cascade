@@ -155,7 +155,7 @@ export function MapCardModal({
 
   const bgFile = backgroundFileFor(difficulty, difficulties, bgFiles);
   const background = useLoadedImage(open ? bgFile?.url ?? null : null);
-  const logo = useLoadedImage(open ? siteAsset("logo.png?v=3") : null);
+  const logo = useLoadedImage(open ? siteAsset("logo.png?v=4") : null);
   const images = useMemo(
     () => ({ background: background.image, logo: logo.image }),
     [background.image, logo.image],

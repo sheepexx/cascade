@@ -100,6 +100,7 @@ export default defineConfig({
           "hitsounds/**/*.wav",
           "favicon.png",
           "logo.png",
+          "logo.svg",
           "logo-maskable.png",
           "icon-192.png",
           "icon-512.png",

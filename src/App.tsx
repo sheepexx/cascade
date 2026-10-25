@@ -1603,9 +1603,10 @@ export default function App() {
   // Phones keep the menu quiet: no song starts under a one-screen menu.
   const menuMusicEnabled =
     appSettings.menuMusicEnabled && !phoneViewport && !hasProject && !packCreatorOpen && !sharedSlug;
+  // The song waits out the intro and starts with its flash, as the menu shows.
   const menuMusic = useMenuMusic(
     menuMusicEnabled,
-    osuLive.running,
+    osuLive.running || introCovering,
     audio.volume * outputVolume,
   );
   const toggleMenuMusic = menuMusic.toggle;
@@ -2908,7 +2909,6 @@ export default function App() {
     >
       <SessionIntro
         enabled={appSettings.introEnabled && !hasProject && !sharedSlug}
-        musicPlaying={menuMusic.isPlaying}
         ready={chunksReady}
         onCoveringChange={setIntroCovering}
       />
@@ -2918,7 +2918,7 @@ export default function App() {
           className="pointer-events-none fixed inset-0 z-[170] bg-ink-900/55"
         >
           <img
-            src={`${import.meta.env.BASE_URL}logo.png?v=3`}
+            src={`${import.meta.env.BASE_URL}logo.svg?v=1`}
             alt=""
             className="scene-logo-out absolute left-1/2 top-1/2 h-48 w-48 rounded-full"
           />
@@ -2948,7 +2948,7 @@ export default function App() {
       {importingMap && (
         <div className="loader-fade-in fixed inset-0 z-[55] flex flex-col items-center justify-center gap-8 bg-ink-900/80">
           <img
-            src={`${import.meta.env.BASE_URL}favicon.png?v=3`}
+            src={`${import.meta.env.BASE_URL}logo.png?v=4`}
             alt=""
             draggable={false}
             onDragStart={(e) => e.preventDefault()}

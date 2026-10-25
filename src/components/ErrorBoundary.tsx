@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-ink-800 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.56)]">
           <div className="flex items-center gap-3">
             <img
-              src={`${import.meta.env.BASE_URL}favicon.png?v=3`}
+              src={`${import.meta.env.BASE_URL}favicon.png?v=4`}
               alt=""
               width={36}
               height={36}

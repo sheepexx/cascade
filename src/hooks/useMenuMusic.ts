@@ -320,9 +320,14 @@ export function useMenuMusic(
     }
   }, []);
 
+  // Whether to play again is noted once, on going quiet: running this again
+  // while still quiet (StrictMode does) would otherwise overwrite it with the
+  // "don't play" set the first time.
+  const heldRef = useRef(false);
   useEffect(() => {
     const el = audioRef.current;
     if (active) {
+      heldRef.current = false;
       if (resumeOnEnableRef.current) wantsPlayRef.current = true;
       if (el && el.paused && wantsPlayRef.current) {
         connect(el);
@@ -331,7 +336,10 @@ export function useMenuMusic(
       }
       return;
     }
-    resumeOnEnableRef.current = wantsPlayRef.current;
+    if (!heldRef.current) {
+      heldRef.current = true;
+      resumeOnEnableRef.current = wantsPlayRef.current;
+    }
     wantsPlayRef.current = false;
     if (!el) {
       void ctxRef.current?.suspend().catch(() => {});

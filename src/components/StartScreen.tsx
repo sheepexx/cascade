@@ -62,6 +62,7 @@ import {
   useReducedMotion,
 } from "../lib/performanceMode";
 import { parallaxScale } from "../lib/interfaceFeel";
+import { menuMetrics } from "../lib/menuLayout";
 import {
   ImportIcon,
   LibraryIcon,
@@ -96,12 +97,12 @@ const LOGO_IDLE_DEPTH = 0.05;
 const LOGO_SPRING = 90;
 const menuLoudness = new LoudnessTracker();
 const logoHitsounds = new LogoHitsounds();
-const LOGO_CLOSED = 640;
-const LOGO_OPEN = 244;
-const LOGO_MIN = 168;
-const BAR_HEIGHT = 136;
-const PANEL_MAX = 152;
-const PANEL_MIN = 104;
+// The bar and logo come from menuMetrics. Each button is as wide as lazer's
+// (253px against its 181px band); icons and labels stay a little smaller
+// than lazer's, which crowd the button.
+const PANEL_RATIO = 253 / 181;
+const ICON_RATIO = 0.25;
+const LABEL_RATIO = 0.1;
 const PANEL_FLOOR = 86;
 const LEFT_PANELS = 2;
 const RIGHT_PANELS = 4;
@@ -110,6 +111,11 @@ const BG_MAX_LAYERS = 4;
 // How far the menu background leans in while only the logo is showing.
 const BG_CLOSED_ZOOM = 1.08;
 const PARALLAX_PX = 10;
+// osu!lazer drifts its menu half as far as the background behind it.
+const MENU_PARALLAX_PX = PARALLAX_PX / 2;
+// The bar's backing runs this far past the window's edges, so drifting with
+// the pointer never pulls its ends into view.
+const BAR_EDGE_BLEED = 48;
 const PARALLAX_EASE = 7;
 const RING_RATIO = 0.42;
 const SKEW = "-11deg";
@@ -176,7 +182,7 @@ function PhoneStart({
       <div className="flex min-h-full flex-col justify-center px-5 pb-6 pt-[calc(4.5rem+env(safe-area-inset-top))]">
         <div className="flex flex-col items-center text-center">
           <img
-            src="/logo.png?v=3"
+            src="/logo.png?v=4"
             alt=""
             aria-hidden
             className="h-20 w-20 drop-shadow-[0_0_28px_rgba(244,90,90,0.35)]"
@@ -276,6 +282,7 @@ export function StartScreen({
   const pulseRef = useRef<HTMLDivElement | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
   const stackedRef = useRef<HTMLDivElement | null>(null);
+  const menuParallaxRef = useRef<HTMLDivElement | null>(null);
   const [stackedHeight, setStackedHeight] = useState(0);
   const [barHovered, setBarHovered] = useState(false);
   const [logoHovered, setLogoHovered] = useState(false);
@@ -440,7 +447,7 @@ export function StartScreen({
     },
   ];
 
-  const { wide, panel, logoOpen, logoClosed } = layout;
+  const { wide, bar, panel, icon, label, logoOpen, logoClosed } = layout;
   const shift = logoShift(left.length, right.length, panel);
   const logoSize = open ? logoOpen : logoClosed;
 
@@ -456,10 +463,12 @@ export function StartScreen({
     return () => observer.disconnect();
   }, [wide, phone]);
 
+  usePointerParallax(menuParallaxRef, MENU_PARALLAX_PX, !phone);
+
   const compactBanner = Boolean(osuBanner) && !wide && open;
   const compactCenter = Math.max(
     logoClosed / 2 + 112,
-    (layout.vh - BAR_HEIGHT - stackedHeight - 22) / 2,
+    (layout.vh - bar - stackedHeight - 22) / 2,
   );
   const menuCenter = compactBanner ? `${compactCenter}px` : "50%";
 
@@ -470,9 +479,9 @@ export function StartScreen({
       <div
         className="relative grid min-h-full place-items-center overflow-hidden"
         style={{
-          "--menu-bar-height": `${BAR_HEIGHT}px`,
+          "--menu-bar-height": `${bar}px`,
           minHeight: compactBanner
-            ? Math.max(layout.vh, compactCenter + logoClosed / 2 + 22 + stackedHeight + BAR_HEIGHT + 48)
+            ? Math.max(layout.vh, compactCenter + logoClosed / 2 + 22 + stackedHeight + bar + 48)
             : undefined,
         } as CSSProperties}
       >
@@ -510,32 +519,6 @@ export function StartScreen({
           />
         )}
 
-        <div
-          className={`pointer-events-none absolute inset-x-0 flex flex-col items-center px-4 text-center transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
-            open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
-          }`}
-          style={{
-            bottom: `calc(100% - ${menuCenter} + ${
-              (wide ? Math.max(BAR_HEIGHT / 2, logoOpen / 2) : logoClosed / 2) +
-              32
-            }px)`,
-          }}
-        >
-          <div data-menu-guard="">
-            <p className="menu-legible text-lg font-semibold text-white">
-              {t(greetingKey())}
-              {user ? `, ${user.username}` : ""}
-            </p>
-            <p className="menu-legible mt-0.5 text-xs text-slate-200">
-              {projectCount === null
-                ? " "
-                : projectCount === 0
-                  ? t("menu.noLocalProjects")
-                  : t("menu.localProjects", { count: projectCount })}
-            </p>
-          </div>
-        </div>
-
         {wide && menuTips && (
           // Along the bottom edge, which the osu! banner takes over when it
           // shows, so the tips give way to it.
@@ -560,164 +543,203 @@ export function StartScreen({
           </div>
         )}
 
-        {wide ? (
+        {/* The greeting, bar and logo drift with the pointer as one, half as
+            far as the background behind them, the way osu!lazer's menu does.
+            Children set their own pointer-events; this layer passes through. */}
+        <div ref={menuParallaxRef} className="pointer-events-none absolute inset-0 z-20 will-change-transform">
           <div
-            data-menu-guard=""
-            className="pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2"
-            style={{ height: BAR_HEIGHT }}
-          >
-            <div
-              ref={barRef}
-              onMouseEnter={() => setBarHovered(true)}
-              onMouseLeave={() => setBarHovered(false)}
-              className={`absolute inset-0 ${
-                open ? "pointer-events-auto" : "pointer-events-none"
-              }`}
-            >
-              {/* Each side is clipped at the open logo's centre and slides
-                  out from under it (index.css, .menu-bar-slide). The clip
-                  only trims sideways, so hovered panels can still grow past
-                  the bar's top and bottom. */}
-              <div
-                className="absolute inset-y-0 left-0"
-                style={{
-                  width: `calc(50% + ${shift}px)`,
-                  clipPath: "inset(-100% 0 -100% -100%)",
-                }}
-              >
-                <div
-                  className="menu-bar-slide relative flex h-full justify-end"
-                  data-side="left"
-                  data-open={open}
-                  style={{ paddingRight: logoOpen / 2 }}
-                >
-                  <div
-                    className="absolute inset-y-0 left-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm"
-                    style={{ right: logoOpen / 2 }}
-                  />
-                  {left.map((a, i) => (
-                    <Panel
-                      key={a.id}
-                      action={a}
-                      width={panel}
-                      open={open}
-                      musicRef={musicRef}
-                      bleedRight={i === left.length - 1 ? logoOpen / 2 + 2 : 0}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div
-                className="absolute inset-y-0 right-0"
-                style={{
-                  left: `calc(50% + ${shift}px)`,
-                  clipPath: "inset(-100% -100% -100% 0)",
-                }}
-              >
-                <div
-                  className="menu-bar-slide relative flex h-full justify-start"
-                  data-side="right"
-                  data-open={open}
-                  style={{ paddingLeft: logoOpen / 2 }}
-                >
-                  <div
-                    className="absolute inset-y-0 right-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm"
-                    style={{ left: logoOpen / 2 }}
-                  />
-                  {right.map((a, i) => (
-                    <Panel
-                      key={a.id}
-                      action={a}
-                      width={panel}
-                      open={open}
-                      musicRef={musicRef}
-                      bleedLeft={i === 0 ? logoOpen / 2 + 2 : 0}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div
-            className={`absolute inset-x-0 z-20 flex justify-center px-3 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
-              open
-                ? "translate-y-0 opacity-100"
-                : "pointer-events-none -translate-y-2 opacity-0"
+            className={`pointer-events-none absolute inset-x-0 flex flex-col items-center px-4 text-center transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
+              open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             }`}
-            style={{ top: `calc(${menuCenter} + ${Math.round(logoClosed / 2) + 22}px)` }}
+            style={{
+              bottom: `calc(100% - ${menuCenter} + ${
+                (wide ? Math.max(bar / 2, logoOpen / 2) : logoClosed / 2) +
+                32
+              }px)`,
+            }}
           >
+            <div data-menu-guard="">
+              <p className="menu-legible text-lg font-semibold text-white">
+                {t(greetingKey())}
+                {user ? `, ${user.username}` : ""}
+              </p>
+              <p className="menu-legible mt-0.5 text-xs text-slate-200">
+                {projectCount === null
+                  ? " "
+                  : projectCount === 0
+                    ? t("menu.noLocalProjects")
+                    : t("menu.localProjects", { count: projectCount })}
+              </p>
+            </div>
+          </div>
+
+          {wide ? (
             <div
-              ref={stackedRef}
               data-menu-guard=""
-              className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md"
+              className="pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2"
+              style={
+                {
+                  height: bar,
+                  "--menu-icon": `${icon}px`,
+                  "--menu-label": `${label}px`,
+                  "--menu-gap": `${Math.round(bar * 0.08)}px`,
+                  "--menu-pad": `${Math.round(bar * 0.14)}px`,
+                } as CSSProperties
+              }
             >
-              {[...left, ...right].map((a) => (
-                <StackedAction key={a.id} action={a} open={open} musicRef={musicRef} />
-              ))}
+              <div
+                ref={barRef}
+                onMouseEnter={() => setBarHovered(true)}
+                onMouseLeave={() => setBarHovered(false)}
+                className={`absolute inset-0 ${
+                  open ? "pointer-events-auto" : "pointer-events-none"
+                }`}
+              >
+                {/* Each side is clipped at the open logo's centre and slides
+                    out from under it (index.css, .menu-bar-slide). The clip
+                    only trims sideways, so hovered panels can still grow past
+                    the bar's top and bottom. */}
+                <div
+                  className="absolute inset-y-0 left-0"
+                  style={{
+                    width: `calc(50% + ${shift}px)`,
+                    clipPath: "inset(-100% 0 -100% -100%)",
+                  }}
+                >
+                  <div
+                    className="menu-bar-slide relative flex h-full justify-end"
+                    data-side="left"
+                    data-open={open}
+                    style={{ paddingRight: logoOpen / 2 }}
+                  >
+                    <div
+                      className="absolute inset-y-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm"
+                      style={{ left: -BAR_EDGE_BLEED, right: logoOpen / 2 }}
+                    />
+                    {left.map((a, i) => (
+                      <Panel
+                        key={a.id}
+                        action={a}
+                        width={panel}
+                        open={open}
+                        musicRef={musicRef}
+                        bleedRight={i === left.length - 1 ? logoOpen / 2 + 2 : 0}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div
+                  className="absolute inset-y-0 right-0"
+                  style={{
+                    left: `calc(50% + ${shift}px)`,
+                    clipPath: "inset(-100% -100% -100% 0)",
+                  }}
+                >
+                  <div
+                    className="menu-bar-slide relative flex h-full justify-start"
+                    data-side="right"
+                    data-open={open}
+                    style={{ paddingLeft: logoOpen / 2 }}
+                  >
+                    <div
+                      className="absolute inset-y-0 bg-ink-800/90 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur-sm"
+                      style={{ left: logoOpen / 2, right: -BAR_EDGE_BLEED }}
+                    />
+                    {right.map((a, i) => (
+                      <Panel
+                        key={a.id}
+                        action={a}
+                        width={panel}
+                        open={open}
+                        musicRef={musicRef}
+                        bleedLeft={i === 0 ? logoOpen / 2 + 2 : 0}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-
-        <span
-          aria-hidden
-          data-menu-guard=""
-          className="pointer-events-none absolute left-1/2"
-          style={{
-            top: menuCenter,
-            width: logoSize * (lowSpec ? 1 : 1 + RING_RATIO * 2),
-            height: logoSize * (lowSpec ? 1 : 1 + RING_RATIO * 2),
-            transform: `translate(-50%, -50%) translateX(${
-              open && wide ? shift : 0
-            }px)`,
-          }}
-        />
-
-        {/* Only the round logo takes the pointer. The button and its square
-            wrappers let it through, so hover, clicks and the beat hitsounds
-            begin at the circle's edge rather than its bounding box. */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          onPointerEnter={(e) => setLogoHovered(e.pointerType !== "touch")}
-          onPointerLeave={() => setLogoHovered(false)}
-          aria-label={t("menu.open")}
-          aria-expanded={open}
-          className="group pointer-events-none absolute left-1/2 top-1/2 z-20 outline-none transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)]"
-          style={{
-            width: logoClosed,
-            height: logoClosed,
-            top: menuCenter,
-            transform: `translate(-50%, -50%) translateX(${
-              open && wide ? shift : 0
-            }px) scale(${logoSize / logoClosed})`,
-          }}
-        >
-          <div className="start-logo-hover relative h-full w-full">
-            {!lowSpec && (
-              <span aria-hidden className="start-logo-shockwaves absolute inset-0 rounded-full">
-                <span />
-                <span />
-                <span />
-              </span>
-            )}
-            <div ref={pulseRef} className="relative h-full w-full">
-              <Visualizer
-                music={music}
-                size={logoClosed}
-                pulseRef={pulseRef}
-                active={music.isPlaying}
-              />
-              <img
-                src={`${import.meta.env.BASE_URL}logo.png?v=3`}
-                alt="Cascade"
-                draggable={false}
-                onDragStart={(e) => e.preventDefault()}
-                className="pointer-events-auto relative h-full w-full cursor-pointer select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.3)] ring-1 ring-white/10 transition-[filter] duration-200 group-hover:brightness-110"
-              />
+          ) : (
+            <div
+              className={`absolute inset-x-0 z-20 flex justify-center px-3 transition-all duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] ${
+                open
+                  ? "pointer-events-auto translate-y-0 opacity-100"
+                  : "pointer-events-none -translate-y-2 opacity-0"
+              }`}
+              style={{ top: `calc(${menuCenter} + ${Math.round(logoClosed / 2) + 22}px)` }}
+            >
+              <div
+                ref={stackedRef}
+                data-menu-guard=""
+                className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md"
+              >
+                {[...left, ...right].map((a) => (
+                  <StackedAction key={a.id} action={a} open={open} musicRef={musicRef} />
+                ))}
+              </div>
             </div>
-          </div>
-        </button>
+          )}
+
+          <span
+            aria-hidden
+            data-menu-guard=""
+            className="pointer-events-none absolute left-1/2"
+            style={{
+              top: menuCenter,
+              width: logoSize * (lowSpec ? 1 : 1 + RING_RATIO * 2),
+              height: logoSize * (lowSpec ? 1 : 1 + RING_RATIO * 2),
+              transform: `translate(-50%, -50%) translateX(${
+                open && wide ? shift : 0
+              }px)`,
+            }}
+          />
+
+          {/* Only the round logo takes the pointer. The button and its square
+              wrappers let it through, so hover, clicks and the beat hitsounds
+              begin at the circle's edge rather than its bounding box. */}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            onPointerEnter={(e) => setLogoHovered(e.pointerType !== "touch")}
+            onPointerLeave={() => setLogoHovered(false)}
+            aria-label={t("menu.open")}
+            aria-expanded={open}
+            className="group pointer-events-none absolute left-1/2 top-1/2 z-20 outline-none transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)]"
+            style={{
+              width: logoClosed,
+              height: logoClosed,
+              top: menuCenter,
+              transform: `translate(-50%, -50%) translateX(${
+                open && wide ? shift : 0
+              }px) scale(${logoSize / logoClosed})`,
+            }}
+          >
+            <div className="start-logo-hover relative h-full w-full">
+              {!lowSpec && (
+                <span aria-hidden className="start-logo-shockwaves absolute inset-0 rounded-full">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              )}
+              <div ref={pulseRef} className="relative h-full w-full">
+                <Visualizer
+                  music={music}
+                  size={logoClosed}
+                  pulseRef={pulseRef}
+                  active={music.isPlaying}
+                />
+                <img
+                  src={`${import.meta.env.BASE_URL}logo.svg?v=1`}
+                  alt="Cascade"
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  className="pointer-events-auto relative h-full w-full cursor-pointer select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.3)] ring-1 ring-white/10 transition-[filter] duration-200 group-hover:brightness-110"
+                />
+              </div>
+            </div>
+          </button>
+        </div>
 
         {/* Stays put when the osu! banner slides in; the banner layers above
             it on a window narrow enough for the two to meet. */}
@@ -926,18 +948,8 @@ function logoShift(left: number, right: number, panel: number): number {
 function measure(panels: number) {
   const vw = typeof window === "undefined" ? 1280 : window.innerWidth;
   const vh = typeof window === "undefined" ? 800 : window.innerHeight;
-  const wide = vw >= 900 && vh >= 560;
-  const logoClosed = Math.max(
-    LOGO_MIN,
-    Math.min(
-      LOGO_CLOSED,
-      Math.round(wide ? Math.min(vw * 0.46, vh * 0.64) : Math.min(vw * 0.68, vh * 0.44)),
-    ),
-  );
-  const logoOpen = wide
-    ? Math.min(LOGO_OPEN, Math.round(logoClosed * 0.68))
-    : logoClosed;
-  const base = Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(vw / 8.6)));
+  const { wide, bar, logoClosed, logoOpen } = menuMetrics(vw, vh);
+  const base = Math.round(bar * PANEL_RATIO);
   const panel =
     wide && panels > 0
       ? Math.max(
@@ -945,7 +957,9 @@ function measure(panels: number) {
           Math.min(base, Math.floor((vw - logoOpen) / panels)),
         )
       : base;
-  return { vw, vh, wide, panel, logoOpen, logoClosed };
+  const icon = Math.max(28, Math.round(bar * ICON_RATIO));
+  const label = Math.max(12, Math.round(bar * LABEL_RATIO));
+  return { vw, vh, wide, bar, panel, icon, label, logoOpen, logoClosed };
 }
 
 const HOVER_FALLBACK_MS = 300;
@@ -1035,13 +1049,15 @@ function Panel({
           } as React.CSSProperties
         }
       />
-      <span className="relative flex h-full flex-col items-center justify-center gap-2">
+      {/* Sizes come from the bar (--menu-*). The top padding sits the icon
+          near the middle and the label low, the way lazer lays them out. */}
+      <span className="relative flex h-full flex-col items-center justify-center gap-[var(--menu-gap,0.5rem)] px-1.5 pt-[var(--menu-pad,0px)] text-center">
         <span className="menu-panel-icon inline-flex">
           <BeatIcon musicRef={musicRef} hovered={hovered && open}>
             {action.icon}
           </BeatIcon>
         </span>
-        <span className="text-[13px] font-semibold tracking-wide drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
+        <span className="text-[length:var(--menu-label,13px)] font-semibold leading-tight tracking-wide drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
           {action.label}
         </span>
       </span>
@@ -1083,26 +1099,16 @@ function StackedAction({
   );
 }
 
-function MenuBackground({
-  url,
-  players,
-  phone,
-  open,
-}: {
-  url: string | null;
-  players: OnlinePlayer[];
-  phone: boolean;
-  open: boolean;
-}) {
-  const [layers, setLayers] = useState<
-    { id: number; url: string; leaving: boolean }[]
-  >([]);
-  const nextId = useRef(0);
-  const parallaxRef = useRef<HTMLDivElement | null>(null);
-
+/** Drifts a layer toward the pointer, up to `reach` px each way at the
+ *  window's edges, easing after it. */
+function usePointerParallax(
+  ref: { readonly current: HTMLElement | null },
+  reach: number,
+  active = true,
+) {
   useEffect(() => {
-    const node = parallaxRef.current;
-    if (!node) return;
+    const node = ref.current;
+    if (!node || !active) return;
     if (reduceMotion()) return;
 
     let targetX = 0;
@@ -1135,8 +1141,8 @@ function MenuBackground({
       const w = window.innerWidth || 1;
       const h = window.innerHeight || 1;
       const scale = parallaxScale();
-      targetX = (e.clientX / w - 0.5) * 2 * PARALLAX_PX * scale;
-      targetY = (e.clientY / h - 0.5) * 2 * PARALLAX_PX * scale;
+      targetX = (e.clientX / w - 0.5) * 2 * reach * scale;
+      targetY = (e.clientY / h - 0.5) * 2 * reach * scale;
       if (!raf) {
         last = 0;
         raf = requestAnimationFrame(frame);
@@ -1147,8 +1153,28 @@ function MenuBackground({
     return () => {
       window.removeEventListener("pointermove", move);
       if (raf) cancelAnimationFrame(raf);
+      node.style.removeProperty("transform");
     };
-  }, []);
+  }, [ref, reach, active]);
+}
+
+function MenuBackground({
+  url,
+  players,
+  phone,
+  open,
+}: {
+  url: string | null;
+  players: OnlinePlayer[];
+  phone: boolean;
+  open: boolean;
+}) {
+  const [layers, setLayers] = useState<
+    { id: number; url: string; leaving: boolean }[]
+  >([]);
+  const nextId = useRef(0);
+  const parallaxRef = useRef<HTMLDivElement | null>(null);
+  usePointerParallax(parallaxRef, PARALLAX_PX);
 
   // Each picture keeps its own fade: a new one fades in over whatever is
   // still showing, and nothing restarts or vanishes mid-fade however quickly

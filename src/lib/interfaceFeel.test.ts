@@ -54,7 +54,7 @@ describe("the values the interface reads back", () => {
     setParallaxStrength(0);
     expect(parallaxScale()).toBe(0);
     setParallaxStrength(1.5);
-    expect(parallaxScale()).toBe(1.5);
+    expect(parallaxScale()).toBeCloseTo(1.8);
 
     setHoldConfirmMs(DEFAULT_HOLD_CONFIRM_MS);
     setParallaxStrength(DEFAULT_PARALLAX_STRENGTH);
