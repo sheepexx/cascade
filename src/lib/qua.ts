@@ -282,14 +282,6 @@ export function buildQuaFile({
 const safeName = (value: string): string =>
   value.replace(/[\\/:*?"<>|]/g, "").trim() || "untitled";
 
-export function downloadQua(args: BuildQuaArgs): void {
-  const blob = new Blob([buildQuaFile(args)], {
-    type: "application/x-yaml;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `${safeName(args.meta.artist)} - ${safeName(args.meta.title)} [${safeName(args.difficulty.name)}].qua`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+export function quaFilename(args: Pick<BuildQuaArgs, "meta" | "difficulty">): string {
+  return `${safeName(args.meta.artist)} - ${safeName(args.meta.title)} [${safeName(args.difficulty.name)}].qua`;
 }

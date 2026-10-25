@@ -250,7 +250,7 @@ export function Modal({
             />
           </div>
           {footer && (
-            <footer className="ui-modal-footer flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-3">
+            <footer className="ui-modal-footer flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-3">
               {footer}
             </footer>
           )}

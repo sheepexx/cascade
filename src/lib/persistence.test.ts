@@ -13,7 +13,7 @@ type OpenRequest = {
 
 type Req = { result: unknown; onsuccess: (() => void) | null; onerror: unknown };
 
-function fakeDb(data: Map<string, unknown>, puts: string[]) {
+function fakeDb(data: Map<string, unknown>, puts: string[], gets: string[] = []) {
   return {
     objectStoreNames: { contains: () => true },
     close: vi.fn(),
@@ -39,6 +39,7 @@ function fakeDb(data: Map<string, unknown>, puts: string[]) {
       };
       tx.objectStore = () => ({
         get: (key: string) => {
+          gets.push(key);
           const req: Req = { result: undefined, onsuccess: null, onerror: null };
           enqueue(() => {
             req.result = data.get(key);
@@ -85,12 +86,13 @@ function installIdb(handle: (req: OpenRequest) => void) {
 function installStore(initial: Record<string, unknown> = {}) {
   const data = new Map<string, unknown>(Object.entries(initial));
   const puts: string[] = [];
-  const db = fakeDb(data, puts);
+  const gets: string[] = [];
+  const db = fakeDb(data, puts, gets);
   const open = installIdb((req) => {
     req.result = db;
     req.onsuccess?.();
   });
-  return { data, puts, open };
+  return { data, puts, gets, open };
 }
 
 async function freshPersistence() {
@@ -254,7 +256,7 @@ describe("project media records", () => {
     const loaded = await reloaded.loadProject();
     await reloaded.saveProject({ ...loaded!, savedAt: 9 });
 
-    expect(store.puts).toEqual(["current"]);
+    expect(store.puts).toEqual(["current", "summary:current"]);
   });
 
   it("still loads legacy records that inline their media", async () => {
@@ -426,5 +428,116 @@ describe("project media records", () => {
     await saveProject(project({ audioFiles: files }));
 
     expect(puts).toContain("media:current");
+  });
+});
+
+describe("project summaries", () => {
+  const notes = Array.from({ length: 40 }, (_, i) => ({
+    id: `n${i}`,
+    column: i % 4,
+    startTime: i * 100,
+  }));
+  const timedProject = (overrides: Partial<SavedProject> = {}) =>
+    project({
+      meta: { title: "Song", artist: "Artist", creator: "Mapper" },
+      audioFiles: [{ name: "a.mp3", blob: bytes(16) }],
+      backgroundFiles: [{ name: "bg.png", blob: bytes(8) }],
+      difficulties: [
+        {
+          id: "d1",
+          name: "Hard",
+          keyCount: 4,
+          notes,
+          timingPoints: [makeRedPoint(50, 170)],
+        },
+      ],
+      ...overrides,
+    } as Partial<SavedProject>);
+
+  it("lists projects and menu tracks without reading any chart", async () => {
+    const { gets } = installStore();
+    const persistence = await freshPersistence();
+    await persistence.saveProject(timedProject(), "abc");
+
+    gets.length = 0;
+    const rows = await persistence.listLocalProjects();
+    const tracks = await persistence.listLocalTrackSummaries();
+    const track = await persistence.loadLocalTrack("abc");
+
+    expect(gets).not.toContain("local:abc");
+    expect(rows[0]).toMatchObject({ id: "abc", title: "Song", difficultyCount: 1, sizeBytes: 24 });
+    expect(rows[0].difficulties[0].stars).toBeGreaterThan(0);
+    expect(rows[0].backgroundBlob?.size).toBe(8);
+    expect(tracks[0]).toMatchObject({ id: "abc", bpm: 170, beatOffsetMs: 50 });
+    expect(track?.audioBlob.size).toBe(16);
+  });
+
+  it("does not read media to list menu tracks", async () => {
+    const { gets } = installStore();
+    const persistence = await freshPersistence();
+    await persistence.saveProject(timedProject(), "abc");
+
+    gets.length = 0;
+    await persistence.listLocalTrackSummaries();
+
+    expect(gets).toEqual(["summary:local:abc"]);
+  });
+
+  it("builds a summary once for a project saved before summaries existed", async () => {
+    const chart = { ...timedProject(), audioFiles: undefined, backgroundFiles: undefined };
+    const { data, gets } = installStore({
+      "local:old": chart,
+      "media:local:old": {
+        audioFiles: [{ name: "a.mp3", blob: bytes(16) }],
+        backgroundFiles: [{ name: "bg.png", blob: bytes(8) }],
+        signature: "s",
+      },
+    });
+    const persistence = await freshPersistence();
+
+    const first = await persistence.listLocalProjects();
+    expect(first[0]).toMatchObject({ id: "old", title: "Song", sizeBytes: 24 });
+    await vi.waitFor(() => expect(data.has("summary:local:old")).toBe(true));
+
+    gets.length = 0;
+    const second = await persistence.listLocalProjects();
+    expect(gets).not.toContain("local:old");
+    expect(second).toEqual(first);
+  });
+
+  it("catches a stale summary up after the project is opened", async () => {
+    const { data } = installStore();
+    const persistence = await freshPersistence();
+    // As if a tab still on an older version saved the chart after.
+    await persistence.saveProject(timedProject({ savedAt: 1 }), "abc");
+    const stale = data.get("summary:local:abc");
+    data.set("local:abc", {
+      ...(data.get("local:abc") as object),
+      savedAt: 2,
+      meta: { title: "Renamed", artist: "Artist", creator: "Mapper" },
+    });
+    expect(stale).toMatchObject({ savedAt: 1 });
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    await persistence.loadProject("abc");
+    await vi.advanceTimersByTimeAsync(2000);
+    vi.useRealTimers();
+
+    await vi.waitFor(() =>
+      expect(data.get("summary:local:abc")).toMatchObject({
+        savedAt: 2,
+        meta: { title: "Renamed" },
+      }),
+    );
+  });
+
+  it("clears the summary with the project", async () => {
+    const { data } = installStore();
+    const { saveProject, clearProject } = await freshPersistence();
+
+    await saveProject(timedProject(), "abc");
+    expect(data.has("summary:local:abc")).toBe(true);
+    await clearProject("abc");
+    expect(data.has("summary:local:abc")).toBe(false);
   });
 });

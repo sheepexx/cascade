@@ -27,6 +27,7 @@ const KEY = "current";
 const SKIN_KEY = "skin";
 const HITSOUND_SKIN_KEY = "skin:hitsounds";
 const SKIN_LIBRARY_KEY = "skin:library";
+const EXPORT_FOLDER_KEY = "export:folder";
 const LEGACY_VERSION = 1;
 const VERSION = 2;
 export const PROJECT_VERSION = VERSION;
@@ -229,17 +230,150 @@ function mediaBytes(project: SavedProject): number {
 
 const lastMediaSignature = new Map<string, string>();
 
-function pickLocalBackground(project: SavedProject): Blob | undefined {
-  const files = project.backgroundFiles ?? [];
-  const active =
-    project.difficulties.find((d) => d.id === project.activeId) ??
-    project.difficulties[0];
-  const wanted = active?.backgroundFilename;
+const summaryKeyFor = (key: string) => `summary:${key}`;
+// Bump when the summary's fields change, so older ones are rebuilt.
+const SUMMARY_VERSION = 1;
+
+type TrackTiming = Pick<
+  LocalTrackSummary,
+  "previewTime" | "bpm" | "beatOffsetMs" | "timing" | "kiai"
+>;
+
+/**
+ * What the project lists and the menu's music need from a project, stored
+ * beside it and written in the same transaction as its chart. Listing reads
+ * these instead of every note of every map, which took most of a second on a
+ * large library and stalled whatever was animating at the time.
+ */
+type ProjectSummaryRecord = {
+  summaryVersion: number;
+  savedAt: number;
+  meta: Pick<
+    SongMeta,
+    "title" | "titleUnicode" | "artist" | "artistUnicode" | "creator" | "tags"
+  >;
+  difficulties: LocalProjectDifficulty[];
+  sizeBytes: number;
+  sourceFormat?: LocalProjectSummary["sourceFormat"];
+  /** Which of the media record's files the active difficulty uses. */
+  backgroundFilename?: string;
+  audioFilename?: string;
+  /** Null when the project has no timing, so it cannot be a menu track. */
+  track: TrackTiming | null;
+};
+
+function pickFile(
+  files: { name: string; blob: Blob }[] | undefined,
+  wanted: string | undefined,
+  fallback: { name: string; blob: Blob } | null | undefined,
+): Blob | undefined {
+  const list = files ?? [];
   if (wanted) {
-    const hit = files.find((f) => f.name === wanted);
+    const hit = list.find((f) => f.name === wanted);
     if (hit) return hit.blob;
   }
-  return files[0]?.blob ?? project.background?.blob ?? undefined;
+  return list[0]?.blob ?? fallback?.blob ?? undefined;
+}
+
+function summarizeProject(project: SavedProject): ProjectSummaryRecord {
+  const active = activeDifficulty(project);
+  const { title, titleUnicode, artist, artistUnicode, creator, tags } =
+    project.meta;
+  return {
+    summaryVersion: SUMMARY_VERSION,
+    savedAt: project.savedAt,
+    meta: { title, titleUnicode, artist, artistUnicode, creator, tags },
+    difficulties: project.difficulties.map((d) => ({
+      name: d.name,
+      keyCount: d.keyCount,
+      stars: d.notes ? computeStarRating(d.notes, d.keyCount) : 0,
+    })),
+    sizeBytes: mediaBytes(project),
+    sourceFormat: project.difficulties[0]?.sourceFormat,
+    backgroundFilename: active?.backgroundFilename,
+    audioFilename: active?.audioFilename,
+    track: isTimed(project)
+      ? {
+          previewTime: trackPreviewTime(project),
+          ...trackBeat(project),
+          kiai: trackKiai(project),
+        }
+      : null,
+  };
+}
+
+function isCurrentSummary(value: unknown): value is ProjectSummaryRecord {
+  return (
+    !!value &&
+    (value as ProjectSummaryRecord).summaryVersion === SUMMARY_VERSION
+  );
+}
+
+function projectRow(
+  id: string,
+  summary: ProjectSummaryRecord,
+  media: MediaPayload | undefined,
+): LocalProjectSummary {
+  const { meta } = summary;
+  return {
+    id,
+    title: meta.title,
+    titleUnicode: meta.titleUnicode,
+    artistUnicode: meta.artistUnicode,
+    artist: meta.artist,
+    creator: meta.creator,
+    tags: meta.tags,
+    updatedAt: summary.savedAt,
+    difficultyCount: summary.difficulties.length,
+    difficulties: summary.difficulties,
+    sizeBytes: summary.sizeBytes,
+    sourceFormat: summary.sourceFormat,
+    backgroundBlob: pickFile(
+      media?.backgroundFiles,
+      summary.backgroundFilename,
+      media?.background,
+    ),
+  };
+}
+
+function trackRow(
+  id: string,
+  summary: ProjectSummaryRecord,
+): LocalTrackSummary | null {
+  if (!summary.track) return null;
+  const { meta } = summary;
+  return {
+    id,
+    title: meta.title,
+    titleUnicode: meta.titleUnicode,
+    artistUnicode: meta.artistUnicode,
+    artist: meta.artist,
+    ...summary.track,
+    updatedAt: summary.savedAt,
+  };
+}
+
+function trackWithMedia(
+  id: string,
+  summary: ProjectSummaryRecord,
+  media: MediaPayload | undefined,
+): LocalTrack | null {
+  const row = trackRow(id, summary);
+  const audioBlob = pickFile(
+    media?.audioFiles,
+    summary.audioFilename,
+    media?.audio,
+  );
+  if (!row || !audioBlob) return null;
+  return {
+    ...row,
+    audioBlob,
+    backgroundBlob: pickFile(
+      media?.backgroundFiles,
+      summary.backgroundFilename,
+      media?.background,
+    ),
+  };
 }
 
 const OPEN_TIMEOUT_MS = 15000;
@@ -399,10 +533,14 @@ export async function saveProject(
   const { chart, media } = splitMedia(project);
   const signature = await mediaSignature(media);
   const mediaUnchanged = lastMediaSignature.get(key) === signature;
+  // Star ratings are cached per notes array, so only edited difficulties
+  // are rated again here.
+  const summary = summarizeProject(project);
 
   await withStore<void>("readwrite", (store) => {
     store.put({ ...chart, version: VERSION, localId }, key);
     if (!mediaUnchanged) store.put({ ...media, signature }, mediaKeyFor(key));
+    store.put(summary, summaryKeyFor(key));
   });
 
   lastMediaSignature.set(key, signature);
@@ -431,7 +569,8 @@ async function mirrorSavedProject(
 
 export async function loadProject(localId: string = KEY): Promise<SavedProject | null> {
   const key = projectKey(localId);
-  return withStore<SavedProject | null>("readonly", (store, resolve) => {
+  let summary: unknown;
+  const project = await withStore<SavedProject | null>("readonly", (store, resolve) => {
     const req = store.get(key);
     req.onsuccess = () => {
       const value = req.result as SavedProject | undefined;
@@ -447,6 +586,10 @@ export async function loadProject(localId: string = KEY): Promise<SavedProject |
         resolve(null);
         return;
       }
+      const summaryReq = store.get(summaryKeyFor(key));
+      summaryReq.onsuccess = () => {
+        summary = summaryReq.result;
+      };
       const mediaReq = store.get(mediaKeyFor(key));
       mediaReq.onsuccess = () => {
         const media = (mediaReq.result as MediaRecord | undefined) ?? null;
@@ -455,75 +598,152 @@ export async function loadProject(localId: string = KEY): Promise<SavedProject |
       };
     };
   });
+  // Saved by a tab still running a version from before summaries, or not
+  // listed since: catch the summary up once the editor has settled.
+  if (
+    project?.version === VERSION &&
+    !(isCurrentSummary(summary) && summary.savedAt === project.savedAt)
+  ) {
+    refreshSummaryWhenIdle(key, project);
+  }
+  return project;
 }
 
-export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
-  return withStore<LocalProjectSummary[]>("readonly", (store, resolve) => {
+type IdleScope = typeof globalThis & {
+  requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+};
+
+function refreshSummaryWhenIdle(key: string, project: SavedProject): void {
+  const run = () => {
+    void storeSummaries([{ key, summary: summarizeProject(project) }]).catch(
+      () => {},
+    );
+  };
+  const scope = globalThis as IdleScope;
+  if (scope.requestIdleCallback) scope.requestIdleCallback(run, { timeout: 10000 });
+  else setTimeout(run, 2000);
+}
+
+/** Writes summaries unless a save has already written a newer one. */
+async function storeSummaries(
+  entries: { key: string; summary: ProjectSummaryRecord }[],
+): Promise<void> {
+  await withStore<void>("readwrite", (store) => {
+    for (const { key, summary } of entries) {
+      const req = store.get(summaryKeyFor(key));
+      req.onsuccess = () => {
+        const current = req.result as unknown;
+        if (isCurrentSummary(current) && current.savedAt >= summary.savedAt) return;
+        store.put(summary, summaryKeyFor(key));
+      };
+    }
+  });
+}
+
+type StoredSummary = {
+  id: string;
+  summary: ProjectSummaryRecord;
+  media?: MediaPayload;
+};
+
+/**
+ * Every stored project's summary, and its media record when `withMedia` is
+ * set. Media records hold only file handles, so they are cheap to read. A
+ * project saved before summaries existed is read in full this one time, and
+ * its summary is written for next time.
+ */
+async function readSummaries(withMedia: boolean): Promise<StoredSummary[]> {
+  const missing: { key: string; summary: ProjectSummaryRecord }[] = [];
+  const rows = await withStore<StoredSummary[]>("readonly", (store, resolve) => {
     const keysReq = store.getAllKeys();
     keysReq.onsuccess = () => {
+      const allKeys = new Set(keysReq.result);
       const projectKeys = keysReq.result.filter((key) => projectIdFromKey(key));
       if (!projectKeys.length) {
         resolve([]);
         return;
       }
 
-      const rows: LocalProjectSummary[] = [];
+      const out: StoredSummary[] = [];
       let pending = projectKeys.length;
       const done = () => {
         pending -= 1;
-        if (pending === 0) {
-          rows.sort((a, b) => b.updatedAt - a.updatedAt);
-          resolve(rows);
-        }
+        if (pending === 0) resolve(out);
       };
-
-      for (const key of projectKeys) {
+      const readMedia = (
+        key: string,
+        then: (media: MediaRecord | undefined) => void,
+      ) => {
+        const req = store.get(mediaKeyFor(key));
+        req.onsuccess = () => then(req.result as MediaRecord | undefined);
+      };
+      const readFull = (key: string, id: string) => {
         const req = store.get(key);
         req.onsuccess = () => {
           const project = req.result as SavedProject | undefined;
-          const id = projectIdFromKey(key);
-          if (!id || !project) {
+          if (!project) {
             done();
             return;
           }
-          const add = (full: SavedProject) => {
-            rows.push({
-              id,
-              title: full.meta.title,
-              titleUnicode: full.meta.titleUnicode,
-              artistUnicode: full.meta.artistUnicode,
-              artist: full.meta.artist,
-              creator: full.meta.creator,
-              tags: full.meta.tags,
-              updatedAt: full.savedAt,
-              difficultyCount: full.difficulties.length,
-              difficulties: full.difficulties.map((d) => ({
-                name: d.name,
-                keyCount: d.keyCount,
-                stars: d.notes ? computeStarRating(d.notes, d.keyCount) : 0,
-              })),
-              sizeBytes: mediaBytes(full),
-              sourceFormat: full.difficulties[0]?.sourceFormat,
-              backgroundBlob: pickLocalBackground(full),
-            });
-            done();
-          };
-
+          // Legacy records carry their media inline and are never given a
+          // summary; the next save moves them to the current form.
           if (project.version === LEGACY_VERSION) {
-            add(project);
+            out.push({ id, summary: summarizeProject(project), media: project });
+            done();
             return;
           }
           if (project.version !== VERSION) {
             done();
             return;
           }
-          const mediaReq = store.get(mediaKeyFor(key as string));
-          mediaReq.onsuccess = () =>
-            add(mergeMedia(project, mediaReq.result as MediaRecord | undefined));
+          readMedia(key, (media) => {
+            const summary = summarizeProject(mergeMedia(project, media));
+            missing.push({ key, summary });
+            out.push({ id, summary, media });
+            done();
+          });
+        };
+      };
+
+      for (const projectKeyValue of projectKeys) {
+        const key = projectKeyValue as string;
+        const id = projectIdFromKey(key) as string;
+        if (!allKeys.has(summaryKeyFor(key))) {
+          readFull(key, id);
+          continue;
+        }
+        const req = store.get(summaryKeyFor(key));
+        req.onsuccess = () => {
+          const summary = req.result as unknown;
+          if (!isCurrentSummary(summary)) {
+            readFull(key, id);
+            return;
+          }
+          if (!withMedia) {
+            out.push({ id, summary });
+            done();
+            return;
+          }
+          readMedia(key, (media) => {
+            out.push({ id, summary, media });
+            done();
+          });
         };
       }
     };
   });
+  if (missing.length) void storeSummaries(missing).catch(() => {});
+  return rows;
+}
+
+const newestFirst = (a: { updatedAt: number }, b: { updatedAt: number }) =>
+  b.updatedAt - a.updatedAt;
+
+export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
+  const rows = await readSummaries(true);
+  return rows
+    .map(({ id, summary, media }) => projectRow(id, summary, media))
+    .sort(newestFirst);
 }
 
 function isTimed(project: SavedProject): boolean {
@@ -547,17 +767,6 @@ function trackPoints(project: SavedProject): TimingPoint[] {
   return active?.timingPoints?.length
     ? active.timingPoints
     : (project.timingPoints ?? []);
-}
-
-function pickTrackAudio(project: SavedProject): Blob | undefined {
-  const files = project.audioFiles ?? [];
-  const active = activeDifficulty(project);
-  const wanted = active?.audioFilename;
-  if (wanted) {
-    const hit = files.find((f) => f.name === wanted);
-    if (hit) return hit.blob;
-  }
-  return files[0]?.blob ?? project.audio?.blob ?? undefined;
 }
 
 function trackPreviewTime(project: SavedProject): number {
@@ -589,35 +798,6 @@ function trackKiai(project: SavedProject): KiaiRange[] {
   return kiaiRanges(trackPoints(project), Number.POSITIVE_INFINITY);
 }
 
-function localTrackSummary(
-  id: string,
-  project: SavedProject,
-): LocalTrackSummary | null {
-  if (!isTimed(project)) return null;
-  return {
-    id,
-    title: project.meta.title,
-    titleUnicode: project.meta.titleUnicode,
-    artistUnicode: project.meta.artistUnicode,
-    artist: project.meta.artist,
-    previewTime: trackPreviewTime(project),
-    ...trackBeat(project),
-    kiai: trackKiai(project),
-    updatedAt: project.savedAt,
-  };
-}
-
-function localTrack(id: string, project: SavedProject): LocalTrack | null {
-  const summary = localTrackSummary(id, project);
-  const audioBlob = pickTrackAudio(project);
-  if (!summary || !audioBlob) return null;
-  return {
-    ...summary,
-    audioBlob,
-    backgroundBlob: pickLocalBackground(project),
-  };
-}
-
 export async function countLocalProjects(): Promise<number> {
   return withStore<number>("readonly", (store, resolve) => {
     const keysReq = store.getAllKeys();
@@ -628,106 +808,43 @@ export async function countLocalProjects(): Promise<number> {
 }
 
 export async function listLocalTrackSummaries(): Promise<LocalTrackSummary[]> {
-  return withStore<LocalTrackSummary[]>("readonly", (store, resolve) => {
-    const keysReq = store.getAllKeys();
-    keysReq.onsuccess = () => {
-      const projectKeys = keysReq.result.filter((key) => projectIdFromKey(key));
-      if (!projectKeys.length) {
-        resolve([]);
-        return;
-      }
-
-      const rows: LocalTrackSummary[] = [];
-      let pending = projectKeys.length;
-      const done = () => {
-        pending -= 1;
-        if (pending === 0) {
-          rows.sort((a, b) => b.updatedAt - a.updatedAt);
-          resolve(rows);
-        }
-      };
-
-      for (const key of projectKeys) {
-        const req = store.get(key);
-        req.onsuccess = () => {
-          const project = req.result as SavedProject | undefined;
-          const id = projectIdFromKey(key);
-          if (
-            !id ||
-            !project ||
-            (project.version !== LEGACY_VERSION && project.version !== VERSION)
-          ) {
-            done();
-            return;
-          }
-          const summary = localTrackSummary(id, project);
-          if (summary) rows.push(summary);
-          done();
-        };
-      }
-    };
-  });
+  const rows = await readSummaries(false);
+  return rows
+    .map(({ id, summary }) => trackRow(id, summary))
+    .filter((row): row is LocalTrackSummary => row !== null)
+    .sort(newestFirst);
 }
 
+/** One menu track with its audio, read without the project's notes. */
 export async function loadLocalTrack(id: string): Promise<LocalTrack | null> {
+  const key = projectKey(id);
+  const stored = await withStore<{
+    summary: ProjectSummaryRecord;
+    media: MediaRecord | undefined;
+  } | null>("readonly", (store, resolve) => {
+    const req = store.get(summaryKeyFor(key));
+    req.onsuccess = () => {
+      const summary = req.result as unknown;
+      if (!isCurrentSummary(summary)) {
+        resolve(null);
+        return;
+      }
+      const mediaReq = store.get(mediaKeyFor(key));
+      mediaReq.onsuccess = () =>
+        resolve({ summary, media: mediaReq.result as MediaRecord | undefined });
+    };
+  });
+  if (stored) return trackWithMedia(id, stored.summary, stored.media);
   const project = await loadProject(id);
-  return project ? localTrack(id, project) : null;
+  return project ? trackWithMedia(id, summarizeProject(project), project) : null;
 }
 
 export async function listLocalTracks(): Promise<LocalTrack[]> {
-  return withStore<LocalTrack[]>("readonly", (store, resolve) => {
-    const keysReq = store.getAllKeys();
-    keysReq.onsuccess = () => {
-      const projectKeys = keysReq.result.filter((key) => projectIdFromKey(key));
-      if (!projectKeys.length) {
-        resolve([]);
-        return;
-      }
-
-      const rows: LocalTrack[] = [];
-      let pending = projectKeys.length;
-      const done = () => {
-        pending -= 1;
-        if (pending === 0) {
-          rows.sort((a, b) => b.updatedAt - a.updatedAt);
-          resolve(rows);
-        }
-      };
-
-      for (const key of projectKeys) {
-        const req = store.get(key);
-        req.onsuccess = () => {
-          const project = req.result as SavedProject | undefined;
-          const id = projectIdFromKey(key);
-          if (!id || !project) {
-            done();
-            return;
-          }
-          const add = (full: SavedProject) => {
-            const row = localTrack(id, full);
-            if (!row) {
-              done();
-              return;
-            }
-            rows.push(row);
-            done();
-          };
-
-          if (project.version === LEGACY_VERSION) {
-            add(project);
-            return;
-          }
-          if (project.version !== VERSION) {
-            done();
-            return;
-          }
-          const mediaReq = store.get(mediaKeyFor(key as string));
-          mediaReq.onsuccess = () =>
-            add(mergeMedia(project, mediaReq.result as MediaRecord | undefined));
-        };
-      }
-    };
-  });
+  const rows = await readSummaries(true);
+  return rows
+    .map(({ id, summary, media }) => trackWithMedia(id, summary, media))
+    .filter((row): row is LocalTrack => row !== null)
+    .sort(newestFirst);
 }
 
 export async function clearProject(localId: string = KEY): Promise<void> {
@@ -735,6 +852,7 @@ export async function clearProject(localId: string = KEY): Promise<void> {
   await withStore<void>("readwrite", (store) => {
     store.delete(key);
     store.delete(mediaKeyFor(key));
+    store.delete(summaryKeyFor(key));
   });
   lastMediaSignature.delete(key);
 }
@@ -872,6 +990,27 @@ export async function saveSkinBlob(
   await withStore<void>("readwrite", (store) => {
     if (skin) store.put(skin, SKIN_KEY);
     else store.delete(SKIN_KEY);
+  });
+}
+
+/**
+ * The folder picked for exports in a browser that lets a page write to one.
+ * Only this device has it: a folder handle cannot travel with an account.
+ */
+export async function saveExportFolderHandle(
+  handle: FileSystemDirectoryHandle | null,
+): Promise<void> {
+  await withStore<void>("readwrite", (store) => {
+    if (handle) store.put(handle, EXPORT_FOLDER_KEY);
+    else store.delete(EXPORT_FOLDER_KEY);
+  });
+}
+
+export async function loadExportFolderHandle(): Promise<FileSystemDirectoryHandle | null> {
+  return withStore<FileSystemDirectoryHandle | null>("readonly", (store, resolve) => {
+    const req = store.get(EXPORT_FOLDER_KEY);
+    req.onsuccess = () =>
+      resolve((req.result as FileSystemDirectoryHandle | undefined) ?? null);
   });
 }
 

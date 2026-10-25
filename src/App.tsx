@@ -69,12 +69,15 @@ import { renderShareCard } from "./lib/shareCard";
 import { VersionHistoryModal } from "./components/menus/VersionHistoryModal";
 import { batchApplyDifficulties, type BatchRequest } from "./lib/batchApply";
 import { readExclusivePreference } from "./lib/nativeAudio";
-import { ExitCurtain } from "./components/ExitCurtain";
+import { ExitOutro } from "./components/ExitOutro";
 import {
   canExitDesktop,
   exitAnimationMs,
   exitDesktopApp,
+  OUTRO,
 } from "./lib/desktopExit";
+import { onQuitRequested, signalAppReady } from "./lib/displaySettings";
+import { reduceMotion } from "./lib/performanceMode";
 import { useMenuMusic } from "./hooks/useMenuMusic";
 import { dialogIsOpen } from "./hooks/useDialog";
 import type { AudioSeekTransition } from "./lib/audioSeek";
@@ -1615,21 +1618,34 @@ export default function App() {
   const setMenuMusicDucking = menuMusic.setAmbientDucking;
   const fadeOutMenuMusic = menuMusic.fadeOut;
 
-  const [exiting, setExiting] = useState(false);
+  const [exitOutro, setExitOutro] = useState<{
+    from: DOMRect | null;
+    reduced: boolean;
+  } | null>(null);
+  const exiting = exitOutro !== null;
   const exitingRef = useRef(false);
   const handleExitApp = useCallback(() => {
     if (exitingRef.current) return;
     exitingRef.current = true;
-    const ms = exitAnimationMs();
-    setExiting(true);
-    fadeOutMenuMusic(ms);
+    const reduced = reduceMotion();
+    const ms = exitAnimationMs(reduced);
+    // The outro's logo starts from the menu's, when the menu is showing.
+    const box = document.querySelector("[data-exit-logo]")?.getBoundingClientRect();
+    setExitOutro({ from: box && box.width > 0 ? box : null, reduced });
+    fadeOutMenuMusic(
+      ms,
+      reduced ? undefined : { to: OUTRO.musicDipTo, ms: OUTRO.musicDipMs },
+    );
+    pauseAudio();
     window.setTimeout(() => {
       exitDesktopApp().catch(() => {
         exitingRef.current = false;
-        setExiting(false);
+        setExitOutro(null);
       });
     }, ms);
-  }, [fadeOutMenuMusic]);
+  }, [fadeOutMenuMusic, pauseAudio]);
+  // The window's close button and Alt+F4 quit the same way.
+  useEffect(() => onQuitRequested(handleExitApp), [handleExitApp]);
   // The menu's presence channel is open to every signed-in user, so it only
   // carries what the user shows to everyone.
   const { privacy: myPrivacy, loaded: myPrivacyLoaded } = useMyPrivacy(
@@ -2072,7 +2088,11 @@ export default function App() {
     let cancelled = false;
     preloadUiSounds();
     void preloadLazyChunks().then(() => {
-      if (!cancelled) setChunksReady(true);
+      if (cancelled) return;
+      setChunksReady(true);
+      // Desktop: the window comes out from behind the splash now, with
+      // everything the first screens need already loaded.
+      signalAppReady();
     });
     return () => {
       cancelled = true;
@@ -2334,6 +2354,7 @@ export default function App() {
     exportIssues,
     exportProgress,
     exporting,
+    handleExportBackground,
     handleExportMcz,
     handleExportOsu,
     handleExportOsz,
@@ -2347,6 +2368,7 @@ export default function App() {
     setExportIssues,
   } = useMapExport({
     active,
+    activeBackground: activeBg,
     activeTimingPoints,
     appSettings,
     audioFile,
@@ -2770,6 +2792,7 @@ export default function App() {
     featureFlags,
     getCurrentTime,
     handleCloudSave,
+    handleExportBackground,
     handleExportMcz,
     handleExportOsu,
     handleExportOsz,
@@ -2779,6 +2802,7 @@ export default function App() {
     handleSave,
     handleSendToOsu,
     handleSyncToOsu,
+    hasBackground: !!activeBg,
     hasMalodyDifficulty,
     hasProject,
     hitsoundTargets,
@@ -2928,7 +2952,7 @@ export default function App() {
         className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[var(--ease-emphasized)] ${
           sceneEntering && hasProject ? "editor-scene-in" : ""
         } ${
-          exiting ? "app-power-off" : ""
+          exiting ? "pointer-events-none" : ""
         } ${
           modalAtmosphereActive && !appSettings.performanceMode
             ? "scale-[0.992] blur-[2px] opacity-75"
@@ -3011,6 +3035,7 @@ export default function App() {
         exporting={exporting}
         featureFlags={featureFlags}
         handleCloudSave={handleCloudSave}
+        handleExportBackground={handleExportBackground}
         handleExportMcz={handleExportMcz}
         handleExportOsu={handleExportOsu}
         handleExportOsz={handleExportOsz}
@@ -3020,6 +3045,7 @@ export default function App() {
         handleSave={handleSave}
         handleSendToOsu={handleSendToOsu}
         handleSyncToOsu={handleSyncToOsu}
+        hasBackground={!!activeBg}
         hasMalodyDifficulty={hasMalodyDifficulty}
         hasProject={hasProject}
         historyCurrent={historyCurrent}
@@ -4731,7 +4757,9 @@ export default function App() {
         onCancel={() => setConfirmResnap(false)}
       />
 
-      {exiting && <ExitCurtain />}
+      {exitOutro && (
+        <ExitOutro from={exitOutro.from} reduced={exitOutro.reduced} music={menuMusic} />
+      )}
     </div>
   );
 }

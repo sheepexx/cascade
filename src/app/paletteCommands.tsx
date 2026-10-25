@@ -45,6 +45,7 @@ export function buildPaletteCommands({
   featureFlags,
   getCurrentTime,
   handleCloudSave,
+  handleExportBackground,
   handleExportMcz,
   handleExportOsu,
   handleExportOsz,
@@ -54,6 +55,7 @@ export function buildPaletteCommands({
   handleSave,
   handleSendToOsu,
   handleSyncToOsu,
+  hasBackground,
   hasMalodyDifficulty,
   hasProject,
   hitsoundTargets,
@@ -107,6 +109,7 @@ export function buildPaletteCommands({
   featureFlags: FeatureFlags;
   getCurrentTime: () => number;
   handleCloudSave: (target?: { overwriteId?: string; asNewMap?: boolean; }) => Promise<void>;
+  handleExportBackground: () => void;
   handleExportMcz: () => void;
   handleExportOsu: () => void;
   handleExportOsz: () => void;
@@ -116,6 +119,7 @@ export function buildPaletteCommands({
   handleSave: (silent?: boolean) => Promise<void>;
   handleSendToOsu: () => void;
   handleSyncToOsu: () => void;
+  hasBackground: boolean;
   hasMalodyDifficulty: boolean;
   hasProject: boolean;
   hitsoundTargets: Difficulty[];
@@ -311,6 +315,7 @@ export function buildPaletteCommands({
           { id: "export-sm", label: t("file.exportSm"), group: t("palette.group.export"), disabled: !canExport, run: handleExportSm },
           { id: "export-qua", label: t("file.exportQua"), group: t("palette.group.export"), disabled: !canExport, run: handleExportQua },
           { id: "export-mcz", label: t("file.exportMcz"), group: t("palette.group.export"), keywords: "malody mc", disabled: !canExport || exporting || !hasMalodyDifficulty, run: handleExportMcz },
+          { id: "export-background", label: t("file.exportBackground"), group: t("palette.group.export"), keywords: "bg image picture wallpaper", disabled: !hasBackground, run: handleExportBackground },
           ...(osuApp?.supported
             ? [
                 { id: "import-into-osu", label: t("file.importIntoOsu"), group: "osu!", keywords: "send export stable", disabled: !canExport || osuBusy || exporting, run: handleSendToOsu },

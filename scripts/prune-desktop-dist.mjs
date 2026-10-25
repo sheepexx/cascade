@@ -14,7 +14,8 @@ const DROP_FILES = [
 ];
 const DROP_PATTERNS = [/^og.*\.(png|jpg)$/, /^workbox-.*\.js$/, /\.html$/];
 
-const KEEP_HTML = new Set(["index.html"]);
+// The app itself, and the splash shown while it loads.
+const KEEP_HTML = new Set(["index.html", "splash.html"]);
 
 async function sizeOf(path) {
   const entry = await stat(path);

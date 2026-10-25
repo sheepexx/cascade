@@ -200,21 +200,22 @@ export function setFilename(meta: SongMeta): string {
   return `${sanitize(meta.artist)} - ${sanitize(meta.title)}.osz`;
 }
 
-export function downloadOsu(args: BuildOsuArgs): void {
-  const content = buildOsuFile(args);
-  const blob = new Blob([content], { type: "text/plain" });
-  triggerDownload(blob, osuFilename(args.meta, args.difficulty));
-}
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "image/bmp": ".bmp",
+};
 
-export function triggerDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+/** "Artist - Title background.jpg", keeping the picture's own file type. */
+export function backgroundFilename(
+  meta: SongMeta,
+  file: { name: string; blob: Blob },
+): string {
+  const own = /\.[a-z0-9]+$/i.exec(file.name)?.[0].toLowerCase();
+  const ext = IMAGE_EXTENSIONS[file.blob.type] ?? own ?? ".jpg";
+  return `${sanitize(meta.artist)} - ${sanitize(meta.title)} background${ext}`;
 }
 
 export type { LoadedFile };

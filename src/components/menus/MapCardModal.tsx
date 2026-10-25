@@ -6,7 +6,7 @@ import { useAuth } from "../../lib/auth";
 import { useT } from "../../lib/i18n";
 import { useMsdRatings } from "../../lib/msd/useMsd";
 import { computeStarRating } from "../../lib/starRating";
-import { triggerDownload } from "../../lib/osuExport";
+import { prepareExport, saveExport } from "../../lib/exportDestination";
 import {
   BUILT_IN_MAP_CARD_PRESETS,
   DEFAULT_MAP_CARD_CONFIG,
@@ -219,11 +219,12 @@ export function MapCardModal({
   );
 
   const download = async () => {
+    const target = prepareExport();
     setAction("download");
     setStatus(null);
     try {
       const { blob } = await render();
-      triggerDownload(blob, mapCardFilename(meta, difficulty));
+      await saveExport(blob, mapCardFilename(meta, difficulty), target);
       setStatus({ tone: "success", text: t("mapCard.saved") });
       trackMapCardShared("download");
     } catch (error) {

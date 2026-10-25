@@ -20,7 +20,7 @@ import {
   sanitizePackFilename,
   validatePack,
 } from "../lib/packCreator";
-import { triggerDownload } from "../lib/osuExport";
+import { prepareExport, saveExport } from "../lib/exportDestination";
 import {
   packSongToOszFile,
   scanPackFromDrop,
@@ -258,6 +258,7 @@ export function PackCreator({
   const exportPack = useCallback(async () => {
     const result = runValidation();
     if (result.errors.length > 0) return;
+    const target = prepareExport();
     setExporting(true);
     setExportProgress({ ratio: 0, label: t("pack.collecting") });
     try {
@@ -269,7 +270,7 @@ export function PackCreator({
         cascadeTag,
         onProgress: setExportProgress,
       });
-      triggerDownload(blob, filename);
+      await saveExport(blob, filename, target);
       playUiSound("mapExportDone");
       void logAnalyticsEvent("pack_export", user?.id).catch(() => {});
     } catch (err) {

@@ -20,6 +20,12 @@ import { usePhoneViewport } from "../../hooks/usePhoneViewport";
 import { isDesktopApp } from "../../lib/pwa";
 import { eraseLocalData } from "../../lib/resetLocalData";
 import {
+  chooseExportFolder,
+  exportFolderInfo,
+  resetExportFolder,
+  type ExportFolderInfo,
+} from "../../lib/exportDestination";
+import {
   osuChooseRoot,
   osuForgetRoot,
   osuStatus,
@@ -56,6 +62,7 @@ import { LOCALES } from "../../lib/i18n/core";
 import type { EditorKeybinds } from "../../lib/editorKeybinds";
 import { ShortcutsSettings } from "./ShortcutsSettings";
 import { SocialPrivacySettings } from "./SocialPrivacySettings";
+import { GraphicsSettings } from "./GraphicsSettings";
 import {
   SettingRow,
   SettingsExtra,
@@ -206,7 +213,7 @@ type Props = {
   accountSyncError: string | null;
 };
 
-const TABS = ["General", "Editor", "Playtest", "Audio", "Export", "Shortcuts", "Social"] as const;
+const TABS = ["General", "Graphics", "Editor", "Playtest", "Audio", "Export", "Shortcuts", "Social"] as const;
 export type SettingsTab = (typeof TABS)[number];
 type Tab = SettingsTab;
 
@@ -222,6 +229,7 @@ const ALT_WHEEL_OPTIONS: {
 
 const TAB_LABELS: Record<Tab, MessageKey> = {
   General: "settings.tabGeneral",
+  Graphics: "settings.tabGraphics",
   Editor: "settings.tabEditor",
   Playtest: "settings.tabPlaytest",
   Audio: "settings.tabAudio",
@@ -388,7 +396,12 @@ export function AppSettingsModal({
   const warnings = keybindWarnings(selectedKeybinds);
 
   useEffect(() => {
-    if (open) setTab(initialTab === "Social" && !socialEnabled ? "General" : initialTab ?? "General");
+    if (open)
+      setTab(
+        (initialTab === "Social" && !socialEnabled) || (initialTab === "Graphics" && !isDesktopApp())
+          ? "General"
+          : initialTab ?? "General",
+      );
     if (open) setQuery("");
   }, [initialTab, open, socialEnabled]);
 
@@ -490,7 +503,9 @@ export function AppSettingsModal({
       ? [...savedSkinNames, playtest.skin.fileName]
       : savedSkinNames;
 
-  const visibleTabs = TABS.filter((name) => name !== "Social" || socialEnabled);
+  const visibleTabs = TABS.filter(
+    (name) => (name !== "Social" || socialEnabled) && (name !== "Graphics" || isDesktopApp()),
+  );
 
   return (
     <Modal
@@ -814,6 +829,12 @@ export function AppSettingsModal({
             )}
             <LegalSection />
             <ResetDataSection />
+          </SettingsCategory>
+        )}
+
+        {show("Graphics") && isDesktopApp() && (
+          <SettingsCategory name="Graphics" words={words}>
+            <GraphicsSettings />
           </SettingsCategory>
         )}
 
@@ -1434,6 +1455,10 @@ export function AppSettingsModal({
 
         {show("Export") && (
           <SettingsCategory name="Export" words={words}>
+            <SettingsSection title={t("settings.exportLocation")}>
+              <ExportFolderRow />
+            </SettingsSection>
+
             <SettingsSection title={t("settings.backgroundImages")}>
               <SettingToggle
                 label={t("settings.convertPng")}
@@ -1546,6 +1571,7 @@ function SettingsCategory({
 /** Line icons for the category rail, drawn on a 16px grid. */
 const TAB_ICONS: Record<Tab, ReactNode> = {
   General: <path d="M3 4.5h6m3 0h1M3 8h2m3 0h5M3 11.5h7m3 0h0M10.5 3v3M6.5 6.5v3M11.5 10v3" />,
+  Graphics: <path d="M2.5 3.5h11v7.5h-11v-7.5Zm3.5 10h4M8 11v2.5" />,
   Editor: <path d="M3.5 2.5v11M8 2.5v11M12.5 2.5v11M4.5 5h2.5M9 9h2.5M4.5 11.5h2.5" />,
   Playtest: <path d="M5 3.2v9.6L12.5 8 5 3.2Z" />,
   Audio: <path d="M3 6.2h2.2L8.5 3.5v9L5.2 9.8H3V6.2Zm8 -.7a3.5 3.5 0 0 1 0 5" />,
@@ -1789,6 +1815,84 @@ function ResetDataSection() {
         onCancel={() => setConfirming(false)}
       />
     </SettingsSection>
+  );
+}
+
+/** Where exports are saved: Downloads or a chosen folder on desktop, the
+ *  browser's downloads or a chosen folder in a browser that allows one. */
+function ExportFolderRow() {
+  const { t } = useLocale();
+  const [info, setInfo] = useState<ExportFolderInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const desktop = isDesktopApp();
+
+  useEffect(() => {
+    let live = true;
+    exportFolderInfo()
+      .then((next) => {
+        if (live) setInfo(next);
+      })
+      .catch((err: unknown) => {
+        if (live) setError(err instanceof Error ? err.message : t("settings.exportFolderFailed"));
+      });
+    return () => {
+      live = false;
+    };
+  }, [t]);
+
+  const run = (fn: () => Promise<ExportFolderInfo | null>) => {
+    setBusy(true);
+    setError(null);
+    fn()
+      .then((next) => {
+        if (next) setInfo(next);
+      })
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : t("settings.exportFolderFailed")),
+      )
+      .finally(() => setBusy(false));
+  };
+
+  const where =
+    info === null
+      ? null
+      : desktop
+        ? info.label
+        : info.chosen && info.label
+          ? t("settings.exportFolderNamed", { folder: info.label })
+          : t("settings.exportFolderBrowser");
+
+  return (
+    <SettingRow
+      stacked
+      label={t("settings.exportFolder")}
+      tip={desktop ? t("settings.exportFolderHintDesktop") : t("settings.exportFolderHint")}
+    >
+      <div className="flex w-full flex-col gap-2">
+        <p className={desktop ? "break-all font-mono text-xs text-slate-300" : "text-xs text-slate-300"}>
+          {where ?? " "}
+          {desktop && info && !info.chosen && (
+            <span className="ml-2 font-sans text-slate-500">{t("settings.exportFolderDefault")}</span>
+          )}
+        </p>
+        {info?.supported ? (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" size="sm" onClick={() => run(chooseExportFolder)} disabled={busy}>
+              {t("settings.exportFolderChoose")}
+            </Button>
+            {info.chosen && (
+              <Button size="sm" onClick={() => run(resetExportFolder)} disabled={busy}>
+                {desktop ? t("settings.exportFolderResetDesktop") : t("settings.exportFolderResetBrowser")}
+              </Button>
+            )}
+          </div>
+        ) : (
+          info && <p className="text-xs text-slate-500">{t("settings.exportFolderUnsupported")}</p>
+        )}
+        {error && <p className="text-xs text-rose-300">{error}</p>}
+      </div>
+    </SettingRow>
   );
 }
 

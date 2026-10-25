@@ -502,7 +502,3 @@ export async function buildSmZip(rawArgs: BuildSmzArgs): Promise<Blob> {
   });
 }
 
-export async function downloadSmZip(args: BuildSmzArgs): Promise<void> {
-  const blob = await buildSmZip(args);
-  triggerDownload(blob, smZipFilename(args.meta));
-}

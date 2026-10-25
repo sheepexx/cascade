@@ -3,6 +3,7 @@ import { renderPatternCard } from "../../lib/shareCard";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Controls";
 import { useT } from "../../lib/i18n";
+import { saveExport } from "../../lib/exportDestination";
 
 export function PatternImageModal({ info, onClose }: { info: Parameters<typeof renderPatternCard>[0]; onClose: () => void }) {
   const t = useT();
@@ -26,9 +27,11 @@ export function PatternImageModal({ info, onClose }: { info: Parameters<typeof r
     } catch { setStatus(t("patternImage.noClipboard")); }
   };
   const download = () => {
-    const link = document.createElement("a"); link.href = url;
-    link.download = `${info.difficulty.replace(/[^a-z0-9_-]/gi, "_") || "pattern"}-selection.png`;
-    link.click(); setStatus(t("patternImage.saved"));
+    if (!blob) return;
+    const name = `${info.difficulty.replace(/[^a-z0-9_-]/gi, "_") || "pattern"}-selection.png`;
+    saveExport(blob, name)
+      .then(() => setStatus(t("patternImage.saved")))
+      .catch((error: unknown) => setStatus(String(error)));
   };
   return <Modal open onClose={onClose} title={t("patternImage.title")} width="max-w-xl" footer={<>
     <Button variant="primary" disabled={!blob} onClick={() => void copy()}>{t("patternImage.copy")}</Button>

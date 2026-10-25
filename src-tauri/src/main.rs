@@ -5,6 +5,8 @@ use std::net::{Ipv4Addr, TcpListener, TcpStream};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod archive;
+mod display;
+mod exports;
 mod external_edit;
 mod launch;
 mod native_audio;
@@ -196,6 +198,7 @@ fn main() {
             if launch::queue(app.state::<launch::Pending>().inner(), paths) {
                 let _ = app.emit(launch::OPEN_EVENT, ());
             }
+            display::reveal(app);
             if let Some(window) = app.get_webview_window("main") {
                 focus(&window);
             }
@@ -207,6 +210,7 @@ fn main() {
         .manage(launch::Pending::default())
         .manage(presence::Presence::default())
         .manage(native_audio::NativeAudio::default())
+        .on_window_event(display::on_window_event)
         .invoke_handler(tauri::generate_handler![
             native_audio::native_audio_load,
             native_audio::native_audio_control,
@@ -234,12 +238,22 @@ fn main() {
             vault::vault_history,
             vault::vault_restore,
             vault::vault_reveal,
+            display::app_ready,
+            display::display_get,
+            display::display_set,
+            exports::export_folder,
+            exports::export_choose_folder,
+            exports::export_reset_folder,
+            exports::export_write,
+            exports::export_reveal,
             external_edit::external_edit_start,
             external_edit::external_edit_show,
             external_edit::external_edit_read,
             external_edit::external_edit_finish
         ])
         .setup(|app| {
+            // The splash first, then the main window hidden behind it.
+            display::open_windows(app.handle())?;
             rendering::configure(app.handle())?;
             if let Ok(dir) = app.path().app_log_dir() {
                 install_crash_log(dir, app.package_info().version.to_string());
@@ -248,9 +262,6 @@ fn main() {
             launch::queue(app.state::<launch::Pending>().inner(), paths);
             osu::spawn_watcher(app.handle().clone());
             std::thread::spawn(portable::sweep);
-            if let Some(window) = app.get_webview_window("main") {
-                window.show()?;
-            }
             if std::env::var("CASCADE_DEVTOOLS").is_ok() {
                 if let Some(window) = app.get_webview_window("main") {
                     window.open_devtools();
@@ -258,6 +269,11 @@ fn main() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Cascade");
+        .build(tauri::generate_context!())
+        .expect("error while running Cascade")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                display::on_exit(app);
+            }
+        });
 }

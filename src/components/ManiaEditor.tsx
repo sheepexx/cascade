@@ -1244,12 +1244,14 @@ export function ManiaEditor(props: ManiaEditorProps) {
       );
       ctx.globalAlpha = eased;
       const par = parallaxRef.current;
-      // A blur pulls the edges inward, so the picture is drawn with the radius
-      // added to the parallax overscan; without it the corners fade to nothing.
-      // The filter is cleared again before the dim overlay so only the picture
-      // is softened, never the dim or anything drawn after it.
+      // The picture is drawn larger than the view by as far as the parallax can
+      // move it at the current strength, so its edge never slides into view. A
+      // blur pulls the edges inward too, so its radius is added on top; without
+      // it the corners fade to nothing. The filter is cleared again before the
+      // dim overlay so only the picture is softened, never the dim or anything
+      // drawn after it.
       const blur = Math.max(0, propsRef.current.backgroundBlur ?? 0);
-      const spread = PARALLAX_PX + blur * 2;
+      const spread = Math.ceil(PARALLAX_PX * parallaxScale()) + 1 + blur * 2;
       if (blur > 0) ctx.filter = `blur(${blur}px)`;
       drawCover(
         ctx,
@@ -1957,32 +1959,32 @@ export function ManiaEditor(props: ManiaEditorProps) {
     return () => ro.disconnect();
   }, [markDirty, lowSpec]);
 
+  // The background follows the pointer anywhere in the window, over panels,
+  // menus and dialogs too, the way the main menu's does. It is heard on the
+  // window before anything else, so nothing that stops a pointer event can
+  // freeze it, and it stays put when the pointer leaves the window.
   useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
     if (reduceMotion()) return;
 
     const move = (e: PointerEvent) => {
-      const rect = wrap.getBoundingClientRect();
-      if (rect.width < 1 || rect.height < 1) return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w < 1 || h < 1) return;
       const reach = PARALLAX_PX * parallaxScale();
       const clamp = (v: number) => Math.max(-reach, Math.min(reach, v));
       const par = parallaxRef.current;
-      par.tx = clamp(((e.clientX - rect.left) / rect.width - 0.5) * 2 * reach);
-      par.ty = clamp(((e.clientY - rect.top) / rect.height - 0.5) * 2 * reach);
+      const tx = clamp((e.clientX / w - 0.5) * 2 * reach);
+      const ty = clamp((e.clientY / h - 0.5) * 2 * reach);
+      if (tx === par.tx && ty === par.ty) return;
+      par.tx = tx;
+      par.ty = ty;
+      markDirty();
     };
-    const leave = () => {
-      const par = parallaxRef.current;
-      par.tx = 0;
-      par.ty = 0;
-    };
-    wrap.addEventListener("pointermove", move, { passive: true });
-    wrap.addEventListener("pointerleave", leave);
+    window.addEventListener("pointermove", move, { passive: true, capture: true });
     return () => {
-      wrap.removeEventListener("pointermove", move);
-      wrap.removeEventListener("pointerleave", leave);
+      window.removeEventListener("pointermove", move, { capture: true });
     };
-  }, []);
+  }, [markDirty]);
 
   const localPoint = (e: React.MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();

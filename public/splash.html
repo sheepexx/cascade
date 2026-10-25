@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Cascade</title>
+    <!-- The desktop app's splash: the logo alone in the middle of the screen
+         while the main window loads behind it, the way osu! starts. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        cursor: progress;
+      }
+      img {
+        width: 74vmin;
+        height: 74vmin;
+        border-radius: 50%;
+        filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55));
+        opacity: 0;
+        transform: scale(0.9);
+        animation:
+          appear 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+          breathe 1.4s ease-in-out 420ms infinite alternate;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+      @keyframes appear {
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes breathe {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.035);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        img {
+          animation: none;
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <img src="/logo.png?v=4" alt="Cascade" draggable="false" />
+  </body>
+</html>

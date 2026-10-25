@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { RecoveryPrompt } from "../components/RecoveryPrompt";
+import { ExportSavedToast } from "./ExportSavedToast";
 import { FeedbackInvite } from "./FeedbackInvite";
 import { InstallOffer } from "./InstallOffer";
 import { SampleMapsIcon } from "../components/ui/StartIcons";
@@ -330,6 +331,8 @@ export function AppToasts({
         resetKey={importNotice}
         onDismiss={() => setImportNotice(null)}
       />
+
+      <ExportSavedToast />
 
       <InstallOffer eligible={installEligible} />
       <FeedbackInvite {...feedbackInvite} />

@@ -17,7 +17,13 @@ import {
   osuStatus,
   osuSyncMap,
 } from "../lib/osuDesktop";
-import { downloadOsu, setFilename } from "../lib/osuExport";
+import { prepareExport, saveExport } from "../lib/exportDestination";
+import {
+  backgroundFilename,
+  buildOsuFile,
+  osuFilename,
+  setFilename,
+} from "../lib/osuExport";
 import type { ProgressFn, ProgressReport } from "../lib/progress";
 import type { ChartLike, RoundTripIssue } from "../lib/roundTrip";
 import { formatIssues } from "../lib/roundTrip";
@@ -34,14 +40,16 @@ import type {
 import type { SetImportError } from "../lib/importErrors";
 
 /**
- * Exporting the map: .osu, .osz, .sm, .qua and .mcz downloads, sending a
- * set into osu! or syncing it into the Songs folder on desktop, and opening
- * the map selected in osu!. Every export first asks for a mapper name if the
- * map has none, then runs export validation, and a written .osz is read back
- * and checked against the editor.
+ * Exporting the map: .osu, .osz, .sm, .qua and .mcz files and the background,
+ * saved where Settings says (see exportDestination); sending a set into osu!
+ * or syncing it into the Songs folder on desktop; and opening the map
+ * selected in osu!. Every map export first asks for a mapper name if the map
+ * has none, then runs export validation, and a written .osz is read back and
+ * checked against the editor.
  */
 export function useMapExport({
   active,
+  activeBackground,
   activeTimingPoints,
   appSettings,
   audioFile,
@@ -72,6 +80,8 @@ export function useMapExport({
   videoFiles,
 }: {
   active: Difficulty;
+  /** The picture behind the active difficulty, if it has one. */
+  activeBackground: LoadedFile | null;
   activeTimingPoints: TimingPoint[];
   appSettings: AppSettings;
   audioFile: LoadedFile | null;
@@ -130,23 +140,38 @@ export function useMapExport({
     [],
   );
 
-  const doExportOsu = useCallback((songMeta: SongMeta = meta) => {
+  const doExportOsu = useCallback(async (songMeta: SongMeta = meta) => {
     if (!audioFile) return;
-    downloadOsu({
-      meta: songMeta,
-      difficulty: active,
-      timingPoints: activeTimingPoints,
-      audioFilename: audioFile.name,
-      backgroundFilename: active.backgroundFilename,
-      videoFilename: active.videoFilename,
-      videoOffsetMs: active.videoOffsetMs,
-      cascadeTag: appSettings.addCascadeTag,
-    });
-    playUiSound("mapExportDone");
-    void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
-    trackFunnel("exported");
-    noteMappingEvent("export");
-    offerMapCard(".osu");
+    const target = prepareExport();
+    setImportError(null);
+    try {
+      const content = buildOsuFile({
+        meta: songMeta,
+        difficulty: active,
+        timingPoints: activeTimingPoints,
+        audioFilename: audioFile.name,
+        backgroundFilename: active.backgroundFilename,
+        videoFilename: active.videoFilename,
+        videoOffsetMs: active.videoOffsetMs,
+        cascadeTag: appSettings.addCascadeTag,
+      });
+      await saveExport(
+        new Blob([content], { type: "text/plain" }),
+        osuFilename(songMeta, active),
+        target,
+      );
+      playUiSound("mapExportDone");
+      void logAnalyticsEvent("export_osu", authUser?.id).catch(() => {});
+      trackFunnel("exported");
+      noteMappingEvent("export");
+      offerMapCard(".osu");
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? t("app.exportFailedDetail", { format: ".osu", detail: error.message })
+          : t("app.exportFailed", { format: ".osu" }),
+      );
+    }
   }, [
     audioFile,
     active,
@@ -155,21 +180,25 @@ export function useMapExport({
     authUser?.id,
     appSettings.addCascadeTag,
     offerMapCard,
+    setImportError,
+    t,
   ]);
 
   const doExportSm = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
+    const target = prepareExport();
     setExporting(true);
     setImportError(null);
     try {
-      const { downloadSmZip } = await import("../lib/smExport");
-      await downloadSmZip({
+      const { buildSmZip, smZipFilename } = await import("../lib/smExport");
+      const archive = await buildSmZip({
         meta: songMeta,
         difficulties,
         timingPoints,
         audioFiles,
         bgFiles,
       });
+      await saveExport(archive, smZipFilename(songMeta), target);
       playUiSound("mapExportDone");
       void logAnalyticsEvent("export_sm", authUser?.id).catch(() => {});
       trackFunnel("exported");
@@ -188,17 +217,23 @@ export function useMapExport({
 
   const doExportQua = useCallback(async (songMeta: SongMeta = meta) => {
     if (!audioFile || (active.keyCount !== 4 && active.keyCount !== 7)) return;
+    const target = prepareExport();
     setImportError(null);
     try {
-      const { downloadQua } = await import("../lib/qua");
-      downloadQua({
+      const { buildQuaFile, quaFilename } = await import("../lib/qua");
+      const args = {
         meta: songMeta,
         difficulty: active,
         timingPoints: activeTimingPoints,
         audioFilename: audioFile.name,
         backgroundFilename: active.backgroundFilename,
         bpmAffectsScroll: appSettings.bpmAffectsScroll,
-      });
+      };
+      await saveExport(
+        new Blob([buildQuaFile(args)], { type: "application/x-yaml;charset=utf-8" }),
+        quaFilename(args),
+        target,
+      );
       playUiSound("mapExportDone");
       offerMapCard(".qua");
     } catch (error) {
@@ -221,17 +256,19 @@ export function useMapExport({
 
   const doExportMcz = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
+    const target = prepareExport();
     setExporting(true);
     setImportError(null);
     try {
-      const { downloadMcz } = await import("../lib/malody");
-      await downloadMcz({
+      const { buildMcz, mczFilename } = await import("../lib/malody");
+      const archive = await buildMcz({
         meta: songMeta,
         difficulties,
         timingPoints,
         audioFiles,
         bgFiles,
       });
+      await saveExport(archive, mczFilename(songMeta), target);
       playUiSound("mapExportDone");
       offerMapCard(".mcz");
     } catch (error) {
@@ -247,12 +284,13 @@ export function useMapExport({
 
   const doExportOsz = useCallback(async (songMeta: SongMeta = meta) => {
     if (Object.keys(audioFiles).length === 0) return;
+    const target = prepareExport();
     setExporting(true);
     setImportError(null);
     setExportProgress({ ratio: 0, label: t("app.startingEncoder") });
     try {
-      const { downloadOsz } = await import("../lib/oszExport");
-      const archive = await downloadOsz({
+      const { buildOsz } = await import("../lib/oszExport");
+      const archive = await buildOsz({
         meta: songMeta,
         difficulties,
         timingPoints,
@@ -266,6 +304,7 @@ export function useMapExport({
         cascadeTag: appSettings.addCascadeTag,
         onProgress: setExportProgress,
       });
+      await saveExport(archive, setFilename(songMeta), target);
       playUiSound("mapExportDone");
       checkExportedSet(archive, { meta: songMeta, timingPoints, difficulties }, ".osz");
       void logAnalyticsEvent("export_osz", authUser?.id).catch(() => {});
@@ -353,9 +392,32 @@ export function useMapExport({
   );
 
   const handleExportOsu = useCallback(
-    () => requestExport(".osu", doExportOsu),
+    () => requestExport(".osu", (songMeta) => void doExportOsu(songMeta)),
     [requestExport, doExportOsu],
   );
+
+  // Just the picture, as it is: no mapper name or map checks needed.
+  const handleExportBackground = useCallback(() => {
+    if (!activeBackground) return;
+    const target = prepareExport();
+    setImportError(null);
+    saveExport(
+      activeBackground.blob,
+      backgroundFilename(meta, activeBackground),
+      target,
+    )
+      .then(() => playUiSound("mapExportDone"))
+      .catch((error: unknown) =>
+        setImportError(
+          error instanceof Error
+            ? t("app.exportFailedDetail", {
+                format: t("file.backgroundFormat"),
+                detail: error.message,
+              })
+            : t("app.exportFailed", { format: t("file.backgroundFormat") }),
+        ),
+      );
+  }, [activeBackground, meta, setImportError, t]);
   const handleExportOsz = useCallback(
     () => requestExport(".osz", (songMeta) => void doExportOsz(songMeta)),
     [requestExport, doExportOsz],
@@ -566,6 +628,7 @@ export function useMapExport({
     exportIssues,
     exportProgress,
     exporting,
+    handleExportBackground,
     handleExportMcz,
     handleExportOsu,
     handleExportOsz,

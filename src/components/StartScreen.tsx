@@ -732,6 +732,7 @@ export function StartScreen({
                 <img
                   src={`${import.meta.env.BASE_URL}logo.svg?v=1`}
                   alt="Cascade"
+                  data-exit-logo=""
                   draggable={false}
                   onDragStart={(e) => e.preventDefault()}
                   className="pointer-events-auto relative h-full w-full cursor-pointer select-none rounded-full shadow-[0_20px_80px_rgba(232,104,104,0.3)] ring-1 ring-white/10 transition-[filter] duration-200 group-hover:brightness-110"
@@ -1852,7 +1853,9 @@ function SideFlashes({ music }: { music: MenuMusic }) {
   );
 }
 
-function Visualizer({
+/** The bars around the logo, fed by the song; it also pulses `pulseRef` on
+ *  the beat. Used by the menu and by the quit outro. */
+export function Visualizer({
   music,
   size,
   pulseRef,

@@ -55,7 +55,9 @@ export type MenuMusic = {
   getPlayback: () => { position: number; duration: number; playing: boolean } | null;
   seek: (ms: number) => void;
   setAmbientDucking: (ducked: boolean) => void;
-  fadeOut: (ms: number) => void;
+  /** Fades out over `ms`, first dipping to `dip.to` of the volume over
+   *  `dip.ms` when given, the way osu!lazer lets its song go on quitting. */
+  fadeOut: (ms: number, dip?: { to: number; ms: number }) => void;
 };
 
 const FFT_SIZE = 512;
@@ -81,11 +83,15 @@ function shuffle<T>(items: T[]): T[] {
   return out;
 }
 
+/** osu-framework's Easing.In. */
+const easeIn = (t: number) => t * t;
+
 function rampVolume(
   el: HTMLAudioElement,
   to: number,
   ms: number,
   onDone?: () => void,
+  ease: (t: number) => number = (t) => t,
 ): () => void {
   // Animation frames stop while the page is hidden, which would strand the
   // fade partway, so a hidden page lands on the target straight away.
@@ -99,7 +105,7 @@ function rampVolume(
   let raf = 0;
   const step = () => {
     const t = Math.min(1, (performance.now() - started) / ms);
-    el.volume = Math.max(0, Math.min(1, from + (to - from) * t));
+    el.volume = Math.max(0, Math.min(1, from + (to - from) * ease(t)));
     if (t < 1) raf = requestAnimationFrame(step);
     else onDone?.();
   };
@@ -497,11 +503,27 @@ export function useMenuMusic(
   const previous = useCallback(() => skip(-1), [skip]);
 
   const fadeOut = useCallback(
-    (ms: number) => {
+    (ms: number, dip?: { to: number; ms: number }) => {
       wantsPlayRef.current = false;
       const el = audioRef.current;
       if (!el || el.paused) return;
-      fade(el, 0, ms, () => el.pause());
+      if (!dip || dip.ms >= ms) {
+        fade(el, 0, ms, () => el.pause());
+        return;
+      }
+      // Down to a whisper first, then eased out over what is left.
+      fade(el, el.volume * dip.to, dip.ms, () => {
+        cancelFadeRef.current = rampVolume(
+          el,
+          0,
+          ms - dip.ms,
+          () => {
+            cancelFadeRef.current = null;
+            el.pause();
+          },
+          easeIn,
+        );
+      });
     },
     [fade],
   );

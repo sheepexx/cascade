@@ -492,13 +492,3 @@ export async function buildMcz(args: BuildMczArgs): Promise<Blob> {
   });
 }
 
-export async function downloadMcz(args: BuildMczArgs): Promise<void> {
-  const url = URL.createObjectURL(await buildMcz(args));
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = mczFilename(args.meta);
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}

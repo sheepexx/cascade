@@ -196,8 +196,12 @@ export function SessionIntro({
 
     let reported = false;
     let raf = 0;
-    const start = performance.now();
+    // Timed from the first frame actually drawn, not from mounting: the
+    // desktop window loads hidden behind its splash, and frames only start
+    // once it is shown, so the rim must not have already "played" by then.
+    let start: number | null = null;
     const frame = (now: number) => {
+      start ??= now;
       const elapsed = now - start;
       ctx.clearRect(0, 0, width, height);
       // Past the end the drawn rim holds until the menu is ready.

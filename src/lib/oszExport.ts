@@ -7,8 +7,6 @@ import type {
 import {
   buildOsuFile,
   osuFilename,
-  setFilename,
-  triggerDownload,
 } from "./osuExport";
 import {
   bakedAudioName,
@@ -312,9 +310,3 @@ export async function buildOsz({
   return blob;
 }
 
-/** Builds and downloads the set, and hands back the archive for checking. */
-export async function downloadOsz(args: BuildOszArgs): Promise<Blob> {
-  const blob = await buildOsz(args);
-  triggerDownload(blob, setFilename(args.meta));
-  return blob;
-}

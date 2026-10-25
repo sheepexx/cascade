@@ -274,6 +274,7 @@ export function AsyncImage({
         src={src}
         alt={alt}
         loading="lazy"
+        decoding="async"
         onLoad={() => setLoadedSrc(src)}
         onError={() => setFailedSrc(src)}
         className={`${className} transition-opacity duration-300 ${

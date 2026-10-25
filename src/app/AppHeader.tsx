@@ -59,6 +59,7 @@ export function AppHeader({
   exporting,
   featureFlags,
   handleCloudSave,
+  handleExportBackground,
   handleExportMcz,
   handleExportOsu,
   handleExportOsz,
@@ -68,6 +69,7 @@ export function AppHeader({
   handleSave,
   handleSendToOsu,
   handleSyncToOsu,
+  hasBackground,
   hasMalodyDifficulty,
   hasProject,
   historyCurrent,
@@ -125,6 +127,7 @@ export function AppHeader({
   exporting: boolean;
   featureFlags: FeatureFlags;
   handleCloudSave: (target?: { overwriteId?: string; asNewMap?: boolean; }) => Promise<void>;
+  handleExportBackground: () => void;
   handleExportMcz: () => void;
   handleExportOsu: () => void;
   handleExportOsz: () => void;
@@ -134,6 +137,8 @@ export function AppHeader({
   handleSave: (silent?: boolean) => Promise<void>;
   handleSendToOsu: () => void;
   handleSyncToOsu: () => void;
+  /** The active difficulty has a background to export. */
+  hasBackground: boolean;
   hasMalodyDifficulty: boolean;
   hasProject: boolean;
   historyCurrent: number;
@@ -266,6 +271,12 @@ export function AppHeader({
             ? t("malody.maxKeys", { count: MALODY_MAX_KEYS })
             : undefined,
           onClick: handleExportMcz,
+        },
+        {
+          label: t("file.exportBackground"),
+          disabled: !hasBackground,
+          title: hasBackground ? undefined : t("file.exportBackgroundNone"),
+          onClick: handleExportBackground,
         },
         { separator: true },
         {
