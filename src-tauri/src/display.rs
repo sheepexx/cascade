@@ -11,7 +11,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Emitter, LogicalSize, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+};
 
 const FILE: &str = "display.json";
 pub const MAIN: &str = "main";
@@ -199,11 +201,17 @@ fn apply(window: &WebviewWindow, settings: &Settings, visible: bool) -> tauri::R
 /// Shows the main window in its mode and closes the splash. Runs once.
 pub fn reveal(app: &AppHandle) {
     // A second launch can ask before the windows exist; they show themselves.
-    let Some(display) = app.try_state::<Display>() else { return };
+    let Some(display) = app.try_state::<Display>() else {
+        return;
+    };
     if display.revealed.swap(true, Ordering::SeqCst) {
         return;
     }
-    let settings = display.settings.lock().map(|s| s.clone()).unwrap_or_default();
+    let settings = display
+        .settings
+        .lock()
+        .map(|s| s.clone())
+        .unwrap_or_default();
     if let Some(main) = app.get_webview_window(MAIN) {
         if let Err(err) = apply(&main, &settings, false) {
             eprintln!("[cascade] Cannot set up the window: {err}");
@@ -221,7 +229,11 @@ pub fn reveal(app: &AppHandle) {
 
 fn info(app: &AppHandle) -> Info {
     let display = app.state::<Display>();
-    let settings = display.settings.lock().map(|s| s.clone()).unwrap_or_default();
+    let settings = display
+        .settings
+        .lock()
+        .map(|s| s.clone())
+        .unwrap_or_default();
     let (monitor_width, monitor_height) = app
         .get_webview_window(MAIN)
         .and_then(|window| window.current_monitor().ok().flatten())
@@ -244,7 +256,9 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         return;
     }
     let app = window.app_handle();
-    let Some(display) = app.try_state::<Display>() else { return };
+    let Some(display) = app.try_state::<Display>() else {
+        return;
+    };
     match event {
         tauri::WindowEvent::CloseRequested { api, .. } => {
             // A second close, or one before the page could answer, quits now.
@@ -269,7 +283,9 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
             {
                 return;
             }
-            let Ok(scale) = window.scale_factor() else { return };
+            let Ok(scale) = window.scale_factor() else {
+                return;
+            };
             let logical = size.to_logical::<f64>(scale);
             if let Ok(mut settings) = display.settings.lock() {
                 if settings.mode != Mode::Windowed || logical.width < 1.0 {
@@ -287,7 +303,9 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
 
 /// Writes a resized window's size as Cascade closes.
 pub fn on_exit(app: &AppHandle) {
-    let Some(display) = app.try_state::<Display>() else { return };
+    let Some(display) = app.try_state::<Display>() else {
+        return;
+    };
     if !display.unsaved.swap(false, Ordering::SeqCst) {
         return;
     }
@@ -323,7 +341,8 @@ pub fn display_set(app: AppHandle, settings: Settings) -> Result<Info, String> {
     }
     if let Some(main) = app.get_webview_window(MAIN) {
         if main.is_visible().unwrap_or(false) {
-            apply(&main, &settings, true).map_err(|err| format!("Cannot change the window: {err}"))?;
+            apply(&main, &settings, true)
+                .map_err(|err| format!("Cannot change the window: {err}"))?;
         }
     }
     Ok(info(&app))

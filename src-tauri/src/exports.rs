@@ -202,7 +202,10 @@ mod tests {
 
     #[test]
     fn keeps_a_plain_export_name() {
-        assert_eq!(file_name("Artist - Title.osz").unwrap(), "Artist - Title.osz");
+        assert_eq!(
+            file_name("Artist - Title.osz").unwrap(),
+            "Artist - Title.osz"
+        );
         assert_eq!(file_name("A - B [Hard].osu").unwrap(), "A - B [Hard].osu");
     }
 
