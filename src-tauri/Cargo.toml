@@ -46,5 +46,10 @@ wry = { path = "vendor/wry" }
 codegen-units = 1
 lto = true
 opt-level = "s"
-panic = "abort"
+# Not "abort": on macOS, Wry answers web view requests from background threads
+# and catches the exception WebKit raises when a request was cancelled in the
+# meantime. That catch needs the exception to unwind through Rust, so with
+# panic = "abort" the whole app quits instead ("panic in a function that
+# cannot unwind"), which macOS 27 hit at launch.
+panic = "unwind"
 strip = true
