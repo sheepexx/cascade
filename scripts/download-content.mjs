@@ -7,8 +7,6 @@ export const CONTENT = {
     title: "Download Cascade for Windows, macOS and Linux | osu!mania Editor",
     description:
       "Download Cascade for Windows, macOS and Linux. The same osu!mania, StepMania and Etterna editor, in its own window and working offline.",
-    keywords:
-      "cascade download, osu!mania editor download, mania editor for windows, osu mania editor mac, mania editor linux, osu mania desktop app, stepmania editor download, vsrg editor",
     ogTitle: "Cascade for desktop",
     ogDescription:
       "The osu!mania editor as a desktop app for Windows, macOS and Linux.",
@@ -127,8 +125,6 @@ export const CONTENT = {
     title: "Cascade für Windows, macOS und Linux herunterladen | osu!mania-Editor",
     description:
       "Lade Cascade für Windows, macOS und Linux herunter. Derselbe Editor für osu!mania, StepMania und Etterna, im eigenen Fenster und offline nutzbar.",
-    keywords:
-      "cascade download, osu!mania editor herunterladen, mania editor windows, osu mania editor mac, mania editor linux, osu mania desktop app, stepmania editor download, vsrg editor",
     ogTitle: "Cascade für den Desktop",
     ogDescription:
       "Der osu!mania-Editor als Desktop-App für Windows, macOS und Linux.",
@@ -247,8 +243,6 @@ export const CONTENT = {
     title: "Скачать Cascade для Windows, macOS и Linux | редактор osu!mania",
     description:
       "Десктопное приложение Cascade для Windows, macOS и Linux. Тот же редактор osu!mania, StepMania и Etterna, в отдельном окне и с работой офлайн.",
-    keywords:
-      "cascade скачать, редактор osu!mania скачать, mania редактор windows, osu mania редактор mac, mania редактор linux, osu mania десктоп, stepmania редактор скачать, vsrg редактор",
     ogTitle: "Cascade для десктопа",
     ogDescription:
       "Редактор osu!mania как десктопное приложение для Windows, macOS и Linux.",
@@ -367,8 +361,6 @@ export const CONTENT = {
     title: "下载 Windows、macOS 与 Linux 版 Cascade | osu!mania 编辑器",
     description:
       "下载 Windows、macOS 与 Linux 版 Cascade。与网页版相同的 osu!mania、StepMania 和 Etterna 编辑器，独立窗口，支持离线使用。",
-    keywords:
-      "cascade 下载, osu!mania 编辑器下载, mania 编辑器 windows, osu mania 编辑器 mac, mania 编辑器 linux, osu mania 桌面版, stepmania 编辑器下载, vsrg 编辑器",
     ogTitle: "Cascade 桌面版",
     ogDescription:
       "osu!mania 编辑器的桌面版，支持 Windows、macOS 与 Linux。",
@@ -485,8 +477,6 @@ export const CONTENT = {
     title: "Baixar o Cascade para Windows, macOS e Linux | Editor de osu!mania",
     description:
       "Baixe o Cascade para Windows, macOS e Linux. O mesmo editor de osu!mania, StepMania e Etterna, em uma janela própria e funcionando offline.",
-    keywords:
-      "cascade download, editor de osu!mania download, editor mania windows, editor osu mania mac, editor mania linux, osu mania app desktop, editor stepmania download, editor vsrg",
     ogTitle: "Cascade para desktop",
     ogDescription:
       "O editor de osu!mania como app de desktop para Windows, macOS e Linux.",

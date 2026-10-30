@@ -169,7 +169,6 @@ ${alternates((code) => docsUrl(page.slug, code))}
     <meta name="robots" content="index, follow" />
     <title>${c.title}</title>
     <meta name="description" content="${c.description}" />
-    <meta name="keywords" content="${c.keywords}" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cascade" />
     <meta property="og:locale" content="${loc.ogLocale}" />

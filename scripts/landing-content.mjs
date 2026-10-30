@@ -203,8 +203,6 @@ const playtest = {
       title: "Playtest osu!mania Maps in Your Browser | Cascade",
       description:
         "Play the chart you are editing right away, with the real osu!mania judgement windows. See accuracy, combo, unstable rate and live NPS. No export needed.",
-      keywords:
-        "osu mania playtest, test osu mania map, play osu mania in browser, osu mania editor playtest, mania judgement windows, unstable rate, osu mania accuracy, osu mania practice, mania rate practice",
       ogTitle: "Playtest your osu!mania map without leaving the editor",
       ogDescription:
         "Press F5 and play the chart you are writing, with real judgement windows, accuracy, unstable rate and live NPS.",
@@ -269,8 +267,6 @@ const playtest = {
       title: "osu!mania-Maps im Browser testspielen | Cascade",
       description:
         "Spiele die Map, die du baust, sofort an, mit den echten osu!mania-Wertungsfenstern. Mit Genauigkeit, Combo, Unstable Rate und Live-NPS, ganz ohne Export.",
-      keywords:
-        "osu mania playtest, osu mania map testen, osu mania im browser spielen, mania wertungsfenster, unstable rate, osu mania genauigkeit, mania editor",
       ogTitle: "Teste deine osu!mania-Map direkt im Editor",
       ogDescription:
         "Drücke F5 und spiele die Map, an der du schreibst: echte Wertungsfenster, Genauigkeit, Unstable Rate und Live-NPS.",
@@ -334,8 +330,6 @@ const playtest = {
       title: "Тестируйте карты osu!mania прямо в браузере | Cascade",
       description:
         "Играйте карту, которую редактируете, сразу, с настоящими окнами точности osu!mania. Точность, комбо, unstable rate и NPS в реальном времени, без экспорта.",
-      keywords:
-        "osu mania playtest, тест карты osu mania, играть osu mania в браузере, окна точности mania, unstable rate, точность osu mania, редактор mania",
       ogTitle: "Тестируйте карту osu!mania, не выходя из редактора",
       ogDescription:
         "Нажмите F5 и сыграйте карту, которую пишете: настоящие окна точности, точность, unstable rate и NPS в реальном времени.",
@@ -399,8 +393,6 @@ const playtest = {
       title: "在浏览器里试玩 osu!mania 谱面 | Cascade",
       description:
         "立刻试玩正在编辑的谱面，使用真实的 osu!mania 判定区间，实时显示准确率、连击、UR 和 NPS，无需导出。",
-      keywords:
-        "osu mania 试玩, 测试 osu mania 谱面, 浏览器玩 osu mania, mania 判定区间, unstable rate, osu mania 准确率, mania 编辑器",
       ogTitle: "不离开编辑器，直接试玩你的 osu!mania 谱面",
       ogDescription:
         "按 F5 就能玩你正在写的谱面：真实判定区间、准确率、UR 和实时 NPS。",
@@ -455,8 +447,6 @@ const playtest = {
       title: "Teste mapas de osu!mania no navegador | Cascade",
       description:
         "Jogue na hora o mapa que você está editando, com as janelas de julgamento reais do osu!mania. Precisão, combo, unstable rate e NPS ao vivo, sem exportar.",
-      keywords:
-        "osu mania playtest, testar mapa osu mania, jogar osu mania no navegador, janelas de julgamento mania, unstable rate, precisao osu mania, editor mania",
       ogTitle: "Teste seu mapa de osu!mania sem sair do editor",
       ogDescription:
         "Aperte F5 e jogue o mapa que você está escrevendo: janelas de julgamento reais, precisão, unstable rate e NPS ao vivo.",
@@ -527,8 +517,6 @@ const collab = {
       title: "Collaborative osu!mania Mapping in Real Time | Cascade",
       description:
         "Invite a mapper by osu! username and edit the same osu!mania map together. Live cursors and playhead, editor or viewer access, and timestamped comments.",
-      keywords:
-        "collaborative beatmap editor, osu mania collab, map together, realtime beatmap editing, osu mania guest difficulty, collab mapping, shared beatmap editor",
       ogTitle: "Map an osu!mania chart together, live",
       ogDescription:
         "Invite by osu! username, edit the same map at the same time, and leave comments pinned to a timestamp.",
@@ -584,8 +572,6 @@ const collab = {
       title: "osu!mania gemeinsam in Echtzeit mappen | Cascade",
       description:
         "Lade Mapper per osu!-Namen ein und bearbeitet dieselbe osu!mania-Map gemeinsam. Live-Cursor, Editor- oder Betrachterrechte und Zeitstempel-Kommentare.",
-      keywords:
-        "kollaborativer beatmap editor, osu mania collab, gemeinsam mappen, beatmap in echtzeit bearbeiten, guest difficulty, mania mapping zusammen",
       ogTitle: "Baut eine osu!mania-Map gemeinsam, live",
       ogDescription:
         "Per osu!-Namen einladen, gleichzeitig dieselbe Map bearbeiten und Kommentare an einem Zeitstempel hinterlassen.",
@@ -643,8 +629,6 @@ const collab = {
       title: "Совместный маппинг osu!mania в реальном времени | Cascade",
       description:
         "Пригласите маппера по нику osu! и редактируйте одну карту osu!mania вместе. Живые курсоры, права редактора или зрителя и комментарии ко времени.",
-      keywords:
-        "совместный редактор карт, osu mania collab, маппить вместе, редактирование карты в реальном времени, guest difficulty, совместный маппинг",
       ogTitle: "Стройте карту osu!mania вместе, в реальном времени",
       ogDescription:
         "Приглашайте по нику osu!, редактируйте одну карту одновременно и оставляйте комментарии, привязанные ко времени.",
@@ -700,8 +684,6 @@ const collab = {
       title: "实时协作制作 osu!mania 谱面 | Cascade",
       description:
         "用 osu! 用户名邀请作图者，一起编辑同一张 osu!mania 谱面。实时光标、编辑或只读权限，以及绑定时间点的评论。",
-      keywords:
-        "协作谱面编辑器, osu mania 联合作图, 一起做图, 实时编辑谱面, guest difficulty, 共享谱面编辑器",
       ogTitle: "多人实时一起做 osu!mania 谱面",
       ogDescription:
         "用 osu! 用户名邀请，同时编辑同一张谱面，并留下绑定到时间点的评论。",
@@ -749,8 +731,6 @@ const collab = {
       title: "Mapeamento colaborativo de osu!mania em tempo real | Cascade",
       description:
         "Convide um mapper pelo nome de usuário do osu! e editem o mesmo mapa de osu!mania juntos. Cursores ao vivo, acesso de editor ou visualizador e comentários.",
-      keywords:
-        "editor de beatmap colaborativo, osu mania collab, mapear junto, edicao de beatmap em tempo real, guest difficulty, editor compartilhado",
       ogTitle: "Façam um mapa de osu!mania juntos, ao vivo",
       ogDescription:
         "Convide pelo nome de usuário do osu!, editem o mesmo mapa ao mesmo tempo e deixem comentários presos a um instante.",
@@ -813,8 +793,6 @@ const aimod = {
       title: "osu!mania AiMod: Check Your Map Before You Upload | Cascade",
       description:
         "Check your osu!mania mapset in the browser before you upload. Cascade flags metadata, timing, unsnapped notes and broken long notes, and jumps to each one.",
-      keywords:
-        "osu mania aimod, beatmap checker, osu mania map check, unsnapped notes, concurrent objects, osu mania ranking criteria, mapset validation, osu mania modding",
       ogTitle: "Check your osu!mania map before you upload it",
       ogDescription:
         "Metadata, timing, snapping, long notes and column errors, all flagged in one pass with a jump to each issue.",
@@ -863,8 +841,6 @@ const aimod = {
       title: "osu!mania AiMod: Map vor dem Upload prüfen | Cascade",
       description:
         "Prüfe dein osu!mania-Mapset vor dem Upload. Cascade meldet fehlende Metadaten, Timing-Probleme und nicht gesnappte Objekte und springt zu jedem Fund.",
-      keywords:
-        "osu mania aimod, beatmap checker, osu mania map prüfen, ungesnappte noten, gleichzeitige objekte, ranking criteria, mapset prüfung, osu mania modding",
       ogTitle: "Prüfe deine osu!mania-Map, bevor du sie hochlädst",
       ogDescription:
         "Metadaten, Timing, Snapping, lange Noten und Spaltenfehler in einem Durchlauf, mit Sprung zu jedem Fund.",
@@ -913,8 +889,6 @@ const aimod = {
       title: "osu!mania AiMod: проверьте карту перед загрузкой | Cascade",
       description:
         "Проверьте сет osu!mania в браузере перед загрузкой. Cascade находит проблемы метаданных и тайминга, несснапленные объекты и сломанные длинные ноты.",
-      keywords:
-        "osu mania aimod, проверка карты, osu mania проверка, несснапленные ноты, одновременные объекты, ranking criteria, проверка сета, моддинг osu mania",
       ogTitle: "Проверьте карту osu!mania перед загрузкой",
       ogDescription:
         "Метаданные, тайминг, снап, длинные ноты и ошибки колонок за один проход, с переходом к каждой находке.",
@@ -962,8 +936,6 @@ const aimod = {
       title: "osu!mania AiMod：上传前检查你的谱面 | Cascade",
       description:
         "上传前在浏览器里检查整套 osu!mania 谱面。Cascade 会标出元数据和时间轴问题、未对齐的物件和损坏的长条，并可直接跳转。",
-      keywords:
-        "osu mania aimod, 谱面检查, osu mania 检查, 未对齐音符, 重叠物件, ranking criteria, 谱面验证, osu mania modding",
       ogTitle: "上传前先检查你的 osu!mania 谱面",
       ogDescription:
         "元数据、时间轴、对齐、长条和列错误，一次扫描全部标出，并能跳到每一处。",
@@ -1007,8 +979,6 @@ const aimod = {
       title: "osu!mania AiMod: cheque seu mapa antes de enviar | Cascade",
       description:
         "Cheque seu mapset de osu!mania no navegador antes de enviar. O Cascade aponta erros de metadados e timing, objetos fora da grade e notas longas quebradas.",
-      keywords:
-        "osu mania aimod, verificador de beatmap, checar mapa osu mania, notas fora da grade, objetos simultaneos, ranking criteria, validacao de mapset, modding osu mania",
       ogTitle: "Cheque seu mapa de osu!mania antes de enviar",
       ogDescription:
         "Metadados, timing, grade, notas longas e erros de coluna, tudo em uma passada, com um pulo até cada problema.",
@@ -1078,8 +1048,6 @@ const timing = {
       title: "BPM and Offset Finder for osu!mania Maps | Cascade",
       description:
         "Find the BPM and offset of any song in your browser. Cascade detects the tempo from the audio. Tap along to confirm it and check it with a metronome.",
-      keywords:
-        "bpm finder, osu mania timing, find bpm of a song, offset finder, tap bpm, osu mania offset, beatmap timing, metronome, bpm detector online",
       ogTitle: "Find the BPM and offset of any song, in the browser",
       ogDescription:
         "Detect BPM from the audio, tap to confirm, run a metronome over it and nudge the offset until it locks.",
@@ -1144,8 +1112,6 @@ const timing = {
       title: "BPM- und Offset-Finder für osu!mania-Maps | Cascade",
       description:
         "Finde BPM und Offset jedes Songs im Browser. Cascade erkennt das Tempo aus dem Audio, du tappst zur Bestätigung mit und prüfst es mit einem Metronom.",
-      keywords:
-        "bpm finder, osu mania timing, bpm eines songs finden, offset finden, bpm tappen, osu mania offset, beatmap timing, metronom, bpm zähler online",
       ogTitle: "Finde BPM und Offset jedes Songs im Browser",
       ogDescription:
         "BPM aus dem Audio erkennen, per Tap bestätigen, Metronom darüberlegen und den Offset feinjustieren.",
@@ -1209,8 +1175,6 @@ const timing = {
       title: "Поиск BPM и оффсета для карт osu!mania | Cascade",
       description:
         "Найдите BPM и оффсет любой песни в браузере. Cascade определяет темп по аудио, даёт подтвердить его отстукиванием и проверить метрономом.",
-      keywords:
-        "поиск bpm, osu mania тайминг, найти bpm песни, поиск оффсета, отстукать bpm, osu mania offset, тайминг карты, метроном, определитель bpm онлайн",
       ogTitle: "Найдите BPM и оффсет любой песни в браузере",
       ogDescription:
         "Определите BPM из аудио, подтвердите отстукиванием, включите метроном и подведите оффсет.",
@@ -1274,8 +1238,6 @@ const timing = {
       title: "osu!mania 谱面的 BPM 与偏移查找器 | Cascade",
       description:
         "在浏览器里找出任意歌曲的 BPM 和偏移。Cascade 直接从音频识别节奏，你可以跟着敲击确认，再用节拍器检验。",
-      keywords:
-        "bpm 查找, osu mania 时间轴, 找歌曲 bpm, 偏移查找, 敲击 bpm, osu mania offset, 谱面时间轴, 节拍器, 在线 bpm 检测",
       ogTitle: "在浏览器里找出任意歌曲的 BPM 和偏移",
       ogDescription: "从音频识别 BPM，敲击确认，用节拍器检验，并微调偏移直到对齐。",
       howToName: "如何为 osu!mania 谱面对好时间轴",
@@ -1328,8 +1290,6 @@ const timing = {
       title: "Buscador de BPM e offset para mapas de osu!mania | Cascade",
       description:
         "Descubra o BPM e o offset de qualquer música no navegador. O Cascade detecta o tempo pelo áudio, você bate junto para confirmar e confere com metrônomo.",
-      keywords:
-        "buscador de bpm, timing osu mania, achar bpm de musica, achar offset, bater bpm, osu mania offset, timing de beatmap, metronomo, detector de bpm online",
       ogTitle: "Ache o BPM e o offset de qualquer música, no navegador",
       ogDescription:
         "Detecte o BPM pelo áudio, bata junto para confirmar, rode um metrônomo e ajuste o offset até travar.",
@@ -1421,8 +1381,6 @@ const mapCard = {
       title: "osu!mania Map Card Generator with MSD | Cascade",
       description:
         "Turn an osu!mania difficulty into an image with its stats and every MSD skillset. Download a PNG or get a direct link for [img] in your map description.",
-      keywords:
-        "osu mania map card, osu beatmap description image, osu mania msd, etterna msd calculator, osu map stats image, beatmap card generator, osu mania skillsets, osu description banner, osu bbcode image",
       ogTitle: "Turn your osu!mania map into a shareable card",
       ogDescription:
         "Star rating, BPM, length, note counts and every MSD skillset in one image, with a direct link for your osu! description.",
@@ -1507,8 +1465,6 @@ ${mapCardFigure(
       title: "osu!mania Map Card mit MSD erstellen | Cascade",
       description:
         "Mach aus einer osu!mania-Schwierigkeit ein Bild mit Werten und allen MSD-Skillsets. Als PNG oder mit direktem Link für [img] in deiner Beschreibung.",
-      keywords:
-        "osu mania map card, osu beatmap beschreibung bild, osu mania msd, etterna msd rechner, osu map statistik bild, beatmap karte erstellen, osu mania skillsets, osu bbcode bild",
       ogTitle: "Mach aus deiner osu!mania-Map eine teilbare Karte",
       ogDescription:
         "Sternebewertung, BPM, Länge, Notenzahlen und jedes MSD-Skillset in einem Bild, mit direktem Link für deine osu!-Beschreibung.",
@@ -1595,8 +1551,6 @@ ${mapCardFigure(
       title: "Map Card для osu!mania со скиллсетами MSD | Cascade",
       description:
         "Превратите сложность osu!mania в изображение со статистикой и всеми скиллсетами MSD. Скачайте PNG или получите прямую ссылку для [img] в описании.",
-      keywords:
-        "osu mania map card, картинка для описания карты osu, osu mania msd, калькулятор msd etterna, статистика карты osu картинка, карточка карты osu, скиллсеты osu mania, bbcode картинка osu",
       ogTitle: "Превратите карту osu!mania в карточку, которой можно поделиться",
       ogDescription:
         "Звёздный рейтинг, BPM, длина, количество нот и все скиллсеты MSD в одном изображении, с прямой ссылкой для описания в osu!.",
@@ -1682,8 +1636,6 @@ ${mapCardFigure(
       title: "osu!mania 谱面卡片生成器（含 MSD）| Cascade",
       description:
         "把 osu!mania 难度做成一张包含统计数据和全部 MSD 技能的图片。可下载 PNG，或获取用于谱面简介 [img] 标签的直链。",
-      keywords:
-        "osu mania 谱面卡片, osu 谱面简介图片, osu mania msd, etterna msd 计算, osu 谱面数据图片, 谱面卡片生成器, osu mania 技能, osu bbcode 图片",
       ogTitle: "把你的 osu!mania 谱面做成可分享的卡片",
       ogDescription:
         "星级、BPM、时长、音符数量和全部 MSD 技能汇总在一张图片里，并附带用于 osu! 简介的直链。",
@@ -1761,8 +1713,6 @@ ${mapCardFigure(
       title: "Gerador de Map Card para osu!mania com MSD | Cascade",
       description:
         "Transforme uma dificuldade de osu!mania em uma imagem com as estatísticas e todos os skillsets de MSD. Baixe um PNG ou pegue um link direto para [img].",
-      keywords:
-        "osu mania map card, imagem descrição beatmap osu, osu mania msd, calculadora msd etterna, imagem estatísticas mapa osu, gerador de card osu, skillsets osu mania, imagem bbcode osu",
       ogTitle: "Transforme seu mapa de osu!mania em um card compartilhável",
       ogDescription:
         "Classificação em estrelas, BPM, duração, notas e todos os skillsets de MSD em uma imagem, com link direto para a descrição no osu!.",
