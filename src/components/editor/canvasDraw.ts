@@ -252,6 +252,53 @@ export function drawSprite(
   ctx.drawImage(img, x, bottomY - h, laneWidth, h);
 }
 
+/**
+ * The editor's handle on a long note's logical end: a bar across the lane,
+ * outlined in black so it reads on any skin, including ones whose tail is
+ * invisible or the colour of the background. The editor only, never playtest.
+ */
+export function drawTailHandle(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  yEnd: number,
+  laneWidth: number,
+  active: boolean,
+) {
+  const w = Math.max(10, laneWidth - 14);
+  const h = 4;
+  const left = x + (laneWidth - w) / 2;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.65)";
+  roundRect(ctx, left - 1.5, yEnd - h / 2 - 1.5, w + 3, h + 3, 3.5);
+  ctx.fill();
+  ctx.fillStyle = active ? "rgba(255,214,102,1)" : "rgba(255,255,255,0.92)";
+  roundRect(ctx, left, yEnd - h / 2, w, h, 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** The end time beside a long note while its end is being dragged. */
+export function drawTailTimeLabel(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  yEnd: number,
+  text: string,
+) {
+  ctx.save();
+  ctx.font = `600 11px ${CANVAS_FONT_STACK}`;
+  ctx.textBaseline = "middle";
+  const w = ctx.measureText(text).width + 12;
+  ctx.fillStyle = "rgba(10,12,18,0.88)";
+  roundRect(ctx, x, yEnd - 9, w, 18, 5);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,214,102,0.55)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,231,163,1)";
+  ctx.fillText(text, x + 6, yEnd + 0.5);
+  ctx.restore();
+}
+
 type OpaqueBounds = { left: number; top: number; right: number; bottom: number };
 const opaqueBoundsCache = new WeakMap<HTMLImageElement, OpaqueBounds>();
 // Bounding box of the non-transparent content, so receptors with lots of empty

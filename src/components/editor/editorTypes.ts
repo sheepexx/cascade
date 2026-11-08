@@ -157,6 +157,11 @@ export type DragState = {
   replace?: ManiaNote;
   /** Dragging an existing long note's tail; currentTime is its new end. */
   resize?: boolean;
+  /**
+   * Pressed on the edge of a tail's handle, over empty lane, in Edit mode: a
+   * click without dragging places a note at this time instead.
+   */
+  placeOnClick?: number;
 };
 
 export type InteractionMode = "edit" | "select";
