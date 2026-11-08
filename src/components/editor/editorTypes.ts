@@ -186,6 +186,20 @@ export type MoveDragState = {
   } & Partial<ManiaNote>)[];
 };
 
+/** A sideways drag onto other notes, waiting for the mapper to swap them. */
+export type PendingLaneSwap = {
+  /** The chart the swap was worked out on; any edit since cancels it. */
+  base: ManiaNote[];
+  moved: ManiaNote[];
+  displaced: ManiaNote[];
+  /** Every note the swap moves, where it would go. */
+  preview: Map<string, ManiaNote>;
+  displacedIds: Set<string>;
+  /** Where the drag was dropped, for the popover. */
+  x: number;
+  y: number;
+};
+
 export type Clip = NoteClip;
 
 export type ClipDropPreview = {

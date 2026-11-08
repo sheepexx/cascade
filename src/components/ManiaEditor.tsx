@@ -67,6 +67,7 @@ import {
   placementFor,
   withoutNoteCollisions,
 } from "../lib/noteCollision";
+import { laneSwapFor } from "../lib/laneSwap";
 import { NoteInspector } from "./NoteInspector";
 import { EditorPanel } from "./mobile/EditorPanel";
 import { Button, Toggle, Field } from "./ui/Controls";
@@ -131,6 +132,7 @@ import type {
   InteractionMode,
   ManiaEditorProps,
   MoveDragState,
+  PendingLaneSwap,
   SelectionDragState,
 } from "./editor/editorTypes";
 
@@ -477,6 +479,79 @@ export function ManiaEditor(props: ManiaEditorProps) {
     selectionAutoscrollTimeRef.current = null;
     moveDragRef.current = null;
   }, [props.playtestMode, setSelection]);
+
+  // A sideways drag that landed on other notes waits here for Swap or
+  // Cancel, with the canvas drawing the swap in place meanwhile.
+  const [laneSwap, setLaneSwapState] = useState<PendingLaneSwap | null>(null);
+  const laneSwapRef = useRef<PendingLaneSwap | null>(null);
+  const laneSwapBoxRef = useRef<HTMLDivElement | null>(null);
+  // Notes in the way that couldn't trade lanes, outlined in red for a moment.
+  const laneSwapStuckRef = useRef<Set<string> | null>(null);
+  const setLaneSwap = useCallback((next: PendingLaneSwap | null) => {
+    laneSwapRef.current = next;
+    setLaneSwapState(next);
+    markDirty();
+  }, [markDirty]);
+  const confirmLaneSwap = useCallback(() => {
+    const swap = laneSwapRef.current;
+    if (!swap) return;
+    setLaneSwap(null);
+    if (propsRef.current.notes !== swap.base) return;
+    // One update, so a single undo puts both back.
+    propsRef.current.onMoveNotes([...swap.moved, ...swap.displaced]);
+  }, [setLaneSwap]);
+  const flashStuckNotes = useCallback((notes: ManiaNote[]) => {
+    const ids = new Set(notes.map((n) => n.id));
+    laneSwapStuckRef.current = ids;
+    markDirty();
+    window.setTimeout(() => {
+      if (laneSwapStuckRef.current !== ids) return;
+      laneSwapStuckRef.current = null;
+      markDirty();
+    }, 1600);
+  }, [markDirty]);
+
+  useEffect(() => {
+    const swap = laneSwapRef.current;
+    if (swap && (swap.base !== props.notes || props.playtestMode || props.readOnly)) {
+      setLaneSwap(null);
+    }
+  }, [props.notes, props.playtestMode, props.readOnly, setLaneSwap]);
+
+  useEffect(() => {
+    if (!laneSwap) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== "Escape") return;
+      // Enter on one of the popover's own buttons presses that button.
+      if (e.key === "Enter" && laneSwapBoxRef.current?.contains(e.target as Node)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.key === "Enter") confirmLaneSwap();
+      else setLaneSwap(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [laneSwap, confirmLaneSwap, setLaneSwap]);
+
+  // Opens beside the pointer, flipping above it near the bottom edge.
+  useLayoutEffect(() => {
+    const box = laneSwapBoxRef.current;
+    const wrap = wrapRef.current;
+    if (!box || !wrap || !laneSwap) return;
+    const gap = 14;
+    const w = box.offsetWidth;
+    const h = box.offsetHeight;
+    const left = Math.min(
+      Math.max(laneSwap.x - w / 2, 8),
+      Math.max(8, wrap.clientWidth - w - 8),
+    );
+    const top =
+      laneSwap.y + gap + h <= wrap.clientHeight - 8
+        ? laneSwap.y + gap
+        : Math.max(8, laneSwap.y - gap - h);
+    box.style.left = `${left}px`;
+    box.style.top = `${top}px`;
+  }, [laneSwap]);
 
   const inBounds = useCallback((from: number, to = from) => {
     const { lo, hi } = playableBounds(propsRef.current);
@@ -1512,6 +1587,8 @@ export function ManiaEditor(props: ManiaEditorProps) {
       NOTE_HEIGHT * (propsRef.current.noteHeightScale || 1);
     const move = moveDragRef.current;
     const resizing = dragRef.current?.resize ? dragRef.current : null;
+    const laneSwapPending = laneSwapRef.current;
+    const laneSwapStuck = laneSwapStuckRef.current;
     // Derive the cull margin through yToTime so it stays 256px wide even when
     // SV compresses or stretches time near the screen edges.
     const cullEdgeA = yToTime(-256);
@@ -1529,11 +1606,12 @@ export function ManiaEditor(props: ManiaEditorProps) {
       const selected = selectedNoteIdsRef.current.has(original.id);
       // A long note whose tail is being dragged draws at its new length.
       const note =
-        resizing?.replace?.id === original.id
+        laneSwapPending?.preview.get(original.id) ??
+        (resizing?.replace?.id === original.id
           ? { ...original, endTime: resizing.currentTime }
           : move && selected
             ? movedNoteRaw(original, move)
-            : original;
+            : original);
       if (note.column < 0 || note.column >= keyCount) return;
       {
         const nA = note.startTime;
@@ -1601,6 +1679,33 @@ export function ManiaEditor(props: ManiaEditorProps) {
           ctx.strokeStyle = "rgba(255,231,163,0.92)";
           ctx.lineWidth = 1.25;
           roundRect(ctx, rx, ry, rw, rh, radius);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      // Notes a pending swap would move (blue), or that blocked one (red).
+      const swapOutline = laneSwapPending?.displacedIds.has(original.id)
+        ? "rgba(125,211,252,0.95)"
+        : laneSwapStuck?.has(original.id)
+          ? "rgba(248,113,113,0.95)"
+          : null;
+      if (swapOutline) {
+        const bounds = noteBounds(note, laneWidth, originX);
+        if (bounds) {
+          const pad = 2.5;
+          ctx.save();
+          ctx.strokeStyle = swapOutline;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          roundRect(
+            ctx,
+            bounds.x - pad,
+            bounds.y - pad,
+            bounds.w + pad * 2,
+            bounds.h + pad * 2,
+            Math.min(8, Math.max(5, (bounds.w + pad * 2) / 6)),
+          );
           ctx.stroke();
           ctx.restore();
         }
@@ -2187,6 +2292,12 @@ export function ManiaEditor(props: ManiaEditorProps) {
     }
     e.preventDefault();
     focusCanvas();
+    laneSwapStuckRef.current = null;
+    // A click away from the swap popover only closes it.
+    if (laneSwapRef.current) {
+      setLaneSwap(null);
+      return;
+    }
     const { x, y } = localPoint(e);
     if (props.readOnly && !(e.shiftKey || shiftActiveRef.current || (props.mobile && props.touchMode === "select"))) return;
     const hit = findNoteAt(x, y, props.mobile && touchSessionRef.current ? 14 : 0);
@@ -2368,9 +2479,31 @@ export function ManiaEditor(props: ManiaEditorProps) {
           );
         });
         const byId = new Map(updated.map((n) => [n.id, n]));
-        const nextNotes = propsRef.current.notes.map((n) => byId.get(n.id) ?? n);
+        const { notes } = propsRef.current;
+        const nextNotes = notes.map((n) => byId.get(n.id) ?? n);
         if (!escapes && !hasNoteCollisions(nextNotes)) {
           propsRef.current.onMoveNotes(updated);
+        } else if (!escapes) {
+          // Landed on other notes sideways: offer to send them to the lane
+          // the dragged notes came from.
+          const swap = laneSwapFor(notes, updated, move.colDelta);
+          if (swap?.kind === "swap") {
+            const { x, y } = localPoint(e);
+            setLaneSwap({
+              base: notes,
+              moved: updated,
+              displaced: swap.displaced,
+              preview: new Map(
+                [...updated, ...swap.displaced].map((n) => [n.id, n]),
+              ),
+              displacedIds: new Set(swap.displaced.map((n) => n.id)),
+              x,
+              y,
+            });
+          } else if (swap?.kind === "blocked") {
+            flashStuckNotes(swap.stuck);
+            setClipboardStatus(t("editor.swapBlocked"));
+          }
         }
       }
       return;
@@ -2853,7 +2986,41 @@ export function ManiaEditor(props: ManiaEditorProps) {
         onDragLeave={onClipDragLeave}
         onDrop={onClipDrop}
       />
-      {patternImage && <PatternImageModal info={patternImage} onClose={() => { setPatternImage(null); canvasRef.current?.focus(); }} />}
+      {laneSwap && (
+        <div
+          ref={laneSwapBoxRef}
+          role="dialog"
+          aria-label={t("editor.swapTitle")}
+          className="float-chip absolute z-30 flex w-max select-none items-center gap-1 p-1 text-xs text-slate-200"
+        >
+          <span className="px-1.5 text-sky-200">
+            {t("editor.swapInTheWay", { count: laneSwap.displaced.length })}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              confirmLaneSwap();
+              focusCanvas();
+            }}
+            title={t("editor.swapTitle")}
+            className="h-6 rounded-md bg-sky-400/[0.14] px-2.5 font-medium text-sky-100 ring-1 ring-inset ring-sky-300/40 transition hover:bg-sky-400/[0.24]"
+          >
+            {t("editor.swap")}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLaneSwap(null);
+              focusCanvas();
+            }}
+            className="h-6 rounded-md px-2.5 text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-200"
+          >
+            {t("common.cancel")}
+          </button>
+          <kbd className="keycap mx-1 !h-4 !px-1 !text-[9px] !text-slate-500">Enter</kbd>
+        </div>
+      )}
+      {patternImage &&<PatternImageModal info={patternImage} onClose={() => { setPatternImage(null); canvasRef.current?.focus(); }} />}
       {!props.playtestMode && clipboardStatus && (
         <div role="status" className="pointer-events-none absolute bottom-14 left-3 right-3 z-20 mx-auto w-fit max-w-md rounded-md border border-ink-600 bg-ink-900/95 px-3 py-2 text-xs text-slate-200 shadow-lg">
           {clipboardStatus}
