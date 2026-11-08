@@ -8,6 +8,7 @@ import type { Waveform } from "../../hooks/useWaveform";
 import type { Ref } from "react";
 import { type AudioSeekSignal, type AudioSeekTransition } from "../../lib/audioSeek";
 import type { EditorViewportChannel } from "../../lib/editorViewport";
+import type { EditorTool } from "../../lib/placementTool";
 
 /**
  * Types the editor's component and its hooks share.
@@ -158,13 +159,18 @@ export type DragState = {
   /** Dragging an existing long note's tail; currentTime is its new end. */
   resize?: boolean;
   /**
-   * Pressed on the edge of a tail's handle, over empty lane, in Edit mode: a
+   * Pressed on the edge of a tail's handle, over empty lane, with Note or Hold: a
    * click without dragging places a note at this time instead.
    */
   placeOnClick?: number;
+  /**
+   * The Note tool: a regular note goes where the pointer is let go, and the
+   * drag never turns it into a long note.
+   */
+  noteOnly?: boolean;
 };
 
-export type InteractionMode = "edit" | "select";
+export type InteractionMode = EditorTool;
 
 export type SelectionDragState = {
   startX: number;

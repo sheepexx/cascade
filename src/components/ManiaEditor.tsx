@@ -68,6 +68,11 @@ import {
   withoutNoteCollisions,
 } from "../lib/noteCollision";
 import { laneSwapFor } from "../lib/laneSwap";
+import {
+  loadPlacementTool,
+  savePlacementTool,
+  type PlacementTool,
+} from "../lib/placementTool";
 import { NoteInspector } from "./NoteInspector";
 import { EditorPanel } from "./mobile/EditorPanel";
 import { Button, Toggle, Field } from "./ui/Controls";
@@ -138,6 +143,12 @@ import type {
   SelectionDragState,
 } from "./editor/editorTypes";
 
+const TOOL_LABELS = {
+  note: { label: "editor.noteMode", title: "editor.noteModeTitle" },
+  hold: { label: "editor.holdMode", title: "editor.holdModeTitle" },
+  select: { label: "editor.selectMode", title: "editor.selectModeTitle" },
+} as const;
+
 const MANIA_MAX_TIME_RANGE = 11485;
 const PLAYHEAD_FROM_BOTTOM = PLAYHEAD_FROM_EDGE;
 const SELECT_AUTOSCROLL_TOP_ZONE = 64;
@@ -182,9 +193,18 @@ let shownBackground: { key: string; img: HTMLImageElement } | null = null;
 
 export function ManiaEditor(props: ManiaEditorProps) {
   const [mobilePanel, setMobilePanel] = useState<"selection" | "clipboard" | "hitsounds" | "view" | null>(null);
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>("edit");
-  const interactionModeRef = useRef<InteractionMode>("edit");
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(loadPlacementTool);
+  const interactionModeRef = useRef<InteractionMode>(interactionMode);
   interactionModeRef.current = interactionMode;
+  // Note or Hold, whichever was picked last, so Q comes back to it.
+  const placementToolRef = useRef<PlacementTool>(
+    interactionMode === "select" ? "hold" : interactionMode,
+  );
+  useEffect(() => {
+    if (interactionMode === "select" || placementToolRef.current === interactionMode) return;
+    placementToolRef.current = interactionMode;
+    savePlacementTool(interactionMode);
+  }, [interactionMode]);
   const [shiftActive, setShiftActive] = useState(false);
   // Over a long note's tail, or dragging one: the cursor shows it resizes.
   const [tailHover, setTailHover] = useState(false);
@@ -823,6 +843,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
     nudgeSelection,
     openPatternImage,
     pasteFromKeyboard,
+    placementToolRef,
     propsRef,
     reverseSelection,
     scaleSelection,
@@ -1919,7 +1940,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
     }
 
     const drag = dragRef.current;
-    if (drag && !drag.resize) {
+    if (drag && !drag.resize && !drag.noteOnly) {
       const x = originX + drag.column * laneWidth;
       const yStart = timeToY(drag.startTime);
       const yEnd = timeToY(drag.currentTime);
@@ -1942,12 +1963,19 @@ export function ManiaEditor(props: ManiaEditorProps) {
       // On a long note's end handle the handle is the preview.
       !dragRef.current?.resize &&
       !hoverTailIdRef.current &&
-      interactionModeRef.current === "edit"
+      interactionModeRef.current !== "select"
     ) {
       const col = columnAtX(mouseRef.current.x);
       if (col >= 0) {
-        const x = mouseRef.current.x - laneWidth / 2;
-        const y = timeToY(yToTime(mouseRef.current.y));
+        // Sits on the lane and snap a click here would place on.
+        const x = originX + col * laneWidth;
+        const y = timeToY(
+          snapTime(
+            yToTime(mouseRef.current.y),
+            timingPoints,
+            propsRef.current.view.snapDivisor,
+          ),
+        );
         const sprite = skinCols[col]?.note ?? null;
         if (sprite) {
           drawSprite(ctx, sprite, x, y, laneWidth, up);
@@ -2397,7 +2425,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
         replace: tail,
         resize: true,
         placeOnClick:
-          interactionModeRef.current === "edit" && !onArt
+          interactionModeRef.current !== "select" && !onArt
             ? snapTime(yToTime(y), timingPoints, view.snapDivisor)
             : undefined,
       };
@@ -2406,9 +2434,13 @@ export function ManiaEditor(props: ManiaEditorProps) {
       return;
     }
 
-    if (hit) {
+    // The Note tool never grabs the note under the pointer: on a dense map
+    // its art covers the snap above, which is where the click should land.
+    const placingNote =
+      interactionModeRef.current === "note" && !e.ctrlKey && !e.metaKey;
+    if (hit && !placingNote) {
       if (
-        interactionModeRef.current === "edit" &&
+        interactionModeRef.current === "hold" &&
         !e.ctrlKey &&
         !e.metaKey
       ) {
@@ -2464,7 +2496,22 @@ export function ManiaEditor(props: ManiaEditorProps) {
     const { timingPoints, view } = propsRef.current;
     const t = snapTime(yToTime(y), timingPoints, view.snapDivisor);
     if (!inBounds(t)) return;
-    dragRef.current = { column: col, startTime: t, currentTime: t };
+    dragRef.current = {
+      column: col,
+      startTime: t,
+      currentTime: t,
+      noteOnly: placingNote || undefined,
+    };
+  };
+
+  // A new regular note with the hitsound and sample set picked for new notes.
+  const newNoteAt = (column: number, startTime: number): ManiaNote => {
+    const note: ManiaNote = { id: uid("n"), column, startTime };
+    if (propsRef.current.currentHitSound)
+      note.hitSound = propsRef.current.currentHitSound;
+    if (propsRef.current.currentSampleSet)
+      note.sampleSet = propsRef.current.currentSampleSet;
+    return note;
   };
 
   const onMouseMove = (e: React.MouseEvent) => {
@@ -2603,11 +2650,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
         // click a little further out would.
         const time = drag.placeOnClick;
         if (time === undefined || !inBounds(time)) return;
-        const note: ManiaNote = { id: uid("n"), column: drag.column, startTime: time };
-        if (propsRef.current.currentHitSound)
-          note.hitSound = propsRef.current.currentHitSound;
-        if (propsRef.current.currentSampleSet)
-          note.sampleSet = propsRef.current.currentSampleSet;
+        const note = newNoteAt(drag.column, time);
         if (placementFor(note, propsRef.current.notes).kind !== "blocked") {
           props.onPlaceNote(note);
         }
@@ -2620,6 +2663,16 @@ export function ManiaEditor(props: ManiaEditorProps) {
       const others = propsRef.current.notes.filter((n) => n.id !== original.id);
       if (escapes || !withoutNoteCollisions([resized], others).length) return;
       propsRef.current.onMoveNotes([resized]);
+      return;
+    }
+
+    if (drag.noteOnly) {
+      // Only into an empty spot: a note already starting here, or a long
+      // note running through, is left as it is.
+      const note = newNoteAt(drag.column, drag.currentTime);
+      if (!inBounds(note.startTime)) return;
+      if (placementFor(note, propsRef.current.notes).kind !== "add") return;
+      props.onPlaceNote(note);
       return;
     }
 
@@ -2748,7 +2801,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
         if (hit && !props.readOnly) touchTapRef.current.erase = hit.id;
         return;
       }
-      interactionModeRef.current = props.touchMode === "select" ? "select" : "edit";
+      interactionModeRef.current = props.touchMode === "select" ? "select" : "hold";
       if (props.touchMode === "select" && hit) {
         const ids = new Set(selectedNoteIdsRef.current);
         if (ids.has(hit.id)) touchTapRef.current.toggle = hit.id;
@@ -3132,7 +3185,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
           the skin dialog's preview — where there is nothing to switch between. */}
       {!props.mobile && !props.playtestMode && !props.readOnly && (
         <div className="float-chip absolute left-3 top-11 z-20 flex select-none items-center gap-0.5 p-0.5 text-xs">
-          {(["edit", "select"] as const).map((mode) => (
+          {(["note", "hold", "select"] as const).map((mode) => (
             <button
               key={mode}
               type="button"
@@ -3143,13 +3196,9 @@ export function ManiaEditor(props: ManiaEditorProps) {
                   ? "bg-white/[0.11] text-slate-50"
                   : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
               }`}
-              title={
-                mode === "edit"
-                  ? t("editor.editModeTitle")
-                  : t("editor.selectModeTitle")
-              }
+              title={t(TOOL_LABELS[mode].title)}
             >
-              {mode === "edit" ? t("editor.editMode") : t("editor.selectMode")}
+              {t(TOOL_LABELS[mode].label)}
             </button>
           ))}
           <kbd className="keycap mx-1 !h-4 !min-w-4 !px-1 !text-[9px] !text-slate-500">Q</kbd>

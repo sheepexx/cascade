@@ -3,6 +3,11 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { dialogIsOpen } from "../../hooks/useDialog";
 import { isClipboardTextTarget } from "../../lib/editorClipboard";
 import { DEFAULT_EDITOR_KEYBINDS, matchesBind } from "../../lib/editorKeybinds";
+import {
+  type PlacementTool,
+  togglePlacementTool,
+  toggleSelectTool,
+} from "../../lib/placementTool";
 import { HITSOUND_CLAP, HITSOUND_FINISH, HITSOUND_WHISTLE } from "../../types";
 import type {
   Clip,
@@ -14,8 +19,9 @@ import type {
 } from "./editorTypes";
 
 /**
- * The playfield's keys: Esc backing out of a drag, the selection and edit
- * mode in turn; Q for edit and select; selection edits and nudges; copy, cut,
+ * The playfield's keys: Esc backing out of a drag, the selection and the
+ * placement tool in turn; Q for Select and back, E for Note and Hold;
+ * selection edits and nudges; copy, cut,
  * paste and select all; hitsound additions; receptors; and whether Shift is
  * held. None of them run while typing or with keyboardShortcuts off.
  */
@@ -34,6 +40,7 @@ export function useEditorKeys({
   nudgeSelection,
   openPatternImage,
   pasteFromKeyboard,
+  placementToolRef,
   propsRef,
   reverseSelection,
   scaleSelection,
@@ -64,6 +71,8 @@ export function useEditorKeys({
   nudgeSelection: (dir: "earlier" | "later" | "left" | "right") => void;
   openPatternImage: () => void;
   pasteFromKeyboard: () => void;
+  /** Note or Hold, whichever was used last, for Q and E to return to. */
+  placementToolRef: MutableRefObject<PlacementTool>;
   propsRef: MutableRefObject<ManiaEditorProps>;
   reverseSelection: () => void;
   scaleSelection: (factor: number) => void;
@@ -132,7 +141,7 @@ export function useEditorKeys({
           setSelection(new Set());
           return;
         }
-        if (interactionModeRef.current === "edit" && !propsRef.current.readOnly) {
+        if (interactionModeRef.current !== "select" && !propsRef.current.readOnly) {
           e.preventDefault();
           setInteractionMode("select");
           return;
@@ -140,7 +149,17 @@ export function useEditorKeys({
       }
       if (e.code === "KeyQ" && noMod && !isTyping(e.target)) {
         e.preventDefault();
-        setInteractionMode((mode) => (mode === "edit" ? "select" : "edit"));
+        setInteractionMode((mode) => toggleSelectTool(mode, placementToolRef.current));
+        return;
+      }
+      if (
+        e.code === "KeyE" &&
+        noMod &&
+        !isTyping(e.target) &&
+        !propsRef.current.readOnly
+      ) {
+        e.preventDefault();
+        setInteractionMode((mode) => togglePlacementTool(mode, placementToolRef.current));
         return;
       }
       if (
@@ -290,6 +309,7 @@ export function useEditorKeys({
     hitsoundModeRef,
     interactionModeRef,
     moveDragRef,
+    placementToolRef,
     propsRef,
     selectedNoteIdsRef,
     selectionAutoscrollTimeRef,
