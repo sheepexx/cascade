@@ -49,10 +49,15 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   );
 }
 
+/** A focused field that takes typed text. A range slider is an input too, but takes no text. */
+export function isTextEntryTarget(target: EventTarget | null): boolean {
+  return isTypingTarget(target) && (target as HTMLInputElement).type !== "range";
+}
+
 export function blurActiveControl(): void {
   const el = document.activeElement as HTMLElement | null;
   if (!el || !document.getElementById("root")?.contains(el)) return;
-  if (isTypingTarget(el) && (el as HTMLInputElement).type !== "range") return;
+  if (isTextEntryTarget(el)) return;
   if (typeof el.blur === "function") el.blur();
 }
 

@@ -4,8 +4,10 @@ import {
   editorKeyLabel,
   editorKeybindConflictActions,
   editorKeybindConflicts,
+  matchesBareBind,
   matchesBind,
   normalizeEditorKeybinds,
+  playtestKeyAction,
   snapDivisorForBind,
   timelineZoomDirection,
 } from "./editorKeybinds";
@@ -56,6 +58,60 @@ describe("matchesBind", () => {
     expect(matchesBind("Digit6", DEFAULT_EDITOR_KEYBINDS.snap6)).toBe(true);
     expect(matchesBind("Numpad6", DEFAULT_EDITOR_KEYBINDS.snap6)).toBe(false);
     expect(DEFAULT_EDITOR_KEYBINDS).not.toHaveProperty("snap9");
+  });
+});
+
+const press = (code: string, mods: Partial<KeyboardEvent> = {}) => ({
+  code,
+  ctrlKey: false,
+  metaKey: false,
+  altKey: false,
+  isComposing: false,
+  defaultPrevented: false,
+  ...mods,
+});
+
+describe("matchesBareBind", () => {
+  it("leaves Ctrl+C to copy notes when play/pause is bound to C", () => {
+    expect(matchesBareBind(press("KeyC"), "KeyC")).toBe(true);
+    expect(matchesBareBind(press("KeyC", { ctrlKey: true }), "KeyC")).toBe(false);
+    expect(matchesBareBind(press("KeyC", { metaKey: true }), "KeyC")).toBe(false);
+    expect(matchesBareBind(press("KeyC", { altKey: true }), "KeyC")).toBe(false);
+  });
+
+  it("still allows Shift and ignores keys an input method is composing", () => {
+    expect(matchesBareBind(press("KeyC", { shiftKey: true }), "KeyC")).toBe(true);
+    expect(matchesBareBind(press("KeyC", { isComposing: true }), "KeyC")).toBe(false);
+  });
+});
+
+describe("playtestKeyAction", () => {
+  const editor = { active: false, canStart: true, typing: false };
+
+  it("lets Ctrl+V paste into the comment box instead of starting a playtest", () => {
+    const ctrlV = press("KeyV", { ctrlKey: true });
+    expect(playtestKeyAction(ctrlV, "KeyV", { ...editor, typing: true })).toBeNull();
+    expect(playtestKeyAction(ctrlV, "KeyV", editor)).toBeNull();
+  });
+
+  it("leaves Ctrl+V and plain V alone in Beatmap Settings text fields", () => {
+    const settings = { active: false, canStart: false, typing: true };
+    expect(playtestKeyAction(press("KeyV", { ctrlKey: true }), "KeyV", settings)).toBeNull();
+    expect(playtestKeyAction(press("KeyV"), "KeyV", settings)).toBeNull();
+  });
+
+  it("starts and exits on a plain press outside text fields", () => {
+    expect(playtestKeyAction(press("KeyV"), "KeyV", editor)).toBe("start");
+    expect(playtestKeyAction(press("KeyV"), "KeyV", { ...editor, active: true })).toBe("exit");
+  });
+
+  it("keeps F5 from reloading the page while a dialog blocks the playtest", () => {
+    expect(playtestKeyAction(press("F5"), "F5", { ...editor, canStart: false })).toBe("block");
+  });
+
+  it("ignores other keys and presses something already handled", () => {
+    expect(playtestKeyAction(press("KeyB"), "KeyV", editor)).toBeNull();
+    expect(playtestKeyAction(press("KeyV", { defaultPrevented: true }), "KeyV", editor)).toBeNull();
   });
 });
 

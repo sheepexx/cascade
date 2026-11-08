@@ -152,6 +152,46 @@ export function matchesBind(code: string, bound: string): boolean {
   return (CODE_ALIASES[bound] ?? []).includes(code);
 }
 
+export interface ShortcutKeyEvent {
+  code: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  isComposing?: boolean;
+  defaultPrevented?: boolean;
+}
+
+/**
+ * Editor shortcuts are single keys, so they only fire on a plain press: with
+ * C or V bound, Ctrl+C and Ctrl+V still copy and paste. Shift may be held,
+ * and a key pressed while an input method is composing text never counts.
+ */
+export function isBareKeyPress(e: ShortcutKeyEvent): boolean {
+  return !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing;
+}
+
+export function matchesBareBind(e: ShortcutKeyEvent, bound: string): boolean {
+  return isBareKeyPress(e) && matchesBind(e.code, bound);
+}
+
+/**
+ * What the playtest key does: "exit" or "start" a playtest, or "block" a
+ * press that can't start one right now (a dialog is open), so F5 still never
+ * reloads the page. Null leaves the key alone: a press with Ctrl, Cmd or Alt
+ * held, one typed into a text field, or one something else already handled.
+ */
+export function playtestKeyAction(
+  e: ShortcutKeyEvent,
+  bound: string,
+  state: { active: boolean; canStart: boolean; typing: boolean },
+): "exit" | "start" | "block" | null {
+  if (e.defaultPrevented || state.typing || !matchesBareBind(e, bound)) {
+    return null;
+  }
+  if (state.active) return "exit";
+  return state.canStart ? "start" : "block";
+}
+
 export function snapDivisorForBind(
   code: string,
   binds: EditorKeybinds,

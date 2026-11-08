@@ -12,8 +12,8 @@ import { findUnplayableNotes } from "../lib/autoplay";
 import type { EditorKeybinds } from "../lib/editorKeybinds";
 import {
   editorKeyLabel,
-  matchesBind,
   normalizeEditorKeybinds,
+  playtestKeyAction,
 } from "../lib/editorKeybinds";
 import type { FeatureFlags } from "../lib/featureFlags";
 import type { Translate } from "../lib/i18n";
@@ -51,6 +51,7 @@ import type {
   ManiaNote,
 } from "../types";
 import type { ModalId } from "./appTypes";
+import { isTextEntryTarget } from "./appUtils";
 
 /** osu!mania's DelayedResumeOverlay counts 3 over two seconds. */
 const PLAYTEST_RESUME_COUNTDOWN_MS = 2000;
@@ -798,12 +799,19 @@ export function usePlaytest({
         exitPlaytest();
         return;
       }
-      if (!matchesBind(e.code, editorKeybindsRef.current.playtestToggle))
-        return;
+      const action = playtestKeyAction(
+        e,
+        editorKeybindsRef.current.playtestToggle,
+        {
+          active: playtestRef.current.active,
+          canStart: !modalRef.current && featureFlagsRef.current.playtest,
+          typing: isTextEntryTarget(e.target),
+        },
+      );
+      if (!action) return;
       e.preventDefault();
-      if (playtestRef.current.active) exitPlaytest();
-      else if (!modalRef.current && featureFlagsRef.current.playtest)
-        startPlaytest(getCurrentTime());
+      if (action === "exit") exitPlaytest();
+      else if (action === "start") startPlaytest(getCurrentTime());
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);

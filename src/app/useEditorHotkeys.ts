@@ -5,6 +5,7 @@ import { MAX_PLAYFIELD_SCALE, MIN_PLAYFIELD_SCALE } from "../lib/altWheel";
 import type { EditorAction, EditorKeybinds } from "../lib/editorKeybinds";
 import {
   editorKeyLabel,
+  isBareKeyPress,
   matchesBind,
   snapDivisorForBind,
   timelineZoomDirection,
@@ -21,7 +22,7 @@ import {
 import type { AppSettings, ViewState } from "../types";
 import { MAX_SCROLL_SPEED, MIN_SCROLL_SPEED } from "../types";
 import type { ModalId } from "./appTypes";
-import { blurActiveControl, isTypingTarget } from "./appUtils";
+import { blurActiveControl, isTextEntryTarget, isTypingTarget } from "./appUtils";
 import type { PlaytestRuntimeState } from "./usePlaytest";
 
 /**
@@ -96,13 +97,15 @@ export function useEditorHotkeys({
       if (!skinPreview && (modalRef.current || askBgScope || dialogIsOpen())) {
         return true;
       }
-      if (!isTypingTarget(e.target)) return false;
-      return (e.target as HTMLInputElement).type !== "range";
+      return isTextEntryTarget(e.target);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       const binds = editorKeybindsRef.current;
-      const noMod = !e.ctrlKey && !e.metaKey && !e.altKey;
-      const is = (action: EditorAction) => matchesBind(e.code, binds[action]);
+      // Only plain presses: with play/pause on C, Ctrl+C has to copy notes
+      // without also starting the song.
+      const noMod = isBareKeyPress(e);
+      const is = (action: EditorAction) =>
+        noMod && matchesBind(e.code, binds[action]);
       const isSpace = is("playPause");
       const isTab = is("zenMode");
       const isUp = is("volumeUp");
@@ -113,13 +116,13 @@ export function useEditorHotkeys({
       const isTimelineZoomIn = is("scrollSpeedUp") || symbolZoom === 1;
       const isPreviousBookmark = is("prevBookmark");
       const isNextBookmark = is("nextBookmark");
-      const isZoomIn = noMod && is("zoomIn");
-      const isZoomOut = noMod && is("zoomOut");
-      const isSlow = noMod && is("slowMo");
-      const isBookmark = noMod && is("addBookmark");
+      const isZoomIn = is("zoomIn");
+      const isZoomOut = is("zoomOut");
+      const isSlow = is("slowMo");
+      const isBookmark = is("addBookmark");
       const snapDivisor = noMod ? snapDivisorForBind(e.code, binds) : null;
-      const snapStep = !noMod ? 0 : is("snapNext") ? 1 : is("snapPrevious") ? -1 : 0;
-      const isSnapPreset = noMod && is("snapPreset");
+      const snapStep = is("snapNext") ? 1 : is("snapPrevious") ? -1 : 0;
+      const isSnapPreset = is("snapPreset");
       if (
         !isSpace &&
         !isTab &&
