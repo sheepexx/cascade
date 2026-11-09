@@ -13,7 +13,7 @@ import { formatTime, parseTimestamp } from "../lib/timing";
 import { useT } from "../lib/i18n";
 import { Button, Slider } from "./ui/Controls";
 import { Dropdown, type DropdownOption } from "./ui/Dropdown";
-import { PlayIcon } from "./ui/Icons";
+import { PauseIcon, PlayIcon } from "./ui/Icons";
 type Props = {
   audio: AudioController;
   view: ViewState;
@@ -28,6 +28,10 @@ type Props = {
   playtestDisabled?: boolean;
   /** The playtest keybind's label, for the tooltip. */
   playtestKey?: string;
+  /** No song is loaded, so play/pause has nothing to play. */
+  playDisabled?: boolean;
+  /** The play/pause keybind's label, for the tooltip. */
+  playKey?: string;
 };
 
 export function TransportBar({
@@ -40,6 +44,8 @@ export function TransportBar({
   onPlaytest,
   playtestDisabled = false,
   playtestKey,
+  playDisabled = false,
+  playKey,
 }: Props) {
   const { currentTime } = audio;
   const [jumpDraft, setJumpDraft] = useState("");
@@ -119,6 +125,21 @@ export function TransportBar({
       </div>
 
       <div className="order-3 col-span-2 flex items-center justify-center gap-1.5 uixl:order-2 uixl:col-span-1">
+        {/* Space plays on a keyboard; this is for touch screens without one. */}
+        <button
+          type="button"
+          onClick={audio.toggle}
+          disabled={playDisabled}
+          aria-label={audio.isPlaying ? t("app.pausePlayback") : t("app.playAudio")}
+          title={
+            playDisabled
+              ? t("transport.playNoAudio")
+              : `${audio.isPlaying ? t("app.pausePlayback") : t("app.playAudio")}${playKey ? ` (${playKey})` : ""}`
+          }
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-200 transition duration-150 hover:bg-white/[0.07] hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+        >
+          {audio.isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+        </button>
         {jumpOpen ? (
           <input
             ref={jumpInputRef}

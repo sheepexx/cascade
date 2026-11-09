@@ -27,8 +27,18 @@ export const MIN_HUD_SCALE = 0.5;
 export const MAX_HUD_SCALE = 2;
 const MAX_HUD_OFFSET = 4000;
 
+type HudVisibilityKey =
+  | "showCombo"
+  | "showJudgements"
+  | "showAccuracy"
+  | "showCounts"
+  | "showErrorBar"
+  | "showKeys"
+  | "showNpsGraph"
+  | "showRunStats";
+
 /** The setting that shows or hides each element. */
-export const HUD_VISIBILITY: Record<HudElementId, keyof PlaytestSettings> = {
+export const HUD_VISIBILITY: Record<HudElementId, HudVisibilityKey> = {
   combo: "showCombo",
   judgement: "showJudgements",
   accuracy: "showAccuracy",
@@ -38,6 +48,62 @@ export const HUD_VISIBILITY: Record<HudElementId, keyof PlaytestSettings> = {
   npsGraph: "showNpsGraph",
   runStats: "showRunStats",
 };
+
+/**
+ * A phone's screen has room for the notes and little else, so it shows only
+ * the combo and judgements until the player turns more on.
+ */
+export const PHONE_HUD_DEFAULTS: Record<HudElementId, boolean> = {
+  combo: true,
+  judgement: true,
+  accuracy: false,
+  counts: false,
+  errorBar: false,
+  keys: false,
+  npsGraph: false,
+  runStats: false,
+};
+
+/** The settings as a phone plays them: its own HUD choices over the desktop's. */
+export function withPhoneHud(settings: PlaytestSettings): PlaytestSettings {
+  const out = { ...settings };
+  for (const id of HUD_ELEMENTS) {
+    out[HUD_VISIBILITY[id]] = settings.phoneHud?.[id] ?? PHONE_HUD_DEFAULTS[id];
+  }
+  return out;
+}
+
+/**
+ * A change made on a phone: showing or hiding an element is kept as the
+ * phone's choice, leaving the desktop's alone. Everything else passes through.
+ */
+export function phoneHudPatch(
+  settings: PlaytestSettings,
+  patch: Partial<PlaytestSettings>,
+): Partial<PlaytestSettings> {
+  const out: Partial<PlaytestSettings> = { ...patch };
+  let phoneHud: PlaytestSettings["phoneHud"] | null = null;
+  for (const id of HUD_ELEMENTS) {
+    const key = HUD_VISIBILITY[id];
+    const value = patch[key];
+    if (typeof value !== "boolean") continue;
+    phoneHud = { ...(phoneHud ?? settings.phoneHud ?? {}), [id]: value };
+    delete out[key];
+  }
+  if (phoneHud) out.phoneHud = phoneHud;
+  return out;
+}
+
+/** Saved phone HUD choices with anything unknown dropped. */
+export function normalizePhoneHud(saved: unknown): PlaytestSettings["phoneHud"] {
+  if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
+  const raw = saved as Record<string, unknown>;
+  const out: PlaytestSettings["phoneHud"] = {};
+  for (const id of HUD_ELEMENTS) {
+    if (typeof raw[id] === "boolean") out[id] = raw[id];
+  }
+  return out;
+}
 
 export function hudPlacement(
   hud: PlaytestSettings["hud"] | undefined,

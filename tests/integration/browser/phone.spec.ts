@@ -180,6 +180,7 @@ test("pinch never places notes, and long notes can be placed and retimed on touc
 test("playtest accepts chords, releases fingers independently and clears input on pause", async ({ page }) => {
   await openEditor(page);
   await command(page, "Start playtest");
+  await page.getByRole("button", { name: "Play upright", exact: true }).click();
   const one = page.getByRole("button", { name: "Play lane 1", exact: true });
   const two = page.getByRole("button", { name: "Play lane 2", exact: true });
   await expect(one).toBeEnabled();
@@ -340,4 +341,58 @@ test("difficulties sit side by side and are renamed from the bar under them", as
   await panel.getByRole("textbox", { name: "Rename", exact: true }).fill("Expert");
   await panel.getByRole("textbox", { name: "Rename", exact: true }).press("Enter");
   await expect(page.getByText("Expert · 4K", { exact: true })).toBeVisible();
+});
+
+test("rates are made one after another without leaving the difficulty they come from", async ({ page }) => {
+  await openEditor(page, ["Hard"]);
+  await page.getByRole("button", { name: "Difficulties", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "Difficulties", exact: true });
+  await settle(page);
+  await panel.getByRole("button", { name: "Rate changer", exact: true }).click();
+  const create = panel.getByRole("button", { name: "Create Rate Difficulty", exact: true });
+
+  await panel.getByRole("button", { name: "1.1x", exact: true }).click();
+  await create.click();
+  await expect(panel.getByText("Added “Hard x1.1 (132 BPM)”", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "1.1x, Already made", exact: true })).toBeVisible();
+  await panel.getByRole("button", { name: "1.2x", exact: true }).click();
+  await create.click();
+  const cards = panel.locator('[role="button"][aria-pressed]');
+  await expect(cards).toHaveCount(4);
+  await expect(page.getByText("Hard · 4K", { exact: true })).toBeVisible();
+
+  // With the rate changer open, picking another source keeps the sheet up.
+  await cards.filter({ hasText: "Normal" }).click();
+  await expect(panel).toBeVisible();
+  await expect(page.getByText("Normal · 4K", { exact: true })).toBeVisible();
+  await panel.getByRole("button", { name: "1.5x", exact: true }).click();
+  await create.click();
+  await expect(cards).toHaveCount(5);
+  await panel.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(panel).not.toBeVisible();
+  await expect(page.getByText("Normal x1.5 (180 BPM) · 4K", { exact: true })).toBeVisible();
+});
+
+test("a playtest started upright waits for the phone to turn, with a sparer HUD", async ({ page }) => {
+  await openEditor(page);
+  await command(page, "Start playtest");
+  const prompt = page.getByRole("dialog", { name: "Turn your phone sideways", exact: true });
+  await expect(prompt).toBeVisible();
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(prompt).toHaveCount(0);
+  const lane = page.getByRole("button", { name: "Play lane 1", exact: true });
+  await expect(lane).toBeEnabled();
+  // Lanes split the bottom half of the screen, as in osu!lazer.
+  const box = (await lane.boundingBox())!;
+  expect(box.x).toBe(0);
+  expect(box.y + box.height).toBeCloseTo(390, 0);
+  // Phones leave the run stats, NPS graph and counts off unless turned on.
+  await expect(page.getByText("Misses", { exact: true })).toHaveCount(0);
+
+  // Turned upright mid-run, it pauses and asks again.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(prompt).toBeVisible();
+  await prompt.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(prompt).toHaveCount(0);
+  await expect(page.getByRole("toolbar", { name: "Editor controls" })).toBeVisible();
 });

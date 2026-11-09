@@ -222,6 +222,21 @@ export function scaledBpmLabel(points: TimingPoint[], rate: number): string {
   return range.varies && lo !== hi ? `${lo}-${hi}` : String(lo);
 }
 
+/**
+ * The name a rate of `source` gets before any "(2)" is added. The panel also
+ * uses it to mark the rates that already exist.
+ */
+export function rateNameFor(
+  source: Pick<Difficulty, "name" | "timingPoints">,
+  rate: number,
+  { onlyRateAsName = false, showBpm = true }: Pick<RateDifficultyOptions, "onlyRateAsName" | "showBpm"> = {},
+): string {
+  return rateDifficultyName(source.name, rate, {
+    onlyRateAsName,
+    bpmLabel: showBpm ? scaledBpmLabel(source.timingPoints, rate) : null,
+  });
+}
+
 /** "Insane x1.2" -> "Insane x1.2 (2)" when the name is already taken. */
 export function uniqueDifficultyName(
   name: string,
@@ -247,6 +262,9 @@ export type RateDifficultyOptions = {
 /** What the panel decides; the caller supplies the source and existing names. */
 export type RateCreateOptions = Omit<RateDifficultyOptions, "existingNames">;
 
+/** The difficulty a rate was saved as, for the panel to offer opening it. */
+export type CreatedRate = { id: string; name: string };
+
 /**
  * Builds a rate-shifted copy of `source`. The source is never mutated: notes,
  * timing points, bookmarks and metadata are all cloned, and every gameplay
@@ -265,10 +283,7 @@ export function createRateDifficulty(
 ): Difficulty {
   const rate = quantizeRate(requestedRate);
   const name = uniqueDifficultyName(
-    rateDifficultyName(source.name, rate, {
-      onlyRateAsName,
-      bpmLabel: showBpm ? scaledBpmLabel(source.timingPoints, rate) : null,
-    }),
+    rateNameFor(source, rate, { onlyRateAsName, showBpm }),
     existingNames,
   );
 
@@ -366,13 +381,7 @@ export function describeRateChange(
   return {
     rate,
     name: uniqueDifficultyName(
-      rateDifficultyName(source.name, rate, {
-        onlyRateAsName: options.onlyRateAsName,
-        bpmLabel:
-          (options.showBpm ?? true)
-            ? scaledBpmLabel(source.timingPoints, rate)
-            : null,
-      }),
+      rateNameFor(source, rate, options),
       options.existingNames ?? [],
     ),
     bpmBefore: formatBpmRange(before),

@@ -11,6 +11,7 @@ import { useT } from "../lib/i18n";
 import {
   bpmRange,
   formatBpmRange,
+  type CreatedRate,
   type RateCreateOptions,
 } from "../lib/rateChange";
 
@@ -26,14 +27,18 @@ type Props = {
   mobile?: boolean;
   difficulties: Difficulty[];
   activeId: string;
-  onSelect: (id: string) => void;
+  /**
+   * `keepOpen` is set while the rate changer is open: the pick only changes
+   * the difficulty rates are made from, so a phone sheet stays up.
+   */
+  onSelect: (id: string, keepOpen?: boolean) => void;
   onAdd: () => void;
   onDuplicate: (id: string) => void;
   /** Puts a copy on the clipboard, to paste into this or any other map. */
   onCopy: (id: string) => void;
   onDelete: (ids: string[]) => void;
   onRename: (id: string, name: string) => void;
-  onCreateRate: (options: RateCreateOptions) => void;
+  onCreateRate: (options: RateCreateOptions) => CreatedRate | null;
   canEdit: boolean;
   /** Points in force for the active difficulty, shared fallback already applied. */
   timingPoints: TimingPoint[];
@@ -86,7 +91,7 @@ export function DifficultySidebar({
       });
     } else {
       setSelected(new Set());
-      onSelect(id);
+      onSelect(id, rateOpen);
     }
   };
 
@@ -128,8 +133,10 @@ export function DifficultySidebar({
   );
 
   return (
-    <aside className={`flex h-full shrink-0 flex-col bg-ink-900 ${mobile ? "w-full" : "w-60 border-r border-white/[0.06]"}`}>
-      <div className="flex h-10 shrink-0 items-center justify-between pl-3.5 pr-2">
+    // Phones scroll the whole sheet, so the open rate changer never squeezes
+    // the list out of view; the header stays put.
+    <aside className={`flex h-full shrink-0 flex-col bg-ink-900 ${mobile ? "w-full overflow-y-auto overscroll-contain" : "w-60 border-r border-white/[0.06]"}`}>
+      <div className={`flex h-10 shrink-0 items-center justify-between pl-3.5 pr-2 ${mobile ? "sticky top-0 z-10 bg-ink-900" : ""}`}>
         <h2 className="text-xs font-semibold text-slate-300">
           {t("diffSidebar.title")}
           <span className="ml-1.5 font-medium tabular-nums text-slate-500">{difficulties.length}</span>
@@ -168,14 +175,15 @@ export function DifficultySidebar({
         existingNames={existingNames}
         durationMs={songDurationMs}
         canEdit={canEdit}
-        onCreate={(options) => {
-          onCreateRate(options);
+        onCreate={onCreateRate}
+        onOpen={(id) => {
           setRateOpen(false);
+          onSelect(id);
         }}
         onClose={() => setRateOpen(false)}
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+      <div className={`px-1.5 pb-2 ${mobile ? "flex-[1_0_auto]" : "min-h-0 flex-1 overflow-y-auto"}`}>
         {/* Phones show the difficulties side by side, two to a row. */}
         <div className={mobile ? "grid grid-cols-2 gap-1.5" : "flex flex-col gap-px"}>
           {sorted.map(({ difficulty: d, star }) => (
@@ -214,7 +222,7 @@ export function DifficultySidebar({
         />
       )}
 
-      {stats && (stats.notes > 0 || mobile) && (
+      {stats && (stats.notes > 0 || mobile) && !(mobile && rateOpen) && (
         <div className="border-t border-white/[0.06] px-3.5 pb-3 pt-2.5">
           <div className="mb-2 truncate text-xs font-semibold text-slate-300">
             {t("diffSidebar.stats", {

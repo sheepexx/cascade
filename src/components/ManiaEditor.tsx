@@ -2759,12 +2759,12 @@ export function ManiaEditor(props: ManiaEditorProps) {
       }
       return;
     }
+    // A finger plays the lane it lands on, on phones and on tablets in the
+    // desktop layout alike; there may be no keyboard to play with.
     if (props.playtestMode) {
-      if (props.mobile) {
-        e.preventDefault();
-        const column = columnAtX(localPoint(e).x);
-        if (column >= 0) { e.currentTarget.setPointerCapture(e.pointerId); props.onPlaytestTouchPress?.(e.pointerId, column, e.timeStamp); }
-      }
+      e.preventDefault();
+      const column = columnAtX(localPoint(e).x);
+      if (column >= 0) { e.currentTarget.setPointerCapture(e.pointerId); props.onPlaytestTouchPress?.(e.pointerId, column, e.timeStamp); }
       return;
     }
     e.preventDefault();
@@ -2813,7 +2813,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
   const onPointerMove = (e: React.PointerEvent) => {
     markDirty();
-    if (props.playtestMode && props.mobile && e.pointerType !== "mouse") {
+    if (props.playtestMode && e.pointerType !== "mouse") {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         const column = columnAtX(localPoint(e).x);
         if (column >= 0) props.onPlaytestTouchPress?.(e.pointerId, column, e.timeStamp);
@@ -2848,7 +2848,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
   const onPointerUp = (e: React.PointerEvent) => {
     markDirty();
-    if (props.playtestMode && props.mobile && e.pointerType !== "mouse") { props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp); return; }
+    if (props.playtestMode && e.pointerType !== "mouse") { props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp); return; }
     if (e.pointerType === "mouse") {
       if (boxSelectCapturedRef.current) {
         boxSelectCapturedRef.current = false;
@@ -2896,7 +2896,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
   const onPointerCancel = (e: React.PointerEvent) => {
     markDirty();
-    if (props.playtestMode && props.mobile && e.pointerType !== "mouse") { props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp); return; }
+    if (props.playtestMode && e.pointerType !== "mouse") { props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp); return; }
     if (e.pointerType === "mouse") {
       if (boxSelectCapturedRef.current) {
         boxSelectCapturedRef.current = false;
@@ -3120,7 +3120,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         onLostPointerCapture={e => {
-          if (props.playtestMode && props.mobile && e.pointerType !== "mouse") props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp);
+          if (props.playtestMode && e.pointerType !== "mouse") props.onPlaytestTouchRelease?.(e.pointerId, e.timeStamp);
           else if (activePointersRef.current.has(e.pointerId)) onPointerCancel(e);
         }}
         onPointerLeave={onPointerLeave}

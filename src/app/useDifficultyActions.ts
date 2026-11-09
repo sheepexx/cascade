@@ -8,7 +8,7 @@ import { pushClip } from "../lib/clipboardStore";
 import type { DifficultyClip } from "../lib/clipboardStore";
 import { adoptCopiedDifficulty } from "../lib/editorClipboard";
 import type { Translate } from "../lib/i18n";
-import type { RateCreateOptions } from "../lib/rateChange";
+import type { CreatedRate, RateCreateOptions } from "../lib/rateChange";
 import { createRateDifficulty as makeRateDifficulty } from "../lib/rateChange";
 import type { BackupReason } from "../lib/recovery";
 import type { Difficulty, LoadedFile, SongMeta, TimingPoint } from "../types";
@@ -85,26 +85,29 @@ export function useDifficultyActions({
    * untouched; the copy carries its own audioRate so the editor plays the
    * shared audio file at that rate. Picked up by the snapshot history like any
    * other structural change, so it undoes/redoes for free.
+   *
+   * The source stays open, so several rates can be made from it in a row; the
+   * panel offers to open the new one.
    */
   const createRateDifficulty = useCallback(
-    (options: RateCreateOptions) => {
-      if (!canEditRef.current) return;
+    (options: RateCreateOptions): CreatedRate | null => {
+      if (!canEditRef.current) return null;
       const source = difficultiesRef.current.find(
         (d) => d.id === activeIdRef.current,
       );
-      if (!source) return;
+      if (!source) return null;
       const rated = makeRateDifficulty(source, {
         ...options,
         existingNames: difficultiesRef.current.map((d) => d.name),
       });
       markStructural();
       setDifficulties((prev) => [...prev, rated]);
-      setActiveId(rated.id);
       void logAnalyticsEvent("rate_change_export", authUserRef.current?.id).catch(
         () => {},
       );
+      return { id: rated.id, name: rated.name };
     },
-    [markStructural, canEditRef, activeIdRef, authUserRef, difficultiesRef, setActiveId, setDifficulties],
+    [markStructural, canEditRef, activeIdRef, authUserRef, difficultiesRef, setDifficulties],
   );
 
   const duplicateDifficulty = useCallback(

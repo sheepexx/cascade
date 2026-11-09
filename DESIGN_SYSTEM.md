@@ -398,6 +398,15 @@ the keyboard and browser bars do not hide a sheet's controls.
   Sheets do not open the software keyboard until a field is tapped. Labels
   explain touch actions; desktop keyboard hints stay in desktop chrome.
 - Phone focus mode keeps a tool picker, undo, playback, time and All tools.
+- Tablets keep the desktop layout but may have no keyboard: the transport has
+  a play/pause button, and a playtest shows pause, Auto and Back top centre.
+- A touch playtest splits the bottom half of the screen into one see-through
+  grey box per lane, as osu!lazer does; tapping a lane on the playfield above
+  plays it too.
+- Phones play a playtest sideways: held upright, the run waits paused behind a
+  prompt to turn the phone (or play upright anyway) and resumes after the
+  countdown once it is turned. A phone's HUD keeps to the combo and judgements;
+  the rest can be turned on in the HUD editor, kept apart from desktop choices.
 - Pack Creator scrolls horizontally on desktop and switches between Maps,
   Selected map and Pack settings on phones, retaining each pane's state.
 - No horizontal page scroll at any width; dropdowns and menus flip and clamp to

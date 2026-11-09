@@ -1062,7 +1062,8 @@ img {
   transition: max-height 180ms var(--ease-exit);
 }
 .rate-panel-reveal[data-open="true"] {
-  max-height: 34rem;
+  /* Room for phone-sized controls too. */
+  max-height: 48rem;
   transition: max-height 220ms var(--ease-emphasized);
 }
 
@@ -1542,6 +1543,21 @@ canvas[data-pointer-focus]:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .pt-judge-hit,
   .pt-judge-miss { animation: pt-judge-fade 500ms linear both; }
+}
+
+/* The phone in the playtest's "turn your phone" prompt tips onto its side. */
+.rotate-hint {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rotate-hint 2.4s var(--ease-emphasized) infinite;
+}
+@keyframes rotate-hint {
+  0%, 20% { transform: rotate(0deg); }
+  50%, 80% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rotate-hint { animation: none; transform: rotate(-90deg); }
 }
 
 .osd-pop { animation: osd-pop 200ms var(--ease-emphasized) both; }

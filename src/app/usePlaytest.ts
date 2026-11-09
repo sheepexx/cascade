@@ -833,6 +833,7 @@ export function usePlaytest({
     playtestScore,
     playtestSettings,
     playtestWindows,
+    pausePlaytest,
     restartPlaytest,
     resumePlaytest,
     skillProfile,

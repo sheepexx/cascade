@@ -19,6 +19,7 @@ import {
   quantizeRate,
   rateDifficultyName,
   rateForBpm,
+  rateNameFor,
   scaledBpmLabel,
   scaledDuration,
   toAudioTime,
@@ -343,6 +344,17 @@ describe("naming helpers", () => {
     expect(uniqueDifficultyName("Insane x1.2", [])).toBe("Insane x1.2");
     expect(uniqueDifficultyName("Insane x1.2", ["Normal"])).toBe("Insane x1.2");
     expect(uniqueDifficultyName("Insane x1.2", ["Insane x1.2"])).toBe("Insane x1.2 (2)");
+  });
+
+  it("names a rate the way creating it does, so the panel can tell it exists", () => {
+    const source = baseDifficulty();
+    expect(rateNameFor(source, 1.2)).toBe("Insane x1.2 (120 BPM)");
+    expect(rateNameFor(source, 1.2, { showBpm: false })).toBe("Insane x1.2");
+    expect(rateNameFor(source, 1.2, { onlyRateAsName: true })).toBe("x1.2 (120 BPM)");
+    expect(createRateDifficulty(source, { rate: 1.2 }).name).toBe(rateNameFor(source, 1.2));
+    expect(
+      createRateDifficulty(source, { rate: 1.2, existingNames: [rateNameFor(source, 1.2)] }).name,
+    ).toBe("Insane x1.2 (120 BPM) (2)");
   });
 });
 

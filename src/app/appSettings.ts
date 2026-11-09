@@ -9,7 +9,7 @@ import { clampUiScale } from "../lib/uiScale";
 import { isSnapPresetId, normalizeCustomDivisors } from "../lib/snapPresets";
 import { normalizePlaytestTiming } from "../lib/playtestClock";
 import { normalizePlaytestKeybinds } from "../lib/playtestKeybinds";
-import { normalizeHudLayout } from "../lib/hudLayout";
+import { normalizeHudLayout, normalizePhoneHud } from "../lib/hudLayout";
 import { normalizePlaytestSkin } from "../lib/playtestSkin";
 import { normalizeMapOverviewLayout } from "../lib/mapOverview";
 
@@ -72,6 +72,7 @@ export function normalizeAppSettings(
       ),
       keybinds: normalizePlaytestKeybinds(playtestPrefs?.keybinds),
       hud: normalizeHudLayout(playtestPrefs?.hud),
+      phoneHud: normalizePhoneHud(playtestPrefs?.phoneHud),
       skin: normalizePlaytestSkin(playtestPrefs?.skin),
       humanize: normalizeHumanize(playtestPrefs?.humanize),
       skill: {

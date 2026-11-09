@@ -54,6 +54,8 @@ import type { AiModReport, AiModIssue } from "./lib/aimod";
 import { resnapNotes, countUnsnapped } from "./lib/snapCheck";
 import { StartScreen } from "./components/StartScreen";
 import { usePhoneViewport } from "./hooks/usePhoneViewport";
+import { useMediaQuery } from "./hooks/useMediaQuery";
+import { RotatePrompt } from "./components/mobile/RotatePrompt";
 import { useOnlinePresence } from "./hooks/useOnlinePresence";
 import { useOsuLive } from "./hooks/useOsuLive";
 import { OsuOpenPrompt } from "./components/OsuOpenPrompt";
@@ -201,7 +203,7 @@ import {
   PLAYHEAD_FROM_EDGE as PLAYTEST_HIT_LINE_FROM_EDGE,
   resolvePlayfieldLayout,
 } from "./lib/playfieldGeometry";
-import { type PlayfieldBounds } from "./lib/hudLayout";
+import { phoneHudPatch, withPhoneHud, type PlayfieldBounds } from "./lib/hudLayout";
 import { HudPreviewViewport } from "./components/HudPreviewViewport";
 import { HudScrubber } from "./components/HudScrubber";
 import {
@@ -373,6 +375,9 @@ export default function App() {
   const [packCreatorOpen, setPackCreatorOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const phoneViewport = usePhoneViewport();
+  // Tablets get the desktop layout, but may have no keyboard to play with.
+  const coarsePointer = useMediaQuery("(pointer: coarse)");
+  const portrait = useMediaQuery("(orientation: portrait)");
   const [phoneMenuOpen, setPhoneMenuOpen] = useState(false);
   const [phonePanel, setPhonePanel] = useState<"difficulties" | "statistics" | "timeline" | null>(null);
   const [phoneTool, setPhoneTool] = useState<PhoneTool>("move");
@@ -987,6 +992,7 @@ export default function App() {
     playtestScore,
     playtestSettings,
     playtestWindows,
+    pausePlaytest,
     restartPlaytest,
     resumePlaytest,
     skillProfile,
@@ -1024,6 +1030,38 @@ export default function App() {
     skinLibrary,
     t,
   });
+
+  // A phone keeps its own, sparer HUD; see PHONE_HUD_DEFAULTS.
+  const hudSettings = useMemo(
+    () => (phoneViewport ? withPhoneHud(playtestSettings) : playtestSettings),
+    [phoneViewport, playtestSettings],
+  );
+
+  // Phones play a playtest sideways, as osu!lazer does. Held upright, the run
+  // waits paused behind a prompt and goes on, after the countdown, once the
+  // phone is turned. Playing upright anyway stops the asking for the session.
+  const [playUpright, setPlayUpright] = useState(false);
+  const askToRotate =
+    projectStarted &&
+    phoneViewport &&
+    portrait &&
+    !playUpright &&
+    playtest.active &&
+    !playtest.hudEditing &&
+    !playtest.ended;
+  const heldForRotateRef = useRef(false);
+  useEffect(() => {
+    if (askToRotate) {
+      if (!playtestRef.current.paused) {
+        heldForRotateRef.current = true;
+        pausePlaytest();
+      }
+      return;
+    }
+    if (!heldForRotateRef.current) return;
+    heldForRotateRef.current = false;
+    if (playtestRef.current.active && playtestRef.current.paused) resumePlaytest();
+  }, [askToRotate, pausePlaytest, resumePlaytest]);
 
   const eligibleRefs = useMemo(() => {
     const resolve = (d: Difficulty): string | null => {
@@ -2906,7 +2944,7 @@ export default function App() {
                   mobile
                   difficulties={difficulties}
                   activeId={active.id}
-                  onSelect={(id) => { setActiveId(id); setPhonePanel(null); }}
+                  onSelect={(id, keepOpen) => { setActiveId(id); if (!keepOpen) setPhonePanel(null); }}
                   onAdd={addDifficulty}
                   onDuplicate={duplicateDifficulty}
                   onCopy={copyDifficulty}
@@ -3183,6 +3221,8 @@ export default function App() {
                 }
                 playtestDisabled={!audioFile}
                 playtestKey={editorKeyLabel(editorKeybinds.playtestToggle)}
+                playDisabled={!audioFile}
+                playKey={editorKeyLabel(editorKeybinds.playPause)}
               />
             )}
           </div>
@@ -3478,7 +3518,7 @@ export default function App() {
                 savedSkinNames={skinLibrary.map((saved) => saved.name)}
                 hitLight={appSettings.hitLight}
                 onHitLight={(hitLight) => setAppSettings((s) => ({ ...s, hitLight }))}
-                onPatch={(patch) => setAppSettings((s) => ({ ...s, playtest: { ...s.playtest, ...patch } }))}
+                onPatch={(patch) => setAppSettings((s) => ({ ...s, playtest: { ...s.playtest, ...(phoneViewport ? phoneHudPatch(s.playtest, patch) : patch) } }))}
                 playfieldBoundsRef={playfieldBoundsRef}
                 npsGraph={
                   <MemoizedPlaytestNpsGraph
@@ -3502,7 +3542,7 @@ export default function App() {
                     autoplay={playtest.autoplay}
                     autoplaySummary={autoplaySummary}
                     humanized={!playtest.hudEditing && playtestSettings.humanize.enabled}
-                    showNps={!playtestSettings.showNpsGraph}
+                    showNps={!hudSettings.showNpsGraph}
                     skillProfile={skillProfile}
                     skillEnabled
                   />
@@ -3511,7 +3551,7 @@ export default function App() {
                 ended={playtest.ended}
                 paused={playtest.paused}
                 countdownEndsAt={playtest.countdownEndsAt}
-                settings={playtestSettings}
+                settings={hudSettings}
                 windows={playtestWindows}
                 getCurrentTime={playtestGameplayTime}
                 hitLineFromEdge={PLAYTEST_HIT_LINE_FROM_EDGE + playfieldLayout.hitPosition}
@@ -3525,7 +3565,8 @@ export default function App() {
                 onSettings={() => openSettings("Playtest")}
               />
             )}
-            {hasProject && phoneViewport && playtest.active && !playtest.hudEditing && <PhonePlaytestControls keyCount={active.keyCount} paused={playtest.paused} ended={playtest.ended} autoplay={playtest.autoplay} ready={playtest.countdownEndsAt === null && !playtest.paused && !playtest.ended} heldKeys={heldPlaytestKeys} keys={playtestSettings.keybinds[active.keyCount] ?? []} onPause={togglePlaytestPause} onReturn={exitPlaytest} onTools={() => { if (!playtest.paused) togglePlaytestPause(); setPhoneMenuOpen(true); }} onAutoplay={toggleAutoplay} onPress={pressTouch} onRelease={releaseTouch} />}
+            {hasProject && (phoneViewport || coarsePointer) && playtest.active && !playtest.hudEditing && <PhonePlaytestControls tablet={!phoneViewport} keyCount={active.keyCount} paused={playtest.paused} ended={playtest.ended} autoplay={playtest.autoplay} ready={playtest.countdownEndsAt === null && !playtest.paused && !playtest.ended} heldKeys={heldPlaytestKeys} keys={playtestSettings.keybinds[active.keyCount] ?? []} onPause={togglePlaytestPause} onReturn={exitPlaytest} onTools={phoneViewport ? () => { if (!playtest.paused) togglePlaytestPause(); setPhoneMenuOpen(true); } : undefined} onAutoplay={toggleAutoplay} onPress={pressTouch} onRelease={releaseTouch} />}
+            {askToRotate && <RotatePrompt onPlayUpright={() => setPlayUpright(true)} onBack={exitPlaytest} />}
             {audioFile &&
               hasProject &&
               appSettings.showPpCounter &&

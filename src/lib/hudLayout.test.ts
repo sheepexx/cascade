@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { HUD_PANEL_WIDTH, hudPreviewGeometry, normalizeHudLayout, withPlacement } from "./hudLayout";
+import { DEFAULT_APP_SETTINGS } from "../types";
+import {
+  HUD_PANEL_WIDTH,
+  hudPreviewGeometry,
+  normalizeHudLayout,
+  normalizePhoneHud,
+  phoneHudPatch,
+  withPhoneHud,
+  withPlacement,
+} from "./hudLayout";
 
 describe("hudPreviewGeometry", () => {
   it.each([[1920, 1080], [1440, 900], [1280, 720], [960, 720]])(
@@ -55,5 +64,39 @@ describe("withPlacement", () => {
     const moved = withPlacement({}, "keys", { x: 4, y: 0, scale: 1 });
     expect(moved).toEqual({ keys: { x: 4, y: 0, scale: 1 } });
     expect(withPlacement(moved, "keys", { x: 0, y: 0, scale: 1 })).toEqual({});
+  });
+});
+
+describe("phone HUD", () => {
+  const desktop = DEFAULT_APP_SETTINGS.playtest;
+
+  it("shows only the combo and judgements on a phone until more is turned on", () => {
+    const phone = withPhoneHud(desktop);
+    expect(phone.showCombo).toBe(true);
+    expect(phone.showJudgements).toBe(true);
+    expect(phone.showNpsGraph).toBe(false);
+    expect(phone.showRunStats).toBe(false);
+    expect(phone.showAccuracy).toBe(false);
+    expect(phone.showCounts).toBe(false);
+    expect(phone.showErrorBar).toBe(false);
+    expect(phone.showKeys).toBe(false);
+    // An existing player's desktop choices don't leak onto the phone.
+    expect(withPhoneHud({ ...desktop, showNpsGraph: true, showRunStats: true }).showNpsGraph).toBe(false);
+    expect(withPhoneHud({ ...desktop, phoneHud: { npsGraph: true } }).showNpsGraph).toBe(true);
+  });
+
+  it("keeps a phone's show and hide choices apart from the desktop's", () => {
+    const patch = phoneHudPatch(desktop, { showNpsGraph: true, scrollSpeed: 30 });
+    expect(patch).toEqual({ scrollSpeed: 30, phoneHud: { npsGraph: true } });
+    expect(phoneHudPatch({ ...desktop, phoneHud: { combo: false } }, { showCounts: true })).toEqual({
+      phoneHud: { combo: false, counts: true },
+    });
+    expect(phoneHudPatch(desktop, { hitPosition: 4 })).toEqual({ hitPosition: 4 });
+  });
+
+  it("drops unknown or malformed saved choices", () => {
+    expect(normalizePhoneHud({ npsGraph: true, combo: "yes", nope: true })).toEqual({ npsGraph: true });
+    expect(normalizePhoneHud(null)).toEqual({});
+    expect(normalizePhoneHud([true])).toEqual({});
   });
 });

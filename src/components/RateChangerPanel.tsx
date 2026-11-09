@@ -13,6 +13,8 @@ import {
   parseRateInput,
   quantizeRate,
   rateForBpm,
+  rateNameFor,
+  type CreatedRate,
   type RateCreateOptions,
 } from "../lib/rateChange";
 import { Slider, Toggle } from "./ui/Controls";
@@ -30,7 +32,10 @@ type Props = {
   existingNames: string[];
   durationMs: number | null;
   canEdit: boolean;
-  onCreate: (options: RateCreateOptions) => void;
+  /** Saves the rate and says what it was named. The source stays open. */
+  onCreate: (options: RateCreateOptions) => CreatedRate | null;
+  /** Switches to a rate made here. */
+  onOpen: (id: string) => void;
   onClose: () => void;
 };
 
@@ -41,6 +46,7 @@ export function RateChangerPanel({
   durationMs,
   canEdit,
   onCreate,
+  onOpen,
   onClose,
 }: Props) {
   const t = useT();
@@ -53,7 +59,14 @@ export function RateChangerPanel({
   const [onlyRateAsName, setOnlyRateAsName] = useState(false);
   const [showBpm, setShowBpm] = useState(true);
   const [preservePitch, setPreservePitch] = useState(false);
+  // The last rate made, kept until the panel closes or the source changes.
+  const [created, setCreated] = useState<CreatedRate | null>(null);
   const rateInputRef = useRef<HTMLInputElement>(null);
+  const sourceId = difficulty?.id;
+
+  useEffect(() => {
+    setCreated(null);
+  }, [open, sourceId]);
 
   useEffect(() => {
     if (open) {
@@ -140,8 +153,20 @@ export function RateChangerPanel({
 
   const create = (value = rate) => {
     if (!difficulty || !canEdit || isNeutralRate(value) || invalid !== null) return;
-    onCreate({ rate: value, onlyRateAsName, showBpm, preservePitch });
+    setCreated(onCreate({ rate: value, onlyRateAsName, showBpm, preservePitch }));
   };
+
+  // Rates of this difficulty that already exist under the name they would get
+  // now, so a run of them can be made without losing track.
+  const madePresets = useMemo(() => {
+    const made = new Set<number>();
+    if (!difficulty) return made;
+    const taken = new Set(existingNames);
+    for (const preset of RATE_PRESETS) {
+      if (taken.has(rateNameFor(difficulty, preset, { onlyRateAsName, showBpm }))) made.add(preset);
+    }
+    return made;
+  }, [difficulty, existingNames, onlyRateAsName, showBpm]);
 
   const fieldClass = (bad: boolean) =>
     `min-w-0 h-7 rounded-md bg-black/25 px-2 text-sm tabular-nums text-slate-100 ring-1 ring-inset outline-none transition disabled:cursor-not-allowed disabled:opacity-40 ${
@@ -255,19 +280,23 @@ export function RateChangerPanel({
         <div className="mt-2.5 grid grid-cols-4 gap-1">
           {RATE_PRESETS.map((preset) => {
             const selected = Math.abs(preset - rate) < 1e-6;
+            const made = madePresets.has(preset);
             return (
               <button
                 key={preset}
                 type="button"
                 disabled={!canEdit}
                 onClick={() => commitRate(preset)}
-                className={`h-6 rounded text-[11px] font-medium tabular-nums transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                title={made ? t("rate.made") : undefined}
+                aria-label={made ? `${formatRate(preset)}x, ${t("rate.made")}` : undefined}
+                className={`inline-flex h-6 items-center justify-center gap-0.5 rounded text-[11px] font-medium tabular-nums transition disabled:cursor-not-allowed disabled:opacity-40 ${
                   selected
                     ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
                     : "bg-black/20 text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
                 }`}
               >
                 {formatRate(preset)}x
+                {made && <CheckIcon />}
               </button>
             );
           })}
@@ -297,6 +326,15 @@ export function RateChangerPanel({
 
         {preview && (
           <div className="mt-2.5 flex flex-col gap-1 border-t border-white/[0.06] pt-2.5 text-[11px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-500">{t("rate.source")}</span>
+              <span
+                className="min-w-0 truncate font-medium text-slate-200"
+                title={difficulty?.name}
+              >
+                {difficulty?.name || t("diffSidebar.unnamed")}
+              </span>
+            </div>
             <PreviewRow label="BPM" from={preview.bpmBefore} to={preview.bpmAfter} />
             {preview.lengthBefore && preview.lengthAfter && (
               <PreviewRow
@@ -331,8 +369,42 @@ export function RateChangerPanel({
             {t("rate.neutral")}
           </p>
         )}
+
+        <div aria-live="polite">
+          {created && (
+            <div className="mt-2 flex items-center gap-2 text-2xs text-slate-400">
+              <span className="min-w-0 flex-1 truncate" title={created.name}>
+                {t("rate.created", { name: created.name })}
+              </span>
+              <button
+                type="button"
+                onClick={() => onOpen(created.id)}
+                className="shrink-0 rounded px-1.5 py-0.5 font-medium text-accent-soft transition hover:bg-white/[0.07] hover:text-slate-50"
+              >
+                {t("common.open")}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      className="h-2.5 w-2.5 text-emerald-300"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m3.5 8.5 3 3 6-7" />
+    </svg>
   );
 }
 

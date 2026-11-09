@@ -432,6 +432,11 @@ export type PlaytestSettings = {
   showKeys: boolean;
   /** Moved or resized HUD elements; the rest keep their default place. */
   hud: Partial<Record<HudElementId, HudPlacement>>;
+  /**
+   * Which HUD elements show on a phone, kept apart from the desktop's own
+   * choices. Ones never set follow PHONE_HUD_DEFAULTS, which leave most off.
+   */
+  phoneHud: Partial<Record<HudElementId, boolean>>;
   humanize: HumanizeSettings;
   skill: SkillSettings;
 };
@@ -757,6 +762,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     showCounts: true,
     showKeys: true,
     hud: {},
+    phoneHud: {},
     humanize: DEFAULT_HUMANIZE,
     skill: DEFAULT_SKILL,
   },
