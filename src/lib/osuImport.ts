@@ -18,6 +18,7 @@ import {
 } from "../types";
 import { t } from "./i18n/core";
 import { parseMalodyChart } from "./malody";
+import type { QuaverLeftOut } from "./qua";
 import { xToColumn } from "./osuExport";
 import {
   chooseSamplePaths,
@@ -40,7 +41,16 @@ export type ParsedOsu = {
 };
 
 /** Parts of a set that Cascade reads past and cannot export again. */
-export type UnsupportedFeature = "storyboard" | "specialStyle";
+export type UnsupportedFeature =
+  | "storyboard"
+  | "specialStyle"
+  | "quaverMines"
+  | "quaverScrollGroups";
+
+const QUAVER_LEFT_OUT: Record<QuaverLeftOut, UnsupportedFeature> = {
+  mines: "quaverMines",
+  scrollGroups: "quaverScrollGroups",
+};
 
 export type ImportedMap = {
   /** Parts of the set that exporting will leave out, for telling the mapper. */
@@ -53,6 +63,8 @@ export type ImportedMap = {
   videoFiles: Record<string, LoadedFile>;
   /** The set's own hitsound samples, keyed by file name. */
   sampleFiles?: Record<string, SampleFile>;
+  /** Set by a Quaver mapset, which says whether BPM changes move the scroll. */
+  bpmAffectsScroll?: boolean;
 };
 
 function splitSections(text: string): Record<string, string[]> {
@@ -415,36 +427,59 @@ export async function importOsz(
   progress.advance();
 
   const osuPaths: string[] = [];
+  const quaverPaths: string[] = [];
   const malodyPaths: string[] = [];
   zip.forEach((path) => {
     const lower = path.toLowerCase();
     if (lower.endsWith(".osu")) osuPaths.push(path);
+    else if (lower.endsWith(".qua")) quaverPaths.push(path);
     else if (lower.endsWith(".mc")) malodyPaths.push(path);
   });
-  // A Malody set (.mcz) carries .mc charts instead of .osu difficulties.
-  const malody = osuPaths.length === 0 && malodyPaths.length > 0;
-  const chartPaths = (malody ? malodyPaths : osuPaths).sort();
-  if (chartPaths.length === 0) {
+  // A Quaver set (.qp) carries .qua difficulties and a Malody set (.mcz)
+  // .mc charts instead of .osu files.
+  const format = osuPaths.length
+    ? "osu"
+    : quaverPaths.length
+      ? "qua"
+      : malodyPaths.length
+        ? "mc"
+        : null;
+  if (!format) {
     throw new Error(t("malody.noChartInArchive"));
   }
+  const chartPaths = (
+    format === "osu" ? osuPaths : format === "qua" ? quaverPaths : malodyPaths
+  ).sort();
 
   const parsed: ParsedOsu[] = [];
   const unsupported = new Set<UnsupportedFeature>();
   zip.forEach((path) => {
     if (path.toLowerCase().endsWith(".osb")) unsupported.add("storyboard");
   });
-  let malodyError: Error | null = null;
+  let chartError: Error | null = null;
+  let bpmAffectsScroll: boolean | undefined;
+  // Loaded only for a Quaver set, so .osz imports skip the YAML reader.
+  const parseQuaFile = format === "qua" ? (await import("./qua")).parseQuaFile : null;
   for (const path of chartPaths) {
     progress.phase(
       t("lib.readingDiffs", { index: parsed.length + 1, total: chartPaths.length }),
       parsed.length / chartPaths.length,
     );
     const text = await zip.file(path)!.async("string");
-    if (malody) {
+    if (parseQuaFile) {
+      try {
+        const qua = parseQuaFile(text);
+        parsed.push({ ...qua, videoFilename: null, videoOffsetMs: 0 });
+        bpmAffectsScroll ??= qua.bpmAffectsScroll;
+        for (const part of qua.leftOut) unsupported.add(QUAVER_LEFT_OUT[part]);
+      } catch (error) {
+        chartError = error instanceof Error ? error : new Error(String(error));
+      }
+    } else if (format === "mc") {
       try {
         parsed.push({ ...parseMalodyChart(text), videoFilename: null, videoOffsetMs: 0 });
       } catch (error) {
-        malodyError = error instanceof Error ? error : new Error(String(error));
+        chartError = error instanceof Error ? error : new Error(String(error));
       }
     } else if (isManiaOsu(text)) {
       parsed.push(parseOsuFile(text));
@@ -454,7 +489,7 @@ export async function importOsz(
     }
   }
   if (parsed.length === 0) {
-    throw malodyError ??
+    throw chartError ??
       new Error(t("lib.noMania"));
   }
   progress.advance();
@@ -528,6 +563,7 @@ export async function importOsz(
     backgroundFiles,
     videoFiles,
     sampleFiles,
+    ...(bpmAffectsScroll === undefined ? {} : { bpmAffectsScroll }),
   };
 }
 

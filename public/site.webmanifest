@@ -38,7 +38,7 @@
         "application/x-osu-archive": [".osz"],
         "application/x-osu-beatmap": [".osu"],
         "application/x-stepmania": [".sm", ".ssc"],
-        "application/x-quaver": [".qua"],
+        "application/x-quaver": [".qp", ".qua"],
         "application/x-malody": [".mc", ".mcz"]
       },
       "icons": [

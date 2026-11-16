@@ -86,7 +86,7 @@
         "role": "Editor"
       },
       {
-        "ext": ["qua"],
+        "ext": ["qp", "qua"],
         "name": "quaver-map",
         "description": "Quaver map",
         "mimeType": "application/x-quaver",

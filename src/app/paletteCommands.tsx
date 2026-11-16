@@ -49,7 +49,7 @@ export function buildPaletteCommands({
   handleExportMcz,
   handleExportOsu,
   handleExportOsz,
-  handleExportQua,
+  handleExportQp,
   handleExportSm,
   handleLoadFromOsu,
   handleSave,
@@ -57,6 +57,7 @@ export function buildPaletteCommands({
   handleSyncToOsu,
   hasBackground,
   hasMalodyDifficulty,
+  hasQuaverDifficulty,
   hasProject,
   hitsoundTargets,
   importingMap,
@@ -113,7 +114,7 @@ export function buildPaletteCommands({
   handleExportMcz: () => void;
   handleExportOsu: () => void;
   handleExportOsz: () => void;
-  handleExportQua: () => void;
+  handleExportQp: () => void;
   handleExportSm: () => void;
   handleLoadFromOsu: () => Promise<void>;
   handleSave: (silent?: boolean) => Promise<void>;
@@ -121,6 +122,7 @@ export function buildPaletteCommands({
   handleSyncToOsu: () => void;
   hasBackground: boolean;
   hasMalodyDifficulty: boolean;
+  hasQuaverDifficulty: boolean;
   hasProject: boolean;
   hitsoundTargets: Difficulty[];
   importingMap: boolean;
@@ -313,7 +315,7 @@ export function buildPaletteCommands({
           { id: "export-osu", label: t("file.exportOsu"), group: t("palette.group.export"), disabled: !canExport, run: handleExportOsu },
           { id: "export-osz", aliases: ["osz"], label: t("file.exportOsz"), group: t("palette.group.export"), disabled: !canExport || exporting, run: handleExportOsz },
           { id: "export-sm", label: t("file.exportSm"), group: t("palette.group.export"), disabled: !canExport, run: handleExportSm },
-          { id: "export-qua", label: t("file.exportQua"), group: t("palette.group.export"), disabled: !canExport, run: handleExportQua },
+          { id: "export-qp", aliases: ["qua"], label: t("file.exportQp"), group: t("palette.group.export"), keywords: "quaver qua", disabled: !canExport || exporting || !hasQuaverDifficulty, run: handleExportQp },
           { id: "export-mcz", label: t("file.exportMcz"), group: t("palette.group.export"), keywords: "malody mc", disabled: !canExport || exporting || !hasMalodyDifficulty, run: handleExportMcz },
           { id: "export-background", label: t("file.exportBackground"), group: t("palette.group.export"), keywords: "bg image picture wallpaper", disabled: !hasBackground, run: handleExportBackground },
           ...(osuApp?.supported

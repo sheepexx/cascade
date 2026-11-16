@@ -5,7 +5,7 @@ use tauri::ipc::Response;
 
 pub const OPEN_EVENT: &str = "cascade://open-files";
 
-pub const SUPPORTED: [&str; 8] = ["osu", "osz", "sm", "ssc", "qua", "mc", "mcz", "osk"];
+pub const SUPPORTED: [&str; 9] = ["osu", "osz", "sm", "ssc", "qp", "qua", "mc", "mcz", "osk"];
 
 pub const MAX_LAUNCH_BYTES: u64 = 512 * 1024 * 1024;
 
@@ -87,6 +87,7 @@ mod tests {
             "set.osz",
             "chart.sm",
             "chart.ssc",
+            "set.qp",
             "map.qua",
             "chart.mc",
             "set.mcz",

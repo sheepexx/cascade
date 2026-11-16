@@ -72,7 +72,7 @@ export const isImageFile = (f: File) =>
 export const isVideoFile = (f: File) =>
   f.type.startsWith("video/") ||
   /\.(mp4|webm|avi|flv|mov|wmv|m4v|mpe?g)$/i.test(f.name);
-export const isOszFile = (f: File) => /\.(osz|zip|mcz)$/i.test(f.name);
+export const isOszFile = (f: File) => /\.(osz|zip|mcz|qp)$/i.test(f.name);
 export const isOsuFile = (f: File) => /\.osu$/i.test(f.name);
 export const isOskFile = (f: File) => /\.osk$/i.test(f.name);
 export const isSmFile = (f: File) => /\.(sm|ssc)$/i.test(f.name);

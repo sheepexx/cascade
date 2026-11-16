@@ -8,6 +8,7 @@ const MIME: Record<string, string> = {
   sm: "application/x-stepmania",
   ssc: "application/x-stepmania",
   qua: "application/x-quaver",
+  qp: "application/x-quaver",
   osk: "application/x-osu-skin",
 };
 

@@ -5,7 +5,7 @@
  * compress.
  */
 const PRECOMPRESSED =
-  /\.(mp3|ogg|oga|opus|m4a|aac|flac|jpe?g|png|gif|webp|avif|mp4|m4v|webm|mov|avi|flv|wmv|mkv|mpe?g|zip|osz|osk|mcz)$/i;
+  /\.(mp3|ogg|oga|opus|m4a|aac|flac|jpe?g|png|gif|webp|avif|mp4|m4v|webm|mov|avi|flv|wmv|mkv|mpe?g|zip|osz|osk|mcz|qp)$/i;
 
 export type ZipEntryOptions = { compression: "STORE" | "DEFLATE" };
 

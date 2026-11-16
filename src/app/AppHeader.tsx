@@ -63,7 +63,7 @@ export function AppHeader({
   handleExportMcz,
   handleExportOsu,
   handleExportOsz,
-  handleExportQua,
+  handleExportQp,
   handleExportSm,
   handleLoadFromOsu,
   handleSave,
@@ -71,6 +71,7 @@ export function AppHeader({
   handleSyncToOsu,
   hasBackground,
   hasMalodyDifficulty,
+  hasQuaverDifficulty,
   hasProject,
   historyCurrent,
   historyEntries,
@@ -131,7 +132,7 @@ export function AppHeader({
   handleExportMcz: () => void;
   handleExportOsu: () => void;
   handleExportOsz: () => void;
-  handleExportQua: () => void;
+  handleExportQp: () => void;
   handleExportSm: () => void;
   handleLoadFromOsu: () => Promise<void>;
   handleSave: (silent?: boolean) => Promise<void>;
@@ -140,6 +141,7 @@ export function AppHeader({
   /** The active difficulty has a background to export. */
   hasBackground: boolean;
   hasMalodyDifficulty: boolean;
+  hasQuaverDifficulty: boolean;
   hasProject: boolean;
   historyCurrent: number;
   historyEntries: string[];
@@ -254,15 +256,10 @@ export function AppHeader({
           onClick: handleExportSm,
         },
         {
-          label: t("file.exportQua"),
-          disabled:
-            !canExport ||
-            (active.keyCount !== 4 && active.keyCount !== 7),
-          title:
-            active.keyCount !== 4 && active.keyCount !== 7
-              ? t("app.quaverKeys")
-              : undefined,
-          onClick: handleExportQua,
+          label: t("file.exportQp"),
+          disabled: !canExport || exporting || !hasQuaverDifficulty,
+          title: !hasQuaverDifficulty ? t("app.quaverKeys") : undefined,
+          onClick: handleExportQp,
         },
         {
           label: t("file.exportMcz"),

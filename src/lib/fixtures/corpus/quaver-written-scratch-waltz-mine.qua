@@ -1,0 +1,63 @@
+QuaVersion: 0
+AudioFile: audio.mp3
+SongPreviewTime: 1000
+BackgroundFile: bg.jpg
+BannerFile: 
+MapId: -1
+MapSetId: -1
+Mode: Keys7
+Title: Corpus
+Artist: Cascade
+Source: ''
+Tags: scratch waltz mine
+Creator: Corpus
+DifficultyName: 7K+1 as Quaver writes it
+Description: Quaver's own serialiser output, CRLF and all
+Genre: ''
+LegacyLNRendering: false
+BPMDoesNotAffectScrollVelocity: true
+InitialScrollVelocity: 1
+HasScratchKey: true
+EditorLayers: []
+CustomAudioSamples: []
+SoundEffects: []
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+  Signature: 0
+  Hidden: false
+- StartTime: 3000
+  Bpm: 160
+  Signature: Triple
+  Hidden: false
+SliderVelocities:
+- StartTime: 1500
+  Multiplier: 0.75
+- StartTime: 3000
+  Multiplier: 1
+HitObjects:
+- StartTime: 500
+  Lane: 1
+  EndTime: 0
+  HitSound: 0
+  KeySounds: []
+  EditorLayer: 0
+- StartTime: 1000
+  Lane: 8
+  EndTime: 1750
+  HitSound: 0
+  KeySounds: []
+  EditorLayer: 0
+- StartTime: 1250
+  Lane: 4
+  EndTime: 0
+  HitSound: 0
+  Type: Mine
+  KeySounds: []
+  EditorLayer: 0
+- StartTime: 3375
+  Lane: 7
+  EndTime: 0
+  HitSound: 0
+  KeySounds: []
+  EditorLayer: 0

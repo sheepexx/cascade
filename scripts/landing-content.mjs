@@ -51,7 +51,7 @@ export const ENGLISH_DOCS = {
   },
   "osu-to-stepmania": {
     title: "Convert to StepMania, Quaver or Malody",
-    description: "Open .osz, .sm, .qua or .mcz and save it as any of the others.",
+    description: "Open .osz, .sm, .qp or .mcz and save it as any of the others.",
   },
   "arrowvortex-alternative": {
     title: "Cascade and ArrowVortex compared",

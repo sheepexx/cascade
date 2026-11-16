@@ -5,7 +5,7 @@ import { logAnalyticsEvent, trackFunnel } from "../lib/analytics";
 import type { AuthUser } from "../lib/auth";
 import { snapshotBlobMap } from "../lib/blobSnapshot";
 import type { AccessRole } from "../lib/collab";
-import type { Translate } from "../lib/i18n";
+import type { MessageKey, Translate } from "../lib/i18n";
 import { assertTextImportSize } from "../lib/importLimits";
 import type { SampleFile } from "../lib/mapSamples";
 import { parseOsuBeatmapLink } from "../lib/osuLinks";
@@ -25,13 +25,22 @@ import type { DocSnapshot, ModalId, OsuEntry } from "./appTypes";
 import { newLocalProjectId } from "./appUtils";
 import { loadOsuImport } from "./lazySurfaces";
 import { describeImportFailure, type SetImportError } from "../lib/importErrors";
+import type { UnsupportedFeature } from "../lib/osuImport";
+
+/** What the mapper is told about each part of a set that exports leave out. */
+const LEFT_OUT_NOTICE: Record<UnsupportedFeature, MessageKey> = {
+  storyboard: "import.storyboardLeftOut",
+  specialStyle: "import.specialStyleLeftOut",
+  quaverMines: "import.quaverMinesLeftOut",
+  quaverScrollGroups: "import.quaverScrollGroupsLeftOut",
+};
 
 /**
  * Opening maps. replaceProject is the one way the open project is swapped
  * for another, used by every import here and by new maps, saved projects
  * and cloud projects in App, so each starts from the same clean slate with
- * an empty undo history. The rest reads .osz/.zip archives, .osu, .sm/.ssc,
- * .qua and .mc files, StepMania pack folders, osu! beatmap links and the
+ * an empty undo history. The rest reads .osz/.qp/.mcz/.zip archives, .osu,
+ * .sm/.ssc, .qua and .mc files, StepMania pack folders, osu! beatmap links and the
  * sample maps, asking first when a map with content would be replaced.
  */
 export function useProjectLoading({
@@ -258,15 +267,13 @@ export function useProjectLoading({
         videoFiles: map.videoFiles,
         sampleFiles: map.sampleFiles,
       });
+      const bpmAffectsScroll = map.bpmAffectsScroll;
+      if (bpmAffectsScroll !== undefined) {
+        setAppSettings((settings) => ({ ...settings, bpmAffectsScroll }));
+      }
       if (map.unsupported?.length) {
         setImportNotice(
-          map.unsupported
-            .map((feature) =>
-              feature === "storyboard"
-                ? t("import.storyboardLeftOut")
-                : t("import.specialStyleLeftOut"),
-            )
-            .join(" "),
+          map.unsupported.map((feature) => t(LEFT_OUT_NOTICE[feature])).join(" "),
         );
       }
       logProjectCreated();
@@ -279,7 +286,7 @@ export function useProjectLoading({
       setImportingMap(false);
       setImportProgress(null);
     }
-  }, [logProjectCreated, replaceProject, t, authUserRef, importStartedRef, setImportError, setImportNotice, setImportProgress, setImportingMap, reportImportFailure]);
+  }, [logProjectCreated, replaceProject, t, authUserRef, importStartedRef, setAppSettings, setImportError, setImportNotice, setImportProgress, setImportingMap, reportImportFailure]);
 
   const requestImportMap = useCallback(
     (file: File) => {
@@ -433,7 +440,11 @@ export function useProjectLoading({
       const malody = /\.mc$/i.test(file.name);
       const source = await file.text();
       const map = malody
-        ? { ...(await import("../lib/malody")).parseMalodyChart(source), bpmAffectsScroll: null }
+        ? {
+            ...(await import("../lib/malody")).parseMalodyChart(source),
+            bpmAffectsScroll: null,
+            leftOut: [],
+          }
         : (await import("../lib/qua")).parseQuaFile(source);
       replaceProject({
         meta: map.meta,
@@ -445,13 +456,22 @@ export function useProjectLoading({
       if (bpmAffectsScroll !== null) {
         setAppSettings((settings) => ({ ...settings, bpmAffectsScroll }));
       }
+      if (map.leftOut.length) {
+        setImportNotice(
+          map.leftOut
+            .map((part) =>
+              t(part === "mines" ? "import.quaverMinesLeftOut" : "import.quaverScrollGroupsLeftOut"),
+            )
+            .join(" "),
+        );
+      }
       logProjectCreated();
     } catch (error) {
       reportImportFailure(error, t("import.failed", { name: file.name }));
     } finally {
       setImportingMap(false);
     }
-  }, [logProjectCreated, replaceProject, t, setAppSettings, importStartedRef, setImportError, setImportingMap, reportImportFailure]);
+  }, [logProjectCreated, replaceProject, t, setAppSettings, importStartedRef, setImportError, setImportNotice, setImportingMap, reportImportFailure]);
 
   const requestImportSm = useCallback(
     (file: File) => {

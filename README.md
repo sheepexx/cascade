@@ -13,7 +13,7 @@ Cascade is a beatmap editor for vertical scrolling rhythm games (VSRG) that runs
 
 ## What Cascade is
 
-Cascade lets you time a song, chart it, play it, check it and export it in one place. You can start from a blank project, open an existing `.osz`, `.osu`, `.sm`, `.ssc`, `.qua`, `.mc` or `.mcz` file, or load one of the sample maps from the main menu.
+Cascade lets you time a song, chart it, play it, check it and export it in one place. You can start from a blank project, open an existing `.osz`, `.osu`, `.sm`, `.ssc`, `.qp`, `.qua`, `.mc` or `.mcz` file, or load one of the sample maps from the main menu.
 
 You do not need to install anything or create an account. Projects are saved in your browser on your device. Logging in with osu! adds cloud saves, settings sync, realtime collaboration and public share links.
 
@@ -181,7 +181,7 @@ Before you apply, the preview graph shows the current scroll rate against the ne
 
 How SV is previewed:
 
-- By default the editor uses a Quaver-style constant scroll where only SV changes the speed. Turn on "BPM affects scroll speed" in Settings to match osu!mania, where red points scroll faster at higher BPM, so BPM gimmicks such as freezes and teleports preview correctly. Opening a `.qua` file applies that map's setting, and Quaver export writes the current one.
+- By default the editor uses a Quaver-style constant scroll where only SV changes the speed. Turn on "BPM affects scroll speed" in Settings to match osu!mania, where red points scroll faster at higher BPM, so BPM gimmicks such as freezes and teleports preview correctly. Opening a `.qp` or `.qua` file applies that map's setting, and Quaver export writes the current one.
 - Turn on "Preview SV while playing" to see SV during editor playback. Playtest always applies SV. While paused, the editor stays linear so note placement is predictable.
 - Editor scroll speed and scroll direction are never written to exported files, because players set their own speed in game.
 
@@ -242,7 +242,8 @@ Hosting and saved presets need an osu! login. More on the [Map Card page](https:
 | osu! beatmap archive `.osz` | Yes | Yes | Import opens every mania difficulty in the archive |
 | StepMania and Etterna `.sm` | Yes | Yes | Export writes step types for 4K, 5K, 6K, 7K, 8K and 10K |
 | StepMania `.ssc` | Yes | No | |
-| Quaver `.qua` | Yes | Yes | Export is limited to 4K and 7K difficulties |
+| Quaver set `.qp` | Yes | Yes | Import opens every difficulty with its audio and background. Export packs every 4K and 7K difficulty into one set, which Quaver imports by dragging it onto the game |
+| Quaver `.qua` | Yes | No | A single difficulty; add the song after opening it. Quaver itself only imports `.qp` sets |
 | Malody `.mc` | Yes | No | A single Key mode chart; add the song after opening it |
 | Malody set `.mcz` | Yes | Yes | Import opens every Key mode chart with its audio and background. Export packs every difficulty up to 10K into one set |
 | osu! skin `.osk` | Yes | No | Skins, not charts |
@@ -328,7 +329,7 @@ The builds are not code-signed yet, so Windows SmartScreen and macOS Gatekeeper 
 
 - **Projects on disk:** every save also writes `Documents/Cascade/Projects/<map>/`, so you can back up, sync or open your maps like any other folder.
 - **Version history:** the last 20 autosaves of each map are kept. Restoring swaps back the notes and timing and leaves the audio and background alone.
-- **File associations** for `.osu`, `.osz`, `.sm`, `.ssc`, `.qua`, `.mc`, `.mcz` and `.osk`, whether Cascade is already running or not.
+- **File associations** for `.osu`, `.osz`, `.sm`, `.ssc`, `.qp`, `.qua`, `.mc`, `.mcz` and `.osk`, whether Cascade is already running or not.
 - **Signed in-app updates.**
 - **Discord status** showing the song and difficulty, only "Cascade", or nothing.
 

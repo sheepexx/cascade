@@ -14,8 +14,8 @@ const CHOICE_FILE: &str = "export-folder.txt";
 /// The kinds of file Cascade exports. Anything else is refused, so nothing
 /// that runs when opened can be written this way.
 const EXTENSIONS: &[&str] = &[
-    "osz", "osu", "zip", "sm", "ssc", "qua", "mcz", "png", "jpg", "jpeg", "jfif", "webp", "gif",
-    "bmp", "avif",
+    "osz", "osu", "zip", "sm", "ssc", "qp", "qua", "mcz", "png", "jpg", "jpeg", "jfif", "webp",
+    "gif", "bmp", "avif",
 ];
 
 #[derive(Serialize)]

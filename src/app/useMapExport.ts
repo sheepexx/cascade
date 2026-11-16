@@ -40,7 +40,7 @@ import type {
 import type { SetImportError } from "../lib/importErrors";
 
 /**
- * Exporting the map: .osu, .osz, .sm, .qua and .mcz files and the background,
+ * Exporting the map: .osu, .osz, .sm, .qp and .mcz files and the background,
  * saved where Settings says (see exportDestination); sending a set into osu!
  * or syncing it into the Songs folder on desktop; and opening the map
  * selected in osu!. Every map export first asks for a mapper name if the map
@@ -215,40 +215,40 @@ export function useMapExport({
     }
   }, [meta, difficulties, timingPoints, audioFiles, bgFiles, authUser?.id, t, offerMapCard, setImportError]);
 
-  const doExportQua = useCallback(async (songMeta: SongMeta = meta) => {
-    if (!audioFile || (active.keyCount !== 4 && active.keyCount !== 7)) return;
+  const doExportQp = useCallback(async (songMeta: SongMeta = meta) => {
+    if (Object.keys(audioFiles).length === 0) return;
     const target = prepareExport();
+    setExporting(true);
     setImportError(null);
     try {
-      const { buildQuaFile, quaFilename } = await import("../lib/qua");
-      const args = {
+      const { buildQp, qpFilename } = await import("../lib/qua");
+      const archive = await buildQp({
         meta: songMeta,
-        difficulty: active,
-        timingPoints: activeTimingPoints,
-        audioFilename: audioFile.name,
-        backgroundFilename: active.backgroundFilename,
+        difficulties,
+        timingPoints,
+        audioFiles,
+        bgFiles,
         bpmAffectsScroll: appSettings.bpmAffectsScroll,
-      };
-      await saveExport(
-        new Blob([buildQuaFile(args)], { type: "application/x-yaml;charset=utf-8" }),
-        quaFilename(args),
-        target,
-      );
+      });
+      await saveExport(archive, qpFilename(songMeta), target);
       playUiSound("mapExportDone");
-      offerMapCard(".qua");
+      offerMapCard(".qp");
     } catch (error) {
       setImportError(
         error instanceof Error
           ? t("app.exportFailedDetail", { format: "Quaver", detail: error.message })
           : t("app.exportFailed", { format: "Quaver" }),
       );
+    } finally {
+      setExporting(false);
     }
   }, [
     setImportError,
     t,
-    audioFile,
-    active,
-    activeTimingPoints,
+    audioFiles,
+    difficulties,
+    timingPoints,
+    bgFiles,
     meta,
     appSettings.bpmAffectsScroll,
     offerMapCard,
@@ -426,9 +426,9 @@ export function useMapExport({
     () => requestExport(".sm", (songMeta) => void doExportSm(songMeta)),
     [requestExport, doExportSm],
   );
-  const handleExportQua = useCallback(
-    () => requestExport(".qua", (songMeta) => void doExportQua(songMeta)),
-    [requestExport, doExportQua],
+  const handleExportQp = useCallback(
+    () => requestExport(".qp", (songMeta) => void doExportQp(songMeta)),
+    [requestExport, doExportQp],
   );
 
   const handleExportMcz = useCallback(
@@ -632,7 +632,7 @@ export function useMapExport({
     handleExportMcz,
     handleExportOsu,
     handleExportOsz,
-    handleExportQua,
+    handleExportQp,
     handleExportSm,
     handleLoadFromOsu,
     handleSendToOsu,

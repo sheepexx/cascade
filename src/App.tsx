@@ -195,7 +195,7 @@ import { useHitsounds } from "./hooks/useHitsounds";
 import { buildOsuFile } from "./lib/osuExport";
 import { uniqueDifficultyName } from "./lib/rateChange";
 import { ExternalEditModal } from "./components/menus/ExternalEditModal";
-import { MALODY_MAX_KEYS } from "./lib/formatLimits";
+import { MALODY_MAX_KEYS, isQuaverKeyCount } from "./lib/formatLimits";
 import { useSkillsetTimeline } from "./lib/msd/useMsd";
 import { msdSupportsKeyCount } from "./lib/msd/minacalc";
 import { SkillsetGraph } from "./components/SkillsetGraph";
@@ -2336,6 +2336,9 @@ export default function App() {
   const hasMalodyDifficulty = difficulties.some(
     (difficulty) => difficulty.keyCount <= MALODY_MAX_KEYS,
   );
+  const hasQuaverDifficulty = difficulties.some((difficulty) =>
+    isQuaverKeyCount(difficulty.keyCount),
+  );
 
   useEffect(() => {
     setAudioAmbientDucking(modalAtmosphereActive);
@@ -2396,7 +2399,7 @@ export default function App() {
     handleExportMcz,
     handleExportOsu,
     handleExportOsz,
-    handleExportQua,
+    handleExportQp,
     handleExportSm,
     handleLoadFromOsu,
     handleSendToOsu,
@@ -2834,7 +2837,7 @@ export default function App() {
     handleExportMcz,
     handleExportOsu,
     handleExportOsz,
-    handleExportQua,
+    handleExportQp,
     handleExportSm,
     handleLoadFromOsu,
     handleSave,
@@ -2842,6 +2845,7 @@ export default function App() {
     handleSyncToOsu,
     hasBackground: !!activeBg,
     hasMalodyDifficulty,
+    hasQuaverDifficulty,
     hasProject,
     hitsoundTargets,
     importingMap,
@@ -3077,7 +3081,7 @@ export default function App() {
         handleExportMcz={handleExportMcz}
         handleExportOsu={handleExportOsu}
         handleExportOsz={handleExportOsz}
-        handleExportQua={handleExportQua}
+        handleExportQp={handleExportQp}
         handleExportSm={handleExportSm}
         handleLoadFromOsu={handleLoadFromOsu}
         handleSave={handleSave}
@@ -3085,6 +3089,7 @@ export default function App() {
         handleSyncToOsu={handleSyncToOsu}
         hasBackground={!!activeBg}
         hasMalodyDifficulty={hasMalodyDifficulty}
+        hasQuaverDifficulty={hasQuaverDifficulty}
         hasProject={hasProject}
         historyCurrent={historyCurrent}
         historyEntries={historyEntries}
