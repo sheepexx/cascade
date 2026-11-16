@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Button, TextInput } from "../ui/Controls";
+import { Button, TextInput, Toggle } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
 import { PatternPreview } from "../ui/PatternPreview";
 import {
@@ -1754,21 +1754,14 @@ function FeatureFlagsSection() {
                 </p>
               )}
             </div>
-            <button
-              role="switch"
-              aria-checked={row.enabled}
-              disabled={busyKey === row.key}
-              onClick={() => void toggle(row)}
-              className={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${
-                row.enabled ? "bg-accent" : "bg-ink-600"
-              }`}
-            >
-              <span
-                className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
-                  row.enabled ? "left-6" : "left-1"
-                }`}
+            <div className="mt-1">
+              <Toggle
+                checked={row.enabled}
+                disabled={busyKey === row.key}
+                aria-label={labelFor(row.key)}
+                onChange={() => void toggle(row)}
               />
-            </button>
+            </div>
           </div>
         ))}
       </div>
@@ -1799,20 +1792,13 @@ function SettingsTab({
               You can still see everyone else and edit as normal.
             </p>
           </div>
-          <button
-            role="switch"
-            aria-checked={invisible}
-            onClick={onToggle}
-            className={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition ${
-              invisible ? "bg-accent" : "bg-ink-600"
-            }`}
-          >
-            <span
-              className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
-                invisible ? "left-6" : "left-1"
-              }`}
+          <div className="mt-1">
+            <Toggle
+              checked={invisible}
+              aria-label="Invisible mode"
+              onChange={onToggle}
             />
-          </button>
+          </div>
         </div>
         <div className="mt-4 flex items-center gap-2 text-xs">
           <span

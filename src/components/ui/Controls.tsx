@@ -10,8 +10,8 @@ import { playSliderTick } from "../../lib/uiSounds";
 import { mergeClasses } from "./cx";
 import { buttonClass, type ButtonVariant } from "./buttonStyles";
 
-/** Thumb diameter per size, in px; the CSS in index.css draws to the same. */
-const SLIDER_THUMB = { sm: 12, md: 14 } as const;
+/** The nub's widest, per size, in px; --thumb in index.css is the same. */
+const SLIDER_THUMB = { sm: 8, md: 10 } as const;
 
 function stepDecimals(step: number): number {
   const text = String(step);
@@ -470,10 +470,7 @@ export function Toggle({
   id?: string;
   "aria-label"?: string;
 }) {
-  const dims =
-    size === "sm"
-      ? { track: "h-3.5 w-6", knob: "h-2.5 w-2.5", on: "translate-x-[0.6875rem]", off: "translate-x-0.5" }
-      : { track: "h-[1.125rem] w-8", knob: "h-3.5 w-3.5", on: "translate-x-[0.9375rem]", off: "translate-x-0.5" };
+  // Drawn by .ui-switch in index.css: a pill that grows and fills when on.
   return (
     <button
       type="button"
@@ -482,16 +479,11 @@ export function Toggle({
       aria-checked={checked}
       aria-label={ariaLabel}
       disabled={disabled}
+      data-size={size}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex ${dims.track} shrink-0 cursor-pointer items-center rounded-full transition-colors duration-[var(--motion-quick)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-40 ${
-        checked ? "bg-accent" : "bg-white/[0.13] hover:bg-white/[0.18]"
-      }`}
+      className="ui-switch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
     >
-      <span
-        className={`inline-block ${dims.knob} transform rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.4)] transition-transform duration-[var(--motion-quick)] ${
-          checked ? dims.on : dims.off
-        }`}
-      />
+      <span className="ui-switch-pill" />
     </button>
   );
 }

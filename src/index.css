@@ -315,16 +315,21 @@ img {
   -webkit-user-drag: none;
 }
 
-/* The shared Slider (Controls.tsx). The thumb rides inside the track so it
-   never overhangs the ends; --p is the position, 0..1. A ring in the colour
-   of the surface behind (--slider-surface) separates it from the fill. */
+/* The shared Slider (Controls.tsx), after osu!lazer's: a chunky dark bar,
+   a muted accent fill and a narrow accent nub where the fill ends. The nub
+   widens and brightens under the pointer, widens again with a soft glow
+   while it is held, and glides onto its step when let go. --p is the
+   position, 0..1; --thumb is the room the nub needs at its widest, so it
+   never overhangs the ends, and Controls.tsx measures with the same width. */
 .ui-slider {
-  --thumb: 14px;
-  --track: 4px;
+  --thumb: 10px;
+  --track: 14px;
+  --nub: 6px;
+  --track-radius: 5px;
   position: relative;
   display: flex;
   align-items: center;
-  height: calc(var(--thumb) + 8px);
+  height: calc(var(--track) + 8px);
   min-width: 3rem;
   cursor: pointer;
   touch-action: none;
@@ -332,8 +337,10 @@ img {
   -webkit-tap-highlight-color: transparent;
 }
 .ui-slider[data-size="sm"] {
-  --thumb: 12px;
-  --track: 3px;
+  --thumb: 8px;
+  --track: 10px;
+  --nub: 5px;
+  --track-radius: 4px;
 }
 .ui-slider[aria-disabled="true"] {
   cursor: not-allowed;
@@ -344,60 +351,139 @@ img {
   position: absolute;
   left: 0;
   height: var(--track);
-  border-radius: 9999px;
+  border-radius: var(--track-radius);
   pointer-events: none;
 }
 .ui-slider-track {
   right: 0;
-  background: rgb(255 255 255 / 10%);
+  background: rgb(0 0 0 / 32%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 7%);
+  transition: background-color var(--motion-quick) var(--ease-standard);
 }
+/* Ends under the middle of the nub, so its square right edge never shows. */
 .ui-slider-fill {
   width: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p));
+  border-radius: var(--track-radius) 0 0 var(--track-radius);
   background: var(--slider-fill, var(--accent));
-  transition: width 160ms var(--ease-emphasized);
+  opacity: 0.5;
+  transition:
+    width 160ms var(--ease-emphasized),
+    opacity var(--motion-quick) var(--ease-standard);
 }
-/* A light thumb reads as the thing to grab; the fill carries the colour. */
 .ui-slider-thumb {
   position: absolute;
   top: 50%;
   left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p));
-  width: var(--thumb);
-  height: var(--thumb);
-  margin: calc(var(--thumb) / -2) 0 0 calc(var(--thumb) / -2);
+  width: var(--nub);
+  height: var(--track);
   border-radius: 9999px;
-  background: #f1f0f6;
-  box-shadow:
-    0 0 0 1px rgb(0 0 0 / 35%),
-    0 1px 3px rgb(0 0 0 / 45%);
+  background: var(--slider-fill, var(--accent));
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 30%);
+  transform: translate(-50%, -50%);
   pointer-events: none;
   transition:
     left 160ms var(--ease-emphasized),
-    transform var(--motion-quick) var(--ease-standard),
-    box-shadow var(--motion-quick) var(--ease-standard);
+    width 180ms var(--ease-emphasized),
+    filter var(--motion-quick) var(--ease-standard),
+    box-shadow 180ms var(--ease-standard);
 }
 .ui-slider[data-tracking] .ui-slider-fill {
-  transition: none;
+  transition: opacity var(--motion-quick) var(--ease-standard);
 }
 .ui-slider[data-tracking] .ui-slider-thumb {
   transition:
-    transform var(--motion-quick) var(--ease-standard),
-    box-shadow var(--motion-quick) var(--ease-standard);
+    width 180ms var(--ease-emphasized),
+    filter var(--motion-quick) var(--ease-standard),
+    box-shadow 180ms var(--ease-standard);
 }
 .ui-slider:not([aria-disabled="true"]):hover .ui-slider-track {
-  background: rgb(255 255 255 / 14%);
+  background: rgb(0 0 0 / 24%);
+}
+.ui-slider:not([aria-disabled="true"]):hover .ui-slider-fill {
+  opacity: 0.62;
+}
+.ui-slider:not([aria-disabled="true"]):hover .ui-slider-thumb {
+  width: calc(var(--nub) + 2px);
+  filter: brightness(1.15);
 }
 .ui-slider:focus-visible {
   outline: none;
 }
 .ui-slider:focus-visible .ui-slider-thumb {
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 35%),
-    0 0 0 4px var(--focus-ring);
+    0 0 0 1px rgb(0 0 0 / 30%),
+    0 0 0 3px var(--focus-ring);
+}
+.ui-slider[data-active] .ui-slider-fill {
+  opacity: 0.7;
 }
 .ui-slider[data-active] .ui-slider-thumb {
+  width: var(--thumb);
+  filter: brightness(1.22);
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 35%),
-    0 0 0 5px rgb(232 104 104 / 24%);
+    0 0 0 1px rgb(0 0 0 / 30%),
+    0 0 10px 1px color-mix(in srgb, var(--slider-fill, var(--accent)) 55%, transparent);
+}
+
+/* The shared Toggle (Controls.tsx), after osu!lazer's: no knob, just a pill
+   that is small and outlined when off and grows into a filled one when on.
+   The button keeps the on size, so switching never moves the row. */
+.ui-switch {
+  --switch-w: 32px;
+  --switch-h: 18px;
+  --switch-off-w: 22px;
+  --switch-off-h: 12px;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: var(--switch-w);
+  height: var(--switch-h);
+  border-radius: 9999px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-switch[data-size="sm"] {
+  --switch-w: 24px;
+  --switch-h: 14px;
+  --switch-off-w: 16px;
+  --switch-off-h: 9px;
+}
+.ui-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.ui-switch-pill {
+  display: block;
+  box-sizing: border-box;
+  width: var(--switch-off-w);
+  height: var(--switch-off-h);
+  border: 2px solid rgb(255 255 255 / 30%);
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 3%);
+  pointer-events: none;
+  transition:
+    width 240ms var(--ease-emphasized),
+    height 240ms var(--ease-emphasized),
+    background-color 180ms var(--ease-standard),
+    border-color 180ms var(--ease-standard),
+    filter var(--motion-quick) var(--ease-standard),
+    transform var(--motion-quick) var(--ease-standard);
+}
+.ui-switch:not(:disabled):hover .ui-switch-pill {
+  border-color: color-mix(in srgb, var(--accent) 75%, transparent);
+}
+.ui-switch[aria-checked="true"] .ui-switch-pill {
+  width: var(--switch-w);
+  height: var(--switch-h);
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.ui-switch[aria-checked="true"]:not(:disabled):hover .ui-switch-pill {
+  filter: brightness(1.12);
+}
+.ui-switch:not(:disabled):active .ui-switch-pill {
+  transform: scale(0.92);
 }
 
 /* The main-menu bar: each side is clipped at the logo's centre and slides
@@ -1640,6 +1726,7 @@ canvas[data-pointer-focus]:focus-visible {
   .segmented-pill,
   .ui-slider-fill,
   .ui-slider-thumb,
+  .ui-switch-pill,
   .lane-meter-fill,
   .judgement-window {
     transition-duration: 1ms;
@@ -1854,7 +1941,7 @@ canvas[data-pointer-focus]:focus-visible {
   text-decoration-color: rgb(255 255 255 / 20%);
 }
 
-/* Sliders: the coral thumb with a ring in the surface colour. */
+/* Sliders: the coral nub with a ring in the surface colour. */
 :root[data-theme="classic"] .ui-slider-thumb {
   background: var(--slider-fill, var(--accent));
   box-shadow:

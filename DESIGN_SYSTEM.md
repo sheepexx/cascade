@@ -247,8 +247,12 @@ If switching it changes *what you are looking at*, it is tabs. If it changes a
 
 ### Toggle, Slider
 
-Switch: 32×18, accent when on. Slider: 4px neutral track with an accent fill, light thumb,
-focus ring around the thumb, value shown beside it in `SliderValue`.
+Both follow osu!lazer. Switch: no knob; a 22×12 outlined pill when off that
+grows into a 32×18 accent pill when on, inside a box that keeps the on size.
+Slider: a 14px dark bar with a muted accent fill and a narrow accent nub where
+the fill ends; the nub widens on hover and again with a glow while held, the
+focus ring goes around the nub, and the value is shown beside it in
+`SliderValue`.
 
 ### Menus and popovers — `Menu`, `POPOVER_CLASS`, `POPOVER_ITEM_CLASS`
 
