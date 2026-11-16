@@ -16,6 +16,7 @@ import {
   timelineDragStarted,
   timelineSeekTransition,
 } from "../lib/timelineInput";
+import { noteDensity } from "../lib/nps";
 import { kiaiRanges } from "../lib/timing";
 import { buildSvMap, hasSv } from "../lib/sv";
 import {
@@ -461,16 +462,19 @@ export function BottomTimeline({
         }
 
         if (duration > 0 && notes.length > 0) {
-          const counts = new Array<number>(DENSITY_BUCKETS).fill(0);
+          // Spread as in noteDensity, so an even rhythm draws as an even run
+          // of bars. A release counts as its own action once the hold spans
+          // a bar; a shorter hold reads as the one note it plays like.
+          const bucketMs = duration / DENSITY_BUCKETS;
+          const times: number[] = [];
           for (const n of notes) {
-            const b = Math.floor((n.startTime / duration) * DENSITY_BUCKETS);
-            if (b >= 0 && b < DENSITY_BUCKETS) counts[b]++;
-            if (n.endTime !== undefined) {
-              const be = Math.floor((n.endTime / duration) * DENSITY_BUCKETS);
-              if (be >= 0 && be < DENSITY_BUCKETS && be !== b) counts[be]++;
+            times.push(n.startTime);
+            if (n.endTime !== undefined && n.endTime - n.startTime >= bucketMs) {
+              times.push(n.endTime);
             }
           }
-          let peak = 1;
+          const counts = noteDensity(times, 0, bucketMs, DENSITY_BUCKETS);
+          let peak = 0;
           for (const c of counts) if (c > peak) peak = c;
 
           const kiais = kiaiRanges(timingPoints, duration);

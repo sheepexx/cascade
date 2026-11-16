@@ -9,6 +9,17 @@ export type NpsSeries = {
 
 export const DEFAULT_NPS_BIN_MS = 500;
 
+/**
+ * How widely each note is spread when counting notes per second: the
+ * standard deviation, in ms, of the bell curve a note adds. Dropping notes
+ * into fixed bins instead makes an even rhythm read uneven, because when the
+ * gap between notes doesn't divide the bin, neighbouring bins catch one note
+ * more or less: a steady stream draws as two alternating heights and a 1/1
+ * section as bars with holes. A curve this wide reads level for any rhythm
+ * with notes up to a second apart.
+ */
+export const NPS_SMOOTHING_MS = 500;
+
 const EMPTY_SERIES: NpsSeries = {
   startMs: 0,
   binMs: DEFAULT_NPS_BIN_MS,
@@ -16,6 +27,62 @@ const EMPTY_SERIES: NpsSeries = {
   peak: 0,
 };
 
+/**
+ * Notes per second at the middle of `count` steps of `stepMs` from
+ * `startMs`, each note counted as a bell curve rather than a hit in one bin
+ * (see NPS_SMOOTHING_MS). The curve is never narrower than about half a step,
+ * so a sample can't fall between two notes. Values under a twentieth of one
+ * lone note are 0, so the curve's tail doesn't draw slivers into a break.
+ */
+export function noteDensity(
+  times: readonly number[],
+  startMs: number,
+  stepMs: number,
+  count: number,
+  smoothingMs = Math.max(NPS_SMOOTHING_MS, stepMs * 0.6),
+): number[] {
+  if (count <= 0 || !(stepMs > 0)) return [];
+  const sigma = Math.max(1, smoothingMs);
+  // Notes are counted on a fine grid first, at most an eighth of the curve's
+  // width apart, so the work grows with the note count plus the samples
+  // rather than with their product.
+  const perStep = Math.max(1, Math.ceil((8 * stepMs) / sigma));
+  const cell = stepMs / perStep;
+  const radius = Math.ceil((3 * sigma) / cell);
+  // Cell 0 sits `radius` cells before the first sample, so sample j is the
+  // middle of the kernel at cell j * perStep + radius.
+  const origin = startMs + stepMs / 2 - radius * cell;
+  const cells = (count - 1) * perStep + 2 * radius + 1;
+  const counts = new Float64Array(cells);
+  for (const time of times) {
+    const index = Math.round((time - origin) / cell);
+    if (index >= 0 && index < cells) counts[index] += 1;
+  }
+  const scale = 1000 / (sigma * Math.sqrt(2 * Math.PI));
+  const kernel = new Float64Array(2 * radius + 1);
+  for (let k = -radius; k <= radius; k++) {
+    const distance = k * cell;
+    kernel[k + radius] = Math.exp(-(distance * distance) / (2 * sigma * sigma)) * scale;
+  }
+  const floor = scale / 20;
+  const values = new Array<number>(count);
+  for (let j = 0; j < count; j++) {
+    const base = j * perStep;
+    let sum = 0;
+    for (let k = 0; k < kernel.length; k++) {
+      const c = counts[base + k];
+      if (c) sum += c * kernel[k];
+    }
+    values[j] = sum < floor ? 0 : sum;
+  }
+  return values;
+}
+
+/**
+ * Notes per second through the song in steps of `binMs`, counting each
+ * note's head. Spans 0 to `durationMs` when a duration is given, otherwise
+ * the first note to the last.
+ */
 export function computeNpsSeries(
   notes: ManiaNote[],
   binMs: number = DEFAULT_NPS_BIN_MS,
@@ -27,25 +94,19 @@ export function computeNpsSeries(
 
   let min = Infinity;
   let max = -Infinity;
-  for (const n of notes) {
-    if (n.startTime < min) min = n.startTime;
-    if (n.startTime > max) max = n.startTime;
+  const times = new Array<number>(notes.length);
+  for (let i = 0; i < notes.length; i++) {
+    const time = notes[i].startTime;
+    times[i] = time;
+    if (time < min) min = time;
+    if (time > max) max = time;
   }
 
   const startMs = spanned ? 0 : min;
   const spanBins = spanned ? Math.ceil((durationMs - startMs) / width) : 0;
   const noteBins = notes.length ? Math.floor((max - startMs) / width) + 1 : 0;
   const binCount = Math.max(1, spanBins, noteBins);
-  const counts = new Array<number>(binCount).fill(0);
-
-  for (const n of notes) {
-    const index = Math.floor((n.startTime - startMs) / width);
-    if (index < 0 || index >= binCount) continue;
-    counts[index] += 1;
-  }
-
-  const perSecond = width / 1000;
-  const values = counts.map((c) => c / perSecond);
+  const values = noteDensity(times, startMs, width, binCount);
   let peak = 0;
   for (const v of values) if (v > peak) peak = v;
 
