@@ -1370,7 +1370,6 @@ export const ptBR: PartialCatalog = {
   "audioSetup.info1": "Ouça quatro cliques de aquecimento e depois pressione Espaço a cada um dos próximos 16 cliques. Siga o som.",
   "audioSetup.info2": "Isso estima o alinhamento dos seus toques, incluindo o atraso de entrada e saída. Não é uma medição direta da latência do hardware.",
   "audioSetup.info3": "Recalibre depois de trocar de fone, dispositivo de saída ou modo de áudio.",
-  "audioSetup.currentOffset": "Offset atual do teste: {ms} ms.",
   "audioSetup.getReady": "Prepare-se…",
   "audioSetup.warmup": "Aquecimento {n} / 4",
   "audioSetup.captured": "{n} / 16 toques registrados",

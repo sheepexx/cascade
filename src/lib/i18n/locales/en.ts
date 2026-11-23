@@ -1446,7 +1446,6 @@ export const en = {
   "audioSetup.info1": "Listen to four warm-up clicks, then tap Space with each of the next 16 clicks. Follow the sound.",
   "audioSetup.info2": "This estimates your tap alignment, including input and output delay. It is not a direct hardware latency measurement.",
   "audioSetup.info3": "Recalibrate after changing headphones, output device or audio mode.",
-  "audioSetup.currentOffset": "Current playtest offset: {ms} ms.",
   "audioSetup.getReady": "Get ready…",
   "audioSetup.warmup": "Warm-up {n} / 4",
   "audioSetup.captured": "{n} / 16 taps captured",

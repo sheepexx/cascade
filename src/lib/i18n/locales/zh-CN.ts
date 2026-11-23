@@ -1312,7 +1312,6 @@ export const zhCN: PartialCatalog = {
   "audioSetup.info1": "先听四下预备节拍，然后在接下来的 16 下节拍中每下按一次空格。跟着声音按。",
   "audioSetup.info2": "这会估算你的敲击对齐情况，包括输入和输出延迟，并非直接测量硬件延迟。",
   "audioSetup.info3": "更换耳机、输出设备或音频模式后请重新校准。",
-  "audioSetup.currentOffset": "当前试玩偏移：{ms} 毫秒。",
   "audioSetup.getReady": "准备…",
   "audioSetup.warmup": "预备 {n} / 4",
   "audioSetup.captured": "已记录 {n} / 16 次敲击",

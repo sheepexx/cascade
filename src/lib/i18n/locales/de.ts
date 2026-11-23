@@ -1370,7 +1370,6 @@ export const de: PartialCatalog = {
   "audioSetup.info1": "Hör dir vier Aufwärmklicks an und drücke dann bei jedem der nächsten 16 Klicks die Leertaste. Folge dem Klang.",
   "audioSetup.info2": "Das schätzt deine Tap-Ausrichtung einschließlich Ein- und Ausgabeverzögerung. Es ist keine direkte Messung der Hardware-Latenz.",
   "audioSetup.info3": "Kalibriere neu, wenn du Kopfhörer, Ausgabegerät oder Audiomodus wechselst.",
-  "audioSetup.currentOffset": "Aktueller Testspiel-Offset: {ms} ms.",
   "audioSetup.getReady": "Mach dich bereit…",
   "audioSetup.warmup": "Aufwärmen {n} / 4",
   "audioSetup.captured": "{n} / 16 Taps erfasst",

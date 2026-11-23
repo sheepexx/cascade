@@ -92,6 +92,8 @@ export const MAX_PLAYTEST_SCROLL_SPEED = 40;
 export const MIN_HIT_POSITION = -100;
 export const MAX_HIT_POSITION = 250;
 export const MAX_OFFSET_MS = 300;
+/** The audio offset slider's reach either way; a typed value can go to MAX_OFFSET_MS. */
+export const AUDIO_OFFSET_SLIDER_MS = 200;
 
 const finite = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;

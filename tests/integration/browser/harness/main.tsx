@@ -305,8 +305,8 @@ function AudioSetupHarness() {
       <AudioSetupModal
         exclusive={exclusive}
         onExclusive={setExclusive}
-        currentOffset={0}
-        onApplyOffset={() => {}}
+        offset={0}
+        onOffset={() => {}}
         onClose={() => {}}
       />
     </>

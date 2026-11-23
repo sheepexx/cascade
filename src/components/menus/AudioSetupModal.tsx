@@ -7,10 +7,13 @@ import { Button } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
 import { InfoTip } from "../ui/Tooltip";
 import { useT } from "../../lib/i18n";
+import { AUDIO_OFFSET_SLIDER_MS, MAX_OFFSET_MS } from "../../lib/playtestClock";
+import { SliderInputRow } from "../ui/SliderInput";
 
-export function AudioSetupModal({ exclusive, onExclusive, currentOffset, onApplyOffset, onClose }: {
-  exclusive: boolean; onExclusive: (value: boolean) => void; currentOffset: number;
-  onApplyOffset: (value: number) => void; onClose: () => void;
+export function AudioSetupModal({ exclusive, onExclusive, offset, onOffset, onClose }: {
+  exclusive: boolean; onExclusive: (value: boolean) => void;
+  /** The playtest audio offset, in ms. */
+  offset: number; onOffset: (value: number) => void; onClose: () => void;
 }) {
   const t = useT();
   const [buffer] = useState(createCalibrationBuffer);
@@ -62,22 +65,38 @@ export function AudioSetupModal({ exclusive, onExclusive, currentOffset, onApply
     <p className="mt-2 text-[11px] text-slate-400">{t("audioSetup.exclusiveHint")}</p>
     <p role="status" className="mt-3 text-xs text-teal-200">{loading ? t("audioSetup.opening") : audio.nativeAudio.selected ? t("audioSetup.deviceBuffer", { device: audio.nativeAudio.device ?? "", ms: audio.nativeAudio.latencyMs?.toFixed(1) ?? "" }) : t("audioSetup.sharedStatus")}</p>
     {audio.nativeAudio.fallbackReason && <p role="alert" className="mt-2 rounded-lg bg-amber-300/10 p-3 text-xs text-amber-200">{audio.nativeAudio.fallbackReason} {t("audioSetup.sharedActive")}</p>}
-    <div className="flex items-center gap-1.5 my-5 rounded-lg bg-white/[0.025] ring-1 ring-inset ring-white/[0.06] p-4">
-      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">{t("audioSetup.findOffset")}<InfoTip content={<>
-        <p className="m-0">{t("audioSetup.info1")}</p>
-        <p className="mt-2">{t("audioSetup.info2")}</p>
-        <p className="mt-2">{t("audioSetup.info3")}</p>
-      </>} /></h3>
-      <p className="mt-2 text-xs text-slate-500">{t("audioSetup.currentOffset", { ms: currentOffset })}</p>
-      {phase === "running" ? <div className="mt-4 text-center">
+    <div className="my-5 flex flex-col gap-4 rounded-lg bg-white/[0.025] ring-1 ring-inset ring-white/[0.06] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">{t("audioSetup.findOffset")}<InfoTip content={<>
+          <p className="m-0">{t("audioSetup.info1")}</p>
+          <p className="mt-2">{t("audioSetup.info2")}</p>
+          <p className="mt-2">{t("audioSetup.info3")}</p>
+        </>} /></h3>
+        {phase !== "running" && <Button variant="accent" disabled={loading} onClick={start}>{phase === "result" ? t("audioSetup.tryAgain") : t("audioSetup.start")}</Button>}
+      </div>
+      {/* The same setting as the HUD editor's Timing panel, set by hand or by Apply below. */}
+      <SliderInputRow
+        label={t("settings.audioOffset")}
+        hint={t("settings.audioOffsetHint")}
+        value={offset}
+        min={-MAX_OFFSET_MS}
+        max={MAX_OFFSET_MS}
+        sliderMin={-AUDIO_OFFSET_SLIDER_MS}
+        sliderMax={AUDIO_OFFSET_SLIDER_MS}
+        step={1}
+        unit="ms"
+        resetTo={0}
+        onChange={onOffset}
+      />
+      {phase === "running" && <div className="text-center">
         <p className="mb-3 text-sm text-teal-100">{beat < 0 ? t("audioSetup.getReady") : beat < 4 ? t("audioSetup.warmup", { n: beat + 1 }) : t("audioSetup.captured", { n: Object.keys(taps).length })}</p>
         <button ref={tapButton} className="w-full rounded-xl border border-teal-300/30 bg-teal-300/10 py-8 text-lg font-semibold text-teal-100 active:bg-teal-300/25" onPointerDown={e => { e.preventDefault(); tap(); }}>{t("audioSetup.tapSpace")}</button>
         <Button className="mt-3" variant="ghost" onClick={() => { audio.pause(); setPhase("intro"); }}>{t("audioSetup.cancelRun")}</Button>
-      </div> : <Button className="mt-4" variant="accent" disabled={loading} onClick={start}>{phase === "result" ? t("audioSetup.tryAgain") : t("audioSetup.start")}</Button>}
-      {phase === "result" && <div role="status" className="mt-4 text-xs text-slate-300">{result ? <>
+      </div>}
+      {phase === "result" && <div role="status" className="text-xs text-slate-300">{result ? <>
         <p className="text-lg font-semibold text-teal-100">{t("audioSetup.suggested", { ms: `${result.offsetMs > 0 ? "+" : ""}${result.offsetMs}` })}</p>
         <p className="mt-2">{t("audioSetup.stats", { kept: result.kept, spread: result.spreadMs, discarded: result.discarded })}</p>
-        {result.reliable ? <Button className="mt-3" variant="primary" onClick={() => { onApplyOffset(result.offsetMs); setMessage(t("audioSetup.appliedMsg")); }}>{t("audioSetup.applyOffset")}</Button> : <p className="mt-2 text-amber-200">{t("audioSetup.needMore")}</p>}
+        {result.reliable ? <Button className="mt-3" variant="primary" onClick={() => { onOffset(result.offsetMs); setMessage(t("audioSetup.appliedMsg")); }}>{t("audioSetup.applyOffset")}</Button> : <p className="mt-2 text-amber-200">{t("audioSetup.needMore")}</p>}
       </> : <p>{t("audioSetup.notEnough")}</p>}</div>}
     </div>
     <p role="status" className="text-xs text-teal-200">{message}</p>

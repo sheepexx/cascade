@@ -4265,7 +4265,7 @@ export default function App() {
         />
       )}
       {modal === "history" && <HistoryModal open onClose={close} entries={historyEntries} current={historyCurrent} onJump={jumpHistory} readOnly={!canEdit} live={liveEnabled} />}
-      {modal === "audioSetup" && <AudioSetupModal exclusive={exclusiveAudio} onExclusive={changeExclusiveAudio} currentOffset={playtestSettings.audioOffsetMs} onApplyOffset={audioOffsetMs => setAppSettings(s => ({ ...s, playtest: { ...s.playtest, audioOffsetMs } }))} onClose={close} />}
+      {modal === "audioSetup" && <AudioSetupModal exclusive={exclusiveAudio} onExclusive={changeExclusiveAudio} offset={playtestSettings.audioOffsetMs} onOffset={audioOffsetMs => setAppSettings(s => ({ ...s, playtest: { ...s.playtest, audioOffsetMs } }))} onClose={close} />}
       {modalMounted("sv") && featureFlags.sv_tools && (
         <SvModal
           open={modal === "sv" && featureFlags.sv_tools}
