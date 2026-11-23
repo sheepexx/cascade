@@ -266,7 +266,7 @@ export function AccountControl({
                   {t("social.messagesTitle")}
                 </MenuItem>
                 <MenuItem onClick={() => choose(() => onOpenSocial("community"))}>
-                  {t("social.findMappers")}
+                  {t("social.communityTitle")}
                 </MenuItem>
                 <div className="mx-2.5 my-1 h-px bg-white/[0.07]" />
               </>
