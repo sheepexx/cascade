@@ -34,6 +34,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The sign-in tests run the Worker's routes, which need its packages.
+      - run: npm ci
+        working-directory: worker
       - run: npx playwright install --with-deps chromium
       - run: npm run test:integration
       - uses: actions/upload-artifact@v4
