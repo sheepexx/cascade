@@ -1749,6 +1749,7 @@ export const de: PartialCatalog = {
   "aimod.hpRange": "HP Drain Rate ({value}) muss zwischen 0 und 10 liegen.",
   "aimod.noBackground": "Kein Hintergrundbild.",
   "aimod.noName": "Eine Schwierigkeit hat keinen Namen.",
+  "aimod.nonAsciiName": "Der Name der Schwierigkeit enthält Zeichen außerhalb von einfachem ASCII, etwa Akzente, Emojis oder andere Schriften. osu! schreibt den Namen in den .osu-Dateinamen, also bleib bei einfachen Buchstaben, Zahlen und Symbolen.",
   "aimod.noPreview": "Kein Vorschaupunkt gesetzt.",
   "aimod.previewAfterAudio": "Der Vorschaupunkt liegt nach dem Ende des Audios.",
   "aimod.audioMissing": "Audiodatei „{file}“ ist nicht im Mapset.",

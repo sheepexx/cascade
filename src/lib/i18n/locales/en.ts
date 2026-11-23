@@ -1819,6 +1819,7 @@ export const en = {
   "aimod.hpRange": "HP Drain Rate ({value}) must be between 0 and 10.",
   "aimod.noBackground": "No background image.",
   "aimod.noName": "A difficulty has no name.",
+  "aimod.nonAsciiName": "Difficulty name has characters outside plain ASCII, such as accents, emoji or other scripts. osu! puts the name in the .osu file name, so keep to plain letters, numbers and symbols.",
   "aimod.noPreview": "No preview point set.",
   "aimod.previewAfterAudio": "Preview point is past the end of the audio.",
   "aimod.audioMissing": "Audio file \"{file}\" is not in the mapset.",

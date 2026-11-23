@@ -1664,6 +1664,7 @@ export const zhCN: PartialCatalog = {
   "aimod.hpRange": "HP Drain Rate（{value}）必须介于 0 到 10 之间。",
   "aimod.noBackground": "没有背景图片。",
   "aimod.noName": "有难度没有名称。",
+  "aimod.nonAsciiName": "难度名称包含 ASCII 以外的字符，例如重音字母、表情符号或其他文字。osu! 会把名称写进 .osu 文件名，请只使用普通字母、数字和符号。",
   "aimod.noPreview": "未设置预览点。",
   "aimod.previewAfterAudio": "预览点晚于音频结束。",
   "aimod.audioMissing": "音频文件“{file}”不在谱面集中。",

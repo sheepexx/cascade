@@ -1,5 +1,6 @@
 import type { Difficulty, LoadedFile, ManiaNote, SongMeta } from "../types";
 import { difficultyRate } from "./rateChange";
+import { isPlainAsciiName } from "./difficultyName";
 import { redPoints, sortedPoints } from "./timing";
 import { formatUiNumber } from "./formatUiNumber";
 import { analyzePatterns, readinessScore, type CriteriaPenalty, type PatternFeatures } from "./patternQuality";
@@ -785,6 +786,13 @@ export function runAiMod({
         category: "Meta",
         severity: "error",
         message: t("aimod.noName"),
+        diffId,
+      });
+    else if (!isPlainAsciiName(d.name))
+      add({
+        category: "Meta",
+        severity: "warning",
+        message: `[${d.name}] ${t("aimod.nonAsciiName")}`,
         diffId,
       });
 

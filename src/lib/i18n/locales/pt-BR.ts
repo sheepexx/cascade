@@ -1748,6 +1748,7 @@ export const ptBR: PartialCatalog = {
   "aimod.hpRange": "HP Drain Rate ({value}) deve estar entre 0 e 10.",
   "aimod.noBackground": "Sem imagem de fundo.",
   "aimod.noName": "Uma dificuldade não tem nome.",
+  "aimod.nonAsciiName": "O nome da dificuldade tem caracteres fora do ASCII simples, como acentos, emojis ou outros alfabetos. O osu! coloca o nome no nome do arquivo .osu, então use apenas letras, números e símbolos simples.",
   "aimod.noPreview": "Nenhum ponto de prévia definido.",
   "aimod.previewAfterAudio": "O ponto de prévia está depois do fim do áudio.",
   "aimod.audioMissing": "O arquivo de áudio \"{file}\" não está no mapset.",

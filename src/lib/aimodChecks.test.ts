@@ -70,6 +70,21 @@ describe("title markers", () => {
   });
 });
 
+describe("difficulty name", () => {
+  const nameWarning = (name: string) =>
+    messages({ difficulties: [diff(name)] }).filter((m) => /plain ASCII/.test(m));
+
+  it("passes a plain ASCII name", () => {
+    expect(nameWarning("Lunatic's Hard [7K]")).toEqual([]);
+  });
+
+  it("flags accents, emoji and other scripts", () => {
+    expect(nameWarning("Délire")).toHaveLength(1);
+    expect(nameWarning("Hard ★")).toHaveLength(1);
+    expect(nameWarning("難しい")[0]).toMatch(/^\[難しい\] /);
+  });
+});
+
 describe("genre and language tags", () => {
   it("matches whole words, multi-word genres included", () => {
     expect(hasGenreTag("video game ost")).toBe(true);
