@@ -1457,7 +1457,9 @@ export function ManiaEditor(props: ManiaEditorProps) {
       }
     }
 
-    const overlay = overlayPeaksRef.current;
+    // The waveform is an editing aid, so a playtest leaves it out. Its peaks
+    // stay computed so leaving the playtest shows it again straight away.
+    const overlay = propsRef.current.playtestMode ? null : overlayPeaksRef.current;
     if (overlay) {
       const half = playfieldWidth / 2;
       const cx = originX + half;

@@ -211,7 +211,7 @@ export const en = {
     "How see-through the waveform behind the notes is. Higher keeps the notes and lanes clear; lower makes the audio peaks easier to read.",
   "settings.waveformOnLane": "Waveform on hit lane",
   "settings.waveformHint":
-    "Overlays the song’s waveform on the lanes, in the editor and in playtest, so audio peaks line up with your notes. Handy for checking the offset. Toggle with W.",
+    "Overlays the song’s waveform on the lanes in the editor, so audio peaks line up with your notes. Handy for checking the offset. Playtests leave it out. Toggle with W.",
   "settings.timingLines": "Timing and bookmark lines",
   "settings.timingLinesHint":
     "Draws the BPM, SV, preview point, and bookmark lines across the playfield. They are always hidden during playtest.",

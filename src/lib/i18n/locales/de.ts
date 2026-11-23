@@ -239,7 +239,7 @@ export const de: PartialCatalog = {
   "settings.waveformTransparencyHint": "Wie durchsichtig die Wellenform hinter den Noten ist. Höhere Werte halten Noten und Spuren gut lesbar, niedrigere machen die Audiospitzen leichter erkennbar.",
   "settings.waveformOnLane": "Wellenform auf der Spur",
   "settings.waveformHint":
-    "Legt die Wellenform des Songs über die Spuren, im Editor und im Playtest, damit Audiospitzen zu deinen Noten passen. Praktisch zum Prüfen des Offsets. Mit W umschalten.",
+    "Legt die Wellenform des Songs im Editor über die Spuren, damit Audiospitzen zu deinen Noten passen. Praktisch zum Prüfen des Offsets. Im Playtest bleibt sie ausgeblendet. Mit W umschalten.",
   "settings.timingLines": "Timing- und Lesezeichenlinien",
   "settings.timingLinesHint":
     "Zeichnet BPM-, SV-, Vorschaupunkt- und Lesezeichenlinien über das Spielfeld. Im Playtest sind sie immer ausgeblendet.",

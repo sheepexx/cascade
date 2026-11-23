@@ -236,7 +236,7 @@ export const zhCN: PartialCatalog = {
   "settings.waveformTransparencyHint": "音符后方波形的透明程度。数值越高，音符和轨道越清晰；数值越低，越容易看清音频峰值。",
   "settings.waveformOnLane": "在轨道上显示波形",
   "settings.waveformHint":
-    "在编辑器和试玩中把歌曲波形叠加到轨道上，让音频峰值与音符对齐。检查 offset 时很方便。按 W 切换。",
+    "在编辑器中把歌曲波形叠加到轨道上，让音频峰值与音符对齐。检查 offset 时很方便。试玩时不显示。按 W 切换。",
   "settings.timingLines": "时间点与书签线",
   "settings.timingLinesHint":
     "在游戏区域上绘制 BPM、SV、预览点和书签线。试玩时始终隐藏。",

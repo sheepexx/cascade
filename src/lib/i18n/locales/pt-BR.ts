@@ -239,7 +239,7 @@ export const ptBR: PartialCatalog = {
   "settings.waveformTransparencyHint": "O quanto a forma de onda atrás das notas é transparente. Valores maiores deixam notas e lanes mais nítidas; menores facilitam a leitura dos picos de áudio.",
   "settings.waveformOnLane": "Forma de onda nas lanes",
   "settings.waveformHint":
-    "Sobrepõe a forma de onda da música às lanes, no editor e no teste, para que os picos de áudio se alinhem às suas notas. Útil para conferir o offset. Alterne com W.",
+    "Sobrepõe a forma de onda da música às lanes no editor, para que os picos de áudio se alinhem às suas notas. Útil para conferir o offset. Fica oculta no teste. Alterne com W.",
   "settings.timingLines": "Linhas de tempo e marcadores",
   "settings.timingLinesHint":
     "Desenha as linhas de BPM, SV, ponto de preview e marcadores na área de jogo. Elas ficam sempre ocultas durante o teste.",
