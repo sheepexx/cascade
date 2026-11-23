@@ -28,7 +28,7 @@
     "DISCORD_CONTRIBUTOR_ROLE_ID": "1574375825661231255",
     "DISCORD_REVIEW_CHANNEL_ID": "1574378193899626518",
     // The forum /bug and /suggest post to, tagged by name ("Bug", "Idea / Request").
-    "DISCORD_FORUM_CHANNEL_ID": "",
+    "DISCORD_FORUM_CHANNEL_ID": "1555184354030911519",
     "DISCORD_MAINTAINER_IDS": ""
   },
   // Per-address limits on signing in and changing sign-in methods. Approximate
