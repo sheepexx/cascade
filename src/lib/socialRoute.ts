@@ -17,9 +17,10 @@ export type SocialRoute =
 const FRIEND_TABS: FriendsTab[] = ["all", "online", "pending", "add", "blocked"];
 const PROFILE_TABS: ProfileTab[] = ["overview", "maps", "activity"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-// osu! usernames: letters, digits, spaces, -, _, [ and ]; up to 15 today,
-// older ones a little longer.
-const USERNAME = /^[A-Za-z0-9 _\-[\]]{1,32}$/;
+// A Cascade name (an osu! name as osu! has it, or one Cascade chose from a
+// Discord name) or an account id. Names never hold control characters,
+// slashes or angle brackets, and get_profile reads at most 64 characters.
+const PROFILE_NAME = /^[^\p{Cc}/\\<>]{1,64}$/u;
 
 function decode(segment: string): string | null {
   try {
@@ -34,7 +35,7 @@ export function parseSocialPath(pathname: string): SocialRoute | null {
   const [head, second, third] = parts;
   if (head === "user" && second) {
     const name = decode(second);
-    if (!name || !USERNAME.test(name)) return null;
+    if (!name || !PROFILE_NAME.test(name)) return null;
     if (parts.length > 3) return null;
     const tab = (third ?? "overview") as ProfileTab;
     if (!PROFILE_TABS.includes(tab)) return null;

@@ -22,13 +22,14 @@ export function useRankedCounts(cards: readonly ProfileCard[] | null): ReadonlyM
   useEffect(() => {
     if (!cards) return;
     let cancelled = false;
-    const missing = cards.filter((c) => !c.osu && !known.has(c.id) && !pending.has(c.id));
+    const missing = cards.filter((c) => c.osu_id !== null && !c.osu && !known.has(c.id) && !pending.has(c.id));
     if (!missing.length) return;
     const queue = [...missing];
     const work = async () => {
       for (let card = queue.shift(); card; card = queue.shift()) {
         pending.add(card.id);
         try {
+          if (card.osu_id === null) continue;
           const { profile } = await fetchOsuProfile(card.osu_id, "mania");
           known.set(card.id, profile.counts.ranked);
           if (!cancelled) setCounts(new Map(known));

@@ -449,6 +449,8 @@ export async function startBackend(port = 0): Promise<Backend> {
         }
         case "/__test/user":
           return send(res, 200, { id: await db.createUser(String(body.username)) });
+        case "/__test/discord-user":
+          return send(res, 200, { id: await db.createDiscordUser(String(body.username), String(body.discordId)) });
         case "/__test/project": {
           const id = await db.createProject(String(body.owner), body.data);
           for (const [userId, role] of Object.entries((body.share ?? {}) as Record<string, "editor" | "viewer">)) {

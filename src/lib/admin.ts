@@ -12,7 +12,8 @@ export type { AdminStorageStats };
 
 export type AdminUser = {
   id: string;
-  osu_id: number;
+  /** Null for an account made with Discord that hasn't connected osu!. */
+  osu_id: number | null;
   username: string;
   avatar_url: string | null;
   is_admin: boolean;

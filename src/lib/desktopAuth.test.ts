@@ -17,4 +17,14 @@ describe("desktopLoginUrl", () => {
     expect(url.searchParams.get("port")).toBe("51234");
     expect(url.searchParams.get("nonce")).toBe("12345678-1234-1234-1234-123456789abc");
   });
+
+  it("keeps a provider's sign-in or a link ticket, and never leaves the Worker", async () => {
+    vi.stubEnv("VITE_WORKER_URL", "https://worker.example");
+    const { desktopLoginUrl } = await import("./desktopAuth");
+    const url = new URL(desktopLoginUrl(51234, "nonce-value-123456", "https://worker.example/auth/discord/login?ticket=abc"));
+    expect(url.pathname).toBe("/auth/discord/login");
+    expect(url.searchParams.get("ticket")).toBe("abc");
+    expect(url.searchParams.get("port")).toBe("51234");
+    expect(() => desktopLoginUrl(51234, "nonce-value-123456", "https://evil.example/collect")).toThrow();
+  });
 });

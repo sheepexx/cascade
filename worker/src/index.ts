@@ -1,4 +1,3 @@
-import { SignJWT, jwtVerify } from "jose";
 import {
   handleDesktopRoute,
   handleMapCardRoute,
@@ -6,53 +5,13 @@ import {
   type StorageAuthContext,
   type WorkerEnv,
 } from "./storage";
-import { handleSocialRoute, normalizeOsuUser, storeProfileSummary } from "./social";
+import { handleSocialRoute } from "./social";
+import { fetchSessionUser, handleAuthRoute, mintSupabaseToken, sessionUid } from "./auth";
+import { cors, json, resolveAllowedOrigin } from "./http";
+import { handleDiscordRoute, syncContributorRole } from "./discord/interactions";
 
-type DbUser = {
-  id: string;
-  osu_id: number;
-  username: string;
-  avatar_url: string | null;
-  is_admin: boolean;
-  last_signed_in_at?: string | null;
-};
-
-// The desktop build runs the same SPA inside a Tauri webview, whose origin is
-// not the site. It authenticates with a bearer token rather than the session
-// cookie, so echoing these back is enough to let it reach the API.
-export const DESKTOP_ORIGINS = [
-  "http://tauri.localhost",
-  "https://tauri.localhost",
-  "tauri://localhost",
-];
-
-// The desktop app listens on an ephemeral loopback port and passes it here.
-// Only the port survives the round trip - it is carried inside the signed
-// state that is also held in an HttpOnly cookie, and the redirect is rebuilt
-// from scratch, so this can never be steered at an arbitrary host.
-const MIN_LOOPBACK_PORT = 1024;
-const MAX_LOOPBACK_PORT = 65535;
-
-export function parseLoopbackPort(raw: string | null): number | null {
-  if (!raw || !/^\d{4,5}$/.test(raw)) return null;
-  const port = Number(raw);
-  if (port < MIN_LOOPBACK_PORT || port > MAX_LOOPBACK_PORT) return null;
-  return port;
-}
-
-export function loopbackRedirect(port: number, session: string, nonce: string): string {
-  return `http://127.0.0.1:${port}/callback?session=${encodeURIComponent(session)}&nonce=${encodeURIComponent(nonce)}`;
-}
-
-export function resolveAllowedOrigin(
-  requestOrigin: string | null,
-  env: WorkerEnv,
-): string {
-  if (!requestOrigin) return env.FRONTEND_URL;
-  if (requestOrigin === env.FRONTEND_URL) return requestOrigin;
-  if (DESKTOP_ORIGINS.includes(requestOrigin)) return requestOrigin;
-  return env.FRONTEND_URL;
-}
+export { DESKTOP_ORIGINS, resolveAllowedOrigin } from "./http";
+export { loopbackRedirect, parseLoopbackPort } from "./auth";
 
 function applyAllowedOrigin(
   res: Response,
@@ -66,11 +25,6 @@ function applyAllowedOrigin(
   out.headers.set("Vary", "Origin");
   return out;
 }
-
-const SESSION_COOKIE = "me_session";
-const STATE_COOKIE = "me_oauth_state";
-const SESSION_TTL_DAYS = 30;
-const SUPABASE_TOKEN_TTL_SECONDS = 60 * 60;
 
 export default {
   async fetch(
@@ -95,6 +49,20 @@ async function route(
     }
 
     try {
+      // Discord calls the bot directly, signed with its own key; it never
+      // carries a Cascade session.
+      const discordResponse = await handleDiscordRoute(req, url, env, ctx);
+      if (discordResponse) return discordResponse;
+      const authResponse = await handleAuthRoute(req, url, env, {
+        ctx,
+        appToken: () => appAccessToken(env),
+        hooks: {
+          onDiscordAccount: async (discordId) => {
+            await syncContributorRole(env, discordId);
+          },
+        },
+      });
+      if (authResponse) return authResponse;
       const storageResponse = await handleStorageRoute(req, url, env, () =>
         storageAuthContext(req, env),
       );
@@ -107,7 +75,7 @@ async function route(
         appToken: () => appAccessToken(env),
         callerOsuId: async () => {
           const uid = await sessionUid(req, env);
-          return uid ? ((await fetchUser(env, uid))?.osu_id ?? null) : null;
+          return uid ? ((await fetchSessionUser(env, uid).catch(() => null))?.osu_id ?? null) : null;
         },
         json: (body, status) => json(body, status, env),
         ctx,
@@ -128,18 +96,6 @@ async function route(
       }
 
       switch (url.pathname) {
-        case "/auth/osu/login":
-          return await handleLogin(url, env);
-        case "/auth/osu/callback":
-          return await handleCallback(req, url, env);
-        case "/auth/session":
-          return await handleSession(req, env);
-        case "/auth/osu/cover":
-          return await handleCover(req, env);
-        case "/auth/logout":
-          if (req.method !== "POST")
-            return json({ error: "method not allowed" }, 405, env);
-          return handleLogout(env);
         case "/presence/roster":
           if (req.method !== "GET")
             return json({ error: "method not allowed" }, 405, env);
@@ -229,168 +185,13 @@ async function handleBeatmapLookup(
   return json({ error: "beatmap not found" }, 404, env);
 }
 
-export function desktopState(port: number, nonce: string): string {
-  return `${crypto.randomUUID()}.desktop.${port}.${nonce}`;
-}
-
-export function desktopPortFromState(state: string): number | null {
-  const match = /\.desktop\.(\d{4,5})\.[A-Za-z0-9_-]{16,128}$/.exec(state);
-  return match ? parseLoopbackPort(match[1]) : null;
-}
-
-export function desktopNonceFromState(state: string): string | null {
-  const match = /\.desktop\.\d{4,5}\.([A-Za-z0-9_-]{16,128})$/.exec(state);
-  return match?.[1] ?? null;
-}
-
-async function handleLogin(url: URL, env: WorkerEnv): Promise<Response> {
-  const desktop = url.searchParams.get("client") === "desktop";
-  const port = desktop ? parseLoopbackPort(url.searchParams.get("port")) : null;
-  const nonce = desktop ? url.searchParams.get("nonce") : null;
-  if (
-    desktop &&
-    (port === null || !nonce || !/^[A-Za-z0-9_-]{16,128}$/.test(nonce))
-  ) {
-    return json({ error: "invalid desktop callback" }, 400, env);
-  }
-  const state = desktop ? desktopState(port!, nonce!) : crypto.randomUUID();
-  const authorize = new URL("https://osu.ppy.sh/oauth/authorize");
-  authorize.searchParams.set("client_id", env.CLIENT_ID);
-  authorize.searchParams.set("redirect_uri", env.OSU_REDIRECT_URI);
-  authorize.searchParams.set("response_type", "code");
-  authorize.searchParams.set("scope", "identify");
-  authorize.searchParams.set("state", state);
-
-  const headers = new Headers(cors(env));
-  headers.append(
-    "Set-Cookie",
-    cookie(STATE_COOKIE, state, { maxAge: 600 }),
-  );
-  headers.set("Location", authorize.toString());
-  return new Response(null, { status: 302, headers });
-}
-
-async function handleCallback(
-  req: Request,
-  url: URL,
-  env: WorkerEnv,
-): Promise<Response> {
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
-  const savedState = getCookie(req, STATE_COOKIE);
-
-  if (!code || !state || !savedState || state !== savedState) {
-    return redirect(`${env.FRONTEND_URL}/?auth=error`, env, [
-      cookie(STATE_COOKIE, "", { maxAge: 0 }),
-    ]);
-  }
-
-  const tokenRes = await fetch("https://osu.ppy.sh/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.CLIENT_ID,
-      client_secret: env.CLIENT_SECRET,
-      code,
-      grant_type: "authorization_code",
-      redirect_uri: env.OSU_REDIRECT_URI,
-    }),
-  });
-  if (!tokenRes.ok) {
-    return redirect(`${env.FRONTEND_URL}/?auth=error`, env, [
-      cookie(STATE_COOKIE, "", { maxAge: 0 }),
-    ]);
-  }
-  const { access_token } = (await tokenRes.json()) as { access_token: string };
-
-  const meRes = await fetch("https://osu.ppy.sh/api/v2/me", {
-    headers: { Authorization: `Bearer ${access_token}` },
-  });
-  if (!meRes.ok) {
-    return redirect(`${env.FRONTEND_URL}/?auth=error`, env, [
-      cookie(STATE_COOKIE, "", { maxAge: 0 }),
-    ]);
-  }
-  const meJson = (await meRes.json()) as unknown;
-  const me = meJson as {
-    id: number;
-    username: string;
-    avatar_url?: string;
-    country_code?: string;
-  };
-
-  const user = await upsertUser(env, {
-    osu_id: me.id,
-    username: me.username,
-    avatar_url: me.avatar_url ?? null,
-    country_code:
-      typeof me.country_code === "string" && /^[A-Z]{2}$/.test(me.country_code)
-        ? me.country_code
-        : null,
-  });
-
-  // osu! already sent the full profile, so search and the community page can
-  // show this account's map counts without asking osu! again. Best effort:
-  // a database without migration 0041 simply has nowhere to put them.
-  const summary = normalizeOsuUser(meJson, "mania");
-  if (summary) await storeProfileSummary(env, user.id, summary).catch(() => {});
-
-  const session = await signSession(env, user.id);
-  const desktopPort = desktopPortFromState(state);
-  const desktopNonce = desktopNonceFromState(state);
-  if (desktopPort !== null && desktopNonce !== null) {
-    return redirect(loopbackRedirect(desktopPort, session, desktopNonce), env, [
-      cookie(STATE_COOKIE, "", { maxAge: 0 }),
-    ]);
-  }
-  return redirect(
-    `${env.FRONTEND_URL}/?auth=ok#session=${encodeURIComponent(session)}`,
-    env,
-    [
-      cookie(STATE_COOKIE, "", { maxAge: 0 }),
-      cookie(SESSION_COOKIE, session, { maxAge: SESSION_TTL_DAYS * 86400 }),
-    ],
-  );
-}
-
-async function handleSession(req: Request, env: WorkerEnv): Promise<Response> {
-  const cookieToken = getCookie(req, SESSION_COOKIE);
-  const headerToken = bearerToken(req);
-  const uid =
-    (cookieToken && (await verifySession(env, cookieToken))) ||
-    (headerToken && (await verifySession(env, headerToken))) ||
-    null;
-
-  const clearCookies = cookieToken
-    ? [cookie(SESSION_COOKIE, "", { maxAge: 0 })]
-    : [];
-  if (!uid) return json({ user: null }, 200, env, clearCookies);
-
-  const user = await fetchUser(env, uid);
-  if (!user) return json({ user: null }, 200, env, clearCookies);
-
-  const supabaseToken = await mintSupabaseToken(env, user);
-  const sessionToken = await signSession(env, user.id);
-  return json({ user, supabaseToken, sessionToken }, 200, env);
-}
-
-async function sessionUid(req: Request, env: WorkerEnv): Promise<string | null> {
-  const cookieToken = getCookie(req, SESSION_COOKIE);
-  const headerToken = bearerToken(req);
-  return (
-    (cookieToken && (await verifySession(env, cookieToken))) ||
-    (headerToken && (await verifySession(env, headerToken))) ||
-    null
-  );
-}
-
 async function storageAuthContext(
   req: Request,
   env: WorkerEnv,
 ): Promise<StorageAuthContext | null> {
   const uid = await sessionUid(req, env);
   if (!uid) return null;
-  const user = await fetchUser(env, uid);
+  const user = await fetchSessionUser(env, uid);
   if (!user) return null;
   return {
     uid,
@@ -399,9 +200,9 @@ async function storageAuthContext(
   };
 }
 
-// osu! profile covers are only reachable through the API, and the session
-// payload predates them, so the SPA asks for one on demand. Client-credentials
-// tokens last a day; keeping the last one avoids a token round-trip per open.
+// osu! profile data is only reachable through the API with the app's own
+// token. Client-credentials tokens last a day; keeping the last one avoids a
+// token round-trip per request.
 let appToken: { value: string; expiresAt: number } | null = null;
 
 async function appAccessToken(env: WorkerEnv): Promise<string | null> {
@@ -430,30 +231,6 @@ async function appAccessToken(env: WorkerEnv): Promise<string | null> {
   return appToken.value;
 }
 
-async function handleCover(req: Request, env: WorkerEnv): Promise<Response> {
-  const uid = await sessionUid(req, env);
-  if (!uid) return json({ cover_url: null }, 401, env);
-
-  const user = await fetchUser(env, uid);
-  if (!user) return json({ cover_url: null }, 404, env);
-
-  const token = await appAccessToken(env);
-  if (!token) return json({ cover_url: null }, 200, env);
-
-  const res = await fetch(
-    `https://osu.ppy.sh/api/v2/users/${user.osu_id}?key=id`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (!res.ok) return json({ cover_url: null }, 200, env);
-  const profile = (await res.json()) as {
-    cover_url?: string;
-    cover?: { url?: string; custom_url?: string | null };
-  };
-  const cover =
-    profile.cover?.custom_url ?? profile.cover?.url ?? profile.cover_url ?? null;
-  return json({ cover_url: cover }, 200, env);
-}
-
 // A random sample of registered users for the menu's floating avatar layer.
 // Presence (who is online right now) lives in Supabase Realtime on the client,
 // so this endpoint only supplies a pool of "known players"; the SPA marks each
@@ -463,7 +240,7 @@ const ROSTER_LIMIT = 10;
 
 type RosterUser = {
   id: string;
-  osu_id: number;
+  osu_id: number | null;
   username: string;
   avatar_url: string | null;
   last_signed_in_at: string | null;
@@ -522,112 +299,6 @@ function shuffle<T>(items: T[]): T[] {
     [items[i], items[j]] = [items[j], items[i]];
   }
   return items;
-}
-
-function handleLogout(env: WorkerEnv): Response {
-  return json({ ok: true }, 200, env, [
-    cookie(SESSION_COOKIE, "", { maxAge: 0 }),
-  ]);
-}
-
-async function upsertUser(
-  env: WorkerEnv,
-  fields: {
-    osu_id: number;
-    username: string;
-    avatar_url: string | null;
-    country_code: string | null;
-  },
-): Promise<DbUser> {
-  const post = (body: Record<string, unknown>) =>
-    fetch(`${env.SUPABASE_URL}/rest/v1/users?on_conflict=osu_id`, {
-      method: "POST",
-      headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "resolution=merge-duplicates,return=representation",
-      },
-      body: JSON.stringify(body),
-    });
-  const body = { ...fields, last_signed_in_at: new Date().toISOString() };
-  let res = await post(body);
-  // A database without migration 0041 has no country column yet; signing in
-  // must keep working there.
-  if (!res.ok && res.status === 400) {
-    const { country_code: _country, ...rest } = body;
-    res = await post(rest);
-  }
-  if (!res.ok) throw new Error(`user upsert failed: ${await res.text()}`);
-  const rows = (await res.json()) as DbUser[];
-  if (!rows.length) throw new Error("user upsert returned no row");
-  return rows[0];
-}
-
-async function fetchUser(env: WorkerEnv, id: string): Promise<DbUser | null> {
-  const res = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/users?id=eq.${id}&select=id,osu_id,username,avatar_url,is_admin,last_signed_in_at`,
-    {
-      headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-    },
-  );
-  if (!res.ok) return null;
-  const rows = (await res.json()) as DbUser[];
-  return rows[0] ?? null;
-}
-
-async function mintSupabaseToken(env: WorkerEnv, user: DbUser): Promise<string> {
-  const secret = new TextEncoder().encode(env.SUPABASE_JWT_SECRET);
-  return new SignJWT({
-    role: "authenticated",
-    is_admin: user.is_admin,
-  })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setSubject(user.id)
-    .setAudience("authenticated")
-    .setIssuedAt()
-    .setExpirationTime(`${SUPABASE_TOKEN_TTL_SECONDS}s`)
-    .sign(secret);
-}
-
-async function signSession(env: WorkerEnv, uid: string): Promise<string> {
-  const secret = new TextEncoder().encode(env.COOKIE_SECRET);
-  return new SignJWT({ uid })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt()
-    .setExpirationTime(`${SESSION_TTL_DAYS}d`)
-    .sign(secret);
-}
-
-async function verifySession(env: WorkerEnv, token: string): Promise<string | null> {
-  try {
-    const secret = new TextEncoder().encode(env.COOKIE_SECRET);
-    const { payload } = await jwtVerify(token, secret);
-    return typeof payload.uid === "string" ? payload.uid : null;
-  } catch {
-    return null;
-  }
-}
-
-function bearerToken(req: Request): string | null {
-  const header = req.headers.get("Authorization");
-  if (!header?.startsWith("Bearer ")) return null;
-  const token = header.slice("Bearer ".length).trim();
-  return token || null;
-}
-
-function cors(env: WorkerEnv): Record<string, string> {
-  return {
-    "Access-Control-Allow-Origin": env.FRONTEND_URL,
-    "Access-Control-Allow-Methods": "GET,HEAD,PUT,POST,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, Range, If-None-Match",
-    "Access-Control-Expose-Headers": "Content-Length, Content-Range, ETag, Accept-Ranges",
-    "Access-Control-Allow-Credentials": "true",
-    Vary: "Origin",
-  };
 }
 
 type SharedMapRow = {
@@ -753,46 +424,3 @@ function rewriteHead(
   return out;
 }
 
-function json(
-  body: unknown,
-  status: number,
-  env: WorkerEnv,
-  setCookies: string[] = [],
-): Response {
-  const headers = new Headers(cors(env));
-  headers.set("Content-Type", "application/json");
-  for (const c of setCookies) headers.append("Set-Cookie", c);
-  return new Response(JSON.stringify(body), { status, headers });
-}
-
-function redirect(location: string, env: WorkerEnv, setCookies: string[]): Response {
-  const headers = new Headers(cors(env));
-  headers.set("Location", location);
-  for (const c of setCookies) headers.append("Set-Cookie", c);
-  return new Response(null, { status: 302, headers });
-}
-
-function cookie(
-  name: string,
-  value: string,
-  opts: { maxAge: number },
-): string {
-  return [
-    `${name}=${value}`,
-    "Path=/",
-    "HttpOnly",
-    "Secure",
-    "SameSite=None",
-    `Max-Age=${opts.maxAge}`,
-  ].join("; ");
-}
-
-function getCookie(req: Request, name: string): string | null {
-  const header = req.headers.get("Cookie");
-  if (!header) return null;
-  for (const part of header.split(";")) {
-    const [k, ...rest] = part.trim().split("=");
-    if (k === name) return rest.join("=");
-  }
-  return null;
-}

@@ -45,6 +45,7 @@ export function SocialOverlay({
   onClose,
   onCountsChanged,
   onOpenPrivacy,
+  onOpenAccount,
   onOpenCloudProject,
   onOpenBeatmapset,
 }: {
@@ -56,6 +57,8 @@ export function SocialOverlay({
   onClose: () => void;
   onCountsChanged: () => void;
   onOpenPrivacy: () => void;
+  /** Settings, Account, where an account connects osu! or Discord. */
+  onOpenAccount: () => void;
   onOpenCloudProject: (id: string) => void;
   onOpenBeatmapset?: (setId: number) => void;
 }) {
@@ -106,7 +109,10 @@ export function SocialOverlay({
   if (!mounted) return null;
 
   const active: NavKey = route.view;
-  const ownProfile = route.view === "profile" && !!user && route.name.toLowerCase() === user.username.toLowerCase();
+  const ownProfile =
+    route.view === "profile" &&
+    !!user &&
+    [user.username, user.handle].some((name) => name?.toLowerCase() === route.name.toLowerCase());
   const nav: { key: NavKey; label: string; icon: ReactNode; badge: number; go: () => void; current: boolean }[] = [
     ...(user
       ? [
@@ -115,7 +121,7 @@ export function SocialOverlay({
             label: t("social.myProfile"),
             icon: <Avatar url={user.avatar_url} name={user.username} size="sm" />,
             badge: 0,
-            go: () => onNavigate({ view: "profile", name: user.username, tab: "overview" }),
+            go: () => onNavigate({ view: "profile", name: user.handle ?? user.username, tab: "overview" }),
             current: ownProfile,
           },
         ]
@@ -244,7 +250,7 @@ export function SocialOverlay({
                       icon={<PeopleIcon />}
                       title={t("social.signInTitle")}
                       body={t("social.signInBody")}
-                      action={<Button variant="accent" onClick={login}>{t("startModal.loginWithOsu")}</Button>}
+                      action={<Button variant="accent" onClick={login}>{t("auth.logIn")}</Button>}
                     />
                   ) : route.view === "profile" ? (
                     <ProfileView
@@ -253,6 +259,7 @@ export function SocialOverlay({
                       tab={route.tab}
                       onNavigate={onNavigate}
                       onOpenPrivacy={onOpenPrivacy}
+                      onOpenAccount={onOpenAccount}
                       onOpenCloudProject={onOpenCloudProject}
                       onOpenBeatmapset={onOpenBeatmapset}
                     />

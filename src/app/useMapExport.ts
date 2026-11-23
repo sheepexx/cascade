@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { logAnalyticsEvent, trackFunnel } from "../lib/analytics";
 import { noteMappingEvent } from "../lib/mappingEvents";
-import type { AuthUser } from "../lib/auth";
+import { osuUsername, type AuthUser } from "../lib/auth";
 import type { Translate } from "../lib/i18n";
 import { chooseMapperName } from "../lib/mapperName";
 import type { SampleFile } from "../lib/mapSamples";
@@ -363,7 +363,7 @@ export function useMapExport({
 
   const requestExport = useCallback(
     (target: string, run: (songMeta: SongMeta) => void) => {
-      const choice = chooseMapperName(meta.creator, authUser?.username);
+      const choice = chooseMapperName(meta.creator, osuUsername(authUser));
       if (choice.kind === "ask") {
         setMapperPrompt({ target, run });
         return;
@@ -376,7 +376,7 @@ export function useMapExport({
       setMeta(named);
       checkAndExport(target, named, run);
     },
-    [meta, authUser?.username, checkAndExport, setMapperPrompt, setMeta],
+    [meta, authUser, checkAndExport, setMapperPrompt, setMeta],
   );
 
   const confirmMapperName = useCallback(

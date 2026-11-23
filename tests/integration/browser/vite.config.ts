@@ -3,12 +3,14 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
+// Vite's module ids use forward slashes on Windows too.
+const id = (path: string) => path.replace(/\\/g, "/");
 
 const swaps = new Map([
-  [here("../../../src/lib/supabase.ts"), here("./fakeSupabase.ts")],
-  [here("../../../src/lib/storage.ts"), here("./fakeStorage.ts")],
-  [here("../../../src/lib/auth.tsx"), here("./fakeAuth.tsx")],
-  [here("../../../src/lib/osuProfile.ts"), here("./fakeOsuProfile.ts")],
+  [id(here("../../../src/lib/supabase.ts")), here("./fakeSupabase.ts")],
+  [id(here("../../../src/lib/storage.ts")), here("./fakeStorage.ts")],
+  [id(here("../../../src/lib/auth.tsx")), here("./fakeAuth.tsx")],
+  [id(here("../../../src/lib/osuProfile.ts")), here("./fakeOsuProfile.ts")],
 ]);
 
 /**
@@ -26,8 +28,8 @@ function testBackend(): Plugin {
       if (source === "virtual:pwa-register") return "\0pwa-register-stub";
       if (!importer) return null;
       const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
-      const swap = resolved && swaps.get(resolved.id);
-      if (!swap || importer === swap) return null;
+      const swap = resolved && swaps.get(id(resolved.id));
+      if (!swap || id(importer) === id(swap)) return null;
       return swap;
     },
     load(id) {

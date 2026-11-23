@@ -18,6 +18,10 @@ export type PrivacySettings = {
   mapping_time: PrivacyLevel;
   project_time: PrivacyLevel;
   projects: PrivacyLevel;
+  /** Others may open your profile from your Discord account with the bot (migration 0048). */
+  discord_lookup?: "everyone" | "nobody";
+  /** You appear on the Discord bot's leaderboards (migration 0048). */
+  leaderboard?: "everyone" | "nobody";
 };
 
 export const DEFAULT_PRIVACY: PrivacySettings = {
@@ -41,11 +45,16 @@ export type Presence = {
 
 export type ProfileCard = {
   id: string;
-  osu_id: number;
+  /** Null for an account made with Discord that hasn't connected osu!. */
+  osu_id: number | null;
   username: string;
+  /** What a link to the profile uses: the name, or the id when another account shares it (migration 0047). */
+  handle?: string;
   avatar_url: string | null;
   /** Runs Cascade (migration 0046); missing before it. */
   is_admin?: boolean;
+  /** Has contributions the Cascade team accepted (migration 0048). */
+  is_contributor?: boolean;
   country_code: string | null;
   relationship: Relationship;
   presence: Presence | null;

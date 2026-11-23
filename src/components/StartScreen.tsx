@@ -1420,8 +1420,11 @@ function FloatingPlayers({
         const color = online ? "#3fdc8c" : "#78818f";
         const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
         const cascadeProfile = openPlayer && !p.id.startsWith("demo-");
+        // An account without osu! may share its name with one that has it,
+        // and names lead to the osu! one, so it is opened by its id.
+        const profileName = p.osuId == null ? p.id : p.username;
         const profileUrl = cascadeProfile
-          ? `/user/${encodeURIComponent(p.username)}`
+          ? `/user/${encodeURIComponent(profileName)}`
           : p.osuId != null
             ? `https://osu.ppy.sh/users/${p.osuId}`
             : undefined;
@@ -1436,7 +1439,7 @@ function FloatingPlayers({
                 ? (event) => {
                     if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
                     event.preventDefault();
-                    openPlayer(p.username);
+                    openPlayer(profileName);
                   }
                 : undefined
             }

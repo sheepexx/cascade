@@ -16,6 +16,7 @@ import type { MenuBackgroundMode } from "../../types";
 import { SettingDiagram, type DiagramName } from "../ui/SettingDiagrams";
 import { HoldConfirmDialog } from "../ui/HoldConfirmDialog";
 import { useAuth } from "../../lib/auth";
+import { ConnectedAccounts } from "./ConnectedAccounts";
 import { usePhoneViewport } from "../../hooks/usePhoneViewport";
 import { isDesktopApp } from "../../lib/pwa";
 import { eraseLocalData } from "../../lib/resetLocalData";
@@ -213,7 +214,7 @@ type Props = {
   accountSyncError: string | null;
 };
 
-const TABS = ["General", "Graphics", "Editor", "Playtest", "Audio", "Export", "Shortcuts", "Social"] as const;
+const TABS = ["General", "Account", "Graphics", "Editor", "Playtest", "Audio", "Export", "Shortcuts", "Social"] as const;
 export type SettingsTab = (typeof TABS)[number];
 type Tab = SettingsTab;
 
@@ -229,6 +230,7 @@ const ALT_WHEEL_OPTIONS: {
 
 const TAB_LABELS: Record<Tab, MessageKey> = {
   General: "settings.tabGeneral",
+  Account: "settings.tabAccount",
   Graphics: "settings.tabGraphics",
   Editor: "settings.tabEditor",
   Playtest: "settings.tabPlaytest",
@@ -785,7 +787,7 @@ export function AppSettingsModal({
                   tip={t("settings.presenceSignedOut")}
                 >
                   <Button variant="accent" size="sm" onClick={login}>
-                    {t("startModal.loginWithOsu")}
+                    {t("auth.logIn")}
                   </Button>
                 </SettingRow>
               )}
@@ -829,6 +831,12 @@ export function AppSettingsModal({
             )}
             <LegalSection />
             <ResetDataSection />
+          </SettingsCategory>
+        )}
+
+        {show("Account") && (
+          <SettingsCategory name="Account" words={words}>
+            <ConnectedAccounts />
           </SettingsCategory>
         )}
 
@@ -1571,6 +1579,7 @@ function SettingsCategory({
 /** Line icons for the category rail, drawn on a 16px grid. */
 const TAB_ICONS: Record<Tab, ReactNode> = {
   General: <path d="M3 4.5h6m3 0h1M3 8h2m3 0h5M3 11.5h7m3 0h0M10.5 3v3M6.5 6.5v3M11.5 10v3" />,
+  Account: <path d="M8 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm-4.5 5.5a4.5 4.5 0 0 1 9 0M11.5 9.5l1 1 2-2" />,
   Graphics: <path d="M2.5 3.5h11v7.5h-11v-7.5Zm3.5 10h4M8 11v2.5" />,
   Editor: <path d="M3.5 2.5v11M8 2.5v11M12.5 2.5v11M4.5 5h2.5M9 9h2.5M4.5 11.5h2.5" />,
   Playtest: <path d="M5 3.2v9.6L12.5 8 5 3.2Z" />,

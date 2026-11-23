@@ -15,7 +15,7 @@ import type { ProfileTab, SocialRoute } from "../../lib/socialRoute";
 import { SegmentedControl } from "../ui/Controls";
 import { Menu, type MenuItem } from "../ui/Menu";
 import { Skeleton } from "../ui/Skeleton";
-import { BadgeRow, OsuOverview } from "./OsuOverview";
+import { BadgeRow, NoOsuOverview, OsuOverview } from "./OsuOverview";
 import { MapLibrary } from "./MapLibrary";
 import { MappingActivity } from "./MappingActivity";
 import { ReportDialog } from "./ReportDialog";
@@ -23,6 +23,7 @@ import { useRelationship } from "./useRelationship";
 import {
   AdminBadge,
   Avatar,
+  ContributorBadge,
   ChatIcon,
   DotsIcon,
   EmptyState,
@@ -43,6 +44,7 @@ export function ProfileView({
   tab,
   onNavigate,
   onOpenPrivacy,
+  onOpenAccount,
   onOpenCloudProject,
   onOpenBeatmapset,
 }: {
@@ -50,6 +52,8 @@ export function ProfileView({
   tab: ProfileTab;
   onNavigate: (route: SocialRoute, replace?: boolean) => void;
   onOpenPrivacy: () => void;
+  /** Settings, Account, where an osu! account can be connected. */
+  onOpenAccount: () => void;
   onOpenCloudProject: (id: string) => void;
   onOpenBeatmapset?: (setId: number) => void;
 }) {
@@ -225,6 +229,7 @@ export function ProfileView({
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <h2 className="truncate font-display text-3xl font-bold leading-tight text-slate-50">{profile.username}</h2>
             {profile.is_admin && <AdminBadge />}
+            {profile.is_contributor && <ContributorBadge />}
             {(osu?.is_supporter ?? profile.osu?.is_supporter) && (
               <span
                 className="inline-flex items-center gap-1 rounded-sm bg-pink-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-pink-300"
@@ -275,6 +280,7 @@ export function ProfileView({
             setReloadKey((k) => k + 1);
           }}
           refreshing={osuLoading}
+          onConnectOsu={onOpenAccount}
         />
       </div>
 
@@ -307,7 +313,7 @@ export function ProfileView({
         <SegmentedControl
           variant="tabs"
           value={tab}
-          onChange={(next) => onNavigate({ view: "profile", name: profile.username, tab: next }, true)}
+          onChange={(next) => onNavigate({ view: "profile", name: profile.handle ?? profile.username, tab: next }, true)}
           options={[
             { value: "overview", label: t("social.tabOverview") },
             { value: "maps", label: t("social.tabMaps") },
@@ -317,7 +323,10 @@ export function ProfileView({
       </div>
 
       <div className="mt-6">
-        {tab === "overview" && (
+        {tab === "overview" && profile.osu_id === null && (
+          <NoOsuOverview profile={profile} stats={stats} onShowActivity={() => onNavigate({ view: "profile", name: profile.handle ?? profile.username, tab: "activity" }, true)} />
+        )}
+        {tab === "overview" && profile.osu_id !== null && (
           <OsuOverview
             profile={profile}
             osu={osu}
@@ -327,8 +336,8 @@ export function ProfileView({
             onMode={setMode}
             onRetry={() => loadOsu(true)}
             stats={stats}
-            onShowActivity={() => onNavigate({ view: "profile", name: profile.username, tab: "activity" }, true)}
-            onShowMaps={() => onNavigate({ view: "profile", name: profile.username, tab: "maps" }, true)}
+            onShowActivity={() => onNavigate({ view: "profile", name: profile.handle ?? profile.username, tab: "activity" }, true)}
+            onShowMaps={() => onNavigate({ view: "profile", name: profile.handle ?? profile.username, tab: "maps" }, true)}
           />
         )}
         {tab === "maps" && (
@@ -336,7 +345,7 @@ export function ProfileView({
             key={profile.id}
             osuId={profile.osu_id}
             counts={osu?.counts ?? null}
-            countsLoading={osuLoading && !osu}
+            countsLoading={osuLoading && !osu && profile.osu_id !== null}
             isSelf={profile.is_self}
             stats={stats}
             onOpenCloudProject={onOpenCloudProject}
@@ -367,6 +376,7 @@ function ProfileActions({
   onOpenPrivacy,
   onRefresh,
   refreshing,
+  onConnectOsu,
 }: {
   profile: Profile;
   signedIn: boolean;
@@ -377,6 +387,8 @@ function ProfileActions({
   onOpenPrivacy: () => void;
   onRefresh: () => void;
   refreshing: boolean;
+  /** For an account without osu!: Connected accounts, where it can be added. */
+  onConnectOsu: () => void;
 }) {
   const t = useT();
   const notice = useNotice();
@@ -384,19 +396,24 @@ function ProfileActions({
 
   const copyLink = () => {
     void navigator.clipboard
-      ?.writeText(PROFILE_URL(profile.username))
+      ?.writeText(PROFILE_URL(profile.handle ?? profile.username))
       .then(() => notice({ tone: "success", text: t("social.linkCopied") }))
       .catch(() => notice({ tone: "error", text: t("social.copyFailed") }));
   };
-  const openOsu = () => window.open(osuProfileUrl(profile.osu_id), "_blank", "noopener,noreferrer");
+  const osuId = profile.osu_id;
+  const openOsu = osuId === null ? null : () => window.open(osuProfileUrl(osuId), "_blank", "noopener,noreferrer");
 
   if (profile.is_self) {
     return (
       <div className="flex flex-wrap items-center gap-2 sm:pb-1.5">
         <SmallButton onClick={onOpenPrivacy}>{t("social.privacySettings")}</SmallButton>
-        <SmallButton onClick={onRefresh} disabled={refreshing}>
-          {refreshing ? t("common.loading") : t("social.refreshOsu")}
-        </SmallButton>
+        {openOsu ? (
+          <SmallButton onClick={onRefresh} disabled={refreshing}>
+            {refreshing ? t("common.loading") : t("social.refreshOsu")}
+          </SmallButton>
+        ) : (
+          <SmallButton onClick={onConnectOsu}>{t("social.connectOsu")}</SmallButton>
+        )}
         <Menu
           label={<DotsIcon />}
           chevron={false}
@@ -404,7 +421,7 @@ function ProfileActions({
           className="!px-2"
           items={[
             { label: t("social.copyLink"), onClick: copyLink },
-            { label: t("social.viewOnOsu"), onClick: openOsu },
+            ...(openOsu ? [{ label: t("social.viewOnOsu"), onClick: openOsu }] : []),
           ]}
         />
       </div>
@@ -417,9 +434,11 @@ function ProfileActions({
         <SmallButton tone="accent" onClick={onLogin}>
           {t("social.signInToConnect")}
         </SmallButton>
-        <SmallButton onClick={openOsu}>
-          {t("social.viewOnOsu")} <ExternalIcon />
-        </SmallButton>
+        {openOsu && (
+          <SmallButton onClick={openOsu}>
+            {t("social.viewOnOsu")} <ExternalIcon />
+          </SmallButton>
+        )}
       </div>
     );
   }
@@ -427,7 +446,7 @@ function ProfileActions({
   const rel = profile.relationship;
   const more: MenuItem[] = [
     { label: t("social.copyLink"), onClick: copyLink },
-    { label: t("social.viewOnOsu"), onClick: openOsu },
+    ...(openOsu ? [{ label: t("social.viewOnOsu"), onClick: openOsu }] : []),
     { separator: true },
   ];
   if (rel === "friends") more.push({ label: t("social.removeFriend"), onClick: () => void run("remove") });

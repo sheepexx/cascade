@@ -127,6 +127,37 @@ export function OsuOverview({
   );
 }
 
+/**
+ * The first tab for an account without osu!: what Cascade measured, and for
+ * the owner a word on what connecting osu! would add. No osu! numbers are
+ * shown or guessed.
+ */
+export function NoOsuOverview({
+  profile,
+  stats,
+  onShowActivity,
+}: {
+  profile: Profile;
+  stats: MappingStats | null;
+  onShowActivity: () => void;
+}) {
+  const t = useT();
+  return (
+    <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)]">
+      <div className="flex min-w-0 flex-col gap-8">
+        <CascadeSummary stats={stats} isSelf={profile.is_self} onShowActivity={onShowActivity} />
+      </div>
+      {profile.is_self && (
+        <div className="flex min-w-0 flex-col gap-8">
+          <SectionCard title={t("social.connectOsuTitle")}>
+            <p className="text-sm leading-relaxed text-slate-400">{t("social.connectOsuBody")}</p>
+          </SectionCard>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PlayerStats({ osu, loading, mode }: { osu: OsuProfile | null; loading: boolean; mode: OsuMode }) {
   const t = useT();
   const fmt = useNumberFormat();

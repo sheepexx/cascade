@@ -57,6 +57,8 @@ export default tseslint.config(
           allowExportNames: [
             "TOOLTIP_DELAY_MS",
             "sessionAuthHeaders",
+            "sessionToken",
+            "osuUsername",
             "useAuth",
             "preloadLocale",
             "useLocale",

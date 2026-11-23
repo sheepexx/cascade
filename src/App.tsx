@@ -6,7 +6,13 @@ import { PhoneTimeline } from "./components/mobile/PhoneTimeline";
 import { PhonePlaytestControls } from "./components/mobile/PhonePlaytestControls";
 import type { MobileEditorControls } from "./components/editor/editorTypes";
 import { AppToasts } from "./app/AppToasts";
-import { rememberProjectForLogin, takeProjectAfterLogin } from "./lib/loginResume";
+import {
+  clearConnectRequest,
+  rememberProjectForLogin,
+  takeConnectRequest,
+  takeProjectAfterLogin,
+} from "./lib/loginResume";
+import { LoginDialog } from "./components/auth/LoginDialog";
 import {
   AccountPromptModal,
   type AccountReason,
@@ -263,6 +269,8 @@ export default function App() {
     loading: authLoading,
     refresh: refreshAuth,
     login: authLogin,
+    notice: authNotice,
+    setBeforeLogin,
   } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_SONG_META);
@@ -345,7 +353,7 @@ export default function App() {
     (target: "profile" | "friends" | "messages" | "community") => {
       const me = authUserRef.current;
       if (target === "profile") {
-        if (me) navigateSocial({ view: "profile", name: me.username, tab: "overview" });
+        if (me) navigateSocial({ view: "profile", name: me.handle ?? me.username, tab: "overview" });
       } else if (target === "friends") {
         navigateSocial({
           view: "friends",
@@ -2748,15 +2756,18 @@ export default function App() {
     },
     [canEditRef, handleSave, projectStartedRef],
   );
-  // The web login leaves the page, so the map is saved here before it goes.
-  const loginFromPrompt = useCallback(async () => {
-    if (projectStartedRef.current) {
-      if (canEditRef.current) await handleSave(true);
-      if (!isDesktopApp()) rememberProjectForLogin(localProjectIdRef.current);
-    }
-    await flushRecovery();
-    authLogin();
-  }, [authLogin, canEditRef, flushRecovery, handleSave, localProjectIdRef, projectStartedRef]);
+  // The web login leaves the page, so whichever button started it, the map is
+  // saved here before it goes.
+  useEffect(() => {
+    setBeforeLogin(async () => {
+      if (projectStartedRef.current) {
+        if (canEditRef.current) await handleSave(true);
+        if (!isDesktopApp()) rememberProjectForLogin(localProjectIdRef.current);
+      }
+      await flushRecovery();
+    });
+    return () => setBeforeLogin(null);
+  }, [canEditRef, flushRecovery, handleSave, localProjectIdRef, projectStartedRef, setBeforeLogin]);
   // Back from the osu! login page: reopen the map that was open before it.
   useEffect(() => {
     const projectId = takeProjectAfterLogin();
@@ -2766,6 +2777,25 @@ export default function App() {
   useEffect(() => {
     if (authUser && modal === "account") setModal(null);
   }, [authUser, modal]);
+  // Back from connecting or confirming an account: show how it went where it
+  // was started.
+  useEffect(() => {
+    if (authNotice?.context === "account") openSettings("Account");
+  }, [authNotice, openSettings]);
+  // The Discord bot's /link sends people to ?connect=discord: once signed in,
+  // they land in Connected accounts and press Connect themselves.
+  const connectRequestRef = useRef<boolean | null>(null);
+  if (connectRequestRef.current === null) connectRequestRef.current = takeConnectRequest();
+  useEffect(() => {
+    if (!connectRequestRef.current || authLoading) return;
+    connectRequestRef.current = false;
+    if (authUser) {
+      clearConnectRequest();
+      openSettings("Account");
+    } else {
+      authLogin();
+    }
+  }, [authLoading, authLogin, authUser, openSettings]);
 
   // The Tools dialog is the only reader of these counts.
   const toolsOpen = modal === "tools";
@@ -3847,7 +3877,7 @@ export default function App() {
             authUser
               ? () => {
                   close();
-                  navigateSocial({ view: "profile", name: authUser.username, tab: "overview" });
+                  navigateSocial({ view: "profile", name: authUser.handle ?? authUser.username, tab: "overview" });
                 }
               : undefined
           }
@@ -4455,6 +4485,10 @@ export default function App() {
               closeSocial();
               openSettings("Social");
             }}
+            onOpenAccount={() => {
+              closeSocial();
+              openSettings("Account");
+            }}
             onOpenCloudProject={(id) => {
               closeSocial();
               void loadCloudProject(id);
@@ -4487,6 +4521,8 @@ export default function App() {
         </Suspense>
       )}
 
+      <LoginDialog />
+
       {modalMounted("account") && (
         <AccountPromptModal
           open={modal === "account"}
@@ -4494,7 +4530,6 @@ export default function App() {
           hasMap={projectStarted && canEdit}
           collab={featureFlags.collab}
           onClose={close}
-          onLogin={loginFromPrompt}
         />
       )}
 

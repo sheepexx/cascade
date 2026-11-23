@@ -16,8 +16,28 @@
     "SUPABASE_STORAGE_FALLBACK": "false",
     "SUPABASE_STORAGE_ALLOWANCE_BYTES": "1073741824",
     "R2_STORAGE_ALLOWANCE_BYTES": "10737418240",
-    "MAX_ASSET_BYTES": "62914560"
+    "MAX_ASSET_BYTES": "62914560",
+    // Discord sign-in and the Cascade bot (docs/DISCORD_SETUP.md). These are
+    // public identifiers, not secrets; leaving the application id empty keeps
+    // Discord switched off. DISCORD_CLIENT_SECRET and DISCORD_BOT_TOKEN are
+    // encrypted secrets set in the Cloudflare dashboard, never here.
+    "DISCORD_APPLICATION_ID": "",
+    "DISCORD_PUBLIC_KEY": "",
+    "DISCORD_REDIRECT_URI": "https://mania-editor.noahcraft01.workers.dev/auth/discord/callback",
+    "DISCORD_GUILD_ID": "",
+    "DISCORD_CONTRIBUTOR_ROLE_ID": "",
+    "DISCORD_REVIEW_CHANNEL_ID": "",
+    "DISCORD_MAINTAINER_IDS": ""
   },
+  // Per-address limits on signing in and changing sign-in methods. Approximate
+  // and per Cloudflare location, which is enough to blunt scripted abuse.
+  "ratelimits": [
+    {
+      "name": "AUTH_LIMITER",
+      "namespace_id": "4701",
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
   "r2_buckets": [
     {
       "binding": "PROJECT_ASSETS",

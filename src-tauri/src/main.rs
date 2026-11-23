@@ -28,6 +28,24 @@ p{margin:.4rem 0;color:#94a3b8}strong{font-size:1.25rem;color:#f8fafc}</style>\
 <div style=text-align:center><strong>Signed in to Cascade</strong>\
 <p>You can close this tab and go back to the app.</p></div>";
 
+// Linking an account or a failed sign-in also ends here; the app shows what
+// happened, so the page only sends the person back.
+const RETURN_PAGE: &str = "<!doctype html><meta charset=utf-8><title>Back to Cascade</title>\
+<style>html{color-scheme:dark}body{margin:0;height:100vh;display:grid;place-items:center;\
+background:#0b0b10;color:#e2e8f0;font:16px/1.5 system-ui,Segoe UI,sans-serif}\
+p{margin:.4rem 0;color:#94a3b8}strong{font-size:1.25rem;color:#f8fafc}</style>\
+<div style=text-align:center><strong>Back to Cascade</strong>\
+<p>You can close this tab and go back to the app.</p></div>";
+
+/// The page for a callback's payload: a session, or a `link:`/`error:` result.
+fn callback_page(payload: &str) -> &'static str {
+    if payload.starts_with("link:") || payload.starts_with("error:") {
+        RETURN_PAGE
+    } else {
+        DONE_PAGE
+    }
+}
+
 fn focus(window: &WebviewWindow) {
     let _ = window.unminimize();
     let _ = window.show();
@@ -129,7 +147,7 @@ fn start_oauth_listener(app: AppHandle, nonce: String) -> Result<u16, String> {
             }
             let session = session_from_request(&line, &nonce);
             if let Some(session) = session {
-                answer(&mut stream, DONE_PAGE);
+                answer(&mut stream, callback_page(&session));
                 let _ = app.emit(OAUTH_EVENT, session);
                 if let Some(window) = app.get_webview_window("main") {
                     focus(&window);
@@ -276,4 +294,30 @@ fn main() {
                 display::on_exit(app);
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sessions_get_the_signed_in_page() {
+        assert_eq!(callback_page("eyJhbGciOiJIUzI1NiJ9.e30.sig"), DONE_PAGE);
+    }
+
+    #[test]
+    fn links_and_errors_only_send_the_person_back() {
+        assert_eq!(callback_page("link:abc"), RETURN_PAGE);
+        assert_eq!(callback_page("error:reauth_mismatch"), RETURN_PAGE);
+    }
+
+    #[test]
+    fn a_callback_needs_the_listener_nonce() {
+        let line = "GET /callback?session=link%3Aabc&nonce=nonce-value-123456 HTTP/1.1";
+        assert_eq!(
+            session_from_request(line, "nonce-value-123456").as_deref(),
+            Some("link:abc")
+        );
+        assert_eq!(session_from_request(line, "another-nonce-1234567"), None);
+    }
 }

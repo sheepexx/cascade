@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { DiscordBotSection } from "./AdminDiscord";
 import { Button, TextInput, Toggle } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
 import { PatternPreview } from "../ui/PatternPreview";
@@ -1004,7 +1005,7 @@ function UsersTab() {
       ? users.filter(
           (u) =>
             u.username.toLowerCase().includes(needle) ||
-            String(u.osu_id).includes(needle) ||
+            (u.osu_id !== null && String(u.osu_id).includes(needle)) ||
             userPlatform(u) === needle,
         )
       : users;
@@ -1133,7 +1134,7 @@ function UsersTab() {
                     </div>
                   </td>
                   <td className="px-1.5 py-2 text-right font-mono text-xs text-slate-500">
-                    {u.osu_id}
+                    {u.osu_id ?? "Discord"}
                   </td>
                   <td className="px-1.5 py-2 text-right text-xs text-slate-500">
                     {new Date(u.created_at).toLocaleDateString()}
@@ -1250,16 +1251,20 @@ function UserDetail({
           />
         )}
         <div className="min-w-0">
-          <a
-            href={`https://osu.ppy.sh/users/${user.osu_id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-base font-semibold text-slate-100 transition hover:text-accent"
-          >
-            {user.username}
-          </a>
+          {user.osu_id !== null ? (
+            <a
+              href={`https://osu.ppy.sh/users/${user.osu_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-base font-semibold text-slate-100 transition hover:text-accent"
+            >
+              {user.username}
+            </a>
+          ) : (
+            <span className="text-base font-semibold text-slate-100">{user.username}</span>
+          )}
           <div className="text-[11px] text-slate-500">
-            osu! id {user.osu_id} · joined{" "}
+            {user.osu_id !== null ? `osu! id ${user.osu_id}` : "Discord account"} · joined{" "}
             {new Date(user.created_at).toLocaleDateString()} · last signed in{" "}
             {formatMoment(user.last_signed_in_at)}
           </div>
@@ -1779,6 +1784,7 @@ function SettingsTab({
   return (
     <div className="flex max-w-xl flex-col gap-5">
       <FeatureFlagsSection />
+      <DiscordBotSection />
       <section className="rounded-lg bg-white/[0.03] p-5">
         <div className="flex items-start justify-between gap-4">
           <div>

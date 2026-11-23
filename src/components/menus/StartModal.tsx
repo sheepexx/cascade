@@ -551,7 +551,7 @@ export function WelcomeModal({
             </a>
           </span>
           <Button variant="accent" size="sm" onClick={login} className="whitespace-nowrap">
-            {t("startModal.loginWithOsu")}
+            {t("auth.logIn")}
           </Button>
         </div>
       )}

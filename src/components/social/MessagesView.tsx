@@ -578,7 +578,7 @@ function ConversationPane({
 
   const groups = useMemo(() => groupMessages(messages, locale), [messages, locale]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
-  const openProfile = () => onNavigate({ view: "profile", name: other.username, tab: "overview" });
+  const openProfile = () => onNavigate({ view: "profile", name: other.handle ?? other.username, tab: "overview" });
 
   return (
     <>
@@ -677,7 +677,7 @@ function ConversationPane({
                     <div key={run.messages[0].id} className={`mb-3 flex gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
                       <button
                         type="button"
-                        onClick={() => onNavigate({ view: "profile", name: author.username, tab: "overview" })}
+                        onClick={() => onNavigate({ view: "profile", name: author.handle ?? author.username, tab: "overview" })}
                         className="mt-0.5 h-fit shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                         aria-label={t("social.viewProfileOf", { name: author.username })}
                       >

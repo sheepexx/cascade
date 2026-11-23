@@ -83,7 +83,7 @@ export function MapperNameModal({
               onClick={onLogin}
               className="whitespace-nowrap"
             >
-              {t("startModal.loginWithOsu")}
+              {t("auth.logIn")}
             </Button>
           </div>
         )}

@@ -1,0 +1,18 @@
+{
+  // The Worker's routes run in these tests against the real database, so
+  // they are checked with the Worker's runtime types plus Node's.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node", "@cloudflare/workers-types"],
+    "typeRoots": ["../../../node_modules/@types", "../../../worker/node_modules"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true
+  },
+  "include": ["../db/workerAuth.test.ts", "../../../worker/worker-configuration.d.ts"]
+}

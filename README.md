@@ -36,7 +36,7 @@ On a phone, the editor uses a full-width playfield and a toolbar at the bottom. 
 | [Checks and mapping tools](#checks-and-mapping-tools) | AiMod report, export validation, resnapping, pattern presets |
 | [Map Card](#map-card) | A shareable image of a difficulty's stats and MSD skillsets, with a direct link for osu! descriptions |
 | [Import and export](#import-export-and-pack-creator) | osu!mania, StepMania, Etterna, Quaver and Malody formats, osu! links, Pack Creator |
-| [Accounts and collaboration](#accounts-cloud-collaboration-and-sharing) | osu! login, cloud projects, realtime collaboration, comments, public share links |
+| [Accounts and collaboration](#accounts-cloud-collaboration-and-sharing) | osu! or Discord login, cloud projects, realtime collaboration, comments, public share links |
 | [Desktop app](#desktop-app) | Project folder on disk, version history, file associations, osu! integration on Windows |
 
 ## Editing
@@ -214,7 +214,7 @@ Before an export, Cascade lists errors that block it and warnings you can ignore
 
 ### Pattern presets and batch apply
 
-- Save a copied pattern as a preset. Keep it private, or submit it as a public preset. Public presets appear in the preset browser after an admin approves them. Presets are stored on your account, so they need an osu! login.
+- Save a copied pattern as a preset. Keep it private, or submit it as a public preset. Public presets appear in the preset browser after an admin approves them. Presets are stored on your account, so they need you to log in.
 - Batch apply, in Map Settings, copies timing (BPM and offset only, or all timing, SV and volume), the preview point, and HP, OD and default sample set from one difficulty to other difficulties that use the same audio.
 
 ## Map Card
@@ -232,7 +232,7 @@ A Map Card is an image of one difficulty for your osu! map description or Discor
 - **Presets**: Default, Minimal, Background Banner, Full Background and Tournament Style, plus your own, saved to your account.
 - **Export**: download a 1600 px wide PNG, copy it straight into Discord, or host it on Cascade. A hosted card gets a direct image link and a ready `[img]` BBCode for osu! descriptions. Updating the card keeps the same link.
 
-Hosting and saved presets need an osu! login. More on the [Map Card page](https://cascade.sheepex.net/docs/osu-mania-map-card). How hosting works is in [docs/MAP_CARDS.md](docs/MAP_CARDS.md).
+Hosting and saved presets need you to log in. More on the [Map Card page](https://cascade.sheepex.net/docs/osu-mania-map-card). How hosting works is in [docs/MAP_CARDS.md](docs/MAP_CARDS.md).
 
 ## Import, export and Pack Creator
 
@@ -272,11 +272,11 @@ Pack Creator combines several mania maps into one `.osz` pack for local play.
 
 ## Accounts, cloud, collaboration and sharing
 
-Everything in this section needs an osu! login and the Cascade backend. The hosted site at https://cascade.sheepex.net already has the backend. Self-hosted builds need their own, see [Backend](#backend).
+Everything in this section needs an account (log in with osu! or Discord) and the Cascade backend. The hosted site at https://cascade.sheepex.net already has the backend. Self-hosted builds need their own, see [Backend](#backend).
 
 ### Account and cloud
 
-- Log in with your osu! account (OAuth). No separate password is created.
+- Log in with osu! or Discord (OAuth). No separate password is created, and one account can have both: connect the other in Settings, Account. Your maps and settings belong to the account, whichever one you use. Cascade never merges two accounts by itself.
 - Cloud projects, next to local projects and mapping invitations in My Maps. The project list can be searched by title, mapper, difficulty, tags or key count (for example `4k`) and sorted by date, name or difficulty. Projects can be archived, and several can be selected and deleted at once.
 - Editor settings sync between devices.
 - Two skin slots on your account. Other devices only download a skin when you ask for it.
@@ -404,6 +404,13 @@ osu! profile data at `/osu/...` with the app's existing client credentials),
 then deploy the site and turn on **Profiles, friends & messages** under
 Settings in the admin panel. Until the flag is on, none of it shows.
 
+Migrations `0047_account_identities.sql` and `0048_discord_community.sql`
+add Discord login, linked sign-in methods and the Discord bot's data. Apply
+them before deploying the Worker; the Worker that is live keeps working with
+them. Discord stays off until it is configured: see
+[docs/DISCORD_SETUP.md](docs/DISCORD_SETUP.md), and
+[docs/ACCOUNTS.md](docs/ACCOUNTS.md) for how accounts work.
+
 Migration `0045_message_reactions.sql` adds reactions to messages. The app
 works on either side of it; reactions start working once it is applied.
 
@@ -419,7 +426,7 @@ Cascade is a static single-page app with a small backend around it.
 
 - **Frontend:** React, TypeScript, Vite and Tailwind CSS. The playfield is drawn on an HTML canvas, and audio runs through the Web Audio API.
 - **Supabase:** Postgres for projects, settings and presets, and Realtime for collaboration. There is no Supabase Auth user; the Worker issues the tokens.
-- **Cloudflare Worker:** osu! OAuth, Supabase token minting, public osu! profile data for Cascade profiles, the beatmap mirror proxy and access to project and shared-map assets in Cloudflare R2.
+- **Cloudflare Worker:** osu! and Discord OAuth, the Cascade Discord bot, Supabase token minting, public osu! profile data for Cascade profiles, the beatmap mirror proxy and access to project and shared-map assets in Cloudflare R2.
 - **Desktop:** Tauri 2 with a Rust backend for the project folder and version history, native audio, osu! integration, Discord presence and file associations.
 
 | Path | Contents |

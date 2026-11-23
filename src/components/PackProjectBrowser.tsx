@@ -255,7 +255,7 @@ export function PackProjectBrowser({
               {t("packBrowser.loginHint")}
             </span>
             <Button variant="accent" onClick={login} className="whitespace-nowrap">
-              {t("startModal.loginWithOsu")}
+              {t("auth.logIn")}
             </Button>
           </div>
         ) : cloudProjects === null ? (

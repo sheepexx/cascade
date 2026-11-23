@@ -88,6 +88,24 @@ export function AdminBadge({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/** Someone whose contributions the Cascade team accepted (migration 0048). */
+export function ContributorBadge({ compact = false }: { compact?: boolean }) {
+  const t = useT();
+  return (
+    <span
+      title={t("social.contributorHint")}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-sm bg-white/[0.08] font-semibold text-slate-200 ${
+        compact ? "px-1 py-px text-[10px]" : "px-1.5 py-0.5 text-[11px]"
+      }`}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} fill="currentColor">
+        <path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7L12 3Z" />
+      </svg>
+      {t("social.contributor")}
+    </span>
+  );
+}
+
 export function Flag({ code, name, className = "h-3.5" }: { code: string | null; name?: string; className?: string }) {
   const [failed, setFailed] = useState(false);
   const url = countryFlagUrl(code);

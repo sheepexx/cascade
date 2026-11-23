@@ -105,7 +105,7 @@ function PeopleGrid({
         >
           <button
             type="button"
-            onClick={() => onNavigate({ view: "profile", name: user.username, tab: "overview" })}
+            onClick={() => onNavigate({ view: "profile", name: user.handle ?? user.username, tab: "overview" })}
             className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           >
             <Avatar url={user.avatar_url} name={user.username} presence={user.presence} />

@@ -112,7 +112,7 @@ export function PeopleSearch({
               <UserRow
                 key={user.id}
                 user={user}
-                onOpen={() => onNavigate({ view: "profile", name: user.username, tab: "overview" })}
+                onOpen={() => onNavigate({ view: "profile", name: user.handle ?? user.username, tab: "overview" })}
                 detail={<SearchDetail user={user} ranked={rankedCountOf(user, ranked)} />}
               >
                 <FriendButton user={user} onChange={(rel) => update(user.id, rel)} />

@@ -101,7 +101,12 @@ export function AccountControl({
       setCover(null);
       return;
     }
+    // Covers come from osu!; an account without osu! keeps the plain header.
     const osuId = user.osu_id;
+    if (osuId === null) {
+      setCover(null);
+      return;
+    }
     const cached = readCachedCover(osuId);
     if (cached) {
       setCover(cached);
@@ -163,7 +168,7 @@ export function AccountControl({
   if (!user) {
     return (
       <Button variant="accent" onClick={login} className="h-7 whitespace-nowrap px-2.5">
-        {t("startModal.loginWithOsu")}
+        {t("auth.logIn")}
       </Button>
     );
   }

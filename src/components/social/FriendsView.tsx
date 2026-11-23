@@ -249,7 +249,7 @@ function PersonRow({
     setRelationship(next);
     if (next !== relationship) onChanged();
   });
-  const open = () => onNavigate({ view: "profile", name: user.username, tab: "overview" });
+  const open = () => onNavigate({ view: "profile", name: user.handle ?? user.username, tab: "overview" });
   const message = async () => {
     try {
       const id = await openConversation(user.id);

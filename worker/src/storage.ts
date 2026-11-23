@@ -5,6 +5,9 @@ export type WorkerEnv = Env & {
   SUPABASE_SERVICE_ROLE_KEY: string;
   SUPABASE_JWT_SECRET: string;
   COOKIE_SECRET: string;
+  /** Discord sign-in and the bot. Optional: without them Discord stays off. */
+  DISCORD_CLIENT_SECRET?: string;
+  DISCORD_BOT_TOKEN?: string;
 };
 
 export type StorageAuthContext = {

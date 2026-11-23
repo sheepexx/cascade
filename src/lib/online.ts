@@ -1,6 +1,6 @@
 export type OnlineRosterUser = {
   id: string;
-  osu_id: number;
+  osu_id: number | null;
   username: string;
   avatar_url: string | null;
   status: string | null;

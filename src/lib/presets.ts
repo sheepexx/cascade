@@ -51,7 +51,7 @@ export async function listPresets(opts?: {
 export async function publishPreset(input: {
   authorId: string;
   authorUsername: string;
-  authorOsuId: number;
+  authorOsuId: number | null;
   name: string;
   keyCount: number;
   description: string;
@@ -64,7 +64,7 @@ export async function publishPreset(input: {
 export async function savePrivatePreset(input: {
   authorId: string;
   authorUsername: string;
-  authorOsuId: number;
+  authorOsuId: number | null;
   name: string;
   keyCount: number;
   description: string;
@@ -77,7 +77,7 @@ export async function savePrivatePreset(input: {
 async function insertPreset(input: {
   authorId: string;
   authorUsername: string;
-  authorOsuId: number;
+  authorOsuId: number | null;
   name: string;
   keyCount: number;
   description: string;

@@ -31,7 +31,7 @@ export async function addComment(input: {
   projectId: string;
   authorId: string;
   authorUsername: string;
-  authorOsuId: number;
+  authorOsuId: number | null;
   timeMs: number;
   body: string;
   difficultyId: string | null;

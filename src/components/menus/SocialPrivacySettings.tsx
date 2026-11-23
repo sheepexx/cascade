@@ -74,7 +74,7 @@ export function SocialPrivacySettings({ onOpenProfile }: { onOpenProfile?: () =>
     return (
       <div className="flex flex-col items-start gap-3">
         <p className="text-sm text-slate-300">{t("privacy.signedOut")}</p>
-        <Button variant="accent" onClick={login}>{t("startModal.loginWithOsu")}</Button>
+        <Button variant="accent" onClick={login}>{t("auth.logIn")}</Button>
       </div>
     );
   }

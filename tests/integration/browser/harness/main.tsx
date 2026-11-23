@@ -466,6 +466,7 @@ function SocialHarness() {
         onClose={() => {}}
         onCountsChanged={refreshCounts}
         onOpenPrivacy={() => {}}
+        onOpenAccount={() => {}}
         onOpenCloudProject={() => {}}
         onOpenBeatmapset={setImported}
       />

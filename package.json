@@ -1,7 +1,7 @@
 {
   "name": "cascade",
   "private": true,
-  "version": "1.2.481",
+  "version": "1.2.482",
   "type": "module",
   "engines": {
     "node": "^22.13.0 || >=24"
@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "node scripts/build-landing-pages.mjs && node scripts/build-download-page.mjs && tsc && vite build && node scripts/build-home-pages.mjs && node scripts/build-sitemap.mjs",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/integration",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/integration && tsc --noEmit -p tests/integration/worker",
     "lint": "eslint .",
     "build:corpus": "node scripts/build-pattern-corpus.mjs",
     "test": "vitest run",

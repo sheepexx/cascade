@@ -47,3 +47,45 @@ export function takeProjectAfterLogin(
     return null;
   }
 }
+
+const CONNECT_KEY = "cascade:connect-after-login";
+
+/**
+ * The Discord bot's /link opens Cascade at ?connect=discord. The request is
+ * kept for this tab through a login, so Connected accounts opens once the
+ * person is signed in; it never connects anything by itself.
+ */
+export function takeConnectRequest(
+  now = Date.now(),
+  store: SessionLike | null = session(),
+  location: Pick<Location, "href"> | null = typeof window === "undefined" ? null : window.location,
+  replace: (path: string) => void = (path) => window.history.replaceState({}, "", path),
+): boolean {
+  try {
+    if (location) {
+      const url = new URL(location.href);
+      if (url.searchParams.has("connect")) {
+        url.searchParams.delete("connect");
+        replace(url.pathname + url.search + url.hash);
+        store?.setItem(CONNECT_KEY, String(now));
+      }
+    }
+    const at = Number(store?.getItem(CONNECT_KEY));
+    if (!Number.isFinite(at) || at <= 0) return false;
+    if (now - at > LOGIN_RESUME_MS || now < at) {
+      store?.removeItem(CONNECT_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearConnectRequest(store: SessionLike | null = session()): void {
+  try {
+    store?.removeItem(CONNECT_KEY);
+  } catch {
+    // Nothing kept, nothing to clear.
+  }
+}

@@ -18,7 +18,7 @@ const COLUMNS =
 export async function submitFeedback(input: {
   userId: string;
   username: string;
-  osuId: number;
+  osuId: number | null;
   body: string;
 }): Promise<void> {
   const supabase = await getSupabase();

@@ -126,7 +126,7 @@ export function MapCardHosting({
             {t("mapCard.hostSignedOut")}
           </p>
           <Button variant="primary" onClick={onLogin} className="shrink-0">
-            {t("mapCard.signInOsu")}
+            {t("auth.logIn")}
           </Button>
         </div>
       ) : status === "checking" ? (

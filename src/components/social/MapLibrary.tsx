@@ -95,7 +95,8 @@ export function MapLibrary({
   onOpenCloudProject,
   onOpenBeatmapset,
 }: {
-  osuId: number;
+  /** Null for an account without osu!: only its Cascade projects show. */
+  osuId: number | null;
   counts: OsuProfile["counts"] | null;
   countsLoading: boolean;
   isSelf: boolean;
@@ -125,6 +126,7 @@ export function MapLibrary({
 
   const loadSource = useCallback(
     (type: BeatmapsetType, retry = false) => {
+      if (osuId === null) return;
       const current = retry ? undefined : sourcesRef.current[type];
       if (current?.loading || (current && !current.hasMore)) return;
       const offset = current?.offset ?? 0;
@@ -265,7 +267,7 @@ export function MapLibrary({
                 <li key={set.id}>
                   <BeatmapsetCard
                     set={set}
-                    owner={osuId}
+                    owner={osuId ?? 0}
                     cascadeSeconds={mapTimes.get(set.id) ?? null}
                     onOpenInCascade={onOpenBeatmapset}
                   />

@@ -57,7 +57,7 @@ export function CommentsSidebar({
   open: boolean;
   onClose: () => void;
   projectId: string;
-  me: { id: string; username: string; osu_id: number };
+  me: { id: string; username: string; osu_id: number | null };
   currentTimeMs: number;
   activeDiffId: string;
   difficulties: { id: string; name: string }[];

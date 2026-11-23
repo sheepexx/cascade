@@ -8,11 +8,23 @@ describe("parseSocialPath", () => {
     expect(parseSocialPath("/user/[abc]_x/activity/")).toEqual({ view: "profile", name: "[abc]_x", tab: "activity" });
   });
 
-  it("refuses names osu! can't have, unknown sections and broken escapes", () => {
+  it("reads names Cascade chose from Discord names, and account ids", () => {
+    expect(parseSocialPath("/user/nelly%232")).toEqual({ view: "profile", name: "nelly#2", tab: "overview" });
+    expect(parseSocialPath("/user/%E3%83%8D%E3%83%AA%E3%83%BC")).toEqual({ view: "profile", name: "ネリー", tab: "overview" });
+    expect(parseSocialPath("/user/6994f386-9685-416b-91c1-a9e47880d799/maps")).toEqual({
+      view: "profile",
+      name: "6994f386-9685-416b-91c1-a9e47880d799",
+      tab: "maps",
+    });
+  });
+
+  it("refuses names no account can have, unknown sections and broken escapes", () => {
     expect(parseSocialPath("/user/<script>")).toBeNull();
+    expect(parseSocialPath("/user/a%2Fb")).toBeNull();
+    expect(parseSocialPath("/user/a%0Ab")).toBeNull();
     expect(parseSocialPath("/user/peppy/settings")).toBeNull();
     expect(parseSocialPath("/user/%E0%A4%A")).toBeNull();
-    expect(parseSocialPath("/user/" + "a".repeat(40))).toBeNull();
+    expect(parseSocialPath("/user/" + "a".repeat(65))).toBeNull();
     expect(parseSocialPath("/user")).toBeNull();
   });
 
