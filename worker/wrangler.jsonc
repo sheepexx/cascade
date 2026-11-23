@@ -21,12 +21,12 @@
     // public identifiers, not secrets; leaving the application id empty keeps
     // Discord switched off. DISCORD_CLIENT_SECRET and DISCORD_BOT_TOKEN are
     // encrypted secrets set in the Cloudflare dashboard, never here.
-    "DISCORD_APPLICATION_ID": "",
-    "DISCORD_PUBLIC_KEY": "",
+    "DISCORD_APPLICATION_ID": "1546880430970638359",
+    "DISCORD_PUBLIC_KEY": "5c6cbf3d91ac0bbabf2e2fb40b5eea772cc608aefcf902c80bbafbb245790fa0",
     "DISCORD_REDIRECT_URI": "https://mania-editor.noahcraft01.workers.dev/auth/discord/callback",
-    "DISCORD_GUILD_ID": "",
-    "DISCORD_CONTRIBUTOR_ROLE_ID": "",
-    "DISCORD_REVIEW_CHANNEL_ID": "",
+    "DISCORD_GUILD_ID": "1303823227151192107",
+    "DISCORD_CONTRIBUTOR_ROLE_ID": "1574375825661231255",
+    "DISCORD_REVIEW_CHANNEL_ID": "1574378193899626518",
     "DISCORD_MAINTAINER_IDS": ""
   },
   // Per-address limits on signing in and changing sign-in methods. Approximate

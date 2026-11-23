@@ -6,6 +6,7 @@ import {
   type StorageAuthContext,
   type WorkerEnv,
 } from "./storage";
+import { DISCORD_OFF } from "./testEnv";
 
 const owner = "6994f386-9685-416b-91c1-a9e47880d799";
 const stranger = "15dfbb4a-41d7-4a90-8213-3cb62649ae91";
@@ -76,14 +77,7 @@ function makeEnv(bucket: Partial<Bucket> = {}): WorkerEnv & { bucket: Bucket } {
     SUPABASE_STORAGE_ALLOWANCE_BYTES: "1073741824",
     R2_STORAGE_ALLOWANCE_BYTES: "10737418240",
     MAX_ASSET_BYTES: "62914560",
-    AUTH_LIMITER: { limit: async () => ({ success: true }) },
-    DISCORD_APPLICATION_ID: "",
-    DISCORD_PUBLIC_KEY: "",
-    DISCORD_REDIRECT_URI: "https://mania-editor.noahcraft01.workers.dev/auth/discord/callback",
-    DISCORD_GUILD_ID: "",
-    DISCORD_CONTRIBUTOR_ROLE_ID: "",
-    DISCORD_REVIEW_CHANNEL_ID: "",
-    DISCORD_MAINTAINER_IDS: "",
+    ...DISCORD_OFF,
     CLIENT_SECRET: "client-secret",
     SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
     SUPABASE_JWT_SECRET: "jwt-secret",
