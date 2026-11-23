@@ -70,6 +70,26 @@ export function OnScreenDisplay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notice]);
 
+  // The shortcut that raised the panel can move the playfield, as zen mode
+  // does when the panels around it slide away, so the panel follows it for
+  // as long as it is up instead of staying where the playfield was.
+  const following = shown !== null && anchor !== undefined;
+  useEffect(() => {
+    if (!following || !anchor) return;
+    let frame = 0;
+    const follow = () => {
+      const next = anchor();
+      setPosition((prev) =>
+        prev && next && Math.abs(prev.x - next.x) < 0.5 && Math.abs(prev.y - next.y) < 0.5
+          ? prev
+          : next,
+      );
+      frame = requestAnimationFrame(follow);
+    };
+    frame = requestAnimationFrame(follow);
+    return () => cancelAnimationFrame(frame);
+  }, [following, anchor]);
+
   useEffect(() => {
     if (phase !== "out") return;
     const timer = window.setTimeout(() => {
