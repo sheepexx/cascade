@@ -61,6 +61,7 @@ const OSU_USER = {
   mapping_follower_count: 99,
   statistics: {
     global_rank: 1234,
+    global_rank_percent: 0.0123,
     country_rank: 56,
     pp: 4321.5,
     hit_accuracy: 97.12,
@@ -197,6 +198,57 @@ describe("handleSocialRoute", () => {
     expect(body.profile.username).toBe("peppy");
     expect(calls).toContain("POST https://db.example/rest/v1/osu_profile_cache?on_conflict=user_id");
     expect(calls).toContain("PATCH https://db.example/rest/v1/users?id=eq.u1");
+  });
+
+  it("measures the country rank against the country's ranked players", async () => {
+    const pages: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.startsWith("https://db.example/rest/v1/users?osu_id")) {
+          return json([{ id: "u1", username: "peppy" }]);
+        }
+        if (href === "https://osu.ppy.sh/api/v2/users/2/mania") return json(OSU_USER);
+        if (href.startsWith("https://osu.ppy.sh/api/v2/rankings/mania/country")) {
+          pages.push(href);
+          return href.endsWith("page=1")
+            ? json({ ranking: [{ code: "JP", active_users: 9000 }, { code: "AU", active_users: 5600 }], cursor: { page: 2 } })
+            : json({ ranking: [{ code: "NZ", active_users: 700 }], cursor: null });
+        }
+        return json(null, 201);
+      }),
+    );
+    const url = new URL("https://w/osu/users/2?mode=mania");
+    const res = await handleSocialRoute(new Request(url), url, env, deps());
+    const body = (await res!.json()) as { profile: { statistics: Record<string, number | null> } };
+    expect(body.profile.statistics.global_rank_percent).toBe(0.0123);
+    expect(body.profile.statistics.country_rank_percent).toBe(0.01);
+    expect(pages).toEqual([
+      "https://osu.ppy.sh/api/v2/rankings/mania/country?page=1",
+      "https://osu.ppy.sh/api/v2/rankings/mania/country?page=2",
+    ]);
+  });
+
+  it("still serves the profile when the country rankings fail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.startsWith("https://db.example/rest/v1/users?osu_id")) {
+          return json([{ id: "u1", username: "peppy" }]);
+        }
+        if (href === "https://osu.ppy.sh/api/v2/users/2/mania") return json(OSU_USER);
+        if (href.includes("/rankings/")) return json({}, 503);
+        return json(null, 201);
+      }),
+    );
+    const url = new URL("https://w/osu/users/2?mode=mania");
+    const res = await handleSocialRoute(new Request(url), url, env, deps());
+    expect(res?.status).toBe(200);
+    const body = (await res!.json()) as { profile: { statistics: Record<string, number | null> } };
+    expect(body.profile.statistics.country_rank).toBe(56);
+    expect(body.profile.statistics.country_rank_percent).toBeNull();
   });
 
   it("pages beatmapsets with a capped limit", async () => {

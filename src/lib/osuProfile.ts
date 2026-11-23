@@ -23,7 +23,14 @@ export type OsuBadge = {
 
 export type OsuStatistics = {
   global_rank: number | null;
+  /**
+   * The rank over the mode's ranked players (0.01 is the top 1%). Optional
+   * because answers cached before the Worker sent it lack it.
+   */
+  global_rank_percent?: number | null;
   country_rank: number | null;
+  /** The country rank over the country's ranked players, on the same scale. */
+  country_rank_percent?: number | null;
   pp: number | null;
   accuracy: number | null;
   play_count: number | null;

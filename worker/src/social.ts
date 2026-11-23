@@ -27,6 +27,9 @@ export type BeatmapsetType = (typeof BEATMAPSET_TYPES)[number];
 
 const CACHE_SECONDS = 600;
 const MAX_PAGE = 50;
+// Country player counts move slowly, and a full read is several requests.
+const COUNTRY_CACHE_SECONDS = 86_400;
+const MAX_COUNTRY_PAGES = 10;
 
 export type OsuBadge = {
   awarded_at: string | null;
@@ -38,7 +41,11 @@ export type OsuBadge = {
 
 export type OsuStatistics = {
   global_rank: number | null;
+  /** The rank over the mode's ranked players, as osu! sends it (0.01 is the top 1%). */
+  global_rank_percent: number | null;
   country_rank: number | null;
+  /** The country rank over the country's ranked players, on the same scale. */
+  country_rank_percent: number | null;
   pp: number | null;
   accuracy: number | null;
   play_count: number | null;
@@ -203,7 +210,10 @@ export function normalizeOsuUser(raw: unknown, mode: OsuMode): OsuProfile | null
     statistics: stats
       ? {
           global_rank: num(stats.global_rank),
+          global_rank_percent: num(stats.global_rank_percent),
           country_rank: num(stats.country_rank),
+          // Filled in from the country rankings, which the user doesn't carry.
+          country_rank_percent: null,
           pp: num(stats.pp),
           accuracy: num(stats.hit_accuracy) ?? num(stats.accuracy),
           play_count: num(stats.play_count),
@@ -351,6 +361,63 @@ async function osuGet(path: string, deps: SocialDeps): Promise<Response | null> 
   }
 }
 
+/**
+ * Ranked players per country in one mode, from osu!'s country rankings
+ * (`active_users`). osu! counts a mode's ranked players as the sum of these,
+ * so a country rank over its country's count is the same measure as
+ * global_rank_percent. Null when osu! didn't answer.
+ */
+async function countryPlayerCounts(mode: OsuMode, deps: SocialDeps): Promise<Record<string, number> | null> {
+  const cache = edgeCache();
+  const request = new Request(`https://cascade-social.cache/countries/${mode}`);
+  if (cache) {
+    const hit = await cache.match(request);
+    if (hit) return (await hit.json()) as Record<string, number>;
+  }
+  const counts: Record<string, number> = {};
+  for (let page = 1; page <= MAX_COUNTRY_PAGES; page++) {
+    const res = await osuGet(`/rankings/${mode}/country?page=${page}`, deps);
+    if (!res?.ok) return null;
+    const body = obj(await res.json().catch(() => null));
+    const rows = Array.isArray(body?.ranking) ? body.ranking : [];
+    for (const row of rows) {
+      const entry = obj(row);
+      const code = str(entry?.code);
+      const players = num(entry?.active_users);
+      if (code && players !== null && players > 0) counts[code.toUpperCase()] = players;
+    }
+    if (rows.length === 0 || !obj(body?.cursor)) break;
+  }
+  if (cache && Object.keys(counts).length > 0) {
+    const put = cache.put(
+      request,
+      new Response(JSON.stringify(counts), {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": `public, max-age=${COUNTRY_CACHE_SECONDS}`,
+        },
+      }),
+    );
+    if (deps.ctx) deps.ctx.waitUntil(put);
+    else await put;
+  }
+  return counts;
+}
+
+/** Adds country_rank_percent; a profile without it still shows everything else. */
+async function withCountryPercent(profile: OsuProfile, deps: SocialDeps): Promise<OsuProfile> {
+  const stats = profile.statistics;
+  const code = profile.country?.code;
+  if (!stats || stats.country_rank === null || !code) return profile;
+  const counts = await countryPlayerCounts(profile.mode, deps).catch(() => null);
+  const players = counts?.[code];
+  if (!players) return profile;
+  return {
+    ...profile,
+    statistics: { ...stats, country_rank_percent: Math.min(1, stats.country_rank / players) },
+  };
+}
+
 /** Writes the numbers lists show (country, map counts) for one account. */
 export async function storeProfileSummary(env: WorkerEnv, userId: string, profile: OsuProfile): Promise<void> {
   const headers = {
@@ -421,8 +488,9 @@ export async function handleSocialRoute(
         if (!res) return null;
         if (res.status === 404) return { body: { error: "osu! account not found" }, status: 404 };
         if (!res.ok) return null;
-        const profile = normalizeOsuUser(await res.json(), mode);
-        if (!profile) return null;
+        const normalized = normalizeOsuUser(await res.json(), mode);
+        if (!normalized) return null;
+        const profile = await withCountryPercent(normalized, deps);
         const store = storeProfileSummary(env, user.id, profile);
         if (deps.ctx) deps.ctx.waitUntil(store);
         else await store;

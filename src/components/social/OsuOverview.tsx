@@ -2,6 +2,12 @@ import { useLocale, useT } from "../../lib/i18n";
 import { formatDuration, localDay } from "../../lib/mappingTracker";
 import { periodTotals, type MappingStats } from "../../lib/mappingStats";
 import type { OsuMode, OsuProfile } from "../../lib/osuProfile";
+import {
+  RANK_TIER_GRADIENT,
+  countryRankTier,
+  globalRankTier,
+  type RankTier,
+} from "../../lib/osuRankTier";
 import type { Profile } from "../../lib/social";
 import { SegmentedControl } from "../ui/Controls";
 import { Skeleton } from "../ui/Skeleton";
@@ -137,16 +143,49 @@ function PlayerStats({ osu, loading, mode }: { osu: OsuProfile | null; loading: 
   if (!s || (s.global_rank === null && (s.play_count ?? 0) === 0)) {
     return <p className="py-3 text-sm text-slate-500">{t("social.noPlaysInMode")}</p>;
   }
+  // The country rank is coloured inside the sentence, so the sentence is
+  // split where the number goes.
+  const countryHint = s.country_rank ? t("social.countryRankHint", { rank: RANK_MARK }) : "";
+  const markAt = countryHint.indexOf(RANK_MARK);
   return (
     <div className="grid gap-y-4">
       <StatTile
         label={t("social.globalRank")}
-        value={s.global_rank ? `#${fmt(s.global_rank)}` : "–"}
-        hint={s.country_rank ? t("social.countryRankHint", { rank: fmt(s.country_rank) }) : undefined}
+        value={s.global_rank ? <RankValue rank={`#${fmt(s.global_rank)}`} tier={globalRankTier(s)} /> : "–"}
+        hint={
+          s.country_rank && markAt >= 0 ? (
+            <>
+              {countryHint.slice(0, markAt)}
+              <RankValue rank={`#${fmt(s.country_rank)}`} tier={countryRankTier(s)} className="font-semibold" />
+              {countryHint.slice(markAt + RANK_MARK.length)}
+            </>
+          ) : undefined
+        }
       />
       <StatTile label={t("social.pp")} value={s.pp !== null ? `${fmt(s.pp)}pp` : "–"} />
       <StatTile label={t("social.playTime")} value={s.play_time != null ? formatDuration(s.play_time) : "–"} />
     </div>
+  );
+}
+
+const RANK_MARK = "⁣rank⁣";
+
+/** A rank in its tier's gradient, as osu!'s website shows it; plain text without a tier. */
+function RankValue({ rank, tier, className = "" }: { rank: string; tier: RankTier | null; className?: string }) {
+  if (!tier) return <>{rank}</>;
+  const [top, bottom] = RANK_TIER_GRADIENT[tier];
+  return (
+    <span
+      className={className}
+      style={{
+        backgroundImage: `linear-gradient(${top}, ${bottom})`,
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        color: "transparent",
+      }}
+    >
+      {rank}
+    </span>
   );
 }
 

@@ -2702,7 +2702,7 @@ export const en = {
   "social.actionFailed": "That didn’t work. Try again.",
 
   "social.osuPlayer": "osu! player",
-  "social.countryRankHint": "#{rank} in their country",
+  "social.countryRankHint": "{rank} in their country",
   "social.seeMaps": "See maps",
   "social.noPlaysInMode": "No ranked plays in this mode yet.",
   "social.globalRank": "Global rank",
