@@ -110,6 +110,8 @@ export type Contribution = {
   source: "discord" | "admin";
   review_channel_id: string | null;
   review_message_id: string | null;
+  /** The forum post it became (migration 0049; missing before it). */
+  forum_thread_id?: string | null;
   reviewed_by_discord: string | null;
   review_note: string | null;
   created_at: string;
@@ -157,6 +159,8 @@ export const data = {
       p_channel_id: channelId,
       p_message_id: messageId,
     }),
+  setForumThread: (env: WorkerEnv, id: string, threadId: string) =>
+    serviceRpc<null>(env, "set_contribution_forum_thread", { p_id: id, p_thread_id: threadId }),
   review: (env: WorkerEnv, number: number, accept: boolean, reviewer: string, points: number | null, note: string | null) =>
     serviceRpc<ReviewResult>(env, "review_contribution", {
       p_number: number,

@@ -33,7 +33,7 @@ issue or a screenshot. If one leaks, see [Rotating a leaked token](#18-rotating-
 | Interactions endpoint | `https://mania-editor.noahcraft01.workers.dev/discord/interactions` |
 | Website | `https://cascade.sheepex.net` |
 | Supabase SQL editor | `https://supabase.com/dashboard/project/splqsxhwdusjeqthinxz/sql/new` |
-| Bot permissions integer | `268454912` (View Channels, Send Messages, Embed Links, Manage Roles) |
+| Bot permissions integer | `275146361856` (View Channels, Send Messages, Send Messages in Threads, Embed Links, Manage Roles) |
 
 ## 1. Create the Discord application
 
@@ -98,9 +98,16 @@ The bot needs, in your server:
 
 | Permission | Why |
 | --- | --- |
-| View Channels | See the review channel |
-| Send Messages, Embed Links | Post new reports to the review channel |
+| View Channels | See the forum and the review channel |
+| Send Messages (in a forum: Create Posts), Embed Links | Post reports in the forum and the review channel |
+| Send Messages in Threads | Answer in a forum post once a report is reviewed |
 | Manage Roles | Give and take the Contributor role |
+
+If you invited the bot before forum posts existed, give its role **Send
+Messages in Threads**: Server Settings, Roles, Cascade. If the forum limits
+who can post, also add the Cascade role in the forum's Edit Channel,
+Permissions, and allow View Channel, Create Posts and Send Messages in
+Threads.
 
 It needs **no** privileged intents and no Administrator permission. Slash
 commands don't need Read Message History or Message Content.
@@ -111,7 +118,7 @@ Open this address in your browser, with your application ID in place of
 `APP_ID`:
 
 ```
-https://discord.com/oauth2/authorize?client_id=APP_ID&scope=bot+applications.commands&permissions=268454912
+https://discord.com/oauth2/authorize?client_id=APP_ID&scope=bot+applications.commands&permissions=275146361856
 ```
 
 Choose the Cascade server and authorize. The bot appears offline in the
@@ -128,6 +135,13 @@ gateway connection.
 3. Optional: make a private channel such as `#contribution-review` that only
    maintainers and the bot can see, and copy its ID. New `/bug` and
    `/suggest` reports are posted there with Accept and Reject buttons.
+4. Optional but recommended: right-click your forum (for example
+   `#cascade-forum`), **Copy Channel ID**. Each `/bug` and `/suggest`
+   becomes a post there, the way people already post by hand: the title they
+   typed, "Posted by @them" (which pings them, and only them), then what they
+   wrote. It gets the forum's tag whose name contains "Bug", or "Idea",
+   "Request", "Suggest" or "Feature". When a maintainer accepts or rejects it,
+   the bot answers in the post.
 
 Who counts as a maintainer for `/cascade-admin` and the review buttons:
 members with the **Administrator** permission in the Cascade server, Discord
@@ -160,6 +174,8 @@ commands; it replaces the whole list and is safe to repeat.
    all of it, paste it into the editor, and click **Run**. It should end with
    "Success. No rows returned".
 3. Do the same with `supabase/migrations/0048_discord_community.sql`.
+   Later releases add more files in the same folder (`0049_contribution_forum_posts.sql`
+   for forum posts); run each new one the same way, in number order.
 4. Check that every osu! account got its identity; both numbers must match:
 
 ```sql
@@ -183,6 +199,7 @@ In `worker/wrangler.jsonc`, under `"vars"`, fill in:
 "DISCORD_GUILD_ID": "your server ID",
 "DISCORD_CONTRIBUTOR_ROLE_ID": "the Contributor role ID",
 "DISCORD_REVIEW_CHANNEL_ID": "the review channel ID (or leave empty)",
+"DISCORD_FORUM_CHANNEL_ID": "the forum channel ID (or leave empty)",
 "DISCORD_MAINTAINER_IDS": "Discord user IDs, comma separated (or leave empty)"
 ```
 
@@ -218,6 +235,7 @@ existing secrets (`CLIENT_SECRET`, `COOKIE_SECRET`, `SUPABASE_JWT_SECRET`,
 | `DISCORD_GUILD_ID` | public | wrangler.jsonc | roles, maintainer checks, instant commands |
 | `DISCORD_CONTRIBUTOR_ROLE_ID` | public | wrangler.jsonc | the Contributor role |
 | `DISCORD_REVIEW_CHANNEL_ID` | public | wrangler.jsonc | posting reports for review (optional) |
+| `DISCORD_FORUM_CHANNEL_ID` | public | wrangler.jsonc | turning reports into forum posts (optional) |
 | `DISCORD_MAINTAINER_IDS` | public | wrangler.jsonc | extra maintainers (optional) |
 | `AUTH_LIMITER` | binding | wrangler.jsonc (already set) | rate limits |
 
@@ -310,6 +328,8 @@ Use a private window so your normal session is untouched.
 | Slash commands don't show | Not registered, or registered globally (up to an hour) | Admin panel, Register slash commands; set `DISCORD_GUILD_ID` |
 | "This interaction failed" | The Worker errored | Cloudflare dashboard, mania-editor, **Logs**, look for `discord.error` |
 | Contributor role not given | Bot's role below Contributor, or no Manage Roles | Step 8: drag the bot's role above |
+| Reports don't appear in the forum | Wrong forum ID, the bot can't post there, or the forum requires a tag the bot can't match | Check step 6; Cloudflare logs show `discord.forum_post_failed` with Discord's status (403: permissions, 400: tags) |
+| The bot doesn't answer in the forum post after a review | Migration 0049 not applied, or no Send Messages in Threads | Run `0049_contribution_forum_posts.sql`; step 6 |
 | `/cascade-admin` says only maintainers | You aren't Administrator in that server or listed | Step 8 |
 | CI fails on "types are out of date" | `wrangler.jsonc` changed without regenerating | `npm run types --prefix worker` and commit |
 

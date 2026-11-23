@@ -83,7 +83,10 @@ export type InteractionResponse = { type: number; data?: Record<string, unknown>
 
 export type BotDeps = {
   data: BotData;
-  rest: Pick<typeof discordRest, "setContributorRole" | "postMessage" | "editMessage" | "editOriginal" | "putCommands">;
+  rest: Pick<
+    typeof discordRest,
+    "setContributorRole" | "postMessage" | "editMessage" | "editOriginal" | "putCommands" | "forumTags" | "createForumPost"
+  >;
 };
 
 const DEFAULT_DEPS: BotDeps = { data: botData, rest: discordRest };
@@ -560,14 +563,15 @@ async function changelogCommand(env: WorkerEnv, deps: BotDeps): Promise<Reply> {
   };
 }
 
-function helpReply(): Reply {
+function helpReply(forum: boolean): Reply {
+  const posted = forum ? ", posted in the forum for you" : "";
   const lines = [
     "`/profile` your Cascade profile, a member's (if they allow it), or anyone's by Cascade name",
     "`/stats` mapping time, notes placed, maps edited, exports and playtests",
     "`/link` connect your Discord account to your Cascade account",
     "`/leaderboard` rankings of people who chose to appear on them",
-    "`/bug` report a bug",
-    "`/suggest` suggest a feature",
+    `\`/bug\` report a bug${posted}`,
+    `\`/suggest\` suggest a feature${posted}`,
     "`/contributions` accepted contributions and contributor points",
     "`/roadmap` what is planned",
     "`/changelog` recent releases",
@@ -640,8 +644,53 @@ function fieldValue(components: unknown, id: string): string {
 
 const KIND_LABELS = { bug: "Bug", suggestion: "Suggestion", other: "Contribution" } as const;
 
+function channelUrl(guildId: string, channelId: string): string {
+  return `https://discord.com/channels/${guildId}/${channelId}`;
+}
+
+/**
+ * The forum post a report becomes, written like the posts people make by
+ * hand: their title, "Posted by @them" (which pings them, and only them), and
+ * what they wrote.
+ */
+export function forumPost(
+  kind: "bug" | "suggestion",
+  number: number,
+  title: string,
+  body: string,
+  authorId: string,
+): { title: string; message: Reply } {
+  const head = `Posted by <@${authorId}>`;
+  const foot = `-# #${number}, sent with ${kind === "bug" ? "/bug" : "/suggest"}`;
+  const text = body ? clip(body, 2000 - head.length - foot.length - 4) : "";
+  return {
+    title: clip(title, 100),
+    message: { content: [head, text, foot].filter(Boolean).join("\n\n"), mentions: [authorId] },
+  };
+}
+
+/** The forum's own tag for the kind of report, found by its name. */
+export function forumTagFor(kind: "bug" | "suggestion", tags: discordRest.ForumTag[]): string[] {
+  const pattern = kind === "bug" ? /bug/i : /idea|request|suggest|feature/i;
+  const tag = tags.find((t) => pattern.test(t.name));
+  return tag ? [tag.id] : [];
+}
+
+/** What the bot answers in the forum post once a maintainer has decided. */
+export function reviewOutcome(c: Contribution): Reply {
+  const by = c.reviewed_by_discord ? `<@${c.reviewed_by_discord}>` : "the Cascade team";
+  const note = c.review_note ? `\n> ${c.review_note}` : "";
+  if (c.status === "accepted" && c.discord_user_id) {
+    return {
+      content: `Accepted by ${by}: <@${c.discord_user_id}> earned ${c.points} contributor points.${note}`,
+      mentions: [c.discord_user_id],
+    };
+  }
+  return { content: `${c.status === "accepted" ? "Accepted" : "Closed"} by ${by}.${note}` };
+}
+
 /** The message reviewers see in the review channel. */
-export function reviewMessage(c: Contribution, withButtons: boolean): Reply {
+export function reviewMessage(c: Contribution, withButtons: boolean, guildId = ""): Reply {
   const status =
     c.status === "accepted"
       ? `Accepted, +${c.points} points${c.reviewed_by_discord ? ` by <@${c.reviewed_by_discord}>` : ""}`
@@ -669,6 +718,9 @@ export function reviewMessage(c: Contribution, withButtons: boolean): Reply {
           { name: "From", value: c.discord_user_id ? `<@${c.discord_user_id}>` : "Cascade", inline: true },
           { name: "Cascade account", value: c.linked ? "Linked" : "Not linked", inline: true },
           { name: "Status", value: status },
+          ...(c.forum_thread_id && guildId
+            ? [{ name: "Forum post", value: channelUrl(guildId, c.forum_thread_id) }]
+            : []),
           ...(c.review_note ? [{ name: "Note", value: plain(c.review_note) }] : []),
         ],
         timestamp: c.created_at,
@@ -703,46 +755,73 @@ async function submitContribution(
     return notice("The title needs 3 to 120 characters and the details at most 2000.", COLORS.warn);
   }
 
+  const id = result.id;
+  const contribution: Contribution = {
+    id,
+    number: result.number,
+    kind,
+    title,
+    body,
+    status: "pending",
+    points: 0,
+    discord_user_id: user.id,
+    discord_username: displayName(user),
+    linked: result.linked === true,
+    source: "discord",
+    review_channel_id: null,
+    review_message_id: null,
+    forum_thread_id: null,
+    reviewed_by_discord: null,
+    review_note: null,
+    created_at: new Date().toISOString(),
+    reviewed_at: null,
+  };
+  const guild = setting(env.DISCORD_GUILD_ID) || interaction.guild_id || "";
+
+  // The report goes up in the forum straight away, as a post by the person.
+  let postUrl: string | null = null;
+  const forum = setting(env.DISCORD_FORUM_CHANNEL_ID);
+  if (forum && env.DISCORD_BOT_TOKEN) {
+    const tags = await deps.rest.forumTags(env, forum);
+    const post = forumPost(kind, result.number, title, body, user.id);
+    const created = await deps.rest.createForumPost(env, forum, { ...post, tagIds: forumTagFor(kind, tags) });
+    if (created.threadId) {
+      contribution.forum_thread_id = created.threadId;
+      if (guild) postUrl = channelUrl(guild, created.threadId);
+      void later(ctx, deps.data.setForumThread(env, id, created.threadId));
+    } else {
+      log("forum_post_failed", { number: result.number, status: created.status });
+    }
+  }
+
   const channel = setting(env.DISCORD_REVIEW_CHANNEL_ID);
   if (channel && env.DISCORD_BOT_TOKEN) {
-    const contribution: Contribution = {
-      id: result.id,
-      number: result.number,
-      kind,
-      title,
-      body,
-      status: "pending",
-      points: 0,
-      discord_user_id: user.id,
-      discord_username: displayName(user),
-      linked: result.linked === true,
-      source: "discord",
-      review_channel_id: channel,
-      review_message_id: null,
-      reviewed_by_discord: null,
-      review_note: null,
-      created_at: new Date().toISOString(),
-      reviewed_at: null,
-    };
+    contribution.review_channel_id = channel;
     void later(
       ctx,
-      deps.rest.postMessage(env, channel, reviewMessage(contribution, true)).then((messageId) =>
-        messageId ? deps.data.setReviewMessage(env, result.id!, channel, messageId) : null,
+      deps.rest.postMessage(env, channel, reviewMessage(contribution, true, guild)).then((messageId) =>
+        messageId ? deps.data.setReviewMessage(env, id, channel, messageId) : null,
       ),
     );
   }
-  log("contribution", { kind, number: result.number });
+  log("contribution", { kind, number: result.number, forum: Boolean(postUrl) });
   const what = kind === "bug" ? "bug report" : "suggestion";
-  return notice(
-    `Thanks! Your ${what} is #${result.number}. The Cascade team reads every one, and accepted ones earn contributor points.` +
+  const thanks = notice(
+    `Thanks! Your ${what} is #${result.number}${postUrl ? ", posted in the forum" : ""}. The Cascade team reads every one, and accepted ones earn contributor points.` +
       (result.linked ? "" : "\n\nConnect your Cascade account with /link so the points show on your profile."),
     COLORS.ok,
   );
+  return postUrl ? { ...thanks, components: [linkButton("Open your post", postUrl)] } : thanks;
 }
 
 // ---------------------------------------------------------------------------
 // Maintainer tools
 // ---------------------------------------------------------------------------
+
+/** A maintainer's action, shown to the whole channel; only `mentions` are pinged. */
+function announce(text: string, mentions: string[] = []): Reply {
+  return { ...notice(text, COLORS.ok, false), mentions };
+}
 
 function statusLine(status: ContributorStatus): string {
   const role = status.override ? ` (role ${status.override === "grant" ? "granted" : "denied"} by an admin)` : "";
@@ -763,8 +842,17 @@ async function afterReview(
   }
   if (editReviewMessage && contribution.review_channel_id && contribution.review_message_id) {
     jobs.push(
-      deps.rest.editMessage(env, contribution.review_channel_id, contribution.review_message_id, reviewMessage(contribution, false)),
+      deps.rest.editMessage(
+        env,
+        contribution.review_channel_id,
+        contribution.review_message_id,
+        reviewMessage(contribution, false, setting(env.DISCORD_GUILD_ID)),
+      ),
     );
+  }
+  // Everyone following the forum post hears how it went.
+  if (contribution.forum_thread_id) {
+    jobs.push(deps.rest.postMessage(env, contribution.forum_thread_id, reviewOutcome(contribution)));
   }
   await later(ctx, Promise.all(jobs));
 }
@@ -784,7 +872,7 @@ async function adminCommand(
     case "pending": {
       const items = await deps.data.pending(env);
       if (!items.length) return notice("Nothing is waiting for review.", COLORS.ok);
-      const replies = items.map((c) => reviewMessage(c, true));
+      const replies = items.map((c) => reviewMessage(c, true, setting(env.DISCORD_GUILD_ID)));
       return {
         embeds: replies.flatMap((r) => r.embeds ?? []),
         components: replies.flatMap((r) => r.components ?? []).slice(0, 5),
@@ -801,9 +889,8 @@ async function adminCommand(
       if (result.result === "already_reviewed") return notice(`#${number} was already reviewed.`, COLORS.warn);
       await afterReview(env, ctx, deps, result.contribution, true);
       const c = result.contribution;
-      return notice(
+      return announce(
         `#${number} ${c?.status === "accepted" ? `accepted, +${c.points} points` : "rejected"}.${result.status ? ` They now have ${statusLine(result.status)}` : ""}`,
-        COLORS.ok,
       );
     }
     case "award": {
@@ -814,7 +901,10 @@ async function adminCommand(
       const result = await deps.data.award(env, member, reason, points, user.id);
       if (result.result === "own_submission") return notice("You can't award points to yourself.", COLORS.warn);
       await afterReview(env, ctx, deps, result.contribution, false);
-      return notice(`Recorded +${points} points for <@${member}>.${result.status ? ` They now have ${statusLine(result.status)}` : ""}`, COLORS.ok);
+      return announce(
+        `Recorded +${points} points for <@${member}>: ${plain(reason)}.${result.status ? ` They now have ${statusLine(result.status)}` : ""}`,
+        [member],
+      );
     }
     case "contributor": {
       const member = optString(options, "user");
@@ -823,7 +913,9 @@ async function adminCommand(
       const status = await deps.data.override(env, member, mode, optString(options, "note"), user.id);
       const change = await deps.rest.setContributorRole(env, member, status.contributor);
       const roleNote = change === "failed" ? " Discord refused the role change; check that the bot's role is above the Contributor role." : "";
-      return notice(`<@${member}>: ${statusLine(status)}${roleNote}`, change === "failed" ? COLORS.warn : COLORS.ok);
+      return change === "failed"
+        ? notice(`<@${member}>: ${statusLine(status)}${roleNote}`, COLORS.warn)
+        : announce(`<@${member}>: ${statusLine(status)}`);
     }
     case "points": {
       const bug = optInt(options, "bug");
@@ -850,27 +942,27 @@ async function adminCommand(
             footer: { text: "Changes apply to contributions reviewed from now on." },
           }),
         ],
-        ephemeral: true,
+        ephemeral: false,
       };
     }
     case "roadmap-add": {
       const title = optString(options, "title");
       if (!title) return failure();
       const item = await deps.data.saveRoadmap(env, null, title, optString(options, "details") ?? "", optString(options, "status") ?? "planned");
-      return notice(item ? `Added \`${item.id}\` ${plain(item.title)} to the roadmap.` : "Couldn't add that.", COLORS.ok);
+      return item ? announce(`Added item ${item.id} to the roadmap: ${plain(item.title)}.`) : notice("Couldn't add that.", COLORS.warn);
     }
     case "roadmap-status": {
       const id = optInt(options, "item");
       const status = optString(options, "status");
       if (!id || !status) return failure();
       const item = await deps.data.saveRoadmap(env, id, null, null, status);
-      return item ? notice(`\`${item.id}\` ${plain(item.title)} is now ${ROADMAP_LABELS[item.status].toLowerCase()}.`, COLORS.ok) : notice(`There is no roadmap item ${id}.`, COLORS.warn);
+      return item ? announce(`Item ${item.id}, ${plain(item.title)}, is now ${ROADMAP_LABELS[item.status].toLowerCase()}.`) : notice(`There is no roadmap item ${id}.`, COLORS.warn);
     }
     case "roadmap-remove": {
       const id = optInt(options, "item");
       if (!id) return failure();
       return (await deps.data.removeRoadmap(env, id))
-        ? notice(`Removed item ${id} from the roadmap.`, COLORS.ok)
+        ? announce(`Removed item ${id} from the roadmap.`)
         : notice(`There is no roadmap item ${id}.`, COLORS.warn);
     }
     default:
@@ -895,7 +987,7 @@ async function reviewButton(
   if (!result.contribution) return message(notice(`There is no contribution #${number}.`, COLORS.warn));
   if (result.result === "reviewed") await afterReview(env, ctx, deps, result.contribution, false);
   // The message the button is on becomes the record of the decision.
-  return update(reviewMessage(result.contribution, false));
+  return update(reviewMessage(result.contribution, false, setting(env.DISCORD_GUILD_ID) || interaction.guild_id));
 }
 
 // ---------------------------------------------------------------------------
@@ -934,9 +1026,11 @@ export async function handleInteraction(
       case "changelog":
         return run(() => changelogCommand(env, deps), false);
       case "help":
-        return message(helpReply());
+        return message(helpReply(Boolean(setting(env.DISCORD_FORUM_CHANNEL_ID))));
       case "cascade-admin":
-        return run(() => adminCommand(interaction, env, ctx, deps), true);
+        // Actions answer the whole channel; the review queue stays private.
+        // The "thinking" placeholder has to match, so it's decided here.
+        return run(() => adminCommand(interaction, env, ctx, deps), optionsOf(interaction).sub === "pending");
       default:
         return message(notice("This command isn't available any more."));
     }
@@ -1018,6 +1112,7 @@ export async function handleDiscordRoute(
           guild: Boolean(setting(env.DISCORD_GUILD_ID)),
           contributorRole: Boolean(setting(env.DISCORD_CONTRIBUTOR_ROLE_ID)),
           reviewChannel: Boolean(setting(env.DISCORD_REVIEW_CHANNEL_ID)),
+          forumChannel: Boolean(setting(env.DISCORD_FORUM_CHANNEL_ID)),
           interactionsUrl: `${url.origin}/discord/interactions`,
           redirectUri: setting(env.DISCORD_REDIRECT_URI),
         },

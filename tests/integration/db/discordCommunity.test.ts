@@ -113,6 +113,19 @@ describe("discord community", () => {
       expect(await submit("1002", "Someone else's report")).toMatchObject({ number: 4 });
     });
 
+    it("remembers the forum post a report became, so the review can answer there (migration 0049)", async () => {
+      const sent = await submit("1001", "Export drops long notes");
+      await service("public.set_contribution_forum_thread($1, '910000000000000001')", [sent.id]);
+      await service("public.set_contribution_forum_thread($1, 'not a thread')", [sent.id]);
+      const reviewed = await review(1, true);
+      expect(reviewed.contribution).toMatchObject({ forum_thread_id: "910000000000000001", status: "accepted" });
+      const nelly = await t.createDiscordUser("Nelly", "1002");
+      const error = await t
+        .asUser(nelly, (tx) => tx.query("select public.set_contribution_forum_thread($1, '1')", [sent.id]))
+        .then(() => null, dbError);
+      expect(error?.code).toBe("42501");
+    });
+
     it("awards points once, however many reviewers click at once", async () => {
       await submit("1001", "Export drops long notes");
       const results = await Promise.all([review(1, true, "9000"), review(1, true, "9001"), review(1, false, "9002")]);

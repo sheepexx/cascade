@@ -1,8 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { WorkerEnv } from "../storage";
-import { handleDiscordRoute, handleInteraction, type BotDeps, type Interaction } from "./interactions";
+import {
+  forumPost,
+  handleDiscordRoute,
+  handleInteraction,
+  reviewOutcome,
+  type BotDeps,
+  type Interaction,
+} from "./interactions";
 import type { BotData, Contribution, DiscordAccount, PublicProfile, PublicStats } from "./data";
-import { plain } from "./format";
+import { messageData, plain } from "./format";
 import { verifyInteraction } from "./verify";
 
 const GUILD = "500000000000000001";
@@ -98,6 +105,7 @@ function deps(overrides: Partial<BotData> = {}) {
       status: { points: 30, accepted: 3, pending: 0, threshold: 30, override: null, contributor: true, recent: [] },
     })),
     identityOwner: vi.fn(async () => null),
+    setForumThread: vi.fn(async () => null),
     ...overrides,
   } as unknown as BotData;
   const rest = {
@@ -106,6 +114,11 @@ function deps(overrides: Partial<BotData> = {}) {
     editMessage: vi.fn(async () => true),
     editOriginal: vi.fn(async () => true),
     putCommands: vi.fn(async () => ({ ok: true, status: 200, scope: "guild" as const })),
+    forumTags: vi.fn(async () => [
+      { id: "900000000000000001", name: "Bug" },
+      { id: "900000000000000002", name: "Idea / Request" },
+    ]),
+    createForumPost: vi.fn(async () => ({ threadId: "910000000000000001", status: 201 })),
   };
   return { data, rest } satisfies BotDeps;
 }
@@ -194,7 +207,7 @@ describe("looking people up", () => {
     expect(body).toContain("1,234");
     expect(body).not.toContain("osu.ppy.sh");
     expect(body).toContain("hidden by this profile's privacy settings");
-    expect(res.data?.allowed_mentions).toEqual({ parse: [] });
+    expect(res.data?.allowed_mentions).toEqual({ parse: [], users: [] });
   });
 
   it("points someone who hasn't linked to Cascade", async () => {
@@ -214,7 +227,41 @@ describe("maintainer tools", () => {
     const d = deps({ pending: vi.fn(async () => []) });
     const res = await handleInteraction(admin({}), env(), undefined, d);
     expect(text(res)).toContain("Only Cascade maintainers");
+    expect(res.data?.flags).toBe(64);
     expect(d.data.pending).not.toHaveBeenCalled();
+  });
+
+  it("answer the whole channel, pinging only who got points, and keep the review queue private", async () => {
+    const award = command(
+      "cascade-admin",
+      {
+        options: [
+          {
+            name: "award",
+            type: 1,
+            options: [
+              { name: "user", type: 6, value: "300000000000000009" },
+              { name: "points", type: 4, value: 5 },
+              { name: "reason", type: 3, value: "Translated Cascade" },
+            ],
+          },
+        ],
+      },
+      { permissions: String(1 << 3) },
+    );
+    const d = deps({
+      award: vi.fn(async () => ({
+        result: "awarded" as const,
+        status: { points: 5, accepted: 1, pending: 0, threshold: 30, override: null, contributor: false, recent: [] },
+      })),
+    });
+    const res = await handleInteraction(award, env(), undefined, d);
+    expect(res.data?.flags).toBe(0);
+    expect(res.data?.allowed_mentions).toEqual({ parse: [], users: ["300000000000000009"] });
+    expect(text(res)).toContain("Recorded +5 points for <@300000000000000009>: Translated Cascade.");
+
+    const queue = await handleInteraction(admin({ permissions: String(1 << 3) }), env(), undefined, deps({ pending: vi.fn(async () => []) }));
+    expect(queue.data?.flags).toBe(64);
   });
 
   it("work for server administrators, listed maintainers and Cascade admins, in the Cascade server only", async () => {
@@ -288,6 +335,90 @@ describe("contributions", () => {
     );
     expect(text(res)).toContain("wait a while");
     expect(d.rest.postMessage).not.toHaveBeenCalled();
+    expect(d.rest.createForumPost).not.toHaveBeenCalled();
+  });
+});
+
+describe("forum posts", () => {
+  const FORUM = "920000000000000001";
+  const suggestion: Interaction = {
+    type: 5,
+    token: "t",
+    guild_id: GUILD,
+    member: { user: { id: "300000000000000001", username: "reporter" } },
+    data: {
+      custom_id: "contribute:suggestion",
+      components: [
+        { type: 1, components: [{ type: 4, custom_id: "title", value: "Option to reset the audio offset" }] },
+        { type: 1, components: [{ type: 4, custom_id: "details", value: "A reset button next to the slider." }] },
+      ],
+    },
+  };
+
+  it("go up in the forum as the person's own post, tagged, pinging only them", async () => {
+    const d = deps();
+    const res = await handleInteraction(suggestion, env({ DISCORD_FORUM_CHANNEL_ID: FORUM }), undefined, d);
+    expect(d.rest.createForumPost).toHaveBeenCalledWith(expect.anything(), FORUM, {
+      title: "Option to reset the audio offset",
+      message: {
+        content: `Posted by <@300000000000000001>
+
+A reset button next to the slider.
+
+-# #12, sent with /suggest`,
+        mentions: ["300000000000000001"],
+      },
+      tagIds: ["900000000000000002"],
+    });
+    expect(d.data.setForumThread).toHaveBeenCalledWith(expect.anything(), PENDING.id, "910000000000000001");
+    // The person gets a link to the post, and reviewers see it next to the buttons.
+    expect(text(res)).toContain(`https://discord.com/channels/${GUILD}/910000000000000001`);
+    const review = (d.rest.postMessage as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(review[1]).toBe("700000000000000001");
+    expect(JSON.stringify(review[2])).toContain("Forum post");
+    expect(messageData({ content: "x", mentions: ["300000000000000001", "not an id"] }).allowed_mentions).toEqual({
+      parse: [],
+      users: ["300000000000000001"],
+    });
+  });
+
+  it("still file the report when the forum refuses the post", async () => {
+    const d = deps();
+    (d.rest.createForumPost as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ threadId: null, status: 403 });
+    const res = await handleInteraction(suggestion, env({ DISCORD_FORUM_CHANNEL_ID: FORUM }), undefined, d);
+    expect(text(res)).toContain("#12");
+    expect(text(res)).not.toContain("Open your post");
+    expect(d.data.setForumThread).not.toHaveBeenCalled();
+  });
+
+  it("keep long reports inside Discord's limits", () => {
+    const post = forumPost("bug", 1234, "t".repeat(150), "b".repeat(2000), "300000000000000001");
+    expect(post.title.length).toBeLessThanOrEqual(100);
+    expect(post.message.content!.length).toBeLessThanOrEqual(2000);
+    expect(post.message.content).toMatch(/^Posted by <@300000000000000001>/);
+    expect(post.message.content!.endsWith("-# #1234, sent with /bug")).toBe(true);
+  });
+
+  it("hear the decision, with the author pinged only when it is accepted", async () => {
+    const accepted = { ...PENDING, status: "accepted" as const, points: 10, reviewed_by_discord: "400000000000000001", forum_thread_id: "910000000000000001" };
+    expect(reviewOutcome(accepted)).toEqual({
+      content: "Accepted by <@400000000000000001>: <@300000000000000001> earned 10 contributor points.",
+      mentions: ["300000000000000001"],
+    });
+    expect(reviewOutcome({ ...accepted, status: "rejected", points: 0 })).toEqual({ content: "Closed by <@400000000000000001>." });
+
+    const d = deps({
+      review: vi.fn(async () => ({ result: "reviewed" as const, contribution: accepted })),
+    });
+    const press: Interaction = {
+      type: 3,
+      token: "t",
+      guild_id: GUILD,
+      member: { user: { id: "400000000000000001" }, permissions: String(1 << 3), roles: [] },
+      data: { custom_id: "review:accept:12" },
+    };
+    await handleInteraction(press, env(), undefined, d);
+    expect(d.rest.postMessage).toHaveBeenCalledWith(expect.anything(), "910000000000000001", reviewOutcome(accepted));
   });
 });
 

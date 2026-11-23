@@ -13,6 +13,8 @@ type DiscordStatus = {
   guild: boolean;
   contributorRole: boolean;
   reviewChannel: boolean;
+  /** Missing from Workers before forum posts. */
+  forumChannel?: boolean;
   interactionsUrl: string;
   redirectUri: string;
 };
@@ -25,6 +27,7 @@ const CHECKS: { key: keyof DiscordStatus; label: string; where: string }[] = [
   { key: "guild", label: "Server ID", where: "worker/wrangler.jsonc, DISCORD_GUILD_ID" },
   { key: "contributorRole", label: "Contributor role ID", where: "worker/wrangler.jsonc, DISCORD_CONTRIBUTOR_ROLE_ID" },
   { key: "reviewChannel", label: "Review channel ID", where: "worker/wrangler.jsonc, DISCORD_REVIEW_CHANNEL_ID" },
+  { key: "forumChannel", label: "Forum channel ID", where: "worker/wrangler.jsonc, DISCORD_FORUM_CHANNEL_ID" },
 ];
 
 /**

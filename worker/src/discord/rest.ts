@@ -80,6 +80,46 @@ export async function editMessage(env: WorkerEnv, channelId: string, messageId: 
   return res?.ok ?? false;
 }
 
+export type ForumTag = { id: string; name: string };
+
+const tagCache = new Map<string, { tags: ForumTag[]; at: number }>();
+const TAG_CACHE_MS = 10 * 60_000;
+
+/** A forum channel's tags, kept for a few minutes. */
+export async function forumTags(env: WorkerEnv, channelId: string): Promise<ForumTag[]> {
+  if (!/^\d{1,20}$/.test(channelId)) return [];
+  const cached = tagCache.get(channelId);
+  if (cached && Date.now() - cached.at < TAG_CACHE_MS) return cached.tags;
+  const res = await call(env, "GET", `/channels/${channelId}`).catch(() => null);
+  if (!res?.ok) return [];
+  const channel = (await res.json().catch(() => null)) as { available_tags?: unknown } | null;
+  const tags = Array.isArray(channel?.available_tags)
+    ? channel.available_tags.flatMap((tag: { id?: unknown; name?: unknown }) =>
+        typeof tag?.id === "string" && typeof tag.name === "string" ? [{ id: tag.id, name: tag.name }] : [],
+      )
+    : [];
+  tagCache.set(channelId, { tags, at: Date.now() });
+  return tags;
+}
+
+/** Starts a post in a forum channel; the post is a thread with the message as its start. */
+export async function createForumPost(
+  env: WorkerEnv,
+  channelId: string,
+  post: { title: string; message: Reply; tagIds: string[] },
+): Promise<{ threadId: string | null; status: number }> {
+  if (!/^\d{1,20}$/.test(channelId)) return { threadId: null, status: 0 };
+  const { flags: _flags, ...message } = messageData(post.message);
+  const res = await call(env, "POST", `/channels/${channelId}/threads`, {
+    name: post.title.slice(0, 100),
+    applied_tags: post.tagIds.slice(0, 5),
+    message,
+  }).catch(() => null);
+  if (!res?.ok) return { threadId: null, status: res?.status ?? 0 };
+  const thread = (await res.json().catch(() => null)) as { id?: unknown } | null;
+  return { threadId: typeof thread?.id === "string" ? thread.id : null, status: res.status };
+}
+
 /** Replaces the "thinking" placeholder of a deferred reply. */
 export async function editOriginal(env: WorkerEnv, interactionToken: string, reply: Reply): Promise<boolean> {
   const app = setting(env.DISCORD_APPLICATION_ID);

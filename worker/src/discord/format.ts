@@ -14,6 +14,8 @@ export const COLORS = {
 
 export const EPHEMERAL = 1 << 6;
 
+const DISCORD_ID = /^\d{1,20}$/;
+
 export type Embed = {
   title?: string;
   description?: string;
@@ -41,6 +43,8 @@ export type Reply = {
   embeds?: Embed[];
   components?: ActionRow[];
   ephemeral?: boolean;
+  /** The only people the message may ping (a forum post's author). */
+  mentions?: string[];
 };
 
 /** Markdown, masked links and mentions in someone's text, shown literally. */
@@ -103,13 +107,13 @@ export function notice(text: string, color: number = COLORS.neutral, ephemeral =
   return { embeds: [embed({ description: text, color })], ephemeral };
 }
 
-/** The message body Discord expects, never pinging anyone. */
+/** The message body Discord expects, pinging nobody but `mentions`. */
 export function messageData(reply: Reply): Record<string, unknown> {
   return {
     content: reply.content,
     embeds: reply.embeds ?? [],
     components: reply.components ?? [],
-    allowed_mentions: { parse: [] },
+    allowed_mentions: { parse: [], users: (reply.mentions ?? []).filter((id) => DISCORD_ID.test(id)) },
     flags: reply.ephemeral ? EPHEMERAL : 0,
   };
 }
