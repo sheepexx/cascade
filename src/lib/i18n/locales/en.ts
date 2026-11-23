@@ -1503,6 +1503,7 @@ export const en = {
   "batch.undoNote": "You can review this as one change in undo history.",
   "batch.apply": "Apply changes",
   "diffModal.namePlaceholder": "e.g. Hard",
+  "diffModal.nameAscii": "Plain ASCII only: no accents, emoji or other scripts, since osu! puts this name in the file name.",
   "diffModal.keys": "Keys",
   "diffModal.keysHint": "Exported as CircleSize. Lowering it removes the notes in the lanes it drops.",
   "diffModal.keyFewer": "One key fewer",

@@ -1427,6 +1427,7 @@ export const de: PartialCatalog = {
   "batch.undoNote": "Du findest das als eine Änderung im Rückgängig-Verlauf.",
   "batch.apply": "Änderungen anwenden",
   "diffModal.namePlaceholder": "z. B. Hard",
+  "diffModal.nameAscii": "Nur einfache ASCII-Zeichen: keine Akzente, Emojis oder andere Schriften, da osu! diesen Namen in den Dateinamen schreibt.",
   "diffModal.keys": "Tasten",
   "diffModal.keysHint": "Wird als CircleSize exportiert. Verringern entfernt die Noten in den wegfallenden Spalten.",
   "diffModal.keyFewer": "Eine Taste weniger",

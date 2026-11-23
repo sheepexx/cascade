@@ -8,6 +8,7 @@ import { msdSupportsKeyCount, type MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
 import { RateChangerPanel } from "./RateChangerPanel";
 import { useT } from "../lib/i18n";
+import { typedDifficultyName } from "../lib/difficultyName";
 import {
   bpmRange,
   formatBpmRange,
@@ -422,7 +423,7 @@ function DiffRow({
           <input
             ref={inputRef}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => setDraft(typedDifficultyName(e.target.value))}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
@@ -602,7 +603,7 @@ function PhoneDiffActions({
           autoFocus
           value={draft}
           aria-label={t("common.rename")}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => setDraft(typedDifficultyName(e.target.value))}
           onBlur={commit}
           onKeyDown={(e) => {
             e.stopPropagation();

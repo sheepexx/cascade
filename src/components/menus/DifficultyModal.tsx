@@ -4,6 +4,7 @@ import { Modal } from "../ui/Modal";
 import { Slider, TextInput } from "../ui/Controls";
 import { maniaJudgementWindows } from "../../lib/playtestJudgements";
 import { defaultLaneColour, laneColourSet } from "../../lib/laneColours";
+import { typedDifficultyName } from "../../lib/difficultyName";
 import { useT, type Translate } from "../../lib/i18n";
 
 type Props = {
@@ -77,10 +78,11 @@ export function DifficultyModal({
           <span className={LABEL}>{t("common.name")}</span>
           <TextInput
             value={difficulty.name}
-            onChange={(e) => set("name", e.target.value)}
+            onChange={(e) => set("name", typedDifficultyName(e.target.value))}
             placeholder={t("diffModal.namePlaceholder")}
             className="py-2.5 text-base font-semibold"
           />
+          <span className="text-xs leading-snug text-slate-500">{t("diffModal.nameAscii")}</span>
         </label>
 
         <section className="border-t border-white/[0.06] pt-4">

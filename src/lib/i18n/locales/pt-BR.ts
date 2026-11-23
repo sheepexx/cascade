@@ -1427,6 +1427,7 @@ export const ptBR: PartialCatalog = {
   "batch.undoNote": "Você pode revisar isso como uma única alteração no histórico de desfazer.",
   "batch.apply": "Aplicar alterações",
   "diffModal.namePlaceholder": "ex.: Hard",
+  "diffModal.nameAscii": "Somente caracteres ASCII simples: sem acentos, emojis ou outros alfabetos, pois o osu! coloca este nome no nome do arquivo.",
   "diffModal.keys": "Teclas",
   "diffModal.keysHint": "Exportado como CircleSize. Diminuir remove as notas das colunas eliminadas.",
   "diffModal.keyFewer": "Uma tecla a menos",

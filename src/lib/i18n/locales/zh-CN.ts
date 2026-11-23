@@ -1369,6 +1369,7 @@ export const zhCN: PartialCatalog = {
   "batch.undoNote": "你可以在撤销历史中将其作为一次更改查看。",
   "batch.apply": "应用更改",
   "diffModal.namePlaceholder": "例如 Hard",
+  "diffModal.nameAscii": "仅限 ASCII 字符：不能使用重音字母、表情符号或其他文字，因为 osu! 会把这个名称写进文件名。",
   "diffModal.keys": "键数",
   "diffModal.keysHint": "导出为 CircleSize。减少键数会删除被移除轨道中的音符。",
   "diffModal.keyFewer": "减少一键",

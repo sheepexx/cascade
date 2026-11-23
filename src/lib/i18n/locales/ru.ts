@@ -1483,6 +1483,7 @@ export const ru: PartialCatalog = {
   "batch.undoNote": "Это будет одним изменением в истории отмены.",
   "batch.apply": "Применить изменения",
   "diffModal.namePlaceholder": "например, Hard",
+  "diffModal.nameAscii": "Только простые символы ASCII: без диакритики, эмодзи и других алфавитов, потому что osu! вставляет это название в имя файла.",
   "diffModal.keys": "Клавиши",
   "diffModal.keysHint": "Экспортируется как CircleSize. При уменьшении ноты в убранных колонках удаляются.",
   "diffModal.keyFewer": "На одну клавишу меньше",
