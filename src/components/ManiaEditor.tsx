@@ -1431,14 +1431,17 @@ export function ManiaEditor(props: ManiaEditorProps) {
       }
     }
 
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
-    ctx.lineWidth = 1;
-    for (let c = 0; c <= keyCount; c++) {
-      const x = originX + c * laneWidth + 0.5;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
+    // Lane dividers help place notes; a playtest plays without them.
+    if (!propsRef.current.playtestMode) {
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      for (let c = 0; c <= keyCount; c++) {
+        const x = originX + c * laneWidth + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
     }
 
     const flash = propsRef.current.laneFlash;
