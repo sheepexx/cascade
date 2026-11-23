@@ -593,6 +593,7 @@ function SliderInputRow({
   sliderMax = max,
   step,
   unit,
+  resetTo,
   onChange,
 }: {
   label: string;
@@ -604,14 +605,30 @@ function SliderInputRow({
   sliderMax?: number;
   step: number;
   unit?: string;
+  /** Shows a Reset button that puts the value back to this. */
+  resetTo?: number;
   onChange: (value: number) => void;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3 text-sm text-slate-200">
-        <span>{label}</span>
-        <span className="w-24">
-          <NumberBox label="" ariaLabel={label} value={value} min={min} max={max} unit={unit} onChange={onChange} />
+        <span className="min-w-0">{label}</span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {resetTo !== undefined && (
+            <button
+              type="button"
+              disabled={value === resetTo}
+              onClick={() => onChange(resetTo)}
+              aria-label={`${t("common.reset")} ${label}`}
+              className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              {t("common.reset")}
+            </button>
+          )}
+          <span className="w-24">
+            <NumberBox label="" ariaLabel={label} value={value} min={min} max={max} unit={unit} onChange={onChange} />
+          </span>
         </span>
       </div>
       <Slider
@@ -803,10 +820,11 @@ export function HudEditorPanel({
               value={settings.audioOffsetMs}
               min={-MAX_OFFSET_MS}
               max={MAX_OFFSET_MS}
-              sliderMin={-150}
-              sliderMax={150}
+              sliderMin={-200}
+              sliderMax={200}
               step={1}
               unit="ms"
+              resetTo={0}
               onChange={(audioOffsetMs) => onPatch({ audioOffsetMs })}
             />
             <details className="group rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5">
@@ -827,6 +845,7 @@ export function HudEditorPanel({
                   sliderMax={100}
                   step={1}
                   unit="ms"
+                  resetTo={0}
                   onChange={(inputOffsetMs) => onPatch({ inputOffsetMs })}
                 />
               </div>
