@@ -70,6 +70,7 @@ export const DOCS_GROUPS = [
   { id: "share", items: [{ page: "osu-mania-aimod" }, { page: "osu-mania-map-card" }, { page: "osu-mania-collab" }] },
   { id: "games", items: [{ english: "osu-to-stepmania" }, { english: "arrowvortex-alternative" }, { english: "osu-mania-pack-creator" }] },
   { id: "desktop", items: [{ download: true }] },
+  { id: "community", items: [{ page: "osu-mania-mapping-discord" }] },
 ];
 
 export const UI = {
@@ -91,6 +92,7 @@ export const UI = {
       share: "Checking and sharing",
       games: "Other games and packs",
       desktop: "The desktop app",
+      community: "Community",
     },
     legacy: LEGACY_EN,
   },
@@ -112,6 +114,7 @@ export const UI = {
       share: "Prüfen und teilen",
       games: "Andere Spiele und Packs",
       desktop: "Die Desktop-App",
+      community: "Community",
     },
     legacy: [],
   },
@@ -133,6 +136,7 @@ export const UI = {
       share: "Проверка и публикация",
       games: "Другие игры и паки",
       desktop: "Приложение для компьютера",
+      community: "Сообщество",
     },
     legacy: [],
   },
@@ -154,6 +158,7 @@ export const UI = {
       share: "检查与分享",
       games: "其他游戏与曲包",
       desktop: "桌面应用",
+      community: "社区",
     },
     legacy: [],
   },
@@ -175,6 +180,7 @@ export const UI = {
       share: "Verificar e compartilhar",
       games: "Outros jogos e packs",
       desktop: "O app para computador",
+      community: "Comunidade",
     },
     legacy: [],
   },
@@ -1797,4 +1803,374 @@ ${mapCardFigure(
   },
 };
 
-export const PAGES = [playtest, collab, aimod, timing, mapCard];
+export const DISCORD_INVITE = "https://discord.gg/zczMegSvgG";
+
+/**
+ * overdosu!, Cascade's Discord, for people searching for an osu!mania mapping
+ * Discord. It only says what the server really has: finding collab and GD
+ * partners, sharing finished maps, general chat, and Cascade's own channels.
+ * There is no map feedback or modding channel, so the page doesn't offer one.
+ */
+function communityContent(locale, t) {
+  const links = { collab: docsUrl("osu-mania-collab", locale), card: docsUrl("osu-mania-map-card", locale) };
+  const section = ([heading, text]) => `      <h2>${heading}</h2>
+      <p>
+        ${text(links)}
+      </p>`;
+  return {
+    navLabel: t.navLabel,
+    title: t.title,
+    description: t.description,
+    ogTitle: t.ogTitle,
+    ogDescription: t.ogDescription,
+    h1: t.h1,
+    cta: t.cta,
+    faq: t.faq,
+    lead: `      <p>
+        ${t.lead}
+      </p>`,
+    body: [
+      ...t.sections.map(section),
+      `      <h2>${t.botHeading}</h2>
+      <ul>
+${t.bot.map((item) => `        <li>${item}</li>`).join("\n")}
+      </ul>`,
+      section(t.account),
+      `      <h2>${t.faqHeading}</h2>
+      <dl>
+${t.faq.map(([q, a]) => `        <dt>${q}</dt>\n        <dd>${a}</dd>`).join("\n")}
+      </dl>`,
+    ].join("\n\n"),
+  };
+}
+
+const community = {
+  slug: "osu-mania-mapping-discord",
+  updated: "2026-11-23",
+  ctaHref: DISCORD_INVITE,
+  structured: (c, url) => ({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    name: c.ogTitle,
+    url,
+    mainEntity: c.faq.map(([q, a]) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
+  }),
+  content: {
+    en: communityContent("en", {
+      navLabel: "osu!mania mapping Discord",
+      title: "osu!mania Mapping Discord Server | Cascade",
+      description:
+        "Join overdosu!, an osu!mania Discord for players and mappers: find collab and GD partners, share your maps, and get Cascade updates, help and the Cascade bot.",
+      ogTitle: "overdosu!, the osu!mania mapping Discord behind Cascade",
+      ogDescription:
+        "Find collab and GD partners, share your maps, talk osu!mania, and follow Cascade's development.",
+      h1: "An osu!mania mapping Discord: overdosu!",
+      lead:
+        "overdosu! is an osu!mania community for players and mappers, and the home of Cascade on Discord. Come find someone to map with, show off what you've made, and talk osu!mania with people who play and map it.",
+      cta: "Join the Discord",
+      sections: [
+        [
+          "Find collab and GD partners",
+          (l) =>
+            `Looking for a guest difficulty for your set, or a mapper to share a collab with? Ask in the server. Once you've found someone, Cascade lets you <a href="${l.collab}">map the same chart together in real time</a> instead of passing <code>.osz</code> files back and forth.`,
+        ],
+        [
+          "Share your maps",
+          (l) =>
+            `Post the maps you've finished, ranked or not, and see what others are mapping. A <a href="${l.card}">Map Card</a> turns a difficulty's star rating, MSD skillsets and note counts into one image you can paste straight into Discord.`,
+        ],
+        [
+          "Talk osu!mania",
+          () =>
+            "Patterns, skins, songs you want to map, the latest ranked sets: the server is a place to talk osu! and osu!mania with other players and mappers.",
+        ],
+        [
+          "Cascade's home on Discord",
+          () =>
+            "New versions are announced in <code>#cascade-updates</code>. Bugs and feature ideas go in the Cascade forum, where the people making Cascade read and answer them, and you can talk to them directly.",
+        ],
+      ],
+      botHeading: "The Cascade bot",
+      bot: [
+        "<code>/profile</code> and <code>/stats</code> show a Cascade profile with its mapping time, notes placed and maps edited, as far as the profile shows them to everyone",
+        "<code>/leaderboard</code> ranks the mappers who choose to appear, and everyone's contributor points",
+        "<code>/bug</code> and <code>/suggest</code> post your report to the forum for you. Accepted ones earn contributor points, and enough points give the Contributor role and a badge on your Cascade profile",
+        "<code>/roadmap</code> and <code>/changelog</code> show what's planned and what's new",
+      ],
+      account: [
+        "One account for both",
+        () =>
+          "You can log in to Cascade with Discord, or connect Discord to the account you already have in Settings, Account. <code>/link</code> in the server takes you there.",
+      ],
+      faqHeading: "Questions",
+      faq: [
+        [
+          "Is there a Discord for osu!mania mapping?",
+          "Yes. overdosu! is an osu!mania community where mappers find collab and GD partners, share their maps and talk osu!mania. It's also Cascade's official Discord.",
+        ],
+        [
+          "Do I need to use Cascade to join?",
+          "No. Players and mappers are welcome whichever editor they map in.",
+        ],
+        [
+          "Can I find a guest difficulty mapper there?",
+          "Yes. Ask in the server for a GD or a collab partner, then map together in Cascade or swap files as usual.",
+        ],
+        ["Is it free?", "Yes. The Discord server is free, and so is Cascade."],
+      ],
+    }),
+    de: communityContent("de", {
+      navLabel: "osu!mania-Mapping-Discord",
+      title: "osu!mania Mapping Discord-Server | Cascade",
+      description:
+        "Tritt overdosu! bei, einem osu!mania-Discord für Spieler und Mapper: Collab- und GD-Partner finden, Maps teilen und Cascade-Updates, Hilfe und den Cascade-Bot nutzen.",
+      ogTitle: "overdosu!, der osu!mania-Mapping-Discord hinter Cascade",
+      ogDescription:
+        "Finde Collab- und GD-Partner, teile deine Maps, rede über osu!mania und verfolge die Entwicklung von Cascade.",
+      h1: "Ein Discord für osu!mania-Mapping: overdosu!",
+      lead:
+        "overdosu! ist eine osu!mania-Community für Spieler und Mapper und das Zuhause von Cascade auf Discord. Hier findest du Leute zum Mappen, zeigst, was du gemacht hast, und redest mit anderen, die osu!mania spielen und mappen.",
+      cta: "Dem Discord beitreten",
+      sections: [
+        [
+          "Collab- und GD-Partner finden",
+          (l) =>
+            `Du suchst eine Gast-Difficulty für dein Set oder jemanden für eine Collab? Frag im Server. Wenn ihr euch gefunden habt, könnt ihr in Cascade <a href="${l.collab}">gemeinsam in Echtzeit an derselben Map arbeiten</a>, statt <code>.osz</code>-Dateien hin und her zu schicken.`,
+        ],
+        [
+          "Teile deine Maps",
+          (l) =>
+            `Poste fertige Maps, ob ranked oder nicht, und sieh, woran andere gerade mappen. Eine <a href="${l.card}">Map Card</a> fasst Sternbewertung, MSD-Skillsets und Notenanzahl einer Difficulty in einem Bild zusammen, das du direkt in Discord einfügen kannst.`,
+        ],
+        [
+          "Über osu!mania reden",
+          () =>
+            "Patterns, Skins, Songs, die du mappen willst, die neuesten Ranked-Sets: Im Server redest du mit anderen Spielern und Mappern über osu! und osu!mania.",
+        ],
+        [
+          "Das Zuhause von Cascade auf Discord",
+          () =>
+            "Neue Versionen werden in <code>#cascade-updates</code> angekündigt. Fehler und Ideen kommen ins Cascade-Forum, wo die Leute hinter Cascade sie lesen und beantworten, und du kannst direkt mit ihnen reden.",
+        ],
+      ],
+      botHeading: "Der Cascade-Bot",
+      bot: [
+        "<code>/profile</code> und <code>/stats</code> zeigen ein Cascade-Profil mit Mapping-Zeit, gesetzten Noten und bearbeiteten Maps, soweit das Profil sie allen zeigt",
+        "<code>/leaderboard</code> zeigt Bestenlisten der Mapper, die dort erscheinen wollen, und die Beitragspunkte aller",
+        "<code>/bug</code> und <code>/suggest</code> posten deinen Bericht für dich im Forum. Angenommene Beiträge bringen Beitragspunkte, und genug Punkte bringen die Contributor-Rolle und ein Abzeichen auf deinem Cascade-Profil",
+        "<code>/roadmap</code> und <code>/changelog</code> zeigen, was geplant und was neu ist",
+      ],
+      account: [
+        "Ein Konto für beides",
+        () =>
+          "Du kannst dich bei Cascade mit Discord anmelden oder Discord in den Einstellungen unter Konto mit deinem bestehenden Konto verbinden. <code>/link</code> im Server bringt dich dorthin.",
+      ],
+      faqHeading: "Häufige Fragen",
+      faq: [
+        [
+          "Gibt es einen Discord für osu!mania-Mapping?",
+          "Ja. overdosu! ist eine osu!mania-Community, in der Mapper Collab- und GD-Partner finden, ihre Maps teilen und über osu!mania reden. Er ist auch der offizielle Discord von Cascade.",
+        ],
+        [
+          "Muss ich Cascade benutzen, um beizutreten?",
+          "Nein. Spieler und Mapper sind willkommen, egal mit welchem Editor sie mappen.",
+        ],
+        [
+          "Finde ich dort jemanden für eine Gast-Difficulty?",
+          "Ja. Frag im Server nach einer GD oder einem Collab-Partner und mappt dann gemeinsam in Cascade oder tauscht wie gewohnt Dateien.",
+        ],
+        ["Kostet das etwas?", "Nein. Der Discord-Server ist kostenlos, und Cascade auch."],
+      ],
+    }),
+    ru: communityContent("ru", {
+      navLabel: "Discord по маппингу osu!mania",
+      title: "Discord-сервер по маппингу osu!mania | Cascade",
+      description:
+        "Заходите в overdosu!, Discord по osu!mania для игроков и мапперов: ищите партнёров для коллабов и GD, делитесь картами, читайте новости Cascade и пользуйтесь его ботом.",
+      ogTitle: "overdosu!, Discord по маппингу osu!mania и дом Cascade",
+      ogDescription:
+        "Ищите партнёров для коллабов и GD, делитесь картами, общайтесь об osu!mania и следите за развитием Cascade.",
+      h1: "Discord по маппингу osu!mania: overdosu!",
+      lead:
+        "Сервер overdosu! объединяет игроков и мапперов osu!mania и служит домом Cascade в Discord. Здесь можно найти, с кем маппить, показать свои карты и поговорить об osu!mania с теми, кто в неё играет и маппит.",
+      cta: "Присоединиться к Discord",
+      sections: [
+        [
+          "Партнёры для коллабов и GD",
+          (l) =>
+            `Ищете гостевую сложность для своего сета или маппера для коллаба? Спросите на сервере. Когда найдёте, в Cascade можно <a href="${l.collab}">маппить одну карту вместе в реальном времени</a>, а не пересылать файлы <code>.osz</code> туда и обратно.`,
+        ],
+        [
+          "Делитесь картами",
+          (l) =>
+            `Выкладывайте готовые карты, ранкнутые или нет, и смотрите, что маппят другие. <a href="${l.card}">Map Card</a> собирает звёздный рейтинг, MSD-скиллсеты и количество нот сложности в одну картинку, которую можно сразу вставить в Discord.`,
+        ],
+        [
+          "Общение об osu!mania",
+          () =>
+            "Паттерны, скины, песни, которые хочется замаппить, свежие ранкнутые сеты: на сервере можно поговорить об osu! и osu!mania с другими игроками и мапперами.",
+        ],
+        [
+          "Дом Cascade в Discord",
+          () =>
+            "О новых версиях объявляют в <code>#cascade-updates</code>. Ошибки и идеи публикуются на форуме Cascade, где их читают и отвечают те, кто делает Cascade, и с ними можно поговорить напрямую.",
+        ],
+      ],
+      botHeading: "Бот Cascade",
+      bot: [
+        "<code>/profile</code> и <code>/stats</code> показывают профиль Cascade со временем маппинга, поставленными нотами и отредактированными картами, если профиль показывает их всем",
+        "<code>/leaderboard</code> показывает рейтинги мапперов, которые решили в них участвовать, и очки вклада всех",
+        "<code>/bug</code> и <code>/suggest</code> публикуют ваш отчёт на форуме за вас. Принятые отчёты приносят очки вклада, а за достаточное количество очков даётся роль Contributor и значок в профиле Cascade",
+        "<code>/roadmap</code> и <code>/changelog</code> показывают планы и новое",
+      ],
+      account: [
+        "Один аккаунт для всего",
+        () =>
+          "В Cascade можно войти через Discord или подключить Discord к существующему аккаунту в Настройках, раздел Аккаунт. Команда <code>/link</code> на сервере ведёт туда.",
+      ],
+      faqHeading: "Вопросы",
+      faq: [
+        [
+          "Есть ли Discord по маппингу osu!mania?",
+          "Да. На сервере overdosu! мапперы osu!mania ищут партнёров для коллабов и GD, делятся картами и общаются об osu!mania. Это также официальный Discord Cascade.",
+        ],
+        [
+          "Нужно ли пользоваться Cascade, чтобы зайти?",
+          "Нет. Игрокам и мапперам рады, в каком бы редакторе они ни маппили.",
+        ],
+        [
+          "Можно ли найти там маппера для гостевой сложности?",
+          "Да. Спросите на сервере про GD или партнёра для коллаба, а потом маппьте вместе в Cascade или обменивайтесь файлами как обычно.",
+        ],
+        ["Это бесплатно?", "Да. Сервер в Discord бесплатный, как и Cascade."],
+      ],
+    }),
+    "zh-CN": communityContent("zh-CN", {
+      navLabel: "osu!mania 作图 Discord",
+      title: "osu!mania 作图 Discord 服务器 | Cascade",
+      description:
+        "加入 overdosu!，一个面向 osu!mania 玩家和作图者的 Discord：寻找合作和客串难度伙伴，分享你的谱面，获取 Cascade 的更新、帮助和 Cascade 机器人。",
+      ogTitle: "overdosu!，Cascade 背后的 osu!mania 作图 Discord",
+      ogDescription: "寻找合作和客串难度伙伴，分享谱面，聊 osu!mania，关注 Cascade 的开发。",
+      h1: "osu!mania 作图 Discord：overdosu!",
+      lead:
+        "overdosu! 是一个面向 osu!mania 玩家和作图者的社区，也是 Cascade 在 Discord 上的家。在这里找人一起作图，展示你的作品，和同样玩 osu!mania、做 osu!mania 谱面的人聊天。",
+      cta: "加入 Discord",
+      sections: [
+        [
+          "寻找合作和客串难度伙伴",
+          (l) =>
+            `想为你的图包找一个客串难度（GD），或者找人一起合作作图？在服务器里问问。找到之后，可以在 Cascade 里<a href="${l.collab}">实时一起编辑同一张谱面</a>，不用来回传 <code>.osz</code> 文件。`,
+        ],
+        [
+          "分享你的谱面",
+          (l) =>
+            `发布你完成的谱面，不论是否 Ranked，也看看别人在做什么。<a href="${l.card}">Map Card</a> 把一个难度的星级、MSD 技能分布和音符数量做成一张图片，可以直接粘贴到 Discord。`,
+        ],
+        [
+          "聊 osu!mania",
+          () => "键型、皮肤、想做的歌、最新的 Ranked 图：服务器里可以和其他玩家、作图者聊 osu! 和 osu!mania。",
+        ],
+        [
+          "Cascade 在 Discord 上的家",
+          () =>
+            "新版本会在 <code>#cascade-updates</code> 发布。Bug 和功能建议发在 Cascade 论坛里，Cascade 的开发者会阅读和回复，你也可以直接和他们交流。",
+        ],
+      ],
+      botHeading: "Cascade 机器人",
+      bot: [
+        "<code>/profile</code> 和 <code>/stats</code> 显示 Cascade 资料以及作图时长、放置的音符和编辑过的谱面，前提是资料向所有人公开这些数据",
+        "<code>/leaderboard</code> 显示选择参加的作图者排名，以及所有人的贡献积分",
+        "<code>/bug</code> 和 <code>/suggest</code> 帮你把报告发到论坛。被采纳的报告会获得贡献积分，积分足够后会获得 Contributor 身份组和 Cascade 资料上的徽章",
+        "<code>/roadmap</code> 和 <code>/changelog</code> 显示计划中的内容和更新",
+      ],
+      account: [
+        "同一个账号",
+        () =>
+          "你可以用 Discord 登录 Cascade，或者在设置的账号页面把 Discord 关联到已有的账号。服务器里的 <code>/link</code> 会带你过去。",
+      ],
+      faqHeading: "常见问题",
+      faq: [
+        [
+          "有没有 osu!mania 作图的 Discord？",
+          "有。在 overdosu!，osu!mania 作图者寻找合作和客串难度伙伴、分享谱面、聊 osu!mania。它也是 Cascade 的官方 Discord。",
+        ],
+        ["加入需要使用 Cascade 吗？", "不需要。无论用哪个编辑器作图，玩家和作图者都欢迎。"],
+        [
+          "能在那里找到客串难度的作图者吗？",
+          "能。在服务器里找 GD 或合作伙伴，然后在 Cascade 里一起作图，或者照常互传文件。",
+        ],
+        ["免费吗？", "免费。这个 Discord 服务器是免费的，Cascade 也是。"],
+      ],
+    }),
+    "pt-BR": communityContent("pt-BR", {
+      navLabel: "Discord de mapeamento de osu!mania",
+      title: "Discord de Mapeamento de osu!mania | Cascade",
+      description:
+        "Entre no overdosu!, um Discord de osu!mania para jogadores e mappers: encontre parceiros de collab e GD, compartilhe seus mapas e receba novidades, ajuda e o bot do Cascade.",
+      ogTitle: "overdosu!, o Discord de mapeamento de osu!mania por trás do Cascade",
+      ogDescription:
+        "Encontre parceiros de collab e GD, compartilhe seus mapas, converse sobre osu!mania e acompanhe o desenvolvimento do Cascade.",
+      h1: "Um Discord de mapeamento de osu!mania: overdosu!",
+      lead:
+        "O overdosu! é uma comunidade de osu!mania para jogadores e mappers, e a casa do Cascade no Discord. Encontre alguém para mapear junto, mostre o que você fez e converse sobre osu!mania com quem joga e mapeia.",
+      cta: "Entrar no Discord",
+      sections: [
+        [
+          "Encontre parceiros de collab e GD",
+          (l) =>
+            `Procurando uma dificuldade convidada para o seu set, ou um mapper para dividir uma collab? Pergunte no servidor. Depois de encontrar alguém, o Cascade permite <a href="${l.collab}">mapear o mesmo chart juntos em tempo real</a>, em vez de mandar arquivos <code>.osz</code> de um lado para o outro.`,
+        ],
+        [
+          "Compartilhe seus mapas",
+          (l) =>
+            `Poste os mapas que você terminou, ranqueados ou não, e veja o que os outros estão mapeando. Um <a href="${l.card}">Map Card</a> junta o star rating, os skillsets de MSD e as contagens de notas de uma dificuldade em uma imagem que você cola direto no Discord.`,
+        ],
+        [
+          "Converse sobre osu!mania",
+          () =>
+            "Patterns, skins, músicas que você quer mapear, os sets ranqueados mais recentes: no servidor você conversa sobre osu! e osu!mania com outros jogadores e mappers.",
+        ],
+        [
+          "A casa do Cascade no Discord",
+          () =>
+            "Novas versões são anunciadas em <code>#cascade-updates</code>. Bugs e ideias vão para o fórum do Cascade, onde quem faz o Cascade lê e responde, e você pode falar com eles diretamente.",
+        ],
+      ],
+      botHeading: "O bot do Cascade",
+      bot: [
+        "<code>/profile</code> e <code>/stats</code> mostram um perfil do Cascade com tempo de mapeamento, notas colocadas e mapas editados, desde que o perfil os mostre para todos",
+        "<code>/leaderboard</code> mostra rankings dos mappers que escolheram aparecer, e os pontos de contribuição de todos",
+        "<code>/bug</code> e <code>/suggest</code> postam seu relato no fórum por você. Os aceitos rendem pontos de contribuição, e pontos suficientes dão o cargo Contributor e um selo no seu perfil do Cascade",
+        "<code>/roadmap</code> e <code>/changelog</code> mostram o que está planejado e o que é novo",
+      ],
+      account: [
+        "Uma conta para tudo",
+        () =>
+          "Você pode entrar no Cascade com o Discord ou conectar o Discord à conta que já tem em Configurações, Conta. O <code>/link</code> no servidor leva você até lá.",
+      ],
+      faqHeading: "Perguntas",
+      faq: [
+        [
+          "Existe um Discord de mapeamento de osu!mania?",
+          "Sim. No overdosu!, mappers de osu!mania encontram parceiros de collab e GD, compartilham seus mapas e conversam sobre osu!mania. É também o Discord oficial do Cascade.",
+        ],
+        [
+          "Preciso usar o Cascade para entrar?",
+          "Não. Jogadores e mappers são bem-vindos, seja qual for o editor em que mapeiam.",
+        ],
+        [
+          "Dá para encontrar um mapper para uma dificuldade convidada lá?",
+          "Sim. Pergunte no servidor por uma GD ou um parceiro de collab, e depois mapeiem juntos no Cascade ou troquem arquivos como sempre.",
+        ],
+        ["É de graça?", "Sim. O servidor do Discord é gratuito, e o Cascade também."],
+      ],
+    }),
+  },
+};
+
+export const PAGES = [playtest, collab, aimod, timing, mapCard, community];

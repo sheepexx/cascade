@@ -104,6 +104,9 @@ const STYLE = `      :root { color-scheme: dark; }
       p { margin: 0 0 10px; }
       ol, ul { margin: 0 0 10px; padding-left: 22px; }
       li { margin: 4px 0; }
+      dl { margin: 0 0 10px; }
+      dt { margin-top: 12px; color: #cfd2dc; font-weight: 600; }
+      dd { margin: 4px 0 0; }
       code { padding: 1px 6px; border-radius: 5px; background: #1d1d27; color: #cfd2dc; font-size: 0.88em; }
       a { color: #f48a8a; }
       .cta {
@@ -204,7 +207,7 @@ ${STYLE}
 
       <h1>${c.h1}</h1>
 ${c.lead}
-      <a class="cta" href="/">${c.cta}</a>
+      <a class="cta" href="${page.ctaHref ?? "/"}">${c.cta}</a>
 
 ${c.body}
 ${langBar(page.slug, locale)}

@@ -18,7 +18,7 @@ const HOME_UPDATED = "2026-09-24";
 const GENERATED = LANDING_PAGES.flatMap((page) =>
   Object.keys(LOCALES).map((locale) => ({
     path: docsUrl(page.slug, locale),
-    updated: "2026-10-01",
+    updated: page.updated > "2026-10-01" ? page.updated : "2026-10-01",
     priority: locale === "en" ? "0.7" : "0.5",
     changefreq: "monthly",
   })),
