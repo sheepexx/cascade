@@ -3188,8 +3188,13 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
       {/* A read-only editor is an embedded view — a reference difficulty, or
           the skin dialog's preview — where there is nothing to switch between. */}
+      {/* Zen mode drops the receptor label below, so this moves up into its place. */}
       {!props.mobile && !props.playtestMode && !props.readOnly && (
-        <div className="float-chip absolute left-3 top-11 z-20 flex select-none items-center gap-0.5 p-0.5 text-xs">
+        <div
+          className={`float-chip absolute left-3 z-20 flex select-none items-center gap-0.5 p-0.5 text-xs transition-[top] duration-150 ${
+            props.zenMode ? "top-3" : "top-11"
+          }`}
+        >
           {(["note", "hold", "select"] as const).map((mode) => (
             <button
               key={mode}
@@ -3212,7 +3217,10 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
       {!props.hideHints && !props.playtestMode && (
         <div
-          className="float-chip pointer-events-none absolute left-3 top-3 flex h-7 select-none items-center gap-2 px-2.5 text-xs text-slate-300 transition-[opacity,transform] duration-150"
+          aria-hidden={props.zenMode || undefined}
+          className={`float-chip pointer-events-none absolute left-3 top-3 flex h-7 select-none items-center gap-2 px-2.5 text-xs text-slate-300 transition-[opacity,transform] duration-150 ${
+            props.zenMode ? "-translate-y-1 opacity-0" : ""
+          }`}
         >
           <span
             aria-hidden
