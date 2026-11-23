@@ -80,6 +80,21 @@ describe("discord community", () => {
       expect(await t.asUser(nelly, (tx) => tx.query("select * from public.contributions"))).toMatchObject({ rows: [] });
     });
 
+    it("lists everyone's accepted contribution points, by Discord account, without opting in (migration 0049)", async () => {
+      await submit("1001", "First bug");
+      await submit("1001", "Second bug");
+      await submit("1002", "An idea", "suggestion");
+      await submit("1003", "Rejected one");
+      await review(1, true);
+      await review(2, true);
+      await review(3, true);
+      await review(4, false);
+      expect(await service("public.bot_leaderboard('contribution_points')")).toEqual([
+        { discord_user_id: "1001", username: null, handle: null, value: 20 },
+        { discord_user_id: "1002", username: null, handle: null, value: 5 },
+      ]);
+    });
+
     it("lists only people who chose the leaderboard, for numbers they show to everyone", async () => {
       const shy = await t.createDiscordUser("shy", "1001");
       const open = await t.createDiscordUser("open", "1002");

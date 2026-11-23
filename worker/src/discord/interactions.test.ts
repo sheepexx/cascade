@@ -182,6 +182,29 @@ describe("signatures", () => {
   });
 });
 
+describe("leaderboards", () => {
+  const board = (value: string) => command("leaderboard", { options: [{ name: "board", type: 3, value }] });
+
+  it("list everyone's contribution points by Discord name, without pinging anyone", async () => {
+    const d = deps({
+      leaderboard: vi.fn(async () => [
+        { discord_user_id: "300000000000000009", username: null, handle: null, value: 25 },
+        { discord_user_id: "300000000000000001", username: null, handle: null, value: 10 },
+      ]),
+    });
+    const res = await handleInteraction(board("contribution_points"), env(), undefined, d);
+    expect(text(res)).toContain("**1.** <@300000000000000009> · 25 points");
+    expect(text(res)).toContain("Points from contributions the Cascade team accepted.");
+    expect(res.data?.allowed_mentions).toEqual({ parse: [], users: [] });
+  });
+
+  it("keep the mapping boards to people who turned them on", async () => {
+    const d = deps({ leaderboard: vi.fn(async () => []) });
+    expect(text(await handleInteraction(board("mapping_time"), env(), undefined, d))).toContain("turn on the leaderboard");
+    expect(text(await handleInteraction(board("contribution_points"), env(), undefined, d))).toContain("No contributions have been accepted yet");
+  });
+});
+
 describe("looking people up", () => {
   it("tells nobody whether a member who keeps it private has linked", async () => {
     const unlinked = deps();

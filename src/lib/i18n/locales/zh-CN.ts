@@ -2514,7 +2514,7 @@ export const zhCN: PartialCatalog = {
   "connections.botLookup": "允许他人通过 Discord 找到我的资料",
   "connections.botLookupHint": "Cascade Discord 服务器中的人可以用 /profile 通过你的 Discord 账号打开你的 Cascade 资料。显示的内容仍遵循你的隐私设置，你也随时可以展示自己的资料。",
   "connections.botLeaderboard": "在机器人排行榜上显示我",
-  "connections.botLeaderboardHint": "显示你的 Cascade 名称，以及你的隐私设置已向所有人公开的作图数据和贡献积分。",
+  "connections.botLeaderboardHint": "显示你的 Cascade 名称，以及你的隐私设置已向所有人公开的作图数据。贡献积分是公开的：所有有被采纳贡献的人都会出现在该排行榜上。",
   "connections.botNeedsDiscord": "关联 Discord 后即可使用。",
   "connections.saveFailed": "无法保存该设置。",
 };

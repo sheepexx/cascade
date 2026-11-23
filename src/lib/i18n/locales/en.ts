@@ -3003,7 +3003,7 @@ export const en = {
   "connections.botLookup": "Let others find my profile from Discord",
   "connections.botLookupHint": "People in Cascade's Discord server can open your Cascade profile from your Discord account with /profile. What it shows still follows your privacy settings, and you can always show your own.",
   "connections.botLeaderboard": "Show me on the bot's leaderboards",
-  "connections.botLeaderboardHint": "Lists your Cascade name with the mapping numbers your privacy settings already show to everyone, and your contributor points.",
+  "connections.botLeaderboardHint": "Lists your Cascade name with the mapping numbers your privacy settings already show to everyone. Contributor points are public: everyone with accepted contributions is on that board.",
   "connections.botNeedsDiscord": "Connect Discord to use these.",
   "connections.saveFailed": "Couldn't save that setting.",
   "social.connectOsuTitle": "No osu! account connected",

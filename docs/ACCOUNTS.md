@@ -129,8 +129,11 @@ functions with an anonymous token, so it sees what a signed-out visitor sees.
 Its own functions (0048) are service-role only and return no private data.
 Two opt-in settings (`social_privacy.discord_lookup` and `leaderboard`,
 default off) decide whether others can open your profile from your Discord
-account and whether you appear on leaderboards. A member who hasn't linked
-and one who keeps lookups off get the same answer.
+account and whether you appear on the mapping leaderboards. A member who
+hasn't linked and one who keeps lookups off get the same answer. Contribution
+points are public (0049): everyone with accepted contributions is on that
+board, listed by Discord account, never by Cascade name, so it doesn't reveal
+which Cascade account a Discord account belongs to.
 
 Contributions earn points only when a maintainer accepts them, once
 (`review_contribution` locks the row and only changes a pending one); nobody

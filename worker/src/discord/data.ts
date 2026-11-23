@@ -136,7 +136,13 @@ export type RoadmapItem = { id: number; title: string; details: string; status: 
 
 export type AppUpdate = { title: string; body: string | null; action_url: string | null; version: string | null; created_at: string };
 
-export type LeaderRow = { username: string; handle: string; value: number };
+/** A Cascade name for the opt-in boards; a Discord account for contribution points (migration 0049). */
+export type LeaderRow = {
+  username: string | null;
+  handle: string | null;
+  value: number;
+  discord_user_id?: string | null;
+};
 
 export const data = {
   discordAccount: (env: WorkerEnv, discordUserId: string) =>

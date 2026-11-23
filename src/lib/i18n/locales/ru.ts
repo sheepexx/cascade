@@ -2796,7 +2796,7 @@ export const ru: PartialCatalog = {
   "connections.botLookup": "Разрешить находить мой профиль через Discord",
   "connections.botLookupHint": "Участники Discord-сервера Cascade смогут открыть ваш профиль Cascade по аккаунту Discord командой /profile. Что видно, по-прежнему зависит от настроек приватности, а свой профиль вы всегда можете показать сами.",
   "connections.botLeaderboard": "Показывать меня в рейтингах бота",
-  "connections.botLeaderboardHint": "Показывает ваше имя в Cascade с теми цифрами маппинга, которые ваши настройки приватности уже открывают всем, и ваши очки вклада.",
+  "connections.botLeaderboardHint": "Показывает ваше имя в Cascade с теми цифрами маппинга, которые ваши настройки приватности уже открывают всем. Очки вклада публичны: в их рейтинг попадают все, у кого есть принятые вклады.",
   "connections.botNeedsDiscord": "Подключите Discord, чтобы пользоваться этим.",
   "connections.saveFailed": "Не удалось сохранить настройку.",
 };

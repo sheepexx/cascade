@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { DiscordBotSection } from "./AdminDiscord";
+import { ProviderMark } from "../auth/LoginDialog";
 import { Button, TextInput, Toggle } from "../ui/Controls";
 import { Dropdown } from "../ui/Dropdown";
 import { PatternPreview } from "../ui/PatternPreview";
@@ -42,6 +43,9 @@ import {
   listAllProjects,
   deleteProjectAdmin,
   userPlatform,
+  userSignIn,
+  discordIdentity,
+  type AdminSignIn,
   type AdminAppVersionStat,
   type AdminDesktopDownloadStat,
   type AdminEventStat,
@@ -366,6 +370,39 @@ function PlatformBadge({ platform }: { platform: string }) {
       className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style}`}
     >
       {platform}
+    </span>
+  );
+}
+
+const SIGN_IN_ORDER: Record<AdminSignIn, number> = { both: 3, discord: 2, osu: 1, unknown: 0 };
+
+/** Typing one of these in the search lists accounts that sign in that way. */
+const SIGN_IN_SEARCH: Record<string, AdminSignIn[]> = {
+  osu: ["osu", "both"],
+  "osu!": ["osu", "both"],
+  discord: ["discord", "both"],
+  both: ["both"],
+};
+
+const SIGN_IN_LABEL: Record<AdminSignIn, string> = {
+  osu: "osu!",
+  discord: "Discord",
+  both: "osu! + Discord",
+  unknown: "unknown",
+};
+
+/** How an account logs in: the provider marks, then the same in words. */
+function SignInBadge({ user }: { user: AdminUserSummary }) {
+  const signIn = userSignIn(user);
+  const discord = discordIdentity(user);
+  return (
+    <span
+      className="flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-300"
+      title={discord ? `Discord: ${discord.display_name ?? "unnamed"} (${discord.provider_user_id})` : undefined}
+    >
+      {(signIn === "osu" || signIn === "both") && <ProviderMark provider="osu" className="h-3.5 w-3.5" />}
+      {(signIn === "discord" || signIn === "both") && <ProviderMark provider="discord" className="h-3.5 w-3.5" />}
+      <span className={signIn === "unknown" ? "text-slate-500" : ""}>{SIGN_IN_LABEL[signIn]}</span>
     </span>
   );
 }
@@ -909,6 +946,7 @@ function PresetsTab() {
 type UserSortKey =
   | "username"
   | "platform"
+  | "sign_in"
   | "osu_id"
   | "created_at"
   | "last_seen"
@@ -923,6 +961,7 @@ type UserSortKey =
 const USER_COLUMNS: { key: UserSortKey; label: string; right?: boolean }[] = [
   { key: "username", label: "User" },
   { key: "platform", label: "Client" },
+  { key: "sign_in", label: "Sign-in" },
   { key: "osu_id", label: "osu! id", right: true },
   { key: "created_at", label: "Joined", right: true },
   { key: "last_seen", label: "Last seen", right: true },
@@ -951,6 +990,7 @@ function userSortValue(
   if (key === "mapping") return mapping.get(u.id)?.edit_seconds ?? 0;
   if (key === "username") return u.username.toLowerCase();
   if (key === "platform") return platformRank(u);
+  if (key === "sign_in") return SIGN_IN_ORDER[userSignIn(u)];
   if (key === "created_at") return new Date(u.created_at).getTime();
   if (key === "last_seen") return lastSeenAt(u);
   return Number(u[key] ?? 0);
@@ -1001,12 +1041,15 @@ function UsersTab() {
   const rows = useMemo(() => {
     if (!users) return null;
     const needle = query.trim().toLowerCase();
+    const signIn = SIGN_IN_SEARCH[needle];
     const filtered = needle
       ? users.filter(
           (u) =>
             u.username.toLowerCase().includes(needle) ||
             (u.osu_id !== null && String(u.osu_id).includes(needle)) ||
-            userPlatform(u) === needle,
+            userPlatform(u) === needle ||
+            (signIn ? signIn.includes(userSignIn(u)) : false) ||
+            (discordIdentity(u)?.display_name?.toLowerCase().includes(needle) ?? false),
         )
       : users;
     return [...filtered].sort((a, b) => {
@@ -1057,6 +1100,11 @@ function UsersTab() {
           <div className="text-sm text-slate-400">
             <span className="font-semibold text-slate-200">{users.length}</span>{" "}
             accounts
+            <span className="text-slate-500">
+              {" "}· {users.filter((u) => userSignIn(u) === "osu").length} osu! only ·{" "}
+              {users.filter((u) => userSignIn(u) === "discord").length} Discord only ·{" "}
+              {users.filter((u) => userSignIn(u) === "both").length} both
+            </span>
             {rows && rows.length !== users.length && (
               <span className="text-slate-500"> · {rows.length} shown</span>
             )}
@@ -1064,8 +1112,8 @@ function UsersTab() {
           <TextInput
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, osu! id or client"
-            className="w-56"
+            placeholder="Search name, osu! id, Discord, client"
+            className="w-72 max-w-full"
           />
         </div>
       )}
@@ -1133,8 +1181,11 @@ function UsersTab() {
                       )}
                     </div>
                   </td>
+                  <td className="px-1.5 py-2">
+                    <SignInBadge user={u} />
+                  </td>
                   <td className="px-1.5 py-2 text-right font-mono text-xs text-slate-500">
-                    {u.osu_id ?? "Discord"}
+                    {u.osu_id ?? <span className="text-slate-600">none</span>}
                   </td>
                   <td className="px-1.5 py-2 text-right text-xs text-slate-500">
                     {new Date(u.created_at).toLocaleDateString()}
@@ -1264,12 +1315,21 @@ function UserDetail({
             <span className="text-base font-semibold text-slate-100">{user.username}</span>
           )}
           <div className="text-[11px] text-slate-500">
-            {user.osu_id !== null ? `osu! id ${user.osu_id}` : "Discord account"} · joined{" "}
+            {[
+              user.osu_id !== null ? `osu! id ${user.osu_id}` : null,
+              discordIdentity(user)
+                ? `Discord ${discordIdentity(user)!.display_name ?? "account"} (${discordIdentity(user)!.provider_user_id})`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "no sign-in method"}{" "}
+            · joined{" "}
             {new Date(user.created_at).toLocaleDateString()} · last signed in{" "}
             {formatMoment(user.last_signed_in_at)}
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <SignInBadge user={user} />
           <PlatformBadge platform={userPlatform(user)} />
           {user.is_admin && (
             <span className="rounded bg-accent/15 px-2 py-1 text-2xs font-semibold text-accent">

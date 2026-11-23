@@ -2639,7 +2639,7 @@ export const de: PartialCatalog = {
   "connections.botLookup": "Andere dürfen mein Profil über Discord finden",
   "connections.botLookupHint": "Leute im Discord-Server von Cascade können dein Cascade-Profil mit /profile über dein Discord-Konto öffnen. Was es zeigt, richtet sich weiter nach deinen Privatsphäre-Einstellungen, und dein eigenes kannst du immer zeigen.",
   "connections.botLeaderboard": "Mich in den Bestenlisten des Bots zeigen",
-  "connections.botLeaderboardHint": "Zeigt deinen Cascade-Namen mit den Mapping-Zahlen, die deine Privatsphäre-Einstellungen schon allen zeigen, und deine Beitragspunkte.",
+  "connections.botLeaderboardHint": "Zeigt deinen Cascade-Namen mit den Mapping-Zahlen, die deine Privatsphäre-Einstellungen schon allen zeigen. Beitragspunkte sind öffentlich: Jeder mit angenommenen Beiträgen steht in dieser Liste.",
   "connections.botNeedsDiscord": "Verbinde Discord, um das zu nutzen.",
   "connections.saveFailed": "Die Einstellung konnte nicht gespeichert werden.",
 };

@@ -68,7 +68,37 @@ export type AdminUserSummary = AdminUser & {
   last_app_version: string | null;
   desktop_version: string | null;
   last_desktop_at: string | null;
+  /** How the account signs in (migration 0049; empty before it). */
+  identities: AdminIdentity[];
 };
+
+export type AdminIdentity = {
+  user_id: string;
+  provider: "osu" | "discord";
+  provider_user_id: string;
+  display_name: string | null;
+  created_at: string;
+  last_used_at: string | null;
+};
+
+export type AdminSignIn = "osu" | "discord" | "both" | "unknown";
+
+/**
+ * How an account signs in. Before migration 0049 the panel can't read
+ * identities, so an osu! id is the only clue.
+ */
+export function userSignIn(user: Pick<AdminUserSummary, "identities" | "osu_id">): AdminSignIn {
+  const osu = user.identities.some((i) => i.provider === "osu") || (!user.identities.length && user.osu_id !== null);
+  const discord = user.identities.some((i) => i.provider === "discord");
+  if (osu && discord) return "both";
+  if (discord) return "discord";
+  if (osu) return "osu";
+  return "unknown";
+}
+
+export function discordIdentity(user: Pick<AdminUserSummary, "identities">): AdminIdentity | null {
+  return user.identities.find((i) => i.provider === "discord") ?? null;
+}
 
 export type AdminPlatformStat = {
   platform: string;
@@ -156,12 +186,21 @@ export type AdminSharedMap = {
 
 export async function listUserSummaries(): Promise<AdminUserSummary[]> {
   const supabase = await getSupabase();
-  const [usersResult, previews, cards] = await Promise.all([
+  const [usersResult, previews, cards, identitiesResult] = await Promise.all([
     supabase.rpc("admin_user_summaries"),
     listAdminSharedMaps(),
     listAdminMapCards().catch((): AdminMapCard[] => []),
+    supabase.rpc("admin_account_identities"),
   ]);
   if (usersResult.error) throw new Error(usersResult.error.message);
+  // Before migration 0049 there is no list of identities; the panel then
+  // falls back to the osu! id.
+  const identities = new Map<string, AdminIdentity[]>();
+  if (!identitiesResult.error && Array.isArray(identitiesResult.data)) {
+    for (const identity of identitiesResult.data as AdminIdentity[]) {
+      identities.set(identity.user_id, [...(identities.get(identity.user_id) ?? []), identity]);
+    }
+  }
   const previewBytes = new Map<string, number>();
   for (const preview of previews) {
     previewBytes.set(
@@ -176,6 +215,7 @@ export async function listUserSummaries(): Promise<AdminUserSummary[]> {
     ...user,
     storage_bytes:
       Number(user.storage_bytes || 0) + (previewBytes.get(user.id) ?? 0),
+    identities: identities.get(user.id) ?? [],
   }));
 }
 

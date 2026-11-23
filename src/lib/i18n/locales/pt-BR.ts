@@ -2638,7 +2638,7 @@ export const ptBR: PartialCatalog = {
   "connections.botLookup": "Permitir que outros encontrem meu perfil pelo Discord",
   "connections.botLookupHint": "Pessoas no servidor do Cascade no Discord podem abrir seu perfil do Cascade pela sua conta do Discord com /profile. O que aparece continua seguindo suas configurações de privacidade, e você sempre pode mostrar o seu.",
   "connections.botLeaderboard": "Mostrar-me nos rankings do bot",
-  "connections.botLeaderboardHint": "Mostra seu nome no Cascade com os números de mapeamento que suas configurações de privacidade já mostram para todos, e seus pontos de contribuição.",
+  "connections.botLeaderboardHint": "Mostra seu nome no Cascade com os números de mapeamento que suas configurações de privacidade já mostram para todos. Os pontos de contribuição são públicos: todos com contribuições aceitas aparecem nesse ranking.",
   "connections.botNeedsDiscord": "Conecte o Discord para usar isto.",
   "connections.saveFailed": "Não foi possível salvar essa configuração.",
 };

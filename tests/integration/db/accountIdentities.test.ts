@@ -152,6 +152,24 @@ describe("account identities", () => {
       await t.asUser(alice, (tx) => tx.query("update public.users set is_admin = false where id = $1", [alice]));
     });
 
+    it("shows every account's sign-in methods to admins only (migration 0049)", async () => {
+      const admin = await t.createUser("admin");
+      await t.db.query("update public.users set is_admin = true where id = $1", [admin]);
+      const nelly = await t.createDiscordUser("Nelly", "1001");
+      const list = await t.asUser(admin, async (tx) => {
+        const { rows } = await tx.query<{ v: { user_id: string; provider: string; display_name: string }[] }>(
+          "select public.admin_account_identities() as v",
+        );
+        return rows[0].v;
+      });
+      expect(list.filter((i) => i.user_id === nelly)).toEqual([
+        expect.objectContaining({ provider: "discord", provider_user_id: "1001", display_name: "Nelly" }),
+      ]);
+      expect(list.filter((i) => i.user_id === admin)).toEqual([expect.objectContaining({ provider: "osu" })]);
+      const refused = await failure(() => t.asUser(nelly, (tx) => tx.query("select public.admin_account_identities()")));
+      expect(refused?.message).toMatch(/admin access required/);
+    });
+
     it("never changes an account's id", async () => {
       const alice = await t.createUser("alice");
       expect(

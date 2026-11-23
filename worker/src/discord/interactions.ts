@@ -406,28 +406,41 @@ async function leaderboardCommand(interaction: Interaction, env: WorkerEnv, deps
   const { options } = optionsOf(interaction);
   const board = LEADERBOARDS.find((b) => b.value === optString(options, "board")) ?? LEADERBOARDS[0];
   const rows = await deps.data.leaderboard(env, board.value);
+  // Contribution points are public; the mapping boards list only people who
+  // turned them on.
+  const points = board.value === "contribution_points";
   if (!rows.length) {
     return {
       embeds: [
         embed({
           title: `${board.name} leaderboard`,
-          description:
-            "Nobody is on this leaderboard yet. To appear, turn on the leaderboard in Cascade under Settings, Account.",
+          description: points
+            ? "No contributions have been accepted yet. Report bugs with /bug and ideas with /suggest; accepted ones earn points."
+            : "Nobody is on this leaderboard yet. To appear, turn on the leaderboard in Cascade under Settings, Account.",
           color: COLORS.neutral,
         }),
       ],
     };
   }
-  const lines = rows.map(
-    (row, i) => `**${i + 1}.** [${plain(row.username)}](${profileUrl(env, row.handle)}) · ${formatMetric(board.value, row.value)}`,
-  );
+  const lines = rows.map((row, i) => {
+    const who = row.discord_user_id
+      ? `<@${row.discord_user_id}>`
+      : row.username && row.handle
+        ? `[${plain(row.username)}](${profileUrl(env, row.handle)})`
+        : "someone";
+    return `**${i + 1}.** ${who} · ${formatMetric(board.value, row.value)}`;
+  });
   return {
     embeds: [
       embed({
         title: `${board.name} leaderboard`,
         description: lines.join("\n"),
         color: COLORS.accent,
-        footer: { text: "Only people who chose to appear on leaderboards are listed." },
+        footer: {
+          text: points
+            ? "Points from contributions the Cascade team accepted."
+            : "Only people who chose to appear on leaderboards are listed.",
+        },
       }),
     ],
   };

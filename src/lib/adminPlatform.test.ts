@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { platformRank, userPlatform, type AdminUserSummary } from "./admin";
+import { platformRank, userPlatform, userSignIn, type AdminIdentity, type AdminUserSummary } from "./admin";
 
 function summary(desktop: number, web: number): AdminUserSummary {
   return {
@@ -29,8 +29,33 @@ function summary(desktop: number, web: number): AdminUserSummary {
     last_app_version: null,
     desktop_version: null,
     last_desktop_at: null,
+    identities: [],
   };
 }
+
+function identity(provider: "osu" | "discord"): AdminIdentity {
+  return {
+    user_id: "3c0a6c53-6b8e-4a6a-9f1a-0c1a4e5b7d21",
+    provider,
+    provider_user_id: provider === "osu" ? "1234" : "80351110224678912",
+    display_name: provider === "osu" ? "sheepex" : "Sheep",
+    created_at: "2026-01-01T00:00:00Z",
+    last_used_at: null,
+  };
+}
+
+describe("userSignIn", () => {
+  it("tells osu!, Discord and both apart", () => {
+    expect(userSignIn({ osu_id: 1234, identities: [identity("osu")] })).toBe("osu");
+    expect(userSignIn({ osu_id: null, identities: [identity("discord")] })).toBe("discord");
+    expect(userSignIn({ osu_id: 1234, identities: [identity("osu"), identity("discord")] })).toBe("both");
+  });
+
+  it("falls back to the osu! id before the panel can read identities", () => {
+    expect(userSignIn({ osu_id: 1234, identities: [] })).toBe("osu");
+    expect(userSignIn({ osu_id: null, identities: [] })).toBe("unknown");
+  });
+});
 
 describe("userPlatform", () => {
   it("labels an account by the clients it has actually used", () => {
