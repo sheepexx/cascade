@@ -727,17 +727,6 @@ img {
   transform-origin: bottom center;
 }
 
-.float-player-tip-card {
-  opacity: 0;
-  transition: opacity 200ms ease;
-  transform-origin: bottom center;
-}
-
-.group:hover .float-player-tip-card {
-  opacity: 1;
-  animation: pfp-pop-in 180ms var(--ease-emphasized);
-}
-
 .menu-panel-face {
   transform: scaleY(1) skewX(var(--menu-skew));
   /* Each face casts a soft shadow onto the panel to its left, the way
@@ -932,10 +921,16 @@ img {
   animation: fade-out 700ms ease-in forwards;
 }
 
-@keyframes float-player-in {
+/* The main menu's online chip: its dot ticks on the song's beat (--beat,
+   written each frame by MenuPresence), and its list rises out of it. */
+.presence-dot {
+  transform: scale(calc(1 + var(--beat, 0) * 0.7));
+}
+
+@keyframes presence-pop-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.92);
+    transform: translateY(4px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -943,63 +938,22 @@ img {
   }
 }
 
-.float-player-in {
-  animation: float-player-in 480ms ease-out both;
-  animation-delay: var(--reveal-delay, 0ms);
-}
-
-@keyframes float-player-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+@keyframes presence-pop-out {
   to {
     opacity: 0;
-    transform: translateY(4px) scale(0.92);
+    transform: translateY(3px) scale(0.99);
   }
 }
 
-.float-player-out {
-  animation: float-player-out 400ms ease-in both;
-  animation-delay: var(--reveal-delay, 0ms);
+.presence-pop-in {
+  transform-origin: bottom left;
+  animation: presence-pop-in var(--motion-enter) var(--ease-emphasized) both;
 }
 
-/* Two nested sine curves at a 2:1 period trace a smooth figure-8, so faces
-   wander in arcs instead of switching between sharp corners. */
-@keyframes float-player-drift {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) rotate(var(--tilt, 0deg));
-  }
-  50% {
-    transform: translate3d(var(--drift-x, 44px), 0, 0)
-      rotate(var(--tilt, 0deg));
-  }
-}
-
-.float-player-drift {
-  height: 100%;
-  animation: float-player-drift var(--float-duration, 12s) ease-in-out infinite;
-  animation-delay: var(--float-delay, 0s);
-  will-change: transform;
-}
-
-@keyframes float-player-bob {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(0, var(--bob-y, -18px), 0) scale(1.02);
-  }
-}
-
-.float-player-bob {
-  height: 100%;
-  animation: float-player-bob calc(var(--float-duration, 12s) / 2)
-    ease-in-out infinite;
-  animation-delay: calc(var(--float-delay, 0s) * -0.5);
-  will-change: transform;
+.presence-pop-out {
+  pointer-events: none;
+  transform-origin: bottom left;
+  animation: presence-pop-out var(--motion-exit) var(--ease-standard) both;
 }
 
 @keyframes track-fade-in {
@@ -1663,7 +1617,6 @@ canvas[data-pointer-focus]:focus-visible {
   .hold-charging,
   .hold-shine,
   .pfp-pop-in,
-  .float-player-tip-card,
   .notification-shell,
   .rate-panel-in,
   .hud-panel-in,
@@ -1682,6 +1635,8 @@ canvas[data-pointer-focus]:focus-visible {
   .tooltip-in,
   .menu-pop-in,
   .menu-pop-out,
+  .presence-pop-in,
+  .presence-pop-out,
   .command-palette-backdrop,
   .command-palette-panel,
   .volume-rings,
@@ -1692,23 +1647,13 @@ canvas[data-pointer-focus]:focus-visible {
   .hitsound-bar-out,
   .track-fade-in,
   .bg-fade-in,
-  .bg-fade-out,
-  .float-player-out {
+  .bg-fade-out {
     animation-duration: 1ms;
   }
 
   .skeleton::after,
   .loader-bar,
   .loader-logo-pulse {
-    animation: none;
-  }
-
-  .float-player-in {
-    animation-duration: 1ms;
-  }
-
-  .float-player-drift,
-  .float-player-bob {
     animation: none;
   }
 
@@ -1991,8 +1936,6 @@ canvas[data-pointer-focus]:focus-visible {
   scroll-behavior: auto !important;
 }
 
-:root[data-performance="on"] .skeleton::after,
-:root[data-performance="on"] .float-player-drift,
-:root[data-performance="on"] .float-player-bob {
+:root[data-performance="on"] .skeleton::after {
   animation: none !important;
 }

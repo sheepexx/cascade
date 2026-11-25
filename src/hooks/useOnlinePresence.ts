@@ -33,8 +33,8 @@ const RECONNECT_MS = 3_000;
  * Who is using the app right now. Every signed-in tab tracks itself on a
  * shared presence channel (avatar + username + what they are working on),
  * while everyone else simply reads the channel. The roster fetch fills in
- * "known but offline" players so the menu always has faces to float, even
- * when nobody else is online.
+ * "known but offline" players, which the menu's online list shows as
+ * recently active.
  */
 export function useOnlinePresence(
   getStatus?: () => string | null,

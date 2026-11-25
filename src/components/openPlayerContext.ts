@@ -1,7 +1,13 @@
 import { createContext } from "react";
 
 /**
- * Opens a Cascade profile for a player floating on the main menu. Without a
- * provider (the social features off) the avatars link to osu! as before.
+ * What the main menu's online list can open for a player. Without a provider
+ * (the social features off) its rows link to osu! profiles instead.
  */
-export const OpenPlayerContext = createContext<((username: string) => void) | null>(null);
+export type PlayerActions = {
+  openProfile: (name: string) => void;
+  /** A conversation with them, or their profile when one can't be opened. */
+  openMessages: (userId: string, name: string) => void;
+};
+
+export const OpenPlayerContext = createContext<PlayerActions | null>(null);

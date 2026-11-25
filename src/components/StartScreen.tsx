@@ -1,14 +1,12 @@
 import {
-  useContext,
+  useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
 import type { MenuMusic } from "../hooks/useMenuMusic";
-import { OpenPlayerContext } from "./openPlayerContext";
 import { BeatBounce, LoudnessTracker, bounceTransform } from "../lib/beatBounce";
 import {
   AudioPunch,
@@ -41,20 +39,10 @@ import {
 } from "../lib/editorKeybinds";
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { useAuth } from "../lib/auth";
-import { useT, type MessageKey, type Translate } from "../lib/i18n";
+import { useT, type MessageKey } from "../lib/i18n";
 import { TrackTitleFlash } from "./TrackTitleFlash";
 import { countLocalProjects } from "../lib/persistence";
-import {
-  boxClear,
-  guardRects,
-  hashId,
-  makeSlot,
-  placementArea,
-  rescaleSlot,
-  slotBoxes,
-  slotClear,
-  type AvatarSlot,
-} from "../lib/menuFloat";
+import { MenuPresence } from "./MenuPresence";
 import {
   reduceMotion,
   renderScale,
@@ -314,6 +302,11 @@ export function StartScreen({
     };
   }, [barHovered]);
 
+  const presenceBeat = useCallback(
+    (time: number) => songPulse(musicRef.current, time),
+    [],
+  );
+
   useEffect(() => {
     logoHitsounds.configure(logoSamples, skinHitsounds);
   }, [logoSamples, skinHitsounds]);
@@ -487,7 +480,6 @@ export function StartScreen({
       >
         <MenuBackground
           url={menuBackgroundUrl ?? music.track?.backgroundUrl ?? null}
-          players={players ?? []}
           phone={false}
           open={open}
         />
@@ -525,6 +517,8 @@ export function StartScreen({
           <MenuTips active={open && !osuBanner} keybinds={editorKeybinds} />
         )}
 
+        <MenuPresence players={players ?? []} visible={open} beat={presenceBeat} />
+
         {bannerSlotted && lastBannerRef.current && (
           <div
             className={`osu-banner-slot absolute inset-x-0 bottom-0 z-10 flex justify-center px-6 ${
@@ -537,7 +531,7 @@ export function StartScreen({
               if (!osuBanner) setBannerSlotted(false);
             }}
           >
-            <div className="w-[min(32rem,100%)]" data-menu-guard="">
+            <div className="w-[min(32rem,100%)]">
               {osuBanner ?? lastBannerRef.current}
             </div>
           </div>
@@ -558,7 +552,7 @@ export function StartScreen({
               }px)`,
             }}
           >
-            <div data-menu-guard="">
+            <div>
               <p className="menu-legible text-lg font-semibold text-white">
                 {t(greetingKey())}
                 {user ? `, ${user.username}` : ""}
@@ -575,7 +569,6 @@ export function StartScreen({
 
           {wide ? (
             <div
-              data-menu-guard=""
               className="pointer-events-none absolute inset-x-0 top-1/2 z-20 -translate-y-1/2"
               style={
                 {
@@ -670,7 +663,6 @@ export function StartScreen({
             >
               <div
                 ref={stackedRef}
-                data-menu-guard=""
                 className="flex max-w-full flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-ink-800/90 p-2 backdrop-blur-md"
               >
                 {[...left, ...right].map((a) => (
@@ -682,7 +674,6 @@ export function StartScreen({
 
           <span
             aria-hidden
-            data-menu-guard=""
             className="pointer-events-none absolute left-1/2"
             style={{
               top: menuCenter,
@@ -745,7 +736,6 @@ export function StartScreen({
         {/* Stays put when the osu! banner slides in; the banner layers above
             it on a window narrow enough for the two to meet. */}
         <div
-          data-menu-guard=""
           className="menu-legible absolute bottom-3 right-4 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-slate-300"
         >
           <a
@@ -893,7 +883,6 @@ function MenuTips({
       }`}
     >
       <div
-        data-menu-guard=""
         className="flex w-[min(34rem,100%)] items-start gap-3 rounded-xl bg-ink-700 px-4 py-3"
       >
         <BulbIcon />
@@ -1161,12 +1150,10 @@ function usePointerParallax(
 
 function MenuBackground({
   url,
-  players,
   phone,
   open,
 }: {
   url: string | null;
-  players: OnlinePlayer[];
   phone: boolean;
   open: boolean;
 }) {
@@ -1252,308 +1239,6 @@ function MenuBackground({
           ))}
         </div>
       </div>
-      {open && (
-        <FloatingPlayers players={players} phone={phone} />
-      )}
-    </div>
-  );
-}
-
-const FLOAT_MAX_COUNT = 4;
-// Faces swap in and out of the background layer on a gentle rhythm so the
-// menu never shows the same cast twice in a row.
-const FLOAT_ROTATE_MS = 9_000;
-const FLOAT_SETTLE_MS = 140;
-
-function formatLastSeen(ts: number | null, t: Translate): string | null {
-  if (ts == null) return null;
-  const minutes = Math.max(0, Math.floor((Date.now() - ts) / 60_000));
-  if (minutes < 1) return t("menu.justNow");
-  if (minutes < 60) return t("menu.minutesAgo", { n: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t("menu.hoursAgo", { n: hours });
-  const days = Math.floor(hours / 24);
-  if (days < 7) return t("menu.daysAgo", { n: days });
-  return new Date(ts).toLocaleDateString();
-}
-
-function FloatingPlayers({
-  players,
-  phone,
-}: {
-  players: OnlinePlayer[];
-  phone: boolean;
-}) {
-  const openPlayer = useContext(OpenPlayerContext);
-  const t = useT();
-  const limit = FLOAT_MAX_COUNT;
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const sizeRef = useRef<{ width: number; height: number } | null>(null);
-  const [shown, setShown] = useState<OnlinePlayer[]>([]);
-  const [slots, setSlots] = useState<Map<string, AvatarSlot>>(() => new Map());
-  const shownRef = useRef(shown);
-  shownRef.current = shown;
-
-  // Only a subset of the roster floats at a time; every so often a face leaves
-  // and a fresh one joins so the background never looks static.
-  const ordered = [...players].sort((a, b) => hashId(a.id) - hashId(b.id));
-
-  useEffect(() => {
-    setShown((prev) => {
-      const keep = prev.filter((p) => players.some((q) => q.id === p.id));
-      const fill = ordered
-        .filter((p) => !keep.some((q) => q.id === p.id))
-        .slice(0, Math.max(0, limit - keep.length));
-      return [...keep, ...fill];
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, limit]);
-
-  useEffect(() => {
-    if (players.length <= limit) return;
-    const swap = () => {
-      const current = shownRef.current;
-      if (current.length === 0) return;
-      const pool = ordered.filter((p) => !current.some((q) => q.id === p.id));
-      if (pool.length === 0) return;
-      const out = current[Math.floor(Math.random() * current.length)];
-      const add = pool[Math.floor(Math.random() * pool.length)];
-      setShown((prev) => [...prev.filter((p) => p.id !== out.id), add]);
-    };
-    const id = window.setInterval(swap, FLOAT_ROTATE_MS);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, limit]);
-
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    setSlots((prev) => {
-      const next = new Map<string, AvatarSlot>();
-      let changed = false;
-      for (const [id, slot] of prev) {
-        if (shown.some((p) => p.id === id)) next.set(id, slot);
-        else changed = true;
-      }
-      const missing = shown.filter((p) => !next.has(p.id));
-      if (missing.length > 0) {
-        const guards = guardRects(root);
-        const area = placementArea(root);
-        for (const player of missing) {
-          const slot = makeSlot(phone, area, guards, [...next.values()]);
-          if (!slot) continue;
-          next.set(player.id, slot);
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [shown, phone]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    let frame = 0;
-    const check = () => {
-      const guards = guardRects(root);
-      const area = placementArea(root);
-      const size = { width: root.clientWidth, height: root.clientHeight };
-      const last = sizeRef.current;
-      sizeRef.current = size;
-      const scaleX = last && last.width > 0 ? size.width / last.width : 1;
-      const scaleY = last && last.height > 0 ? size.height / last.height : 1;
-      setSlots((prev) => {
-        const next = new Map(prev);
-        let changed = scaleX !== 1 || scaleY !== 1;
-        if (changed) {
-          for (const [id, slot] of prev) {
-            next.set(id, rescaleSlot(slot, scaleX, scaleY, area));
-          }
-        }
-        for (const [id, slot] of [...next]) {
-          if (slotClear(slot, area, guards)) continue;
-          changed = true;
-          const boxes = slotBoxes(slot);
-          if (
-            boxClear(boxes.travel, area, guards) &&
-            boxClear(slot.tipAbove ? boxes.below : boxes.above, area, guards)
-          ) {
-            next.set(id, { ...slot, tipAbove: !slot.tipAbove });
-            continue;
-          }
-          next.delete(id);
-          const moved = makeSlot(phone, area, guards, [...next.values()], {
-            x: slot.x,
-            y: slot.y,
-          });
-          if (moved) next.set(id, moved);
-        }
-        return changed ? next : prev;
-      });
-    };
-    const schedule = () => {
-      window.clearTimeout(frame);
-      frame = window.setTimeout(check, FLOAT_SETTLE_MS);
-    };
-    const resize = new ResizeObserver(schedule);
-    resize.observe(root);
-    const scope = root.parentElement?.parentElement ?? root;
-    const mutations = new MutationObserver(schedule);
-    mutations.observe(scope, { childList: true, subtree: true });
-    return () => {
-      window.clearTimeout(frame);
-      resize.disconnect();
-      mutations.disconnect();
-    };
-  }, [phone]);
-
-  return (
-    <div
-      ref={rootRef}
-      aria-hidden
-      className="pointer-events-none absolute inset-0 z-[25] overflow-hidden"
-    >
-      {shown.slice(0, limit).map((p, i) => {
-        const slot = slots.get(p.id);
-        if (!slot) return null;
-        const online = p.online;
-        const color = online ? "#3fdc8c" : "#78818f";
-        const lastSeen = online ? null : formatLastSeen(p.lastSeen, t);
-        const cascadeProfile = openPlayer && !p.id.startsWith("demo-");
-        // An account without osu! may share its name with one that has it,
-        // and names lead to the osu! one, so it is opened by its id.
-        const profileName = p.osuId == null ? p.id : p.username;
-        const profileUrl = cascadeProfile
-          ? `/user/${encodeURIComponent(profileName)}`
-          : p.osuId != null
-            ? `https://osu.ppy.sh/users/${p.osuId}`
-            : undefined;
-        return (
-          <a
-            key={p.id}
-            href={profileUrl}
-            target={profileUrl && !cascadeProfile ? "_blank" : undefined}
-            rel="noopener noreferrer"
-            onClick={
-              cascadeProfile
-                ? (event) => {
-                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-                    event.preventDefault();
-                    openPlayer(profileName);
-                  }
-                : undefined
-            }
-            className="float-player-in group absolute pointer-events-auto transition-[left,top] duration-700 ease-out"
-            style={
-              {
-                left: slot.x,
-                top: slot.y,
-                width: slot.size,
-                height: slot.size,
-                "--reveal-delay": `${i * 70}ms`,
-              } as React.CSSProperties
-            }
-          >
-            <div
-              className="float-player-drift"
-              style={
-                {
-                  "--drift-x": `${slot.driftX}px`,
-                  "--tilt": `${slot.tilt}deg`,
-                  "--float-duration": `${slot.duration}ms`,
-                  "--float-delay": `${slot.delay}ms`,
-                } as React.CSSProperties
-              }
-            >
-              <div
-                className="float-player-bob"
-                style={
-                  {
-                    "--bob-y": `${slot.bobY}px`,
-                  } as React.CSSProperties
-                }
-              >
-                <div className="relative h-full w-full">
-                  <span
-                    className="absolute -inset-1.5 rounded-full blur-[10px]"
-                    style={{ background: color, opacity: online ? 0.3 : 0.12 }}
-                  />
-                  <img
-                    src={p.avatar ?? undefined}
-                    alt=""
-                    draggable={false}
-                    className={`h-full w-full rounded-full object-cover transition-opacity duration-700 ${
-                      online ? "opacity-95" : "opacity-70 grayscale brightness-[0.72]"
-                    }`}
-                    style={{
-                      border: `2px solid ${color}`,
-                      boxShadow: online ? `0 0 16px ${color}55` : "none",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`pointer-events-none absolute left-1/2 z-20 w-max ${
-                slot.tipAbove ? "bottom-full mb-1.5" : "top-full mt-1.5"
-              }`}
-            >
-              <div
-                className="float-player-drift"
-                style={
-                  {
-                    "--drift-x": `${slot.driftX}px`,
-                    "--tilt": "0deg",
-                    "--float-duration": `${slot.duration}ms`,
-                    "--float-delay": `${slot.delay}ms`,
-                  } as React.CSSProperties
-                }
-              >
-                <div
-                  className="float-player-bob"
-                  style={
-                    {
-                      "--bob-y": `${slot.bobY}px`,
-                      "--float-duration": `${slot.duration}ms`,
-                      "--float-delay": `${slot.delay}ms`,
-                    } as React.CSSProperties
-                  }
-                >
-                  <div className="float-player-tip-card flex w-max -translate-x-1/2 flex-col items-center gap-1.5 rounded-xl border border-ink-500/70 bg-ink-900/95 px-3 py-2.5 shadow-2xl">
-                    <span
-                      className="grid h-14 w-14 place-items-center overflow-hidden rounded-full border-2 bg-ink-700/70 text-lg font-semibold text-slate-100 shadow-md"
-                      style={{ borderColor: color }}
-                    >
-                      {p.avatar ? (
-                        <img
-                          src={p.avatar}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        p.username.slice(0, 1).toUpperCase()
-                      )}
-                    </span>
-                    <span className="block max-w-[8.5rem] truncate text-xs font-semibold text-slate-100">
-                      {p.username}
-                    </span>
-                    <span className="block max-w-[8.5rem] text-center text-[10px] text-slate-400">
-                      {online
-                        ? `${t("menu.workingOn")}: ${p.status || "—"}`
-                        : lastSeen
-                          ? `${t("menu.offline")} · ${t("menu.lastSeen", {
-                              time: lastSeen,
-                            })}`
-                          : t("menu.offline")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </a>
-        );
-      })}
     </div>
   );
 }
@@ -1588,6 +1273,12 @@ function beatClock(music: MenuMusic, now: number, earlyMs = 0): BeatClock {
 function beatPulse(music: MenuMusic, now: number): number {
   const clock = beatClock(music, now);
   return Math.pow(1 - clock.phase / clock.length, 5);
+}
+
+/** Like beatPulse, but still on the idle grid: only a playing song ticks. */
+function songPulse(music: MenuMusic, now: number): number {
+  const clock = beatClock(music, now);
+  return clock.synced ? Math.pow(1 - clock.phase / clock.length, 5) : 0;
 }
 
 function beatIntensity(music: MenuMusic, now: number, windowMs: number): number {

@@ -51,12 +51,12 @@ export function isDemoRoster(users: OnlineRosterUser[]): boolean {
 }
 
 /**
- * A random sample of known players, used to seed the menu's floating avatar
- * layer with "offline" users. Who is actually online comes from Realtime
- * presence on the client; this list is just the pool of faces.
+ * A random sample of known players, which the menu's online list shows as
+ * recently active. Who is actually online comes from Realtime presence on
+ * the client; this list is just the pool of faces.
  *
  * In development the worker endpoint usually isn't reachable, so we fall back
- * to a deterministic set of demo faces so the effect can be previewed locally.
+ * to a deterministic set of demo faces so the list can be previewed locally.
  */
 export async function fetchOnlineRoster(): Promise<OnlineRosterUser[]> {
   if (cachedRoster) return cachedRoster;

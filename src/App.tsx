@@ -41,7 +41,7 @@ import { useFeatureFlags } from "./app/useFeatureFlags";
 import { useMyPrivacy, useSocialPresence, useSocialRoute } from "./app/useSocial";
 import { useMappingActivity } from "./app/useMappingActivity";
 import { noteMappingEvent } from "./lib/mappingEvents";
-import { OpenPlayerContext } from "./components/openPlayerContext";
+import { OpenPlayerContext, type PlayerActions } from "./components/openPlayerContext";
 import { parseSocialPath, type SocialRoute } from "./lib/socialRoute";
 import { useAccountSettingsSync } from "./app/useAccountSettingsSync";
 import {
@@ -370,6 +370,22 @@ export default function App() {
   const openPlayerProfile = useCallback(
     (username: string) => navigateSocial({ view: "profile", name: username, tab: "overview" }),
     [navigateSocial],
+  );
+  const playerActions = useMemo<PlayerActions>(
+    () => ({
+      openProfile: openPlayerProfile,
+      // When a conversation can't be opened (their privacy settings, say),
+      // their profile opens instead.
+      openMessages: (userId, name) => {
+        void import("./lib/social")
+          .then((social) => social.openConversation(userId))
+          .then(
+            (conversationId) => navigateSocial({ view: "messages", conversationId }),
+            () => openPlayerProfile(name),
+          );
+      },
+    }),
+    [navigateSocial, openPlayerProfile],
   );
   const openSocialPath = useCallback(
     (path: string) => {
@@ -3382,7 +3398,7 @@ export default function App() {
                 cascadeTag={appSettings.addCascadeTag}
               />
             ) : (
-              <OpenPlayerContext.Provider value={featureFlags.social ? openPlayerProfile : null}>
+              <OpenPlayerContext.Provider value={featureFlags.social ? playerActions : null}>
               <StartScreen
                 music={menuMusic}
                 players={appSettings.showMenuPlayers ? onlinePlayers : []}
