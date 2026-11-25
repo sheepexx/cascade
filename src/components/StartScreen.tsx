@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -302,11 +301,6 @@ export function StartScreen({
     };
   }, [barHovered]);
 
-  const presenceBeat = useCallback(
-    (time: number) => songPulse(musicRef.current, time),
-    [],
-  );
-
   useEffect(() => {
     logoHitsounds.configure(logoSamples, skinHitsounds);
   }, [logoSamples, skinHitsounds]);
@@ -517,7 +511,7 @@ export function StartScreen({
           <MenuTips active={open && !osuBanner} keybinds={editorKeybinds} />
         )}
 
-        <MenuPresence players={players ?? []} visible={open} beat={presenceBeat} />
+        <MenuPresence players={players ?? []} visible={open} />
 
         {bannerSlotted && lastBannerRef.current && (
           <div
@@ -1273,12 +1267,6 @@ function beatClock(music: MenuMusic, now: number, earlyMs = 0): BeatClock {
 function beatPulse(music: MenuMusic, now: number): number {
   const clock = beatClock(music, now);
   return Math.pow(1 - clock.phase / clock.length, 5);
-}
-
-/** Like beatPulse, but still on the idle grid: only a playing song ticks. */
-function songPulse(music: MenuMusic, now: number): number {
-  const clock = beatClock(music, now);
-  return clock.synced ? Math.pow(1 - clock.phase / clock.length, 5) : 0;
 }
 
 function beatIntensity(music: MenuMusic, now: number, windowMs: number): number {

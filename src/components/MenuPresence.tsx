@@ -12,7 +12,6 @@ import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { OpenPlayerContext } from "./openPlayerContext";
 import { POPOVER_CLASS } from "./ui/Menu";
 import { useT, type Translate } from "../lib/i18n";
-import { reduceMotion } from "../lib/performanceMode";
 
 /** Faces previewed on the closed chip; the count covers the rest. */
 const CHIP_FACES = 3;
@@ -40,26 +39,22 @@ const byName = (a: OnlinePlayer, b: OnlinePlayer) =>
 
 /**
  * Who else is around, docked in the menu's bottom-left corner opposite the
- * version line. Closed, it is a chip with a few faces and a count, its dot
- * ticking on the song's beat. Hovering or clicking it lists everyone online
- * and, dimmed below them, who was here recently.
+ * version line. Closed, it is a chip with a few faces, a status dot and a
+ * count. Hovering or clicking it lists everyone online and, dimmed below
+ * them, who was here recently.
  */
 export function MenuPresence({
   players,
   visible,
-  beat,
 }: {
   players: OnlinePlayer[];
   /** The menu is open; the chip comes and goes with it. */
   visible: boolean;
-  /** 0 to 1 on each beat of the playing song, 0 when nothing plays. */
-  beat: (time: number) => number;
 }) {
   const t = useT();
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const chipRef = useRef<HTMLButtonElement | null>(null);
-  const dotRef = useRef<HTMLSpanElement | null>(null);
   const hoverTimer = useRef(0);
   // A click that closes the list keeps the pointer resting on the chip from
   // opening it again until it leaves.
@@ -95,25 +90,6 @@ export function MenuPresence({
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
   }, [expanded]);
-
-  useEffect(() => {
-    const dot = dotRef.current;
-    if (!dot || !visible || !anyoneOnline || reduceMotion()) return;
-    let raf = 0;
-    let last = -1;
-    const tick = (time: number) => {
-      raf = requestAnimationFrame(tick);
-      const value = Math.round(beat(time) * 100) / 100;
-      if (value === last) return;
-      last = value;
-      dot.style.setProperty("--beat", String(value));
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      dot.style.removeProperty("--beat");
-    };
-  }, [beat, visible, anyoneOnline]);
 
   if (empty) return null;
 
@@ -217,9 +193,8 @@ export function MenuPresence({
         )}
         <span className="flex items-center gap-1.5">
           <span
-            ref={dotRef}
             aria-hidden
-            className={`presence-dot h-1.5 w-1.5 rounded-full ${
+            className={`h-1.5 w-1.5 rounded-full ${
               anyoneOnline ? "bg-emerald-400" : "bg-slate-500"
             }`}
           />

@@ -929,12 +929,7 @@ img {
   animation: fade-out 700ms ease-in forwards;
 }
 
-/* The main menu's online chip: its dot ticks on the song's beat (--beat,
-   written each frame by MenuPresence), and its list rises out of it. */
-.presence-dot {
-  transform: scale(calc(1 + var(--beat, 0) * 0.7));
-}
-
+/* The main menu's online chip: its list rises out of it. */
 @keyframes presence-pop-in {
   from {
     opacity: 0;
