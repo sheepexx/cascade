@@ -25,6 +25,8 @@ import {
 } from "../lib/bookmarks";
 import { useT } from "../lib/i18n";
 import { usePhoneViewport } from "../hooks/usePhoneViewport";
+import { accentColour, inkColour, subscribeTheme, themeVersion } from "../lib/theme";
+import type { DockEdge } from "../lib/editorDock";
 
 const HEIGHT = 96;
 const AVATAR_R = 9;
@@ -138,7 +140,43 @@ type Props = {
   onSetFadeOut?: (ms: number) => void;
   /** Timing points selected in the Timing menu; drawn enlarged and pulsing. */
   selectedTimingIds?: ReadonlySet<string>;
+  /** Placed by the editor's panel layout, which draws its border. */
+  docked?: boolean;
+  /**
+   * The edge of the editor it sits on. The density graph always faces the
+   * playfield, with the waveform on the outside; on the left and right edges
+   * time runs the way the playfield scrolls.
+   */
+  edge?: DockEdge;
+  /** The playfield scrolls up, so a vertical timeline runs downward. */
+  upscroll?: boolean;
 };
+
+type TipPlace = { left: number; top: number };
+
+/** A 2D transform: X = a·x + c·y + e, Y = b·x + d·y + f (canvas order). */
+type Axis = { a: number; b: number; c: number; d: number; e: number; f: number };
+
+/**
+ * From timeline space (x along time, y across with the density band at y = 0)
+ * to the canvas in CSS px, per edge. y = 0 always lands on the side facing the
+ * playfield. Every case is a quarter turn or a mirror, so the inverse is the
+ * transpose.
+ */
+function timelineAxis(edge: DockEdge, upscroll: boolean, length: number): Axis {
+  if (edge === "top") return { a: 1, b: 0, c: 0, d: -1, e: 0, f: HEIGHT };
+  if (edge === "left") {
+    return upscroll
+      ? { a: 0, b: 1, c: -1, d: 0, e: HEIGHT, f: 0 }
+      : { a: 0, b: -1, c: -1, d: 0, e: HEIGHT, f: length };
+  }
+  if (edge === "right") {
+    return upscroll
+      ? { a: 0, b: 1, c: 1, d: 0, e: 0, f: 0 }
+      : { a: 0, b: -1, c: 1, d: 0, e: 0, f: length };
+  }
+  return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+}
 
 const SENS_MIN = 0.5;
 const SENS_MAX = 3;
@@ -188,7 +226,11 @@ export function BottomTimeline({
   onSetFadeIn,
   onSetFadeOut,
   selectedTimingIds,
+  docked = false,
+  edge = "bottom",
+  upscroll = false,
 }: Props) {
+  const vertical = edge === "left" || edge === "right";
   const phone = usePhoneViewport();
   const holdTimer = useRef<number | undefined>(undefined);
   const heldPointerStart = useRef({ x: 0, y: 0 });
@@ -197,12 +239,17 @@ export function BottomTimeline({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const lowSpec = usePerformanceMode();
+  /** `width` is the length along the time axis, whichever way it runs. */
   const sizeRef = useRef({ width: 800, dpr: 1 });
+  // Every edge draws in the same timeline space, turned or mirrored onto the
+  // canvas so the density graph faces the playfield (see timelineAxis).
+  const axisRef = useRef({ edge, upscroll });
+  axisRef.current = { edge, upscroll };
   const draggingRef = useRef(false);
   const dragStartXRef = useRef(0);
   const dragMovedRef = useRef(false);
   const seekRafRef = useRef(0);
-  const pendingSeekXRef = useRef<number | null>(null);
+  const pendingSeekXRef = useRef<{ x: number; y: number } | null>(null);
   const scheduleDrawRef = useRef<() => void>(() => {});
   const renderTimeRef = useRef(
     smoothScrolling ? getVisualCurrentTime() : getCurrentTime(),
@@ -229,10 +276,13 @@ export function BottomTimeline({
     previewTime: number;
     svBpmScroll: boolean | undefined;
     simplified: boolean;
+    theme: number;
   } | null>(null);
   const avatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [tip, setTip] = useState<{
     x: number;
+    /** Page position, for a timeline off the bottom edge, whose tips sit outside it. */
+    screen?: TipPlace;
     author: string;
     body: string;
     resolved: boolean;
@@ -240,6 +290,7 @@ export function BottomTimeline({
   const tipKeyRef = useRef<number | null>(null);
   const [bookmarkTip, setBookmarkTip] = useState<{
     x: number;
+    screen?: TipPlace;
     timeMs: number;
     label: string;
   } | null>(null);
@@ -390,7 +441,16 @@ export function BottomTimeline({
     } = propsRef.current;
 
     ctx.save();
-    ctx.scale(dpr, dpr);
+    const turned = axisRef.current.edge !== "bottom";
+    const axis = timelineAxis(axisRef.current.edge, axisRef.current.upscroll, width);
+    ctx.setTransform(
+      axis.a * dpr,
+      axis.b * dpr,
+      axis.c * dpr,
+      axis.d * dpr,
+      axis.e * dpr,
+      axis.f * dpr,
+    );
     ctx.clearRect(0, 0, width, HEIGHT);
 
     const midY = WAVE_TOP + WAVE_H / 2;
@@ -420,7 +480,8 @@ export function BottomTimeline({
       prev.bookmarks !== bookmarks ||
       prev.previewTime !== previewTime ||
       prev.svBpmScroll !== svBpmScroll ||
-      prev.simplified !== simplified;
+      prev.simplified !== simplified ||
+      prev.theme !== themeVersion();
 
     const geometryDirty =
       !prev ||
@@ -444,7 +505,7 @@ export function BottomTimeline({
         sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         sctx.clearRect(0, 0, width, HEIGHT);
 
-        sctx.fillStyle = "#16161d";
+        sctx.fillStyle = inkColour(800);
         sctx.fillRect(0, 0, width, HEIGHT);
 
         if (waveform) {
@@ -457,7 +518,7 @@ export function BottomTimeline({
             sctx.fillRect(x, midY - h, 1, h * 2);
           }
         } else {
-          sctx.fillStyle = "#272733";
+          sctx.fillStyle = inkColour(600);
           sctx.fillRect(0, midY - 1, width, 2);
         }
 
@@ -621,6 +682,7 @@ export function BottomTimeline({
         previewTime,
         svBpmScroll,
         simplified,
+        theme: themeVersion(),
       };
     }
 
@@ -628,7 +690,7 @@ export function BottomTimeline({
       ctx.drawImage(staticLayerRef.current, 0, 0, width, HEIGHT);
     }
     if (waveform && revealWidth < width) {
-      ctx.fillStyle = "#16161d";
+      ctx.fillStyle = inkColour(800);
       ctx.fillRect(revealWidth, WAVE_TOP, width - revealWidth, WAVE_H);
     }
 
@@ -707,7 +769,7 @@ export function BottomTimeline({
       ctx.fillStyle = "rgba(255,93,177,0.10)";
       ctx.fillRect(0, WAVE_TOP, px, WAVE_H);
 
-      ctx.strokeStyle = "#e86868";
+      ctx.strokeStyle = accentColour();
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(px, 0);
@@ -839,6 +901,12 @@ export function BottomTimeline({
           }
         }
         ctx.save();
+        // Faces and initials stay upright however the timeline is turned.
+        if (turned) {
+          ctx.translate(cx, AY);
+          ctx.transform(axis.a, axis.c, axis.b, axis.d, 0, 0);
+          ctx.translate(-cx, -AY);
+        }
         ctx.beginPath();
         ctx.arc(cx, AY, AR, 0, Math.PI * 2);
         ctx.closePath();
@@ -919,6 +987,8 @@ export function BottomTimeline({
 
   useEffect(() => scheduleDrawRef.current());
 
+  useEffect(() => subscribeTheme(() => scheduleDrawRef.current()), []);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
@@ -929,57 +999,88 @@ export function BottomTimeline({
     const applyWidth = (width: number) => {
       const dpr = renderScale();
       sizeRef.current = { width, dpr };
-      const bw = Math.max(1, Math.floor(width * dpr));
-      const bh = Math.max(1, Math.floor(HEIGHT * dpr));
+      const along = Math.max(1, Math.floor(width * dpr));
+      const across = Math.max(1, Math.floor(HEIGHT * dpr));
+      const bw = vertical ? across : along;
+      const bh = vertical ? along : across;
       if (canvas.width !== bw) canvas.width = bw;
       if (canvas.height !== bh) canvas.height = bh;
+      // Static layer is in timeline space; only the turn changed.
+      staticSigRef.current = null;
       scheduleDrawRef.current();
+    };
+    const lengthOf = () => {
+      const rect = wrap.getBoundingClientRect();
+      return vertical ? rect.height : rect.width;
     };
 
     const measure = () => {
-      const width = wrap.getBoundingClientRect().width;
+      const width = lengthOf();
       if (width === pending) return;
       pending = width;
       window.clearTimeout(settle);
       settle = window.setTimeout(() => applyWidth(width), RESIZE_SETTLE_MS);
     };
 
-    applyWidth(wrap.getBoundingClientRect().width);
+    applyWidth(lengthOf());
     const ro = new ResizeObserver(measure);
     ro.observe(wrap);
     return () => {
       ro.disconnect();
       window.clearTimeout(settle);
     };
-  }, [lowSpec]);
+  }, [lowSpec, vertical, edge, upscroll]);
+
+  /** A pointer position in timeline space: along the time axis and across it. */
+  const pointAt = useCallback((clientX: number, clientY: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const { edge: side, upscroll: down } = axisRef.current;
+    const length = side === "left" || side === "right" ? rect.height : rect.width;
+    const axis = timelineAxis(side, down, length);
+    const X = clientX - rect.left - axis.e;
+    const Y = clientY - rect.top - axis.f;
+    return { x: axis.a * X + axis.b * Y, y: axis.c * X + axis.d * Y, length };
+  }, []);
+
+  /** Back from timeline space to the page. */
+  const screenAt = useCallback((x: number, y: number): TipPlace => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return { left: 0, top: 0 };
+    const { edge: side, upscroll: down } = axisRef.current;
+    const length = side === "left" || side === "right" ? rect.height : rect.width;
+    const axis = timelineAxis(side, down, length);
+    return {
+      left: rect.left + axis.a * x + axis.c * y + axis.e,
+      top: rect.top + axis.b * x + axis.d * y + axis.f,
+    };
+  }, []);
 
   const seekFromEvent = useCallback(
-    (clientX: number, transition: AudioSeekTransition = "instant") => {
-      const canvas = canvasRef.current;
+    (clientX: number, clientY: number, transition: AudioSeekTransition = "instant") => {
       const { duration } = propsRef.current;
-      if (!canvas || !(duration > 0) || !Number.isFinite(duration)) return;
-      const rect = canvas.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const point = pointAt(clientX, clientY);
+      if (!point || !(duration > 0) || !Number.isFinite(duration)) return;
+      const ratio = Math.max(0, Math.min(1, point.x / point.length));
       const targetTime = ratio * duration;
       onSeek(targetTime, transition);
       scheduleDrawRef.current();
     },
-    [onSeek],
+    [onSeek, pointAt],
   );
 
   const hitTrimHandle = useCallback(
     (clientX: number, clientY: number): typeof trimDragRef.current => {
-      const canvas = canvasRef.current;
-      if (!canvas) return null;
+      const point = pointAt(clientX, clientY);
+      if (!point) return null;
       const { duration, trimStart, trimEnd, fadeIn, fadeOut } =
         propsRef.current;
-      const rect = canvas.getBoundingClientRect();
-      const mx = clientX - rect.left;
-      const my = clientY - rect.top;
+      const mx = point.x;
+      const my = point.y;
       if (my < WAVE_TOP - 5 || my > WAVE_TOP + WAVE_H + 4) return null;
       const t = trimGeometry(
         duration,
-        rect.width,
+        point.length,
         trimStart,
         trimEnd,
         fadeIn,
@@ -995,16 +1096,15 @@ export function BottomTimeline({
       if (Math.abs(mx - t.ex) <= 6) return "end";
       return null;
     },
-    [],
+    [pointAt],
   );
 
   const applyTrimDrag = useCallback(
-    (handle: NonNullable<typeof trimDragRef.current>, clientX: number) => {
-      const canvas = canvasRef.current;
+    (handle: NonNullable<typeof trimDragRef.current>, clientX: number, clientY: number) => {
+      const point = pointAt(clientX, clientY);
       const { duration, trimStart, trimEnd } = propsRef.current;
-      if (!canvas || !(duration > 0)) return;
-      const rect = canvas.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      if (!point || !(duration > 0)) return;
+      const ratio = Math.max(0, Math.min(1, point.x / point.length));
       const ms = ratio * duration;
       const h = trimHandlersRef.current;
       if (handle === "start") h.onSetTrimStart?.(ms);
@@ -1013,7 +1113,7 @@ export function BottomTimeline({
       else if (handle === "fadeOut")
         h.onSetFadeOut?.(Math.max(0, (trimEnd ?? duration) - ms));
     },
-    [],
+    [pointAt],
   );
 
   const hasTrimHandlers =
@@ -1029,16 +1129,15 @@ export function BottomTimeline({
         return;
       }
     }
-    const canvas = canvasRef.current;
-    if (canvas && onCommentClick && duration > 0 && comments?.length) {
-      const rect = canvas.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
+    const press = pointAt(e.clientX, e.clientY);
+    if (press && onCommentClick && duration > 0 && comments?.length) {
+      const clickX = press.x;
+      const clickY = press.y;
       if (clickY <= 16) {
         let best: { time_ms: number } | null = null;
         let bestDist = 8;
         for (const c of comments) {
-          const cx = (c.time_ms / duration) * rect.width;
+          const cx = (c.time_ms / duration) * press.length;
           const d = Math.abs(cx - clickX);
           if (d <= bestDist) {
             bestDist = d;
@@ -1052,9 +1151,9 @@ export function BottomTimeline({
       }
     }
     draggingRef.current = true;
-    dragStartXRef.current = e.clientX;
+    dragStartXRef.current = press?.x ?? 0;
     dragMovedRef.current = false;
-    seekFromEvent(e.clientX, timelineSeekTransition("press"));
+    seekFromEvent(e.clientX, e.clientY, timelineSeekTransition("press"));
   };
 
   const hasMenuActions = !!onSetPreviewPoint || !!onAddBookmark;
@@ -1062,16 +1161,15 @@ export function BottomTimeline({
   const onCanvasContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!hasMenuActions) return;
-    const canvas = canvasRef.current;
     const { duration, bookmarks } = propsRef.current;
-    if (!canvas || !(duration > 0)) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const ms = Math.max(0, Math.min(1, mx / rect.width)) * duration;
+    const point = pointAt(e.clientX, e.clientY);
+    if (!point || !(duration > 0)) return;
+    const mx = point.x;
+    const ms = Math.max(0, Math.min(1, mx / point.length)) * duration;
     let bookmark: number | null = null;
     let bestDist = 6;
     for (const b of bookmarks ?? []) {
-      const bx = (b / duration) * rect.width;
+      const bx = (b / duration) * point.length;
       const d = Math.abs(bx - mx);
       if (d <= bestDist) {
         bestDist = d;
@@ -1123,16 +1221,20 @@ export function BottomTimeline({
       clearBookmarkTip();
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const point = pointAt(e.clientX, e.clientY);
+    if (!point) return;
+    const length = point.length;
+    const mx = point.x;
+    const my = point.y;
+    const turned = axisRef.current.edge !== "bottom";
+    const upright = axisRef.current.edge === "left" || axisRef.current.edge === "right";
 
     if (hasTrimHandlers) {
       const handle = hitTrimHandle(e.clientX, e.clientY);
       if (trimHoverRef.current !== handle) trimHoverRef.current = handle;
       if (handle) {
         canvas.style.cursor =
-          handle === "start" || handle === "end" ? "ew-resize" : "grab";
+          handle === "start" || handle === "end" ? (upright ? "ns-resize" : "ew-resize") : "grab";
         clearPeerTip();
         clearCommentTip();
         clearBookmarkTip();
@@ -1146,7 +1248,7 @@ export function BottomTimeline({
       let bestDist = (AVATAR_R + 3) ** 2;
       for (const p of peers) {
         if (p.playheadMs === undefined) continue;
-        const cx = (p.playheadMs / duration) * rect.width;
+        const cx = (p.playheadMs / duration) * length;
         const dx = cx - mx;
         const dy = AVATAR_Y - my;
         const d2 = dx * dx + dy * dy;
@@ -1160,9 +1262,10 @@ export function BottomTimeline({
         clearBookmarkTip();
         if (peerTipKeyRef.current !== hit.username) {
           peerTipKeyRef.current = hit.username;
+          const anchor = screenAt(hit.cx, AVATAR_Y - AVATAR_R);
           setPeerTip({
-            screenX: rect.left + hit.cx,
-            anchorTop: rect.top + (AVATAR_Y - AVATAR_R),
+            screenX: anchor.left,
+            anchorTop: anchor.top,
             username: hit.username,
             avatar: hit.avatar,
             color: hit.color,
@@ -1181,7 +1284,7 @@ export function BottomTimeline({
       my <= WAVE_TOP + 9
     ) {
       for (const timeMs of bookmarks) {
-        const cx = (timeMs / duration) * rect.width;
+        const cx = (timeMs / duration) * length;
         const distance = Math.abs(cx - mx);
         if (distance <= bookmarkDist) {
           bookmarkDist = distance;
@@ -1195,6 +1298,7 @@ export function BottomTimeline({
         bookmarkTipKeyRef.current = bookmarkHit.timeMs;
         setBookmarkTip({
           x: bookmarkHit.cx,
+          screen: turned ? screenAt(bookmarkHit.cx, HEIGHT / 2) : undefined,
           timeMs: bookmarkHit.timeMs,
           label: bookmarkLabel(bookmarkLabels, bookmarkHit.timeMs),
         });
@@ -1207,7 +1311,7 @@ export function BottomTimeline({
     let bestDist = 8;
     if (comments?.length && my <= 18) {
       for (const c of comments) {
-        const cx = (c.time_ms / duration) * rect.width;
+        const cx = (c.time_ms / duration) * length;
         const d = Math.abs(cx - mx);
         if (d <= bestDist) {
           bestDist = d;
@@ -1221,6 +1325,7 @@ export function BottomTimeline({
       tipKeyRef.current = best.time_ms;
       setTip({
         x: best.cx,
+        screen: turned ? screenAt(best.cx, HEIGHT / 2) : undefined,
         author: c?.author ?? "Mapper",
         body: c?.body ?? "",
         resolved: c?.resolved ?? false,
@@ -1264,31 +1369,32 @@ export function BottomTimeline({
   useEffect(() => {
     const flushSeek = () => {
       seekRafRef.current = 0;
-      const clientX = pendingSeekXRef.current;
+      const pending = pendingSeekXRef.current;
       pendingSeekXRef.current = null;
-      if (clientX !== null) {
-        seekFromEvent(clientX, timelineSeekTransition("drag"));
+      if (pending !== null) {
+        seekFromEvent(pending.x, pending.y, timelineSeekTransition("drag"));
       }
     };
-    const scheduleSeek = (clientX: number) => {
-      pendingSeekXRef.current = clientX;
+    const scheduleSeek = (clientX: number, clientY: number) => {
+      pendingSeekXRef.current = { x: clientX, y: clientY };
       if (!seekRafRef.current) {
         seekRafRef.current = requestAnimationFrame(flushSeek);
       }
     };
     const onMove = (e: PointerEvent) => {
       if (trimDragRef.current) {
-        applyTrimDrag(trimDragRef.current, e.clientX);
+        applyTrimDrag(trimDragRef.current, e.clientX, e.clientY);
         return;
       }
       if (draggingRef.current) {
+        const along = pointAt(e.clientX, e.clientY)?.x ?? 0;
         if (
           !dragMovedRef.current &&
-          timelineDragStarted(dragStartXRef.current, e.clientX)
+          timelineDragStarted(dragStartXRef.current, along)
         ) {
           dragMovedRef.current = true;
         }
-        if (dragMovedRef.current) scheduleSeek(e.clientX);
+        if (dragMovedRef.current) scheduleSeek(e.clientX, e.clientY);
       }
     };
     const onUp = (e: PointerEvent) => {
@@ -1298,9 +1404,9 @@ export function BottomTimeline({
         seekRafRef.current = 0;
         const moved =
           dragMovedRef.current ||
-          timelineDragStarted(dragStartXRef.current, e.clientX);
+          timelineDragStarted(dragStartXRef.current, pointAt(e.clientX, e.clientY)?.x ?? 0);
         if (moved) {
-          seekFromEvent(e.clientX, timelineSeekTransition("release"));
+          seekFromEvent(e.clientX, e.clientY, timelineSeekTransition("release"));
         }
       }
       draggingRef.current = false;
@@ -1319,17 +1425,22 @@ export function BottomTimeline({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [seekFromEvent, applyTrimDrag]);
+  }, [seekFromEvent, applyTrimDrag, pointAt]);
 
   return (
     <div
       ref={wrapRef}
-      className="group relative w-full border-t border-white/[0.06] bg-ink-900"
-      style={{ height: HEIGHT }}
+      className={
+        vertical
+          ? "group relative flex h-full w-full justify-center bg-ink-900"
+          : `group relative w-full bg-ink-900 ${docked ? "" : "border-t border-white/[0.06]"}`
+      }
+      style={vertical ? undefined : { height: HEIGHT }}
     >
       <canvas
         ref={canvasRef}
-        className="block h-full w-full cursor-pointer touch-none"
+        className={`block h-full cursor-pointer touch-none ${vertical ? "shrink-0" : "w-full"}`}
+        style={vertical ? { width: HEIGHT } : undefined}
         aria-label={t("mobile.timeline")}
         onPointerDown={e => {
           if (e.button !== 0) return;
@@ -1352,7 +1463,25 @@ export function BottomTimeline({
         onPointerLeave={clearTip}
         onContextMenu={onCanvasContextMenu}
       />
-      {tip && (
+      {tip && (tip.screen ? createPortal(
+        <div
+          className={`pointer-events-none fixed z-50 w-56 rounded-lg bg-ink-700 px-2.5 py-1.5 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09] ${vertical ? "-translate-y-1/2" : ""}`}
+          style={tipPlace(tip.screen, 224, edge)}
+        >
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-200">
+            <span className="truncate">{tip.author}</span>
+            {tip.resolved && (
+              <span className="rounded-sm bg-emerald-400/10 px-1 py-px text-[10px] font-medium text-emerald-300">
+                {t("timeline.resolved")}
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 line-clamp-4 whitespace-pre-wrap break-words text-xs text-slate-300">
+            {tip.body || t("timeline.noText")}
+          </div>
+        </div>,
+        document.body,
+      ) : (
         <div
           className="pointer-events-none absolute z-20 w-56 -translate-x-1/2 rounded-lg bg-ink-700 px-2.5 py-1.5 shadow-[var(--shadow-float)] ring-1 ring-white/[0.09]"
           style={{
@@ -1375,8 +1504,22 @@ export function BottomTimeline({
             {tip.body || t("timeline.noText")}
           </div>
         </div>
+      ))}
+      {bookmarkTip && bookmarkTip.screen && createPortal(
+        <div
+          className={`pointer-events-none fixed z-50 rounded-md border border-amber-300/30 bg-ink-900/95 px-2 py-1 text-[11px] text-slate-200 shadow-xl ${vertical ? "-translate-y-1/2" : ""}`}
+          style={tipPlace(bookmarkTip.screen, 160, edge)}
+        >
+          <span className="font-medium text-amber-300">
+            {bookmarkTip.label || t("editor.bookmark")}
+          </span>{" "}
+          <span className="font-mono text-slate-500">
+            {formatTimestamp(bookmarkTip.timeMs)}
+          </span>
+        </div>,
+        document.body,
       )}
-      {bookmarkTip && (
+      {bookmarkTip && !bookmarkTip.screen && (
         <div
           className="pointer-events-none absolute z-20 -translate-x-1/2 rounded-md border border-amber-300/30 bg-ink-900/95 px-2 py-1 text-[11px] text-slate-200 shadow-xl"
           style={{
@@ -1427,12 +1570,22 @@ export function BottomTimeline({
           document.body,
         )}
 
-      <div className="pointer-events-none absolute right-2 top-1.5 select-none rounded bg-ink-900/70 px-2 py-0.5 text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
-        {t("timeline.waveformHint", { value: sensitivity.toFixed(1) })}
-      </div>
+      {!vertical && (
+        <div className={`pointer-events-none absolute right-2 select-none rounded bg-ink-900/70 px-2 py-0.5 text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 ${edge === "top" ? "bottom-1.5" : "top-1.5"}`}>
+          {t("timeline.waveformHint", { value: sensitivity.toFixed(1) })}
+        </div>
+      )}
 
       {!!bookmarks?.length && (
-        <div className="float-chip absolute bottom-1.5 left-2 z-10 flex items-center gap-0.5 p-0.5 text-[10px]">
+        <div
+          className={`float-chip absolute z-10 flex items-center gap-0.5 p-0.5 text-[10px] ${
+            vertical
+              ? `bottom-1.5 flex-col ${edge === "left" ? "left-1.5" : "right-1.5"}`
+              : edge === "top"
+                ? "left-2 top-1.5"
+                : "bottom-1.5 left-2"
+          }`}
+        >
           <button
             type="button"
             onClick={onPreviousBookmark}
@@ -1617,6 +1770,24 @@ function MenuItem({
       {children}
     </button>
   );
+}
+
+/**
+ * Where a tip goes for a timeline off the bottom edge, from the point on its
+ * centre line: beside a vertical one (flipping sides near the window's edge),
+ * under one along the top.
+ */
+function tipPlace(anchor: TipPlace, width: number, edge: DockEdge): { left: number; top: number } {
+  const gap = HEIGHT / 2 + 10;
+  if (edge === "top") {
+    return {
+      left: Math.min(window.innerWidth - width - 8, Math.max(8, anchor.left - width / 2)),
+      top: anchor.top + gap,
+    };
+  }
+  const left =
+    anchor.left + gap + width > window.innerWidth ? anchor.left - gap - width : anchor.left + gap;
+  return { left, top: anchor.top };
 }
 
 function formatTimestamp(ms: number): string {

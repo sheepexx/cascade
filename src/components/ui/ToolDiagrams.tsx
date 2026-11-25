@@ -13,7 +13,8 @@ const RIGHT = W - 10 - FIELD;
 const LINE = "#2b2b38";
 const NOTE = "#e9e9f0";
 const NOTE_ALT = "#5bc0ff";
-const ACCENT = "#e86868";
+/** The theme accent, through the frame's colour (see Frame). */
+const ACCENT = "currentColor";
 const MUTED = "#6b7180";
 const WELL = "#0d0d14";
 const TEAL = "#5eead4";
@@ -28,7 +29,7 @@ function Frame({ children }: { children: ReactNode }) {
       viewBox={`0 0 ${W} ${H}`}
       role="img"
       aria-hidden="true"
-      className="block w-full rounded-md bg-black/30"
+      className="block w-full rounded-md bg-black/30 text-accent"
     >
       {children}
     </svg>

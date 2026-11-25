@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { accentColour } from "../lib/theme";
 import type { TimingPoint } from "../types";
 import { comparisonRows, windowPeaks } from "../lib/waveformComparison";
 import { useT } from "../lib/i18n";
@@ -111,7 +112,7 @@ export function WaveformComparison({
         ctx.fillRect(LABEL_WIDTH, top + ROW_HEIGHT - 1, plot, 1);
       });
 
-      ctx.fillStyle = "#e86868";
+      ctx.fillStyle = accentColour();
       ctx.fillRect(Math.round(centre), 0, 1, layout.rows.length * ROW_HEIGHT);
     };
     draw();

@@ -205,7 +205,7 @@ export function ProfileView({
         <div className="relative aspect-[3.2/1] max-h-[260px] min-h-[132px] w-full">
           <div
             aria-hidden
-            className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(232,104,104,0.28),transparent_55%),radial-gradient(120%_120%_at_100%_100%,rgba(54,127,142,0.24),transparent_55%)]"
+            className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,rgb(var(--accent-rgb)/0.28),transparent_55%),radial-gradient(120%_120%_at_100%_100%,rgba(54,127,142,0.24),transparent_55%)]"
           />
           {cover && (
             <img

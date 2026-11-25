@@ -14,6 +14,16 @@ import { useT } from "../lib/i18n";
 import { Button, Slider } from "./ui/Controls";
 import { Dropdown, type DropdownOption } from "./ui/Dropdown";
 import { PauseIcon, PlayIcon } from "./ui/Icons";
+import { useElementBreakpoints } from "../hooks/useElementBreakpoints";
+
+/**
+ * Widths (in interface px) the bar lays out by: its own, not the window's, so
+ * it still fits when the editor's layout puts it beside another panel.
+ */
+const THREE_COLUMNS_AT = 1100;
+const TWO_ROWS_AT = 420;
+const SNAP_LABEL_AT = 600;
+const ZOOM_LABEL_AT = 760;
 type Props = {
   audio: AudioController;
   view: ViewState;
@@ -32,6 +42,10 @@ type Props = {
   playDisabled?: boolean;
   /** The play/pause keybind's label, for the tooltip. */
   playKey?: string;
+  /** Placed by the editor's panel layout, which draws its border. */
+  docked?: boolean;
+  /** Stacked in a column, for the left or right edge. */
+  vertical?: boolean;
 };
 
 export function TransportBar({
@@ -46,6 +60,8 @@ export function TransportBar({
   playtestKey,
   playDisabled = false,
   playKey,
+  docked = false,
+  vertical = false,
 }: Props) {
   const { currentTime } = audio;
   const [jumpDraft, setJumpDraft] = useState("");
@@ -53,6 +69,11 @@ export function TransportBar({
   const [copied, setCopied] = useState<"ms" | "timestamp" | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
   const t = useT();
+  const { ref: rootRef, width } = useElementBreakpoints<HTMLDivElement>();
+  const column = vertical || width < TWO_ROWS_AT;
+  const wide = !column && width >= THREE_COLUMNS_AT;
+  const snapLabel = column || width >= SNAP_LABEL_AT;
+  const zoomLabel = column || width >= ZOOM_LABEL_AT;
 
   useEffect(
     () => () => {
@@ -99,12 +120,8 @@ export function TransportBar({
     onJumpOpenChange(false);
   };
 
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 border-b border-white/[0.06] bg-ink-900 px-3 py-1.5 uixl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] uixl:gap-4 uixl:px-3">
-      {/* Same width as the right column so the time readout stays centred in
-          the three-column layout; volume lives in the Alt+wheel rings and
-          Settings → Audio. */}
-      <div className="order-1 flex min-w-0 items-center">
+  const playtestPart = (
+    <>
         {onPlaytest && (
           <Button
             variant="primary"
@@ -122,10 +139,10 @@ export function TransportBar({
             {t("transport.playtest")}
           </Button>
         )}
-      </div>
-
-      <div className="order-3 col-span-2 flex items-center justify-center gap-1.5 uixl:order-2 uixl:col-span-1">
-        {/* Space plays on a keyboard; this is for touch screens without one. */}
+    </>
+  );
+  const playPart = (
+    <>
         <button
           type="button"
           onClick={audio.toggle}
@@ -140,6 +157,10 @@ export function TransportBar({
         >
           {audio.isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
         </button>
+    </>
+  );
+  const readoutPart = (
+    <>
         {jumpOpen ? (
           <input
             ref={jumpInputRef}
@@ -201,6 +222,10 @@ export function TransportBar({
             </button>
           </span>
         )}
+    </>
+  );
+  const goToPart = (
+    <>
         {!jumpOpen && (
           <button
             type="button"
@@ -211,14 +236,12 @@ export function TransportBar({
             {t("transport.goTo")}
           </button>
         )}
-      </div>
-
-      <div className="order-2 flex min-w-0 items-center justify-end gap-2 uixl:order-3 uixl:gap-5">
-
+    </>
+  );
+  const snapPart = (
+    <>
         <div className="flex items-center gap-2 text-xs text-slate-400">
-          <span className="hidden uimd:inline">
-            {t("transport.snap")}
-          </span>
+          {snapLabel && <span>{t("transport.snap")}</span>}
           <Dropdown
             size="sm"
             aria-label={t("transport.snap")}
@@ -232,11 +255,14 @@ export function TransportBar({
             onChange={(snapDivisor) => onView({ ...view, snapDivisor })}
           />
         </div>
-
+    </>
+  );
+  const speedPart = (
+    <>
         <label className="flex items-center gap-1 text-xs text-slate-400">
-          <span className="mr-1 hidden whitespace-nowrap uixl:inline">
-            {t("transport.scrollSpeed")}
-          </span>
+          {zoomLabel && (
+            <span className="mr-1 whitespace-nowrap">{t("transport.scrollSpeed")}</span>
+          )}
           <button
             type="button"
             onClick={() =>
@@ -258,7 +284,7 @@ export function TransportBar({
             value={view.scrollSpeed}
             aria-label={t("transport.zoom")}
             onChange={(value) => onView({ ...view, scrollSpeed: value })}
-            className="w-16 uixl:w-24"
+            className={wide || column ? "w-24" : "w-16"}
           />
           <button
             type="button"
@@ -277,6 +303,50 @@ export function TransportBar({
             {view.scrollSpeed}
           </span>
         </label>
+    </>
+  );
+
+  if (column) {
+    // A column for the left or right edge, or a narrow spot: the same
+    // controls, one row each.
+    return (
+      <div ref={rootRef} className={`flex flex-col gap-3 bg-ink-900 px-3 py-3 [&_button]:shrink-0 ${docked ? "" : "border-b border-white/[0.06]"}`}>
+        {onPlaytest && <div className="flex [&>button]:w-full [&>button]:justify-center">{playtestPart}</div>}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {playPart}
+          {readoutPart}
+        </div>
+        {goToPart}
+        <div className="flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">{snapPart}</div>
+        <div className="flex items-center [&>label]:w-full [&>label]:flex-wrap [&>label]:gap-y-1.5 [&>label>span:first-child]:basis-full">{speedPart}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={rootRef}
+      className={`grid items-center gap-y-1.5 bg-ink-900 px-3 py-1.5 ${
+        wide ? "grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-x-4" : "grid-cols-[minmax(0,1fr)_auto] gap-x-3"
+      } ${docked ? "" : "border-b border-white/[0.06]"}`}
+    >
+      {/* Same width as the right column so the time readout stays centred in
+          the three-column layout; volume lives in the Alt+wheel rings and
+          Settings → Audio. */}
+      <div className="order-1 flex min-w-0 items-center">
+        {playtestPart}
+      </div>
+
+      <div className={`flex items-center justify-center gap-1.5 ${wide ? "order-2 col-span-1" : "order-3 col-span-2"}`}>
+        {/* Space plays on a keyboard; this is for touch screens without one. */}
+        {playPart}
+        {readoutPart}
+        {goToPart}
+      </div>
+
+      <div className={`flex min-w-0 items-center justify-end ${wide ? "order-3 gap-5" : "order-2 gap-2"}`}>
+        {snapPart}
+        {speedPart}
       </div>
     </div>
   );

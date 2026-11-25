@@ -12,6 +12,8 @@ import { normalizePlaytestKeybinds } from "../lib/playtestKeybinds";
 import { normalizeHudLayout, normalizePhoneHud } from "../lib/hudLayout";
 import { normalizePlaytestSkin } from "../lib/playtestSkin";
 import { normalizeMapOverviewLayout } from "../lib/mapOverview";
+import { isDockCorner, normalizeDockLayout } from "../lib/editorDock";
+import { normalizeTheme } from "../lib/theme";
 
 export function normalizeHumanize(
   saved: Partial<HumanizeSettings> | undefined,
@@ -65,6 +67,9 @@ export function normalizeAppSettings(
       : DEFAULT_APP_SETTINGS.altWheelAction,
     showMapOverview: prefs?.showMapOverview === true,
     mapOverview: normalizeMapOverviewLayout(prefs?.mapOverview),
+    editorLayout: normalizeDockLayout(prefs?.editorLayout),
+    ppCorner: isDockCorner(prefs?.ppCorner) ? prefs.ppCorner : DEFAULT_APP_SETTINGS.ppCorner,
+    theme: normalizeTheme(prefs?.theme),
     playtest: {
       ...normalizePlaytestTiming(
         { ...DEFAULT_APP_SETTINGS.playtest, ...(playtestPrefs ?? {}) },

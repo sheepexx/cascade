@@ -52,6 +52,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { BackgroundScopeModal } from "./components/menus/BackgroundScopeModal";
 import { ExportValidationModal } from "./components/menus/ExportValidationModal";
@@ -129,6 +130,7 @@ import {
   MemoizedManiaEditor,
   MemoizedBottomTimeline,
   MemoizedDifficultySidebar,
+  DifficultyInfo,
   MemoizedPPCounter,
   MemoizedPlaytestNpsGraph,
   MemoizedMapOverview,
@@ -183,7 +185,11 @@ import {
 } from "./lib/desktopUpdate";
 import { usePwa } from "./hooks/usePwa";
 import { LandingCopy } from "./components/LandingCopy";
-import { ChevronIcon } from "./components/header/HeaderButtons";
+import { DockFrame, type DockCornerSpec, type DockPanelSpec } from "./components/dock/DockFrame";
+import { DockPanelIcon } from "./components/dock/dockIcons";
+import { DEFAULT_DOCK_LAYOUT, sameDockLayout, type DockEdge } from "./lib/editorDock";
+import { applyTheme } from "./lib/theme";
+import { openConversation } from "./lib/social";
 import { InviteNotifications } from "./components/InviteNotifications";
 import { playUiSound, preloadUiSounds } from "./lib/uiSounds";
 import { useAuth } from "./lib/auth";
@@ -205,6 +211,10 @@ import { MALODY_MAX_KEYS, isQuaverKeyCount } from "./lib/formatLimits";
 import { useSkillsetTimeline } from "./lib/msd/useMsd";
 import { msdSupportsKeyCount } from "./lib/msd/minacalc";
 import { SkillsetGraph } from "./components/SkillsetGraph";
+import {
+  SKILLSET_HORIZONTAL_HEIGHT,
+  SKILLSET_VERTICAL_WIDTH,
+} from "./lib/skillsetGraphSize";
 import {
   PLAYHEAD_FROM_EDGE as PLAYTEST_HIT_LINE_FROM_EDGE,
   resolvePlayfieldLayout,
@@ -377,12 +387,10 @@ export default function App() {
       // When a conversation can't be opened (their privacy settings, say),
       // their profile opens instead.
       openMessages: (userId, name) => {
-        void import("./lib/social")
-          .then((social) => social.openConversation(userId))
-          .then(
-            (conversationId) => navigateSocial({ view: "messages", conversationId }),
-            () => openPlayerProfile(name),
-          );
+        void openConversation(userId).then(
+          (conversationId) => navigateSocial({ view: "messages", conversationId }),
+          () => openPlayerProfile(name),
+        );
       },
     }),
     [navigateSocial, openPlayerProfile],
@@ -535,6 +543,8 @@ export default function App() {
   const playfieldBoundsRef = useRef<PlayfieldBounds | null>(null);
   // The editor's layout editor. Playtest has its own, driven by playtest.hudEditing.
   const [layoutEditing, setLayoutEditing] = useState(false);
+  // The panel arranger (Appearance, or the command palette).
+  const [panelsArranging, setPanelsArranging] = useState(false);
   // Centres the on-screen display over the playfield, near its top.
   const osdAnchor = useCallback(() => {
     const bounds = playfieldBoundsRef.current;
@@ -1157,6 +1167,17 @@ export default function App() {
     timingPoints[0]?.bpm !== 120 ||
     !hasDefaultDifficulty;
   const showChrome = hasProject && !zenMode && !playtest.active;
+  useLayoutEffect(() => applyTheme(appSettings.theme), [appSettings.theme]);
+  // Arranging and the playfield layout editor take turns.
+  useEffect(() => {
+    if (panelsArranging) setLayoutEditing(false);
+  }, [panelsArranging]);
+  useEffect(() => {
+    if (layoutEditing) setPanelsArranging(false);
+  }, [layoutEditing]);
+  useEffect(() => {
+    if (!hasProject) setPanelsArranging(false);
+  }, [hasProject]);
   // A floating desktop tool: the phone layout keeps its screen for the chart,
   // and the layout editor wants the playfield clear.
   const mapOverviewShown =
@@ -1173,7 +1194,6 @@ export default function App() {
     [setAppSettings],
   );
   const diffPanelOpen = appSettings.difficultyPanelOpen !== false;
-  const diffPanelShown = showChrome && diffPanelOpen && !phoneViewport;
   const showChromeRef = useRef(showChrome);
   showChromeRef.current = showChrome;
   // During a run the playfield draws on the gameplay clock, the same one the
@@ -2910,6 +2930,7 @@ export default function App() {
     setExitConfirm,
     setJumpToTimeOpen,
     setLayoutEditing,
+    setPanelsArranging,
     setModal,
     setPackCreatorOpen,
     setReferenceId,
@@ -2945,7 +2966,10 @@ export default function App() {
       { id: "phone-playfield", label: t("mobile.view"), group: t("palette.group.view"), run: () => phoneEditorRef.current?.openPanel("view") },
     ] : []),
   ];
-  const fullTimeline = (<MemoizedBottomTimeline
+  const renderTimeline = (dock?: { edge: DockEdge }) => (<MemoizedBottomTimeline
+                docked={!!dock}
+                edge={dock?.edge ?? "bottom"}
+                upscroll={appSettings.upscroll}
                 waveform={waveform}
                 notes={active.notes}
                 timingPoints={activeTimingPoints}
@@ -2990,6 +3014,7 @@ export default function App() {
                 onSetFadeIn={canEdit ? setFadeIn : undefined}
                 onSetFadeOut={canEdit ? setFadeOut : undefined}
               />);
+  const fullTimeline = renderTimeline();
   const phoneDifficultyBrowser = (<MemoizedDifficultySidebar
                   mobile
                   difficulties={difficulties}
@@ -3008,102 +3033,10 @@ export default function App() {
                   onFlashColumn={flashColumn}
                 />);
 
-  if (packCreatorOpen) packCreatorEverOpenedRef.current = true;
-  if (modal === "admin") adminEverOpenedRef.current = true;
-
-  return (
-    <div
-      className={`relative h-full overflow-hidden bg-ink-900 ${phoneViewport ? "phone-app" : ""}`}
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-    >
-      <SessionIntro
-        enabled={appSettings.introEnabled && !hasProject && !sharedSlug}
-        ready={chunksReady}
-        onCoveringChange={setIntroCovering}
-      />
-      {sceneEntering && (
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 z-[170] bg-ink-900/55"
-        >
-          <img
-            src={`${import.meta.env.BASE_URL}logo.svg?v=1`}
-            alt=""
-            className="scene-logo-out absolute left-1/2 top-1/2 h-48 w-48 rounded-full"
-          />
-        </div>
-      )}
-      <div
-        className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[var(--ease-emphasized)] ${
-          sceneEntering && hasProject ? "editor-scene-in" : ""
-        } ${
-          exiting ? "pointer-events-none" : ""
-        } ${
-          modalAtmosphereActive && !appSettings.performanceMode
-            ? "scale-[0.992] blur-[2px] opacity-75"
-            : "transform-none filter-none opacity-100"
-        }`}
-      >
-      {isDragging && (
-        <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-ink-900/76 backdrop-blur-md">
-          <div className="rounded-2xl border-2 border-dashed border-accent/70 bg-ink-800/82 px-12 py-10 text-center shadow-2xl backdrop-blur-xl">
-            <MusicNoteIcon className="mx-auto mb-2 h-9 w-9 text-accent" />
-            <p className="text-lg font-semibold text-slate-100">{t("drop.title")}</p>
-            <p className="text-sm text-slate-400">{t("drop.formats")}</p>
-          </div>
-        </div>
-      )}
-
-      {importingMap && (
-        <div className="loader-fade-in fixed inset-0 z-[55] flex flex-col items-center justify-center gap-8 bg-ink-900/80">
-          <img
-            src={`${import.meta.env.BASE_URL}logo.png?v=4`}
-            alt=""
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-            className="loader-logo-pulse loader-content-in h-20 w-20 select-none rounded-2xl object-cover"
-          />
-          <div className="loader-content-in flex h-12 items-end gap-1.5">
-            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-              <span
-                key={i}
-                className="loader-bar h-full w-1.5 rounded-full bg-gradient-to-t from-accent-deep to-accent-soft"
-                style={{ animationDelay: `${i * 120}ms` }}
-              />
-            ))}
-          </div>
-          <div className="loader-content-in flex w-64 flex-col items-center gap-2">
-            <p className="text-sm font-medium tracking-wide text-slate-300">
-              {t("app.loadingMap")}
-            </p>
-            <div
-              className="h-1 w-full overflow-hidden rounded-full bg-white/10"
-              role="progressbar"
-              aria-valuenow={Math.round((importProgress?.ratio ?? 0) * 100)}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={importProgress?.label ?? t("app.loadingMapLabel")}
-            >
-              <div
-                className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
-                style={{
-                  width: `${Math.round((importProgress?.ratio ?? 0) * 100)}%`,
-                }}
-              />
-            </div>
-            {/* Fixed-height line: labels change on every phase and a
-                collapsing paragraph would shift the loader. */}
-            <p className="h-4 w-full truncate text-center text-[11px] leading-4 text-slate-300/40">
-              {importProgress?.label ?? ""}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <AppHeader
+  const renderHeader = (dock?: { rail: boolean }) => (
+    <AppHeader
+        docked={!!dock}
+        rail={dock?.rail ?? false}
         phone={phoneViewport ? { title: hasProject ? displaySong(meta, preferOriginalMetadata) : "Cascade", menuOpen: phoneMenuOpen, onMenuOpen: setPhoneMenuOpen, openDifficulties: () => setPhonePanel("difficulties"), commands: phoneCommands } : undefined}
         active={active}
         appSettings={appSettings}
@@ -3181,103 +3114,15 @@ export default function App() {
         showHeader={showHeader}
         undo={undo}
       />
-
-      <Suspense fallback={null}>
-      <div className="flex min-h-0 flex-1">
-        {!phoneViewport && <div className="relative z-10 shrink-0">
-          <div
-            className={`h-full overflow-hidden transition-[width,opacity] duration-300 ease-out ${
-              diffPanelShown ? "w-60 opacity-100" : "w-0 opacity-0"
-            }`}
-            aria-hidden={!diffPanelShown}
-          >
-            <div className="h-full w-60">
-              {showChrome && (
-                <MemoizedDifficultySidebar
-                  difficulties={difficulties}
-                  activeId={active.id}
-                  onSelect={setActiveId}
-                  onAdd={addDifficulty}
-                  onDuplicate={duplicateDifficulty}
-                  onCopy={copyDifficulty}
-                  onDelete={queueDifficultyDelete}
-                  onRename={renameDifficulty}
-                  onCreateRate={createRateDifficulty}
-                  canEdit={canEdit}
-                  timingPoints={activeTimingPoints}
-                  songDurationMs={audio.duration > 0 ? audio.duration : null}
-                  peers={liveEnabled ? collab.peers : undefined}
-                  onFlashColumn={flashColumn}
-                />
-              )}
-            </div>
-          </div>
-
-          {showChrome && (
-            <div className="group absolute left-full top-1/2 h-32 w-11 -translate-y-1/2 overflow-hidden">
-              <button
-                type="button"
-                onClick={() =>
-                  setAppSettings((s) => ({
-                    ...s,
-                    difficultyPanelOpen: !diffPanelOpen,
-                  }))
-                }
-                title={t(
-                  diffPanelOpen
-                    ? "diffSidebar.collapse"
-                    : "diffSidebar.expand",
-                )}
-                aria-label={t(
-                  diffPanelOpen
-                    ? "diffSidebar.collapse"
-                    : "diffSidebar.expand",
-                )}
-                aria-expanded={diffPanelOpen}
-                className="absolute left-0 top-1/2 grid h-14 w-8 -translate-x-[76%] -translate-y-1/2 place-items-center rounded-r-xl border border-l-0 border-white/10 bg-ink-700/90 text-slate-300 shadow-lg backdrop-blur-sm transition-[transform,background-color,color] duration-200 ease-out hover:bg-ink-600 hover:text-white focus-visible:translate-x-0 group-hover:translate-x-0"
-              >
-                <ChevronIcon flipped={!diffPanelOpen} />
-              </button>
-            </div>
-          )}
-        </div>}
-        <main className="flex min-w-0 flex-1 flex-col">
-          <div
-            className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
-              showChrome
-                ? "max-h-24 translate-y-0 opacity-100"
-                : "pointer-events-none max-h-0 -translate-y-4 opacity-0"
-            }`}
-            aria-hidden={!showChrome}
-          >
-            {showChrome && !phoneViewport && (
-              <TransportBar
-                audio={audio}
-                view={view}
-                onView={setView}
-                jumpOpen={jumpToTimeOpen}
-                onJumpOpenChange={setJumpToTimeOpen}
-                getSelectionTimestamp={
-                  selectionRange
-                    ? () =>
-                        formatOsuTimestamp(
-                          active.notes.filter((n) => selectionRange.ids.has(n.id)),
-                        )
-                    : undefined
-                }
-                onPlaytest={
-                  featureFlags.playtest
-                    ? () => startPlaytest(getCurrentTime())
-                    : undefined
-                }
-                playtestDisabled={!audioFile}
-                playtestKey={editorKeyLabel(editorKeybinds.playtestToggle)}
-                playDisabled={!audioFile}
-                playKey={editorKeyLabel(editorKeybinds.playPause)}
-              />
-            )}
-          </div>
-          {hasProject && phoneViewport && !playtest.active && !phoneFocus && <p className="phone-tool-hint shrink-0 py-1 text-center text-xs text-slate-400">{t(`mobile.${phoneTool}Hint`)}</p>}
+  );
+  const ppShown =
+    !!audioFile &&
+    hasProject &&
+    appSettings.showPpCounter &&
+    !zenMode &&
+    !phoneViewport &&
+    !playtest.active;
+  const centerView = (
           <HudPreviewViewport
             editing={playtest.hudEditing}
             footer={
@@ -3293,7 +3138,17 @@ export default function App() {
             {(previewScale) => <>
             {exclusiveAudio && audio.nativeAudio.fallbackReason && <div role="status" className="absolute right-3 top-2 z-20 max-w-sm rounded-lg border border-amber-300/20 bg-ink-900/95 px-3 py-2 text-[11px] text-amber-200">{t("app.sharedAudio", { reason: audio.nativeAudio.fallbackReason })} <button className="underline" onClick={() => { pauseAudio(); setModal("audioSetup"); }}>{t("app.audioSetup")}</button></div>}
             <div className={`flex h-full w-full ${phoneViewport && referenceDiff ? "phone-comparison" : ""}`}>
-            <div className="editor-main relative min-w-0 flex-1">
+            <div
+              className="editor-main relative min-w-0 flex-1"
+              // The editor's own corner chips step down under the speed and pp
+              // chips when those are docked to a top corner.
+              style={
+                {
+                  "--hud-top-left": ppShown && appSettings.ppCorner === "top-left" ? "2.75rem" : "0px",
+                  "--hud-top-right": ppShown && appSettings.ppCorner === "top-right" ? "2.75rem" : "0px",
+                } as CSSProperties
+              }
+            >
             {hasProject ? (
               <MemoizedManiaEditor
                 mobile={phoneViewport}
@@ -3446,7 +3301,7 @@ export default function App() {
               // Sits in the editor's left tool column, under the edit/select
               // switch; the selection panel moves down to make room for it
               // (see .editor-main in index.css).
-              <div className="reference-picker float-chip absolute left-3 top-[5.25rem] z-30 p-0.5">
+              <div className="reference-picker float-chip absolute left-3 top-[calc(5.25rem+var(--hud-top-left,0px))] z-30 p-0.5 transition-[top] duration-300 ease-[var(--ease-emphasized)]">
                 <Menu
                   className="!h-6 !px-2 !text-xs"
                   label={
@@ -3618,17 +3473,13 @@ export default function App() {
             )}
             {hasProject && (phoneViewport || coarsePointer) && playtest.active && !playtest.hudEditing && <PhonePlaytestControls tablet={!phoneViewport} keyCount={active.keyCount} paused={playtest.paused} ended={playtest.ended} autoplay={playtest.autoplay} ready={playtest.countdownEndsAt === null && !playtest.paused && !playtest.ended} heldKeys={heldPlaytestKeys} keys={playtestSettings.keybinds[active.keyCount] ?? []} onPause={togglePlaytestPause} onReturn={exitPlaytest} onTools={phoneViewport ? () => { if (!playtest.paused) togglePlaytestPause(); setPhoneMenuOpen(true); } : undefined} onAutoplay={toggleAutoplay} onPress={pressTouch} onRelease={releaseTouch} />}
             {askToRotate && <RotatePrompt onPlayUpright={() => setPlayUpright(true)} onBack={exitPlaytest} />}
-            {audioFile &&
-              hasProject &&
-              appSettings.showPpCounter &&
-              !zenMode &&
-              !phoneViewport &&
-              !playtest.active && (
+            {ppShown && (
               <MemoizedPPCounter
                 notes={active.notes}
                 keyCount={active.keyCount}
                 playbackRate={audio.playbackRate}
                 onPlaybackRateChange={setAudioPlaybackRate}
+                corner={appSettings.ppCorner}
               />
             )}
             {cloudProjectId && authUser && (
@@ -3668,34 +3519,321 @@ export default function App() {
             )}
             </>}
           </HudPreviewViewport>
+  );
+  // Where the editor's panels go is the user's (Appearance → Arrange panels);
+  // what each one needs is described here.
+  const arrangingPanels = panelsArranging && hasProject && !playtest.active;
+  // While arranging, a panel only reads as hidden when its own switch is off,
+  // not because zen mode or an empty map has it out of the way.
+  const dockChrome = showChrome || arrangingPanels;
+  const dockRem = 16 * appSettings.uiScale;
+  // Small widgets in the playfield's corners, picked up while arranging but
+  // only ever landing in a corner.
+  const dockCorners: DockCornerSpec[] = [
+    {
+      id: "pp",
+      label: t("dock.speedPp"),
+      icon: <DockPanelIcon id="pp" />,
+      corner: appSettings.ppCorner,
+      visible: appSettings.showPpCounter,
+      onToggleVisible: (visible) => setAppSettings((s) => ({ ...s, showPpCounter: visible })),
+      onCorner: (ppCorner) => setAppSettings((s) => ({ ...s, ppCorner })),
+    },
+  ];
+  const dockPanels: DockPanelSpec[] = [
+    {
+      id: "header",
+      label: t("dock.header"),
+      icon: <DockPanelIcon id="header" />,
+      visible: showHeader || arrangingPanels,
+      // Over the start screen it floats, as it always has.
+      overlay: !hasProject,
+      keepMounted: true,
+      cross: { horizontal: "measure", vertical: 13.5 * dockRem },
+      length: { horizontal: "fill", vertical: "fill" },
+      render: (orientation) => renderHeader({ rail: orientation === "vertical" }),
+    },
+    {
+      id: "transport",
+      label: t("dock.transport"),
+      icon: <DockPanelIcon id="transport" />,
+      visible: dockChrome,
+      cross: { horizontal: "measure", vertical: 13.5 * dockRem },
+      length: { horizontal: "fill", vertical: "measure" },
+      render: (orientation) => (
+        <Suspense fallback={null}>
+              <TransportBar
+                docked
+                vertical={orientation === "vertical"}
+                audio={audio}
+                view={view}
+                onView={setView}
+                jumpOpen={jumpToTimeOpen}
+                onJumpOpenChange={setJumpToTimeOpen}
+                getSelectionTimestamp={
+                  selectionRange
+                    ? () =>
+                        formatOsuTimestamp(
+                          active.notes.filter((n) => selectionRange.ids.has(n.id)),
+                        )
+                    : undefined
+                }
+                onPlaytest={
+                  featureFlags.playtest
+                    ? () => startPlaytest(getCurrentTime())
+                    : undefined
+                }
+                playtestDisabled={!audioFile}
+                playtestKey={editorKeyLabel(editorKeybinds.playtestToggle)}
+                playDisabled={!audioFile}
+                playKey={editorKeyLabel(editorKeybinds.playPause)}
+              />
+        </Suspense>
+      ),
+    },
+    {
+      id: "difficulties",
+      label: t("dock.difficulties"),
+      icon: <DockPanelIcon id="difficulties" />,
+      visible: dockChrome && diffPanelOpen,
+      onToggleVisible: (visible) =>
+        setAppSettings((s) => ({ ...s, difficultyPanelOpen: visible })),
+      cross: { horizontal: "measure", vertical: 15 * dockRem },
+      length: { horizontal: "fill", vertical: "fill" },
+      tab: showChrome
+        ? {
+            open: diffPanelOpen,
+            label: { open: t("diffSidebar.collapse"), closed: t("diffSidebar.expand") },
+            onToggle: () =>
+              setAppSettings((s) => ({ ...s, difficultyPanelOpen: !diffPanelOpen })),
+          }
+        : undefined,
+      render: (orientation) => (
+        <Suspense fallback={null}>
+                <MemoizedDifficultySidebar
+                  docked
+                  orientation={orientation}
+                  difficulties={difficulties}
+                  activeId={active.id}
+                  onSelect={setActiveId}
+                  onAdd={addDifficulty}
+                  onDuplicate={duplicateDifficulty}
+                  onCopy={copyDifficulty}
+                  onDelete={queueDifficultyDelete}
+                  onRename={renameDifficulty}
+                  onCreateRate={createRateDifficulty}
+                  canEdit={canEdit}
+                  timingPoints={activeTimingPoints}
+                  songDurationMs={audio.duration > 0 ? audio.duration : null}
+                  peers={liveEnabled ? collab.peers : undefined}
+                  onFlashColumn={flashColumn}
+                />
+        </Suspense>
+      ),
+    },
+    {
+      id: "info",
+      label: t("dock.info"),
+      icon: <DockPanelIcon id="info" />,
+      visible:
+        dockChrome &&
+        appSettings.showDifficultyInfo &&
+        (active.notes.length > 0 || arrangingPanels),
+      onToggleVisible: (visible) =>
+        setAppSettings((s) => ({ ...s, showDifficultyInfo: visible })),
+      cross: { horizontal: "measure", vertical: 15 * dockRem },
+      length: { horizontal: "measure", vertical: "measure" },
+      render: (orientation) => (
+        <Suspense fallback={null}>
+          <DifficultyInfo
+            difficulty={active}
+            timingPoints={activeTimingPoints}
+            onFlashColumn={flashColumn}
+            orientation={orientation}
+            showEmpty={arrangingPanels}
+          />
+        </Suspense>
+      ),
+    },
+    {
+      id: "skillsets",
+      label: t("dock.skillsets"),
+      icon: <DockPanelIcon id="skillsets" />,
+      visible: dockChrome && appSettings.showSkillsetGraph,
+      onToggleVisible: (visible) =>
+        setAppSettings((s) => ({
+          ...s,
+          showSkillsetGraph: visible,
+          ...(visible ? { skillsetGraphCollapsed: false } : {}),
+        })),
+      cross: {
+        horizontal: appSettings.skillsetGraphCollapsed
+          ? SKILLSET_HORIZONTAL_HEIGHT.collapsed
+          : SKILLSET_HORIZONTAL_HEIGHT.open,
+        vertical: appSettings.skillsetGraphCollapsed
+          ? SKILLSET_VERTICAL_WIDTH.collapsed
+          : SKILLSET_VERTICAL_WIDTH.open,
+      },
+      length: { horizontal: "fill", vertical: "fill" },
+      render: (_orientation, edge) => (
+        <SkillsetGraph
+          docked
+          edge={edge}
+          upscroll={appSettings.upscroll}
+          open
+          collapsed={appSettings.skillsetGraphCollapsed}
+          onToggleCollapsed={toggleSkillsetGraphCollapsed}
+          points={skillsetTimeline}
+          duration={audio.duration}
+          keyCount={active.keyCount}
+          supported={msdSupportsKeyCount(active.keyCount)}
+          onSeek={seekAudio}
+        />
+      ),
+    },
+    {
+      id: "timeline",
+      label: t("dock.timeline"),
+      icon: <DockPanelIcon id="timeline" />,
+      visible: dockChrome && appSettings.showBottomTimeline,
+      onToggleVisible: (visible) =>
+        setAppSettings((s) => ({ ...s, showBottomTimeline: visible })),
+      cross: { horizontal: 96, vertical: 96 },
+      length: { horizontal: "fill", vertical: "fill" },
+      render: (_orientation, edge) => (
+        <Suspense fallback={null}>
+          {renderTimeline({ edge })}
+        </Suspense>
+      ),
+    },
+  ];
 
-          <div
-            className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
-              !phoneViewport && showChrome && appSettings.showBottomTimeline
-                ? "max-h-[144px] translate-y-0 opacity-100"
-                : "pointer-events-none max-h-0 translate-y-4 opacity-0"
-            }`}
-            aria-hidden={!showChrome}
-          >
-            <SkillsetGraph
-              open={!phoneViewport && showChrome && appSettings.showBottomTimeline && appSettings.showSkillsetGraph}
-              collapsed={appSettings.skillsetGraphCollapsed}
-              onToggleCollapsed={toggleSkillsetGraphCollapsed}
-              points={skillsetTimeline}
-              duration={audio.duration}
-              keyCount={active.keyCount}
-              supported={msdSupportsKeyCount(active.keyCount)}
-              onSeek={seekAudio}
-            />
-            {!phoneViewport && showChrome && appSettings.showBottomTimeline && fullTimeline}
+  if (packCreatorOpen) packCreatorEverOpenedRef.current = true;
+  if (modal === "admin") adminEverOpenedRef.current = true;
+
+  return (
+    <div
+      className={`relative h-full overflow-hidden bg-ink-900 ${phoneViewport ? "phone-app" : ""}`}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <SessionIntro
+        enabled={appSettings.introEnabled && !hasProject && !sharedSlug}
+        ready={chunksReady}
+        onCoveringChange={setIntroCovering}
+      />
+      {sceneEntering && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-[170] bg-ink-900/55"
+        >
+          <img
+            src={`${import.meta.env.BASE_URL}logo.svg?v=1`}
+            alt=""
+            className="scene-logo-out absolute left-1/2 top-1/2 h-48 w-48 rounded-full"
+          />
+        </div>
+      )}
+      <div
+        className={`flex h-full flex-col transition-[filter,opacity,transform] duration-500 ease-[var(--ease-emphasized)] ${
+          sceneEntering && hasProject ? "editor-scene-in" : ""
+        } ${
+          exiting ? "pointer-events-none" : ""
+        } ${
+          modalAtmosphereActive && !appSettings.performanceMode
+            ? "scale-[0.992] blur-[2px] opacity-75"
+            : "transform-none filter-none opacity-100"
+        }`}
+      >
+      {isDragging && (
+        <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-ink-900/76 backdrop-blur-md">
+          <div className="rounded-2xl border-2 border-dashed border-accent/70 bg-ink-800/82 px-12 py-10 text-center shadow-2xl backdrop-blur-xl">
+            <MusicNoteIcon className="mx-auto mb-2 h-9 w-9 text-accent" />
+            <p className="text-lg font-semibold text-slate-100">{t("drop.title")}</p>
+            <p className="text-sm text-slate-400">{t("drop.formats")}</p>
           </div>
+        </div>
+      )}
+
+      {importingMap && (
+        <div className="loader-fade-in fixed inset-0 z-[55] flex flex-col items-center justify-center gap-8 bg-ink-900/80">
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png?v=4`}
+            alt=""
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            className="loader-logo-pulse loader-content-in h-20 w-20 select-none rounded-2xl object-cover"
+          />
+          <div className="loader-content-in flex h-12 items-end gap-1.5">
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <span
+                key={i}
+                className="loader-bar h-full w-1.5 rounded-full bg-gradient-to-t from-accent-deep to-accent-soft"
+                style={{ animationDelay: `${i * 120}ms` }}
+              />
+            ))}
+          </div>
+          <div className="loader-content-in flex w-64 flex-col items-center gap-2">
+            <p className="text-sm font-medium tracking-wide text-slate-300">
+              {t("app.loadingMap")}
+            </p>
+            <div
+              className="h-1 w-full overflow-hidden rounded-full bg-white/10"
+              role="progressbar"
+              aria-valuenow={Math.round((importProgress?.ratio ?? 0) * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={importProgress?.label ?? t("app.loadingMapLabel")}
+            >
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+                style={{
+                  width: `${Math.round((importProgress?.ratio ?? 0) * 100)}%`,
+                }}
+              />
+            </div>
+            {/* Fixed-height line: labels change on every phase and a
+                collapsing paragraph would shift the loader. */}
+            <p className="h-4 w-full truncate text-center text-[11px] leading-4 text-slate-300/40">
+              {importProgress?.label ?? ""}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {phoneViewport && renderHeader()}
+
+      {phoneViewport ? (
+        <Suspense fallback={null}>
+        <div className="flex min-h-0 flex-1">
+        <main className="flex min-w-0 flex-1 flex-col">
+          {hasProject && phoneViewport && !playtest.active && !phoneFocus && <p className="phone-tool-hint shrink-0 py-1 text-center text-xs text-slate-400">{t(`mobile.${phoneTool}Hint`)}</p>}
+          {centerView}
           {hasProject && phoneViewport && !playtest.active && <>
             {!phoneFocus && appSettings.showBottomTimeline && <PhoneTimeline waveform={waveform} duration={audio.duration} time={audio.currentTime} onSeek={seekAudio} onOpen={() => setPhonePanel("timeline")} />}
             <PhoneEditorDock tool={phoneTool} onTool={setPhoneTool} focus={phoneFocus} onFocus={() => setPhoneFocus(value => !value)} audio={audio} hasAudio={!!audioFile} view={view} onView={setView} timingPoints={activeTimingPoints} canEdit={canEdit} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} selectionCount={selectionRange?.count ?? 0} onSelection={() => phoneEditorRef.current?.openPanel("selection")} onTools={() => setPhoneMenuOpen(true)} onTimeline={() => setPhonePanel("timeline")} jumpOpen={jumpToTimeOpen} onJumpOpen={setJumpToTimeOpen} />
           </>}
         </main>
-      </div>
-      </Suspense>
+        </div>
+        </Suspense>
+      ) : (
+        <DockFrame
+          layout={hasProject ? appSettings.editorLayout : DEFAULT_DOCK_LAYOUT}
+          panels={dockPanels}
+          center={<Suspense fallback={null}>{centerView}</Suspense>}
+          remPx={dockRem}
+          arranging={arrangingPanels}
+          onLayout={(editorLayout) => setAppSettings((s) => ({ ...s, editorLayout }))}
+          onArrangeDone={() => setPanelsArranging(false)}
+          onArrangeReset={() =>
+            setAppSettings((s) => ({ ...s, editorLayout: DEFAULT_DOCK_LAYOUT }))
+          }
+          canReset={!sameDockLayout(appSettings.editorLayout, DEFAULT_DOCK_LAYOUT)}
+          corners={dockCorners}
+        />
+      )}
 
       </div>
 
@@ -3889,6 +4027,18 @@ export default function App() {
         <AppSettingsModal
           initialTab={settingsTab}
           socialEnabled={featureFlags.social}
+          theme={appSettings.theme}
+          onTheme={(theme) => setAppSettings((s) => ({ ...s, theme }))}
+          showDifficultyInfo={appSettings.showDifficultyInfo}
+          onShowDifficultyInfo={(v) => setAppSettings((s) => ({ ...s, showDifficultyInfo: v }))}
+          onArrangePanels={
+            hasProject && !phoneViewport
+              ? () => {
+                  close();
+                  setPanelsArranging(true);
+                }
+              : undefined
+          }
           onOpenProfile={
             authUser
               ? () => {

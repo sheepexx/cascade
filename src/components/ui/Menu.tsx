@@ -28,7 +28,7 @@ const TRIGGER_TONES = {
     chevron: "text-slate-500",
   },
   accent: {
-    trigger: "bg-accent font-medium text-white hover:bg-[#ee7676]",
+    trigger: "bg-accent font-medium text-white hover:bg-accent-hover",
     chevron: "text-white/80",
   },
 };

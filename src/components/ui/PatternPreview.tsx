@@ -36,7 +36,7 @@ export function PatternPreview({
               width={cellW - 1}
               height={Math.max(2, bottom - top)}
               rx={1}
-              fill="#e86868"
+              className="fill-accent"
               opacity={0.85}
             />
           );

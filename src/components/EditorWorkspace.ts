@@ -1,6 +1,6 @@
 export { BottomTimeline } from "./BottomTimeline";
 export { CommentsSidebar } from "./CommentsSidebar";
-export { DifficultySidebar } from "./DifficultySidebar";
+export { DifficultyInfo, DifficultySidebar } from "./DifficultySidebar";
 export { ManiaEditor } from "./ManiaEditor";
 export { PlaytestNpsGraph } from "./PlaytestNpsGraph";
 export { PlaytestOverlay } from "./PlaytestOverlay";

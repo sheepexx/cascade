@@ -1,4 +1,6 @@
 import type { SnapPresetId } from "../lib/snapPresets";
+import { DEFAULT_DOCK_LAYOUT, type DockCorner, type DockLayout } from "../lib/editorDock";
+import { DEFAULT_THEME, type ThemeSettings } from "../lib/theme";
 import {
   DEFAULT_HOLD_CONFIRM_MS,
   DEFAULT_PARALLAX_STRENGTH,
@@ -522,6 +524,14 @@ export type AppSettings = {
   showSkillsetGraph: boolean;
   /** The graph is folded to its header row until the user opens it. */
   skillsetGraphCollapsed: boolean;
+  /** The active difficulty's stats (BPM, notes, LN share, NPS, columns). */
+  showDifficultyInfo: boolean;
+  /** Where the editor's panels sit around the playfield (Appearance). */
+  editorLayout: DockLayout;
+  /** The playfield corner the speed and pp chips snap to. */
+  ppCorner: DockCorner;
+  /** Accent and background colours (Appearance). */
+  theme: ThemeSettings;
   /** The floating overview of the whole chart. Off until the mapper turns it on. */
   showMapOverview: boolean;
   mapOverview: MapOverviewLayout;
@@ -708,6 +718,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showPatternTools: true,
   showSkillsetGraph: true,
   skillsetGraphCollapsed: true,
+  showDifficultyInfo: true,
+  editorLayout: DEFAULT_DOCK_LAYOUT,
+  ppCorner: "bottom-right",
+  theme: DEFAULT_THEME,
   showMapOverview: false,
   mapOverview: { mode: "fit", zoom: 48, rect: null },
   hitLight: true,

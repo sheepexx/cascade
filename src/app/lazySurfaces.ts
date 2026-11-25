@@ -16,6 +16,9 @@ export const CommentsSidebar = lazyWithPreload(() =>
 export const DifficultySidebar = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.DifficultySidebar })),
 );
+export const DifficultyInfo = lazyWithPreload(() =>
+  loadEditorWorkspace().then((m) => ({ default: m.DifficultyInfo })),
+);
 export const ManiaEditor = lazyWithPreload(() =>
   loadEditorWorkspace().then((m) => ({ default: m.ManiaEditor })),
 );
@@ -199,6 +202,7 @@ export function preloadLazyChunks(): Promise<unknown> {
       BottomTimeline,
       CommentsSidebar,
       DifficultySidebar,
+      DifficultyInfo,
       ManiaEditor,
       PlaytestNpsGraph,
       PlaytestOverlay,

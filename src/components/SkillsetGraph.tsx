@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "../lib/i18n";
 import { MOTION } from "../lib/motion";
@@ -9,6 +9,12 @@ import {
   type SkillsetPoint,
 } from "../lib/msd/minacalc";
 import { ChevronDownIcon } from "./ui/Icons";
+import type { DockEdge } from "../lib/editorDock";
+import {
+  SKILLSET_BARS_HEIGHT,
+  SKILLSET_HEADER_HEIGHT,
+  SKILLSET_VERTICAL_WIDTH,
+} from "../lib/skillsetGraphSize";
 
 /**
  * One colour per skillset, always in this order, so a skillset keeps its colour
@@ -26,9 +32,8 @@ const SKILLSET_COLOURS: Record<SkillsetGraphKey, string> = {
   technical: "#008300",
 };
 
-/** The header row stays visible when the graph is minimised. */
-const HEADER_HEIGHT = 18;
-const BARS_HEIGHT = 30;
+const HEADER_HEIGHT = SKILLSET_HEADER_HEIGHT;
+const BARS_HEIGHT = SKILLSET_BARS_HEIGHT;
 const GAP_PX = 2;
 
 type Props = {
@@ -42,6 +47,15 @@ type Props = {
   keyCount: number;
   supported: boolean;
   onSeek: (ms: number) => void;
+  /** Placed by the editor's panel layout, which sizes and animates it. */
+  docked?: boolean;
+  /**
+   * The editor edge it sits on. Bars always grow toward the playfield; on the
+   * left and right edges time runs with the playfield.
+   */
+  edge?: DockEdge;
+  /** The playfield scrolls up, so later times sit lower. */
+  upscroll?: boolean;
 };
 
 function dominant(point: SkillsetPoint): SkillsetGraphKey {
@@ -63,6 +77,11 @@ const formatTime = (sec: number): string => {
  * folds it to its header row the same way.
  */
 export function SkillsetGraph({ open, ...props }: Props) {
+  if (props.docked) return <SkillsetStrip {...props} />;
+  return <SweepingSkillsetGraph open={open} {...props} />;
+}
+
+function SweepingSkillsetGraph({ open, ...props }: Props) {
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(false);
 
@@ -116,19 +135,29 @@ function SkillsetStrip({
   keyCount,
   supported,
   onSeek,
+  docked = false,
+  edge = "bottom",
+  upscroll = false,
 }: Omit<Props, "open">) {
+  const vertical = edge === "left" || edge === "right";
   const t = useT();
   const barsRef = useRef<HTMLDivElement | null>(null);
+  // Along the time axis: the strip's width, or its height when vertical.
   const [width, setWidth] = useState(0);
+  // Across it, for vertical bars anchored to the outer side.
+  const [cross, setCross] = useState<number>(SKILLSET_VERTICAL_WIDTH.open);
   const [hover, setHover] = useState<{ index: number; x: number } | null>(null);
 
   useEffect(() => {
     const el = barsRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    const observer = new ResizeObserver(([entry]) => {
+      setWidth(vertical ? entry.contentRect.height : entry.contentRect.width);
+      if (vertical) setCross(entry.contentRect.width);
+    });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [vertical, collapsed]);
 
   useEffect(() => {
     if (collapsed) setHover(null);
@@ -158,20 +187,143 @@ function SkillsetStrip({
     [bars],
   );
 
-  const indexAt = (clientX: number): number => {
+  /** How far along the time axis the pointer is, in px from the start. */
+  const alongAt = (clientX: number, clientY: number): number => {
+    const rect = barsRef.current?.getBoundingClientRect();
+    if (!rect) return -1;
+    if (!vertical) return clientX - rect.left;
+    return upscroll ? clientY - rect.top : rect.bottom - clientY;
+  };
+
+  const indexAt = (clientX: number, clientY: number): number => {
     const rect = barsRef.current?.getBoundingClientRect();
     if (!rect || !points?.length || duration <= 0) return -1;
-    const sec = ((clientX - rect.left) / rect.width) * (duration / 1000);
+    const span = vertical ? rect.height : rect.width;
+    const sec = (alongAt(clientX, clientY) / span) * (duration / 1000);
     return points.findIndex((point) => sec >= point.startSec && sec < point.endSec);
   };
 
   const hovered = hover && points ? points[hover.index] : null;
   const toggleLabel = collapsed ? t("skillsets.show") : t("skillsets.hide");
 
+  const tooltip =
+    hovered &&
+    hover &&
+    barsRef.current &&
+    createPortal(
+      // Panels clip their children, so the tooltip lives on the page.
+      (() => {
+        const rect = barsRef.current!.getBoundingClientRect();
+        const style: CSSProperties = vertical
+          ? {
+              left: rect.right + 196 > window.innerWidth ? rect.left - 184 : rect.right + 8,
+              top: Math.min(
+                window.innerHeight - 150,
+                Math.max(8, upscroll ? rect.top + hover.x - 40 : rect.bottom - hover.x - 40),
+              ),
+            }
+          : {
+              left: rect.left + Math.min(Math.max(90, hover.x), width - 90),
+              top: edge === "top" ? rect.bottom + HEADER_HEIGHT + 6 : rect.top - HEADER_HEIGHT - 6,
+            };
+        return (
+          <div
+            className={`pointer-events-none fixed z-50 w-44 rounded-lg border border-ink-500/70 bg-ink-900/95 px-2.5 py-1.5 text-[11px] shadow-xl ${
+              vertical ? "" : edge === "top" ? "-translate-x-1/2" : "-translate-x-1/2 -translate-y-full"
+            }`}
+            style={style}
+          >
+            <div className="mb-1 font-mono text-slate-400">
+              {formatTime(hovered.startSec)} – {formatTime(hovered.endSec)}
+            </div>
+            {[...SKILLSET_GRAPH_KEYS]
+              .sort((a, b) => hovered.values[b] - hovered.values[a])
+              .map((key) => (
+                <div key={key} className="flex items-center gap-1.5 text-slate-300">
+                  <span
+                    className="inline-block h-2 w-2 rounded-sm"
+                    style={{ background: SKILLSET_COLOURS[key] }}
+                  />
+                  <span className="flex-1">{msdSkillsetLabel(key, keyCount)}</span>
+                  <span className="font-mono text-slate-200">
+                    {hovered.values[key].toFixed(1)}
+                  </span>
+                </div>
+              ))}
+          </div>
+        );
+      })(),
+      document.body,
+    );
+
+  if (vertical) {
+    return (
+      <div className="flex h-full w-full select-none flex-col items-stretch bg-ink-900">
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-expanded={!collapsed}
+          aria-label={toggleLabel}
+          title={`${t("skillsets.title")} · ${toggleLabel}`}
+          className={`flex shrink-0 items-center justify-center gap-1.5 text-[10px] font-medium text-slate-400 transition duration-[var(--motion-quick)] hover:bg-white/[0.07] hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+            collapsed ? "flex-1 flex-col py-2" : "h-[18px]"
+          }`}
+        >
+          <ChevronDownIcon
+            className={`h-3 w-3 transition-transform duration-[var(--motion-enter)] ease-[var(--ease-emphasized)] motion-reduce:transition-none ${
+              collapsed ? "rotate-90" : "-rotate-90"
+            }`}
+          />
+          {collapsed && <span className="[writing-mode:vertical-rl]">{t("skillsets.title")}</span>}
+        </button>
+        {!collapsed && (
+          <div
+            ref={barsRef}
+            className="relative min-h-0 w-full flex-1"
+            onMouseMove={(e) => {
+              if (!supported) return;
+              const index = indexAt(e.clientX, e.clientY);
+              setHover(index >= 0 ? { index, x: alongAt(e.clientX, e.clientY) } : null);
+            }}
+            onMouseLeave={() => setHover(null)}
+            onClick={(e) => {
+              const index = indexAt(e.clientX, e.clientY);
+              if (index >= 0 && points) onSeek(points[index].startSec * 1000);
+            }}
+            role="img"
+            aria-label={t("skillsets.graphLabel")}
+          >
+            {supported && (
+              <svg width="100%" height={width} className="block cursor-pointer">
+                {bars.map((bar) => {
+                  // From the outer side toward the playfield.
+                  const length = (bar.h / (BARS_HEIGHT - 4)) * (Math.min(cross, SKILLSET_VERTICAL_WIDTH.open) - 10);
+                  return (
+                  <rect
+                    key={bar.index}
+                    x={edge === "right" ? cross - 4 - length : 4}
+                    y={upscroll ? bar.x + GAP_PX / 2 : width - bar.x - bar.w - GAP_PX / 2}
+                    width={length}
+                    height={bar.w}
+                    rx={Math.min(2, bar.w / 2)}
+                    fill={SKILLSET_COLOURS[bar.key]}
+                    opacity={hover && hover.index !== bar.index ? 0.55 : 0.9}
+                  />
+                  );
+                })}
+              </svg>
+            )}
+          </div>
+        )}
+        {tooltip}
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full select-none border-t border-ink-600 bg-ink-900">
+    <div className={`flex w-full select-none bg-ink-900 ${edge === "top" ? "flex-col-reverse" : "flex-col"} ${docked ? "h-full" : "border-t border-ink-600"}`}>
       <div
-        className="flex items-center gap-2.5 overflow-hidden whitespace-nowrap pl-1.5 pr-2 text-[10px] text-slate-400"
+        className="flex shrink-0 items-center gap-2.5 overflow-hidden whitespace-nowrap pl-1.5 pr-2 text-[10px] text-slate-400"
         style={{ height: HEADER_HEIGHT }}
       >
         <button
@@ -213,17 +365,16 @@ function SkillsetStrip({
       </div>
       <div
         ref={barsRef}
-        className="relative w-full"
+        className="relative w-full shrink-0"
         style={{ height: BARS_HEIGHT }}
         onMouseMove={(e) => {
           if (collapsed || !supported) return;
-          const index = indexAt(e.clientX);
-          const rect = barsRef.current!.getBoundingClientRect();
-          setHover(index >= 0 ? { index, x: e.clientX - rect.left } : null);
+          const index = indexAt(e.clientX, e.clientY);
+          setHover(index >= 0 ? { index, x: alongAt(e.clientX, e.clientY) } : null);
         }}
         onMouseLeave={() => setHover(null)}
         onClick={(e) => {
-          const index = indexAt(e.clientX);
+          const index = indexAt(e.clientX, e.clientY);
           if (index >= 0 && points) onSeek(points[index].startSec * 1000);
         }}
         role="img"
@@ -235,7 +386,7 @@ function SkillsetStrip({
               <rect
                 key={bar.index}
                 x={bar.x + GAP_PX / 2}
-                y={BARS_HEIGHT - bar.h}
+                y={edge === "top" ? 0 : BARS_HEIGHT - bar.h}
                 width={bar.w}
                 height={bar.h}
                 rx={Math.min(2, bar.w / 2)}
@@ -246,41 +397,7 @@ function SkillsetStrip({
           </svg>
         )}
       </div>
-      {hovered &&
-        hover &&
-        barsRef.current &&
-        createPortal(
-          // The timeline panel clips its children, so the tooltip lives on the
-          // page and is placed just above the strip.
-          <div
-            className="pointer-events-none fixed z-50 w-44 -translate-x-1/2 -translate-y-full rounded-lg border border-ink-500/70 bg-ink-900/95 px-2.5 py-1.5 text-[11px] shadow-xl"
-            style={{
-              left:
-                barsRef.current.getBoundingClientRect().left +
-                Math.min(Math.max(90, hover.x), width - 90),
-              top: barsRef.current.getBoundingClientRect().top - HEADER_HEIGHT - 6,
-            }}
-          >
-            <div className="mb-1 font-mono text-slate-400">
-              {formatTime(hovered.startSec)} – {formatTime(hovered.endSec)}
-            </div>
-            {[...SKILLSET_GRAPH_KEYS]
-              .sort((a, b) => hovered.values[b] - hovered.values[a])
-              .map((key) => (
-                <div key={key} className="flex items-center gap-1.5 text-slate-300">
-                  <span
-                    className="inline-block h-2 w-2 rounded-sm"
-                    style={{ background: SKILLSET_COLOURS[key] }}
-                  />
-                  <span className="flex-1">{msdSkillsetLabel(key, keyCount)}</span>
-                  <span className="font-mono text-slate-200">
-                    {hovered.values[key].toFixed(1)}
-                  </span>
-                </div>
-              ))}
-          </div>,
-          document.body,
-        )}
+      {tooltip}
     </div>
   );
 }

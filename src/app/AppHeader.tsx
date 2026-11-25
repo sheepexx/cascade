@@ -24,6 +24,7 @@ import type { PresencePeer } from "../lib/collabPresence";
 import type { FeatureFlags } from "../lib/featureFlags";
 import { MALODY_MAX_KEYS } from "../lib/formatLimits";
 import { useT } from "../lib/i18n";
+import { useElementBreakpoints } from "../hooks/useElementBreakpoints";
 import type { MapCardPresetOption } from "../lib/mapCard";
 import type { InboxNotification } from "../lib/notifications";
 import type { OsuStatus } from "../lib/osuDesktop";
@@ -108,6 +109,8 @@ export function AppHeader({
   showHeader,
   social,
   undo,
+  docked = false,
+  rail = false,
 }: {
   phone?: { title: string; menuOpen: boolean; onMenuOpen: (open: boolean) => void; openDifficulties: () => void; commands: PaletteCommand[] };
   active: Difficulty;
@@ -183,8 +186,17 @@ export function AppHeader({
     open: (target: SocialMenuTarget) => void;
   } | null;
   undo: () => void;
+  /** Placed by the editor's panel layout, which shows, hides and borders it. */
+  docked?: boolean;
+  /** Drawn as a column, for the left or right edge. */
+  rail?: boolean;
 }) {
   const t = useT();
+  // Laid out by its own width: the panel layout may give it less than the
+  // window, beside another panel.
+  const { ref: headerRef, width: headerWidth, uimd: md, uilg: lg, uixl: xl } = useElementBreakpoints<HTMLElement>();
+  // Squeezed beside another panel, only File stays out; the rest joins More.
+  const compactNav = !rail && headerWidth < 720;
   if (phone) return <>
     {showHeader && <header className={`phone-app-header z-30 flex shrink-0 items-center gap-1 border-b border-white/[0.06] bg-ink-900 px-2 ${!hasProject ? "absolute inset-x-0 top-0" : ""}`}>
       <button type="button" className="phone-icon-button" aria-label={hasProject ? t("diffSidebar.title") : t("home.returnTitle")} onClick={hasProject ? phone.openDifficulties : undefined}>
@@ -332,18 +344,26 @@ export function AppHeader({
   );
   return (
     <header
+      ref={headerRef}
       // Solid chrome on a hairline, in the editor and over the main menu alike.
-      className={`app-header z-30 flex items-center justify-between gap-2 overflow-hidden border-white/[0.06] bg-ink-900 px-2 transition-[max-height,padding,opacity,transform] duration-300 ease-out uixl:gap-3 uixl:px-3 ${
-        hasProject ? "" : "absolute inset-x-0 top-0"
-      } ${
-        showHeader
-          ? "max-h-14 translate-y-0 border-b py-2.5 opacity-100"
-          : "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
-      }`}
+      className={
+        rail
+          ? "app-header z-30 flex h-full flex-col justify-between gap-3 overflow-y-auto overflow-x-hidden bg-ink-900 px-2 py-2.5 [scrollbar-width:none]"
+          : docked
+            ? `app-header z-30 flex items-center justify-between overflow-hidden bg-ink-900 py-2.5 ${xl ? "gap-3 px-3" : "gap-2 px-2"}`
+            : `app-header z-30 flex items-center justify-between gap-2 overflow-hidden border-white/[0.06] bg-ink-900 px-2 transition-[max-height,padding,opacity,transform] duration-300 ease-out ${xl ? "gap-3 px-3" : ""} ${
+                hasProject ? "" : "absolute inset-x-0 top-0"
+              } ${
+                showHeader
+                  ? "max-h-14 translate-y-0 border-b py-2.5 opacity-100"
+                  : "pointer-events-none max-h-0 -translate-y-full border-b-0 py-0 opacity-0"
+              }`
+      }
+      data-rail={rail ? "" : undefined}
       aria-hidden={!showHeader}
       {...({ inert: !showHeader ? "" : undefined } as { inert?: string })}
     >
-      <div className="flex min-w-0 items-center gap-1 uixl:gap-2">
+      <div className={rail ? "flex min-w-0 flex-col items-stretch gap-1" : `flex min-w-0 items-center ${xl ? "gap-2" : "gap-1"}`}>
         <div className="flex shrink-0 items-center">
           <button
             type="button"
@@ -361,39 +381,47 @@ export function AppHeader({
               onDragStart={(e) => e.preventDefault()}
               className="h-6 w-6 select-none rounded-full object-cover"
             />
-            <span className="hidden font-display text-[0.9375rem] font-bold text-slate-50 uimd:inline">
+            <span className={`font-display text-[0.9375rem] font-bold text-slate-50 ${rail || md ? "" : "hidden"}`}>
               Cascade
             </span>
           </button>
         </div>
 
         <div
-          className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
-            hasProject
-              ? "max-w-[68rem] translate-x-0 opacity-100"
-              : "pointer-events-none max-w-0 -translate-x-3 opacity-0"
-          }`}
+          className={
+            rail
+              ? "min-w-0"
+              : `overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
+                  hasProject
+                    ? "max-w-[68rem] translate-x-0 opacity-100"
+                    : "pointer-events-none max-w-0 -translate-x-3 opacity-0"
+                }`
+          }
           aria-hidden={!hasProject}
           {...({ inert: !hasProject ? "" : undefined } as { inert?: string })}
         >
-          <nav className="flex items-center gap-0.5 whitespace-nowrap">
-            <span className="mx-1 h-4 w-px bg-white/[0.08]" />
+          <nav className={rail ? "flex flex-col items-stretch gap-0.5" : "flex items-center gap-0.5 whitespace-nowrap"}>
+            <span className={rail ? "my-1 h-px w-full bg-white/[0.08]" : "mx-1 h-4 w-px bg-white/[0.08]"} />
             {fileMenu}
-            <MenuButton active={modal === "mapSettings"} onClick={() => setModal("mapSettings")}>
-              {t("nav.mapSettings")}
-            </MenuButton>
-            <MenuButton active={modal === "timing"} onClick={() => setModal("timing")}>
-              {t("nav.timing")}
-            </MenuButton>
-            {featureFlags.sv_tools && (
-              <MenuButton active={modal === "sv"} onClick={() => setModal("sv")}>
-                {t("nav.sv")}
-              </MenuButton>
+            {!compactNav && (
+              <>
+                <MenuButton active={modal === "mapSettings"} onClick={() => setModal("mapSettings")}>
+                  {t("nav.mapSettings")}
+                </MenuButton>
+                <MenuButton active={modal === "timing"} onClick={() => setModal("timing")}>
+                  {t("nav.timing")}
+                </MenuButton>
+                {featureFlags.sv_tools && (
+                  <MenuButton active={modal === "sv"} onClick={() => setModal("sv")}>
+                    {t("nav.sv")}
+                  </MenuButton>
+                )}
+                <MenuButton active={modal === "difficulty"} onClick={() => setModal("difficulty")}>
+                  {t("nav.difficulty")}
+                </MenuButton>
+              </>
             )}
-            <MenuButton active={modal === "difficulty"} onClick={() => setModal("difficulty")}>
-              {t("nav.difficulty")}
-            </MenuButton>
-            <div className="hidden items-center gap-0.5 uixl:flex">
+            <div className={rail ? "flex flex-col items-stretch gap-0.5" : `items-center gap-0.5 ${xl ? "flex" : "hidden"}`}>
               <MenuButton active={modal === "tools"} onClick={() => setModal("tools")}>
                 {t("nav.tools")}
               </MenuButton>
@@ -411,7 +439,8 @@ export function AppHeader({
               <MenuButton active={modal === "settings"} onClick={() => openSettings()}>
                 {t("nav.settings")}
               </MenuButton>
-              <span className="mx-1 h-4 w-px bg-white/[0.08]" />
+              <span className={rail ? "my-1 h-px w-full bg-white/[0.08]" : "mx-1 h-4 w-px bg-white/[0.08]"} />
+              <div className={rail ? "flex items-center gap-1" : "contents"}>
               <HistoryPopover
                 open={historyPanel}
                 onOpenChange={setHistoryPanel}
@@ -437,11 +466,23 @@ export function AppHeader({
               >
                 <RedoIcon className="h-4 w-4" />
               </IconButton>
+              </div>
             </div>
-            <div className="uixl:hidden">
+            <div className={rail || xl ? "hidden" : ""}>
               <Menu
                 label={t("nav.more")}
                 items={[
+                  ...(compactNav
+                    ? [
+                        { label: t("nav.mapSettings"), onClick: () => setModal("mapSettings") },
+                        { label: t("nav.timing"), onClick: () => setModal("timing") },
+                        ...(featureFlags.sv_tools
+                          ? [{ label: t("nav.sv"), onClick: () => setModal("sv") }]
+                          : []),
+                        { label: t("nav.difficulty"), onClick: () => setModal("difficulty") },
+                        { separator: true as const },
+                      ]
+                    : []),
                   {
                     label: t("nav.tools"),
                     onClick: () => setModal("tools"),
@@ -486,16 +527,20 @@ export function AppHeader({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 uixl:gap-1.5">
+      <div className={rail ? "flex flex-wrap items-center gap-1 border-t border-white/[0.06] pt-2" : `flex shrink-0 items-center ${xl ? "gap-1.5" : "gap-1"}`}>
         <div
-          className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
-            hasProject
-              ? "max-w-[68rem] translate-x-0 opacity-100"
-              : "pointer-events-none max-w-0 translate-x-3 opacity-0"
-          }`}
+          className={
+            rail
+              ? "contents"
+              : `overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out ${
+                  hasProject
+                    ? "max-w-[68rem] translate-x-0 opacity-100"
+                    : "pointer-events-none max-w-0 translate-x-3 opacity-0"
+                }`
+          }
           aria-hidden={!hasProject}
         >
-          <div className="flex items-center gap-1 whitespace-nowrap">
+          <div className={rail ? "contents" : "flex items-center gap-1 whitespace-nowrap"}>
             {cloudProjectId && myRole === "viewer" && (
               <span className="rounded-sm bg-amber-500/15 px-1.5 py-0.5 text-2xs font-medium text-amber-300">
                 {t("nav.viewOnly")}
@@ -545,7 +590,7 @@ export function AppHeader({
                     : undefined
                 }
                 // Status as text beside a dot: present, never a badge.
-                className={`hidden h-8 items-center gap-1.5 px-2 text-xs transition uilg:flex ${
+                className={`h-8 items-center gap-1.5 px-2 text-xs transition ${lg ? "flex" : "hidden"} ${
                   saveStatus === "error" ? "text-rose-300" : "text-slate-400"
                 }`}
               >
@@ -558,7 +603,7 @@ export function AppHeader({
                         : "bg-red-300"
                   }`}
                 />
-                <span className="hidden uixl:inline">
+                <span className={xl ? "inline" : "hidden"}>
                   {saveStatus === "saving"
                     ? t("file.saving")
                     : saveStatus === "saved"

@@ -18,6 +18,17 @@ Because utilities read variables, a theme is just a different set of values
 (see **Classic design** below, currently dormant). Never hard-code a hex value
 for a surface or text colour in a component; use the scale.
 
+The user picks the accent and the background in Settings → Appearance (three
+presets or their own colours). `src/lib/theme.ts` turns the background into
+the whole ink scale in OKLab, keeping the default lightness steps and tinting
+the slate scale toward its hue, and writes the variables onto `<html>`. So
+the accent is a variable too: in CSS use `rgb(var(--accent-rgb) / a)` or
+`var(--accent)`, in Tailwind `accent`, `accent-soft` and `accent-deep`, on a
+canvas `accentColour()` and `inkColour()` from `src/lib/theme.ts`, and in SVG
+`currentColor` or a `fill-*`/`stroke-*` class (CSS variables in SVG
+attributes do not work everywhere). The coral logo and brand marks (map
+cards, the main menu tiles) keep their own colours.
+
 Shared building blocks live in `src/components/ui/` and
 `src/components/menus/settingsLayout.tsx`.
 
@@ -114,7 +125,8 @@ with the low end lifted so secondary text stays readable.
 
 ### Accent and status
 
-- `accent` `#e86868` (with `accent-soft`, `accent-deep`): see rule 2.
+- `accent` `#e86868` by default (with `accent-soft`, `accent-deep`), set by
+  the theme: see rule 2.
 - Status colours are semantic only: emerald = ok/online/saved, amber =
   warning/selection in the editor, rose = error/destructive, sky = multi-
   selection, teal = AiMod readiness.

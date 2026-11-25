@@ -136,14 +136,14 @@ export function OnScreenDisplay({
             <div
               className={`mx-auto h-1 w-12 rounded-full transition-[background-color,box-shadow] duration-200 ${
                 indicator.on
-                  ? "bg-accent shadow-[0_0_12px_rgba(232,104,104,0.8)]"
+                  ? "bg-accent shadow-[0_0_12px_rgb(var(--accent-rgb)/0.8)]"
                   : "bg-white/10"
               }`}
             />
           ) : (
             <div className="h-1 overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full bg-accent shadow-[0_0_10px_rgba(232,104,104,0.7)] transition-[width] duration-150 ease-out"
+                className="h-full rounded-full bg-accent shadow-[0_0_10px_rgb(var(--accent-rgb)/0.7)] transition-[width] duration-150 ease-out"
                 style={{
                   width: `${Math.round(Math.min(1, Math.max(0, indicator.fraction)) * 100)}%`,
                 }}

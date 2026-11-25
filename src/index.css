@@ -18,19 +18,27 @@
   --ease-overshoot: cubic-bezier(0.2, 1.35, 0.35, 1);
   --ease-exit: cubic-bezier(0.55, 0, 1, 0.45);
 
-  /* Surfaces, from the canvas well up to floating layers. */
-  --surface-canvas: #09090d;
-  --surface-ground: #0d0d12;
-  --surface-panel: #14141a;
-  --surface-raised: #1b1b23;
+  /* Surfaces, from the canvas well up to floating layers. They follow the
+     ink scale, so a theme's background colour reaches them too. */
+  --surface-canvas: rgb(var(--ink-950));
+  --surface-ground: rgb(var(--ink-900));
+  --surface-panel: rgb(var(--ink-800));
+  --surface-raised: rgb(var(--ink-700));
 
   /* Hairlines. Borders only where they separate something. */
   --line-soft: rgb(255 255 255 / 6%);
   --line: rgb(255 255 255 / 9%);
   --line-strong: rgb(255 255 255 / 15%);
 
-  --accent: #e86868;
-  --focus-ring: rgb(232 104 104 / 65%);
+  /* The accent as RGB channels (Tailwind's accent-* utilities read these, so
+     opacity modifiers work) and as a plain colour for hand-written CSS.
+     src/lib/theme.ts overrides the channels when a theme is picked. */
+  --accent-rgb: 232 104 104;
+  --accent-soft-rgb: 244 138 138;
+  --accent-deep-rgb: 193 77 77;
+  --accent-hover-rgb: 238 118 118;
+  --accent: rgb(var(--accent-rgb));
+  --focus-ring: rgb(var(--accent-rgb) / 65%);
   --shadow-float: 0 18px 48px -12px rgb(0 0 0 / 72%), 0 2px 8px rgb(0 0 0 / 28%);
 
   --font-osu: "Quicksand", "Inter", ui-sans-serif, system-ui, -apple-system,
@@ -99,7 +107,7 @@ html {
 }
 
 ::selection {
-  background: rgb(232 104 104 / 32%);
+  background: rgb(var(--accent-rgb) / 32%);
   color: #fff;
 }
 
@@ -653,7 +661,7 @@ img {
    App and the panel in the editor, so the panel steps down below the picker
    whenever it is there instead of sliding under it. */
 .editor-main:has(> .reference-picker) .note-inspector {
-  top: 7.5rem;
+  top: calc(7.5rem + var(--hud-top-left, 0px));
 }
 
 /* Keyboard keys: a small plate with a heavier bottom edge, the one place a
@@ -682,7 +690,7 @@ img {
 .keycap-editable {
   box-shadow:
     inset 0 0 0 1px rgb(255 255 255 / 9%),
-    inset 0 -2px 0 rgb(232 104 104 / 70%);
+    inset 0 -2px 0 rgb(var(--accent-rgb) / 70%);
 }
 
 @keyframes hold-charge {
@@ -843,7 +851,7 @@ img {
 .osu-song-card:hover .osu-song-surface,
 .osu-song-card:focus-within .osu-song-surface {
   border-color: rgb(255 255 255 / 32%);
-  box-shadow: 0 20px 64px -14px rgb(0 0 0 / 75%), 0 0 28px -16px rgb(232 104 104 / 28%);
+  box-shadow: 0 20px 64px -14px rgb(0 0 0 / 75%), 0 0 28px -16px rgb(var(--accent-rgb) / 28%);
 }
 
 .osu-song-open-face {
@@ -853,7 +861,7 @@ img {
 }
 
 .osu-song-open:hover:not(:disabled) .osu-song-open-face {
-  background-color: rgb(232 104 104 / 30%);
+  background-color: rgb(var(--accent-rgb) / 30%);
   border-color: rgb(244 138 138 / 70%);
 }
 
@@ -863,7 +871,7 @@ img {
 }
 
 .osu-song-open:active:not(:disabled) .osu-song-open-face {
-  background-color: rgb(232 104 104 / 45%);
+  background-color: rgb(var(--accent-rgb) / 45%);
 }
 
 .osu-banner-in {
@@ -1317,7 +1325,7 @@ img {
   animation: loader-bar 950ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 .loader-logo-pulse {
-  box-shadow: 0 12px 28px rgba(232, 104, 104, 0.32);
+  box-shadow: 0 12px 28px rgb(var(--accent-rgb) / 0.32);
   will-change: transform;
   animation: loader-logo-pulse 1700ms ease-in-out infinite;
 }
@@ -1793,7 +1801,7 @@ canvas[data-pointer-focus]:focus-visible {
   border-radius: var(--radius-lg);
 }
 :root[data-theme="classic"] .ui-btn-accent {
-  background-color: rgb(232 104 104 / 90%);
+  background-color: rgb(var(--accent-rgb) / 90%);
   box-shadow: inset 0 0 0 1px rgb(193 77 77 / 40%);
   font-weight: 500;
 }
@@ -1841,7 +1849,7 @@ canvas[data-pointer-focus]:focus-visible {
   top: 0.25rem;
   bottom: 0.25rem;
   border-radius: var(--radius-lg);
-  background-color: rgb(232 104 104 / 90%);
+  background-color: rgb(var(--accent-rgb) / 90%);
   box-shadow: none;
 }
 :root[data-theme="classic"] .ui-segment,
@@ -1856,7 +1864,7 @@ canvas[data-pointer-focus]:focus-visible {
   padding: 0.375rem 0.75rem;
 }
 :root[data-theme="classic"] .ui-tab[aria-selected="true"] {
-  background-color: rgb(232 104 104 / 90%);
+  background-color: rgb(var(--accent-rgb) / 90%);
   color: #fff;
 }
 
@@ -1868,7 +1876,7 @@ canvas[data-pointer-focus]:focus-visible {
 :root[data-theme="classic"] .hit-line-left[data-active="true"],
 :root[data-theme="classic"] .hit-line-left[aria-selected="true"],
 :root[data-theme="classic"] .hit-line-left[aria-current="page"] {
-  box-shadow: inset 0 0 0 1px rgb(232 104 104 / 70%);
+  box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / 70%);
 }
 
 /* Section labels in small capitals. */
@@ -1917,6 +1925,388 @@ canvas[data-pointer-focus]:focus-visible {
 :root[data-theme="classic"] .menu-pop-in,
 :root[data-theme="classic"] .command-palette-panel:not(.is-closing) {
   animation-name: menu-pop-in-classic;
+}
+
+/* The editor's panels (src/components/dock/DockFrame.tsx). Boxes glide to
+   their new places; a panel that changes edge hides its content behind a
+   placeholder while its box morphs, then fades it back in. */
+:root {
+  --dock-ms: 380ms;
+}
+
+.dock-frame[data-animate] .dock-box,
+.dock-frame[data-animate] .dock-center,
+.dock-frame[data-animate] .dock-tile,
+.dock-frame[data-animate] .dock-arrange-center {
+  transition:
+    left var(--dock-ms) var(--ease-emphasized),
+    top var(--dock-ms) var(--ease-emphasized),
+    width var(--dock-ms) var(--ease-emphasized),
+    height var(--dock-ms) var(--ease-emphasized),
+    opacity var(--motion-scene) var(--ease-standard),
+    filter var(--motion-enter) var(--ease-standard),
+    box-shadow var(--motion-quick) var(--ease-standard),
+    background-color var(--motion-quick) var(--ease-standard);
+}
+
+.dock-frame[data-animate] .dock-tab {
+  transition:
+    left var(--dock-ms) var(--ease-emphasized),
+    top var(--dock-ms) var(--ease-emphasized);
+}
+
+.dock-box[data-hidden] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dock-content {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transition: opacity 240ms var(--ease-standard);
+}
+
+.dock-box[data-morph] .dock-content {
+  opacity: 0;
+  transition: none;
+}
+
+.dock-morph-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgb(var(--slate-500));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-standard);
+}
+
+.dock-box[data-morph] .dock-morph-label {
+  opacity: 1;
+}
+
+/* Hairlines: ::before on the side facing the playfield, ::after between
+   panels that share a strip. */
+.dock-edge-top::before,
+.dock-edge-bottom::before,
+.dock-edge-left::before,
+.dock-edge-right::before,
+.dock-div-left::after,
+.dock-div-top::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  background: var(--line-soft);
+}
+.dock-edge-top::before { inset: 0 0 auto 0; height: 1px; }
+.dock-edge-bottom::before { inset: auto 0 0 0; height: 1px; }
+.dock-edge-left::before { inset: 0 auto 0 0; width: 1px; }
+.dock-edge-right::before { inset: 0 0 0 auto; width: 1px; }
+.dock-div-left::after { inset: 0 auto 0 0; width: 1px; }
+.dock-div-top::after { inset: 0 0 auto 0; height: 1px; }
+
+/* Arranging: the panels dim behind outlined tiles that pick up and drop. */
+.dock-frame[data-arranging] .dock-box,
+.dock-frame[data-arranging] .dock-center {
+  filter: saturate(0.55) brightness(0.62);
+}
+
+.dock-arrange {
+  animation: fade-in var(--motion-enter) var(--ease-standard) both;
+}
+
+.dock-arrange-center {
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%);
+}
+
+.dock-arrange-center-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(var(--slate-500));
+}
+
+/* Everything that can be picked up is outlined in the accent with a soft
+   inner glow, and pulses once as the arranger opens. */
+.dock-tile {
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+  border-radius: 10px;
+  background-color: rgb(var(--accent-rgb) / 7%);
+  box-shadow:
+    inset 0 0 0 1.5px rgb(var(--accent-rgb) / 55%),
+    inset 0 0 28px -8px rgb(var(--accent-rgb) / 40%);
+  animation: dock-tile-in 900ms var(--ease-standard);
+}
+.dock-tile:hover {
+  background-color: rgb(var(--accent-rgb) / 13%);
+  box-shadow:
+    inset 0 0 0 2px rgb(var(--accent-rgb)),
+    inset 0 0 32px -8px rgb(var(--accent-rgb) / 55%);
+}
+.dock-tile:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px rgb(var(--accent-rgb)),
+    0 0 0 3px rgb(var(--accent-rgb) / 25%);
+}
+@keyframes dock-tile-in {
+  0% {
+    background-color: transparent;
+    box-shadow:
+      inset 0 0 0 1.5px rgb(var(--accent-rgb) / 0%),
+      inset 0 0 28px -8px rgb(var(--accent-rgb) / 0%);
+  }
+  35% {
+    background-color: rgb(var(--accent-rgb) / 16%);
+    box-shadow:
+      inset 0 0 0 2.5px rgb(var(--accent-rgb)),
+      inset 0 0 40px -6px rgb(var(--accent-rgb) / 70%);
+  }
+}
+.dock-corner-tile {
+  border-radius: 12px;
+}
+.dock-tile-grip {
+  display: grid;
+  place-items: center;
+  color: rgb(var(--slate-500));
+}
+.dock-tile[data-hidden] {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgb(255 255 255 / 3.5%) 0 6px,
+    transparent 6px 12px
+  );
+  background-color: rgb(var(--ink-950) / 62%);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent-rgb) / 30%);
+}
+.dock-tile[data-state="source"] {
+  background-color: rgb(var(--ink-950) / 55%);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent-rgb) / 45%);
+}
+.dock-tile[data-state="source"] .dock-tile-chip {
+  opacity: 0.35;
+}
+.dock-tile[data-state="swap"] {
+  background-color: rgb(var(--accent-rgb) / 14%);
+  box-shadow: inset 0 0 0 2px rgb(var(--accent-rgb));
+}
+.dock-tile[data-state="insert"] {
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent-rgb) / 60%);
+}
+.dock-arrange[data-dragging] .dock-tile {
+  cursor: grabbing;
+}
+.dock-arrange[data-dragging] .dock-tile[data-state="idle"] {
+  opacity: 0.55;
+}
+
+/* One height for every chip, with or without its show/hide button, and even
+   padding unless that button sits at the end. */
+.dock-tile-chip {
+  display: inline-flex;
+  max-width: calc(100% - 12px);
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 0 11px;
+  border-radius: 999px;
+  background: rgb(var(--ink-800) / 94%);
+  box-shadow:
+    0 10px 28px -10px rgb(0 0 0 / 70%),
+    inset 0 0 0 1px rgb(255 255 255 / 8%);
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--slate-100));
+  white-space: nowrap;
+  transition: opacity var(--motion-quick) var(--ease-standard);
+}
+.dock-tile-chip:has(> .dock-tile-eye) {
+  padding-right: 5px;
+}
+.dock-tile-chip-compact {
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 4px;
+  border-radius: 12px;
+}
+.dock-tile-icon {
+  display: grid;
+  place-items: center;
+  color: rgb(var(--accent-soft-rgb));
+}
+.dock-tile-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--slate-500));
+}
+.dock-tile-eye {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: rgb(var(--slate-400));
+  cursor: pointer;
+  transition: background-color var(--motion-quick), color var(--motion-quick);
+}
+.dock-tile-eye:hover {
+  background: rgb(255 255 255 / 9%);
+  color: rgb(var(--slate-50));
+}
+
+/* The corners a widget can snap to while it is carried; the nearest is lit. */
+.dock-slot {
+  border-radius: 12px;
+  border: 1.5px dashed rgb(var(--accent-rgb) / 45%);
+  background: rgb(var(--accent-rgb) / 5%);
+  animation: dock-preview-in 180ms var(--ease-standard) both;
+  transition:
+    background-color var(--motion-quick) var(--ease-standard),
+    border-color var(--motion-quick) var(--ease-standard),
+    box-shadow var(--motion-enter) var(--ease-standard);
+}
+.dock-slot[data-target] {
+  border: 2px solid rgb(var(--accent-rgb));
+  background: rgb(var(--accent-rgb) / 18%);
+  box-shadow:
+    0 0 0 4px rgb(var(--accent-rgb) / 12%),
+    0 0 28px rgb(var(--accent-rgb) / 35%);
+}
+
+/* Where everything would land, redrawn as the pointer moves. */
+.dock-preview {
+  z-index: 2;
+}
+.dock-preview-box {
+  border-radius: 10px;
+  border: 1.5px dashed rgb(255 255 255 / 26%);
+  background: rgb(var(--ink-950) / 18%);
+  animation: dock-preview-in 180ms var(--ease-standard) both;
+  transition:
+    left 240ms var(--ease-emphasized),
+    top 240ms var(--ease-emphasized),
+    width 240ms var(--ease-emphasized),
+    height 240ms var(--ease-emphasized);
+}
+.dock-preview-box[data-moving] {
+  display: grid;
+  place-items: center;
+  border: 2px solid rgb(var(--accent-rgb));
+  background: rgb(var(--accent-rgb) / 16%);
+  box-shadow: 0 0 0 4px rgb(var(--accent-rgb) / 12%);
+}
+.dock-preview-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+@keyframes dock-preview-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dock-ghost {
+  z-index: 3;
+  will-change: transform;
+}
+.dock-ghost-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgb(var(--ink-700) / 96%);
+  box-shadow:
+    var(--shadow-float),
+    inset 0 0 0 1.5px rgb(var(--accent-rgb) / 80%);
+  color: rgb(var(--slate-50));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: dock-ghost-in 200ms var(--ease-overshoot) both;
+}
+@keyframes dock-ghost-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.dock-toolbar {
+  z-index: 4;
+  display: flex;
+  width: max-content;
+  max-width: min(36rem, calc(100% - 32px));
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 14px;
+  transform: translateX(-50%);
+  background: rgb(var(--ink-800) / 95%);
+  box-shadow:
+    var(--shadow-float),
+    inset 0 0 0 1px rgb(255 255 255 / 8%);
+  backdrop-filter: blur(16px);
+  /* backwards, not both: once in, data-faded has to be able to hide it. */
+  animation: dock-toolbar-in 360ms var(--ease-emphasized) backwards;
+  transition: opacity var(--motion-enter) var(--ease-standard);
+}
+.dock-toolbar[data-faded] {
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes dock-toolbar-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* The top bar as a column on the left or right edge. */
+.app-header[data-rail] nav button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-frame .dock-box,
+  .dock-frame .dock-center,
+  .dock-frame .dock-tile,
+  .dock-frame .dock-tab,
+  .dock-frame .dock-arrange-center,
+  .dock-content,
+  .dock-preview-box {
+    transition-duration: 1ms !important;
+  }
+  .dock-ghost-inner,
+  .dock-toolbar,
+  .dock-preview-box,
+  .dock-slot,
+  .dock-tile,
+  .dock-arrange {
+    animation-duration: 1ms;
+  }
+  .dock-slot {
+    transition-duration: 1ms;
+  }
 }
 
 :root[data-performance="on"] *,

@@ -64,6 +64,8 @@ import type { EditorKeybinds } from "../../lib/editorKeybinds";
 import { ShortcutsSettings } from "./ShortcutsSettings";
 import { SocialPrivacySettings } from "./SocialPrivacySettings";
 import { GraphicsSettings } from "./GraphicsSettings";
+import { ThemeColourRows, ThemePresets } from "./ThemeSettings";
+import type { ThemeSettings } from "../../lib/theme";
 import {
   SettingRow,
   SettingsExtra,
@@ -85,6 +87,12 @@ import { siteUrl } from "../../lib/siteAssets";
 type Props = {
   /** Shows the Social & privacy tab (the social feature flag). */
   socialEnabled?: boolean;
+  theme: ThemeSettings;
+  onTheme: (theme: ThemeSettings) => void;
+  showDifficultyInfo: boolean;
+  onShowDifficultyInfo: (value: boolean) => void;
+  /** Opens the panel arranger; missing without an open map. */
+  onArrangePanels?: () => void;
   onOpenProfile?: () => void;
   onAudioSetup?: () => void;
   initialTab?: SettingsTab;
@@ -214,7 +222,7 @@ type Props = {
   accountSyncError: string | null;
 };
 
-const TABS = ["General", "Account", "Graphics", "Editor", "Playtest", "Audio", "Export", "Shortcuts", "Social"] as const;
+const TABS = ["General", "Appearance", "Account", "Graphics", "Editor", "Playtest", "Audio", "Export", "Shortcuts", "Social"] as const;
 export type SettingsTab = (typeof TABS)[number];
 type Tab = SettingsTab;
 
@@ -230,6 +238,7 @@ const ALT_WHEEL_OPTIONS: {
 
 const TAB_LABELS: Record<Tab, MessageKey> = {
   General: "settings.tabGeneral",
+  Appearance: "settings.tabAppearance",
   Account: "settings.tabAccount",
   Graphics: "settings.tabGraphics",
   Editor: "settings.tabEditor",
@@ -242,6 +251,11 @@ const TAB_LABELS: Record<Tab, MessageKey> = {
 
 export function AppSettingsModal({
   socialEnabled = false,
+  theme,
+  onTheme,
+  showDifficultyInfo,
+  onShowDifficultyInfo,
+  onArrangePanels,
   onOpenProfile,
   onAudioSetup,
   initialTab,
@@ -554,19 +568,6 @@ export function AppSettingsModal({
                   onChange={(next: Locale) => setLocale(next)}
                 />
               </SettingRow>
-              <SliderRow
-                label={t("settings.uiScale")}
-                tip={t("settings.uiScaleHint")}
-                diagram="uiScale"
-                diagramValue={uiScale}
-                display={(v) => `${Math.round(v * 100)}%`}
-                min={MIN_UI_SCALE}
-                max={MAX_UI_SCALE}
-                step={UI_SCALE_STEP}
-                value={uiScale}
-                commitOnRelease
-                onChange={onUiScale}
-              />
               <SettingRow label={t("settings.altWheelAction")} tip={t("settings.altWheelHint")}>
                 <Dropdown
                   className="w-48"
@@ -602,17 +603,6 @@ export function AppSettingsModal({
                 commitOnRelease
                 onChange={onHoldConfirmMs}
               />
-              <SliderRow
-                label={t("settings.parallaxStrength")}
-                tip={t("settings.parallaxStrengthHint")}
-                display={(v) => `${Math.round(v * 100)}%`}
-                min={0}
-                max={MAX_PARALLAX_STRENGTH}
-                step={0.05}
-                value={parallaxStrength}
-                commitOnRelease
-                onChange={onParallaxStrength}
-              />
             </SettingsSection>
 
             <SettingsSection title={t("settings.mainMenu")}>
@@ -640,6 +630,235 @@ export function AppSettingsModal({
                 checked={introEnabled}
                 onChange={onIntroEnabled}
               />
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.performance")}>
+              <SettingToggle
+                label={t("settings.performanceMode")}
+                tip={t("settings.performanceModeHint")}
+                checked={performanceMode}
+                onChange={onPerformanceMode}
+              />
+              {performanceMode && (
+                <SettingsExtra keywords={[t("settings.performanceMode")]}>
+                  <p className="py-2.5 text-xs leading-relaxed text-slate-400">
+                    {t("settings.performanceModeNote")}
+                  </p>
+                </SettingsExtra>
+              )}
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.savingPrivacy")}>
+              <SettingToggle
+                label={t("settings.autosave")}
+                tip={t("settings.autosaveHint")}
+                checked={localAutosaveEnabled}
+                onChange={onLocalAutosaveEnabled}
+              />
+              <SettingToggle
+                label={t("settings.usageStats")}
+                tip={t("settings.usageStatsHint")}
+                checked={shareUsageStats}
+                onChange={onShareUsageStats}
+              />
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.presence")}>
+              {user ? (
+                <SettingToggle
+                  label={t("settings.showMenuPlayers")}
+                  tip={t("settings.presenceHint")}
+                  checked={showMenuPlayers}
+                  onChange={onShowMenuPlayers}
+                />
+              ) : (
+                <SettingRow
+                  label={t("settings.showMenuPlayers")}
+                  tip={t("settings.presenceSignedOut")}
+                >
+                  <Button variant="accent" size="sm" onClick={login}>
+                    {t("auth.logIn")}
+                  </Button>
+                </SettingRow>
+              )}
+              <SettingToggle
+                label={t("settings.hideStatus")}
+                checked={hideStatus}
+                onChange={onHideStatus}
+                disabled={!user}
+              />
+              {isDesktopApp() && (
+                <SettingRow
+                  label={t("settings.discordPresence")}
+                  tip={t("settings.discordPresenceHint")}
+                >
+                  <Dropdown
+                    className="w-44"
+                    aria-label={t("settings.discordPresence")}
+                    value={discordPresence}
+                    options={[
+                      { value: "detailed", label: t("settings.discordDetailed") },
+                      { value: "activity", label: t("settings.discordActivity") },
+                      { value: "minimal", label: t("settings.discordMinimal") },
+                      { value: "off", label: t("settings.discordOff") },
+                    ]}
+                    onChange={onDiscordPresence}
+                  />
+                </SettingRow>
+              )}
+            </SettingsSection>
+
+            {isDesktopApp() && (
+              <SettingsSection title={t("settings.osuIntegration")}>
+                <SettingToggle
+                  label={t("settings.osuListener")}
+                  tip={t("settings.osuListenerHint")}
+                  checked={osuListenerEnabled}
+                  onChange={onOsuListenerEnabled}
+                />
+                <OsuFolderRow />
+              </SettingsSection>
+            )}
+            <LegalSection />
+            <ResetDataSection />
+          </SettingsCategory>
+        )}
+
+        {show("Appearance") && (
+          <SettingsCategory name="Appearance" words={words}>
+            <SettingsSection title={t("settings.theme")} description={t("settings.themeHint")}>
+              <ThemePresets theme={theme} onTheme={onTheme} />
+              <ThemeColourRows theme={theme} onTheme={onTheme} />
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.editorLayout")}>
+              <SettingsExtra
+                keywords={[t("settings.arrangePanels"), t("settings.arrangePanelsHint"), "layout dock move panels sidebar timeline header vertical"]}
+                className="flex items-center gap-5 py-3.5"
+              >
+                <div aria-hidden="true" className="w-32 shrink-0">
+                  <ArrangeIllustration />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-display text-sm font-semibold text-slate-100">{t("settings.arrangePanels")}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("settings.arrangePanelsHint")}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <Button variant="accent" size="sm" disabled={!onArrangePanels} onClick={onArrangePanels}>
+                      {t("settings.arrangePanelsOpen")}
+                    </Button>
+                    {!onArrangePanels && <span className="text-xs text-slate-500">{t("settings.arrangePanelsNeedsMap")}</span>}
+                  </div>
+                </div>
+              </SettingsExtra>
+              <SettingToggle
+                label={t("settings.showDifficultyPanel")} tip={t("settings.layoutHint")} diagram="difficultyPanel"
+                checked={difficultyPanelOpen}
+                onChange={onDifficultyPanelOpen}
+              />
+              <SettingToggle
+                label={t("settings.showDifficultyInfo")}
+                tip={t("settings.showDifficultyInfoHint")}
+                checked={showDifficultyInfo}
+                onChange={onShowDifficultyInfo}
+              />
+              <SettingToggle
+                label={t("settings.showBottomTimeline")} tip={t("settings.layoutHint")} diagram="bottomTimeline"
+                checked={showBottomTimeline}
+                onChange={onShowBottomTimeline}
+              />
+              <SettingToggle
+                indent
+                label={t("settings.simplifyBottomTimeline")}
+                tip={t("settings.simplifyBottomTimelineHint")}
+                checked={simplifyBottomTimeline}
+                disabled={!showBottomTimeline}
+                onChange={onSimplifyBottomTimeline}
+              />
+              <SettingToggle
+                label={t("settings.showSkillsetGraph")}
+                tip={t("settings.showSkillsetGraphHint")}
+                checked={showSkillsetGraph}
+                onChange={onShowSkillsetGraph}
+              />
+              <SettingToggle
+                label={t("settings.showMapOverview")}
+                tip={t("settings.showMapOverviewHint")}
+                diagram="mapOverview"
+                checked={showMapOverview}
+                onChange={onShowMapOverview}
+              />
+              <SettingToggle
+                label={t("settings.showPpCounter")} tip={t("settings.layoutHint")} diagram="ppPanel"
+                checked={showPpCounter}
+                onChange={onShowPpCounter}
+              />
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.interface")}>
+              <SliderRow
+                label={t("settings.uiScale")}
+                tip={t("settings.uiScaleHint")}
+                diagram="uiScale"
+                diagramValue={uiScale}
+                display={(v) => `${Math.round(v * 100)}%`}
+                min={MIN_UI_SCALE}
+                max={MAX_UI_SCALE}
+                step={UI_SCALE_STEP}
+                value={uiScale}
+                commitOnRelease
+                onChange={onUiScale}
+              />
+              <SliderRow
+                label={t("settings.parallaxStrength")}
+                tip={t("settings.parallaxStrengthHint")}
+                display={(v) => `${Math.round(v * 100)}%`}
+                min={0}
+                max={MAX_PARALLAX_STRENGTH}
+                step={0.05}
+                value={parallaxStrength}
+                commitOnRelease
+                onChange={onParallaxStrength}
+              />
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.playfieldLook")}>
+              <SettingToggle
+                label={t("settings.colourblindLanes")}
+                tip={t("settings.colourblindLanesHint")}
+                checked={colourblindLanes}
+                onChange={onColourblindLanes}
+              />
+              <SettingToggle
+                label={t("settings.snapColouredNotes")}
+                tip={t("settings.snapColouredNotesHint")}
+                checked={snapColouredNotes}
+                onChange={onSnapColouredNotes}
+              />
+              <SliderRow
+                label={t("settings.backgroundDim")}
+                tip={t("settings.playfieldHint")}
+                diagram="backgroundDim"
+                diagramValue={dimBackground}
+                display={`${Math.round(dimBackground)}%`}
+                min={0}
+                max={100}
+                step={1}
+                value={dimBackground}
+                onChange={onDimBackground}
+              />
+              <SliderRow
+                label={t("settings.backgroundBlur")}
+                tip={t("settings.backgroundBlurHint")}
+                display={`${Math.round(backgroundBlur)}px`}
+                min={0}
+                max={40}
+                step={1}
+                value={backgroundBlur}
+                onChange={onBackgroundBlur}
+              />
+            </SettingsSection>
+
+            <SettingsSection title={t("settings.mainMenu")}>
               <SettingRow
                 label={t("settings.menuBackground")}
                 tip={t("settings.menuBackgroundHint")}
@@ -741,96 +960,6 @@ export function AppSettingsModal({
                 )}
               </SettingsExtra>
             </SettingsSection>
-
-            <SettingsSection title={t("settings.performance")}>
-              <SettingToggle
-                label={t("settings.performanceMode")}
-                tip={t("settings.performanceModeHint")}
-                checked={performanceMode}
-                onChange={onPerformanceMode}
-              />
-              {performanceMode && (
-                <SettingsExtra keywords={[t("settings.performanceMode")]}>
-                  <p className="py-2.5 text-xs leading-relaxed text-slate-400">
-                    {t("settings.performanceModeNote")}
-                  </p>
-                </SettingsExtra>
-              )}
-            </SettingsSection>
-
-            <SettingsSection title={t("settings.savingPrivacy")}>
-              <SettingToggle
-                label={t("settings.autosave")}
-                tip={t("settings.autosaveHint")}
-                checked={localAutosaveEnabled}
-                onChange={onLocalAutosaveEnabled}
-              />
-              <SettingToggle
-                label={t("settings.usageStats")}
-                tip={t("settings.usageStatsHint")}
-                checked={shareUsageStats}
-                onChange={onShareUsageStats}
-              />
-            </SettingsSection>
-
-            <SettingsSection title={t("settings.presence")}>
-              {user ? (
-                <SettingToggle
-                  label={t("settings.showMenuPlayers")}
-                  tip={t("settings.presenceHint")}
-                  checked={showMenuPlayers}
-                  onChange={onShowMenuPlayers}
-                />
-              ) : (
-                <SettingRow
-                  label={t("settings.showMenuPlayers")}
-                  tip={t("settings.presenceSignedOut")}
-                >
-                  <Button variant="accent" size="sm" onClick={login}>
-                    {t("auth.logIn")}
-                  </Button>
-                </SettingRow>
-              )}
-              <SettingToggle
-                label={t("settings.hideStatus")}
-                checked={hideStatus}
-                onChange={onHideStatus}
-                disabled={!user}
-              />
-              {isDesktopApp() && (
-                <SettingRow
-                  label={t("settings.discordPresence")}
-                  tip={t("settings.discordPresenceHint")}
-                >
-                  <Dropdown
-                    className="w-44"
-                    aria-label={t("settings.discordPresence")}
-                    value={discordPresence}
-                    options={[
-                      { value: "detailed", label: t("settings.discordDetailed") },
-                      { value: "activity", label: t("settings.discordActivity") },
-                      { value: "minimal", label: t("settings.discordMinimal") },
-                      { value: "off", label: t("settings.discordOff") },
-                    ]}
-                    onChange={onDiscordPresence}
-                  />
-                </SettingRow>
-              )}
-            </SettingsSection>
-
-            {isDesktopApp() && (
-              <SettingsSection title={t("settings.osuIntegration")}>
-                <SettingToggle
-                  label={t("settings.osuListener")}
-                  tip={t("settings.osuListenerHint")}
-                  checked={osuListenerEnabled}
-                  onChange={onOsuListenerEnabled}
-                />
-                <OsuFolderRow />
-              </SettingsSection>
-            )}
-            <LegalSection />
-            <ResetDataSection />
           </SettingsCategory>
         )}
 
@@ -848,45 +977,7 @@ export function AppSettingsModal({
 
         {show("Editor") && (
           <SettingsCategory name="Editor" words={words}>
-            <SettingsSection title={t("settings.layout")}>
-              <SettingToggle
-                label={t("settings.showDifficultyPanel")} tip={t("settings.layoutHint")} diagram="difficultyPanel"
-                checked={difficultyPanelOpen}
-                onChange={onDifficultyPanelOpen}
-              />
-              <SettingToggle
-                label={t("settings.showBottomTimeline")} tip={t("settings.layoutHint")} diagram="bottomTimeline"
-                checked={showBottomTimeline}
-                onChange={onShowBottomTimeline}
-              />
-              <SettingToggle
-                indent
-                label={t("settings.simplifyBottomTimeline")}
-                tip={t("settings.simplifyBottomTimelineHint")}
-                checked={simplifyBottomTimeline}
-                disabled={!showBottomTimeline}
-                onChange={onSimplifyBottomTimeline}
-              />
-              <SettingToggle
-                indent
-                label={t("settings.showSkillsetGraph")}
-                tip={t("settings.showSkillsetGraphHint")}
-                checked={showSkillsetGraph}
-                disabled={!showBottomTimeline}
-                onChange={onShowSkillsetGraph}
-              />
-              <SettingToggle
-                label={t("settings.showMapOverview")}
-                tip={t("settings.showMapOverviewHint")}
-                diagram="mapOverview"
-                checked={showMapOverview}
-                onChange={onShowMapOverview}
-              />
-              <SettingToggle
-                label={t("settings.showPpCounter")} tip={t("settings.layoutHint")} diagram="ppPanel"
-                checked={showPpCounter}
-                onChange={onShowPpCounter}
-              />
+            <SettingsSection title={t("nav.tools")}>
               <SettingToggle
                 label={t("settings.showPatternTools")} tip={t("settings.layoutHint")}
                 checked={showPatternTools}
@@ -894,40 +985,6 @@ export function AppSettingsModal({
               />
             </SettingsSection>
             <SettingsSection title={t("settings.playfield")}>
-              <SettingToggle
-                label={t("settings.colourblindLanes")}
-                tip={t("settings.colourblindLanesHint")}
-                checked={colourblindLanes}
-                onChange={onColourblindLanes}
-              />
-              <SettingToggle
-                label={t("settings.snapColouredNotes")}
-                tip={t("settings.snapColouredNotesHint")}
-                checked={snapColouredNotes}
-                onChange={onSnapColouredNotes}
-              />
-              <SliderRow
-                label={t("settings.backgroundDim")}
-                tip={t("settings.playfieldHint")}
-                diagram="backgroundDim"
-                diagramValue={dimBackground}
-                display={`${Math.round(dimBackground)}%`}
-                min={0}
-                max={100}
-                step={1}
-                value={dimBackground}
-                onChange={onDimBackground}
-              />
-              <SliderRow
-                label={t("settings.backgroundBlur")}
-                tip={t("settings.backgroundBlurHint")}
-                display={`${Math.round(backgroundBlur)}px`}
-                min={0}
-                max={40}
-                step={1}
-                value={backgroundBlur}
-                onChange={onBackgroundBlur}
-              />
               <SliderRow
                 label={t("settings.sizeZoom")}
                 tip={t("settings.playfieldHint")}
@@ -1576,9 +1633,29 @@ function SettingsCategory({
   );
 }
 
+/** Panels around a playfield, one lifted and on its way to the other side. */
+function ArrangeIllustration() {
+  return (
+    <svg viewBox="0 0 128 80" className="block h-auto w-full" aria-hidden>
+      <rect x="0.5" y="0.5" width="127" height="79" rx="8" className="fill-ink-950 stroke-white/[0.08]" />
+      <rect x="6" y="6" width="116" height="9" rx="3" className="fill-ink-700" />
+      <rect x="6" y="19" width="26" height="55" rx="3" className="fill-ink-700" />
+      <rect x="36" y="19" width="58" height="55" rx="3" className="fill-ink-800" />
+      {[50, 65, 80].map((x) => (
+        <line key={x} x1={x} y1="19" x2={x} y2="74" className="stroke-white/[0.06]" />
+      ))}
+      <rect x="98" y="19" width="24" height="55" rx="3" fill="none" strokeDasharray="3 2.5" strokeWidth="1.2" className="stroke-accent" />
+      <rect x="40" y="58" width="50" height="12" rx="3" strokeWidth="1.2" className="fill-accent/20 stroke-accent" />
+      <path d="M92 64c10 0 15-6 17-14" fill="none" strokeWidth="1.3" strokeLinecap="round" className="stroke-accent" />
+      <path d="M106 49l3 1 1-3" fill="none" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" className="stroke-accent" />
+    </svg>
+  );
+}
+
 /** Line icons for the category rail, drawn on a 16px grid. */
 const TAB_ICONS: Record<Tab, ReactNode> = {
   General: <path d="M3 4.5h6m3 0h1M3 8h2m3 0h5M3 11.5h7m3 0h0M10.5 3v3M6.5 6.5v3M11.5 10v3" />,
+  Appearance: <path d="M8 2.5a5.5 5.5 0 1 0 0 11c.8 0 1.2-.5 1.2-1.1 0-.7-.6-.9-.6-1.6 0-.6.5-1 1-1h1.6a2.3 2.3 0 0 0 2.3-2.3C13.5 4.6 11.1 2.5 8 2.5ZM5.2 8h0M6.4 5.2h0M9.6 5.2h0" />,
   Account: <path d="M8 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm-4.5 5.5a4.5 4.5 0 0 1 9 0M11.5 9.5l1 1 2-2" />,
   Graphics: <path d="M2.5 3.5h11v7.5h-11v-7.5Zm3.5 10h4M8 11v2.5" />,
   Editor: <path d="M3.5 2.5v11M8 2.5v11M12.5 2.5v11M4.5 5h2.5M9 9h2.5M4.5 11.5h2.5" />,

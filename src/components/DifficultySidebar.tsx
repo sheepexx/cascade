@@ -47,9 +47,18 @@ type Props = {
   peers?: PeerLite[];
   /** Lights a lane up in the editor, from the column chart. */
   onFlashColumn?: (column: number) => void;
+  /**
+   * Placed by the editor's panel layout: no border or width of its own, and
+   * the stats live in their own panel (DifficultyInfo).
+   */
+  docked?: boolean;
+  /** A row of cards along the top or bottom edge instead of a list. */
+  orientation?: "vertical" | "horizontal";
 };
 
 export function DifficultySidebar({
+  docked = false,
+  orientation = "vertical",
   mobile,
   difficulties,
   activeId,
@@ -108,16 +117,6 @@ export function DifficultySidebar({
   // tens of milliseconds on a huge map, and the playfield should show the
   // new note first.
   const deferredDifficulties = useDeferredValue(difficulties);
-  const deferredActive = useDeferredValue(active);
-  const stats = useMemo(
-    () => (deferredActive ? computeMapStats(deferredActive.notes, deferredActive.keyCount) : null),
-    [deferredActive],
-  );
-  /** "180", or "150–200" when the map changes tempo. */
-  const bpmLabel = useMemo(
-    () => formatBpmRange(bpmRange(timingPoints)),
-    [timingPoints],
-  );
   const sorted = useMemo(
     () =>
       deferredDifficulties
@@ -133,10 +132,99 @@ export function DifficultySidebar({
     [difficulties],
   );
 
+  const horizontal = docked && orientation === "horizontal";
+  const rows = sorted.map(({ difficulty: d, star }) => (
+    <DiffRow
+      mobile={mobile}
+      multiSelect={mobile && multiSelectMode}
+      key={d.id}
+      difficulty={d}
+      star={star}
+      msd={msdRatings[d.id] ?? null}
+      active={d.id === activeId}
+      selected={selected.has(d.id)}
+      selectionCount={selected.size}
+      canDelete={difficulties.length > 1}
+      peersHere={peers?.filter((p) => p.activeDiffId === d.id) ?? []}
+      onSelect={(additive) => handleRowSelect(d.id, additive)}
+      onDuplicate={() => onDuplicate(d.id)}
+      onCopy={() => onCopy(d.id)}
+      onDelete={() => handleRowDelete(d.id)}
+      onRename={(name) => onRename(d.id, name)}
+    />
+  ));
+  const rateButton = (
+    <button
+      onClick={() => setRateOpen((v) => !v)}
+      aria-label={t("diffSidebar.rateChanger")}
+      aria-expanded={rateOpen}
+      className={`grid h-7 w-7 place-items-center rounded-md transition ${
+        rateOpen
+          ? "bg-white/[0.09] text-slate-50"
+          : "text-slate-400 hover:bg-white/[0.07] hover:text-slate-100"
+      }`}
+      title={t("diffSidebar.rateChanger")}
+    >
+      <RateIcon />
+    </button>
+  );
+  const addButton = (
+    <button
+      onClick={onAdd}
+      aria-label={t("diffSidebar.addDifficulty")}
+      className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-100"
+      title={t("diffSidebar.addDifficulty")}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round">
+        <path d="M8 3v10M3 8h10" />
+      </svg>
+    </button>
+  );
+  const rateChanger = (
+    <RateChangerPanel
+      open={rateOpen}
+      difficulty={active}
+      existingNames={existingNames}
+      durationMs={songDurationMs}
+      canEdit={canEdit}
+      onCreate={onCreateRate}
+      onOpen={(id) => {
+        setRateOpen(false);
+        onSelect(id);
+      }}
+      onClose={() => setRateOpen(false)}
+    />
+  );
+
+  if (horizontal) {
+    return (
+      <aside className="flex w-full flex-col bg-ink-900">
+        <div className="flex min-w-0 items-stretch">
+          <div className="flex w-40 shrink-0 flex-col justify-between border-r border-white/[0.06] py-2.5 pl-3.5 pr-2">
+            <h2 className="text-xs font-semibold text-slate-300">
+              {t("diffSidebar.title")}
+              <span className="ml-1.5 font-medium tabular-nums text-slate-500">{difficulties.length}</span>
+            </h2>
+            <div className="flex items-center gap-0.5">
+              {rateButton}
+              {addButton}
+            </div>
+          </div>
+          {/* Cards sit in a row of fixed height, so their hover actions never
+              change the strip's thickness. */}
+          <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1.5 py-1.5 [scrollbar-width:thin]">
+            <div className="flex h-[5.25rem] items-start gap-1 [&>*]:w-56 [&>*]:shrink-0">{rows}</div>
+          </div>
+        </div>
+        {rateChanger}
+      </aside>
+    );
+  }
+
   return (
     // Phones scroll the whole sheet, so the open rate changer never squeezes
     // the list out of view; the header stays put.
-    <aside className={`flex h-full shrink-0 flex-col bg-ink-900 ${mobile ? "w-full overflow-y-auto overscroll-contain" : "w-60 border-r border-white/[0.06]"}`}>
+    <aside className={`flex h-full shrink-0 flex-col bg-ink-900 ${mobile ? "w-full overflow-y-auto overscroll-contain" : docked ? "w-full" : "w-60 border-r border-white/[0.06]"}`}>
       <div className={`flex h-10 shrink-0 items-center justify-between pl-3.5 pr-2 ${mobile ? "sticky top-0 z-10 bg-ink-900" : ""}`}>
         <h2 className="text-xs font-semibold text-slate-300">
           {t("diffSidebar.title")}
@@ -144,69 +232,17 @@ export function DifficultySidebar({
         </h2>
         <div className="flex items-center gap-0.5">
           {mobile && <button type="button" aria-pressed={multiSelectMode} onClick={() => setMultiSelectMode(value => !value)} className="rounded-md px-2 text-xs text-slate-300">{t("mobile.select")}</button>}
-          <button
-            onClick={() => setRateOpen((v) => !v)}
-            aria-label={t("diffSidebar.rateChanger")}
-            aria-expanded={rateOpen}
-            className={`grid h-7 w-7 place-items-center rounded-md transition ${
-              rateOpen
-                ? "bg-white/[0.09] text-slate-50"
-                : "text-slate-400 hover:bg-white/[0.07] hover:text-slate-100"
-            }`}
-            title={t("diffSidebar.rateChanger")}
-          >
-            <RateIcon />
-          </button>
-          <button
-            onClick={onAdd}
-            aria-label={t("diffSidebar.addDifficulty")}
-            className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-100"
-            title={t("diffSidebar.addDifficulty")}
-          >
-            <svg viewBox="0 0 16 16" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round">
-              <path d="M8 3v10M3 8h10" />
-            </svg>
-          </button>
+          {rateButton}
+          {addButton}
         </div>
       </div>
 
-      <RateChangerPanel
-        open={rateOpen}
-        difficulty={active}
-        existingNames={existingNames}
-        durationMs={songDurationMs}
-        canEdit={canEdit}
-        onCreate={onCreateRate}
-        onOpen={(id) => {
-          setRateOpen(false);
-          onSelect(id);
-        }}
-        onClose={() => setRateOpen(false)}
-      />
+      {rateChanger}
 
       <div className={`px-1.5 pb-2 ${mobile ? "flex-[1_0_auto]" : "min-h-0 flex-1 overflow-y-auto"}`}>
         {/* Phones show the difficulties side by side, two to a row. */}
         <div className={mobile ? "grid grid-cols-2 gap-1.5" : "flex flex-col gap-px"}>
-          {sorted.map(({ difficulty: d, star }) => (
-            <DiffRow
-              mobile={mobile}
-              multiSelect={mobile && multiSelectMode}
-              key={d.id}
-              difficulty={d}
-              star={star}
-              msd={msdRatings[d.id] ?? null}
-              active={d.id === activeId}
-              selected={selected.has(d.id)}
-              selectionCount={selected.size}
-              canDelete={difficulties.length > 1}
-              peersHere={peers?.filter((p) => p.activeDiffId === d.id) ?? []}
-              onSelect={(additive) => handleRowSelect(d.id, additive)}
-              onDuplicate={() => onDuplicate(d.id)}
-              onCopy={() => onCopy(d.id)}
-              onDelete={() => handleRowDelete(d.id)}
-              onRename={(name) => onRename(d.id, name)}
-            />
-          ))}
+          {rows}
         </div>
       </div>
 
@@ -223,33 +259,94 @@ export function DifficultySidebar({
         />
       )}
 
-      {stats && (stats.notes > 0 || mobile) && !(mobile && rateOpen) && (
-        <div className="border-t border-white/[0.06] px-3.5 pb-3 pt-2.5">
-          <div className="mb-2 truncate text-xs font-semibold text-slate-300">
-            {t("diffSidebar.stats", {
-              name: active?.name || t("diffSidebar.active"),
-            })}
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-            <Stat label="BPM" value={bpmLabel} />
-            <Stat label={t("diffSidebar.notes")} value={String(stats.notes)} />
-            <Stat label="LN" value={`${Math.round(stats.lnRatio * 100)}%`} />
-            <Stat
-              label={t("diffSidebar.chords")}
-              value={`${Math.round(stats.chordRatio * 100)}%`}
-            />
-            <Stat label={t("diffSidebar.avgNps")} value={stats.avgNps.toFixed(1)} />
-            <Stat label={t("diffSidebar.peakNps")} value={String(stats.peakNps)} />
-            <Stat label="Rice/LN" value={`${stats.rice}/${stats.holds}`} />
-          </div>
+      {!docked && !(mobile && rateOpen) && (
+        <DifficultyInfo
+          difficulty={active}
+          timingPoints={timingPoints}
+          onFlashColumn={onFlashColumn}
+          showEmpty={mobile}
+          className="border-t border-white/[0.06]"
+        />
+      )}
+    </aside>
+  );
+}
+
+/**
+ * The active difficulty's numbers: BPM, notes, LN and chord share, NPS and the
+ * notes per column. Under the difficulty list by default; its own panel when
+ * the editor's layout moves it.
+ */
+export function DifficultyInfo({
+  difficulty,
+  timingPoints,
+  onFlashColumn,
+  orientation = "vertical",
+  showEmpty = false,
+  className = "",
+}: {
+  difficulty: Difficulty | null;
+  timingPoints: TimingPoint[];
+  onFlashColumn?: (column: number) => void;
+  orientation?: "vertical" | "horizontal";
+  /** Show the block even for a difficulty with no notes yet. */
+  showEmpty?: boolean;
+  className?: string;
+}) {
+  const t = useT();
+  // Trails an edit by a render: on a huge map these cost tens of
+  // milliseconds, and the playfield should show the new note first.
+  const deferred = useDeferredValue(difficulty);
+  const stats = useMemo(
+    () => (deferred ? computeMapStats(deferred.notes, deferred.keyCount) : null),
+    [deferred],
+  );
+  /** "180", or "150–200" when the map changes tempo. */
+  const bpmLabel = useMemo(() => formatBpmRange(bpmRange(timingPoints)), [timingPoints]);
+  if (!stats || (stats.notes === 0 && !showEmpty)) return null;
+  const grid = (
+    <>
+      <Stat label="BPM" value={bpmLabel} />
+      <Stat label={t("diffSidebar.notes")} value={String(stats.notes)} />
+      <Stat label="LN" value={`${Math.round(stats.lnRatio * 100)}%`} />
+      <Stat label={t("diffSidebar.chords")} value={`${Math.round(stats.chordRatio * 100)}%`} />
+      <Stat label={t("diffSidebar.avgNps")} value={stats.avgNps.toFixed(1)} />
+      <Stat label={t("diffSidebar.peakNps")} value={String(stats.peakNps)} />
+      <Stat label="Rice/LN" value={`${stats.rice}/${stats.holds}`} />
+    </>
+  );
+  const title = (
+    <div className="mb-2 truncate text-xs font-semibold text-slate-300">
+      {t("diffSidebar.stats", { name: difficulty?.name || t("diffSidebar.active") })}
+    </div>
+  );
+  if (orientation === "horizontal") {
+    return (
+      <div className={`flex items-start gap-6 bg-ink-900 px-4 pb-2.5 pt-2.5 ${className}`}>
+        <div className="w-[17rem]">
+          {title}
+          <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-[11px]">{grid}</div>
+        </div>
+        <div className="w-44 [&>div]:mt-0">
           <ColumnHistogram
             counts={stats.columnCounts}
             handBalance={stats.handBalance}
             onFlashColumn={onFlashColumn}
           />
         </div>
-      )}
-    </aside>
+      </div>
+    );
+  }
+  return (
+    <div className={`bg-ink-900 px-3.5 pb-3 pt-2.5 ${className}`}>
+      {title}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">{grid}</div>
+      <ColumnHistogram
+        counts={stats.columnCounts}
+        handBalance={stats.handBalance}
+        onFlashColumn={onFlashColumn}
+      />
+    </div>
   );
 }
 

@@ -1110,7 +1110,7 @@ function Composer({
           type="submit"
           disabled={!draft.trim() || over}
           aria-label={t("social.send")}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent text-white transition hover:bg-[#ee7676] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent text-white transition hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h13M13 6l6 6-6 6" />

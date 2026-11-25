@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef } from "react";
+import { accentColour } from "../../lib/theme";
 import type { NoteClip } from "../../lib/clipboardStore";
 import { defaultLaneColour } from "../../lib/laneColours";
 import { roundRect } from "./canvasDraw";
@@ -44,7 +45,7 @@ const ClipPreview = memo(function ClipPreview({
       const top = hold ? ty(n.endTime!) : ty(n.startTime) - riceH / 2;
       const height = hold ? Math.max(2, ty(n.startTime) - top) : riceH;
       ctx.fillStyle = hold
-        ? "rgba(232,104,104,0.85)"
+        ? accentColour(0.85)
         : defaultLaneColour(n.column, keyCount);
       roundRect(ctx, x, top, cellW - 1, height, 1);
       ctx.fill();

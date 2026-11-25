@@ -76,6 +76,7 @@ export function buildPaletteCommands({
   setExitConfirm,
   setJumpToTimeOpen,
   setLayoutEditing,
+  setPanelsArranging,
   setModal,
   setPackCreatorOpen,
   setReferenceId,
@@ -141,6 +142,7 @@ export function buildPaletteCommands({
   setExitConfirm: Dispatch<SetStateAction<boolean>>;
   setJumpToTimeOpen: Dispatch<SetStateAction<boolean>>;
   setLayoutEditing: Dispatch<SetStateAction<boolean>>;
+  setPanelsArranging: Dispatch<SetStateAction<boolean>>;
   setModal: Dispatch<SetStateAction<ModalId>>;
   setPackCreatorOpen: Dispatch<SetStateAction<boolean>>;
   setReferenceId: Dispatch<SetStateAction<string | null>>;
@@ -163,10 +165,13 @@ export function buildPaletteCommands({
     hud?: boolean;
   }> = [
     { key: "settings.language", tab: "General" },
-    { key: "settings.uiScale", tab: "General", keywords: "interface size zoom" },
+    { key: "settings.uiScale", tab: "Appearance", keywords: "interface size zoom" },
+    { key: "settings.theme", tab: "Appearance", keywords: "colour color accent background dark preset ocean orchid" },
+    { key: "settings.arrangePanels", tab: "Appearance", keywords: "layout dock move panels sidebar timeline header vertical" },
+    { key: "settings.showDifficultyInfo", tab: "Appearance", keywords: "stats bpm notes nps columns" },
     { key: "settings.altWheelAction", tab: "General", keywords: "mouse scroll audio" },
     { key: "settings.menuMusic", tab: "General" },
-    { key: "settings.menuBackground", tab: "General", keywords: "main menu wallpaper image picture song art" },
+    { key: "settings.menuBackground", tab: "Appearance", keywords: "main menu wallpaper image picture song art" },
     { key: "settings.menuTips", tab: "General", keywords: "main menu hints" },
     { key: "settings.logoSkinHitsounds", tab: "General", keywords: "main menu logo click sound" },
     { key: "settings.sessionIntro", tab: "General", keywords: "logo launch animation" },
@@ -180,18 +185,18 @@ export function buildPaletteCommands({
     { key: "settings.tabSocial", tab: "Social", keywords: "privacy friends messages profile mapping time statistics block" },
     { key: "settings.discordPresence", tab: "General", keywords: "rich status" },
     { key: "settings.resetData", tab: "General", keywords: "erase local" },
-    { key: "settings.showDifficultyPanel", tab: "Editor", keywords: "layout sidebar stats" },
-    { key: "settings.showBottomTimeline", tab: "Editor", keywords: "layout sv" },
-    { key: "settings.simplifyBottomTimeline", tab: "Editor" },
-    { key: "settings.showMapOverview", tab: "Editor", keywords: "minimap whole chart preview navigate grid" },
-    { key: "settings.showPpCounter", tab: "Editor", keywords: "speed" },
+    { key: "settings.showDifficultyPanel", tab: "Appearance", keywords: "layout sidebar stats" },
+    { key: "settings.showBottomTimeline", tab: "Appearance", keywords: "layout sv" },
+    { key: "settings.simplifyBottomTimeline", tab: "Appearance" },
+    { key: "settings.showMapOverview", tab: "Appearance", keywords: "minimap whole chart preview navigate grid" },
+    { key: "settings.showPpCounter", tab: "Appearance", keywords: "speed" },
     { key: "settings.showPatternTools", tab: "Editor", keywords: "presets" },
-    { key: "settings.showSkillsetGraph", tab: "Editor", keywords: "msd minacalc etterna stream jack chordjack difficulty graph" },
-    { key: "settings.colourblindLanes", tab: "Editor", keywords: "colorblind color blind colours lanes notes accessibility" },
-    { key: "settings.snapColouredNotes", tab: "Editor", keywords: "color snap divisor beat colours notes unsnapped rhythm" },
+    { key: "settings.showSkillsetGraph", tab: "Appearance", keywords: "msd minacalc etterna stream jack chordjack difficulty graph" },
+    { key: "settings.colourblindLanes", tab: "Appearance", keywords: "colorblind color blind colours lanes notes accessibility" },
+    { key: "settings.snapColouredNotes", tab: "Appearance", keywords: "color snap divisor beat colours notes unsnapped rhythm" },
     { key: "settings.moveNotesWithTiming", tab: "Editor", keywords: "offset bpm red point timing shift follow resnap" },
-    { key: "settings.backgroundDim", tab: "Editor" },
-    { key: "settings.backgroundBlur", tab: "Editor", keywords: "blur background" },
+    { key: "settings.backgroundDim", tab: "Appearance" },
+    { key: "settings.backgroundBlur", tab: "Appearance", keywords: "blur background" },
     { key: "settings.sizeZoom", tab: "Editor", keywords: "playfield" },
     { key: "settings.noteHeight", tab: "Editor" },
     { key: "settings.waveformOnLane", tab: "Editor" },
@@ -400,6 +405,13 @@ export function buildPaletteCommands({
             label: t("layout.open"),
             group: t("palette.group.view"),
             run: () => setLayoutEditing(true),
+          },
+          {
+            id: "arrange-panels",
+            label: t("dock.title"),
+            group: t("palette.group.view"),
+            keywords: "layout move dock panels sidebar timeline header vertical swap",
+            run: () => setPanelsArranging(true),
           },
           ...(!zenMode && !playtest.active
             ? [

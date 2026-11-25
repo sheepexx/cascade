@@ -586,7 +586,7 @@ function MapHero({
       ) : (
         <div
           aria-hidden
-          className="absolute inset-0 bg-[radial-gradient(110%_130%_at_0%_0%,rgba(232,104,104,0.34),transparent_58%),radial-gradient(110%_130%_at_100%_100%,rgba(91,192,255,0.2),transparent_58%)]"
+          className="absolute inset-0 bg-[radial-gradient(110%_130%_at_0%_0%,rgb(var(--accent-rgb)/0.34),transparent_58%),radial-gradient(110%_130%_at_100%_100%,rgba(91,192,255,0.2),transparent_58%)]"
         />
       )}
       <div

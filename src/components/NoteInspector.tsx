@@ -86,7 +86,7 @@ export function NoteInspector({
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="note-inspector float-chip absolute left-3 top-[5.25rem] z-10 w-48 select-none p-2 text-xs text-slate-300">
+    <div className="note-inspector float-chip absolute left-3 top-[calc(5.25rem+var(--hud-top-left,0px))] z-10 transition-[top] duration-300 ease-[var(--ease-emphasized)] w-48 select-none p-2 text-xs text-slate-300">
       <div className="mb-1.5 font-medium text-slate-200">{title}</div>
       <div className="flex flex-col gap-1">{children}</div>
     </div>

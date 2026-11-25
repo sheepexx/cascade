@@ -10,7 +10,7 @@ import { mergeClasses } from "./cx";
  */
 export const BUTTON_VARIANTS = {
   accent:
-    "bg-accent font-semibold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.18)] hover:bg-[#ee7676] active:bg-accent-deep",
+    "bg-accent font-semibold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.18)] hover:bg-accent-hover active:bg-accent-deep",
   primary:
     "bg-white/[0.07] text-slate-100 ring-1 ring-inset ring-white/[0.07] hover:bg-white/[0.11] active:bg-white/[0.05]",
   ghost:

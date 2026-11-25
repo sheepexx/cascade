@@ -1,4 +1,5 @@
 import { PLAYHEAD_FROM_EDGE } from "../lib/playfieldGeometry";
+import { accentColour } from "../lib/theme";
 import {
   useCallback,
   useEffect,
@@ -2012,7 +2013,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
       }
     }
 
-    ctx.strokeStyle = "#e86868";
+    ctx.strokeStyle = accentColour();
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(originX, phY);
@@ -2025,7 +2026,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
       const x = originX + playfieldWidth + 10;
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = "#e86868";
+      ctx.fillStyle = accentColour();
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.font = `${12 + beatFlash * 6}px ${CANVAS_FONT_STACK}`;
@@ -3176,7 +3177,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
       )}
       {!props.hideHints && !props.playtestMode && (
         <div
-          className={`pointer-events-none absolute right-3 top-3 select-none rounded-md border border-yellow-300/40 bg-yellow-500/15 px-3 py-1.5 text-xs font-medium text-yellow-100 shadow-lg transition-[opacity,transform] duration-150 ${
+          className={`pointer-events-none absolute right-3 top-[calc(0.75rem+var(--hud-top-right,0px))] select-none rounded-md border border-yellow-300/40 bg-yellow-500/15 px-3 py-1.5 text-xs font-medium text-yellow-100 shadow-lg transition-[opacity,transform] duration-150 ${
             shiftActive
               ? "translate-y-0 opacity-100"
               : "-translate-y-2 opacity-0"
@@ -3192,7 +3193,9 @@ export function ManiaEditor(props: ManiaEditorProps) {
       {!props.mobile && !props.playtestMode && !props.readOnly && (
         <div
           className={`float-chip absolute left-3 z-20 flex select-none items-center gap-0.5 p-0.5 text-xs transition-[top] duration-150 ${
-            props.zenMode ? "top-3" : "top-11"
+            props.zenMode
+              ? "top-[calc(0.75rem+var(--hud-top-left,0px))]"
+              : "top-[calc(2.75rem+var(--hud-top-left,0px))]"
           }`}
         >
           {(["note", "hold", "select"] as const).map((mode) => (
@@ -3218,7 +3221,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
       {!props.hideHints && !props.playtestMode && (
         <div
           aria-hidden={props.zenMode || undefined}
-          className={`float-chip pointer-events-none absolute left-3 top-3 flex h-7 select-none items-center gap-2 px-2.5 text-xs text-slate-300 transition-[opacity,transform] duration-150 ${
+          className={`float-chip pointer-events-none absolute left-3 top-[calc(0.75rem+var(--hud-top-left,0px))] flex h-7 select-none items-center gap-2 px-2.5 text-xs text-slate-300 transition-[opacity,transform,top] duration-150 ${
             props.zenMode ? "-translate-y-1 opacity-0" : ""
           }`}
         >
@@ -3310,7 +3313,7 @@ export function ManiaEditor(props: ManiaEditorProps) {
 
       <EditorPanel mobile={props.mobile} open={mobilePanel === "clipboard"} title={t("mobile.clipboard")} onClose={closeMobilePanel}>
       {!props.playtestMode && !props.hideClipboard && (clipboard || history.length > 0 || props.mobile) && (
-        <div className="float-chip absolute right-3 top-14 w-48 select-none p-2 text-xs text-slate-300">
+        <div className="float-chip absolute right-3 top-[calc(3.5rem+var(--hud-top-right,0px))] w-48 select-none p-2 text-xs text-slate-300 transition-[top] duration-300 ease-[var(--ease-emphasized)]">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="font-medium text-slate-200">{t("editor.clipboard")}</span>
             <div className="flex items-center gap-1.5">

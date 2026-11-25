@@ -281,7 +281,7 @@ export function PlayfieldHandles({
         <div
           className={`mx-3 h-[3px] w-full rounded-full transition-[background-color,box-shadow] duration-150 ${
             receptorOn || dragging
-              ? "bg-accent shadow-[0_0_14px_rgba(232,104,104,0.9)]"
+              ? "bg-accent shadow-[0_0_14px_rgb(var(--accent-rgb)/0.9)]"
               : "bg-transparent group-hover:bg-white/50"
           }`}
         />

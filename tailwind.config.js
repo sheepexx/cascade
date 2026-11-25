@@ -54,10 +54,12 @@ export default {
         // Text and neutral marks. Re-tinted toward the ink hue and lifted at
         // the low end so 400/500 stay readable as secondary text.
         slate: channels("slate", [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]),
+        // Channels from index.css, which a theme (src/lib/theme.ts) overrides.
         accent: {
-          DEFAULT: "#e86868",
-          soft: "#f48a8a",
-          deep: "#c14d4d",
+          DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)",
+          soft: "rgb(var(--accent-soft-rgb) / <alpha-value>)",
+          deep: "rgb(var(--accent-deep-rgb) / <alpha-value>)",
+          hover: "rgb(var(--accent-hover-rgb) / <alpha-value>)",
         },
         lane: {
           white: "#e9e9f0",

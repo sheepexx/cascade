@@ -7,6 +7,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { accentColour } from "../lib/theme";
 import type { ManiaNote, MapOverviewLayout, TimingPoint } from "../types";
 import type { AudioSeekTransition } from "../lib/audioSeek";
 import {
@@ -227,14 +228,6 @@ export function MapOverview(props: Props) {
   const pinRef = useRef<{ strip: number; at: number; reached: boolean } | null>(null);
   const expectedScrollRef = useRef<number | null>(null);
   const anchorRef = useRef<{ time: number; viewX: number } | null>(null);
-  const accentRef = useRef("#e86868");
-
-  useEffect(() => {
-    const accent = getComputedStyle(document.documentElement)
-      .getPropertyValue("--accent")
-      .trim();
-    if (accent) accentRef.current = accent;
-  }, []);
 
   const scrollLeft = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -448,7 +441,7 @@ export function MapOverview(props: Props) {
     const [x, w] = stripBox(strip, 2);
     const playY = Math.round(stripY(grid, strip, time) * dpr);
     const thickness = Math.max(2, Math.round(1.5 * dpr));
-    ctx.fillStyle = accentRef.current;
+    ctx.fillStyle = accentColour();
     ctx.fillRect(x, playY - Math.floor(thickness / 2), w, thickness);
   }, [follow, scrollLeft]);
 
