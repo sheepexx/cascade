@@ -1281,7 +1281,6 @@ export const en = {
   "osd.timelineZoom": "Timeline zoom",
   "osd.playfieldSize": "Playfield size",
   "osd.interfaceSize": "Interface size",
-  "osd.playbackRate": "Playback rate",
   "osd.wheel": "Wheel",
   "app.presetSkinFailed": "Couldn't load that preset skin.",
   "app.readingArchive": "Reading the archive",

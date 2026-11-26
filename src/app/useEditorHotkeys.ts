@@ -199,10 +199,8 @@ export function useEditorHotkeys({
       else if (isSlow) {
         if (slowHeldRef.current || e.repeat) return;
         slowHeldRef.current = true;
+        // No on-screen notice: the speed chip already shows the change.
         setAudioPlaybackRate(0.25);
-        announceShortcut(
-          osdRange(t("osd.playbackRate"), "25%", 0.25, 0, 1, [editorKeyLabel(binds.slowMo)]),
-        );
       }
       else if (isUp || isDown) {
         const volume = Math.max(
@@ -290,11 +288,6 @@ export function useEditorHotkeys({
       slowHeldRef.current = false;
       e.preventDefault();
       setAudioPlaybackRate(1);
-      announceShortcut(
-        osdRange(t("osd.playbackRate"), "100%", 1, 0, 1, [
-          editorKeyLabel(editorKeybindsRef.current.slowMo),
-        ]),
-      );
     };
     const onBlur = () => {
       if (!slowHeldRef.current) return;

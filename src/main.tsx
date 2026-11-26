@@ -19,11 +19,13 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { initPwa } from "./lib/pwa";
 import { initDisplay } from "./lib/displaySettings";
 import { noteInstallAtBoot } from "./lib/usageMilestones";
+import { installTypingFx } from "./lib/typingFx";
 import "./index.css";
 
 noteInstallAtBoot();
 initPwa();
 void initDisplay();
+installTypingFx();
 
 // Firefox ignores -webkit-user-drag (index.css), so stop picture drags here
 // too. A picture inside something deliberately draggable still drags it.

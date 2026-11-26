@@ -10,6 +10,7 @@ import {
 } from "../../lib/aimod";
 import { patternCorpus } from "../../lib/patternCorpus";
 import { InfoTip } from "../ui/Tooltip";
+import { SlidingHitLine } from "../ui/SlidingHitLine";
 import { Modal } from "../ui/Modal";
 import { Button, Toggle } from "../ui/Controls";
 import { useT, type MessageKey } from "../../lib/i18n";
@@ -179,7 +180,8 @@ export function AiModModal({
             </p>
           </li>)}</ul>
         </section>}
-        <div role="tablist" className="flex flex-wrap gap-x-1 border-b border-white/[0.07]">
+        <div role="tablist" className="relative flex flex-wrap gap-x-1 border-b border-white/[0.07]">
+          <SlidingHitLine edge="bottom" />
           {TABS.map((entry) => {
             const count = entry === "All" ? scoped.length : byCategory.get(entry) ?? 0;
             const activeTab = entry === tab;

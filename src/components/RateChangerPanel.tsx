@@ -18,10 +18,13 @@ import {
   type RateCreateOptions,
 } from "../lib/rateChange";
 import { Slider, Toggle } from "./ui/Controls";
+import { RollingNumber } from "./ui/RollingNumber";
+import { useSlidingPlate } from "./ui/useSlidingPlate";
 import { buttonClass } from "./ui/buttonStyles";
 import { useT } from "../lib/i18n";
 
-const EXIT_MS = 180;
+// Matches the close in index.css (.rate-panel-reveal).
+const EXIT_MS = 220;
 
 const showBpmValue = (bpm: number): string =>
   bpm > 0 ? String(Math.round(bpm * 100) / 100) : "";
@@ -52,6 +55,10 @@ export function RateChangerPanel({
   const t = useT();
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
+  // Drawn closed first, then opened a frame later, so the height has
+  // something to grow from.
+  const [revealed, setRevealed] = useState(false);
+  const presetsRef = useRef<HTMLDivElement>(null);
   const [rate, setRate] = useState(1);
   const [rateDraft, setRateDraft] = useState("1.00");
   const [bpmDraft, setBpmDraft] = useState("");
@@ -76,11 +83,18 @@ export function RateChangerPanel({
     }
     if (!mounted) return;
     setClosing(true);
+    setRevealed(false);
     const id = window.setTimeout(() => {
       setMounted(false);
       setClosing(false);
     }, EXIT_MS);
     return () => window.clearTimeout(id);
+  }, [open, mounted]);
+
+  useEffect(() => {
+    if (!open || !mounted) return;
+    const id = requestAnimationFrame(() => setRevealed(true));
+    return () => cancelAnimationFrame(id);
   }, [open, mounted]);
 
   useEffect(() => {
@@ -168,6 +182,12 @@ export function RateChangerPanel({
     return made;
   }, [difficulty, existingNames, onlyRateAsName, showBpm]);
 
+  const selectedPreset = RATE_PRESETS.find((preset) => Math.abs(preset - rate) < 1e-6);
+  const presetPlate = useSlidingPlate(
+    presetsRef,
+    mounted && selectedPreset !== undefined ? `[data-preset="${selectedPreset}"]` : null,
+  );
+
   const fieldClass = (bad: boolean) =>
     `min-w-0 h-7 rounded-md bg-black/25 px-2 text-sm tabular-nums text-slate-100 ring-1 ring-inset outline-none transition disabled:cursor-not-allowed disabled:opacity-40 ${
       bad
@@ -178,19 +198,18 @@ export function RateChangerPanel({
   if (!mounted) return null;
 
   return (
-    <div className="rate-panel-reveal shrink-0" data-open={open && !closing}>
-      <div
-        className={`mx-1.5 mb-2 rounded-lg bg-white/[0.03] px-3 py-3 ring-1 ring-inset ring-white/[0.05] ${
-          closing ? "rate-panel-out" : "rate-panel-in"
-        }`}
-      >
+    <div className="rate-panel-reveal shrink-0" data-open={revealed && open && !closing}>
+      <div className="rate-panel-clip">
+      <div className="rate-panel mx-1.5 mb-2 rounded-lg bg-white/[0.03] px-3 py-3 ring-1 ring-inset ring-white/[0.05]">
         <div className="mb-2.5 flex items-baseline justify-between">
           <span className="text-xs font-semibold text-slate-300">
             {t("rate.title")}
           </span>
-          <span className="font-display text-lg font-bold tabular-nums leading-none text-slate-50">
-            {formatRateDisplay(rate)}x
-          </span>
+          <RollingNumber
+            value={rate}
+            format={rateReadout}
+            className="font-display text-lg font-bold tabular-nums leading-none text-slate-50"
+          />
         </div>
 
         <Slider
@@ -277,7 +296,16 @@ export function RateChangerPanel({
           </p>
         )}
 
-        <div className="mt-2.5 grid grid-cols-4 gap-1">
+        <div ref={presetsRef} className="relative mt-2.5 grid grid-cols-4 gap-1">
+          {presetPlate.box && (
+            <span
+              aria-hidden
+              className={`sliding-plate absolute rounded bg-ink-500 shadow-[0_1px_2px_rgb(0_0_0/0.4)] ${
+                presetPlate.settled ? "" : "!transition-none"
+              }`}
+              style={presetPlate.style}
+            />
+          )}
           {RATE_PRESETS.map((preset) => {
             const selected = Math.abs(preset - rate) < 1e-6;
             const made = madePresets.has(preset);
@@ -289,9 +317,11 @@ export function RateChangerPanel({
                 onClick={() => commitRate(preset)}
                 title={made ? t("rate.made") : undefined}
                 aria-label={made ? `${formatRate(preset)}x, ${t("rate.made")}` : undefined}
-                className={`inline-flex h-6 items-center justify-center gap-0.5 rounded text-[11px] font-medium tabular-nums transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                aria-pressed={selected}
+                data-preset={preset}
+                className={`relative inline-flex h-6 items-center justify-center gap-0.5 rounded text-[11px] font-medium tabular-nums transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
                   selected
-                    ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                    ? "bg-transparent text-slate-50"
                     : "bg-black/20 text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
                 }`}
               >
@@ -387,9 +417,12 @@ export function RateChangerPanel({
           )}
         </div>
       </div>
+      </div>
     </div>
   );
 }
+
+const rateReadout = (rate: number) => `${formatRateDisplay(rate)}x`;
 
 function CheckIcon() {
   return (

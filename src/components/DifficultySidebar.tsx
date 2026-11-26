@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState, useRef, useEffect } from "react";
+import { useDeferredValue, useMemo, useState, useRef, useEffect, type ReactNode } from "react";
 import type { Difficulty, TimingPoint } from "../types";
 import { computeStarRating, starColor, starTextOn, starTier } from "../lib/starRating";
 import { computeMapStats } from "../lib/mapStats";
@@ -6,6 +6,8 @@ import { useMsdRatings } from "../lib/msd/useMsd";
 import { msdColor, msdTooltip } from "../lib/msd/display";
 import { msdSupportsKeyCount, type MsdRating } from "../lib/msd/minacalc";
 import { MarqueeText } from "./ui/MarqueeText";
+import { AnimatedList } from "./ui/AnimatedList";
+import { RollingNumber } from "./ui/RollingNumber";
 import { RateChangerPanel } from "./RateChangerPanel";
 import { useT } from "../lib/i18n";
 import { typedDifficultyName } from "../lib/difficultyName";
@@ -113,19 +115,29 @@ export function DifficultySidebar({
   };
   const handleRowDelete = (id: string) =>
     deleteDifficulties(selected.has(id) ? Array.from(selected) : [id]);
-  // The stats and the star-sorted list trail an edit by a render: they cost
-  // tens of milliseconds on a huge map, and the playfield should show the
-  // new note first.
+  // Star ratings trail an edit by a render: they cost tens of milliseconds on
+  // a huge map, and the playfield should show the new note first.
   const deferredDifficulties = useDeferredValue(difficulties);
+  const deferredStars = useMemo(
+    () =>
+      new Map(
+        deferredDifficulties.map((d) => [d.id, computeStarRating(d.notes, d.keyCount)]),
+      ),
+    [deferredDifficulties],
+  );
+  // Which rows there are follows the difficulties at once, so an added or
+  // deleted difficulty animates in the same render that changes the
+  // selection; only a row the deferred pass has not rated yet (a new one)
+  // is rated here.
   const sorted = useMemo(
     () =>
-      deferredDifficulties
+      difficulties
         .map((d) => ({
           difficulty: d,
-          star: computeStarRating(d.notes, d.keyCount),
+          star: deferredStars.get(d.id) ?? computeStarRating(d.notes, d.keyCount),
         }))
         .sort((a, b) => a.star - b.star),
-    [deferredDifficulties],
+    [difficulties, deferredStars],
   );
   const existingNames = useMemo(
     () => difficulties.map((d) => d.name),
@@ -165,7 +177,7 @@ export function DifficultySidebar({
       }`}
       title={t("diffSidebar.rateChanger")}
     >
-      <RateIcon />
+      <RateIcon open={rateOpen} />
     </button>
   );
   const addButton = (
@@ -203,7 +215,7 @@ export function DifficultySidebar({
           <div className="flex w-40 shrink-0 flex-col justify-between border-r border-white/[0.06] py-2.5 pl-3.5 pr-2">
             <h2 className="text-xs font-semibold text-slate-300">
               {t("diffSidebar.title")}
-              <span className="ml-1.5 font-medium tabular-nums text-slate-500">{difficulties.length}</span>
+              <RollingNumber value={difficulties.length} className="ml-1.5 font-medium tabular-nums text-slate-500" />
             </h2>
             <div className="flex items-center gap-0.5">
               {rateButton}
@@ -213,7 +225,9 @@ export function DifficultySidebar({
           {/* Cards sit in a row of fixed height, so their hover actions never
               change the strip's thickness. */}
           <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1.5 py-1.5 [scrollbar-width:thin]">
-            <div className="flex h-[5.25rem] items-start gap-1 [&>*]:w-56 [&>*]:shrink-0">{rows}</div>
+            <div className="flex h-[5.25rem] items-start gap-1 [&>*]:w-56 [&>*]:shrink-0">
+              <AnimatedList axis="x">{rows}</AnimatedList>
+            </div>
           </div>
         </div>
         {rateChanger}
@@ -228,7 +242,7 @@ export function DifficultySidebar({
       <div className={`flex h-10 shrink-0 items-center justify-between pl-3.5 pr-2 ${mobile ? "sticky top-0 z-10 bg-ink-900" : ""}`}>
         <h2 className="text-xs font-semibold text-slate-300">
           {t("diffSidebar.title")}
-          <span className="ml-1.5 font-medium tabular-nums text-slate-500">{difficulties.length}</span>
+          <RollingNumber value={difficulties.length} className="ml-1.5 font-medium tabular-nums text-slate-500" />
         </h2>
         <div className="flex items-center gap-0.5">
           {mobile && <button type="button" aria-pressed={multiSelectMode} onClick={() => setMultiSelectMode(value => !value)} className="rounded-md px-2 text-xs text-slate-300">{t("mobile.select")}</button>}
@@ -242,7 +256,12 @@ export function DifficultySidebar({
       <div className={`px-1.5 pb-2 ${mobile ? "flex-[1_0_auto]" : "min-h-0 flex-1 overflow-y-auto"}`}>
         {/* Phones show the difficulties side by side, two to a row. */}
         <div className={mobile ? "grid grid-cols-2 gap-1.5" : "flex flex-col gap-px"}>
-          {rows}
+          <AnimatedList
+            axis={mobile ? "fade" : "y"}
+            itemClassName={mobile ? "flex min-w-0 [&>*]:flex-1" : undefined}
+          >
+            {rows}
+          </AnimatedList>
         </div>
       </div>
 
@@ -265,6 +284,7 @@ export function DifficultySidebar({
           timingPoints={timingPoints}
           onFlashColumn={onFlashColumn}
           showEmpty={mobile}
+          reveal
           className="border-t border-white/[0.06]"
         />
       )}
@@ -283,6 +303,7 @@ export function DifficultyInfo({
   onFlashColumn,
   orientation = "vertical",
   showEmpty = false,
+  reveal = false,
   className = "",
 }: {
   difficulty: Difficulty | null;
@@ -291,37 +312,69 @@ export function DifficultyInfo({
   orientation?: "vertical" | "horizontal";
   /** Show the block even for a difficulty with no notes yet. */
   showEmpty?: boolean;
+  /**
+   * Open and close in place when there is something to show or not. Off
+   * where a container animates the block itself (the editor's dock panel).
+   */
+  reveal?: boolean;
   className?: string;
 }) {
   const t = useT();
   // Trails an edit by a render: on a huge map these cost tens of
   // milliseconds, and the playfield should show the new note first.
   const deferred = useDeferredValue(difficulty);
-  const stats = useMemo(
+  const liveStats = useMemo(
     () => (deferred ? computeMapStats(deferred.notes, deferred.keyCount) : null),
     [deferred],
   );
   /** "180", or "150–200" when the map changes tempo. */
-  const bpmLabel = useMemo(() => formatBpmRange(bpmRange(timingPoints)), [timingPoints]);
-  if (!stats || (stats.notes === 0 && !showEmpty)) return null;
+  const liveBpm = useMemo(() => formatBpmRange(bpmRange(timingPoints)), [timingPoints]);
+  const live = liveStats && (liveStats.notes > 0 || showEmpty) ? liveStats : null;
+  // What was last on show stays while the block closes (or while the dock
+  // fades its panel out), so the numbers leave with it instead of vanishing
+  // a moment before.
+  const lastShown = useRef<{
+    stats: NonNullable<typeof liveStats>;
+    bpmLabel: string;
+    name: string | undefined;
+  } | null>(null);
+  if (live) lastShown.current = { stats: live, bpmLabel: liveBpm, name: deferred?.name };
+  const view = lastShown.current;
+  if (!view) return reveal ? <div className="stats-reveal" /> : null;
+  const { stats, bpmLabel } = view;
   const grid = (
     <>
       <Stat label="BPM" value={bpmLabel} />
-      <Stat label={t("diffSidebar.notes")} value={String(stats.notes)} />
-      <Stat label="LN" value={`${Math.round(stats.lnRatio * 100)}%`} />
-      <Stat label={t("diffSidebar.chords")} value={`${Math.round(stats.chordRatio * 100)}%`} />
-      <Stat label={t("diffSidebar.avgNps")} value={stats.avgNps.toFixed(1)} />
-      <Stat label={t("diffSidebar.peakNps")} value={String(stats.peakNps)} />
-      <Stat label="Rice/LN" value={`${stats.rice}/${stats.holds}`} />
+      <Stat label={t("diffSidebar.notes")} value={<RollingNumber value={stats.notes} />} />
+      <Stat
+        label="LN"
+        value={<RollingNumber value={Math.round(stats.lnRatio * 100)} format={percent} />}
+      />
+      <Stat
+        label={t("diffSidebar.chords")}
+        value={<RollingNumber value={Math.round(stats.chordRatio * 100)} format={percent} />}
+      />
+      <Stat
+        label={t("diffSidebar.avgNps")}
+        value={<RollingNumber value={stats.avgNps} format={oneDecimal} />}
+      />
+      <Stat label={t("diffSidebar.peakNps")} value={<RollingNumber value={stats.peakNps} />} />
+      <Stat
+        label="Rice/LN"
+        value={
+          <>
+            <RollingNumber value={stats.rice} />/<RollingNumber value={stats.holds} />
+          </>
+        }
+      />
     </>
   );
   const title = (
     <div className="mb-2 truncate text-xs font-semibold text-slate-300">
-      {t("diffSidebar.stats", { name: difficulty?.name || t("diffSidebar.active") })}
+      {t("diffSidebar.stats", { name: view.name || t("diffSidebar.active") })}
     </div>
   );
-  if (orientation === "horizontal") {
-    return (
+  const body = orientation === "horizontal" ? (
       <div className={`flex items-start gap-6 bg-ink-900 px-4 pb-2.5 pt-2.5 ${className}`}>
         <div className="w-[17rem]">
           {title}
@@ -335,9 +388,7 @@ export function DifficultyInfo({
           />
         </div>
       </div>
-    );
-  }
-  return (
+  ) : (
     <div className={`bg-ink-900 px-3.5 pb-3 pt-2.5 ${className}`}>
       {title}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">{grid}</div>
@@ -348,9 +399,16 @@ export function DifficultyInfo({
       />
     </div>
   );
+  if (!reveal) return body;
+  return (
+    <div className="stats-reveal" data-open={live ? "true" : undefined}>
+      <div className="stats-reveal-clip">{body}</div>
+    </div>
+  );
 }
 
-function RateIcon() {
+/** A gauge whose needle swings up the dial while the rate changer is open. */
+function RateIcon({ open }: { open: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -363,7 +421,11 @@ function RateIcon() {
       strokeLinejoin="round"
     >
       <path d="M4 17.5a9 9 0 1 1 16 0" />
-      <path d="M12 17.5 16 11" />
+      <path
+        d="M12 17.5 16 11"
+        className="rate-icon-needle"
+        data-open={open ? "true" : undefined}
+      />
     </svg>
   );
 }
@@ -388,7 +450,8 @@ function ColumnHistogram({
           className="tabular-nums"
           title={t("diffSidebar.handBalance")}
         >
-          L {leftPct}% · R {100 - leftPct}%
+          L <RollingNumber value={leftPct} format={percent} /> · R{" "}
+          <RollingNumber value={100 - leftPct} format={percent} />
         </span>
       </div>
       <div className="flex h-9 items-end gap-1">
@@ -402,7 +465,7 @@ function ColumnHistogram({
               disabled={!onFlashColumn}
               aria-label={label}
               title={label}
-              className="group/bar relative flex-1 rounded-t-sm bg-slate-500/55 transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:brightness-125 disabled:cursor-default"
+              className="group/bar relative flex-1 rounded-t-sm bg-slate-500/55 transition-[height,background-color,filter] duration-300 ease-[var(--ease-emphasized)] hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:brightness-125 disabled:cursor-default"
               style={{ height: `${Math.max(4, (count / max) * 100)}%` }}
             />
           );
@@ -414,7 +477,7 @@ function ColumnHistogram({
             key={i}
             className="flex-1 text-center text-[9px] tabular-nums text-slate-500"
           >
-            {count}
+            <RollingNumber value={count} />
           </span>
         ))}
       </div>
@@ -422,7 +485,11 @@ function ColumnHistogram({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+const percent = (value: number) => `${value}%`;
+const oneDecimal = (value: number) => value.toFixed(1);
+const twoDecimals = (value: number) => value.toFixed(2);
+
+function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-slate-500">{label}</span>
@@ -590,7 +657,7 @@ function DiffRow({
             className="shrink-0 whitespace-nowrap rounded-full px-1.5 py-px text-[11px] font-bold tabular-nums"
             style={{ backgroundColor: color, color: starTextOn(star) }}
           >
-            ★ {star.toFixed(2)}
+            ★ <RollingNumber value={star} format={twoDecimals} />
           </span>
           {msdSupportsKeyCount(difficulty.keyCount) && msd && msd.overall > 0 && (
             <span
@@ -598,7 +665,7 @@ function DiffRow({
               style={{ color: msdColor(msd.overall) }}
               title={msdTooltip(msd, difficulty.keyCount)}
             >
-              {msd.overall.toFixed(2)}
+              <RollingNumber value={msd.overall} format={twoDecimals} />
               <span className="ml-0.5 text-[9px] font-medium opacity-70">MSD</span>
             </span>
           )}

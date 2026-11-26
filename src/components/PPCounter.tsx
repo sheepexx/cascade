@@ -5,6 +5,8 @@ import { maniaMaxPP } from "../lib/performance";
 import { useT } from "../lib/i18n";
 import type { DockCorner } from "../lib/editorDock";
 import { reduceMotion } from "../lib/performanceMode";
+import { RollingNumber } from "./ui/RollingNumber";
+import { useSlidingPlate } from "./ui/useSlidingPlate";
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1] as const;
 
@@ -43,6 +45,14 @@ export function PPCounter({
     return maniaMaxPP(star, deferredNotes);
   }, [deferredNotes, keyCount]);
 
+  const ratesRef = useRef<HTMLDivElement | null>(null);
+  const activeRate = PLAYBACK_RATES.find((rate) => Math.abs(playbackRate - rate) < 0.001);
+  const slowedRate = activeRate !== undefined && activeRate < 1;
+  const plate = useSlidingPlate(
+    ratesRef,
+    activeRate === undefined ? null : `[data-rate="${activeRate}"]`,
+  );
+
   // Moving to another corner, the chips glide over from where they were.
   const rootRef = useRef<HTMLDivElement | null>(null);
   const lastRect = useRef<DOMRect | null>(null);
@@ -71,22 +81,32 @@ export function PPCounter({
     >
       <div className="float-chip flex items-center gap-2 py-1 pl-2.5 pr-1">
         <span className="text-2xs font-medium text-slate-400">{t("pp.speed")}</span>
-        <div className="flex gap-0.5 rounded-md bg-black/30 p-0.5">
+        <div ref={ratesRef} className="relative flex gap-0.5 rounded-md bg-black/30 p-0.5">
+          {/* One plate slides to the chosen speed; it turns accent once
+              playback is slowed, a state the mapper must not forget. */}
+          {plate.box && (
+            <span
+              aria-hidden
+              className={`sliding-plate absolute rounded ${
+                slowedRate ? "bg-accent" : "bg-ink-500 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+              } ${plate.settled ? "" : "!transition-none"}`}
+              style={plate.style}
+            />
+          )}
           {PLAYBACK_RATES.map((rate) => {
             const on = Math.abs(playbackRate - rate) < 0.001;
-            // Anything below full speed is lit in the accent: it is a state
-            // the mapper must not forget they are in.
             const slowed = on && rate < 1;
             return (
               <button
                 key={rate}
                 onClick={() => onPlaybackRateChange(rate)}
                 aria-pressed={on}
-                className={`h-6 rounded px-2 text-xs font-medium tabular-nums transition ${
+                data-rate={rate}
+                className={`relative h-6 rounded px-2 text-xs font-medium tabular-nums transition-colors duration-200 ${
                   slowed
-                    ? "bg-accent text-white"
+                    ? "text-white"
                     : on
-                      ? "bg-ink-500 text-slate-50 shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                      ? "text-slate-50"
                       : "text-slate-400 hover:text-slate-100"
                 }`}
               >
@@ -99,9 +119,10 @@ export function PPCounter({
 
       <div className="float-chip pointer-events-none flex flex-col justify-center px-3 py-1 text-right">
         <div className="flex items-baseline justify-end gap-1">
-          <span className="font-display text-lg font-bold leading-none tabular-nums text-slate-50">
-            {Math.round(pp)}
-          </span>
+          <RollingNumber
+            value={Math.round(pp)}
+            className="font-display text-lg font-bold leading-none tabular-nums text-slate-50"
+          />
           <span className="text-2xs font-semibold text-slate-400">pp</span>
         </div>
         <div className="mt-0.5 text-[10px] leading-none text-slate-500">{t("pp.maxSs")}</div>

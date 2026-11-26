@@ -1208,7 +1208,6 @@ export const de: PartialCatalog = {
   "osd.timelineZoom": "Zeitleisten-Zoom",
   "osd.playfieldSize": "Spielfeldgröße",
   "osd.interfaceSize": "Oberflächengröße",
-  "osd.playbackRate": "Wiedergabegeschwindigkeit",
   "osd.wheel": "Mausrad",
   "app.presetSkinFailed": "Dieser Vorlagen-Skin konnte nicht geladen werden.",
   "app.readingArchive": "Archiv wird gelesen",

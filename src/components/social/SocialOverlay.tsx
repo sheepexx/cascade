@@ -8,6 +8,7 @@ import type { SocialRoute } from "../../lib/socialRoute";
 import { playUiSound } from "../../lib/uiSounds";
 import { CloseIcon } from "../ui/Icons";
 import { Toast } from "../ui/Toast";
+import { SlidingHitLine } from "../ui/SlidingHitLine";
 import { Button } from "../ui/Controls";
 import { CommunityView } from "./CommunityView";
 import { FriendsView } from "./FriendsView";
@@ -202,8 +203,9 @@ export function SocialOverlay({
         <div className="social-content flex min-h-0 flex-1 flex-col md:flex-row">
           <nav
             aria-label={t("social.navigation")}
-            className="no-scrollbar flex shrink-0 gap-px overflow-x-auto border-b border-white/[0.06] px-2 py-1.5 md:w-56 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:p-2"
+            className="no-scrollbar relative flex shrink-0 gap-px overflow-x-auto border-b border-white/[0.06] px-2 py-1.5 md:w-56 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:p-2"
           >
+            <SlidingHitLine />
             {nav.map((item) => (
               <button
                 key={item.key}

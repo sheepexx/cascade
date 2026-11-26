@@ -86,6 +86,7 @@ import {
 } from "../lib/noteTools";
 import { Menu } from "./ui/Menu";
 import { SnapBadge } from "./ui/SnapBadge";
+import { RollingInText } from "./ui/RollingNumber";
 import { DifficultyClipLabel } from "./ui/DifficultyClipLabel";
 import { t } from "../lib/i18n/core";
 import { FONT_STACK as CANVAS_FONT_STACK } from "../lib/fontStack";
@@ -3236,9 +3237,11 @@ export function ManiaEditor(props: ManiaEditorProps) {
       <EditorPanel mobile={props.mobile} open={mobilePanel === "selection"} title={t("mobile.selectionActions")} onClose={closeMobilePanel}>
       {selectionCount > 0 && !props.playtestMode && (
         <div className="selection-actions float-chip absolute left-1/2 top-3 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 select-none flex-wrap items-center justify-center gap-0.5 p-0.5 text-xs text-slate-200">
-          <span className="px-2 font-medium tabular-nums text-yellow-200">
-            {t("editor.selected", { count: selectionCount })}
-          </span>
+          <RollingInText
+            text={t("editor.selected", { count: selectionCount })}
+            value={selectionCount}
+            className="px-2 font-medium tabular-nums text-yellow-200"
+          />
           <span className="mx-0.5 h-4 w-px bg-white/[0.08]" />
           <SelectionActionButton
             label={t("common.copy")}

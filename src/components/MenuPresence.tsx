@@ -11,6 +11,7 @@ import {
 import type { OnlinePlayer } from "../hooks/useOnlinePresence";
 import { OpenPlayerContext } from "./openPlayerContext";
 import { POPOVER_CLASS } from "./ui/Menu";
+import { RollingNumber } from "./ui/RollingNumber";
 import { useT, type Translate } from "../lib/i18n";
 
 /** Faces previewed on the closed chip; the count covers the rest. */
@@ -199,13 +200,29 @@ export function MenuPresence({
             }`}
           />
           <span className={anyoneOnline ? "text-slate-100" : "text-slate-400"}>
-            {anyoneOnline
-              ? t("menu.onlineCount", { n: online.length })
-              : t("menu.nobodyOnline")}
+            {anyoneOnline ? (
+              <OnlineCount t={t} count={online.length} />
+            ) : (
+              t("menu.nobodyOnline")
+            )}
           </span>
         </span>
       </button>
     </div>
+  );
+}
+
+/** "12 online" in the chip's language, with the number rolling as people
+ *  come and go. The translation decides where the number sits. */
+function OnlineCount({ t, count }: { t: Translate; count: number }) {
+  const mark = "\u0000";
+  const [before, after = ""] = t("menu.onlineCount", { n: mark }).split(mark);
+  return (
+    <>
+      {before}
+      <RollingNumber value={count} />
+      {after}
+    </>
   );
 }
 
@@ -226,7 +243,7 @@ function PresenceSection({
     <section className={divided ? "mt-1 border-t border-white/[0.07] pt-1" : ""}>
       <h3 className="flex items-center gap-1.5 px-2.5 pb-1 pt-1.5 text-2xs font-semibold uppercase tracking-wide text-slate-500">
         {title}
-        {count != null && <span className="tabular-nums text-slate-400">{count}</span>}
+        {count != null && <RollingNumber value={count} className="tabular-nums text-slate-400" />}
       </h3>
       <ul>
         {players.map((p) => (

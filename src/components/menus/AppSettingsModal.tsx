@@ -3,6 +3,7 @@ import { Modal } from "../ui/Modal";
 import { Button, INPUT_CLASS, SegmentedControl, Slider, Toggle } from "../ui/Controls";
 import { buttonClass } from "../ui/buttonStyles";
 import { Dropdown } from "../ui/Dropdown";
+import { SlidingHitLine } from "../ui/SlidingHitLine";
 import { MAX_PLAYTEST_RATE, MIN_PLAYTEST_RATE } from "../../lib/playtestJudgements";
 import { formatBytes } from "../../lib/progress";
 import { formatMenuBackgroundRules } from "../../lib/menuBackground";
@@ -1772,10 +1773,11 @@ function SettingsWorkspace({
         aria-label={t("settings.title")}
         className={
           stacked
-            ? "no-scrollbar flex shrink-0 gap-0.5 overflow-x-auto border-b border-white/[0.06] px-2 py-1.5"
-            : "flex w-52 shrink-0 flex-col gap-px overflow-y-auto border-r border-white/[0.06] bg-black/10 p-2"
+            ? "no-scrollbar relative flex shrink-0 gap-0.5 overflow-x-auto border-b border-white/[0.06] px-2 py-1.5"
+            : "relative flex w-52 shrink-0 flex-col gap-px overflow-y-auto border-r border-white/[0.06] bg-black/10 p-2"
         }
       >
+        <SlidingHitLine />
         {!stacked && search}
         {tabs.map((name) => {
           const active = !searching && name === tab;

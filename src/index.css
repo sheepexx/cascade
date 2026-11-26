@@ -635,6 +635,26 @@ img {
   transform: none;
 }
 
+/* A list or tab row with a SlidingHitLine draws one mark that glides to the
+   selected item, in place of each item's own. */
+[data-hit-rail="left"] .hit-line-left::before,
+[data-hit-rail="bottom"] .hit-line-bottom::before {
+  display: none;
+}
+.sliding-hit-line {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 2px;
+  background: var(--hit-line, var(--accent));
+  transition:
+    left 320ms var(--ease-emphasized),
+    top 320ms var(--ease-emphasized),
+    width 320ms var(--ease-emphasized),
+    height 320ms var(--ease-emphasized),
+    opacity var(--motion-quick) var(--ease-standard);
+}
+
 /* Tools that float over the playfield (mode switch, selection bar, speed,
    pp, clipboard). Solid enough to read over any background art, no blur so
    the canvas behind keeps its frame rate. */
@@ -1072,42 +1092,151 @@ img {
 .hud-page-in { animation: hud-page-in 180ms var(--ease-emphasized); }
 .hud-tag-in { animation: hud-tag-in 150ms var(--ease-emphasized); }
 
-@keyframes rate-panel-in {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-@keyframes rate-panel-out {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
-}
-.rate-panel-in {
-  animation: rate-panel-in 220ms var(--ease-emphasized);
-}
-.rate-panel-out {
-  animation: rate-panel-out 180ms var(--ease-exit) forwards;
-}
+/* The rate changer opens to its own height (a 0fr to 1fr grid row, so the
+   list below follows it down without a guessed max-height), the panel
+   settles from just above, and its rows arrive one after another. Closing
+   folds it back up in one move. EXIT_MS in RateChangerPanel matches the
+   close. */
 .rate-panel-reveal {
-  overflow: hidden;
-  max-height: 0;
-  /* Matches rate-panel-out, so the collapse finishes as the panel unmounts. */
-  transition: max-height 180ms var(--ease-exit);
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms var(--ease-standard);
 }
 .rate-panel-reveal[data-open="true"] {
-  /* Room for phone-sized controls too. */
-  max-height: 48rem;
-  transition: max-height 220ms var(--ease-emphasized);
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 340ms var(--ease-emphasized);
+}
+.rate-panel-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.rate-panel {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  transform-origin: 50% 0;
+  transition:
+    opacity 150ms var(--ease-standard),
+    transform 220ms var(--ease-exit);
+}
+.rate-panel-reveal[data-open="true"] .rate-panel {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 200ms var(--ease-standard),
+    transform 340ms var(--ease-emphasized);
+}
+.rate-panel-reveal[data-open="true"] .rate-panel > * {
+  animation: rate-row-in 320ms var(--ease-emphasized) both;
+}
+.rate-panel > :nth-child(2) { animation-delay: 25ms; }
+.rate-panel > :nth-child(3) { animation-delay: 50ms; }
+.rate-panel > :nth-child(4) { animation-delay: 70ms; }
+.rate-panel > :nth-child(5) { animation-delay: 90ms; }
+.rate-panel > :nth-child(6) { animation-delay: 110ms; }
+.rate-panel > :nth-child(7) { animation-delay: 125ms; }
+.rate-panel > :nth-child(n + 8) { animation-delay: 140ms; }
+@keyframes rate-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* The difficulty stats under the list close when a difficulty has no notes
+   yet and open again with its first one, keeping the last numbers on show
+   while they fold away. */
+.stats-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms var(--ease-standard);
+}
+.stats-reveal[data-open="true"] {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 340ms var(--ease-emphasized);
+}
+.stats-reveal-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.stats-reveal-clip > * {
+  transition: opacity 200ms var(--ease-standard);
+}
+.stats-reveal:not([data-open]) .stats-reveal-clip > * {
+  opacity: 0;
+}
+
+/* The rate button's gauge: the needle swings up the dial while it is open. */
+.rate-icon-needle {
+  transform-origin: 12px 17.5px;
+  transition: transform 360ms var(--ease-emphasized);
+}
+
+/* A count badge grows in from its centre when it first appears. */
+.badge-pop {
+  animation: badge-pop 260ms var(--ease-emphasized) both;
+}
+@keyframes badge-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+.rate-icon-needle[data-open="true"] {
+  transform: rotate(48deg);
+}
+
+/* A plate that slides to the chosen option of a button group (playback
+   speed, rate presets) instead of each button lighting up in place. */
+.sliding-plate {
+  pointer-events: none;
+  transition:
+    left 260ms var(--ease-emphasized),
+    top 260ms var(--ease-emphasized),
+    width 260ms var(--ease-emphasized),
+    height 260ms var(--ease-emphasized),
+    background-color 200ms var(--ease-standard),
+    box-shadow 200ms var(--ease-standard);
+}
+
+/* RollingNumber: each digit is a strip of 0-9 behind a one-digit window,
+   rolling to its new value like an electricity meter. The hidden sizer digit
+   gives the window its width and keeps the text baseline, so the number
+   lines up with the text beside it. */
+.rolling-number {
+  white-space: nowrap;
+}
+/* The window is one em tall, whatever the line height around it, so a
+   rolling digit only ever shows inside the glyph's own height. The baseline
+   still comes from the sizer, so the line itself does not move. */
+.rolling-number-digit {
+  position: relative;
+  display: inline-block;
+  line-height: 1em;
+  clip-path: inset(0 -0.3em);
+}
+/* Everything the wheels draw is generated content, so the page's text (and
+   a copy, a screen reader or a test reading it) is only the number itself,
+   kept in the sr-only span. */
+.rolling-number-digit::before {
+  content: attr(data-digit);
+  visibility: hidden;
+}
+.rolling-number-static::before {
+  content: attr(data-char);
+}
+.rolling-number-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  white-space: pre;
+  text-align: center;
+  user-select: none;
+  transition: transform 620ms var(--ease-emphasized);
+}
+/* 0-9 five times over: CYCLES in RollingNumber.tsx. */
+.rolling-number-strip::before {
+  content: "0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9";
 }
 
 @keyframes notification-stack-in {
@@ -1621,11 +1750,11 @@ canvas[data-pointer-focus]:focus-visible {
   .hold-shine,
   .pfp-pop-in,
   .notification-shell,
-  .rate-panel-in,
+  .rate-panel-reveal[data-open="true"] .rate-panel > *,
+  .badge-pop,
   .hud-panel-in,
   .hud-page-in,
   .hud-tag-in,
-  .rate-panel-out,
   .tap-ring,
   .loader-fade-in,
   .loader-content-in,
@@ -1662,7 +1791,12 @@ canvas[data-pointer-focus]:focus-visible {
 
   /* Must match the specificity of .rate-panel-reveal[data-open="true"]. */
   .rate-panel-reveal,
-  .rate-panel-reveal[data-open="true"] {
+  .rate-panel-reveal[data-open="true"],
+  .rate-panel,
+  .rate-panel-reveal[data-open="true"] .rate-panel,
+  .stats-reveal,
+  .stats-reveal[data-open="true"],
+  .stats-reveal-clip > * {
     transition-duration: 1ms;
   }
 
@@ -1672,6 +1806,10 @@ canvas[data-pointer-focus]:focus-visible {
   .menu-bar-slide,
   .start-logo-hover,
   .segmented-pill,
+  .sliding-plate,
+  .sliding-hit-line,
+  .rate-icon-needle,
+  .rolling-number-strip,
   .ui-slider-fill,
   .ui-slider-thumb,
   .ui-switch-pill,
@@ -1865,7 +2003,8 @@ canvas[data-pointer-focus]:focus-visible {
 
 /* Selection: a coral outline in place of the hit line. */
 :root[data-theme="classic"] .hit-line-left::before,
-:root[data-theme="classic"] .hit-line-bottom::before {
+:root[data-theme="classic"] .hit-line-bottom::before,
+:root[data-theme="classic"] .sliding-hit-line {
   display: none;
 }
 :root[data-theme="classic"] .hit-line-left[data-active="true"],
@@ -2302,6 +2441,96 @@ canvas[data-pointer-focus]:focus-visible {
   .dock-slot {
     transition-duration: 1ms;
   }
+}
+
+/* Typing in any text field (src/lib/typingFx.ts). While a field has focus
+   its glyphs and caret go transparent and a twin draws them instead, so a
+   typed letter can drop in, a deleted one fall out, and the caret glide.
+   The selection highlight, placeholder and IME stay the field's own. The
+   module is not installed under reduced motion or performance mode. */
+[data-tfx-host] {
+  -webkit-text-fill-color: transparent !important;
+  caret-color: transparent !important;
+}
+[data-tfx-host]::selection {
+  -webkit-text-fill-color: transparent;
+}
+[data-tfx-host]::placeholder {
+  -webkit-text-fill-color: currentColor;
+}
+.tfx-root {
+  position: absolute !important;
+  left: 0;
+  top: 0;
+  display: block !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  flex: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  overflow: visible !important;
+  transform: none !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+  text-indent: 0;
+}
+.tfx-clip {
+  position: absolute;
+  display: block;
+  overflow: hidden;
+}
+.tfx-layer {
+  position: absolute;
+  display: block;
+  left: 0;
+  top: 0;
+  white-space: pre;
+}
+.tfx-in {
+  position: relative;
+}
+.tfx-caret {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 0;
+  transition:
+    transform 110ms var(--ease-standard),
+    height 110ms var(--ease-standard),
+    opacity 120ms var(--ease-standard);
+}
+.tfx-caret[data-hidden] {
+  opacity: 0;
+}
+.tfx-caret[data-instant] {
+  transition: none;
+}
+.tfx-caret-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  display: block;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--tfx-caret, var(--accent));
+}
+.tfx-ghost {
+  position: absolute;
+  display: block;
+  white-space: pre;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
 
 :root[data-performance="on"] *,

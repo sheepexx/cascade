@@ -1208,7 +1208,6 @@ export const ptBR: PartialCatalog = {
   "osd.timelineZoom": "Zoom da linha do tempo",
   "osd.playfieldSize": "Tamanho do campo",
   "osd.interfaceSize": "Tamanho da interface",
-  "osd.playbackRate": "Velocidade de reprodução",
   "osd.wheel": "Roda do mouse",
   "app.presetSkinFailed": "Não foi possível carregar essa skin predefinida.",
   "app.readingArchive": "Lendo o arquivo",

@@ -7,7 +7,7 @@ import { SkeletonRows } from "./ui/Skeleton";
 import { MailIcon } from "./ui/Icons";
 import { ToneIcon } from "./ui/Toast";
 import { buttonClass } from "./ui/buttonStyles";
-import { HEADER_BADGE, HEADER_ICON_BUTTON } from "./header/HeaderButtons";
+import { BadgeCount, HEADER_BADGE, HEADER_ICON_BUTTON } from "./header/HeaderButtons";
 import { popoverRight } from "./ui/popoverPlacement";
 import { useT, type MessageKey, type Translate } from "../lib/i18n";
 
@@ -149,7 +149,7 @@ export function NotificationInbox({
         <BellIcon />
         {unread > 0 && (
           <span className={HEADER_BADGE}>
-            {unread > 99 ? "99+" : unread}
+            <BadgeCount count={unread} cap={99} />
           </span>
         )}
       </button>

@@ -1157,7 +1157,6 @@ export const zhCN: PartialCatalog = {
   "osd.timelineZoom": "时间轴缩放",
   "osd.playfieldSize": "游玩区域大小",
   "osd.interfaceSize": "界面大小",
-  "osd.playbackRate": "播放速度",
   "osd.wheel": "滚轮",
   "app.presetSkinFailed": "无法加载该预设皮肤。",
   "app.readingArchive": "正在读取压缩包",

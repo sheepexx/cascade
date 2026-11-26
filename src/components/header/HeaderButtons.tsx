@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { RollingNumber } from "../ui/RollingNumber";
 
 /**
  * The header's icon buttons: quiet until hovered, lit while their popover is
@@ -10,9 +11,21 @@ export const HEADER_ICON_BUTTON =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " +
   "disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent";
 
-/** A count on a header icon, cut out of the bar with a ring in its colour. */
+/** A count on a header icon, cut out of the bar with a ring in its colour.
+ *  It pops in when it appears (index.css, .badge-pop). */
 export const HEADER_BADGE =
-  "absolute right-0 top-0 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent px-[3px] text-[9px] font-bold leading-none text-white ring-2 ring-ink-900";
+  "badge-pop absolute right-0 top-0 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent px-[3px] text-[9px] font-bold leading-none text-white ring-2 ring-ink-900";
+
+/** The number on a header badge, rolling as it changes; past `cap` it
+ *  reads "9+" or "99+". */
+export function BadgeCount({ count, cap }: { count: number; cap: number }) {
+  return (
+    <RollingNumber
+      value={Math.min(count, cap + 1)}
+      format={(n) => (n > cap ? `${cap}+` : String(n))}
+    />
+  );
+}
 
 /**
  * One entry in the editor's menu bar. `active` marks the tool whose window

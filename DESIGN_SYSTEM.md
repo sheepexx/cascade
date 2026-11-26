@@ -352,6 +352,26 @@ Content is capped at `max-w-[44rem]` so labels and controls stay close.
   `--motion-enter` 200ms, `--motion-exit` 150ms. Dialogs lift 6px and fade;
   menus drop 4px. No overshoot or bounce outside the main menu and HUD,
   where it is part of the rhythm-game feel. Keep `src/lib/motion.ts` in step.
+- **Nothing pops.** Anything that changes because of what the mapper did
+  moves there instead, with the shared pieces:
+  - Numbers that change (star rating, pp, note counts, online count, badge
+    counts) roll like a meter: `RollingNumber`, or `RollingInText` for a
+    translated sentence with the number in it. The wheels are drawn with
+    generated content, so the element's text is still just the number.
+  - Lists that gain, lose or reorder items (the difficulty list) use
+    `AnimatedList`: rows open, fold away and glide to their new place.
+  - One selection mark per group, sliding to the selected item:
+    `SlidingHitLine` in any container of `.hit-line-left` or
+    `.hit-line-bottom` items (it hides their own marks), and a sliding plate
+    for button groups (`useSlidingPlate`, as in the playback speed and the
+    rate presets). The segmented control's pill already slides.
+  - Panels that open in place grow to their own height (the rate changer's
+    0fr to 1fr grid row), never to a guessed `max-height`.
+  - Text fields type the osu!lazer way (`src/lib/typingFx.ts`, installed
+    once in `main.tsx`): typed letters drop in, deleted ones fall out and
+    the caret glides. It covers every text, search, url and tel input and
+    every textarea with no work in the component; `data-typing-fx="off"`
+    opts a field out.
 - **Hover** tints; **pressed** tints darker. No scale-on-press.
 - **Focus**: every focusable element shows an accent outline or ring on
   keyboard focus only (`:focus-visible`). A global rule covers anything that

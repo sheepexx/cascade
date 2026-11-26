@@ -371,8 +371,15 @@ export function DockFrame({
         const spec = specs[id];
         const place = geometry.panels[id];
         if (!spec || !place) return null;
+        // A panel hidden in this render was showing in the last one: keep it
+        // until the effect below has marked it as leaving, or its content
+        // would unmount for a frame and come back empty.
         const mounted =
-          place.visible || arranging || spec.keepMounted || mountedHidden.has(id);
+          place.visible ||
+          arranging ||
+          spec.keepMounted ||
+          mountedHidden.has(id) ||
+          prevVisible.current[id] === true;
         const crossMode = spec.cross[place.orientation];
         const lengthMode = spec.length[place.orientation];
         const sizing = place.visible ? place.rect : (lastShown.current[id] ?? place.rect);

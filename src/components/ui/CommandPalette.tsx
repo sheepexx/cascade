@@ -20,6 +20,7 @@ import {
   showNewBadge,
 } from "../../lib/paletteSearch";
 import { playUiSound } from "../../lib/uiSounds";
+import { SlidingHitLine } from "./SlidingHitLine";
 import { useT } from "../../lib/i18n";
 
 export type PaletteCommand = {
@@ -160,7 +161,8 @@ export function CommandPalette({
           <kbd className="keycap">{t("palette.esc")}</kbd>
         </label>
 
-        <div role="listbox" className="min-h-0 overflow-y-auto p-1.5">
+        <div role="listbox" className="relative min-h-0 overflow-y-auto p-1.5">
+          <SlidingHitLine />
           {results.length ? (
             results.map((command, index) => (
               <button

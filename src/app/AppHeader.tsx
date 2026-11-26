@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { AccountControl, type SocialMenuTarget } from "../components/auth/LoginButton";
 import { DesktopDownloadLink } from "../components/DesktopDownloadLink";
 import {
+  BadgeCount,
   HEADER_BADGE,
   HEADER_ICON_BUTTON,
   IconButton,
@@ -569,7 +570,7 @@ export function AppHeader({
                 <CommentIcon className="h-4 w-4" />
                 {commentUnreadCount > 0 && (
                   <span className={HEADER_BADGE}>
-                    {commentUnreadCount > 9 ? "9+" : commentUnreadCount}
+                    <BadgeCount count={commentUnreadCount} cap={9} />
                   </span>
                 )}
               </IconButton>
@@ -744,7 +745,7 @@ function SocialButton({
       </svg>
       {total > 0 && (
         <span className={HEADER_BADGE}>
-          {total > 99 ? "99+" : total}
+          <BadgeCount count={total} cap={99} />
         </span>
       )}
     </button>

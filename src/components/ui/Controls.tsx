@@ -9,6 +9,7 @@ import { formatUiNumber } from "../../lib/formatUiNumber";
 import { playSliderTick } from "../../lib/uiSounds";
 import { mergeClasses } from "./cx";
 import { buttonClass, type ButtonVariant } from "./buttonStyles";
+import { SlidingHitLine } from "./SlidingHitLine";
 
 /** The nub's widest, per size, in px; --thumb in index.css is the same. */
 const SLIDER_THUMB = { sm: 8, md: 10 } as const;
@@ -392,9 +393,10 @@ export function SegmentedControl<T extends string>({
       <div
         ref={listRef}
         role="tablist"
-        className={`ui-tabs flex min-w-0 items-stretch gap-1 overflow-x-auto border-b border-white/[0.07] no-scrollbar ${className}`}
+        className={`ui-tabs relative flex min-w-0 items-stretch gap-1 overflow-x-auto border-b border-white/[0.07] no-scrollbar ${className}`}
         style={accent ? ({ "--hit-line": accent } as CSSProperties) : undefined}
       >
+        <SlidingHitLine edge="bottom" />
         {options.map((option) => {
           const active = value === option.value;
           return (

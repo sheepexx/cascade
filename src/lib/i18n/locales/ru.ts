@@ -1252,7 +1252,6 @@ export const ru: PartialCatalog = {
   "osd.timelineZoom": "Масштаб таймлайна",
   "osd.playfieldSize": "Размер игрового поля",
   "osd.interfaceSize": "Размер интерфейса",
-  "osd.playbackRate": "Скорость воспроизведения",
   "osd.wheel": "Колесо",
   "app.presetSkinFailed": "Не удалось загрузить этот готовый скин.",
   "app.readingArchive": "Чтение архива",

@@ -28,6 +28,7 @@ import { formatLength } from "../../lib/shareCard";
 import { starColor, starTextOn } from "../../lib/starRating";
 import { Dropdown } from "../ui/Dropdown";
 import { SkeletonListRows } from "../ui/Skeleton";
+import { SlidingHitLine } from "../ui/SlidingHitLine";
 import { INPUT_CLASS } from "../ui/Controls";
 import { buttonClass } from "../ui/buttonStyles";
 import {
@@ -187,7 +188,8 @@ export function MapLibrary({
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label={t("social.mapCategories")} className="no-scrollbar flex gap-1 overflow-x-auto border-b border-white/[0.07]">
+      <div role="tablist" aria-label={t("social.mapCategories")} className="no-scrollbar relative flex gap-1 overflow-x-auto border-b border-white/[0.07]">
+        <SlidingHitLine edge="bottom" />
         {categories.map((value) => {
           const count = categoryCount(counts, value) ?? (value === "cascade" ? projects.length : null);
           return (
